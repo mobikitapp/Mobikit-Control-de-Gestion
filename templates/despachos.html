@@ -1,0 +1,177 @@
+
+{% extends "base.html" %}
+
+{% block title %}Despachos - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-truck"></i> Despachos Programados</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoDespachoModal">
+        <i class="fas fa-plus"></i> Programar Despacho
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Lista de Despachos</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Proyecto</th>
+                        <th>Cliente</th>
+                        <th>Fecha Programada</th>
+                        <th>Transportista</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for despacho in despachos %}
+                    <tr>
+                        <td><strong>{{ despacho[2] }}</strong></td>
+                        <td>{{ despacho[11] }} ({{ despacho[12] }})</td>
+                        <td>{{ despacho[13] or 'N/A' }}</td>
+                        <td>{{ despacho[8] }}</td>
+                        <td>{{ despacho[3] or 'N/A' }}</td>
+                        <td>
+                            <span class="badge bg-{{ despacho[10] }}">
+                                {{ despacho[10].replace('_', ' ').title() }}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="verDetalleDespacho({{ despacho[0] }})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            {% if despacho[10] == 'programado' %}
+                            <button class="btn btn-sm btn-success" onclick="marcarEnTransito({{ despacho[0] }})">
+                                <i class="fas fa-truck"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para nuevo despacho -->
+<div class="modal fade" id="nuevoDespachoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Programar Nuevo Despacho</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('programar_despacho') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="proyecto_id" class="form-label">Proyecto *</label>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id" required>
+                                    <option value="">Seleccionar proyecto...</option>
+                                    <!-- Se puede cargar dinámicamente con JavaScript -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fecha_programada" class="form-label">Fecha de Despacho *</label>
+                                <input type="date" class="form-control" id="fecha_programada" name="fecha_programada" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="transportista" class="form-label">Transportista</label>
+                                <input type="text" class="form-control" id="transportista" name="transportista">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="conductor" class="form-label">Conductor</label>
+                                <input type="text" class="form-control" id="conductor" name="conductor">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="telefono_conductor" class="form-label">Teléfono Conductor</label>
+                                <input type="tel" class="form-control" id="telefono_conductor" name="telefono_conductor">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="vehiculo_patente" class="form-label">Patente Vehículo</label>
+                                <input type="text" class="form-control" id="vehiculo_patente" name="vehiculo_patente">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="direccion_entrega" class="form-label">Dirección de Entrega *</label>
+                        <textarea class="form-control" id="direccion_entrega" name="direccion_entrega" rows="2" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Programar Despacho</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Cargar proyectos disponibles para despacho
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/proyectos_para_despacho')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('proyecto_id');
+            data.forEach(proyecto => {
+                const option = document.createElement('option');
+                option.value = proyecto.id;
+                option.textContent = `${proyecto.codigo} - ${proyecto.nombre}`;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error:', error));
+});
+
+function verDetalleDespacho(despachoId) {
+    // Implementar vista de detalle del despacho
+    window.location.href = `/despacho/${despachoId}`;
+}
+
+function marcarEnTransito(despachoId) {
+    if (confirm('¿Marcar este despacho como en tránsito?')) {
+        fetch(`/despacho/${despachoId}/en_transito`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error al actualizar el estado del despacho');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

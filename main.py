@@ -540,6 +540,212 @@ def nuevo_usuario():
     return redirect(url_for('usuarios'))
 
 
+@app.route('/programar_despacho', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def programar_despacho():
+    """
+    Endpoint para programar despachos y crear recordatorios automáticos
+    """
+    try:
+        proyecto_id = request.form.get('proyecto_id')
+        fecha_programada = request.form.get('fecha_programada')
+        transportista = request.form.get('transportista', '')
+        conductor = request.form.get('conductor', '')
+        telefono_conductor = request.form.get('telefono_conductor', '')
+        vehiculo_patente = request.form.get('vehiculo_patente', '')
+        direccion_entrega = request.form.get('direccion_entrega')
+        observaciones = request.form.get('observaciones', '')
+
+        if not all([proyecto_id, fecha_programada, direccion_entrega]):
+            flash('Faltan datos obligatorios para programar el despacho', 'error')
+            return redirect(request.referrer or url_for('proyectos'))
+
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Verificar que el proyecto existe y obtener información
+        cursor.execute('''
+            SELECT p.id, p.nombre, p.codigo, c.nombre as cliente_nombre
+            FROM proyectos p
+            LEFT JOIN clientes c ON p.cliente_id = c.id
+            WHERE p.id = ?
+        ''', (proyecto_id,))
+        proyecto = cursor.fetchone()
+
+        if not proyecto:
+            flash('Proyecto no encontrado', 'error')
+            conn.close()
+            return redirect(request.referrer or url_for('proyectos'))
+
+        # Generar código único para el despacho
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE strftime("%Y", fecha_programada) = strftime("%Y", ?)', (fecha_programada,))
+        despacho_numero = cursor.fetchone()[0] + 1
+        codigo_despacho = f"DESP-{datetime.now().year}-{despacho_numero:04d}"
+
+        # Insertar el despacho
+        cursor.execute('''
+            INSERT INTO despachos (
+                proyecto_id, codigo_despacho, transportista, conductor, 
+                telefono_conductor, vehiculo_patente, direccion_entrega, 
+                fecha_programada, observaciones, estado
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (proyecto_id, codigo_despacho, transportista, conductor, 
+              telefono_conductor, vehiculo_patente, direccion_entrega, 
+              fecha_programada, observaciones, 'programado'))
+
+        despacho_id = cursor.lastrowid
+
+        # Calcular fecha de recordatorio según la categoría del proyecto
+        fecha_despacho = datetime.strptime(fecha_programada, '%Y-%m-%d').date()
+        
+        # Definir días de anticipación según el tipo de mueble/proyecto
+        # Estas reglas se pueden ajustar según las necesidades del negocio
+        recordatorio_dias = {
+            'escritorio': 5,
+            'comedor': 7,
+            'cocina': 10,
+            'dormitorio': 8,
+            'oficina': 4,
+            'living': 6,
+            'default': 5
+        }
+
+        # Determinar categoría basada en el nombre del proyecto
+        categoria_proyecto = 'default'
+        nombre_proyecto_lower = proyecto[1].lower()
+        for categoria in recordatorio_dias.keys():
+            if categoria in nombre_proyecto_lower:
+                categoria_proyecto = categoria
+                break
+
+        dias_anticipacion = recordatorio_dias[categoria_proyecto]
+        fecha_recordatorio = fecha_despacho - timedelta(days=dias_anticipacion)
+
+        # Crear recordatorio para el área de producción
+        cursor.execute('SELECT id FROM areas WHERE nombre = "Producción" LIMIT 1')
+        area_produccion = cursor.fetchone()
+        area_id = area_produccion[0] if area_produccion else None
+
+        titulo_recordatorio = f"Recordatorio: Finalizar producción para despacho {codigo_despacho}"
+        mensaje_recordatorio = f"El proyecto '{proyecto[1]}' (código: {proyecto[2]}) debe estar listo para despacho el {fecha_programada}. Cliente: {proyecto[3]}"
+
+        cursor.execute('''
+            INSERT INTO recordatorios (
+                tipo, referencia_id, area_id, titulo, mensaje, 
+                fecha_recordatorio, activo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', ('despacho', despacho_id, area_id, titulo_recordatorio, 
+              mensaje_recordatorio, fecha_recordatorio, True))
+
+        # Crear recordatorio adicional para el día anterior al despacho
+        fecha_recordatorio_urgente = fecha_despacho - timedelta(days=1)
+        
+        cursor.execute('SELECT id FROM areas WHERE nombre = "Despacho" LIMIT 1')
+        area_despacho = cursor.fetchone()
+        area_despacho_id = area_despacho[0] if area_despacho else None
+
+        titulo_urgente = f"Despacho programado mañana: {codigo_despacho}"
+        mensaje_urgente = f"Mañana ({fecha_programada}) está programado el despacho del proyecto '{proyecto[1]}' a {direccion_entrega}"
+
+        cursor.execute('''
+            INSERT INTO recordatorios (
+                tipo, referencia_id, area_id, titulo, mensaje, 
+                fecha_recordatorio, activo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', ('despacho', despacho_id, area_despacho_id, titulo_urgente, 
+              mensaje_urgente, fecha_recordatorio_urgente, True))
+
+        # Actualizar estado del proyecto si es necesario
+        cursor.execute('UPDATE proyectos SET estado = "despacho" WHERE id = ? AND estado != "entregado"', (proyecto_id,))
+
+        conn.commit()
+        conn.close()
+
+        flash(f'Despacho {codigo_despacho} programado exitosamente. Recordatorios creados automáticamente.', 'success')
+        return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+
+    except Exception as e:
+        flash(f'Error al programar despacho: {str(e)}', 'error')
+        return redirect(request.referrer or url_for('proyectos'))
+
+
+@app.route('/despachos')
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def despachos():
+    """Ver todos los despachos programados"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT d.*, p.nombre as proyecto_nombre, p.codigo as proyecto_codigo,
+               c.nombre as cliente_nombre
+        FROM despachos d
+        JOIN proyectos p ON d.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        ORDER BY d.fecha_programada ASC
+    ''')
+    despachos_list = cursor.fetchall()
+    conn.close()
+    
+    return render_template('despachos.html', despachos=despachos_list)
+
+
+@app.route('/recordatorios_activos')
+@login_required
+def recordatorios_activos():
+    """Ver recordatorios activos del usuario o área"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    # Obtener área del usuario actual
+    cursor.execute('SELECT area_id FROM usuarios WHERE id = ?', (session['user_id'],))
+    user_area = cursor.fetchone()
+    
+    query = '''
+        SELECT r.*, u.nombre as usuario_nombre, a.nombre as area_nombre
+        FROM recordatorios r
+        LEFT JOIN usuarios u ON r.usuario_id = u.id
+        LEFT JOIN areas a ON r.area_id = a.id
+        WHERE r.activo = TRUE AND r.fecha_recordatorio <= date('now', '+7 days')
+    '''
+    params = []
+    
+    # Filtrar por usuario o área si no es admin
+    if session['user_role'] != 'admin':
+        query += ' AND (r.usuario_id = ? OR r.area_id = ?)'
+        params.extend([session['user_id'], user_area[0] if user_area else None])
+    
+    query += ' ORDER BY r.fecha_recordatorio ASC'
+    
+    cursor.execute(query, params)
+    recordatorios_list = cursor.fetchall()
+    conn.close()
+    
+    return render_template('recordatorios.html', recordatorios=recordatorios_list)
+
+
+@app.route('/marcar_recordatorio_enviado/<int:recordatorio_id>', methods=['POST'])
+@login_required
+def marcar_recordatorio_enviado(recordatorio_id):
+    """Marcar un recordatorio como enviado"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        UPDATE recordatorios 
+        SET enviado = TRUE, fecha_envio = CURRENT_TIMESTAMP 
+        WHERE id = ?
+    ''', (recordatorio_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Recordatorio marcado como enviado', 'success')
+    return redirect(url_for('recordatorios_activos'))
+
+
 @app.route('/reportes')
 @login_required
 @role_required(['admin', 'general'])
