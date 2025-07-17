@@ -26,7 +26,29 @@ def init_db():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
     
-    # Tabla de usuarios
+    # Ejecutar el schema completo desde el archivo SQL
+    try:
+        with open('database_schema.sql', 'r', encoding='utf-8') as f:
+            schema_sql = f.read()
+            cursor.executescript(schema_sql)
+    except FileNotFoundError:
+        # Fallback: crear solo las tablas básicas si no existe el archivo de schema
+        create_basic_tables(cursor)
+    
+    # Crear usuario admin por defecto si no existe
+    cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = "admin"')
+    if cursor.fetchone()[0] == 0:
+        admin_password = generate_password_hash('admin123')
+        cursor.execute('''
+            INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', ('admin', admin_password, 'admin', 'Administrador', 'admin@mobikit.com', True))
+    
+    conn.commit()
+    conn.close()
+
+def create_basic_tables(cursor):
+    """Crear tablas básicas como fallback"""
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,84 +56,59 @@ def init_db():
             password_hash TEXT NOT NULL,
             rol TEXT NOT NULL,
             nombre TEXT NOT NULL,
-            email TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            apellido TEXT,
+            email TEXT UNIQUE,
+            telefono TEXT,
+            area_id INTEGER,
+            activo BOOLEAN DEFAULT TRUE,
+            ultimo_acceso TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Tabla de proyectos/muebles
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS clientes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            rut TEXT UNIQUE,
+            email TEXT,
+            telefono TEXT,
+            direccion TEXT,
+            ciudad TEXT,
+            region TEXT,
+            contacto_principal TEXT,
+            observaciones TEXT,
+            activo BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS proyectos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo TEXT UNIQUE NOT NULL,
             nombre TEXT NOT NULL,
-            cliente TEXT NOT NULL,
+            cliente_id INTEGER NOT NULL,
             descripcion TEXT,
             estado TEXT DEFAULT 'diseño',
+            prioridad TEXT DEFAULT 'media',
             fecha_inicio DATE,
             fecha_entrega DATE,
+            fecha_entrega_real DATE,
             diseñador_id INTEGER,
+            supervisor_id INTEGER,
+            presupuesto DECIMAL(12,2),
+            costo_real DECIMAL(12,2),
+            observaciones TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (diseñador_id) REFERENCES usuarios (id)
+            FOREIGN KEY (cliente_id) REFERENCES clientes (id),
+            FOREIGN KEY (diseñador_id) REFERENCES usuarios (id),
+            FOREIGN KEY (supervisor_id) REFERENCES usuarios (id)
         )
     ''')
-    
-    # Tabla de tareas
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tareas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            proyecto_id INTEGER NOT NULL,
-            titulo TEXT NOT NULL,
-            descripcion TEXT,
-            rol_asignado TEXT NOT NULL,
-            usuario_asignado_id INTEGER,
-            estado TEXT DEFAULT 'pendiente',
-            fecha_programada DATE,
-            fecha_completada TIMESTAMP,
-            evidencias TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (proyecto_id) REFERENCES proyectos (id),
-            FOREIGN KEY (usuario_asignado_id) REFERENCES usuarios (id)
-        )
-    ''')
-    
-    # Tabla de evidencias
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS evidencias (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tarea_id INTEGER NOT NULL,
-            tipo TEXT NOT NULL,
-            archivo TEXT NOT NULL,
-            descripcion TEXT,
-            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (tarea_id) REFERENCES tareas (id)
-        )
-    ''')
-    
-    # Tabla de recordatorios
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS recordatorios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tarea_id INTEGER NOT NULL,
-            mensaje TEXT NOT NULL,
-            fecha_recordatorio TIMESTAMP NOT NULL,
-            enviado BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (tarea_id) REFERENCES tareas (id)
-        )
-    ''')
-    
-    # Crear usuario admin por defecto
-    cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = "admin"')
-    if cursor.fetchone()[0] == 0:
-        admin_password = generate_password_hash('admin123')
-        cursor.execute('''
-            INSERT INTO usuarios (username, password_hash, rol, nombre, email)
-            VALUES (?, ?, ?, ?, ?)
-        ''', ('admin', admin_password, 'admin', 'Administrador', 'admin@mobikit.com'))
-    
-    conn.commit()
-    conn.close()
 
 def login_required(f):
     @wraps(f)
