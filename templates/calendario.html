@@ -1,0 +1,297 @@
+
+{% extends "base.html" %}
+
+{% block title %}Calendario - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-calendar-alt"></i> Calendario de Eventos</h1>
+    <div class="btn-group" role="group">
+        <input type="checkbox" class="btn-check" id="showDespachos" checked>
+        <label class="btn btn-outline-primary" for="showDespachos">
+            <i class="fas fa-truck"></i> Despachos
+        </label>
+        
+        <input type="checkbox" class="btn-check" id="showTareas" checked>
+        <label class="btn btn-outline-success" for="showTareas">
+            <i class="fas fa-tasks"></i> Tareas
+        </label>
+        
+        <input type="checkbox" class="btn-check" id="showRecordatorios" checked>
+        <label class="btn btn-outline-warning" for="showRecordatorios">
+            <i class="fas fa-bell"></i> Recordatorios
+        </label>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<!-- Modal para detalles del evento -->
+<div class="modal fade" id="eventModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventModalTitle">Detalle del Evento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="eventModalBody">
+                <!-- Contenido dinámico -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="editEventBtn" style="display: none;">
+                    <i class="fas fa-edit"></i> Editar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@6.1.15/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    let calendar;
+    
+    // Inicializar FullCalendar
+    calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        height: 'auto',
+        editable: true,
+        selectable: true,
+        dayMaxEvents: true,
+        
+        // Cargar eventos
+        events: function(info, successCallback, failureCallback) {
+            loadCalendarEvents(successCallback, failureCallback);
+        },
+        
+        // Manejar cambio de fecha por drag & drop
+        eventDrop: function(info) {
+            updateEventDate(info.event, info.event.start);
+        },
+        
+        // Manejar cambio de duración
+        eventResize: function(info) {
+            updateEventDate(info.event, info.event.start, info.event.end);
+        },
+        
+        // Manejar clic en evento
+        eventClick: function(info) {
+            showEventDetails(info.event);
+        },
+        
+        // Configuración de colores por tipo
+        eventDidMount: function(info) {
+            const event = info.event;
+            const eventType = event.extendedProps.type;
+            
+            // Aplicar colores según el tipo
+            if (eventType === 'despacho') {
+                info.el.style.backgroundColor = '#dc3545';
+                info.el.style.borderColor = '#dc3545';
+            } else if (eventType === 'tarea') {
+                info.el.style.backgroundColor = '#28a745';
+                info.el.style.borderColor = '#28a745';
+            } else if (eventType === 'recordatorio') {
+                info.el.style.backgroundColor = '#ffc107';
+                info.el.style.borderColor = '#ffc107';
+                info.el.style.color = '#000';
+            }
+        }
+    });
+    
+    calendar.render();
+    
+    // Función para cargar eventos del calendario
+    function loadCalendarEvents(successCallback, failureCallback) {
+        fetch('/api/calendar_events')
+            .then(response => response.json())
+            .then(data => {
+                const filteredEvents = filterEventsByCheckboxes(data);
+                successCallback(filteredEvents);
+            })
+            .catch(error => {
+                console.error('Error cargando eventos:', error);
+                failureCallback(error);
+            });
+    }
+    
+    // Filtrar eventos según los checkboxes
+    function filterEventsByCheckboxes(events) {
+        const showDespachos = document.getElementById('showDespachos').checked;
+        const showTareas = document.getElementById('showTareas').checked;
+        const showRecordatorios = document.getElementById('showRecordatorios').checked;
+        
+        return events.filter(event => {
+            if (event.type === 'despacho' && !showDespachos) return false;
+            if (event.type === 'tarea' && !showTareas) return false;
+            if (event.type === 'recordatorio' && !showRecordatorios) return false;
+            return true;
+        });
+    }
+    
+    // Actualizar fecha del evento
+    function updateEventDate(event, newStart, newEnd = null) {
+        const eventData = {
+            id: event.id,
+            type: event.extendedProps.type,
+            start: newStart.toISOString().split('T')[0],
+            end: newEnd ? newEnd.toISOString().split('T')[0] : null
+        };
+        
+        fetch('/api/update_event_date', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(eventData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Evento actualizado exitosamente', 'success');
+            } else {
+                showAlert('Error al actualizar evento: ' + data.message, 'error');
+                event.revert();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error de conexión al actualizar evento', 'error');
+            event.revert();
+        });
+    }
+    
+    // Mostrar detalles del evento
+    function showEventDetails(event) {
+        const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+        const modalTitle = document.getElementById('eventModalTitle');
+        const modalBody = document.getElementById('eventModalBody');
+        const editBtn = document.getElementById('editEventBtn');
+        
+        modalTitle.textContent = event.title;
+        
+        // Construir contenido del modal según el tipo
+        let content = '';
+        const props = event.extendedProps;
+        
+        if (props.type === 'despacho') {
+            content = `
+                <div class="row">
+                    <div class="col-6"><strong>Tipo:</strong></div>
+                    <div class="col-6"><span class="badge bg-danger">Despacho</span></div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6"><strong>Proyecto:</strong></div>
+                    <div class="col-6">${props.proyecto || 'N/A'}</div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6"><strong>Cliente:</strong></div>
+                    <div class="col-6">${props.cliente || 'N/A'}</div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6"><strong>Dirección:</strong></div>
+                    <div class="col-6">${props.direccion || 'N/A'}</div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6"><strong>Estado:</strong></div>
+                    <div class="col-6"><span class="badge bg-info">${props.estado || 'N/A'}</span></div>
+                </div>
+            `;
+            editBtn.onclick = () => window.location.href = `/editar_despacho/${event.id}`;
+            editBtn.style.display = 'inline-block';
+        } else if (props.type === 'tarea') {
+            content = `
+                <div class="row">
+                    <div class="col-6"><strong>Tipo:</strong></div>
+                    <div class="col-6"><span class="badge bg-success">Tarea</span></div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6"><strong>Proyecto:</strong></div>
+                    <div class="col-6">${props.proyecto || 'N/A'}</div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6"><strong>Asignado a:</strong></div>
+                    <div class="col-6">${props.asignado || props.rol_asignado || 'N/A'}</div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6"><strong>Estado:</strong></div>
+                    <div class="col-6"><span class="badge bg-info">${props.estado || 'N/A'}</span></div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-12"><strong>Descripción:</strong></div>
+                    <div class="col-12">${props.descripcion || 'Sin descripción'}</div>
+                </div>
+            `;
+            editBtn.onclick = () => window.location.href = `/tarea/${event.id}`;
+            editBtn.style.display = 'inline-block';
+        } else if (props.type === 'recordatorio') {
+            content = `
+                <div class="row">
+                    <div class="col-6"><strong>Tipo:</strong></div>
+                    <div class="col-6"><span class="badge bg-warning text-dark">Recordatorio</span></div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6"><strong>Para:</strong></div>
+                    <div class="col-6">${props.usuario || props.area || 'N/A'}</div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-12"><strong>Mensaje:</strong></div>
+                    <div class="col-12">${props.mensaje || 'Sin mensaje'}</div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6"><strong>Estado:</strong></div>
+                    <div class="col-6">
+                        <span class="badge ${props.enviado ? 'bg-success' : 'bg-secondary'}">
+                            ${props.enviado ? 'Enviado' : 'Pendiente'}
+                        </span>
+                    </div>
+                </div>
+            `;
+            editBtn.style.display = 'none';
+        }
+        
+        modalBody.innerHTML = content;
+        modal.show();
+    }
+    
+    // Función para mostrar alertas
+    function showAlert(message, type) {
+        const alertContainer = document.querySelector('.container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        alertContainer.insertBefore(alertDiv, alertContainer.firstChild);
+        
+        // Auto-hide después de 5 segundos
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+    
+    // Event listeners para los checkboxes de filtro
+    document.getElementById('showDespachos').addEventListener('change', () => calendar.refetchEvents());
+    document.getElementById('showTareas').addEventListener('change', () => calendar.refetchEvents());
+    document.getElementById('showRecordatorios').addEventListener('change', () => calendar.refetchEvents());
+});
+</script>
+{% endblock %}

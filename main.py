@@ -1026,6 +1026,157 @@ def marcar_recordatorio_enviado(recordatorio_id):
     return redirect(url_for('recordatorios_activos'))
 
 
+@app.route('/calendario')
+@login_required
+def calendario():
+    """Vista de calendario interactivo"""
+    return render_template('calendario.html')
+
+
+@app.route('/api/calendar_events')
+@login_required
+def api_calendar_events():
+    """API para obtener eventos del calendario"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    events = []
+    
+    # Obtener despachos
+    cursor.execute('''
+        SELECT d.id, d.codigo_despacho, d.fecha_programada, d.estado,
+               p.nombre as proyecto_nombre, c.nombre as cliente_nombre,
+               d.direccion_entrega
+        FROM despachos d
+        JOIN proyectos p ON d.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE d.fecha_programada IS NOT NULL
+    ''')
+    
+    for row in cursor.fetchall():
+        events.append({
+            'id': f'despacho_{row[0]}',
+            'title': f'Despacho: {row[1]}',
+            'start': row[2],
+            'type': 'despacho',
+            'backgroundColor': '#dc3545',
+            'borderColor': '#dc3545',
+            'proyecto': row[4],
+            'cliente': row[5],
+            'direccion': row[6],
+            'estado': row[3]
+        })
+    
+    # Obtener tareas
+    cursor.execute('''
+        SELECT t.id, t.titulo, t.fecha_programada, t.estado, t.descripcion,
+               p.nombre as proyecto_nombre, u.nombre as usuario_nombre,
+               t.rol_asignado
+        FROM tareas t
+        LEFT JOIN proyectos p ON t.proyecto_id = p.id
+        LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
+        WHERE t.fecha_programada IS NOT NULL
+    ''')
+    
+    for row in cursor.fetchall():
+        events.append({
+            'id': f'tarea_{row[0]}',
+            'title': f'Tarea: {row[1]}',
+            'start': row[2],
+            'type': 'tarea',
+            'backgroundColor': '#28a745',
+            'borderColor': '#28a745',
+            'proyecto': row[5],
+            'asignado': row[6],
+            'rol_asignado': row[7],
+            'estado': row[3],
+            'descripcion': row[4]
+        })
+    
+    # Obtener recordatorios
+    cursor.execute('''
+        SELECT r.id, r.titulo, r.fecha_recordatorio, r.mensaje, r.enviado,
+               u.nombre as usuario_nombre, a.nombre as area_nombre
+        FROM recordatorios r
+        LEFT JOIN usuarios u ON r.usuario_id = u.id
+        LEFT JOIN areas a ON r.area_id = a.id
+        WHERE r.activo = TRUE AND r.fecha_recordatorio IS NOT NULL
+    ''')
+    
+    for row in cursor.fetchall():
+        events.append({
+            'id': f'recordatorio_{row[0]}',
+            'title': f'Recordatorio: {row[1]}',
+            'start': row[2],
+            'type': 'recordatorio',
+            'backgroundColor': '#ffc107',
+            'borderColor': '#ffc107',
+            'textColor': '#000',
+            'usuario': row[5],
+            'area': row[6],
+            'mensaje': row[3],
+            'enviado': row[4]
+        })
+    
+    conn.close()
+    return jsonify(events)
+
+
+@app.route('/api/update_event_date', methods=['POST'])
+@login_required
+def api_update_event_date():
+    """API para actualizar la fecha de un evento"""
+    try:
+        data = request.get_json()
+        event_id = data['id']
+        event_type = data['type']
+        new_start = data['start']
+        
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+        
+        # Extraer el ID numérico del event_id
+        numeric_id = int(event_id.split('_')[1])
+        
+        if event_type == 'despacho':
+            # Verificar permisos para despachos
+            if session['user_role'] not in ['admin', 'general', 'despacho']:
+                return jsonify({'success': False, 'message': 'Sin permisos para modificar despachos'})
+            
+            cursor.execute('''
+                UPDATE despachos SET fecha_programada = ? WHERE id = ?
+            ''', (new_start, numeric_id))
+            
+        elif event_type == 'tarea':
+            cursor.execute('''
+                UPDATE tareas SET fecha_programada = ? WHERE id = ?
+            ''', (new_start, numeric_id))
+            
+        elif event_type == 'recordatorio':
+            # Verificar permisos para recordatorios
+            if session['user_role'] not in ['admin', 'general']:
+                return jsonify({'success': False, 'message': 'Sin permisos para modificar recordatorios'})
+            
+            cursor.execute('''
+                UPDATE recordatorios SET fecha_recordatorio = ? WHERE id = ?
+            ''', (new_start, numeric_id))
+        
+        else:
+            return jsonify({'success': False, 'message': 'Tipo de evento no válido'})
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Fecha actualizada exitosamente'})
+        else:
+            return jsonify({'success': False, 'message': 'No se encontró el evento'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al actualizar: {str(e)}'})
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+
 @app.route('/api/proyectos_para_despacho')
 @login_required
 @role_required(['admin', 'general', 'despacho'])
