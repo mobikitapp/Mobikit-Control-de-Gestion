@@ -1,0 +1,119 @@
+
+{% extends "base.html" %}
+
+{% block title %}{{ proyecto[1] }} - Mobikit{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('proyectos') }}">Proyectos</a></li>
+        <li class="breadcrumb-item active">{{ proyecto[1] }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-project-diagram"></i> {{ proyecto[1] }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Cliente:</strong> {{ proyecto[2] }}<br>
+                        <strong>Estado:</strong> 
+                        <span class="badge bg-{{ 'primary' if proyecto[4] == 'diseño' else 'info' if proyecto[4] == 'producción' else 'success' }}">
+                            {{ proyecto[4]|title }}
+                        </span><br>
+                        <strong>Diseñador:</strong> {{ proyecto[8] if proyecto[8] else 'Sin asignar' }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Fecha Inicio:</strong> {{ proyecto[5] if proyecto[5] else 'Sin fecha' }}<br>
+                        <strong>Fecha Entrega:</strong> {{ proyecto[6] if proyecto[6] else 'Sin fecha' }}<br>
+                        <strong>Creado:</strong> {{ proyecto[7] }}
+                    </div>
+                </div>
+                
+                {% if proyecto[3] %}
+                <div class="mt-3">
+                    <strong>Descripción:</strong>
+                    <p>{{ proyecto[3] }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6>Progreso del Proyecto</h6>
+            </div>
+            <div class="card-body">
+                {% set total_tareas = tareas|length %}
+                {% set tareas_completadas = tareas|selectattr('5', 'equalto', 'completada')|list|length %}
+                {% set progreso = (tareas_completadas / total_tareas * 100) if total_tareas > 0 else 0 %}
+                
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: {{ progreso }}%">
+                        {{ "%.0f"|format(progreso) }}%
+                    </div>
+                </div>
+                
+                <small class="text-muted">
+                    {{ tareas_completadas }} de {{ total_tareas }} tareas completadas
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tareas del Proyecto -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5><i class="fas fa-tasks"></i> Tareas del Proyecto</h5>
+    </div>
+    <div class="card-body">
+        {% if tareas %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Tarea</th>
+                        <th>Rol Asignado</th>
+                        <th>Usuario</th>
+                        <th>Fecha Programada</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tarea in tareas %}
+                    <tr>
+                        <td>{{ tarea[2] }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ tarea[4]|title }}</span>
+                        </td>
+                        <td>{{ tarea[11] if tarea[11] else 'Sin asignar' }}</td>
+                        <td>{{ tarea[7] if tarea[7] else 'Sin fecha' }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if tarea[6] == 'completada' else 'warning' }}">
+                                {{ tarea[6]|title }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('tarea_detalle', tarea_id=tarea[0]) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No hay tareas asignadas a este proyecto.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

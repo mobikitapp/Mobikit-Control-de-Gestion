@@ -1,0 +1,85 @@
+
+{% extends "base.html" %}
+
+{% block title %}Reportes - Mobikit{% endblock %}
+
+{% block content %}
+<h1><i class="fas fa-chart-bar"></i> Reportes y Estadísticas</h1>
+
+<div class="row">
+    <!-- Estados de Proyectos -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6>Estados de Proyectos</h6>
+            </div>
+            <div class="card-body">
+                {% if estados_proyecto %}
+                {% for estado in estados_proyecto %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>{{ estado[0]|title }}</span>
+                    <span class="badge bg-primary">{{ estado[1] }}</span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted">No hay datos disponibles</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tareas por Rol -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6>Tareas por Rol</h6>
+            </div>
+            <div class="card-body">
+                {% if tareas_rol %}
+                {% for rol in tareas_rol %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>{{ rol[0]|title }}</span>
+                    <span class="badge bg-secondary">{{ rol[1] }}</span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted">No hay datos disponibles</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Productividad por Usuario -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h6>Productividad por Usuario</h6>
+    </div>
+    <div class="card-body">
+        {% if productividad %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Tareas Completadas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for usuario in productividad %}
+                    <tr>
+                        <td>{{ usuario[0] }}</td>
+                        <td>
+                            <span class="badge bg-success">{{ usuario[1] }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No hay datos de productividad disponibles</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
