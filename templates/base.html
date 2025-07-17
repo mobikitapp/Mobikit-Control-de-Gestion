@@ -13,8 +13,9 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
-                <i class="fas fa-hammer"></i> Mobikit
+            <a class="navbar-brand mobikit-logo" href="{{ url_for('dashboard') }}">
+                <div class="logo-icon"></div>
+                <span>Mobikit Control</span>
             </a>
             
             {% if session.user_id %}
