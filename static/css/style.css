@@ -1,68 +1,208 @@
 
-/* Estilos personalizados para Mobikit */
+/* Estilos personalizados para Mobikit - Paleta oficial */
+
+:root {
+    --mobikit-red: #E31E24;
+    --mobikit-gray: #4A4A4A;
+    --mobikit-light-gray: #6C6C6C;
+    --mobikit-dark-gray: #2D2D2D;
+    --mobikit-white: #FFFFFF;
+    --mobikit-light-bg: #F5F5F5;
+}
 
 body {
-    background-color: #f8f9fa;
+    background-color: var(--mobikit-light-bg);
+    color: var(--mobikit-gray);
+}
+
+/* Navbar con colores Mobikit */
+.navbar-dark.bg-primary {
+    background-color: var(--mobikit-gray) !important;
+    border-bottom: 3px solid var(--mobikit-red);
 }
 
 .navbar-brand {
     font-weight: bold;
+    color: var(--mobikit-white) !important;
 }
 
+.navbar-brand i {
+    color: var(--mobikit-red) !important;
+}
+
+.nav-link {
+    color: var(--mobikit-white) !important;
+}
+
+.nav-link:hover {
+    color: var(--mobikit-red) !important;
+}
+
+/* Cards */
 .card {
     border: none;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    box-shadow: 0 2px 8px rgba(74, 74, 74, 0.1);
     margin-bottom: 1rem;
+    border-left: 4px solid var(--mobikit-red);
 }
 
 .card-header {
-    background-color: #fff;
-    border-bottom: 1px solid #dee2e6;
+    background-color: var(--mobikit-white);
+    border-bottom: 1px solid #E0E0E0;
     font-weight: 600;
+    color: var(--mobikit-gray);
 }
 
-.badge {
-    font-size: 0.75em;
+/* Botones */
+.btn-primary {
+    background-color: var(--mobikit-red);
+    border-color: var(--mobikit-red);
 }
 
+.btn-primary:hover {
+    background-color: #C11A1F;
+    border-color: #C11A1F;
+}
+
+.btn-outline-primary {
+    color: var(--mobikit-red);
+    border-color: var(--mobikit-red);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--mobikit-red);
+    border-color: var(--mobikit-red);
+}
+
+.btn-secondary {
+    background-color: var(--mobikit-gray);
+    border-color: var(--mobikit-gray);
+}
+
+.btn-secondary:hover {
+    background-color: var(--mobikit-dark-gray);
+    border-color: var(--mobikit-dark-gray);
+}
+
+/* Badges con colores específicos para roles */
+.badge.bg-admin { background-color: var(--mobikit-red) !important; }
+.badge.bg-general { background-color: var(--mobikit-gray) !important; }
+.badge.bg-diseñador { background-color: #FF8C42 !important; }
+.badge.bg-operación { background-color: #28A745 !important; }
+.badge.bg-embalaje { background-color: #17A2B8 !important; }
+.badge.bg-despacho { background-color: var(--mobikit-light-gray) !important; }
+
+/* Estados de tareas y proyectos */
+.badge.bg-pendiente { background-color: #FFC107 !important; color: #000; }
+.badge.bg-en-progreso { background-color: var(--mobikit-red) !important; }
+.badge.bg-completada { background-color: #28A745 !important; }
+.badge.bg-diseño { background-color: #FF8C42 !important; }
+.badge.bg-producción { background-color: var(--mobikit-gray) !important; }
+.badge.bg-entregado { background-color: #28A745 !important; }
+
+/* Dashboard cards con paleta Mobikit */
+.card.bg-primary {
+    background-color: var(--mobikit-red) !important;
+    border: none;
+}
+
+.card.bg-warning {
+    background-color: #FF8C42 !important;
+    border: none;
+}
+
+.card.bg-success {
+    background-color: #28A745 !important;
+    border: none;
+}
+
+.card.bg-info {
+    background-color: var(--mobikit-gray) !important;
+    border: none;
+}
+
+/* Tablas */
 .table th {
     border-top: none;
     font-weight: 600;
-    color: #495057;
+    color: var(--mobikit-gray);
+    background-color: #F8F9FA;
 }
 
-.btn {
-    border-radius: 0.375rem;
+.table tbody tr:hover {
+    background-color: rgba(227, 30, 36, 0.05);
 }
 
+/* Forms */
+.form-control:focus {
+    border-color: var(--mobikit-red);
+    box-shadow: 0 0 0 0.2rem rgba(227, 30, 36, 0.25);
+}
+
+/* Links */
+a {
+    color: var(--mobikit-red);
+}
+
+a:hover {
+    color: #C11A1F;
+}
+
+/* Progress bars */
 .progress {
     height: 1rem;
+    background-color: #E9ECEF;
 }
 
+.progress-bar {
+    background-color: var(--mobikit-red);
+}
+
+/* Alerts */
 .alert {
     border: none;
     border-radius: 0.5rem;
+    border-left: 4px solid;
 }
 
-/* Colores específicos para roles */
-.badge.bg-admin { background-color: #dc3545 !important; }
-.badge.bg-general { background-color: #6f42c1 !important; }
-.badge.bg-diseñador { background-color: #fd7e14 !important; }
-.badge.bg-operación { background-color: #198754 !important; }
-.badge.bg-embalaje { background-color: #0dcaf0 !important; }
-.badge.bg-despacho { background-color: #6610f2 !important; }
+.alert-success {
+    border-left-color: #28A745;
+    background-color: rgba(40, 167, 69, 0.1);
+}
 
-/* Estados de tareas y proyectos */
-.badge.bg-pendiente { background-color: #ffc107 !important; color: #000; }
-.badge.bg-en-progreso { background-color: #0d6efd !important; }
-.badge.bg-completada { background-color: #198754 !important; }
-.badge.bg-diseño { background-color: #fd7e14 !important; }
-.badge.bg-producción { background-color: #0dcaf0 !important; color: #000; }
-.badge.bg-entregado { background-color: #198754 !important; }
+.alert-danger {
+    border-left-color: var(--mobikit-red);
+    background-color: rgba(227, 30, 36, 0.1);
+}
 
-/* Dashboard cards */
-.card.bg-primary, .card.bg-warning, .card.bg-success, .card.bg-info {
-    border: none;
+/* Breadcrumb */
+.breadcrumb {
+    background-color: transparent;
+}
+
+.breadcrumb-item.active {
+    color: var(--mobikit-gray);
+}
+
+.breadcrumb-item a {
+    color: var(--mobikit-red);
+}
+
+/* Dropdown */
+.dropdown-menu {
+    border: 1px solid #E0E0E0;
+    box-shadow: 0 2px 8px rgba(74, 74, 74, 0.15);
+}
+
+.dropdown-item:hover {
+    background-color: rgba(227, 30, 36, 0.1);
+}
+
+/* Footer */
+footer {
+    background-color: var(--mobikit-gray) !important;
+    color: var(--mobikit-white);
+    margin-top: auto;
 }
 
 /* Responsive improvements */
@@ -88,19 +228,48 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: #F1F1F1;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: var(--mobikit-light-gray);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: var(--mobikit-gray);
 }
 
-/* Footer styles */
-footer {
-    margin-top: auto;
+/* Logo específico para Mobikit */
+.mobikit-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mobikit-logo .logo-icon {
+    width: 24px;
+    height: 24px;
+    background-color: var(--mobikit-red);
+    border-radius: 3px;
+    position: relative;
+}
+
+.mobikit-logo .logo-icon::before {
+    content: "🚛";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+}
+
+/* Animaciones suaves */
+.btn, .card, .alert {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(74, 74, 74, 0.15);
 }
