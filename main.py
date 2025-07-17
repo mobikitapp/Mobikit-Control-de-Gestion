@@ -113,6 +113,41 @@ def create_basic_tables(cursor):
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tareas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            proyecto_id INTEGER NOT NULL,
+            titulo TEXT NOT NULL,
+            descripcion TEXT,
+            estado TEXT DEFAULT 'pendiente',
+            prioridad TEXT DEFAULT 'media',
+            fecha_programada DATE,
+            fecha_completada TIMESTAMP,
+            usuario_asignado_id INTEGER,
+            rol_asignado TEXT,
+            tiempo_estimado INTEGER,
+            tiempo_real INTEGER,
+            observaciones TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (proyecto_id) REFERENCES proyectos (id),
+            FOREIGN KEY (usuario_asignado_id) REFERENCES usuarios (id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS evidencias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tarea_id INTEGER NOT NULL,
+            tipo TEXT NOT NULL,
+            nombre_archivo TEXT NOT NULL,
+            ruta_archivo TEXT NOT NULL,
+            descripcion TEXT,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (tarea_id) REFERENCES tareas (id)
+        )
+    ''')
+
 
 def login_required(f):
 
@@ -211,9 +246,10 @@ def dashboard():
 
     # Proyectos recientes
     cursor.execute('''
-        SELECT id, nombre, cliente, estado, fecha_entrega
-        FROM proyectos
-        ORDER BY created_at DESC
+        SELECT p.id, p.nombre, c.nombre as cliente, p.estado, p.fecha_entrega
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        ORDER BY p.created_at DESC
         LIMIT 5
     ''')
     proyectos_recientes = cursor.fetchall()
@@ -234,8 +270,9 @@ def proyectos():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT p.id, p.nombre, p.cliente, p.estado, p.fecha_entrega, u.nombre as diseñador
+        SELECT p.id, p.nombre, c.nombre as cliente, p.estado, p.fecha_entrega, u.nombre as diseñador
         FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
         LEFT JOIN usuarios u ON p.diseñador_id = u.id
         ORDER BY p.created_at DESC
     ''')
@@ -289,17 +326,27 @@ def proyecto_detalle(proyecto_id):
 def nuevo_proyecto():
     if request.method == 'POST':
         nombre = request.form['nombre']
-        cliente = request.form['cliente']
+        cliente_nombre = request.form['cliente']
         descripcion = request.form['descripcion']
         fecha_entrega = request.form['fecha_entrega']
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
+        
+        # Create or get client
+        cursor.execute('SELECT id FROM clientes WHERE nombre = ?', (cliente_nombre,))
+        cliente = cursor.fetchone()
+        if not cliente:
+            cursor.execute('INSERT INTO clientes (nombre) VALUES (?)', (cliente_nombre,))
+            cliente_id = cursor.lastrowid
+        else:
+            cliente_id = cliente[0]
+            
         cursor.execute(
             '''
-            INSERT INTO proyectos (nombre, cliente, descripcion, fecha_entrega, diseñador_id, fecha_inicio)
+            INSERT INTO proyectos (nombre, cliente_id, descripcion, fecha_entrega, diseñador_id, fecha_inicio)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (nombre, cliente, descripcion, fecha_entrega, session['user_id'],
+        ''', (nombre, cliente_id, descripcion, fecha_entrega, session['user_id'],
               datetime.now().date()))
 
         proyecto_id = cursor.lastrowid
@@ -535,14 +582,5 @@ def reportes():
 
 
 if __name__ == '__main__':
-
-    def init_db():
-        schema_sql = """
-        CREATE TABLE IF NOT EXISTS clientes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cliente_id INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            -- Other columns as needed
-        );
-        """
-        cursor.executescript(schema_sql)
+    init_db()
+    app.run(host='0.0.0.0', port=5000, debug=True)
