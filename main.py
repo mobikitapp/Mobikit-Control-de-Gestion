@@ -6,17 +6,56 @@ import os
 from datetime import datetime, timedelta
 import json
 from functools import wraps
+import uuid
 
 app = Flask(__name__)
 app.secret_key = 'mobikit_secret_key_2024'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
+# Tipos de archivos permitidos
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx'}
+
 # Crear carpeta de uploads si no existe
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('static/css', exist_ok=True)
 os.makedirs('static/js', exist_ok=True)
 os.makedirs('templates', exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def save_uploaded_file(file, subfolder='despachos'):
+    """Guarda un archivo subido y retorna la ruta relativa"""
+    if file and allowed_file(file.filename):
+        # Crear nombre único para evitar conflictos
+        filename = secure_filename(file.filename)
+        unique_filename = f"{uuid.uuid4()}_{filename}"
+        
+        # Crear directorio si no existe
+        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], subfolder)
+        os.makedirs(upload_path, exist_ok=True)
+        
+        # Guardar archivo
+        file_path = os.path.join(upload_path, unique_filename)
+        file.save(file_path)
+        
+        # Retornar ruta relativa para la base de datos
+        return f"uploads/{subfolder}/{unique_filename}"
+    return None
+
+def delete_file(file_path):
+    """Elimina un archivo del sistema de archivos"""
+    if file_path:
+        full_path = os.path.join('static', file_path)
+        if os.path.exists(full_path):
+            try:
+                os.remove(full_path)
+                return True
+            except Exception as e:
+                print(f"Error al eliminar archivo {full_path}: {e}")
+    return False
 
 # Roles disponibles
 ROLES = ['admin', 'general', 'diseñador', 'operación', 'embalaje', 'despacho']
@@ -692,6 +731,247 @@ def despachos():
     return render_template('despachos.html', despachos=despachos_list)
 
 
+@app.route('/despacho/<int:despacho_id>')
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def despacho_detalle(despacho_id):
+    """Ver detalle de un despacho específico"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    # Obtener datos del despacho
+    cursor.execute('''
+        SELECT d.*, p.nombre as proyecto_nombre, p.codigo as proyecto_codigo,
+               c.nombre as cliente_nombre, c.direccion as cliente_direccion
+        FROM despachos d
+        JOIN proyectos p ON d.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE d.id = ?
+    ''', (despacho_id,))
+    
+    despacho = cursor.fetchone()
+    
+    if not despacho:
+        flash('Despacho no encontrado', 'error')
+        return redirect(url_for('despachos'))
+    
+    # Obtener archivos del despacho
+    cursor.execute('''
+        SELECT * FROM despacho_archivos
+        WHERE despacho_id = ?
+        ORDER BY created_at DESC
+    ''', (despacho_id,))
+    
+    archivos = cursor.fetchall()
+    conn.close()
+    
+    return render_template('despacho_detalle.html', despacho=despacho, archivos=archivos)
+
+
+@app.route('/editar_despacho/<int:despacho_id>', methods=['GET', 'POST'])
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def editar_despacho(despacho_id):
+    """Editar un despacho existente"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            transportista = request.form.get('transportista', '')
+            conductor = request.form.get('conductor', '')
+            telefono_conductor = request.form.get('telefono_conductor', '')
+            vehiculo_patente = request.form.get('vehiculo_patente', '')
+            direccion_entrega = request.form.get('direccion_entrega')
+            observaciones = request.form.get('observaciones', '')
+            fecha_programada = request.form.get('fecha_programada')
+            
+            if not all([direccion_entrega, fecha_programada]):
+                flash('Faltan datos obligatorios', 'error')
+                return redirect(request.referrer)
+            
+            # Actualizar despacho
+            cursor.execute('''
+                UPDATE despachos SET
+                    transportista = ?, conductor = ?, telefono_conductor = ?,
+                    vehiculo_patente = ?, direccion_entrega = ?, observaciones = ?,
+                    fecha_programada = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (transportista, conductor, telefono_conductor, vehiculo_patente,
+                  direccion_entrega, observaciones, fecha_programada, despacho_id))
+            
+            # Manejar archivos subidos
+            for file_key in request.files:
+                file = request.files[file_key]
+                if file and file.filename:
+                    file_path = save_uploaded_file(file, 'despachos')
+                    if file_path:
+                        tipo_archivo = file_key.replace('archivo_', '')
+                        cursor.execute('''
+                            INSERT INTO despacho_archivos (despacho_id, tipo, nombre_original, ruta_archivo)
+                            VALUES (?, ?, ?, ?)
+                        ''', (despacho_id, tipo_archivo, file.filename, file_path))
+            
+            conn.commit()
+            flash('Despacho actualizado exitosamente', 'success')
+            return redirect(url_for('despacho_detalle', despacho_id=despacho_id))
+            
+        except Exception as e:
+            flash(f'Error al actualizar despacho: {str(e)}', 'error')
+            return redirect(request.referrer)
+        finally:
+            conn.close()
+    
+    # GET request - mostrar formulario de edición
+    cursor.execute('''
+        SELECT d.*, p.nombre as proyecto_nombre, p.codigo as proyecto_codigo
+        FROM despachos d
+        JOIN proyectos p ON d.proyecto_id = p.id
+        WHERE d.id = ?
+    ''', (despacho_id,))
+    
+    despacho = cursor.fetchone()
+    conn.close()
+    
+    if not despacho:
+        flash('Despacho no encontrado', 'error')
+        return redirect(url_for('despachos'))
+    
+    return render_template('editar_despacho.html', despacho=despacho)
+
+
+@app.route('/eliminar_despacho/<int:despacho_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def eliminar_despacho(despacho_id):
+    """Eliminar un despacho y sus archivos asociados"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    try:
+        # Obtener archivos para eliminarlos del sistema
+        cursor.execute('SELECT ruta_archivo FROM despacho_archivos WHERE despacho_id = ?', (despacho_id,))
+        archivos = cursor.fetchall()
+        
+        # Eliminar archivos del sistema de archivos
+        for archivo in archivos:
+            delete_file(archivo[0])
+        
+        # Eliminar registros de archivos
+        cursor.execute('DELETE FROM despacho_archivos WHERE despacho_id = ?', (despacho_id,))
+        
+        # Eliminar recordatorios asociados
+        cursor.execute('DELETE FROM recordatorios WHERE tipo = "despacho" AND referencia_id = ?', (despacho_id,))
+        
+        # Eliminar despacho
+        cursor.execute('DELETE FROM despachos WHERE id = ?', (despacho_id,))
+        
+        conn.commit()
+        flash('Despacho eliminado exitosamente', 'success')
+        
+    except Exception as e:
+        flash(f'Error al eliminar despacho: {str(e)}', 'error')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('despachos'))
+
+
+@app.route('/eliminar_archivo_despacho/<int:archivo_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def eliminar_archivo_despacho(archivo_id):
+    """Eliminar un archivo específico de un despacho"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    try:
+        # Obtener información del archivo
+        cursor.execute('SELECT despacho_id, ruta_archivo FROM despacho_archivos WHERE id = ?', (archivo_id,))
+        archivo = cursor.fetchone()
+        
+        if archivo:
+            despacho_id, ruta_archivo = archivo
+            
+            # Eliminar archivo del sistema
+            delete_file(ruta_archivo)
+            
+            # Eliminar registro de la base de datos
+            cursor.execute('DELETE FROM despacho_archivos WHERE id = ?', (archivo_id,))
+            conn.commit()
+            
+            flash('Archivo eliminado exitosamente', 'success')
+            return redirect(url_for('despacho_detalle', despacho_id=despacho_id))
+        else:
+            flash('Archivo no encontrado', 'error')
+            
+    except Exception as e:
+        flash(f'Error al eliminar archivo: {str(e)}', 'error')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('despachos'))
+
+
+@app.route('/despacho/<int:despacho_id>/en_transito', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def marcar_despacho_en_transito(despacho_id):
+    """Marcar un despacho como en tránsito"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE despachos SET estado = 'en_transito', fecha_despacho = CURRENT_TIMESTAMP
+            WHERE id = ? AND estado = 'programado'
+        ''', (despacho_id,))
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Despacho marcado como en tránsito'})
+        else:
+            return jsonify({'success': False, 'message': 'No se pudo actualizar el despacho'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/despacho/<int:despacho_id>/entregado', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def marcar_despacho_entregado(despacho_id):
+    """Marcar un despacho como entregado"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE despachos SET estado = 'entregado', fecha_entrega = CURRENT_TIMESTAMP
+            WHERE id = ? AND estado = 'en_transito'
+        ''', (despacho_id,))
+        
+        # También actualizar el proyecto como entregado
+        cursor.execute('''
+            UPDATE proyectos SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP
+            WHERE id = (SELECT proyecto_id FROM despachos WHERE id = ?)
+        ''', (despacho_id,))
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Despacho marcado como entregado'})
+        else:
+            return jsonify({'success': False, 'message': 'No se pudo actualizar el despacho'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
 @app.route('/recordatorios_activos')
 @login_required
 def recordatorios_activos():
@@ -744,6 +1024,35 @@ def marcar_recordatorio_enviado(recordatorio_id):
     
     flash('Recordatorio marcado como enviado', 'success')
     return redirect(url_for('recordatorios_activos'))
+
+
+@app.route('/api/proyectos_para_despacho')
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def api_proyectos_para_despacho():
+    """API para obtener proyectos listos para despacho"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE p.estado IN ('fabricacion', 'control_calidad', 'embalaje', 'despacho')
+        ORDER BY p.nombre
+    ''')
+    
+    proyectos = []
+    for row in cursor.fetchall():
+        proyectos.append({
+            'id': row[0],
+            'codigo': row[1] or f'PROJ-{row[0]}',
+            'nombre': row[2],
+            'cliente': row[3] or 'Sin cliente'
+        })
+    
+    conn.close()
+    return jsonify(proyectos)
 
 
 @app.route('/reportes')
