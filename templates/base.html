@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -17,12 +16,12 @@
                 <div class="logo-icon"></div>
                 <span>Mobikit Control</span>
             </a>
-            
+
             {% if session.user_id %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            
+
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
@@ -42,10 +41,20 @@
                     </li>
                     {% if session.user_role in ['admin', 'general'] %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('reportes') }}">
-                            <i class="fas fa-chart-bar"></i> Reportes
-                        </a>
-                    </li>
+                            <a class="nav-link" href="{{ url_for('despachos') }}">
+                                <i class="fas fa-truck"></i> Despachos
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('recordatorios_activos') }}">
+                                <i class="fas fa-bell"></i> Recordatorios
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('reportes') }}">
+                                <i class="fas fa-chart-bar"></i> Reportes
+                            </a>
+                        </li>
                     {% endif %}
                     {% if session.user_role == 'admin' %}
                     <li class="nav-item">
@@ -55,7 +64,7 @@
                     </li>
                     {% endif %}
                 </ul>
-                
+
                 <ul class="navbar-nav">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">

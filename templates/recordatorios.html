@@ -1,0 +1,64 @@
+
+{% extends "base.html" %}
+
+{% block title %}Recordatorios - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-bell"></i> Recordatorios Activos</h1>
+    <div>
+        <span class="badge bg-info">{{ recordatorios|length }} recordatorios pendientes</span>
+    </div>
+</div>
+
+<div class="row">
+    {% for recordatorio in recordatorios %}
+    <div class="col-md-6 mb-3">
+        <div class="card {% if recordatorio[6] <= date.today() %}border-warning{% endif %}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="fas fa-{% if recordatorio[1] == 'despacho' %}truck{% elif recordatorio[1] == 'tarea' %}tasks{% else %}info-circle{% endif %}"></i>
+                    {{ recordatorio[4] }}
+                </h6>
+                <span class="badge bg-{% if recordatorio[6] <= date.today() %}warning{% else %}primary{% endif %}">
+                    {{ recordatorio[6] }}
+                </span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">{{ recordatorio[5] }}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        {% if recordatorio[10] %}
+                            Usuario: {{ recordatorio[10] }}
+                        {% elif recordatorio[11] %}
+                            Área: {{ recordatorio[11] }}
+                        {% endif %}
+                    </small>
+                    {% if not recordatorio[8] %}
+                    <form action="{{ url_for('marcar_recordatorio_enviado', recordatorio_id=recordatorio[0]) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-success">
+                            <i class="fas fa-check"></i> Marcar como enviado
+                        </button>
+                    </form>
+                    {% else %}
+                    <span class="badge bg-success">
+                        <i class="fas fa-check"></i> Enviado
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not recordatorios %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+        <h5>No hay recordatorios activos</h5>
+        <p class="text-muted">No tienes recordatorios pendientes en este momento.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
