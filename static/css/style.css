@@ -264,6 +264,72 @@ footer {
     font-size: 14px;
 }
 
+/* Estilos específicos para el calendario */
+#calendar {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.fc-event {
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.fc-event:hover {
+    opacity: 0.8;
+}
+
+.fc-toolbar-title {
+    color: var(--mobikit-gray) !important;
+    font-weight: 600;
+}
+
+.fc-button-primary {
+    background-color: var(--mobikit-red) !important;
+    border-color: var(--mobikit-red) !important;
+}
+
+.fc-button-primary:hover {
+    background-color: #C11A1F !important;
+    border-color: #C11A1F !important;
+}
+
+.fc-button-primary:not(:disabled):active,
+.fc-button-primary:not(:disabled).fc-button-active {
+    background-color: var(--mobikit-dark-gray) !important;
+    border-color: var(--mobikit-dark-gray) !important;
+}
+
+.fc-day-today {
+    background-color: rgba(227, 30, 36, 0.1) !important;
+}
+
+.fc-daygrid-event {
+    border-radius: 3px;
+    padding: 1px 3px;
+}
+
+.fc-event-title {
+    font-weight: 500;
+}
+
+/* Filtros del calendario */
+.btn-check:checked + .btn-outline-primary {
+    background-color: var(--mobikit-red);
+    border-color: var(--mobikit-red);
+}
+
+.btn-check:checked + .btn-outline-success {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.btn-check:checked + .btn-outline-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+}
+
 /* Animaciones suaves */
 .btn, .card, .alert {
     transition: all 0.3s ease;
