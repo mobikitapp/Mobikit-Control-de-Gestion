@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS tareas (
     fecha_completada TIMESTAMP,
     tiempo_estimado INTEGER, -- En horas
     tiempo_real INTEGER, -- En horas
+    etapa_fabricacion TEXT CHECK (etapa_fabricacion IN ('seccionado', 'enchapado', 'mecanizado', 'fabricacion_completo')), -- Etapas específicas de operación
     dependencias TEXT, -- JSON con IDs de tareas dependientes
     observaciones TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -139,6 +140,19 @@ CREATE TABLE IF NOT EXISTS despachos (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (proyecto_id) REFERENCES proyectos (id)
+);
+
+-- Tabla de archivos de despacho
+CREATE TABLE IF NOT EXISTS despacho_archivos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    despacho_id INTEGER NOT NULL,
+    tipo TEXT NOT NULL CHECK (tipo IN ('foto', 'guia', 'checklist', 'firma', 'otro')),
+    nombre_original TEXT NOT NULL,
+    ruta_archivo TEXT NOT NULL,
+    tamaño INTEGER, -- En bytes
+    descripcion TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (despacho_id) REFERENCES despachos (id)
 );
 
 -- Tabla de recordatorios (expandida)

@@ -381,11 +381,16 @@ def nuevo_proyecto():
         else:
             cliente_id = cliente[0]
             
+        # Generate unique project code
+        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
+        proyecto_numero = cursor.fetchone()[0] + 1
+        codigo_proyecto = f"PROJ-{datetime.now().year}-{proyecto_numero:04d}"
+        
         cursor.execute(
             '''
-            INSERT INTO proyectos (nombre, cliente_id, descripcion, fecha_entrega, diseñador_id, fecha_inicio)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (nombre, cliente_id, descripcion, fecha_entrega, session['user_id'],
+            INSERT INTO proyectos (codigo, nombre, cliente_id, descripcion, fecha_entrega, diseñador_id, fecha_inicio)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (codigo_proyecto, nombre, cliente_id, descripcion, fecha_entrega, session['user_id'],
               datetime.now().date()))
 
         proyecto_id = cursor.lastrowid
@@ -1204,6 +1209,358 @@ def api_proyectos_para_despacho():
     
     conn.close()
     return jsonify(proyectos)
+
+
+@app.route('/tareas_area')
+@login_required
+def tareas_area():
+    """Vista principal de gestión de tareas por área"""
+    user_role = session['user_role']
+    
+    # Redirigir según el rol del usuario
+    if user_role == 'diseñador':
+        return redirect(url_for('tareas_diseño'))
+    elif user_role == 'operación':
+        return redirect(url_for('tareas_operacion'))
+    elif user_role == 'embalaje':
+        return redirect(url_for('tareas_embalaje'))
+    elif user_role == 'despacho':
+        return redirect(url_for('tareas_despacho'))
+    elif user_role in ['admin', 'general']:
+        return redirect(url_for('tareas_general'))
+    else:
+        flash('No tienes acceso a gestión de tareas por área', 'error')
+        return redirect(url_for('dashboard'))
+
+
+@app.route('/tareas/diseño')
+@login_required
+@role_required(['diseñador', 'admin', 'general'])
+def tareas_diseño():
+    """Gestión de tareas de diseño"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
+               t.fecha_programada, t.descripcion, u.nombre as asignado,
+               t.created_at
+        FROM tareas t
+        JOIN proyectos p ON t.proyecto_id = p.id
+        LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
+        WHERE t.rol_asignado = 'diseñador' OR t.tipo = 'diseño'
+        ORDER BY 
+            CASE t.estado 
+                WHEN 'pendiente' THEN 1 
+                WHEN 'en_progreso' THEN 2 
+                WHEN 'completada' THEN 3 
+            END,
+            t.fecha_programada ASC
+    ''')
+    
+    tareas_list = cursor.fetchall()
+    conn.close()
+    
+    return render_template('tareas_diseño.html', tareas=tareas_list)
+
+
+@app.route('/tareas/operacion')
+@login_required
+@role_required(['operación', 'admin', 'general'])
+def tareas_operacion():
+    """Gestión de tareas de operación con etapas de fabricación"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    # Obtener tareas de operación/fabricación con sus etapas
+    cursor.execute('''
+        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
+               t.fecha_programada, t.descripcion, u.nombre as asignado,
+               t.etapa_fabricacion, t.created_at
+        FROM tareas t
+        JOIN proyectos p ON t.proyecto_id = p.id
+        LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
+        WHERE t.rol_asignado = 'operación' OR t.tipo = 'fabricación'
+        ORDER BY 
+            CASE t.estado 
+                WHEN 'pendiente' THEN 1 
+                WHEN 'en_progreso' THEN 2 
+                WHEN 'completada' THEN 3 
+            END,
+            CASE t.etapa_fabricacion
+                WHEN 'seccionado' THEN 1
+                WHEN 'enchapado' THEN 2
+                WHEN 'mecanizado' THEN 3
+                WHEN 'fabricacion_completo' THEN 4
+                ELSE 5
+            END,
+            t.fecha_programada ASC
+    ''')
+    
+    tareas_list = cursor.fetchall()
+    conn.close()
+    
+    return render_template('tareas_operacion.html', tareas=tareas_list)
+
+
+@app.route('/tareas/embalaje')
+@login_required
+@role_required(['embalaje', 'admin', 'general'])
+def tareas_embalaje():
+    """Gestión de tareas de embalaje - solo fabricaciones completadas"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
+               t.fecha_programada, t.descripcion, u.nombre as asignado,
+               t.created_at
+        FROM tareas t
+        JOIN proyectos p ON t.proyecto_id = p.id
+        LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
+        WHERE (t.rol_asignado = 'embalaje' OR t.tipo = 'embalaje')
+        AND EXISTS (
+            SELECT 1 FROM tareas t2 
+            WHERE t2.proyecto_id = t.proyecto_id 
+            AND (t2.rol_asignado = 'operación' OR t2.tipo = 'fabricación')
+            AND t2.estado = 'completada'
+        )
+        ORDER BY 
+            CASE t.estado 
+                WHEN 'pendiente' THEN 1 
+                WHEN 'en_progreso' THEN 2 
+                WHEN 'completada' THEN 3 
+            END,
+            t.fecha_programada ASC
+    ''')
+    
+    tareas_list = cursor.fetchall()
+    conn.close()
+    
+    return render_template('tareas_embalaje.html', tareas=tareas_list)
+
+
+@app.route('/tareas/despacho')
+@login_required
+@role_required(['despacho', 'admin', 'general'])
+def tareas_despacho():
+    """Gestión de tareas de despacho"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
+               t.fecha_programada, t.descripcion, u.nombre as asignado,
+               t.created_at, d.codigo_despacho, d.estado as despacho_estado
+        FROM tareas t
+        JOIN proyectos p ON t.proyecto_id = p.id
+        LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
+        LEFT JOIN despachos d ON d.proyecto_id = t.proyecto_id
+        WHERE t.rol_asignado = 'despacho' OR t.tipo = 'despacho'
+        ORDER BY 
+            CASE t.estado 
+                WHEN 'pendiente' THEN 1 
+                WHEN 'en_progreso' THEN 2 
+                WHEN 'completada' THEN 3 
+            END,
+            t.fecha_programada ASC
+    ''')
+    
+    tareas_list = cursor.fetchall()
+    conn.close()
+    
+    return render_template('tareas_despacho.html', tareas=tareas_list)
+
+
+@app.route('/tareas/general')
+@login_required
+@role_required(['admin', 'general'])
+def tareas_general():
+    """Vista general para admin/general - ve y modifica cualquier tarea"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
+               t.fecha_programada, t.descripcion, u.nombre as asignado,
+               t.rol_asignado, t.tipo, t.etapa_fabricacion, t.created_at
+        FROM tareas t
+        JOIN proyectos p ON t.proyecto_id = p.id
+        LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
+        ORDER BY 
+            t.rol_asignado,
+            CASE t.estado 
+                WHEN 'pendiente' THEN 1 
+                WHEN 'en_progreso' THEN 2 
+                WHEN 'completada' THEN 3 
+            END,
+            t.fecha_programada ASC
+    ''')
+    
+    tareas_list = cursor.fetchall()
+    conn.close()
+    
+    return render_template('tareas_general.html', tareas=tareas_list)
+
+
+@app.route('/avanzar_tarea/<int:tarea_id>', methods=['POST'])
+@login_required
+def avanzar_tarea(tarea_id):
+    """Avanzar una tarea al siguiente estado"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    try:
+        # Obtener información actual de la tarea
+        cursor.execute('''
+            SELECT t.estado, t.rol_asignado, t.tipo, t.etapa_fabricacion, 
+                   t.proyecto_id, t.titulo, p.nombre as proyecto_nombre
+            FROM tareas t
+            JOIN proyectos p ON t.proyecto_id = p.id
+            WHERE t.id = ?
+        ''', (tarea_id,))
+        
+        tarea = cursor.fetchone()
+        if not tarea:
+            return jsonify({'success': False, 'message': 'Tarea no encontrada'})
+        
+        estado_actual, rol, tipo, etapa_actual, proyecto_id, titulo, proyecto_nombre = tarea
+        
+        # Verificar permisos
+        if session['user_role'] not in ['admin', 'general'] and session['user_role'] != rol:
+            return jsonify({'success': False, 'message': 'Sin permisos para modificar esta tarea'})
+        
+        # Determinar siguiente estado según el rol
+        if rol == 'diseñador':
+            if estado_actual == 'pendiente':
+                nuevo_estado = 'en_progreso'
+                cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = ? WHERE id = ?', 
+                             (nuevo_estado, datetime.now(), tarea_id))
+            elif estado_actual == 'en_progreso':
+                nuevo_estado = 'completada'
+                cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ? WHERE id = ?', 
+                             (nuevo_estado, datetime.now(), tarea_id))
+            else:
+                return jsonify({'success': False, 'message': 'Tarea ya completada'})
+                
+        elif rol == 'operación':
+            etapas = ['seccionado', 'enchapado', 'mecanizado', 'fabricacion_completo']
+            
+            if estado_actual == 'pendiente':
+                nuevo_estado = 'en_progreso'
+                nueva_etapa = 'seccionado'
+                cursor.execute('UPDATE tareas SET estado = ?, etapa_fabricacion = ?, fecha_inicio = ? WHERE id = ?', 
+                             (nuevo_estado, nueva_etapa, datetime.now(), tarea_id))
+            elif estado_actual == 'en_progreso':
+                if etapa_actual in etapas:
+                    indice_actual = etapas.index(etapa_actual)
+                    if indice_actual < len(etapas) - 1:
+                        nueva_etapa = etapas[indice_actual + 1]
+                        cursor.execute('UPDATE tareas SET etapa_fabricacion = ? WHERE id = ?', 
+                                     (nueva_etapa, tarea_id))
+                    else:
+                        # Última etapa completada
+                        cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ? WHERE id = ?', 
+                                     ('completada', datetime.now(), tarea_id))
+                        nuevo_estado = 'completada'
+                else:
+                    nueva_etapa = 'seccionado'
+                    cursor.execute('UPDATE tareas SET etapa_fabricacion = ? WHERE id = ?', 
+                                 (nueva_etapa, tarea_id))
+            else:
+                return jsonify({'success': False, 'message': 'Tarea ya completada'})
+                
+        else:  # embalaje, despacho, general
+            if estado_actual == 'pendiente':
+                nuevo_estado = 'en_progreso'
+                cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = ? WHERE id = ?', 
+                             (nuevo_estado, datetime.now(), tarea_id))
+            elif estado_actual == 'en_progreso':
+                nuevo_estado = 'completada'
+                cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ? WHERE id = ?', 
+                             (nuevo_estado, datetime.now(), tarea_id))
+            else:
+                return jsonify({'success': False, 'message': 'Tarea ya completada'})
+        
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('tareas', ?, 'UPDATE', ?, ?)
+        ''', (tarea_id, session['user_id'], 
+              json.dumps({'accion': 'avanzar_tarea', 'titulo': titulo, 'proyecto': proyecto_nombre})))
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Tarea avanzada exitosamente'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al avanzar tarea: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/retroceder_tarea/<int:tarea_id>', methods=['POST'])
+@login_required
+def retroceder_tarea(tarea_id):
+    """Retroceder una tarea al estado anterior"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    try:
+        # Obtener información actual de la tarea
+        cursor.execute('''
+            SELECT t.estado, t.rol_asignado, t.tipo, t.etapa_fabricacion, 
+                   t.proyecto_id, t.titulo, p.nombre as proyecto_nombre
+            FROM tareas t
+            JOIN proyectos p ON t.proyecto_id = p.id
+            WHERE t.id = ?
+        ''', (tarea_id,))
+        
+        tarea = cursor.fetchone()
+        if not tarea:
+            return jsonify({'success': False, 'message': 'Tarea no encontrada'})
+        
+        estado_actual, rol, tipo, etapa_actual, proyecto_id, titulo, proyecto_nombre = tarea
+        
+        # Solo admin y general pueden retroceder tareas
+        if session['user_role'] not in ['admin', 'general']:
+            return jsonify({'success': False, 'message': 'Sin permisos para retroceder tareas'})
+        
+        # Determinar estado anterior según el rol
+        if rol == 'operación' and estado_actual == 'en_progreso' and etapa_actual:
+            etapas = ['seccionado', 'enchapado', 'mecanizado', 'fabricacion_completo']
+            if etapa_actual in etapas:
+                indice_actual = etapas.index(etapa_actual)
+                if indice_actual > 0:
+                    nueva_etapa = etapas[indice_actual - 1]
+                    cursor.execute('UPDATE tareas SET etapa_fabricacion = ? WHERE id = ?', 
+                                 (nueva_etapa, tarea_id))
+                else:
+                    # Volver a pendiente
+                    cursor.execute('UPDATE tareas SET estado = ?, etapa_fabricacion = NULL, fecha_inicio = NULL WHERE id = ?', 
+                                 ('pendiente', tarea_id))
+        elif estado_actual == 'completada':
+            cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = NULL WHERE id = ?', 
+                         ('en_progreso', tarea_id))
+        elif estado_actual == 'en_progreso':
+            cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = NULL WHERE id = ?', 
+                         ('pendiente', tarea_id))
+        else:
+            return jsonify({'success': False, 'message': 'No se puede retroceder más'})
+        
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('tareas', ?, 'UPDATE', ?, ?)
+        ''', (tarea_id, session['user_id'], 
+              json.dumps({'accion': 'retroceder_tarea', 'titulo': titulo, 'proyecto': proyecto_nombre})))
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Tarea retrocedida exitosamente'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al retroceder tarea: {str(e)}'})
+    finally:
+        conn.close()
 
 
 @app.route('/reportes')
