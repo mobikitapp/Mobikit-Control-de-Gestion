@@ -46,9 +46,17 @@
                             <button class="btn btn-sm btn-outline-primary" onclick="verDetalleDespacho({{ despacho[0] }})">
                                 <i class="fas fa-eye"></i>
                             </button>
+                            <a href="{{ url_for('editar_despacho', despacho_id=despacho[0]) }}" class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-edit"></i>
+                            </a>
                             {% if despacho[10] == 'programado' %}
                             <button class="btn btn-sm btn-success" onclick="marcarEnTransito({{ despacho[0] }})">
                                 <i class="fas fa-truck"></i>
+                            </button>
+                            {% endif %}
+                            {% if session.user_role in ['admin', 'general'] %}
+                            <button class="btn btn-sm btn-outline-danger" onclick="confirmarEliminar({{ despacho[0] }}, '{{ despacho[2] }}')">
+                                <i class="fas fa-trash"></i>
                             </button>
                             {% endif %}
                         </td>
@@ -123,6 +131,31 @@
                         <label for="observaciones" class="form-label">Observaciones</label>
                         <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
                     </div>
+                    
+                    <h6 class="mb-3">Archivos del Despacho</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="archivo_guia" class="form-label">Guía de Despacho</label>
+                                <input type="file" class="form-control" id="archivo_guia" name="archivo_guia" accept=".pdf,.jpg,.jpeg,.png">
+                                <small class="text-muted">PDF, JPG, PNG (máx. 16MB)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="archivo_checklist" class="form-label">Checklist de Carga</label>
+                                <input type="file" class="form-control" id="archivo_checklist" name="archivo_checklist" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                                <small class="text-muted">PDF, DOC, JPG, PNG (máx. 16MB)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="archivo_fotos" class="form-label">Fotos del Producto</label>
+                                <input type="file" class="form-control" id="archivo_fotos" name="archivo_fotos" accept=".jpg,.jpeg,.png,.gif" multiple>
+                                <small class="text-muted">Imágenes (máx. 16MB c/u)</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -173,5 +206,47 @@ function marcarEnTransito(despachoId) {
         });
     }
 }
+
+function confirmarEliminar(despachoId, codigo) {
+    if (confirm(`¿Está seguro de eliminar el despacho ${codigo}? Esta acción no se puede deshacer.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/eliminar_despacho/${despachoId}`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Previsualización de archivos
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    
+    fileInputs.forEach(input => {
+        input.addEventListener('change', function(e) {
+            const files = e.target.files;
+            const preview = document.getElementById(e.target.id + '_preview');
+            
+            if (preview) {
+                preview.innerHTML = '';
+            }
+            
+            Array.from(files).forEach(file => {
+                if (file.size > 16 * 1024 * 1024) {
+                    alert(`El archivo ${file.name} excede el tamaño máximo de 16MB`);
+                    e.target.value = '';
+                    return;
+                }
+                
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                
+                if (!allowedTypes.includes(file.type)) {
+                    alert(`Tipo de archivo no permitido: ${file.name}`);
+                    e.target.value = '';
+                    return;
+                }
+            });
+        });
+    });
+});
 </script>
 {% endblock %}

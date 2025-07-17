@@ -1,0 +1,140 @@
+
+{% extends "base.html" %}
+
+{% block title %}Editar Despacho - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-edit"></i> Editar Despacho {{ despacho[2] }}</h1>
+    <a href="{{ url_for('despacho_detalle', despacho_id=despacho[0]) }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Volver
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Datos del Despacho</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('editar_despacho', despacho_id=despacho[0]) }}" method="POST" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Proyecto</label>
+                        <input type="text" class="form-control" value="{{ despacho[11] }} ({{ despacho[12] }})" readonly>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="fecha_programada" class="form-label">Fecha de Despacho *</label>
+                        <input type="date" class="form-control" id="fecha_programada" name="fecha_programada" value="{{ despacho[8] }}" required>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="transportista" class="form-label">Transportista</label>
+                        <input type="text" class="form-control" id="transportista" name="transportista" value="{{ despacho[3] or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="conductor" class="form-label">Conductor</label>
+                        <input type="text" class="form-control" id="conductor" name="conductor" value="{{ despacho[4] or '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="telefono_conductor" class="form-label">Teléfono Conductor</label>
+                        <input type="tel" class="form-control" id="telefono_conductor" name="telefono_conductor" value="{{ despacho[5] or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="vehiculo_patente" class="form-label">Patente Vehículo</label>
+                        <input type="text" class="form-control" id="vehiculo_patente" name="vehiculo_patente" value="{{ despacho[6] or '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="direccion_entrega" class="form-label">Dirección de Entrega *</label>
+                <textarea class="form-control" id="direccion_entrega" name="direccion_entrega" rows="2" required>{{ despacho[7] }}</textarea>
+            </div>
+            
+            <div class="mb-3">
+                <label for="observaciones" class="form-label">Observaciones</label>
+                <textarea class="form-control" id="observaciones" name="observaciones" rows="3">{{ despacho[9] or '' }}</textarea>
+            </div>
+            
+            <h6 class="mb-3">Subir Nuevos Archivos</h6>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="archivo_guia" class="form-label">Guía de Despacho</label>
+                        <input type="file" class="form-control" id="archivo_guia" name="archivo_guia" accept=".pdf,.jpg,.jpeg,.png">
+                        <small class="text-muted">PDF, JPG, PNG (máx. 16MB)</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="archivo_checklist" class="form-label">Checklist de Carga</label>
+                        <input type="file" class="form-control" id="archivo_checklist" name="archivo_checklist" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                        <small class="text-muted">PDF, DOC, JPG, PNG (máx. 16MB)</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="archivo_fotos" class="form-label">Fotos del Producto</label>
+                        <input type="file" class="form-control" id="archivo_fotos" name="archivo_fotos" accept=".jpg,.jpeg,.png,.gif" multiple>
+                        <small class="text-muted">Imágenes (máx. 16MB c/u)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('despacho_detalle', despacho_id=despacho[0]) }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Validación de archivos
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    
+    fileInputs.forEach(input => {
+        input.addEventListener('change', function(e) {
+            const files = e.target.files;
+            
+            Array.from(files).forEach(file => {
+                if (file.size > 16 * 1024 * 1024) {
+                    alert(`El archivo ${file.name} excede el tamaño máximo de 16MB`);
+                    e.target.value = '';
+                    return;
+                }
+                
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                
+                if (!allowedTypes.includes(file.type)) {
+                    alert(`Tipo de archivo no permitido: ${file.name}`);
+                    e.target.value = '';
+                    return;
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
