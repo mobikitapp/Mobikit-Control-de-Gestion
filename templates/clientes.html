@@ -1,0 +1,266 @@
+
+{% extends "base.html" %}
+
+{% block title %}Clientes - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-users"></i> Clientes</h1>
+    {% if session.user_role in ['admin', 'general'] %}
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoClienteModal">
+        <i class="fas fa-plus"></i> Nuevo Cliente
+    </button>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if clientes %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>RUT</th>
+                        <th>Email</th>
+                        <th>Teléfono</th>
+                        <th>Ciudad</th>
+                        <th>Contacto Principal</th>
+                        <th>Proyectos</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cliente in clientes %}
+                    <tr>
+                        <td><strong>{{ cliente[1] }}</strong></td>
+                        <td>{{ cliente[2] or 'N/A' }}</td>
+                        <td>{{ cliente[3] or 'N/A' }}</td>
+                        <td>{{ cliente[4] or 'N/A' }}</td>
+                        <td>{{ cliente[6] or 'N/A' }}</td>
+                        <td>{{ cliente[8] or 'N/A' }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ cliente[12] or 0 }} proyectos</span>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-primary" 
+                                        onclick="editarCliente({{ cliente[0] }}, '{{ cliente[1] }}', '{{ cliente[2] or '' }}', '{{ cliente[3] or '' }}', '{{ cliente[4] or '' }}', '{{ cliente[5] or '' }}', '{{ cliente[6] or '' }}', '{{ cliente[7] or '' }}', '{{ cliente[8] or '' }}', '{{ cliente[9] or '' }}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% if session.user_role in ['admin'] %}
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        onclick="confirmarEliminarCliente({{ cliente[0] }}, '{{ cliente[1] }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <h5>No hay clientes registrados</h5>
+            <p class="text-muted">Agrega tu primer cliente para comenzar.</p>
+            {% if session.user_role in ['admin', 'general'] %}
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoClienteModal">
+                <i class="fas fa-plus"></i> Agregar Cliente
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Nuevo Cliente -->
+<div class="modal fade" id="nuevoClienteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo Cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('nuevo_cliente') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="nombre" class="form-label">Nombre *</label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="rut" class="form-label">RUT</label>
+                                <input type="text" class="form-control" id="rut" name="rut" placeholder="12.345.678-9">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <input type="text" class="form-control" id="telefono" name="telefono" placeholder="+56 9 1234 5678">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="direccion" class="form-label">Dirección</label>
+                        <input type="text" class="form-control" id="direccion" name="direccion">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="ciudad" class="form-label">Ciudad</label>
+                                <input type="text" class="form-control" id="ciudad" name="ciudad">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="region" class="form-label">Región</label>
+                                <input type="text" class="form-control" id="region" name="region">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="contacto_principal" class="form-label">Contacto Principal</label>
+                        <input type="text" class="form-control" id="contacto_principal" name="contacto_principal">
+                    </div>
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Cliente -->
+<div class="modal fade" id="editarClienteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('editar_cliente') }}" method="POST">
+                <input type="hidden" id="edit_cliente_id" name="cliente_id">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_nombre" class="form-label">Nombre *</label>
+                                <input type="text" class="form-control" id="edit_nombre" name="nombre" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_rut" class="form-label">RUT</label>
+                                <input type="text" class="form-control" id="edit_rut" name="rut">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="edit_email" name="email">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_telefono" class="form-label">Teléfono</label>
+                                <input type="text" class="form-control" id="edit_telefono" name="telefono">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_direccion" class="form-label">Dirección</label>
+                        <input type="text" class="form-control" id="edit_direccion" name="direccion">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_ciudad" class="form-label">Ciudad</label>
+                                <input type="text" class="form-control" id="edit_ciudad" name="ciudad">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_region" class="form-label">Región</label>
+                                <input type="text" class="form-control" id="edit_region" name="region">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_contacto_principal" class="form-label">Contacto Principal</label>
+                        <input type="text" class="form-control" id="edit_contacto_principal" name="contacto_principal">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="edit_observaciones" name="observaciones" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Actualizar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editarCliente(id, nombre, rut, email, telefono, direccion, ciudad, region, contacto, observaciones) {
+    document.getElementById('edit_cliente_id').value = id;
+    document.getElementById('edit_nombre').value = nombre;
+    document.getElementById('edit_rut').value = rut;
+    document.getElementById('edit_email').value = email;
+    document.getElementById('edit_telefono').value = telefono;
+    document.getElementById('edit_direccion').value = direccion;
+    document.getElementById('edit_ciudad').value = ciudad;
+    document.getElementById('edit_region').value = region;
+    document.getElementById('edit_contacto_principal').value = contacto;
+    document.getElementById('edit_observaciones').value = observaciones;
+    
+    new bootstrap.Modal(document.getElementById('editarClienteModal')).show();
+}
+
+function confirmarEliminarCliente(id, nombre) {
+    if (confirm(`¿Estás seguro de que deseas eliminar el cliente "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+        fetch(`/eliminar_cliente/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error al eliminar cliente: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error al eliminar cliente: ' + error);
+        });
+    }
+}
+</script>
+{% endblock %}

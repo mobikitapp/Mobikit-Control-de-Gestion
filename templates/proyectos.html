@@ -5,67 +5,266 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-project-diagram"></i> Proyectos</h1>
-    {% if session.user_role in ['admin', 'general', 'diseñador'] %}
-    <a href="{{ url_for('nuevo_proyecto') }}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Nuevo Proyecto
-    </a>
-    {% endif %}
-</div>
-
-<div class="card">
-    <div class="card-body">
-        {% if proyectos %}
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>Cliente</th>
-                        <th>Estado</th>
-                        <th>Fecha Entrega</th>
-                        <th>Diseñador</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for proyecto in proyectos %}
-                    <tr>
-                        <td>
-                            <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto[0]) }}" class="text-decoration-none">
-                                {{ proyecto[1] }}
-                            </a>
-                        </td>
-                        <td>{{ proyecto[2] }}</td>
-                        <td>
-                            <span class="badge bg-{{ 'primary' if proyecto[3] == 'diseño' else 'info' if proyecto[3] == 'producción' else 'success' }}">
-                                {{ proyecto[3]|title }}
-                            </span>
-                        </td>
-                        <td>{{ proyecto[4] if proyecto[4] else 'Sin fecha' }}</td>
-                        <td>{{ proyecto[5] if proyecto[5] else 'Sin asignar' }}</td>
-                        <td>
-                            <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto[0]) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye"></i> Ver
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="text-center py-4">
-            <i class="fas fa-project-diagram fa-3x text-muted mb-3"></i>
-            <h5>No hay proyectos disponibles</h5>
-            <p class="text-muted">Crea tu primer proyecto para comenzar.</p>
-            {% if session.user_role in ['admin', 'general', 'diseñador'] %}
-            <a href="{{ url_for('nuevo_proyecto') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Crear Proyecto
-            </a>
-            {% endif %}
-        </div>
+    <h1><i class="fas fa-project-diagram"></i> Proyectos por Cliente</h1>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('clientes') }}" class="btn btn-outline-primary">
+            <i class="fas fa-users"></i> Gestionar Clientes
+        </a>
+        {% if session.user_role in ['admin', 'general', 'diseñador'] %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoProyectoModal">
+            <i class="fas fa-plus"></i> Nuevo Proyecto
+        </button>
         {% endif %}
     </div>
 </div>
+
+{% if proyectos_por_cliente %}
+    {% for cliente in proyectos_por_cliente %}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-building"></i> {{ cliente.nombre }}
+                    <span class="badge bg-secondary ms-2">{{ cliente.proyectos|length }} proyecto{{ 's' if cliente.proyectos|length != 1 else '' }}</span>
+                </h5>
+                <small class="text-muted">
+                    {% if cliente.rut %}RUT: {{ cliente.rut }}{% endif %}
+                    {% if cliente.contacto_principal %} | Contacto: {{ cliente.contacto_principal }}{% endif %}
+                </small>
+            </div>
+            {% if cliente.telefono or cliente.email %}
+            <div class="mt-2">
+                <small class="text-muted">
+                    {% if cliente.telefono %}<i class="fas fa-phone"></i> {{ cliente.telefono }}{% endif %}
+                    {% if cliente.email %} | <i class="fas fa-envelope"></i> {{ cliente.email }}{% endif %}
+                </small>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if cliente.proyectos %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre del Proyecto</th>
+                            <th>Estado</th>
+                            <th>Prioridad</th>
+                            <th>Fecha Entrega</th>
+                            <th>Diseñador</th>
+                            <th>Presupuesto</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for proyecto in cliente.proyectos %}
+                        <tr>
+                            <td><code>{{ proyecto.codigo }}</code></td>
+                            <td>
+                                <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}" class="text-decoration-none fw-bold">
+                                    {{ proyecto.nombre }}
+                                </a>
+                                {% if proyecto.descripcion %}
+                                <br><small class="text-muted">{{ proyecto.descripcion[:100] }}{% if proyecto.descripcion|length > 100 %}...{% endif %}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 
+                                    'secondary' if proyecto.estado == 'diseño' else 
+                                    'primary' if proyecto.estado == 'aprobado' else 
+                                    'info' if proyecto.estado == 'producción' else 
+                                    'warning' if proyecto.estado == 'embalaje' else 
+                                    'danger' if proyecto.estado == 'despacho' else 
+                                    'success' if proyecto.estado == 'entregado' else 
+                                    'dark' if proyecto.estado == 'cancelado' else 'light'
+                                }}">
+                                    {{ proyecto.estado|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 
+                                    'success' if proyecto.prioridad == 'baja' else 
+                                    'warning' if proyecto.prioridad == 'media' else 
+                                    'danger' if proyecto.prioridad == 'alta' else 
+                                    'dark' if proyecto.prioridad == 'urgente' else 'secondary'
+                                }}">
+                                    {{ proyecto.prioridad|title }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if proyecto.fecha_entrega %}
+                                    {{ proyecto.fecha_entrega }}
+                                    {% set dias_restantes = proyecto.dias_restantes %}
+                                    {% if dias_restantes is not none %}
+                                        {% if dias_restantes < 0 %}
+                                            <br><small class="text-danger">Vencido ({{ -dias_restantes }} días)</small>
+                                        {% elif dias_restantes == 0 %}
+                                            <br><small class="text-warning">Vence hoy</small>
+                                        {% elif dias_restantes <= 7 %}
+                                            <br><small class="text-warning">{{ dias_restantes }} días</small>
+                                        {% else %}
+                                            <br><small class="text-muted">{{ dias_restantes }} días</small>
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Sin fecha</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ proyecto.diseñador_nombre or 'Sin asignar' }}</td>
+                            <td>
+                                {% if proyecto.presupuesto %}
+                                    ${{ "{:,.0f}".format(proyecto.presupuesto) }}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if session.user_role in ['admin', 'general', 'diseñador'] %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                            onclick="editarProyecto({{ proyecto.id }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-3">
+                <i class="fas fa-project-diagram fa-2x text-muted mb-2"></i>
+                <p class="text-muted mb-0">No hay proyectos para este cliente</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="text-center py-4">
+            <i class="fas fa-project-diagram fa-3x text-muted mb-3"></i>
+            <h5>No hay proyectos disponibles</h5>
+            <p class="text-muted">Primero debes crear clientes y luego agregar proyectos.</p>
+            <div class="d-flex gap-2 justify-content-center">
+                <a href="{{ url_for('clientes') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-users"></i> Gestionar Clientes
+                </a>
+                {% if session.user_role in ['admin', 'general', 'diseñador'] %}
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoProyectoModal">
+                    <i class="fas fa-plus"></i> Crear Proyecto
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Nuevo Proyecto -->
+<div class="modal fade" id="nuevoProyectoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo Proyecto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('nuevo_proyecto') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="nombre" class="form-label">Nombre del Proyecto *</label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="cliente_id" class="form-label">Cliente *</label>
+                                <select class="form-select" id="cliente_id" name="cliente_id" required>
+                                    <option value="">Seleccionar cliente...</option>
+                                    {% for cliente in clientes_disponibles %}
+                                    <option value="{{ cliente[0] }}">{{ cliente[1] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="prioridad" class="form-label">Prioridad</label>
+                                <select class="form-select" id="prioridad" name="prioridad">
+                                    <option value="baja">Baja</option>
+                                    <option value="media" selected>Media</option>
+                                    <option value="alta">Alta</option>
+                                    <option value="urgente">Urgente</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                                <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_hoy }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="fecha_entrega" class="form-label">Fecha Entrega</label>
+                                <input type="date" class="form-control" id="fecha_entrega" name="fecha_entrega">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="diseñador_id" class="form-label">Diseñador</label>
+                                <select class="form-select" id="diseñador_id" name="diseñador_id">
+                                    <option value="">Sin asignar</option>
+                                    {% for diseñador in diseñadores_disponibles %}
+                                    <option value="{{ diseñador[0] }}" {{ 'selected' if diseñador[0] == session.user_id else '' }}>
+                                        {{ diseñador[1] }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="presupuesto" class="form-label">Presupuesto (CLP)</label>
+                                <input type="number" class="form-control" id="presupuesto" name="presupuesto" min="0" step="1000">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Proyecto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editarProyecto(proyectoId) {
+    // Implementar edición de proyecto
+    window.location.href = `/editar_proyecto/${proyectoId}`;
+}
+</script>
 {% endblock %}
