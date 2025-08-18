@@ -820,90 +820,80 @@ def nuevo_usuario():
 @role_required(['admin', 'general', 'despacho'])
 def programar_despacho():
     """
-    Endpoint para programar despachos y crear recordatorios automáticos
+    Endpoint para programar despachos con entrada manual de cliente y proyecto
     """
     try:
-        proyecto_id = request.form.get('proyecto_id')
+        cliente_nombre = request.form.get('cliente_nombre', '').strip()
+        proyecto_nombre = request.form.get('proyecto_nombre', '').strip()
         fecha_programada = request.form.get('fecha_programada')
-        transportista = request.form.get('transportista', '')
-        conductor = request.form.get('conductor', '')
-        telefono_conductor = request.form.get('telefono_conductor', '')
-        vehiculo_patente = request.form.get('vehiculo_patente', '')
-        direccion_entrega = request.form.get('direccion_entrega')
-        observaciones = request.form.get('observaciones', '')
+        direccion_entrega = request.form.get('direccion_entrega', '').strip()
+        transportista = request.form.get('transportista', '').strip()
+        conductor = request.form.get('conductor', '').strip()
+        telefono_conductor = request.form.get('telefono_conductor', '').strip()
+        vehiculo_patente = request.form.get('vehiculo_patente', '').strip()
+        observaciones = request.form.get('observaciones', '').strip()
 
-        if not all([proyecto_id, fecha_programada, direccion_entrega]):
-            flash('Faltan datos obligatorios para programar el despacho', 'error')
-            return redirect(request.referrer or url_for('proyectos'))
+        # Validar campos obligatorios
+        if not all([cliente_nombre, proyecto_nombre, fecha_programada, direccion_entrega]):
+            flash('Los campos Cliente, Proyecto, Fecha de Despacho y Dirección son obligatorios', 'error')
+            return redirect(request.referrer or url_for('despachos'))
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
 
-        # Verificar que el proyecto existe y obtener información
-        cursor.execute('''
-            SELECT p.id, p.nombre, p.codigo, c.nombre as cliente_nombre
-            FROM proyectos p
-            LEFT JOIN clientes c ON p.cliente_id = c.id
-            WHERE p.id = ?
-        ''', (proyecto_id,))
-        proyecto = cursor.fetchone()
-
-        if not proyecto:
-            flash('Proyecto no encontrado', 'error')
-            conn.close()
-            return redirect(request.referrer or url_for('proyectos'))
-
         # Generar código único para el despacho
-        cursor.execute('SELECT COUNT(*) FROM despachos WHERE strftime("%Y", fecha_programada) = strftime("%Y", ?)', (fecha_programada,))
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
         despacho_numero = cursor.fetchone()[0] + 1
         codigo_despacho = f"DESP-{datetime.now().year}-{despacho_numero:04d}"
 
-        # Insertar el despacho
+        # Insertar el despacho sin proyecto_id ya que es entrada manual
         cursor.execute('''
             INSERT INTO despachos (
-                proyecto_id, codigo_despacho, transportista, conductor, 
+                codigo_despacho, transportista, conductor, 
                 telefono_conductor, vehiculo_patente, direccion_entrega, 
                 fecha_programada, observaciones, estado
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (proyecto_id, codigo_despacho, transportista, conductor, 
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (codigo_despacho, transportista, conductor, 
               telefono_conductor, vehiculo_patente, direccion_entrega, 
               fecha_programada, observaciones, 'programado'))
 
         despacho_id = cursor.lastrowid
 
-        # Calcular fecha de recordatorio según la categoría del proyecto
+        # Manejar archivos subidos si existen
+        for file_key in request.files:
+            file = request.files[file_key]
+            if file and file.filename:
+                file_path = save_uploaded_file(file, 'despachos')
+                if file_path:
+                    tipo_archivo = file_key.replace('archivo_', '')
+                    cursor.execute('''
+                        INSERT INTO despacho_archivos (despacho_id, tipo, nombre_original, ruta_archivo, tamaño)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (despacho_id, tipo_archivo, file.filename, file_path, file.content_length or 0))
+
+        # Crear una entrada temporal en la tabla de notas/observaciones del despacho para guardar cliente y proyecto
+        info_adicional = f"Cliente: {cliente_nombre} | Proyecto: {proyecto_nombre}"
+        if observaciones:
+            observaciones = f"{info_adicional}\n\nObservaciones: {observaciones}"
+        else:
+            observaciones = info_adicional
+            
+        cursor.execute('''
+            UPDATE despachos SET observaciones = ? WHERE id = ?
+        ''', (observaciones, despacho_id))
+
+        # Calcular fecha de recordatorio
         fecha_despacho = datetime.strptime(fecha_programada, '%Y-%m-%d').date()
-        
-        # Definir días de anticipación según el tipo de mueble/proyecto
-        # Estas reglas se pueden ajustar según las necesidades del negocio
-        recordatorio_dias = {
-            'escritorio': 5,
-            'comedor': 7,
-            'cocina': 10,
-            'dormitorio': 8,
-            'oficina': 4,
-            'living': 6,
-            'default': 5
-        }
-
-        # Determinar categoría basada en el nombre del proyecto
-        categoria_proyecto = 'default'
-        nombre_proyecto_lower = proyecto[1].lower()
-        for categoria in recordatorio_dias.keys():
-            if categoria in nombre_proyecto_lower:
-                categoria_proyecto = categoria
-                break
-
-        dias_anticipacion = recordatorio_dias[categoria_proyecto]
+        dias_anticipacion = 5  # Default para despachos manuales
         fecha_recordatorio = fecha_despacho - timedelta(days=dias_anticipacion)
 
-        # Crear recordatorio para el área de producción
-        cursor.execute('SELECT id FROM areas WHERE nombre = "Producción" LIMIT 1')
-        area_produccion = cursor.fetchone()
-        area_id = area_produccion[0] if area_produccion else None
+        # Crear recordatorio para el área de despacho
+        cursor.execute('SELECT id FROM areas WHERE nombre = "Despacho" LIMIT 1')
+        area_despacho = cursor.fetchone()
+        area_id = area_despacho[0] if area_despacho else None
 
-        titulo_recordatorio = f"Recordatorio: Finalizar producción para despacho {codigo_despacho}"
-        mensaje_recordatorio = f"El proyecto '{proyecto[1]}' (código: {proyecto[2]}) debe estar listo para despacho el {fecha_programada}. Cliente: {proyecto[3]}"
+        titulo_recordatorio = f"Recordatorio: Preparar despacho {codigo_despacho}"
+        mensaje_recordatorio = f"El despacho {codigo_despacho} está programado para el {fecha_programada}.\nCliente: {cliente_nombre}\nProyecto: {proyecto_nombre}\nDirección: {direccion_entrega}"
 
         cursor.execute('''
             INSERT INTO recordatorios (
@@ -916,33 +906,26 @@ def programar_despacho():
         # Crear recordatorio adicional para el día anterior al despacho
         fecha_recordatorio_urgente = fecha_despacho - timedelta(days=1)
         
-        cursor.execute('SELECT id FROM areas WHERE nombre = "Despacho" LIMIT 1')
-        area_despacho = cursor.fetchone()
-        area_despacho_id = area_despacho[0] if area_despacho else None
-
         titulo_urgente = f"Despacho programado mañana: {codigo_despacho}"
-        mensaje_urgente = f"Mañana ({fecha_programada}) está programado el despacho del proyecto '{proyecto[1]}' a {direccion_entrega}"
+        mensaje_urgente = f"Mañana ({fecha_programada}) está programado el despacho:\n- Cliente: {cliente_nombre}\n- Proyecto: {proyecto_nombre}\n- Dirección: {direccion_entrega}"
 
         cursor.execute('''
             INSERT INTO recordatorios (
                 tipo, referencia_id, area_id, titulo, mensaje, 
                 fecha_recordatorio, activo
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', ('despacho', despacho_id, area_despacho_id, titulo_urgente, 
+        ''', ('despacho', despacho_id, area_id, titulo_urgente, 
               mensaje_urgente, fecha_recordatorio_urgente, True))
-
-        # Actualizar estado del proyecto si es necesario
-        cursor.execute('UPDATE proyectos SET estado = "despacho" WHERE id = ? AND estado != "entregado"', (proyecto_id,))
 
         conn.commit()
         conn.close()
 
         flash(f'Despacho {codigo_despacho} programado exitosamente. Recordatorios creados automáticamente.', 'success')
-        return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+        return redirect(url_for('despacho_detalle', despacho_id=despacho_id))
 
     except Exception as e:
         flash(f'Error al programar despacho: {str(e)}', 'error')
-        return redirect(request.referrer or url_for('proyectos'))
+        return redirect(request.referrer or url_for('despachos'))
 
 
 @app.route('/despachos')
@@ -954,10 +937,21 @@ def despachos():
     cursor = conn.cursor()
     
     cursor.execute('''
-        SELECT d.*, p.nombre as proyecto_nombre, p.codigo as proyecto_codigo,
-               c.nombre as cliente_nombre
+        SELECT d.*, 
+               CASE 
+                   WHEN p.nombre IS NOT NULL THEN p.nombre
+                   ELSE 'Proyecto Manual'
+               END as proyecto_nombre, 
+               CASE 
+                   WHEN p.codigo IS NOT NULL THEN p.codigo
+                   ELSE d.codigo_despacho
+               END as proyecto_codigo,
+               CASE 
+                   WHEN c.nombre IS NOT NULL THEN c.nombre
+                   ELSE 'Cliente Manual'
+               END as cliente_nombre
         FROM despachos d
-        JOIN proyectos p ON d.proyecto_id = p.id
+        LEFT JOIN proyectos p ON d.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
         ORDER BY d.fecha_programada ASC
     ''')

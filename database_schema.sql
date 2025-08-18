@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS evidencias (
 -- Tabla de despachos (nueva)
 CREATE TABLE IF NOT EXISTS despachos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    proyecto_id INTEGER NOT NULL,
+    proyecto_id INTEGER, -- Ahora opcional para permitir entrada manual
     codigo_despacho TEXT UNIQUE NOT NULL,
     transportista TEXT,
     conductor TEXT,

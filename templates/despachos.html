@@ -81,20 +81,40 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="proyecto_id" class="form-label">Proyecto *</label>
-                                <select class="form-select" id="proyecto_id" name="proyecto_id" required>
-                                    <option value="">Seleccionar proyecto...</option>
-                                    <!-- Se puede cargar dinámicamente con JavaScript -->
-                                </select>
+                                <label for="cliente_nombre" class="form-label">Cliente *</label>
+                                <input type="text" class="form-control" id="cliente_nombre" name="cliente_nombre" required>
+                                <div class="form-text">Ingrese el nombre del cliente</div>
                             </div>
                         </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="proyecto_nombre" class="form-label">Proyecto *</label>
+                                <input type="text" class="form-control" id="proyecto_nombre" name="proyecto_nombre" required>
+                                <div class="form-text">Ingrese el nombre o código del proyecto</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="fecha_programada" class="form-label">Fecha de Despacho *</label>
                                 <input type="date" class="form-control" id="fecha_programada" name="fecha_programada" required>
                             </div>
                         </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="direccion_entrega" class="form-label">Dirección de Entrega *</label>
+                                <textarea class="form-control" id="direccion_entrega" name="direccion_entrega" rows="2" required></textarea>
+                            </div>
+                        </div>
+                    </div></div>
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="2"></textarea>
                     </div>
+                    
+                    <!-- Información Opcional del Transporte -->
+                    <h6 class="mb-3 text-muted">Información de Transporte (Opcional)</h6>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -123,16 +143,10 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="direccion_entrega" class="form-label">Dirección de Entrega *</label>
-                        <textarea class="form-control" id="direccion_entrega" name="direccion_entrega" rows="2" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="observaciones" class="form-label">Observaciones</label>
-                        <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
-                    </div>
                     
-                    <h6 class="mb-3">Archivos del Despacho</h6>
+                    <!-- Archivos Opcionales -->
+                    <h6 class="mb-3 text-muted">Archivos del Despacho (Opcional)</h6>
+                    <p class="text-muted small">Estos archivos se pueden subir al momento del despacho cuando se tengan las fotos y documentos</p>
                     <div class="row">
                         <div class="col-md-4">
                             <div class="mb-3">
@@ -167,20 +181,9 @@
 </div>
 
 <script>
-// Cargar proyectos disponibles para despacho
+// Funciones para gestión de despachos
 document.addEventListener('DOMContentLoaded', function() {
-    fetch('/api/proyectos_para_despacho')
-        .then(response => response.json())
-        .then(data => {
-            const select = document.getElementById('proyecto_id');
-            data.forEach(proyecto => {
-                const option = document.createElement('option');
-                option.value = proyecto.id;
-                option.textContent = `${proyecto.codigo} - ${proyecto.nombre}`;
-                select.appendChild(option);
-            });
-        })
-        .catch(error => console.error('Error:', error));
+    // No necesitamos cargar proyectos dinámicamente ya que ahora son campos de texto
 });
 
 function verDetalleDespacho(despachoId) {
