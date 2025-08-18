@@ -6,9 +6,14 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-truck"></i> Despachos Programados</h1>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoDespachoModal">
-        <i class="fas fa-plus"></i> Programar Despacho
-    </button>
+    <div class="btn-group" role="group">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoDespachoModal">
+            <i class="fas fa-plus"></i> Crear Despacho
+        </button>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#programarDespachoModal">
+            <i class="fas fa-cogs"></i> Programar Despacho con Orden
+        </button>
+    </div>
 </div>
 
 <div class="card">
@@ -68,85 +73,140 @@
     </div>
 </div>
 
-<!-- Modal para nuevo despacho -->
+<!-- Modal para crear despacho flexible -->
 <div class="modal fade" id="nuevoDespachoModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Programar Nuevo Despacho</h5>
+                <h5 class="modal-title">Crear Nuevo Despacho</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('programar_despacho') }}" method="POST">
+            <form action="{{ url_for('crear_despacho') }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
+                    <!-- Campos Obligatorios -->
+                    <h6 class="mb-3 text-primary">Información Obligatoria</h6>
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="mb-3">
                                 <label for="cliente_nombre" class="form-label">Cliente *</label>
                                 <input type="text" class="form-control" id="cliente_nombre" name="cliente_nombre" required>
-                                <div class="form-text">Ingrese el nombre del cliente</div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="proyecto_nombre" class="form-label">Proyecto *</label>
-                                <input type="text" class="form-control" id="proyecto_nombre" name="proyecto_nombre" required>
-                                <div class="form-text">Ingrese el nombre o código del proyecto</div>
+                                <label for="obra_nombre" class="form-label">Obra/Proyecto *</label>
+                                <input type="text" class="form-control" id="obra_nombre" name="obra_nombre" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="fecha_despacho" class="form-label">Fecha de Despacho *</label>
+                                <input type="date" class="form-control" id="fecha_despacho" name="fecha_despacho" required>
                             </div>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="fecha_programada" class="form-label">Fecha de Despacho *</label>
-                                <input type="date" class="form-control" id="fecha_programada" name="fecha_programada" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="direccion_entrega" class="form-label">Dirección de Entrega *</label>
-                                <textarea class="form-control" id="direccion_entrega" name="direccion_entrega" rows="2" required></textarea>
-                            </div>
-                        </div>
-                    </div></div>
-                    <div class="mb-3">
-                        <label for="observaciones" class="form-label">Observaciones</label>
-                        <textarea class="form-control" id="observaciones" name="observaciones" rows="2"></textarea>
-                    </div>
+
+                    <!-- Campos Opcionales Flexibles -->
+                    <h6 class="mb-3 text-muted">Información Adicional (Opcional)</h6>
                     
-                    <!-- Información Opcional del Transporte -->
-                    <h6 class="mb-3 text-muted">Información de Transporte (Opcional)</h6>
+                    <!-- Información de Entrega -->
                     <div class="row">
                         <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="direccion_entrega" class="form-label">Dirección de Entrega</label>
+                                <textarea class="form-control" id="direccion_entrega" name="direccion_entrega" rows="2" placeholder="Ingrese la dirección completa de entrega"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="contacto_entrega" class="form-label">Contacto en Destino</label>
+                                <input type="text" class="form-control" id="contacto_entrega" name="contacto_entrega" placeholder="Nombre del contacto">
+                            </div>
+                            <div class="mb-3">
+                                <label for="telefono_contacto" class="form-label">Teléfono Contacto</label>
+                                <input type="tel" class="form-control" id="telefono_contacto" name="telefono_contacto" placeholder="+56 9 1234 5678">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Información de Transporte -->
+                    <div class="row">
+                        <div class="col-md-3">
                             <div class="mb-3">
                                 <label for="transportista" class="form-label">Transportista</label>
-                                <input type="text" class="form-control" id="transportista" name="transportista">
+                                <input type="text" class="form-control" id="transportista" name="transportista" placeholder="Empresa o nombre">
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-3">
                             <div class="mb-3">
                                 <label for="conductor" class="form-label">Conductor</label>
-                                <input type="text" class="form-control" id="conductor" name="conductor">
+                                <input type="text" class="form-control" id="conductor" name="conductor" placeholder="Nombre del conductor">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="telefono_conductor" class="form-label">Teléfono Conductor</label>
+                                <input type="tel" class="form-control" id="telefono_conductor" name="telefono_conductor" placeholder="Teléfono">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="vehiculo_patente" class="form-label">Patente Vehículo</label>
+                                <input type="text" class="form-control" id="vehiculo_patente" name="vehiculo_patente" placeholder="AB1234">
                             </div>
                         </div>
                     </div>
+
+                    <!-- Información de Productos -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="telefono_conductor" class="form-label">Teléfono Conductor</label>
-                                <input type="tel" class="form-control" id="telefono_conductor" name="telefono_conductor">
+                                <label for="descripcion_productos" class="form-label">Descripción de Productos</label>
+                                <textarea class="form-control" id="descripcion_productos" name="descripcion_productos" rows="3" placeholder="Detalle de los productos a despachar"></textarea>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="vehiculo_patente" class="form-label">Patente Vehículo</label>
-                                <input type="text" class="form-control" id="vehiculo_patente" name="vehiculo_patente">
+                                <label for="cantidad_bultos" class="form-label">Cantidad de Bultos</label>
+                                <input type="number" class="form-control" id="cantidad_bultos" name="cantidad_bultos" min="0" placeholder="Número de bultos">
+                            </div>
+                            <div class="mb-3">
+                                <label for="peso_estimado" class="form-label">Peso Estimado (kg)</label>
+                                <input type="number" class="form-control" id="peso_estimado" name="peso_estimado" min="0" step="0.1" placeholder="Peso total en kg">
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Archivos Opcionales -->
-                    <h6 class="mb-3 text-muted">Archivos del Despacho (Opcional)</h6>
-                    <p class="text-muted small">Estos archivos se pueden subir al momento del despacho cuando se tengan las fotos y documentos</p>
+
+                    <!-- Horarios y Restricciones -->
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="hora_programada" class="form-label">Hora Programada</label>
+                                <input type="time" class="form-control" id="hora_programada" name="hora_programada">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="horario_entrega" class="form-label">Horario de Entrega</label>
+                                <input type="text" class="form-control" id="horario_entrega" name="horario_entrega" placeholder="Ej: 08:00 - 18:00">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="restricciones" class="form-label">Restricciones Especiales</label>
+                                <input type="text" class="form-control" id="restricciones" name="restricciones" placeholder="Restricciones de acceso, horarios, etc.">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Observaciones Generales -->
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones Generales</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="3" placeholder="Cualquier información adicional relevante para el despacho"></textarea>
+                    </div>
+
+                    <!-- Archivos Adjuntos -->
+                    <h6 class="mb-3 text-muted">Archivos Adjuntos (Opcional)</h6>
                     <div class="row">
                         <div class="col-md-4">
                             <div class="mb-3">
@@ -157,14 +217,14 @@
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="archivo_checklist" class="form-label">Checklist de Carga</label>
-                                <input type="file" class="form-control" id="archivo_checklist" name="archivo_checklist" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
-                                <small class="text-muted">PDF, DOC, JPG, PNG (máx. 16MB)</small>
+                                <label for="archivo_documentos" class="form-label">Documentos Adicionales</label>
+                                <input type="file" class="form-control" id="archivo_documentos" name="archivo_documentos" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple>
+                                <small class="text-muted">PDF, DOC, XLS (máx. 16MB c/u)</small>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="archivo_fotos" class="form-label">Fotos del Producto</label>
+                                <label for="archivo_fotos" class="form-label">Fotos</label>
                                 <input type="file" class="form-control" id="archivo_fotos" name="archivo_fotos" accept=".jpg,.jpeg,.png,.gif" multiple>
                                 <small class="text-muted">Imágenes (máx. 16MB c/u)</small>
                             </div>
@@ -173,7 +233,126 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Programar Despacho</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Crear Despacho
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para programar despacho con orden de producción -->
+<div class="modal fade" id="programarDespachoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Programar Despacho con Orden de Producción</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('programar_despacho_con_orden') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Información:</strong> Esta opción creará automáticamente una orden de producción en estado "pendiente de fabricación" junto con el despacho programado.
+                    </div>
+
+                    <!-- Selección de Cliente y Proyecto -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="prog_cliente_id" class="form-label">Cliente *</label>
+                                <select class="form-select" id="prog_cliente_id" name="cliente_id" required>
+                                    <option value="">Seleccione un cliente...</option>
+                                    {% for cliente in clientes_disponibles %}
+                                    <option value="{{ cliente[0] }}">{{ cliente[1] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="prog_proyecto_id" class="form-label">Proyecto Existente</label>
+                                <select class="form-select" id="prog_proyecto_id" name="proyecto_id">
+                                    <option value="">Crear nuevo proyecto...</option>
+                                </select>
+                                <small class="text-muted">Deje vacío para crear un nuevo proyecto</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Información del Proyecto (si es nuevo) -->
+                    <div id="nuevo_proyecto_section">
+                        <h6 class="mb-3 text-primary">Información del Nuevo Proyecto</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="prog_proyecto_nombre" class="form-label">Nombre del Proyecto *</label>
+                                    <input type="text" class="form-control" id="prog_proyecto_nombre" name="proyecto_nombre" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="prog_presupuesto" class="form-label">Presupuesto Estimado</label>
+                                    <input type="number" class="form-control" id="prog_presupuesto" name="presupuesto" min="0" step="1000" placeholder="Monto en CLP">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="prog_descripcion" class="form-label">Descripción del Proyecto</label>
+                            <textarea class="form-control" id="prog_descripcion" name="descripcion" rows="3" placeholder="Descripción detallada del proyecto"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Información del Despacho -->
+                    <h6 class="mb-3 text-primary">Información del Despacho</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="prog_fecha_despacho" class="form-label">Fecha Programada de Despacho *</label>
+                                <input type="date" class="form-control" id="prog_fecha_despacho" name="fecha_despacho" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="prog_prioridad" class="form-label">Prioridad</label>
+                                <select class="form-select" id="prog_prioridad" name="prioridad">
+                                    <option value="media">Media</option>
+                                    <option value="baja">Baja</option>
+                                    <option value="alta">Alta</option>
+                                    <option value="urgente">Urgente</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="prog_direccion_entrega" class="form-label">Dirección de Entrega *</label>
+                        <textarea class="form-control" id="prog_direccion_entrega" name="direccion_entrega" rows="2" required placeholder="Dirección completa para la entrega"></textarea>
+                    </div>
+
+                    <!-- Información Opcional de Transporte -->
+                    <h6 class="mb-3 text-muted">Información de Transporte (Opcional)</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="prog_transportista" class="form-label">Transportista</label>
+                                <input type="text" class="form-control" id="prog_transportista" name="transportista">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="prog_observaciones" class="form-label">Observaciones</label>
+                                <textarea class="form-control" id="prog_observaciones" name="observaciones" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-cogs"></i> Programar Despacho con Orden
+                    </button>
                 </div>
             </form>
         </div>
@@ -253,3 +432,122 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
+
+
+<script>
+// JavaScript adicional para los modales de despacho
+document.addEventListener('DOMContentLoaded', function() {
+    // Manejar cambio de cliente en modal de programar despacho con orden
+    const clienteSelect = document.getElementById('prog_cliente_id');
+    const proyectoSelect = document.getElementById('prog_proyecto_id');
+    const nuevoProyectoSection = document.getElementById('nuevo_proyecto_section');
+    
+    if (clienteSelect) {
+        clienteSelect.addEventListener('change', function() {
+            const clienteId = this.value;
+            
+            // Limpiar proyectos
+            proyectoSelect.innerHTML = '<option value="">Crear nuevo proyecto...</option>';
+            
+            if (clienteId) {
+                // Cargar proyectos del cliente
+                fetch(`/api/proyectos_cliente/${clienteId}`)
+                    .then(response => response.json())
+                    .then(proyectos => {
+                        proyectos.forEach(proyecto => {
+                            const option = document.createElement('option');
+                            option.value = proyecto.id;
+                            option.textContent = `${proyecto.codigo} - ${proyecto.nombre}`;
+                            proyectoSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error cargando proyectos:', error);
+                    });
+            }
+        });
+    }
+    
+    if (proyectoSelect) {
+        proyectoSelect.addEventListener('change', function() {
+            const proyectoId = this.value;
+            
+            // Mostrar/ocultar sección de nuevo proyecto
+            if (proyectoId === '') {
+                nuevoProyectoSection.style.display = 'block';
+                document.getElementById('prog_proyecto_nombre').required = true;
+            } else {
+                nuevoProyectoSection.style.display = 'none';
+                document.getElementById('prog_proyecto_nombre').required = false;
+            }
+        });
+    }
+
+    // Validación de fechas mínimas
+    const fechaInputs = document.querySelectorAll('input[type="date"]');
+    const today = new Date().toISOString().split('T')[0];
+    
+    fechaInputs.forEach(input => {
+        input.min = today;
+    });
+
+    // Previsualización de archivos mejorada
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    
+    fileInputs.forEach(input => {
+        input.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            const maxSize = 16 * 1024 * 1024; // 16MB
+            let totalSize = 0;
+            let invalidFiles = [];
+            
+            files.forEach(file => {
+                totalSize += file.size;
+                if (file.size > maxSize) {
+                    invalidFiles.push(file.name);
+                }
+            });
+            
+            if (invalidFiles.length > 0) {
+                alert(`Los siguientes archivos exceden el tamaño máximo de 16MB:\n${invalidFiles.join('\n')}`);
+                e.target.value = '';
+                return;
+            }
+            
+            if (totalSize > maxSize * files.length) {
+                alert('El tamaño total de los archivos es demasiado grande');
+                e.target.value = '';
+                return;
+            }
+            
+            // Mostrar información de archivos seleccionados
+            if (files.length > 0) {
+                const fileInfo = files.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join('\n');
+                console.log(`Archivos seleccionados:\n${fileInfo}`);
+            }
+        });
+    });
+});
+
+// Función auxiliar para formatear números
+function formatearNumero(input) {
+    // Eliminar caracteres no numéricos excepto punto y coma
+    let valor = input.value.replace(/[^\d.,]/g, '');
+    
+    // Reemplazar coma por punto para decimales
+    valor = valor.replace(',', '.');
+    
+    input.value = valor;
+}
+
+// Aplicar formato a campos numéricos
+document.addEventListener('DOMContentLoaded', function() {
+    const camposNumericos = document.querySelectorAll('input[type="number"]');
+    camposNumericos.forEach(campo => {
+        campo.addEventListener('input', function() {
+            formatearNumero(this);
+        });
+    });
+});
+</script>
