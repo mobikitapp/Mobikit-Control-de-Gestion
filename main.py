@@ -1244,7 +1244,67 @@ def editar_despacho(despacho_id):
                 return redirect(request.referrer)
             
             # Actualizar despacho
-            cursor.execute('''
+            @app.route('/api/proyectos_cliente/<int:cliente_id>')
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def api_proyectos_cliente(cliente_id):
+    """API para obtener proyectos de un cliente específico"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, codigo, nombre, estado
+        FROM proyectos
+        WHERE cliente_id = ? AND estado NOT IN ('entregado', 'cancelado')
+        ORDER BY nombre
+    ''', (cliente_id,))
+    
+    proyectos = []
+    for row in cursor.fetchall():
+        proyectos.append({
+            'id': row[0],
+            'codigo': row[1] or f'PROJ-{row[0]}',
+            'nombre': row[2],
+            'estado': row[3]
+        })
+    
+    conn.close()
+    return jsonify(proyectos)
+
+@app.route('/update_despacho/<int:despacho_id>', methods=['POST'])
+def update_despacho(despacho_id):
+    """Actualizar información de un despacho específico"""
+    request_data = request.get_json()
+    transportista = request_data.get('transportista')
+    conductor = request_data.get('conductor')
+    telefono_conductor = request_data.get('telefono_conductor')
+    vehiculo_patente = request_data.get('vehiculo_patente')
+    direccion_entrega = request_data.get('direccion_entrega')
+    observaciones = request_data.get('observaciones')
+    fecha_programada = request_data.get('fecha_programada')
+
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE despachos SET
+                transportista = ?, conductor = ?, telefono_conductor = ?,
+                vehiculo_patente = ?, direccion_entrega = ?, observaciones = ?,
+                fecha_programada = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (transportista, conductor, telefono_conductor, vehiculo_patente,
+              direccion_entrega, observaciones, fecha_programada, despacho_id))
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Despacho actualizado exitosamente'})
+    
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+    
+    finally:
+        conn.close()cursor.execute('''
                 UPDATE despachos SET
                     transportista = ?, conductor = ?, telefono_conductor = ?,
 
