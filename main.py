@@ -303,22 +303,241 @@ def dashboard():
                            proyectos_recientes=proyectos_recientes)
 
 
+@app.route('/clientes')
+@login_required
+def clientes():
+    """Gestión de clientes"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT c.*, COUNT(p.id) as total_proyectos
+        FROM clientes c
+        LEFT JOIN proyectos p ON c.id = p.cliente_id
+        WHERE c.activo = TRUE
+        GROUP BY c.id
+        ORDER BY c.nombre ASC
+    ''')
+    clientes_list = cursor.fetchall()
+    conn.close()
+
+    return render_template('clientes.html', clientes=clientes_list)
+
+
+@app.route('/nuevo_cliente', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def nuevo_cliente():
+    """Crear nuevo cliente"""
+    try:
+        nombre = request.form['nombre']
+        rut = request.form.get('rut', '').strip() or None
+        email = request.form.get('email', '').strip() or None
+        telefono = request.form.get('telefono', '').strip() or None
+        direccion = request.form.get('direccion', '').strip() or None
+        ciudad = request.form.get('ciudad', '').strip() or None
+        region = request.form.get('region', '').strip() or None
+        contacto_principal = request.form.get('contacto_principal', '').strip() or None
+        observaciones = request.form.get('observaciones', '').strip() or None
+
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO clientes (
+                nombre, rut, email, telefono, direccion, ciudad, region, 
+                contacto_principal, observaciones, activo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (nombre, rut, email, telefono, direccion, ciudad, region, 
+              contacto_principal, observaciones, True))
+        
+        conn.commit()
+        conn.close()
+        
+        flash('Cliente creado exitosamente', 'success')
+        
+    except sqlite3.IntegrityError as e:
+        if 'rut' in str(e).lower():
+            flash('Ya existe un cliente con ese RUT', 'error')
+        elif 'email' in str(e).lower():
+            flash('Ya existe un cliente con ese email', 'error')
+        else:
+            flash('Error al crear cliente: datos duplicados', 'error')
+    except Exception as e:
+        flash(f'Error al crear cliente: {str(e)}', 'error')
+    
+    return redirect(url_for('clientes'))
+
+
+@app.route('/editar_cliente', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def editar_cliente():
+    """Editar cliente existente"""
+    try:
+        cliente_id = request.form['cliente_id']
+        nombre = request.form['nombre']
+        rut = request.form.get('rut', '').strip() or None
+        email = request.form.get('email', '').strip() or None
+        telefono = request.form.get('telefono', '').strip() or None
+        direccion = request.form.get('direccion', '').strip() or None
+        ciudad = request.form.get('ciudad', '').strip() or None
+        region = request.form.get('region', '').strip() or None
+        contacto_principal = request.form.get('contacto_principal', '').strip() or None
+        observaciones = request.form.get('observaciones', '').strip() or None
+
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE clientes SET
+                nombre = ?, rut = ?, email = ?, telefono = ?, direccion = ?,
+                ciudad = ?, region = ?, contacto_principal = ?, observaciones = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (nombre, rut, email, telefono, direccion, ciudad, region, 
+              contacto_principal, observaciones, cliente_id))
+        
+        conn.commit()
+        conn.close()
+        
+        flash('Cliente actualizado exitosamente', 'success')
+        
+    except sqlite3.IntegrityError as e:
+        if 'rut' in str(e).lower():
+            flash('Ya existe un cliente con ese RUT', 'error')
+        elif 'email' in str(e).lower():
+            flash('Ya existe un cliente con ese email', 'error')
+        else:
+            flash('Error al actualizar cliente: datos duplicados', 'error')
+    except Exception as e:
+        flash(f'Error al actualizar cliente: {str(e)}', 'error')
+    
+    return redirect(url_for('clientes'))
+
+
+@app.route('/eliminar_cliente/<int:cliente_id>', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def eliminar_cliente(cliente_id):
+    """Eliminar cliente (solo si no tiene proyectos)"""
+    try:
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+        
+        # Verificar si tiene proyectos
+        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
+        proyectos_count = cursor.fetchone()[0]
+        
+        if proyectos_count > 0:
+            return jsonify({
+                'success': False, 
+                'message': f'No se puede eliminar el cliente porque tiene {proyectos_count} proyecto(s) asociado(s)'
+            })
+        
+        # Eliminar cliente
+        cursor.execute('DELETE FROM clientes WHERE id = ?', (cliente_id,))
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Cliente eliminado exitosamente'})
+        else:
+            return jsonify({'success': False, 'message': 'Cliente no encontrado'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al eliminar cliente: {str(e)}'})
+    finally:
+        conn.close()
+
+
 @app.route('/proyectos')
 @login_required
 def proyectos():
+    """Vista de proyectos organizados por cliente"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
+    
+    # Obtener clientes con sus proyectos
     cursor.execute('''
-        SELECT p.id, p.nombre, c.nombre as cliente, p.estado, p.fecha_entrega, u.nombre as diseñador
-        FROM proyectos p
-        LEFT JOIN clientes c ON p.cliente_id = c.id
-        LEFT JOIN usuarios u ON p.diseñador_id = u.id
-        ORDER BY p.created_at DESC
+        SELECT DISTINCT c.id, c.nombre, c.rut, c.email, c.telefono, c.contacto_principal
+        FROM clientes c
+        INNER JOIN proyectos p ON c.id = p.cliente_id
+        WHERE c.activo = TRUE
+        ORDER BY c.nombre ASC
     ''')
-    proyectos_list = cursor.fetchall()
+    clientes_con_proyectos = cursor.fetchall()
+    
+    proyectos_por_cliente = []
+    
+    for cliente in clientes_con_proyectos:
+        cliente_info = {
+            'id': cliente[0],
+            'nombre': cliente[1],
+            'rut': cliente[2],
+            'email': cliente[3],
+            'telefono': cliente[4],
+            'contacto_principal': cliente[5],
+            'proyectos': []
+        }
+        
+        # Obtener proyectos del cliente
+        cursor.execute('''
+            SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, p.prioridad,
+                   p.fecha_entrega, p.presupuesto, u.nombre as diseñador_nombre,
+                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+            FROM proyectos p
+            LEFT JOIN usuarios u ON p.diseñador_id = u.id
+            WHERE p.cliente_id = ?
+            ORDER BY 
+                CASE p.estado 
+                    WHEN 'diseño' THEN 1
+                    WHEN 'aprobado' THEN 2
+                    WHEN 'producción' THEN 3
+                    WHEN 'embalaje' THEN 4
+                    WHEN 'despacho' THEN 5
+                    WHEN 'entregado' THEN 6
+                    WHEN 'cancelado' THEN 7
+                    ELSE 8
+                END,
+                p.fecha_entrega ASC
+        ''', (cliente_info['id'],))
+        
+        proyectos = cursor.fetchall()
+        
+        for proyecto in proyectos:
+            proyecto_info = {
+                'id': proyecto[0],
+                'codigo': proyecto[1],
+                'nombre': proyecto[2],
+                'descripcion': proyecto[3],
+                'estado': proyecto[4],
+                'prioridad': proyecto[5],
+                'fecha_entrega': proyecto[6],
+                'presupuesto': proyecto[7],
+                'diseñador_nombre': proyecto[8],
+                'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None
+            }
+            cliente_info['proyectos'].append(proyecto_info)
+        
+        proyectos_por_cliente.append(cliente_info)
+    
+    # Obtener clientes disponibles para nuevo proyecto
+    cursor.execute('SELECT id, nombre FROM clientes WHERE activo = TRUE ORDER BY nombre ASC')
+    clientes_disponibles = cursor.fetchall()
+    
+    # Obtener diseñadores disponibles
+    cursor.execute('SELECT id, nombre FROM usuarios WHERE rol = "diseñador" AND activo = TRUE ORDER BY nombre ASC')
+    diseñadores_disponibles = cursor.fetchall()
+    
     conn.close()
-
-    return render_template('proyectos.html', proyectos=proyectos_list)
+    
+    fecha_hoy = datetime.now().date().strftime('%Y-%m-%d')
+    
+    return render_template('proyectos.html', 
+                         proyectos_por_cliente=proyectos_por_cliente,
+                         clientes_disponibles=clientes_disponibles,
+                         diseñadores_disponibles=diseñadores_disponibles,
+                         fecha_hoy=fecha_hoy)
 
 
 @app.route('/proyecto/<int:proyecto_id>')
@@ -359,75 +578,87 @@ def proyecto_detalle(proyecto_id):
                            tareas=tareas)
 
 
-@app.route('/nuevo_proyecto', methods=['GET', 'POST'])
+@app.route('/nuevo_proyecto', methods=['POST'])
 @login_required
 @role_required(['admin', 'general', 'diseñador'])
 def nuevo_proyecto():
-    if request.method == 'POST':
+    """Crear nuevo proyecto desde modal"""
+    try:
         nombre = request.form['nombre']
-        cliente_nombre = request.form['cliente']
-        descripcion = request.form['descripcion']
-        fecha_entrega = request.form['fecha_entrega']
+        cliente_id = request.form['cliente_id']
+        descripcion = request.form.get('descripcion', '').strip() or None
+        prioridad = request.form.get('prioridad', 'media')
+        fecha_inicio = request.form.get('fecha_inicio') or datetime.now().date()
+        fecha_entrega = request.form.get('fecha_entrega') or None
+        diseñador_id = request.form.get('diseñador_id') or None
+        presupuesto = request.form.get('presupuesto')
+        observaciones = request.form.get('observaciones', '').strip() or None
+
+        # Convertir presupuesto a float si se proporciona
+        if presupuesto:
+            try:
+                presupuesto = float(presupuesto)
+            except ValueError:
+                presupuesto = None
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
         
-        # Create or get client
-        cursor.execute('SELECT id FROM clientes WHERE nombre = ?', (cliente_nombre,))
-        cliente = cursor.fetchone()
-        if not cliente:
-            cursor.execute('INSERT INTO clientes (nombre) VALUES (?)', (cliente_nombre,))
-            cliente_id = cursor.lastrowid
-        else:
-            cliente_id = cliente[0]
+        # Verificar que el cliente existe
+        cursor.execute('SELECT id FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
+        if not cursor.fetchone():
+            flash('Cliente no válido', 'error')
+            return redirect(url_for('proyectos'))
             
-        # Generate unique project code
+        # Generar código único del proyecto
         cursor.execute('SELECT COUNT(*) FROM proyectos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
         proyecto_numero = cursor.fetchone()[0] + 1
-        codigo_proyecto = f"PROJ-{datetime.now().year}-{proyecto_numero:04d}"
+        codigo_proyecto = f"MOB-{datetime.now().year}-{proyecto_numero:03d}"
         
-        cursor.execute(
-            '''
-            INSERT INTO proyectos (codigo, nombre, cliente_id, descripcion, fecha_entrega, diseñador_id, fecha_inicio)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (codigo_proyecto, nombre, cliente_id, descripcion, fecha_entrega, session['user_id'],
-              datetime.now().date()))
+        # Crear proyecto
+        cursor.execute('''
+            INSERT INTO proyectos (
+                codigo, nombre, cliente_id, descripcion, estado, prioridad,
+                fecha_inicio, fecha_entrega, diseñador_id, presupuesto, observaciones
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (codigo_proyecto, nombre, cliente_id, descripcion, 'diseño', prioridad,
+              fecha_inicio, fecha_entrega, diseñador_id, presupuesto, observaciones))
 
         proyecto_id = cursor.lastrowid
 
         # Crear tareas automáticas del ciclo de vida
         tareas_ciclo = [
-            ('Diseño inicial', 'Crear diseño y planos del mueble', 'diseñador',
-             1),
-            ('Revisión de diseño', 'Revisar y aprobar diseño', 'general', 3),
-            ('Planificación de producción',
-             'Planificar proceso de fabricación', 'operación', 5),
-            ('Fabricación', 'Fabricar el mueble según especificaciones',
-             'operación', 15),
-            ('Control de calidad', 'Revisar calidad del producto terminado',
-             'operación', 18),
-            ('Embalaje', 'Embalar producto para despacho', 'embalaje', 20),
-            ('Preparación de despacho',
-             'Preparar documentos y coordinar entrega', 'despacho', 22),
-            ('Entrega', 'Entregar producto al cliente', 'despacho', 24)
+            ('Diseño inicial', 'Crear diseño y planos del mueble', 'diseñador', 'diseño', 1),
+            ('Revisión de diseño', 'Revisar y aprobar diseño', 'general', 'diseño', 3),
+            ('Planificación de producción', 'Planificar proceso de fabricación', 'operación', 'fabricación', 5),
+            ('Fabricación', 'Fabricar el mueble según especificaciones', 'operación', 'fabricación', 15),
+            ('Control de calidad', 'Revisar calidad del producto terminado', 'operación', 'control_calidad', 18),
+            ('Embalaje', 'Embalar producto para despacho', 'embalaje', 'embalaje', 20),
+            ('Preparación de despacho', 'Preparar documentos y coordinar entrega', 'despacho', 'despacho', 22),
+            ('Entrega', 'Entregar producto al cliente', 'despacho', 'despacho', 24)
         ]
 
-        fecha_base = datetime.now().date()
-        for titulo, descripcion, rol, dias in tareas_ciclo:
+        fecha_base = datetime.strptime(str(fecha_inicio), '%Y-%m-%d').date() if isinstance(fecha_inicio, str) else fecha_inicio
+        
+        for titulo, descripcion_tarea, rol, tipo, dias in tareas_ciclo:
             fecha_programada = fecha_base + timedelta(days=dias)
-            cursor.execute(
-                '''
-                INSERT INTO tareas (proyecto_id, titulo, descripcion, rol_asignado, fecha_programada)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (proyecto_id, titulo, descripcion, rol, fecha_programada))
+            cursor.execute('''
+                INSERT INTO tareas (
+                    proyecto_id, titulo, descripcion, rol_asignado, tipo, 
+                    fecha_programada, estado, prioridad
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (proyecto_id, titulo, descripcion_tarea, rol, tipo, 
+                  fecha_programada, 'pendiente', prioridad))
 
         conn.commit()
         conn.close()
 
-        flash('Proyecto creado exitosamente', 'success')
+        flash(f'Proyecto {codigo_proyecto} creado exitosamente', 'success')
         return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
-
-    return render_template('nuevo_proyecto.html')
+        
+    except Exception as e:
+        flash(f'Error al crear proyecto: {str(e)}', 'error')
+        return redirect(url_for('proyectos'))
 
 
 @app.route('/tareas')
