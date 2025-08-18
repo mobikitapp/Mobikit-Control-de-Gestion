@@ -815,28 +815,39 @@ def nuevo_usuario():
     return redirect(url_for('usuarios'))
 
 
-@app.route('/programar_despacho', methods=['POST'])
+@app.route('/crear_despacho', methods=['POST'])
 @login_required
 @role_required(['admin', 'general', 'despacho'])
-def programar_despacho():
+def crear_despacho():
     """
-    Endpoint para programar despachos con entrada manual de cliente y proyecto
+    Crear un despacho flexible con solo cliente, obra y fecha como obligatorios
     """
     try:
+        # Campos obligatorios
         cliente_nombre = request.form.get('cliente_nombre', '').strip()
-        proyecto_nombre = request.form.get('proyecto_nombre', '').strip()
-        fecha_programada = request.form.get('fecha_programada')
+        obra_nombre = request.form.get('obra_nombre', '').strip()
+        fecha_despacho = request.form.get('fecha_despacho')
+
+        # Validar campos obligatorios
+        if not all([cliente_nombre, obra_nombre, fecha_despacho]):
+            flash('Los campos Cliente, Obra y Fecha de Despacho son obligatorios', 'error')
+            return redirect(request.referrer or url_for('despachos'))
+
+        # Campos opcionales
         direccion_entrega = request.form.get('direccion_entrega', '').strip()
+        contacto_entrega = request.form.get('contacto_entrega', '').strip()
+        telefono_contacto = request.form.get('telefono_contacto', '').strip()
         transportista = request.form.get('transportista', '').strip()
         conductor = request.form.get('conductor', '').strip()
         telefono_conductor = request.form.get('telefono_conductor', '').strip()
         vehiculo_patente = request.form.get('vehiculo_patente', '').strip()
+        descripcion_productos = request.form.get('descripcion_productos', '').strip()
+        cantidad_bultos = request.form.get('cantidad_bultos', '').strip()
+        peso_estimado = request.form.get('peso_estimado', '').strip()
+        hora_programada = request.form.get('hora_programada', '').strip()
+        horario_entrega = request.form.get('horario_entrega', '').strip()
+        restricciones = request.form.get('restricciones', '').strip()
         observaciones = request.form.get('observaciones', '').strip()
-
-        # Validar campos obligatorios
-        if not all([cliente_nombre, proyecto_nombre, fecha_programada, direccion_entrega]):
-            flash('Los campos Cliente, Proyecto, Fecha de Despacho y Dirección son obligatorios', 'error')
-            return redirect(request.referrer or url_for('despachos'))
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
@@ -846,7 +857,29 @@ def programar_despacho():
         despacho_numero = cursor.fetchone()[0] + 1
         codigo_despacho = f"DESP-{datetime.now().year}-{despacho_numero:04d}"
 
-        # Insertar el despacho sin proyecto_id ya que es entrada manual
+        # Crear información completa en observaciones
+        info_completa = f"CLIENTE: {cliente_nombre}\nOBRA/PROYECTO: {obra_nombre}"
+        
+        if descripcion_productos:
+            info_completa += f"\nPRODUCTOS: {descripcion_productos}"
+        if cantidad_bultos:
+            info_completa += f"\nCANTIDAD BULTOS: {cantidad_bultos}"
+        if peso_estimado:
+            info_completa += f"\nPESO ESTIMADO: {peso_estimado} kg"
+        if contacto_entrega:
+            info_completa += f"\nCONTACTO ENTREGA: {contacto_entrega}"
+        if telefono_contacto:
+            info_completa += f"\nTELÉFONO CONTACTO: {telefono_contacto}"
+        if hora_programada:
+            info_completa += f"\nHORA PROGRAMADA: {hora_programada}"
+        if horario_entrega:
+            info_completa += f"\nHORARIO ENTREGA: {horario_entrega}"
+        if restricciones:
+            info_completa += f"\nRESTRICCIONES: {restricciones}"
+        if observaciones:
+            info_completa += f"\n\nOBSERVACIONES ADICIONALES:\n{observaciones}"
+
+        # Insertar el despacho (sin proyecto_id ya que es entrada manual)
         cursor.execute('''
             INSERT INTO despachos (
                 codigo_despacho, transportista, conductor, 
@@ -855,45 +888,36 @@ def programar_despacho():
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (codigo_despacho, transportista, conductor, 
               telefono_conductor, vehiculo_patente, direccion_entrega, 
-              fecha_programada, observaciones, 'programado'))
+              fecha_despacho, info_completa, 'programado'))
 
         despacho_id = cursor.lastrowid
 
         # Manejar archivos subidos si existen
         for file_key in request.files:
-            file = request.files[file_key]
-            if file and file.filename:
-                file_path = save_uploaded_file(file, 'despachos')
-                if file_path:
-                    tipo_archivo = file_key.replace('archivo_', '')
-                    cursor.execute('''
-                        INSERT INTO despacho_archivos (despacho_id, tipo, nombre_original, ruta_archivo, tamaño)
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (despacho_id, tipo_archivo, file.filename, file_path, file.content_length or 0))
+            files = request.files.getlist(file_key)
+            for file in files:
+                if file and file.filename:
+                    file_path = save_uploaded_file(file, 'despachos')
+                    if file_path:
+                        tipo_archivo = file_key.replace('archivo_', '')
+                        cursor.execute('''
+                            INSERT INTO despacho_archivos (despacho_id, tipo, nombre_original, ruta_archivo, tamaño)
+                            VALUES (?, ?, ?, ?, ?)
+                        ''', (despacho_id, tipo_archivo, file.filename, file_path, len(file.read()) if hasattr(file, 'read') else 0))
 
-        # Crear una entrada temporal en la tabla de notas/observaciones del despacho para guardar cliente y proyecto
-        info_adicional = f"Cliente: {cliente_nombre} | Proyecto: {proyecto_nombre}"
-        if observaciones:
-            observaciones = f"{info_adicional}\n\nObservaciones: {observaciones}"
-        else:
-            observaciones = info_adicional
-            
-        cursor.execute('''
-            UPDATE despachos SET observaciones = ? WHERE id = ?
-        ''', (observaciones, despacho_id))
-
-        # Calcular fecha de recordatorio
-        fecha_despacho = datetime.strptime(fecha_programada, '%Y-%m-%d').date()
-        dias_anticipacion = 5  # Default para despachos manuales
-        fecha_recordatorio = fecha_despacho - timedelta(days=dias_anticipacion)
-
-        # Crear recordatorio para el área de despacho
+        # Crear recordatorios automáticos
+        fecha_despacho_dt = datetime.strptime(fecha_despacho, '%Y-%m-%d').date()
+        
+        # Recordatorio 5 días antes
+        fecha_recordatorio = fecha_despacho_dt - timedelta(days=5)
         cursor.execute('SELECT id FROM areas WHERE nombre = "Despacho" LIMIT 1')
         area_despacho = cursor.fetchone()
         area_id = area_despacho[0] if area_despacho else None
 
-        titulo_recordatorio = f"Recordatorio: Preparar despacho {codigo_despacho}"
-        mensaje_recordatorio = f"El despacho {codigo_despacho} está programado para el {fecha_programada}.\nCliente: {cliente_nombre}\nProyecto: {proyecto_nombre}\nDirección: {direccion_entrega}"
+        titulo_recordatorio = f"Preparar despacho {codigo_despacho}"
+        mensaje_recordatorio = f"Despacho programado para {fecha_despacho}.\nCliente: {cliente_nombre}\nObra: {obra_nombre}"
+        if direccion_entrega:
+            mensaje_recordatorio += f"\nDirección: {direccion_entrega}"
 
         cursor.execute('''
             INSERT INTO recordatorios (
@@ -903,11 +927,10 @@ def programar_despacho():
         ''', ('despacho', despacho_id, area_id, titulo_recordatorio, 
               mensaje_recordatorio, fecha_recordatorio, True))
 
-        # Crear recordatorio adicional para el día anterior al despacho
-        fecha_recordatorio_urgente = fecha_despacho - timedelta(days=1)
-        
-        titulo_urgente = f"Despacho programado mañana: {codigo_despacho}"
-        mensaje_urgente = f"Mañana ({fecha_programada}) está programado el despacho:\n- Cliente: {cliente_nombre}\n- Proyecto: {proyecto_nombre}\n- Dirección: {direccion_entrega}"
+        # Recordatorio el día anterior
+        fecha_recordatorio_urgente = fecha_despacho_dt - timedelta(days=1)
+        titulo_urgente = f"Despacho mañana: {codigo_despacho}"
+        mensaje_urgente = f"Despacho programado para mañana ({fecha_despacho}).\nCliente: {cliente_nombre}\nObra: {obra_nombre}"
 
         cursor.execute('''
             INSERT INTO recordatorios (
@@ -920,11 +943,205 @@ def programar_despacho():
         conn.commit()
         conn.close()
 
-        flash(f'Despacho {codigo_despacho} programado exitosamente. Recordatorios creados automáticamente.', 'success')
+        flash(f'Despacho {codigo_despacho} creado exitosamente. Recordatorios automáticos configurados.', 'success')
         return redirect(url_for('despacho_detalle', despacho_id=despacho_id))
 
     except Exception as e:
-        flash(f'Error al programar despacho: {str(e)}', 'error')
+        flash(f'Error al crear despacho: {str(e)}', 'error')
+        return redirect(request.referrer or url_for('despachos'))
+
+
+@app.route('/programar_despacho_con_orden', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def programar_despacho_con_orden():
+    """
+    Programar despacho con orden de producción automática
+    """
+    try:
+        cliente_id = request.form.get('cliente_id')
+        proyecto_id = request.form.get('proyecto_id')
+        proyecto_nombre = request.form.get('proyecto_nombre', '').strip()
+        descripcion = request.form.get('descripcion', '').strip()
+        presupuesto = request.form.get('presupuesto', '').strip()
+        fecha_despacho = request.form.get('fecha_despacho')
+        prioridad = request.form.get('prioridad', 'media')
+        direccion_entrega = request.form.get('direccion_entrega', '').strip()
+        transportista = request.form.get('transportista', '').strip()
+        observaciones = request.form.get('observaciones', '').strip()
+
+        # Validar campos obligatorios
+        if not all([cliente_id, fecha_despacho, direccion_entrega]):
+            flash('Cliente, fecha de despacho y dirección son obligatorios', 'error')
+            return redirect(request.referrer or url_for('despachos'))
+
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Verificar que el cliente existe
+        cursor.execute('SELECT nombre FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
+        cliente = cursor.fetchone()
+        if not cliente:
+            flash('Cliente no válido', 'error')
+            return redirect(request.referrer or url_for('despachos'))
+
+        cliente_nombre = cliente[0]
+
+        # Si no se seleccionó proyecto existente, crear uno nuevo
+        if not proyecto_id:
+            if not proyecto_nombre:
+                flash('Debe especificar un nombre para el nuevo proyecto', 'error')
+                return redirect(request.referrer or url_for('despachos'))
+
+            # Generar código único del proyecto
+            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
+            proyecto_numero = cursor.fetchone()[0] + 1
+            codigo_proyecto = f"MOB-{datetime.now().year}-{proyecto_numero:03d}"
+            
+            # Convertir presupuesto si se proporciona
+            presupuesto_num = None
+            if presupuesto:
+                try:
+                    presupuesto_num = float(presupuesto)
+                except ValueError:
+                    pass
+
+            # Crear proyecto
+            cursor.execute('''
+                INSERT INTO proyectos (
+                    codigo, nombre, cliente_id, descripcion, estado, prioridad,
+                    fecha_inicio, fecha_entrega, presupuesto
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (codigo_proyecto, proyecto_nombre, cliente_id, descripcion, 'pendiente_fabricacion', prioridad,
+                  datetime.now().date(), fecha_despacho, presupuesto_num))
+
+            proyecto_id = cursor.lastrowid
+
+            # Crear tareas automáticas del ciclo de vida de producción
+            fecha_inicio = datetime.now().date()
+            fecha_despacho_dt = datetime.strptime(fecha_despacho, '%Y-%m-%d').date()
+            dias_disponibles = (fecha_despacho_dt - fecha_inicio).days
+
+            # Distribuir las tareas proporcionalmente en el tiempo disponible
+            tareas_produccion = [
+                ('Diseño y planificación', 'Crear diseño y planificar producción', 'diseñador', 'diseño', 0.15),
+                ('Aprobación de diseño', 'Revisar y aprobar diseño para producción', 'general', 'diseño', 0.25),
+                ('Seccionado', 'Corte y seccionado de materiales', 'operación', 'fabricación', 0.35),
+                ('Enchapado', 'Proceso de enchapado de piezas', 'operación', 'fabricación', 0.55),
+                ('Mecanizado', 'Mecanizado y acabado de piezas', 'operación', 'fabricación', 0.75),
+                ('Fabricación completa', 'Ensamble y fabricación final', 'operación', 'fabricación', 0.85),
+                ('Control de calidad', 'Inspección y control de calidad', 'operación', 'control_calidad', 0.90),
+                ('Embalaje', 'Embalaje para despacho', 'embalaje', 'embalaje', 0.95),
+                ('Preparación despacho', 'Preparar documentación y coordinar despacho', 'despacho', 'despacho', 1.0)
+            ]
+
+            for titulo, descripcion_tarea, rol, tipo, factor_tiempo in tareas_produccion:
+                dias_desde_inicio = int(dias_disponibles * factor_tiempo)
+                fecha_programada = fecha_inicio + timedelta(days=dias_desde_inicio)
+                
+                etapa_fab = None
+                if rol == 'operación' and tipo == 'fabricación':
+                    if 'Seccionado' in titulo:
+                        etapa_fab = 'seccionado'
+                    elif 'Enchapado' in titulo:
+                        etapa_fab = 'enchapado'
+                    elif 'Mecanizado' in titulo:
+                        etapa_fab = 'mecanizado'
+                    elif 'Fabricación completa' in titulo:
+                        etapa_fab = 'fabricacion_completo'
+
+                cursor.execute('''
+                    INSERT INTO tareas (
+                        proyecto_id, titulo, descripcion, rol_asignado, tipo, 
+                        fecha_programada, estado, prioridad, etapa_fabricacion
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (proyecto_id, titulo, descripcion_tarea, rol, tipo, 
+                      fecha_programada, 'pendiente', prioridad, etapa_fab))
+
+        else:
+            # Verificar que el proyecto existe y obtener su información
+            cursor.execute('''
+                SELECT p.nombre, p.codigo FROM proyectos p 
+                WHERE p.id = ? AND p.cliente_id = ?
+            ''', (proyecto_id, cliente_id))
+            proyecto_info = cursor.fetchone()
+            if not proyecto_info:
+                flash('Proyecto no válido para el cliente seleccionado', 'error')
+                return redirect(request.referrer or url_for('despachos'))
+            
+            proyecto_nombre = proyecto_info[0]
+            codigo_proyecto = proyecto_info[1]
+
+            # Actualizar estado del proyecto a pendiente_fabricacion si no lo está
+            cursor.execute('''
+                UPDATE proyectos SET estado = 'pendiente_fabricacion', 
+                fecha_entrega = ?, prioridad = ?
+                WHERE id = ?
+            ''', (fecha_despacho, prioridad, proyecto_id))
+
+        # Crear el despacho
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
+        despacho_numero = cursor.fetchone()[0] + 1
+        codigo_despacho = f"DESP-{datetime.now().year}-{despacho_numero:04d}"
+
+        observaciones_completas = f"ORDEN DE PRODUCCIÓN AUTOMÁTICA\nCliente: {cliente_nombre}\nProyecto: {proyecto_nombre}"
+        if observaciones:
+            observaciones_completas += f"\n\nObservaciones: {observaciones}"
+
+        cursor.execute('''
+            INSERT INTO despachos (
+                proyecto_id, codigo_despacho, transportista, direccion_entrega, 
+                fecha_programada, observaciones, estado
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (proyecto_id, codigo_despacho, transportista, direccion_entrega, 
+              fecha_despacho, observaciones_completas, 'programado'))
+
+        despacho_id = cursor.lastrowid
+
+        # Crear recordatorios
+        fecha_despacho_dt = datetime.strptime(fecha_despacho, '%Y-%m-%d').date()
+        
+        # Recordatorio para iniciar producción (inmediato)
+        cursor.execute('SELECT id FROM areas WHERE nombre = "Producción" LIMIT 1')
+        area_produccion = cursor.fetchone()
+        area_prod_id = area_produccion[0] if area_produccion else None
+
+        titulo_produccion = f"Nueva orden de producción: {codigo_proyecto}"
+        mensaje_produccion = f"Se ha creado una nueva orden de producción para el proyecto {proyecto_nombre}.\nCliente: {cliente_nombre}\nFecha límite de despacho: {fecha_despacho}\nPrioridad: {prioridad.upper()}"
+
+        cursor.execute('''
+            INSERT INTO recordatorios (
+                tipo, referencia_id, area_id, titulo, mensaje, 
+                fecha_recordatorio, activo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', ('proyecto', proyecto_id, area_prod_id, titulo_produccion, 
+              mensaje_produccion, datetime.now().date(), True))
+
+        # Recordatorio de despacho 5 días antes
+        fecha_recordatorio_despacho = fecha_despacho_dt - timedelta(days=5)
+        cursor.execute('SELECT id FROM areas WHERE nombre = "Despacho" LIMIT 1')
+        area_despacho = cursor.fetchone()
+        area_desp_id = area_despacho[0] if area_despacho else None
+
+        titulo_despacho = f"Preparar despacho {codigo_despacho}"
+        mensaje_despacho = f"Despacho programado para {fecha_despacho}.\nProyecto: {proyecto_nombre}\nCliente: {cliente_nombre}\nDirección: {direccion_entrega}"
+
+        cursor.execute('''
+            INSERT INTO recordatorios (
+                tipo, referencia_id, area_id, titulo, mensaje, 
+                fecha_recordatorio, activo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', ('despacho', despacho_id, area_desp_id, titulo_despacho, 
+              mensaje_despacho, fecha_recordatorio_despacho, True))
+
+        conn.commit()
+        conn.close()
+
+        flash(f'Orden de producción y despacho {codigo_despacho} creados exitosamente. Proyecto {codigo_proyecto} en estado "pendiente de fabricación".', 'success')
+        return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+
+    except Exception as e:
+        flash(f'Error al programar despacho con orden: {str(e)}', 'error')
         return redirect(request.referrer or url_for('despachos'))
 
 
@@ -956,9 +1173,14 @@ def despachos():
         ORDER BY d.fecha_programada ASC
     ''')
     despachos_list = cursor.fetchall()
+    
+    # Obtener clientes disponibles para modal de programar despacho con orden
+    cursor.execute('SELECT id, nombre FROM clientes WHERE activo = TRUE ORDER BY nombre ASC')
+    clientes_disponibles = cursor.fetchall()
+    
     conn.close()
     
-    return render_template('despachos.html', despachos=despachos_list)
+    return render_template('despachos.html', despachos=despachos_list, clientes_disponibles=clientes_disponibles)
 
 
 @app.route('/despacho/<int:despacho_id>')
@@ -1022,9 +1244,98 @@ def editar_despacho(despacho_id):
                 return redirect(request.referrer)
             
             # Actualizar despacho
-            cursor.execute('''
+            @app.route('/api/proyectos_cliente/<int:cliente_id>')
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def api_proyectos_cliente(cliente_id):
+    """API para obtener proyectos de un cliente específico"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, codigo, nombre, estado
+        FROM proyectos
+        WHERE cliente_id = ? AND estado NOT IN ('entregado', 'cancelado')
+        ORDER BY nombre
+    ''', (cliente_id,))
+    
+    proyectos = []
+    for row in cursor.fetchall():
+        proyectos.append({
+            'id': row[0],
+            'codigo': row[1] or f'PROJ-{row[0]}',
+            'nombre': row[2],
+            'estado': row[3]
+        })
+    
+    conn.close()
+    return jsonify(proyectos)
+
+@app.route('/update_despacho/<int:despacho_id>', methods=['POST'])
+def update_despacho(despacho_id):
+    """Actualizar información de un despacho específico"""
+    request_data = request.get_json()
+    transportista = request_data.get('transportista')
+    conductor = request_data.get('conductor')
+    telefono_conductor = request_data.get('telefono_conductor')
+    vehiculo_patente = request_data.get('vehiculo_patente')
+    direccion_entrega = request_data.get('direccion_entrega')
+    observaciones = request_data.get('observaciones')
+    fecha_programada = request_data.get('fecha_programada')
+
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE despachos SET
+                transportista = ?, conductor = ?, telefono_conductor = ?,
+                vehiculo_patente = ?, direccion_entrega = ?, observaciones = ?,
+                fecha_programada = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (transportista, conductor, telefono_conductor, vehiculo_patente,
+              direccion_entrega, observaciones, fecha_programada, despacho_id))
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Despacho actualizado exitosamente'})
+    
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+    
+    finally:
+        conn.close()cursor.execute('''
                 UPDATE despachos SET
                     transportista = ?, conductor = ?, telefono_conductor = ?,
+
+
+@app.route('/api/proyectos_cliente/<int:cliente_id>')
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def api_proyectos_cliente(cliente_id):
+    """API para obtener proyectos de un cliente específico"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, codigo, nombre, estado
+        FROM proyectos
+        WHERE cliente_id = ? AND estado NOT IN ('entregado', 'cancelado')
+        ORDER BY nombre
+    ''', (cliente_id,))
+    
+    proyectos = []
+    for row in cursor.fetchall():
+        proyectos.append({
+            'id': row[0],
+            'codigo': row[1] or f'PROJ-{row[0]}',
+            'nombre': row[2],
+            'estado': row[3]
+        })
+    
+    conn.close()
+    return jsonify(proyectos)
+
                     vehiculo_patente = ?, direccion_entrega = ?, observaciones = ?,
                     fecha_programada = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
