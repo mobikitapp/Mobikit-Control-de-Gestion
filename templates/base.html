@@ -14,7 +14,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('dashboard') }}">
-                <img src="{{ url_for('static', filename='img/mobikit-logo.png') }}" alt="Mobikit Logo" style="height: 45px; width: auto; object-fit: contain;">
+                <img src="{{ url_for('static', filename='img/mobikit-logo.png') }}" alt="Mobikit Logo" style="height: 60px; width: auto; object-fit: contain; max-width: 200px;">
             </a>
 
             {% if session.user_id %}
