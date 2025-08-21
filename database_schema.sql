@@ -379,7 +379,7 @@ INSERT OR IGNORE INTO configuraciones (clave, valor, descripcion, tipo) VALUES
 -- Datos iniciales de categorías
 INSERT OR IGNORE INTO categorias_producto (nombre, descripcion, color) VALUES 
     ('Cocinas', 'Muebles de cocina y accesorios', '#E31E24'),
-    ('Closet', 'Closets y vestidores', '#8B4513');
+    ('Closet', 'Closets y vestidores', '#6D6E71');
 
 -- Datos iniciales de subcategorías para Cocinas
 INSERT OR IGNORE INTO subcategorias_producto (categoria_id, nombre, descripcion) VALUES 

@@ -2,11 +2,13 @@
 /* Mobikit - Notion-inspired Design */
 
 :root {
+    /* Colores principales del logo Mobikit */
     --mobikit-red: #E31E24;
     --mobikit-red-light: #F3949A;
     --mobikit-red-dark: #B8141A;
+    --mobikit-gray-logo: #6D6E71; /* Gris del logo "mobikit" */
     --mobikit-gray: #4A4A4A;
-    --mobikit-light-gray: #6C6C6C;
+    --mobikit-light-gray: #8C8C8C;
     --mobikit-dark-gray: #2D2D2D;
     --mobikit-white: #FFFFFF;
     --mobikit-light-bg: #FAFAFA;
@@ -15,13 +17,13 @@
     --mobikit-text-light: #787774;
     --mobikit-sidebar: #F7F6F3;
     
-    /* Colores corporativos específicos */
+    /* Colores corporativos específicos basados en logo */
     --mobikit-cocinas: #E31E24;
-    --mobikit-closet: #8B4513;
+    --mobikit-closet: #6D6E71; /* Usar gris del logo para closets */
     --mobikit-success: #22C55E;
     --mobikit-warning: #F59E0B;
-    --mobikit-info: #6B7280;
-    --mobikit-danger: #DC2626;
+    --mobikit-info: #6D6E71;
+    --mobikit-danger: #E31E24;
 }
 
 * {
@@ -50,12 +52,22 @@ body {
 }
 
 .navbar-brand {
-    font-weight: 600;
-    color: var(--mobikit-gray) !important;
-    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--mobikit-gray-logo) !important;
+    font-size: 1.3rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    text-transform: lowercase;
+}
+
+.navbar-brand .brand-text {
+    color: var(--mobikit-gray-logo) !important;
+}
+
+.navbar-brand .brand-accent {
+    color: var(--mobikit-red) !important;
+    font-weight: 400;
 }
 
 .navbar-brand i {
@@ -286,7 +298,7 @@ h4, h5, h6 {
 
 /* Category badges */
 .badge.bg-cocinas { background-color: var(--mobikit-cocinas) !important; }
-.badge.bg-closet { background-color: var(--mobikit-closet) !important; }
+.badge.bg-closet { background-color: var(--mobikit-gray-logo) !important; }
 
 /* Dashboard Cards */
 .dashboard-card {
