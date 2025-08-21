@@ -32,15 +32,15 @@ def save_uploaded_file(file, subfolder='despachos'):
         # Crear nombre único para evitar conflictos
         filename = secure_filename(file.filename)
         unique_filename = f"{uuid.uuid4()}_{filename}"
-        
+
         # Crear directorio si no existe
         upload_path = os.path.join(app.config['UPLOAD_FOLDER'], subfolder)
         os.makedirs(upload_path, exist_ok=True)
-        
+
         # Guardar archivo
         file_path = os.path.join(upload_path, unique_filename)
         file.save(file_path)
-        
+
         # Retornar ruta relativa para la base de datos
         return f"uploads/{subfolder}/{unique_filename}"
     return None
@@ -309,7 +309,7 @@ def clientes():
     """Gestión de clientes"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT c.*, COUNT(p.id) as total_proyectos
         FROM clientes c
@@ -342,7 +342,7 @@ def nuevo_cliente():
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
-        
+
         cursor.execute('''
             INSERT INTO clientes (
                 nombre, rut, email, telefono, direccion, ciudad, region, 
@@ -350,12 +350,12 @@ def nuevo_cliente():
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (nombre, rut, email, telefono, direccion, ciudad, region, 
               contacto_principal, observaciones, True))
-        
+
         conn.commit()
         conn.close()
-        
+
         flash('Cliente creado exitosamente', 'success')
-        
+
     except sqlite3.IntegrityError as e:
         if 'rut' in str(e).lower():
             flash('Ya existe un cliente con ese RUT', 'error')
@@ -365,7 +365,7 @@ def nuevo_cliente():
             flash('Error al crear cliente: datos duplicados', 'error')
     except Exception as e:
         flash(f'Error al crear cliente: {str(e)}', 'error')
-    
+
     return redirect(url_for('clientes'))
 
 
@@ -388,7 +388,7 @@ def editar_cliente():
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
-        
+
         cursor.execute('''
             UPDATE clientes SET
                 nombre = ?, rut = ?, email = ?, telefono = ?, direccion = ?,
@@ -397,12 +397,12 @@ def editar_cliente():
             WHERE id = ?
         ''', (nombre, rut, email, telefono, direccion, ciudad, region, 
               contacto_principal, observaciones, cliente_id))
-        
+
         conn.commit()
         conn.close()
-        
+
         flash('Cliente actualizado exitosamente', 'success')
-        
+
     except sqlite3.IntegrityError as e:
         if 'rut' in str(e).lower():
             flash('Ya existe un cliente con ese RUT', 'error')
@@ -412,7 +412,7 @@ def editar_cliente():
             flash('Error al actualizar cliente: datos duplicados', 'error')
     except Exception as e:
         flash(f'Error al actualizar cliente: {str(e)}', 'error')
-    
+
     return redirect(url_for('clientes'))
 
 
@@ -424,26 +424,26 @@ def eliminar_cliente(cliente_id):
     try:
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
-        
+
         # Verificar si tiene proyectos
         cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
         proyectos_count = cursor.fetchone()[0]
-        
+
         if proyectos_count > 0:
             return jsonify({
                 'success': False, 
                 'message': f'No se puede eliminar el cliente porque tiene {proyectos_count} proyecto(s) asociado(s)'
             })
-        
+
         # Eliminar cliente
         cursor.execute('DELETE FROM clientes WHERE id = ?', (cliente_id,))
-        
+
         if cursor.rowcount > 0:
             conn.commit()
             return jsonify({'success': True, 'message': 'Cliente eliminado exitosamente'})
         else:
             return jsonify({'success': False, 'message': 'Cliente no encontrado'})
-            
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al eliminar cliente: {str(e)}'})
     finally:
@@ -456,7 +456,7 @@ def proyectos():
     """Vista de proyectos organizados por cliente"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     # Obtener clientes con sus proyectos
     cursor.execute('''
         SELECT DISTINCT c.id, c.nombre, c.rut, c.email, c.telefono, c.contacto_principal
@@ -466,9 +466,9 @@ def proyectos():
         ORDER BY c.nombre ASC
     ''')
     clientes_con_proyectos = cursor.fetchall()
-    
+
     proyectos_por_cliente = []
-    
+
     for cliente in clientes_con_proyectos:
         cliente_info = {
             'id': cliente[0],
@@ -479,7 +479,7 @@ def proyectos():
             'contacto_principal': cliente[5],
             'proyectos': []
         }
-        
+
         # Obtener proyectos del cliente
         cursor.execute('''
             SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, p.prioridad,
@@ -501,9 +501,9 @@ def proyectos():
                 END,
                 p.fecha_entrega ASC
         ''', (cliente_info['id'],))
-        
+
         proyectos = cursor.fetchall()
-        
+
         for proyecto in proyectos:
             proyecto_info = {
                 'id': proyecto[0],
@@ -518,26 +518,26 @@ def proyectos():
                 'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None
             }
             cliente_info['proyectos'].append(proyecto_info)
-        
+
         proyectos_por_cliente.append(cliente_info)
-    
+
     # Obtener clientes disponibles para nuevo proyecto
     cursor.execute('SELECT id, nombre FROM clientes WHERE activo = TRUE ORDER BY nombre ASC')
     clientes_disponibles = cursor.fetchall()
-    
+
     # Obtener diseñadores disponibles
     cursor.execute('SELECT id, nombre FROM usuarios WHERE rol = "diseñador" AND activo = TRUE ORDER BY nombre ASC')
     diseñadores_disponibles = cursor.fetchall()
-    
+
     conn.close()
-    
+
     fecha_hoy = datetime.now().date().strftime('%Y-%m-%d')
-    
+
     return render_template('proyectos.html', 
-                         proyectos_por_cliente=proyectos_por_cliente,
-                         clientes_disponibles=clientes_disponibles,
-                         diseñadores_disponibles=diseñadores_disponibles,
-                         fecha_hoy=fecha_hoy)
+                           proyectos_por_cliente=proyectos_por_cliente,
+                           clientes_disponibles=clientes_disponibles,
+                           diseñadores_disponibles=diseñadores_disponibles,
+                           fecha_hoy=fecha_hoy)
 
 
 @app.route('/proyecto/<int:proyecto_id>')
@@ -603,18 +603,18 @@ def nuevo_proyecto():
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
-        
+
         # Verificar que el cliente existe
         cursor.execute('SELECT id FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
         if not cursor.fetchone():
             flash('Cliente no válido', 'error')
             return redirect(url_for('proyectos'))
-            
+
         # Generar código único del proyecto
         cursor.execute('SELECT COUNT(*) FROM proyectos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
         proyecto_numero = cursor.fetchone()[0] + 1
         codigo_proyecto = f"MOB-{datetime.now().year}-{proyecto_numero:03d}"
-        
+
         # Crear proyecto
         cursor.execute('''
             INSERT INTO proyectos (
@@ -639,7 +639,7 @@ def nuevo_proyecto():
         ]
 
         fecha_base = datetime.strptime(str(fecha_inicio), '%Y-%m-%d').date() if isinstance(fecha_inicio, str) else fecha_inicio
-        
+
         for titulo, descripcion_tarea, rol, tipo, dias in tareas_ciclo:
             fecha_programada = fecha_base + timedelta(days=dias)
             cursor.execute('''
@@ -655,7 +655,7 @@ def nuevo_proyecto():
 
         flash(f'Proyecto {codigo_proyecto} creado exitosamente', 'success')
         return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
-        
+
     except Exception as e:
         flash(f'Error al crear proyecto: {str(e)}', 'error')
         return redirect(url_for('proyectos'))
@@ -859,7 +859,7 @@ def crear_despacho():
 
         # Crear información completa en observaciones
         info_completa = f"CLIENTE: {cliente_nombre}\nOBRA/PROYECTO: {obra_nombre}"
-        
+
         if descripcion_productos:
             info_completa += f"\nPRODUCTOS: {descripcion_productos}"
         if cantidad_bultos:
@@ -907,7 +907,7 @@ def crear_despacho():
 
         # Crear recordatorios automáticos
         fecha_despacho_dt = datetime.strptime(fecha_despacho, '%Y-%m-%d').date()
-        
+
         # Recordatorio 5 días antes
         fecha_recordatorio = fecha_despacho_dt - timedelta(days=5)
         cursor.execute('SELECT id FROM areas WHERE nombre = "Despacho" LIMIT 1')
@@ -997,7 +997,7 @@ def programar_despacho_con_orden():
             cursor.execute('SELECT COUNT(*) FROM proyectos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
             proyecto_numero = cursor.fetchone()[0] + 1
             codigo_proyecto = f"MOB-{datetime.now().year}-{proyecto_numero:03d}"
-            
+
             # Convertir presupuesto si se proporciona
             presupuesto_num = None
             if presupuesto:
@@ -1038,7 +1038,7 @@ def programar_despacho_con_orden():
             for titulo, descripcion_tarea, rol, tipo, factor_tiempo in tareas_produccion:
                 dias_desde_inicio = int(dias_disponibles * factor_tiempo)
                 fecha_programada = fecha_inicio + timedelta(days=dias_desde_inicio)
-                
+
                 etapa_fab = None
                 if rol == 'operación' and tipo == 'fabricación':
                     if 'Seccionado' in titulo:
@@ -1068,7 +1068,7 @@ def programar_despacho_con_orden():
             if not proyecto_info:
                 flash('Proyecto no válido para el cliente seleccionado', 'error')
                 return redirect(request.referrer or url_for('despachos'))
-            
+
             proyecto_nombre = proyecto_info[0]
             codigo_proyecto = proyecto_info[1]
 
@@ -1100,7 +1100,7 @@ def programar_despacho_con_orden():
 
         # Crear recordatorios
         fecha_despacho_dt = datetime.strptime(fecha_despacho, '%Y-%m-%d').date()
-        
+
         # Recordatorio para iniciar producción (inmediato)
         cursor.execute('SELECT id FROM areas WHERE nombre = "Producción" LIMIT 1')
         area_produccion = cursor.fetchone()
@@ -1152,7 +1152,7 @@ def despachos():
     """Ver todos los despachos programados"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT d.*, 
                CASE 
@@ -1173,13 +1173,13 @@ def despachos():
         ORDER BY d.fecha_programada ASC
     ''')
     despachos_list = cursor.fetchall()
-    
+
     # Obtener clientes disponibles para modal de programar despacho con orden
     cursor.execute('SELECT id, nombre FROM clientes WHERE activo = TRUE ORDER BY nombre ASC')
     clientes_disponibles = cursor.fetchall()
-    
+
     conn.close()
-    
+
     return render_template('despachos.html', despachos=despachos_list, clientes_disponibles=clientes_disponibles)
 
 
@@ -1190,7 +1190,7 @@ def despacho_detalle(despacho_id):
     """Ver detalle de un despacho específico"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     # Obtener datos del despacho
     cursor.execute('''
         SELECT d.*, p.nombre as proyecto_nombre, p.codigo as proyecto_codigo,
@@ -1200,23 +1200,23 @@ def despacho_detalle(despacho_id):
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE d.id = ?
     ''', (despacho_id,))
-    
+
     despacho = cursor.fetchone()
-    
+
     if not despacho:
         flash('Despacho no encontrado', 'error')
         return redirect(url_for('despachos'))
-    
+
     # Obtener archivos del despacho
     cursor.execute('''
         SELECT * FROM despacho_archivos
         WHERE despacho_id = ?
         ORDER BY created_at DESC
     ''', (despacho_id,))
-    
+
     archivos = cursor.fetchall()
     conn.close()
-    
+
     return render_template('despacho_detalle.html', despacho=despacho, archivos=archivos)
 
 
@@ -1227,7 +1227,7 @@ def editar_despacho(despacho_id):
     """Editar un despacho existente"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     if request.method == 'POST':
         try:
             # Obtener datos del formulario
@@ -1238,110 +1238,21 @@ def editar_despacho(despacho_id):
             direccion_entrega = request.form.get('direccion_entrega')
             observaciones = request.form.get('observaciones', '')
             fecha_programada = request.form.get('fecha_programada')
-            
+
             if not all([direccion_entrega, fecha_programada]):
                 flash('Faltan datos obligatorios', 'error')
                 return redirect(request.referrer)
-            
+
             # Actualizar despacho
-            @app.route('/api/proyectos_cliente/<int:cliente_id>')
-@login_required
-@role_required(['admin', 'general', 'despacho'])
-def api_proyectos_cliente(cliente_id):
-    """API para obtener proyectos de un cliente específico"""
-    conn = sqlite3.connect('mobikit.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT id, codigo, nombre, estado
-        FROM proyectos
-        WHERE cliente_id = ? AND estado NOT IN ('entregado', 'cancelado')
-        ORDER BY nombre
-    ''', (cliente_id,))
-    
-    proyectos = []
-    for row in cursor.fetchall():
-        proyectos.append({
-            'id': row[0],
-            'codigo': row[1] or f'PROJ-{row[0]}',
-            'nombre': row[2],
-            'estado': row[3]
-        })
-    
-    conn.close()
-    return jsonify(proyectos)
-
-@app.route('/update_despacho/<int:despacho_id>', methods=['POST'])
-def update_despacho(despacho_id):
-    """Actualizar información de un despacho específico"""
-    request_data = request.get_json()
-    transportista = request_data.get('transportista')
-    conductor = request_data.get('conductor')
-    telefono_conductor = request_data.get('telefono_conductor')
-    vehiculo_patente = request_data.get('vehiculo_patente')
-    direccion_entrega = request_data.get('direccion_entrega')
-    observaciones = request_data.get('observaciones')
-    fecha_programada = request_data.get('fecha_programada')
-
-    conn = sqlite3.connect('mobikit.db')
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
-            UPDATE despachos SET
-                transportista = ?, conductor = ?, telefono_conductor = ?,
-                vehiculo_patente = ?, direccion_entrega = ?, observaciones = ?,
-                fecha_programada = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (transportista, conductor, telefono_conductor, vehiculo_patente,
-              direccion_entrega, observaciones, fecha_programada, despacho_id))
-        
-        conn.commit()
-        return jsonify({'success': True, 'message': 'Despacho actualizado exitosamente'})
-    
-    except Exception as e:
-        conn.rollback()
-        return jsonify({'success': False, 'message': str(e)})
-    
-    finally:
-        conn.close()cursor.execute('''
+            cursor.execute('''
                 UPDATE despachos SET
                     transportista = ?, conductor = ?, telefono_conductor = ?,
-
-
-@app.route('/api/proyectos_cliente/<int:cliente_id>')
-@login_required
-@role_required(['admin', 'general', 'despacho'])
-def api_proyectos_cliente(cliente_id):
-    """API para obtener proyectos de un cliente específico"""
-    conn = sqlite3.connect('mobikit.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT id, codigo, nombre, estado
-        FROM proyectos
-        WHERE cliente_id = ? AND estado NOT IN ('entregado', 'cancelado')
-        ORDER BY nombre
-    ''', (cliente_id,))
-    
-    proyectos = []
-    for row in cursor.fetchall():
-        proyectos.append({
-            'id': row[0],
-            'codigo': row[1] or f'PROJ-{row[0]}',
-            'nombre': row[2],
-            'estado': row[3]
-        })
-    
-    conn.close()
-    return jsonify(proyectos)
-
                     vehiculo_patente = ?, direccion_entrega = ?, observaciones = ?,
                     fecha_programada = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (transportista, conductor, telefono_conductor, vehiculo_patente,
                   direccion_entrega, observaciones, fecha_programada, despacho_id))
-            
+
             # Manejar archivos subidos
             for file_key in request.files:
                 file = request.files[file_key]
@@ -1353,17 +1264,17 @@ def api_proyectos_cliente(cliente_id):
                             INSERT INTO despacho_archivos (despacho_id, tipo, nombre_original, ruta_archivo)
                             VALUES (?, ?, ?, ?)
                         ''', (despacho_id, tipo_archivo, file.filename, file_path))
-            
+
             conn.commit()
             flash('Despacho actualizado exitosamente', 'success')
             return redirect(url_for('despacho_detalle', despacho_id=despacho_id))
-            
+
         except Exception as e:
             flash(f'Error al actualizar despacho: {str(e)}', 'error')
             return redirect(request.referrer)
         finally:
             conn.close()
-    
+
     # GET request - mostrar formulario de edición
     cursor.execute('''
         SELECT d.*, p.nombre as proyecto_nombre, p.codigo as proyecto_codigo
@@ -1371,14 +1282,14 @@ def api_proyectos_cliente(cliente_id):
         JOIN proyectos p ON d.proyecto_id = p.id
         WHERE d.id = ?
     ''', (despacho_id,))
-    
+
     despacho = cursor.fetchone()
     conn.close()
-    
+
     if not despacho:
         flash('Despacho no encontrado', 'error')
         return redirect(url_for('despachos'))
-    
+
     return render_template('editar_despacho.html', despacho=despacho)
 
 
@@ -1389,33 +1300,33 @@ def eliminar_despacho(despacho_id):
     """Eliminar un despacho y sus archivos asociados"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     try:
         # Obtener archivos para eliminarlos del sistema
         cursor.execute('SELECT ruta_archivo FROM despacho_archivos WHERE despacho_id = ?', (despacho_id,))
         archivos = cursor.fetchall()
-        
+
         # Eliminar archivos del sistema de archivos
         for archivo in archivos:
             delete_file(archivo[0])
-        
+
         # Eliminar registros de archivos
         cursor.execute('DELETE FROM despacho_archivos WHERE despacho_id = ?', (despacho_id,))
-        
+
         # Eliminar recordatorios asociados
         cursor.execute('DELETE FROM recordatorios WHERE tipo = "despacho" AND referencia_id = ?', (despacho_id,))
-        
+
         # Eliminar despacho
         cursor.execute('DELETE FROM despachos WHERE id = ?', (despacho_id,))
-        
+
         conn.commit()
         flash('Despacho eliminado exitosamente', 'success')
-        
+
     except Exception as e:
         flash(f'Error al eliminar despacho: {str(e)}', 'error')
     finally:
         conn.close()
-    
+
     return redirect(url_for('despachos'))
 
 
@@ -1426,32 +1337,32 @@ def eliminar_archivo_despacho(archivo_id):
     """Eliminar un archivo específico de un despacho"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     try:
         # Obtener información del archivo
         cursor.execute('SELECT despacho_id, ruta_archivo FROM despacho_archivos WHERE id = ?', (archivo_id,))
         archivo = cursor.fetchone()
-        
+
         if archivo:
             despacho_id, ruta_archivo = archivo
-            
+
             # Eliminar archivo del sistema
             delete_file(ruta_archivo)
-            
+
             # Eliminar registro de la base de datos
             cursor.execute('DELETE FROM despacho_archivos WHERE id = ?', (archivo_id,))
             conn.commit()
-            
+
             flash('Archivo eliminado exitosamente', 'success')
             return redirect(url_for('despacho_detalle', despacho_id=despacho_id))
         else:
             flash('Archivo no encontrado', 'error')
-            
+
     except Exception as e:
         flash(f'Error al eliminar archivo: {str(e)}', 'error')
     finally:
         conn.close()
-    
+
     return redirect(url_for('despachos'))
 
 
@@ -1462,19 +1373,19 @@ def marcar_despacho_en_transito(despacho_id):
     """Marcar un despacho como en tránsito"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute('''
             UPDATE despachos SET estado = 'en_transito', fecha_despacho = CURRENT_TIMESTAMP
             WHERE id = ? AND estado = 'programado'
         ''', (despacho_id,))
-        
+
         if cursor.rowcount > 0:
             conn.commit()
             return jsonify({'success': True, 'message': 'Despacho marcado como en tránsito'})
         else:
             return jsonify({'success': False, 'message': 'No se pudo actualizar el despacho'})
-            
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
     finally:
@@ -1488,25 +1399,25 @@ def marcar_despacho_entregado(despacho_id):
     """Marcar un despacho como entregado"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute('''
             UPDATE despachos SET estado = 'entregado', fecha_entrega = CURRENT_TIMESTAMP
             WHERE id = ? AND estado = 'en_transito'
         ''', (despacho_id,))
-        
+
         # También actualizar el proyecto como entregado
         cursor.execute('''
             UPDATE proyectos SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP
             WHERE id = (SELECT proyecto_id FROM despachos WHERE id = ?)
         ''', (despacho_id,))
-        
+
         if cursor.rowcount > 0:
             conn.commit()
             return jsonify({'success': True, 'message': 'Despacho marcado como entregado'})
         else:
             return jsonify({'success': False, 'message': 'No se pudo actualizar el despacho'})
-            
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
     finally:
@@ -1519,11 +1430,11 @@ def recordatorios_activos():
     """Ver recordatorios activos del usuario o área"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     # Obtener área del usuario actual
     cursor.execute('SELECT area_id FROM usuarios WHERE id = ?', (session['user_id'],))
     user_area = cursor.fetchone()
-    
+
     query = '''
         SELECT r.*, u.nombre as usuario_nombre, a.nombre as area_nombre
         FROM recordatorios r
@@ -1532,18 +1443,18 @@ def recordatorios_activos():
         WHERE r.activo = TRUE AND r.fecha_recordatorio <= date('now', '+7 days')
     '''
     params = []
-    
+
     # Filtrar por usuario o área si no es admin
     if session['user_role'] != 'admin':
         query += ' AND (r.usuario_id = ? OR r.area_id = ?)'
         params.extend([session['user_id'], user_area[0] if user_area else None])
-    
+
     query += ' ORDER BY r.fecha_recordatorio ASC'
-    
+
     cursor.execute(query, params)
     recordatorios_list = cursor.fetchall()
     conn.close()
-    
+
     return render_template('recordatorios.html', recordatorios=recordatorios_list)
 
 
@@ -1553,16 +1464,16 @@ def marcar_recordatorio_enviado(recordatorio_id):
     """Marcar un recordatorio como enviado"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         UPDATE recordatorios 
         SET enviado = TRUE, fecha_envio = CURRENT_TIMESTAMP 
         WHERE id = ?
     ''', (recordatorio_id,))
-    
+
     conn.commit()
     conn.close()
-    
+
     flash('Recordatorio marcado como enviado', 'success')
     return redirect(url_for('recordatorios_activos'))
 
@@ -1580,9 +1491,9 @@ def api_calendar_events():
     """API para obtener eventos del calendario"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     events = []
-    
+
     # Obtener despachos
     cursor.execute('''
         SELECT d.id, d.codigo_despacho, d.fecha_programada, d.estado,
@@ -1593,7 +1504,7 @@ def api_calendar_events():
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE d.fecha_programada IS NOT NULL
     ''')
-    
+
     for row in cursor.fetchall():
         events.append({
             'id': f'despacho_{row[0]}',
@@ -1607,7 +1518,7 @@ def api_calendar_events():
             'direccion': row[6],
             'estado': row[3]
         })
-    
+
     # Obtener tareas
     cursor.execute('''
         SELECT t.id, t.titulo, t.fecha_programada, t.estado, t.descripcion,
@@ -1618,7 +1529,7 @@ def api_calendar_events():
         LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
         WHERE t.fecha_programada IS NOT NULL
     ''')
-    
+
     for row in cursor.fetchall():
         events.append({
             'id': f'tarea_{row[0]}',
@@ -1633,7 +1544,7 @@ def api_calendar_events():
             'estado': row[3],
             'descripcion': row[4]
         })
-    
+
     # Obtener recordatorios
     cursor.execute('''
         SELECT r.id, r.titulo, r.fecha_recordatorio, r.mensaje, r.enviado,
@@ -1643,7 +1554,7 @@ def api_calendar_events():
         LEFT JOIN areas a ON r.area_id = a.id
         WHERE r.activo = TRUE AND r.fecha_recordatorio IS NOT NULL
     ''')
-    
+
     for row in cursor.fetchall():
         events.append({
             'id': f'recordatorio_{row[0]}',
@@ -1658,7 +1569,7 @@ def api_calendar_events():
             'mensaje': row[3],
             'enviado': row[4]
         })
-    
+
     conn.close()
     return jsonify(events)
 
@@ -1672,45 +1583,45 @@ def api_update_event_date():
         event_id = data['id']
         event_type = data['type']
         new_start = data['start']
-        
+
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
-        
+
         # Extraer el ID numérico del event_id
         numeric_id = int(event_id.split('_')[1])
-        
+
         if event_type == 'despacho':
             # Verificar permisos para despachos
             if session['user_role'] not in ['admin', 'general', 'despacho']:
                 return jsonify({'success': False, 'message': 'Sin permisos para modificar despachos'})
-            
+
             cursor.execute('''
                 UPDATE despachos SET fecha_programada = ? WHERE id = ?
             ''', (new_start, numeric_id))
-            
+
         elif event_type == 'tarea':
             cursor.execute('''
                 UPDATE tareas SET fecha_programada = ? WHERE id = ?
             ''', (new_start, numeric_id))
-            
+
         elif event_type == 'recordatorio':
             # Verificar permisos para recordatorios
             if session['user_role'] not in ['admin', 'general']:
                 return jsonify({'success': False, 'message': 'Sin permisos para modificar recordatorios'})
-            
+
             cursor.execute('''
                 UPDATE recordatorios SET fecha_recordatorio = ? WHERE id = ?
             ''', (new_start, numeric_id))
-        
+
         else:
             return jsonify({'success': False, 'message': 'Tipo de evento no válido'})
-        
+
         if cursor.rowcount > 0:
             conn.commit()
             return jsonify({'success': True, 'message': 'Fecha actualizada exitosamente'})
         else:
             return jsonify({'success': False, 'message': 'No se encontró el evento'})
-            
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al actualizar: {str(e)}'})
     finally:
@@ -1725,7 +1636,7 @@ def api_proyectos_para_despacho():
     """API para obtener proyectos listos para despacho"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre
         FROM proyectos p
@@ -1733,7 +1644,7 @@ def api_proyectos_para_despacho():
         WHERE p.estado IN ('fabricacion', 'control_calidad', 'embalaje', 'despacho')
         ORDER BY p.nombre
     ''')
-    
+
     proyectos = []
     for row in cursor.fetchall():
         proyectos.append({
@@ -1742,7 +1653,7 @@ def api_proyectos_para_despacho():
             'nombre': row[2],
             'cliente': row[3] or 'Sin cliente'
         })
-    
+
     conn.close()
     return jsonify(proyectos)
 
@@ -1752,7 +1663,7 @@ def api_proyectos_para_despacho():
 def tareas_area():
     """Vista principal de gestión de tareas por área"""
     user_role = session['user_role']
-    
+
     # Redirigir según el rol del usuario
     if user_role == 'diseñador':
         return redirect(url_for('tareas_diseño'))
@@ -1776,7 +1687,7 @@ def tareas_diseño():
     """Gestión de tareas de diseño"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
                t.fecha_programada, t.descripcion, u.nombre as asignado,
@@ -1793,10 +1704,10 @@ def tareas_diseño():
             END,
             t.fecha_programada ASC
     ''')
-    
+
     tareas_list = cursor.fetchall()
     conn.close()
-    
+
     return render_template('tareas_diseño.html', tareas=tareas_list)
 
 
@@ -1807,7 +1718,7 @@ def tareas_operacion():
     """Gestión de tareas de operación con etapas de fabricación"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     # Obtener tareas de operación/fabricación con sus etapas
     cursor.execute('''
         SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
@@ -1832,10 +1743,10 @@ def tareas_operacion():
             END,
             t.fecha_programada ASC
     ''')
-    
+
     tareas_list = cursor.fetchall()
     conn.close()
-    
+
     return render_template('tareas_operacion.html', tareas=tareas_list)
 
 
@@ -1846,7 +1757,7 @@ def tareas_embalaje():
     """Gestión de tareas de embalaje - solo fabricaciones completadas"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
                t.fecha_programada, t.descripcion, u.nombre as asignado,
@@ -1869,10 +1780,10 @@ def tareas_embalaje():
             END,
             t.fecha_programada ASC
     ''')
-    
+
     tareas_list = cursor.fetchall()
     conn.close()
-    
+
     return render_template('tareas_embalaje.html', tareas=tareas_list)
 
 
@@ -1883,7 +1794,7 @@ def tareas_despacho():
     """Gestión de tareas de despacho"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
                t.fecha_programada, t.descripcion, u.nombre as asignado,
@@ -1901,10 +1812,10 @@ def tareas_despacho():
             END,
             t.fecha_programada ASC
     ''')
-    
+
     tareas_list = cursor.fetchall()
     conn.close()
-    
+
     return render_template('tareas_despacho.html', tareas=tareas_list)
 
 
@@ -1915,7 +1826,7 @@ def tareas_general():
     """Vista general para admin/general - ve y modifica cualquier tarea"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
                t.fecha_programada, t.descripcion, u.nombre as asignado,
@@ -1932,10 +1843,10 @@ def tareas_general():
             END,
             t.fecha_programada ASC
     ''')
-    
+
     tareas_list = cursor.fetchall()
     conn.close()
-    
+
     return render_template('tareas_general.html', tareas=tareas_list)
 
 
@@ -1945,7 +1856,7 @@ def avanzar_tarea(tarea_id):
     """Avanzar una tarea al siguiente estado"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     try:
         # Obtener información actual de la tarea
         cursor.execute('''
@@ -1955,17 +1866,17 @@ def avanzar_tarea(tarea_id):
             JOIN proyectos p ON t.proyecto_id = p.id
             WHERE t.id = ?
         ''', (tarea_id,))
-        
+
         tarea = cursor.fetchone()
         if not tarea:
             return jsonify({'success': False, 'message': 'Tarea no encontrada'})
-        
+
         estado_actual, rol, tipo, etapa_actual, proyecto_id, titulo, proyecto_nombre = tarea
-        
+
         # Verificar permisos
         if session['user_role'] not in ['admin', 'general'] and session['user_role'] != rol:
             return jsonify({'success': False, 'message': 'Sin permisos para modificar esta tarea'})
-        
+
         # Determinar siguiente estado según el rol
         if rol == 'diseñador':
             if estado_actual == 'pendiente':
@@ -1978,10 +1889,10 @@ def avanzar_tarea(tarea_id):
                              (nuevo_estado, datetime.now(), tarea_id))
             else:
                 return jsonify({'success': False, 'message': 'Tarea ya completada'})
-                
+
         elif rol == 'operación':
             etapas = ['seccionado', 'enchapado', 'mecanizado', 'fabricacion_completo']
-            
+
             if estado_actual == 'pendiente':
                 nuevo_estado = 'en_progreso'
                 nueva_etapa = 'seccionado'
@@ -2005,7 +1916,7 @@ def avanzar_tarea(tarea_id):
                                  (nueva_etapa, tarea_id))
             else:
                 return jsonify({'success': False, 'message': 'Tarea ya completada'})
-                
+
         else:  # embalaje, despacho, general
             if estado_actual == 'pendiente':
                 nuevo_estado = 'en_progreso'
@@ -2017,17 +1928,17 @@ def avanzar_tarea(tarea_id):
                              (nuevo_estado, datetime.now(), tarea_id))
             else:
                 return jsonify({'success': False, 'message': 'Tarea ya completada'})
-        
+
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
             VALUES ('tareas', ?, 'UPDATE', ?, ?)
         ''', (tarea_id, session['user_id'], 
               json.dumps({'accion': 'avanzar_tarea', 'titulo': titulo, 'proyecto': proyecto_nombre})))
-        
+
         conn.commit()
         return jsonify({'success': True, 'message': 'Tarea avanzada exitosamente'})
-        
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al avanzar tarea: {str(e)}'})
     finally:
@@ -2040,7 +1951,7 @@ def retroceder_tarea(tarea_id):
     """Retroceder una tarea al estado anterior"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     try:
         # Obtener información actual de la tarea
         cursor.execute('''
@@ -2050,17 +1961,17 @@ def retroceder_tarea(tarea_id):
             JOIN proyectos p ON t.proyecto_id = p.id
             WHERE t.id = ?
         ''', (tarea_id,))
-        
+
         tarea = cursor.fetchone()
         if not tarea:
             return jsonify({'success': False, 'message': 'Tarea no encontrada'})
-        
+
         estado_actual, rol, tipo, etapa_actual, proyecto_id, titulo, proyecto_nombre = tarea
-        
+
         # Solo admin y general pueden retroceder tareas
         if session['user_role'] not in ['admin', 'general']:
             return jsonify({'success': False, 'message': 'Sin permisos para retroceder tareas'})
-        
+
         # Determinar estado anterior según el rol
         if rol == 'operación' and estado_actual == 'en_progreso' and etapa_actual:
             etapas = ['seccionado', 'enchapado', 'mecanizado', 'fabricacion_completo']
@@ -2082,17 +1993,17 @@ def retroceder_tarea(tarea_id):
                          ('pendiente', tarea_id))
         else:
             return jsonify({'success': False, 'message': 'No se puede retroceder más'})
-        
+
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
             VALUES ('tareas', ?, 'UPDATE', ?, ?)
         ''', (tarea_id, session['user_id'], 
               json.dumps({'accion': 'retroceder_tarea', 'titulo': titulo, 'proyecto': proyecto_nombre})))
-        
+
         conn.commit()
         return jsonify({'success': True, 'message': 'Tarea retrocedida exitosamente'})
-        
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al retroceder tarea: {str(e)}'})
     finally:
