@@ -21,60 +21,60 @@
 <!-- Estadísticas Principales -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card bg-primary text-white">
+        <div class="card">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-grow-1">
-                        <h5 class="card-title">Total Órdenes</h5>
-                        <h2 class="mb-0">{{ total_ordenes }}</h2>
+                        <h5 class="card-title text-muted">Total Órdenes</h5>
+                        <h2 class="mb-0 text-dark">{{ total_ordenes }}</h2>
                     </div>
                     <div class="flex-shrink-0">
-                        <i class="fas fa-file-invoice fa-2x"></i>
+                        <i class="fas fa-file-invoice fa-2x text-primary"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-warning text-white">
+        <div class="card">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-grow-1">
-                        <h5 class="card-title">En Proceso</h5>
-                        <h2 class="mb-0">{{ ordenes_en_proceso }}</h2>
+                        <h5 class="card-title text-muted">En Proceso</h5>
+                        <h2 class="mb-0 text-dark">{{ ordenes_en_proceso }}</h2>
                     </div>
                     <div class="flex-shrink-0">
-                        <i class="fas fa-cogs fa-2x"></i>
+                        <i class="fas fa-cogs fa-2x text-warning"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-success text-white">
+        <div class="card">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-grow-1">
-                        <h5 class="card-title">Listas para Despacho</h5>
-                        <h2 class="mb-0">{{ ordenes_listas }}</h2>
+                        <h5 class="card-title text-muted">Listas para Despacho</h5>
+                        <h2 class="mb-0 text-dark">{{ ordenes_listas }}</h2>
                     </div>
                     <div class="flex-shrink-0">
-                        <i class="fas fa-truck fa-2x"></i>
+                        <i class="fas fa-truck fa-2x text-success"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-info text-white">
+        <div class="card">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-grow-1">
-                        <h5 class="card-title">Entregadas</h5>
-                        <h2 class="mb-0">{{ ordenes_entregadas }}</h2>
+                        <h5 class="card-title text-muted">Entregadas</h5>
+                        <h2 class="mb-0 text-dark">{{ ordenes_entregadas }}</h2>
                     </div>
                     <div class="flex-shrink-0">
-                        <i class="fas fa-check-circle fa-2x"></i>
+                        <i class="fas fa-check-circle fa-2x text-info"></i>
                     </div>
                 </div>
             </div>
