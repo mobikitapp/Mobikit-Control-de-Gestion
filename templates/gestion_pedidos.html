@@ -1,0 +1,358 @@
+
+{% extends "base.html" %}
+
+{% block title %}Gestión de Pedidos - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-tasks"></i> Gestión de Pedidos de Producción</h1>
+    <div class="d-flex gap-2">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary active" onclick="mostrarVista('kanban')">
+                <i class="fas fa-columns"></i> Vista Kanban
+            </button>
+            <button type="button" class="btn btn-outline-primary" onclick="mostrarVista('lista')">
+                <i class="fas fa-list"></i> Vista Lista
+            </button>
+        </div>
+        <a href="{{ url_for('proyectos') }}" class="btn btn-primary">
+            <i class="fas fa-file-invoice"></i> Órdenes de Compra
+        </a>
+    </div>
+</div>
+
+<!-- Vista Kanban (por defecto) -->
+<div id="vista-kanban" class="kanban-board">
+    <div class="row">
+        {% for estado, info in pedidos_por_estado.items() %}
+        {% if info.pedidos or user_role in ['admin', 'general'] %}
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <div class="card h-100 estado-column" data-estado="{{ estado }}">
+                <div class="card-header bg-{% if estado == 'en_desarrollo' %}secondary{% elif estado == 'aprobado_produccion' %}primary{% elif estado in ['seccionado', 'enchapado', 'mecanizado'] %}warning{% elif estado == 'produccion_completa' %}info{% elif estado == 'embalando' %}success{% elif estado == 'listo_despacho' %}danger{% elif estado == 'entregado' %}dark{% endif %} text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-{% if estado == 'en_desarrollo' %}pencil-alt{% elif estado == 'aprobado_produccion' %}check{% elif estado in ['seccionado', 'enchapado', 'mecanizado'] %}cogs{% elif estado == 'produccion_completa' %}check-double{% elif estado == 'embalando' %}box{% elif estado == 'listo_despacho' %}truck{% elif estado == 'entregado' %}check-circle{% endif %}"></i>
+                        {{ info.nombre }}
+                    </h6>
+                    <small>Responsable: {{ info.rol_responsable|title }}</small>
+                    <div class="badge bg-light text-dark mt-1">{{ info.pedidos|length }} pedido{{ 's' if info.pedidos|length != 1 else '' }}</div>
+                </div>
+                <div class="card-body p-2" style="max-height: 600px; overflow-y: auto;">
+                    {% for pedido in info.pedidos %}
+                    <div class="card mb-2 pedido-card" data-pedido-id="{{ pedido[0] }}">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-1">{{ pedido[1] }}</h6>
+                                {% if pedido[11] is not none and pedido[11] <= 3 %}
+                                <span class="badge bg-danger">Urgente</span>
+                                {% elif pedido[11] is not none and pedido[11] <= 7 %}
+                                <span class="badge bg-warning">Próximo</span>
+                                {% endif %}
+                            </div>
+                            
+                            <p class="card-text small mb-2">
+                                <strong>{{ pedido[2] }}</strong><br>
+                                <small class="text-muted">{{ pedido[7] }} - {{ pedido[8] }}</small>
+                            </p>
+
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar"></i> 
+                                    {% if pedido[5] %}
+                                        Entrega: {{ pedido[5] }}
+                                        {% if pedido[11] is not none %}
+                                            {% if pedido[11] < 0 %}
+                                                <span class="text-danger fw-bold">({{ -pedido[11] }} días vencida)</span>
+                                            {% elif pedido[11] == 0 %}
+                                                <span class="text-warning fw-bold">(Vence hoy)</span>
+                                            {% else %}
+                                                <span>({{ pedido[11] }} días)</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% else %}
+                                        Sin fecha
+                                    {% endif %}
+                                </small>
+                            </div>
+
+                            <!-- Barra de progreso -->
+                            {% set estados_totales = ['en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado'] %}
+                            {% set indice_actual = estados_totales.index(estado) if estado in estados_totales else 0 %}
+                            {% set progreso = ((indice_actual + 1) / estados_totales|length * 100)|int %}
+
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar bg-{% if progreso < 30 %}danger{% elif progreso < 70 %}warning{% else %}success{% endif %}"
+                                     role="progressbar" style="width: {{ progreso }}%">
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ progreso }}% completo</small>
+
+                            <!-- Botones de acción -->
+                            <div class="mt-2">
+                                {% if (user_role == 'admin' or user_role == 'general' or user_role == info.rol_responsable) and estado != 'entregado' %}
+                                <button class="btn btn-sm btn-success w-100 mb-1" onclick="avanzarPedido({{ pedido[0] }})">
+                                    <i class="fas fa-arrow-right"></i> Avanzar
+                                </button>
+                                {% endif %}
+                                
+                                {% if user_role in ['admin', 'general'] and estado != 'en_desarrollo' %}
+                                <button class="btn btn-sm btn-outline-warning w-100" onclick="retrocederPedido({{ pedido[0] }})">
+                                    <i class="fas fa-arrow-left"></i> Retroceder
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if not info.pedidos %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-inbox fa-2x text-muted"></i>
+                        <p class="text-muted small mt-2">Sin pedidos en esta etapa</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Vista Lista (oculta por defecto) -->
+<div id="vista-lista" class="d-none">
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Código Pedido</th>
+                            <th>Nombre</th>
+                            <th>Proyecto</th>
+                            <th>Cliente</th>
+                            <th>Estado</th>
+                            <th>Progreso</th>
+                            <th>Fecha Entrega</th>
+                            <th>Días Restantes</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for estado, info in pedidos_por_estado.items() %}
+                            {% for pedido in info.pedidos %}
+                            <tr>
+                                <td><strong>{{ pedido[1] }}</strong></td>
+                                <td>{{ pedido[2] }}</td>
+                                <td>
+                                    <strong>{{ pedido[6] }}</strong><br>
+                                    <small class="text-muted">{{ pedido[7] }}</small>
+                                </td>
+                                <td>{{ pedido[8] }}</td>
+                                <td>
+                                    <span class="badge bg-{% if estado == 'en_desarrollo' %}secondary{% elif estado == 'aprobado_produccion' %}primary{% elif estado in ['seccionado', 'enchapado', 'mecanizado'] %}warning{% elif estado == 'produccion_completa' %}info{% elif estado == 'embalando' %}success{% elif estado == 'listo_despacho' %}danger{% elif estado == 'entregado' %}dark{% endif %}">
+                                        {{ info.nombre }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% set estados_totales = ['en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado'] %}
+                                    {% set indice_actual = estados_totales.index(estado) if estado in estados_totales else 0 %}
+                                    {% set progreso = ((indice_actual + 1) / estados_totales|length * 100)|int %}
+
+                                    <div class="progress" style="height: 10px; width: 100px;">
+                                        <div class="progress-bar bg-{% if progreso < 30 %}danger{% elif progreso < 70 %}warning{% else %}success{% endif %}"
+                                             role="progressbar" style="width: {{ progreso }}%">
+                                        </div>
+                                    </div>
+                                    <small>{{ progreso }}%</small>
+                                </td>
+                                <td>{{ pedido[5] if pedido[5] else 'Sin fecha' }}</td>
+                                <td>
+                                    {% if pedido[11] is not none %}
+                                        {% if pedido[11] < 0 %}
+                                            <span class="text-danger fw-bold">{{ -pedido[11] }} días vencida</span>
+                                        {% elif pedido[11] == 0 %}
+                                            <span class="text-warning fw-bold">Vence hoy</span>
+                                        {% elif pedido[11] <= 7 %}
+                                            <span class="text-warning">{{ pedido[11] }} días</span>
+                                        {% else %}
+                                            <span class="text-muted">{{ pedido[11] }} días</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        {% if (user_role == 'admin' or user_role == 'general' or user_role == info.rol_responsable) and estado != 'entregado' %}
+                                        <button class="btn btn-sm btn-success" onclick="avanzarPedido({{ pedido[0] }})">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                        {% endif %}
+                                        
+                                        {% if user_role in ['admin', 'general'] and estado != 'en_desarrollo' %}
+                                        <button class="btn btn-sm btn-outline-warning" onclick="retrocederPedido({{ pedido[0] }})">
+                                            <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not pedidos_por_estado or not any(info.pedidos for info in pedidos_por_estado.values()) %}
+<div class="card">
+    <div class="card-body">
+        <div class="text-center py-4">
+            <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+            <h5>No hay pedidos de producción disponibles</h5>
+            <p class="text-muted">Los pedidos aparecerán aquí cuando se creen órdenes de compra con categorías.</p>
+            <a href="{{ url_for('proyectos') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Crear Orden de Compra
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.kanban-board .estado-column {
+    min-height: 500px;
+}
+
+.pedido-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid #dee2e6;
+}
+
+.pedido-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.estado-column[data-estado="en_desarrollo"] .pedido-card {
+    border-left-color: #6c757d;
+}
+
+.estado-column[data-estado="aprobado_produccion"] .pedido-card {
+    border-left-color: #0d6efd;
+}
+
+.estado-column[data-estado="seccionado"] .pedido-card,
+.estado-column[data-estado="enchapado"] .pedido-card,
+.estado-column[data-estado="mecanizado"] .pedido-card {
+    border-left-color: #fd7e14;
+}
+
+.estado-column[data-estado="produccion_completa"] .pedido-card {
+    border-left-color: #0dcaf0;
+}
+
+.estado-column[data-estado="embalando"] .pedido-card {
+    border-left-color: #198754;
+}
+
+.estado-column[data-estado="listo_despacho"] .pedido-card {
+    border-left-color: #dc3545;
+}
+
+.estado-column[data-estado="entregado"] .pedido-card {
+    border-left-color: #343a40;
+}
+</style>
+
+<script>
+function mostrarVista(tipo) {
+    const vistaKanban = document.getElementById('vista-kanban');
+    const vistaLista = document.getElementById('vista-lista');
+    const botones = document.querySelectorAll('.btn-group .btn');
+
+    // Actualizar botones
+    botones.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // Mostrar/ocultar vistas
+    if (tipo === 'kanban') {
+        vistaKanban.classList.remove('d-none');
+        vistaLista.classList.add('d-none');
+    } else {
+        vistaKanban.classList.add('d-none');
+        vistaLista.classList.remove('d-none');
+    }
+}
+
+function avanzarPedido(pedidoId) {
+    if (confirm('¿Confirmas avanzar este pedido al siguiente estado?')) {
+        fetch(`/avanzar_pedido/${pedidoId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('Error: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error de conexión', 'error');
+        });
+    }
+}
+
+function retrocederPedido(pedidoId) {
+    if (confirm('¿Confirmas retroceder este pedido al estado anterior?')) {
+        fetch(`/retroceder_pedido/${pedidoId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('Error: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error de conexión', 'error');
+        });
+    }
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = document.querySelector('.alert:last-of-type');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
