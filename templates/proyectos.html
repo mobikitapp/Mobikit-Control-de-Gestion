@@ -49,6 +49,7 @@
                         <tr>
                             <th>N° Orden</th>
                             <th>Proyecto</th>
+                            <th>Categoría</th>
                             <th>Estado de Producción</th>
                             <th>Prioridad</th>
                             <th>Fecha Entrega</th>
@@ -67,6 +68,18 @@
                                 </a>
                                 {% if proyecto.descripcion %}
                                 <br><small class="text-muted">{{ proyecto.descripcion[:80] }}{% if proyecto.descripcion|length > 80 %}...{% endif %}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if proyecto.categoria_nombre %}
+                                <span class="badge" style="background-color: {{ proyecto.categoria_color or '#6B7280' }}">
+                                    {{ proyecto.categoria_nombre }}
+                                </span>
+                                {% if proyecto.subcategoria_nombre %}
+                                <br><small class="text-muted mt-1 d-block">{{ proyecto.subcategoria_nombre }}</small>
+                                {% endif %}
+                                {% else %}
+                                <small class="text-muted">Sin categoría</small>
                                 {% endif %}
                             </td>
                             <td>
@@ -217,6 +230,25 @@
                         <label for="nombre_proyecto" class="form-label">Nombre del Proyecto *</label>
                         <input type="text" class="form-control" id="nombre_proyecto" name="nombre_proyecto" required placeholder="Ej: Muebles Cocina Torre A">
                     </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="categoria_id_modal" class="form-label">Categoría de Producto</label>
+                                <select class="form-select" id="categoria_id_modal" name="categoria_id" onchange="cargarSubcategoriasModal()">
+                                    <option value="">Seleccionar categoría...</option>
+                                    <!-- Se llenarán dinámicamente -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="subcategoria_id_modal" class="form-label">Subcategoría</label>
+                                <select class="form-select" id="subcategoria_id_modal" name="subcategoria_id" disabled>
+                                    <option value="">Primero selecciona una categoría</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label for="descripcion" class="form-label">Descripción de Productos</label>
                         <textarea class="form-control" id="descripcion" name="descripcion" rows="3" placeholder="Detalle de los muebles a fabricar..."></textarea>
@@ -256,6 +288,25 @@
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar categorías disponibles para el modal
+    fetch('/api/categorias')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('categoria_id_modal');
+            if (select) {
+                data.forEach(categoria => {
+                    const option = document.createElement('option');
+                    option.value = categoria.id;
+                    option.textContent = categoria.nombre;
+                    option.setAttribute('data-color', categoria.color);
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => console.error('Error cargando categorías:', error));
+});
+
 function avanzarEstado(proyectoId) {
     if (confirm('¿Confirmas avanzar este proyecto al siguiente estado de producción?')) {
         fetch(`/avanzar_estado_proyecto/${proyectoId}`, {
@@ -281,6 +332,37 @@ function avanzarEstado(proyectoId) {
 
 function editarOrden(proyectoId) {
     window.location.href = `/proyecto/${proyectoId}`;
+}
+
+function cargarSubcategoriasModal() {
+    const categoriaSelect = document.getElementById('categoria_id_modal');
+    const subcategoriaSelect = document.getElementById('subcategoria_id_modal');
+    
+    // Limpiar subcategorías
+    subcategoriaSelect.innerHTML = '<option value="">Seleccionar subcategoría...</option>';
+    
+    if (!categoriaSelect.value) {
+        subcategoriaSelect.disabled = true;
+        subcategoriaSelect.innerHTML = '<option value="">Primero selecciona una categoría</option>';
+        return;
+    }
+    
+    subcategoriaSelect.disabled = false;
+    
+    fetch(`/api/subcategorias/${categoriaSelect.value}`)
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(subcategoria => {
+                const option = document.createElement('option');
+                option.value = subcategoria.id;
+                option.textContent = subcategoria.nombre;
+                subcategoriaSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error cargando subcategorías:', error);
+            subcategoriaSelect.innerHTML = '<option value="">Error cargando subcategorías</option>';
+        });
 }
 </script>
 {% endblock %}

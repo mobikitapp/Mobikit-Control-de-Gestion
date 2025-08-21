@@ -276,6 +276,25 @@
                         <label for="nombre_proyecto" class="form-label">Nombre del Proyecto *</label>
                         <input type="text" class="form-control" id="nombre_proyecto" name="nombre_proyecto" required placeholder="Ej: Muebles Cocina Torre A">
                     </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="categoria_id" class="form-label">Categoría de Producto</label>
+                                <select class="form-select" id="categoria_id" name="categoria_id" onchange="cargarSubcategorias()">
+                                    <option value="">Seleccionar categoría...</option>
+                                    <!-- Se llenarán dinámicamente -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="subcategoria_id" class="form-label">Subcategoría</label>
+                                <select class="form-select" id="subcategoria_id" name="subcategoria_id" disabled>
+                                    <option value="">Primero selecciona una categoría</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label for="descripcion" class="form-label">Descripción de Productos</label>
                         <textarea class="form-control" id="descripcion" name="descripcion" rows="3" placeholder="Detalle de los muebles a fabricar..."></textarea>
@@ -331,6 +350,52 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         })
         .catch(error => console.error('Error cargando clientes:', error));
+
+    // Cargar categorías disponibles
+    fetch('/api/categorias')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('categoria_id');
+            data.forEach(categoria => {
+                const option = document.createElement('option');
+                option.value = categoria.id;
+                option.textContent = categoria.nombre;
+                option.setAttribute('data-color', categoria.color);
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error cargando categorías:', error));
 });
+
+function cargarSubcategorias() {
+    const categoriaSelect = document.getElementById('categoria_id');
+    const subcategoriaSelect = document.getElementById('subcategoria_id');
+    
+    // Limpiar subcategorías
+    subcategoriaSelect.innerHTML = '<option value="">Seleccionar subcategoría...</option>';
+    
+    if (!categoriaSelect.value) {
+        subcategoriaSelect.disabled = true;
+        subcategoriaSelect.innerHTML = '<option value="">Primero selecciona una categoría</option>';
+        return;
+    }
+    
+    subcategoriaSelect.disabled = false;
+    
+    fetch(`/api/subcategorias/${categoriaSelect.value}`)
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(subcategoria => {
+                const option = document.createElement('option');
+                option.value = subcategoria.id;
+                option.textContent = subcategoria.nombre;
+                subcategoriaSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error cargando subcategorías:', error);
+            subcategoriaSelect.innerHTML = '<option value="">Error cargando subcategorías</option>';
+        });
+}
 </script>
 {% endblock %}

@@ -3,6 +3,8 @@
 
 :root {
     --mobikit-red: #E31E24;
+    --mobikit-red-light: #F3949A;
+    --mobikit-red-dark: #B8141A;
     --mobikit-gray: #4A4A4A;
     --mobikit-light-gray: #6C6C6C;
     --mobikit-dark-gray: #2D2D2D;
@@ -12,6 +14,14 @@
     --mobikit-hover: #F5F5F5;
     --mobikit-text-light: #787774;
     --mobikit-sidebar: #F7F6F3;
+    
+    /* Colores corporativos específicos */
+    --mobikit-cocinas: #E31E24;
+    --mobikit-closet: #8B4513;
+    --mobikit-success: #22C55E;
+    --mobikit-warning: #F59E0B;
+    --mobikit-info: #6B7280;
+    --mobikit-danger: #DC2626;
 }
 
 * {
@@ -248,30 +258,35 @@ h4, h5, h6 {
     border-radius: 20px;
     font-size: 0.75rem;
     letter-spacing: 0.025em;
+    color: var(--mobikit-white) !important;
 }
 
 .badge.bg-primary { background-color: var(--mobikit-red) !important; }
-.badge.bg-secondary { background-color: var(--mobikit-light-gray) !important; }
-.badge.bg-success { background-color: #22C55E !important; }
-.badge.bg-warning { background-color: #F59E0B !important; color: var(--mobikit-white) !important; }
-.badge.bg-info { background-color: #3B82F6 !important; }
-.badge.bg-danger { background-color: #EF4444 !important; }
+.badge.bg-secondary { background-color: var(--mobikit-info) !important; }
+.badge.bg-success { background-color: var(--mobikit-success) !important; }
+.badge.bg-warning { background-color: var(--mobikit-warning) !important; }
+.badge.bg-info { background-color: var(--mobikit-info) !important; }
+.badge.bg-danger { background-color: var(--mobikit-danger) !important; }
 
 /* Role-specific badges */
 .badge.bg-admin { background-color: var(--mobikit-red) !important; }
 .badge.bg-general { background-color: var(--mobikit-gray) !important; }
-.badge.bg-diseñador { background-color: #8B5CF6 !important; }
-.badge.bg-operación { background-color: #22C55E !important; }
-.badge.bg-embalaje { background-color: #06B6D4 !important; }
-.badge.bg-despacho { background-color: #F59E0B !important; }
+.badge.bg-diseñador { background-color: var(--mobikit-info) !important; }
+.badge.bg-operación { background-color: var(--mobikit-success) !important; }
+.badge.bg-embalaje { background-color: var(--mobikit-warning) !important; }
+.badge.bg-despacho { background-color: var(--mobikit-danger) !important; }
 
-/* Status badges */
-.badge.bg-pendiente { background-color: #F59E0B !important; color: var(--mobikit-white) !important; }
-.badge.bg-en-progreso { background-color: var(--mobikit-red) !important; }
-.badge.bg-completada { background-color: #22C55E !important; }
-.badge.bg-diseño { background-color: #8B5CF6 !important; }
-.badge.bg-producción { background-color: var(--mobikit-gray) !important; }
-.badge.bg-entregado { background-color: #22C55E !important; }
+/* Status badges - Estados de producción */
+.badge.bg-pendiente { background-color: var(--mobikit-info) !important; }
+.badge.bg-en-progreso { background-color: var(--mobikit-warning) !important; }
+.badge.bg-completada { background-color: var(--mobikit-success) !important; }
+.badge.bg-diseño { background-color: var(--mobikit-info) !important; }
+.badge.bg-producción { background-color: var(--mobikit-red) !important; }
+.badge.bg-entregado { background-color: var(--mobikit-success) !important; }
+
+/* Category badges */
+.badge.bg-cocinas { background-color: var(--mobikit-cocinas) !important; }
+.badge.bg-closet { background-color: var(--mobikit-closet) !important; }
 
 /* Dashboard Cards */
 .dashboard-card {

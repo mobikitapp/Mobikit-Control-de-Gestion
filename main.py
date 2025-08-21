@@ -513,9 +513,13 @@ def proyectos():
         cursor.execute('''
             SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, p.prioridad,
                    p.fecha_entrega, p.presupuesto, u.nombre as diseñador_nombre,
-                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes,
+                   c.nombre as categoria_nombre, c.color as categoria_color,
+                   sc.nombre as subcategoria_nombre
             FROM proyectos p
             LEFT JOIN usuarios u ON p.diseñador_id = u.id
+            LEFT JOIN categorias_producto c ON p.categoria_id = c.id
+            LEFT JOIN subcategorias_producto sc ON p.subcategoria_id = sc.id
             WHERE p.cliente_id = ?
             ORDER BY 
                 CASE p.estado 
@@ -544,7 +548,10 @@ def proyectos():
                 'fecha_entrega': proyecto[6],
                 'presupuesto': proyecto[7],
                 'diseñador_nombre': proyecto[8],
-                'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None
+                'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None,
+                'categoria_nombre': proyecto[10],
+                'categoria_color': proyecto[11],
+                'subcategoria_nombre': proyecto[12]
             }
             cliente_info['proyectos'].append(proyecto_info)
 
@@ -2068,6 +2075,8 @@ def nueva_orden_compra():
         numero_oc = request.form['numero_oc']
         cliente_id = request.form['cliente_id']
         nombre_proyecto = request.form['nombre_proyecto']
+        categoria_id = request.form.get('categoria_id') or None
+        subcategoria_id = request.form.get('subcategoria_id') or None
         descripcion = request.form.get('descripcion', '').strip() or None
         fecha_entrega = request.form['fecha_entrega']
         prioridad = request.form.get('prioridad', 'media')
@@ -2092,14 +2101,28 @@ def nueva_orden_compra():
             flash('Cliente no válido', 'error')
             return redirect(url_for('dashboard'))
 
+        # Verificar categoría si se proporciona
+        if categoria_id:
+            cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ? AND activo = TRUE', (categoria_id,))
+            if not cursor.fetchone():
+                flash('Categoría no válida', 'error')
+                return redirect(url_for('dashboard'))
+
+        # Verificar subcategoría si se proporciona
+        if subcategoria_id:
+            cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ? AND activo = TRUE', (subcategoria_id,))
+            if not cursor.fetchone():
+                flash('Subcategoría no válida', 'error')
+                return redirect(url_for('dashboard'))
+
         # Crear proyecto con código de orden de compra
         cursor.execute('''
             INSERT INTO proyectos (
-                codigo, nombre, cliente_id, descripcion, estado, prioridad,
-                fecha_inicio, fecha_entrega, presupuesto
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (numero_oc, nombre_proyecto, cliente_id, descripcion, 'en_desarrollo', 
-              prioridad, datetime.now().date(), fecha_entrega, monto_float))
+                codigo, nombre, cliente_id, categoria_id, subcategoria_id, 
+                descripcion, estado, prioridad, fecha_inicio, fecha_entrega, presupuesto
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (numero_oc, nombre_proyecto, cliente_id, categoria_id, subcategoria_id,
+              descripcion, 'en_desarrollo', prioridad, datetime.now().date(), fecha_entrega, monto_float))
 
         proyecto_id = cursor.lastrowid
         conn.commit()
@@ -2128,6 +2151,38 @@ def api_clientes_activos():
     
     conn.close()
     return jsonify(clientes)
+
+
+@app.route('/api/categorias')
+@login_required
+def api_categorias():
+    """API para obtener categorías de productos"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, nombre, color FROM categorias_producto WHERE activo = TRUE ORDER BY nombre ASC')
+    categorias = [{'id': row[0], 'nombre': row[1], 'color': row[2]} for row in cursor.fetchall()]
+    
+    conn.close()
+    return jsonify(categorias)
+
+
+@app.route('/api/subcategorias/<int:categoria_id>')
+@login_required
+def api_subcategorias(categoria_id):
+    """API para obtener subcategorías de una categoría específica"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, nombre FROM subcategorias_producto 
+        WHERE categoria_id = ? AND activo = TRUE 
+        ORDER BY nombre ASC
+    ''', (categoria_id,))
+    subcategorias = [{'id': row[0], 'nombre': row[1]} for row in cursor.fetchall()]
+    
+    conn.close()
+    return jsonify(subcategorias)
 
 
 @app.route('/avanzar_estado_proyecto/<int:proyecto_id>', methods=['POST'])
