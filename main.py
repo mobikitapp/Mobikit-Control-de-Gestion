@@ -288,14 +288,14 @@ def dashboard():
     ''')
     ordenes_urgentes = cursor.fetchall()
 
-    # Órdenes por estado (para el dashboard visual)
+    # Pedidos de seguimiento por estado (para el dashboard visual)
     cursor.execute('''
-        SELECT p.estado, COUNT(*) as cantidad
-        FROM proyectos p
-        WHERE p.estado NOT IN ('entregado', 'cancelado')
-        GROUP BY p.estado
+        SELECT ps.estado, COUNT(*) as cantidad
+        FROM pedidos_seguimiento ps
+        WHERE ps.estado NOT IN ('entregado')
+        GROUP BY ps.estado
         ORDER BY 
-            CASE p.estado
+            CASE ps.estado
                 WHEN 'en_desarrollo' THEN 1
                 WHEN 'aprobado_produccion' THEN 2
                 WHEN 'seccionado' THEN 3
@@ -307,7 +307,7 @@ def dashboard():
                 ELSE 9
             END
     ''')
-    ordenes_por_estado = cursor.fetchall()
+    pedidos_por_estado = cursor.fetchall()
 
     # Órdenes recientes (últimas 5)
     cursor.execute('''
@@ -328,7 +328,7 @@ def dashboard():
                            ordenes_listas=ordenes_listas,
                            ordenes_entregadas=ordenes_entregadas,
                            ordenes_urgentes=ordenes_urgentes,
-                           ordenes_por_estado=ordenes_por_estado,
+                           pedidos_por_estado=pedidos_por_estado,
                            ordenes_recientes=ordenes_recientes)
 
 
@@ -2070,17 +2070,26 @@ def retroceder_tarea(tarea_id):
 @login_required
 @role_required(['admin', 'general', 'diseñador'])
 def nueva_orden_compra():
-    """Crear nueva orden de compra específica para fábrica"""
+    """Crear nueva orden de compra con múltiples categorías y pedidos de seguimiento"""
     try:
         numero_oc = request.form['numero_oc']
-        cliente_id = request.form['cliente_id']
-        nombre_proyecto = request.form['nombre_proyecto']
-        categoria_id = request.form.get('categoria_id') or None
-        subcategoria_id = request.form.get('subcategoria_id') or None
+        proyecto_existente_id = request.form.get('proyecto_existente_id')
+        cliente_id = request.form.get('cliente_id')
+        nuevo_cliente_nombre = request.form.get('nuevo_cliente_nombre', '').strip()
+        nombre_proyecto = request.form.get('nombre_proyecto', '').strip()
         descripcion = request.form.get('descripcion', '').strip() or None
         fecha_entrega = request.form['fecha_entrega']
         prioridad = request.form.get('prioridad', 'media')
         monto = request.form.get('monto')
+        
+        # Obtener categorías y subcategorías
+        categorias = request.form.getlist('categorias[]')
+        subcategorias = request.form.getlist('subcategorias[]')
+
+        # Validar que hay al menos una categoría
+        if not categorias or not any(cat for cat in categorias if cat):
+            flash('Debe seleccionar al menos una categoría', 'error')
+            return redirect(url_for('dashboard'))
 
         # Validar monto
         monto_float = None
@@ -2094,45 +2103,106 @@ def nueva_orden_compra():
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
 
-        # Verificar que el cliente existe
-        cursor.execute('SELECT nombre FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
-        cliente = cursor.fetchone()
-        if not cliente:
-            flash('Cliente no válido', 'error')
-            return redirect(url_for('dashboard'))
-
-        # Verificar categoría si se proporciona
-        if categoria_id:
-            cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ? AND activo = TRUE', (categoria_id,))
+        # Manejar cliente
+        if cliente_id == 'nuevo':
+            if not nuevo_cliente_nombre:
+                flash('Debe especificar el nombre del nuevo cliente', 'error')
+                return redirect(url_for('dashboard'))
+            
+            # Crear nuevo cliente
+            cursor.execute('''
+                INSERT INTO clientes (nombre, activo) VALUES (?, ?)
+            ''', (nuevo_cliente_nombre, True))
+            cliente_id = cursor.lastrowid
+        else:
+            # Verificar que el cliente existe
+            cursor.execute('SELECT nombre FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
             if not cursor.fetchone():
-                flash('Categoría no válida', 'error')
+                flash('Cliente no válido', 'error')
                 return redirect(url_for('dashboard'))
 
-        # Verificar subcategoría si se proporciona
-        if subcategoria_id:
-            cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ? AND activo = TRUE', (subcategoria_id,))
+        # Manejar proyecto
+        if proyecto_existente_id == 'nuevo':
+            if not nombre_proyecto:
+                flash('Debe especificar el nombre del nuevo proyecto', 'error')
+                return redirect(url_for('dashboard'))
+            
+            # Crear nuevo proyecto
+            cursor.execute('''
+                INSERT INTO proyectos (
+                    codigo, nombre, cliente_id, descripcion, estado, prioridad, 
+                    fecha_inicio, fecha_entrega, presupuesto
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (numero_oc, nombre_proyecto, cliente_id, descripcion, 'en_desarrollo', 
+                  prioridad, datetime.now().date(), fecha_entrega, monto_float))
+            proyecto_id = cursor.lastrowid
+        else:
+            proyecto_id = proyecto_existente_id
+            # Verificar que el proyecto existe y pertenece al cliente
+            cursor.execute('SELECT nombre FROM proyectos WHERE id = ? AND cliente_id = ?', (proyecto_id, cliente_id))
             if not cursor.fetchone():
-                flash('Subcategoría no válida', 'error')
+                flash('Proyecto no válido para el cliente seleccionado', 'error')
                 return redirect(url_for('dashboard'))
 
-        # Crear proyecto con código de orden de compra
-        cursor.execute('''
-            INSERT INTO proyectos (
-                codigo, nombre, cliente_id, categoria_id, subcategoria_id, 
-                descripcion, estado, prioridad, fecha_inicio, fecha_entrega, presupuesto
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (numero_oc, nombre_proyecto, cliente_id, categoria_id, subcategoria_id,
-              descripcion, 'en_desarrollo', prioridad, datetime.now().date(), fecha_entrega, monto_float))
+        # Crear relaciones de categorías y pedidos de seguimiento
+        for i, categoria_id in enumerate(categorias):
+            if categoria_id:  # Solo procesar categorías válidas
+                subcategoria_id = subcategorias[i] if i < len(subcategorias) and subcategorias[i] else None
+                
+                # Verificar que la categoría existe
+                cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ? AND activo = TRUE', (categoria_id,))
+                categoria_info = cursor.fetchone()
+                if not categoria_info:
+                    continue
+                
+                # Verificar subcategoría si se proporciona
+                if subcategoria_id:
+                    cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ? AND activo = TRUE', (subcategoria_id,))
+                    subcategoria_info = cursor.fetchone()
+                    if not subcategoria_info:
+                        subcategoria_id = None
 
-        proyecto_id = cursor.lastrowid
+                # Insertar relación proyecto-categoría
+                cursor.execute('''
+                    INSERT OR IGNORE INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
+                    VALUES (?, ?, ?)
+                ''', (proyecto_id, categoria_id, subcategoria_id))
+
+                # Crear pedido de seguimiento
+                cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE SUBSTRING(codigo_pedido, 1, 13) = ?', 
+                             (f"PED-{datetime.now().year}-",))
+                pedido_numero = cursor.fetchone()[0] + 1
+                codigo_pedido = f"PED-{datetime.now().year}-{pedido_numero:04d}"
+
+                # Obtener nombres para el pedido
+                cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ?', (categoria_id,))
+                categoria_nombre = cursor.fetchone()[0]
+                
+                nombre_pedido = f"{categoria_nombre}"
+                if subcategoria_id:
+                    cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ?', (subcategoria_id,))
+                    subcategoria_nombre = cursor.fetchone()[0]
+                    nombre_pedido += f" - {subcategoria_nombre}"
+
+                cursor.execute('''
+                    INSERT INTO pedidos_seguimiento (
+                        proyecto_id, categoria_id, subcategoria_id, codigo_pedido, 
+                        nombre, estado, fecha_inicio, fecha_entrega_estimada
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (proyecto_id, categoria_id, subcategoria_id, codigo_pedido,
+                      nombre_pedido, 'en_desarrollo', datetime.now().date(), fecha_entrega))
+
         conn.commit()
         conn.close()
 
-        flash(f'Orden de compra {numero_oc} creada exitosamente', 'success')
+        flash(f'Orden de compra {numero_oc} creada exitosamente con pedidos de seguimiento', 'success')
         return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
 
-    except sqlite3.IntegrityError:
-        flash('Ya existe una orden con ese número', 'error')
+    except sqlite3.IntegrityError as e:
+        if 'codigo' in str(e).lower():
+            flash('Ya existe una orden con ese número', 'error')
+        else:
+            flash('Error de datos duplicados', 'error')
         return redirect(url_for('dashboard'))
     except Exception as e:
         flash(f'Error al crear orden de compra: {str(e)}', 'error')
@@ -2183,6 +2253,24 @@ def api_subcategorias(categoria_id):
     
     conn.close()
     return jsonify(subcategorias)
+
+
+@app.route('/api/proyectos_cliente/<int:cliente_id>')
+@login_required
+def api_proyectos_cliente(cliente_id):
+    """API para obtener proyectos de un cliente específico"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, codigo, nombre FROM proyectos 
+        WHERE cliente_id = ? AND estado NOT IN ('entregado', 'cancelado')
+        ORDER BY created_at DESC
+    ''', (cliente_id,))
+    proyectos = [{'id': row[0], 'codigo': row[1], 'nombre': row[2]} for row in cursor.fetchall()]
+    
+    conn.close()
+    return jsonify(proyectos)
 
 
 @app.route('/avanzar_estado_proyecto/<int:proyecto_id>', methods=['POST'])
