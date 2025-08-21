@@ -286,24 +286,70 @@
                         <label for="nombre_proyecto" class="form-label">Nombre del Proyecto *</label>
                         <input type="text" class="form-control" id="nombre_proyecto" name="nombre_proyecto" required placeholder="Ej: Muebles Cocina Torre A">
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="categoria_id" class="form-label">Categoría de Producto</label>
-                                <select class="form-select" id="categoria_id" name="categoria_id" onchange="cargarSubcategorias()">
-                                    <option value="">Seleccionar categoría...</option>
+                    <!-- Selección de Cliente -->
+                    <div class="mb-3">
+                        <label class="form-label">Cliente/Constructora *</label>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <select class="form-select" id="cliente_select" name="cliente_id" onchange="toggleClienteNuevo()">
+                                    <option value="">Seleccionar cliente existente...</option>
+                                    <option value="nuevo">+ Crear nuevo cliente</option>
                                     <!-- Se llenarán dinámicamente -->
                                 </select>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="subcategoria_id" class="form-label">Subcategoría</label>
-                                <select class="form-select" id="subcategoria_id" name="subcategoria_id" disabled>
-                                    <option value="">Primero selecciona una categoría</option>
-                                </select>
+                            <div class="col-md-4" id="nuevo_cliente_section" style="display: none;">
+                                <input type="text" class="form-control" id="nuevo_cliente_nombre" name="nuevo_cliente_nombre" placeholder="Nombre del nuevo cliente">
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Selección de Proyecto -->
+                    <div class="mb-3">
+                        <label class="form-label">Proyecto *</label>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <select class="form-select" id="proyecto_select" name="proyecto_existente_id" onchange="toggleProyectoNuevo()">
+                                    <option value="">Seleccionar proyecto existente...</option>
+                                    <option value="nuevo">+ Crear nuevo proyecto</option>
+                                    <!-- Se llenarán dinámicamente según cliente -->
+                                </select>
+                            </div>
+                            <div class="col-md-4" id="nuevo_proyecto_section" style="display: none;">
+                                <input type="text" class="form-control" id="nuevo_proyecto_nombre" name="nombre_proyecto" placeholder="Nombre del nuevo proyecto">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Categorías y Subcategorías Múltiples -->
+                    <div class="mb-3">
+                        <label class="form-label">Categorías de Productos *</label>
+                        <div id="categorias_container">
+                            <div class="categoria-item border rounded p-3 mb-3">
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <label class="form-label">Categoría</label>
+                                        <select class="form-select categoria-select" name="categorias[]" onchange="cargarSubcategorias(this)" required>
+                                            <option value="">Seleccionar categoría...</option>
+                                            <!-- Se llenarán dinámicamente -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Subcategoría</label>
+                                        <select class="form-select subcategoria-select" name="subcategorias[]" disabled>
+                                            <option value="">Primero selecciona una categoría</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removerCategoria(this)" style="display: none;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarCategoria()">
+                            <i class="fas fa-plus"></i> Agregar otra categoría
+                        </button>
                     </div>
                     <div class="mb-3">
                         <label for="descripcion" class="form-label">Descripción de Productos</label>
@@ -346,12 +392,14 @@
 
 {% block scripts %}
 <script>
+let categoriasData = [];
+
 document.addEventListener('DOMContentLoaded', function() {
     // Cargar clientes disponibles para el modal
     fetch('/api/clientes_activos')
         .then(response => response.json())
         .then(data => {
-            const select = document.getElementById('cliente_id');
+            const select = document.getElementById('cliente_select');
             data.forEach(cliente => {
                 const option = document.createElement('option');
                 option.value = cliente.id;
@@ -365,21 +413,77 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/categorias')
         .then(response => response.json())
         .then(data => {
-            const select = document.getElementById('categoria_id');
-            data.forEach(categoria => {
-                const option = document.createElement('option');
-                option.value = categoria.id;
-                option.textContent = categoria.nombre;
-                option.setAttribute('data-color', categoria.color);
-                select.appendChild(option);
-            });
+            categoriasData = data;
+            llenarSelectCategorias();
         })
         .catch(error => console.error('Error cargando categorías:', error));
 });
 
-function cargarSubcategorias() {
-    const categoriaSelect = document.getElementById('categoria_id');
-    const subcategoriaSelect = document.getElementById('subcategoria_id');
+function llenarSelectCategorias() {
+    const selects = document.querySelectorAll('.categoria-select');
+    selects.forEach(select => {
+        // Limpiar opciones existentes excepto la primera
+        select.innerHTML = '<option value="">Seleccionar categoría...</option>';
+        
+        categoriasData.forEach(categoria => {
+            const option = document.createElement('option');
+            option.value = categoria.id;
+            option.textContent = categoria.nombre;
+            option.setAttribute('data-color', categoria.color);
+            select.appendChild(option);
+        });
+    });
+}
+
+function toggleClienteNuevo() {
+    const clienteSelect = document.getElementById('cliente_select');
+    const nuevoClienteSection = document.getElementById('nuevo_cliente_section');
+    const proyectoSelect = document.getElementById('proyecto_select');
+    
+    if (clienteSelect.value === 'nuevo') {
+        nuevoClienteSection.style.display = 'block';
+        // Limpiar proyectos si se va a crear nuevo cliente
+        proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto existente...</option><option value="nuevo">+ Crear nuevo proyecto</option>';
+    } else {
+        nuevoClienteSection.style.display = 'none';
+        // Cargar proyectos del cliente seleccionado
+        if (clienteSelect.value) {
+            cargarProyectosCliente(clienteSelect.value);
+        }
+    }
+}
+
+function toggleProyectoNuevo() {
+    const proyectoSelect = document.getElementById('proyecto_select');
+    const nuevoProyectoSection = document.getElementById('nuevo_proyecto_section');
+    
+    if (proyectoSelect.value === 'nuevo') {
+        nuevoProyectoSection.style.display = 'block';
+    } else {
+        nuevoProyectoSection.style.display = 'none';
+    }
+}
+
+function cargarProyectosCliente(clienteId) {
+    const proyectoSelect = document.getElementById('proyecto_select');
+    proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto existente...</option><option value="nuevo">+ Crear nuevo proyecto</option>';
+    
+    fetch(`/api/proyectos_cliente/${clienteId}`)
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(proyecto => {
+                const option = document.createElement('option');
+                option.value = proyecto.id;
+                option.textContent = `${proyecto.codigo} - ${proyecto.nombre}`;
+                proyectoSelect.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error cargando proyectos:', error));
+}
+
+function cargarSubcategorias(categoriaSelect) {
+    const categoriaItem = categoriaSelect.closest('.categoria-item');
+    const subcategoriaSelect = categoriaItem.querySelector('.subcategoria-select');
     
     // Limpiar subcategorías
     subcategoriaSelect.innerHTML = '<option value="">Seleccionar subcategoría...</option>';
@@ -406,6 +510,53 @@ function cargarSubcategorias() {
             console.error('Error cargando subcategorías:', error);
             subcategoriaSelect.innerHTML = '<option value="">Error cargando subcategorías</option>';
         });
+}
+
+function agregarCategoria() {
+    const container = document.getElementById('categorias_container');
+    const nuevaCategoria = document.createElement('div');
+    nuevaCategoria.className = 'categoria-item border rounded p-3 mb-3';
+    nuevaCategoria.innerHTML = `
+        <div class="row">
+            <div class="col-md-5">
+                <label class="form-label">Categoría</label>
+                <select class="form-select categoria-select" name="categorias[]" onchange="cargarSubcategorias(this)" required>
+                    <option value="">Seleccionar categoría...</option>
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Subcategoría</label>
+                <select class="form-select subcategoria-select" name="subcategorias[]" disabled>
+                    <option value="">Primero selecciona una categoría</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removerCategoria(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(nuevaCategoria);
+    llenarSelectCategorias();
+    
+    // Mostrar botones de eliminar si hay más de una categoría
+    const botonesEliminar = document.querySelectorAll('.categoria-item .btn-outline-danger');
+    if (botonesEliminar.length > 1) {
+        botonesEliminar.forEach(btn => btn.style.display = 'block');
+    }
+}
+
+function removerCategoria(boton) {
+    const categoriaItem = boton.closest('.categoria-item');
+    categoriaItem.remove();
+    
+    // Ocultar botones de eliminar si solo queda una categoría
+    const botonesEliminar = document.querySelectorAll('.categoria-item .btn-outline-danger');
+    if (botonesEliminar.length === 1) {
+        botonesEliminar[0].style.display = 'none';
+    }
 }
 </script>
 {% endblock %}

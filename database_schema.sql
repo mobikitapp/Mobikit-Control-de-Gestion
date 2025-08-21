@@ -77,8 +77,6 @@ CREATE TABLE IF NOT EXISTS proyectos (
     codigo TEXT UNIQUE NOT NULL, -- Código único del proyecto
     nombre TEXT NOT NULL,
     cliente_id INTEGER NOT NULL,
-    categoria_id INTEGER,
-    subcategoria_id INTEGER,
     descripcion TEXT,
     estado TEXT DEFAULT 'diseño' CHECK (estado IN ('diseño', 'aprobado', 'pendiente_fabricacion', 'producción', 'embalaje', 'despacho', 'entregado', 'cancelado')),
     prioridad TEXT DEFAULT 'media' CHECK (prioridad IN ('baja', 'media', 'alta', 'urgente')),
@@ -93,10 +91,46 @@ CREATE TABLE IF NOT EXISTS proyectos (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (cliente_id) REFERENCES clientes (id),
-    FOREIGN KEY (categoria_id) REFERENCES categorias_producto (id),
-    FOREIGN KEY (subcategoria_id) REFERENCES subcategorias_producto (id),
     FOREIGN KEY (diseñador_id) REFERENCES usuarios (id),
     FOREIGN KEY (supervisor_id) REFERENCES usuarios (id)
+);
+
+-- Tabla de categorías por proyecto (relación many-to-many)
+CREATE TABLE IF NOT EXISTS proyecto_categorias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    proyecto_id INTEGER NOT NULL,
+    categoria_id INTEGER NOT NULL,
+    subcategoria_id INTEGER,
+    cantidad INTEGER DEFAULT 1,
+    observaciones TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (proyecto_id) REFERENCES proyectos (id) ON DELETE CASCADE,
+    FOREIGN KEY (categoria_id) REFERENCES categorias_producto (id),
+    FOREIGN KEY (subcategoria_id) REFERENCES subcategorias_producto (id),
+    UNIQUE(proyecto_id, categoria_id, subcategoria_id)
+);
+
+-- Tabla de pedidos de seguimiento (generados automáticamente por categoría)
+CREATE TABLE IF NOT EXISTS pedidos_seguimiento (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    proyecto_id INTEGER NOT NULL,
+    categoria_id INTEGER NOT NULL,
+    subcategoria_id INTEGER,
+    codigo_pedido TEXT UNIQUE NOT NULL,
+    nombre TEXT NOT NULL,
+    estado TEXT DEFAULT 'en_desarrollo' CHECK (estado IN (
+        'en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 
+        'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado'
+    )),
+    fecha_inicio DATE,
+    fecha_entrega_estimada DATE,
+    fecha_entrega_real DATE,
+    observaciones TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (proyecto_id) REFERENCES proyectos (id) ON DELETE CASCADE,
+    FOREIGN KEY (categoria_id) REFERENCES categorias_producto (id),
+    FOREIGN KEY (subcategoria_id) REFERENCES subcategorias_producto (id)
 );
 
 -- Tabla de tareas (expandida)
@@ -287,6 +321,10 @@ CREATE TABLE IF NOT EXISTS documentos_proyecto (
 CREATE INDEX IF NOT EXISTS idx_proyectos_cliente ON proyectos(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_proyectos_estado ON proyectos(estado);
 CREATE INDEX IF NOT EXISTS idx_proyectos_fecha_entrega ON proyectos(fecha_entrega);
+CREATE INDEX IF NOT EXISTS idx_proyecto_categorias_proyecto ON proyecto_categorias(proyecto_id);
+CREATE INDEX IF NOT EXISTS idx_proyecto_categorias_categoria ON proyecto_categorias(categoria_id);
+CREATE INDEX IF NOT EXISTS idx_pedidos_seguimiento_proyecto ON pedidos_seguimiento(proyecto_id);
+CREATE INDEX IF NOT EXISTS idx_pedidos_seguimiento_estado ON pedidos_seguimiento(estado);
 CREATE INDEX IF NOT EXISTS idx_tareas_proyecto ON tareas(proyecto_id);
 CREATE INDEX IF NOT EXISTS idx_tareas_usuario ON tareas(usuario_asignado_id);
 CREATE INDEX IF NOT EXISTS idx_tareas_estado ON tareas(estado);
