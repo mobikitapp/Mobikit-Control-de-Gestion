@@ -713,35 +713,8 @@ def nuevo_proyecto():
 @app.route('/tareas')
 @login_required
 def tareas():
-    conn = sqlite3.connect('mobikit.db')
-    cursor = conn.cursor()
-
-    # Filtrar tareas según el rol del usuario
-    if session['user_role'] == 'admin':
-        cursor.execute('''
-            SELECT t.id, t.titulo, p.nombre as proyecto, t.rol_asignado, 
-                   t.fecha_programada, t.estado, u.nombre as asignado
-            FROM tareas t
-            JOIN proyectos p ON t.proyecto_id = p.id
-            LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
-            ORDER BY t.fecha_programada ASC
-        ''')
-    else:
-        cursor.execute(
-            '''
-            SELECT t.id, t.titulo, p.nombre as proyecto, t.rol_asignado, 
-                   t.fecha_programada, t.estado, u.nombre as asignado
-            FROM tareas t
-            JOIN proyectos p ON t.proyecto_id = p.id
-            LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
-            WHERE t.rol_asignado = ? OR t.usuario_asignado_id = ?
-            ORDER BY t.fecha_programada ASC
-        ''', (session['user_role'], session['user_id']))
-
-    tareas_list = cursor.fetchall()
-    conn.close()
-
-    return render_template('tareas.html', tareas=tareas_list)
+    """Redirigir al nuevo sistema de gestión de pedidos por estado"""
+    return redirect(url_for('gestion_pedidos'))
 
 
 @app.route('/tarea/<int:tarea_id>')
@@ -2095,12 +2068,32 @@ def nueva_orden_compra():
         prioridad = request.form.get('prioridad', 'media')
         monto = request.form.get('monto')
 
-        # Obtener categorías y subcategorías
-        categorias = request.form.getlist('categorias[]')
-        subcategorias = request.form.getlist('subcategorias[]')
+        # Obtener categorías y subcategorías como arrays
+        categorias_raw = request.form.get('categorias_selected', '').strip()
+        subcategorias_raw = request.form.get('subcategorias_selected', '').strip()
+
+        # Si no vienen como arrays, intentar obtener individualmente
+        if not categorias_raw:
+            categoria_simple = request.form.get('categoria_id')
+            subcategoria_simple = request.form.get('subcategoria_id')
+            if categoria_simple:
+                categorias = [categoria_simple]
+                subcategorias = [subcategoria_simple] if subcategoria_simple else ['']
+            else:
+                categorias = []
+                subcategorias = []
+        else:
+            # Procesar arrays JSON
+            try:
+                import json
+                categorias = json.loads(categorias_raw) if categorias_raw else []
+                subcategorias = json.loads(subcategorias_raw) if subcategorias_raw else []
+            except:
+                categorias = categorias_raw.split(',') if categorias_raw else []
+                subcategorias = subcategorias_raw.split(',') if subcategorias_raw else []
 
         # Validar que hay al menos una categoría
-        if not categorias or not any(cat for cat in categorias if cat):
+        if not categorias or not any(cat for cat in categorias if cat and cat != ''):
             flash('Debe seleccionar al menos una categoría', 'error')
             return redirect(url_for('dashboard'))
 
@@ -2342,6 +2335,280 @@ def avanzar_estado_proyecto(proyecto_id):
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al avanzar estado: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/gestion_pedidos')
+@login_required
+def gestion_pedidos():
+    """Vista principal de gestión de pedidos con estados secuenciales"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    # Estados secuenciales obligatorios
+    estados_secuencia = [
+        ('en_desarrollo', 'Diseño', 'diseñador'),
+        ('aprobado_produccion', 'Aprobado Producción', 'general'),
+        ('seccionado', 'Seccionado', 'operación'),
+        ('enchapado', 'Enchapado', 'operación'),
+        ('mecanizado', 'Mecanizado', 'operación'),
+        ('produccion_completa', 'Producción P&P Lista', 'operación'),
+        ('embalando', 'Embalando', 'embalaje'),
+        ('listo_despacho', 'Listo Despacho', 'despacho'),
+        ('entregado', 'Despachado', 'despacho')
+    ]
+
+    # Obtener pedidos de seguimiento con información del proyecto y cliente
+    user_role = session['user_role']
+    
+    if user_role == 'admin':
+        # Admin ve todos los pedidos
+        cursor.execute('''
+            SELECT ps.id, ps.codigo_pedido, ps.nombre, ps.estado, ps.fecha_inicio, 
+                   ps.fecha_entrega_estimada, p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+                   c.nombre as cliente_nombre, ps.categoria_id, ps.subcategoria_id,
+                   julianday(ps.fecha_entrega_estimada) - julianday('now') as dias_restantes
+            FROM pedidos_seguimiento ps
+            JOIN proyectos p ON ps.proyecto_id = p.id
+            LEFT JOIN clientes c ON p.cliente_id = c.id
+            WHERE ps.estado != 'entregado'
+            ORDER BY 
+                CASE ps.estado
+                    WHEN 'en_desarrollo' THEN 1
+                    WHEN 'aprobado_produccion' THEN 2
+                    WHEN 'seccionado' THEN 3
+                    WHEN 'enchapado' THEN 4
+                    WHEN 'mecanizado' THEN 5
+                    WHEN 'produccion_completa' THEN 6
+                    WHEN 'embalando' THEN 7
+                    WHEN 'listo_despacho' THEN 8
+                    ELSE 9
+                END,
+                ps.fecha_entrega_estimada ASC
+        ''')
+    else:
+        # Filtrar por rol - cada rol ve los pedidos que le corresponden o están próximos
+        roles_estados = {
+            'diseñador': ['en_desarrollo'],
+            'general': ['en_desarrollo', 'aprobado_produccion'],
+            'operación': ['aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'],
+            'embalaje': ['produccion_completa', 'embalando'],
+            'despacho': ['embalando', 'listo_despacho']
+        }
+        
+        estados_permitidos = roles_estados.get(user_role, [])
+        if estados_permitidos:
+            placeholders = ','.join(['?' for _ in estados_permitidos])
+            cursor.execute(f'''
+                SELECT ps.id, ps.codigo_pedido, ps.nombre, ps.estado, ps.fecha_inicio, 
+                       ps.fecha_entrega_estimada, p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+                       c.nombre as cliente_nombre, ps.categoria_id, ps.subcategoria_id,
+                       julianday(ps.fecha_entrega_estimada) - julianday('now') as dias_restantes
+                FROM pedidos_seguimiento ps
+                JOIN proyectos p ON ps.proyecto_id = p.id
+                LEFT JOIN clientes c ON p.cliente_id = c.id
+                WHERE ps.estado IN ({placeholders})
+                ORDER BY 
+                    CASE ps.estado
+                        WHEN 'en_desarrollo' THEN 1
+                        WHEN 'aprobado_produccion' THEN 2
+                        WHEN 'seccionado' THEN 3
+                        WHEN 'enchapado' THEN 4
+                        WHEN 'mecanizado' THEN 5
+                        WHEN 'produccion_completa' THEN 6
+                        WHEN 'embalando' THEN 7
+                        WHEN 'listo_despacho' THEN 8
+                        ELSE 9
+                    END,
+                    ps.fecha_entrega_estimada ASC
+            ''', estados_permitidos)
+        else:
+            cursor.execute('SELECT NULL LIMIT 0')  # No hay resultados
+
+    pedidos = cursor.fetchall()
+
+    # Agrupar pedidos por estado para la vista
+    pedidos_por_estado = {}
+    for estado, nombre_estado, rol_responsable in estados_secuencia:
+        pedidos_por_estado[estado] = {
+            'nombre': nombre_estado,
+            'rol_responsable': rol_responsable,
+            'pedidos': []
+        }
+
+    for pedido in pedidos:
+        estado = pedido[3]
+        if estado in pedidos_por_estado:
+            pedidos_por_estado[estado]['pedidos'].append(pedido)
+
+    conn.close()
+
+    return render_template('gestion_pedidos.html', 
+                         pedidos_por_estado=pedidos_por_estado,
+                         estados_secuencia=estados_secuencia,
+                         user_role=user_role)
+
+
+@app.route('/avanzar_pedido/<int:pedido_id>', methods=['POST'])
+@login_required
+def avanzar_pedido(pedido_id):
+    """Avanzar un pedido al siguiente estado en la secuencia"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    try:
+        # Obtener información del pedido
+        cursor.execute('''
+            SELECT ps.estado, ps.codigo_pedido, ps.nombre, p.nombre as proyecto_nombre
+            FROM pedidos_seguimiento ps
+            JOIN proyectos p ON ps.proyecto_id = p.id
+            WHERE ps.id = ?
+        ''', (pedido_id,))
+
+        pedido = cursor.fetchone()
+        if not pedido:
+            return jsonify({'success': False, 'message': 'Pedido no encontrado'})
+
+        estado_actual, codigo_pedido, nombre_pedido, proyecto_nombre = pedido
+
+        # Estados secuenciales
+        estados_secuencia = [
+            ('en_desarrollo', 'diseñador'),
+            ('aprobado_produccion', 'general'),
+            ('seccionado', 'operación'),
+            ('enchapado', 'operación'),
+            ('mecanizado', 'operación'),
+            ('produccion_completa', 'operación'),
+            ('embalando', 'embalaje'),
+            ('listo_despacho', 'despacho'),
+            ('entregado', 'despacho')
+        ]
+
+        # Verificar permisos según el estado actual
+        rol_actual = None
+        for i, (estado, rol) in enumerate(estados_secuencia):
+            if estado == estado_actual:
+                rol_actual = rol
+                break
+
+        if session['user_role'] not in ['admin', 'general'] and session['user_role'] != rol_actual:
+            return jsonify({'success': False, 'message': 'Sin permisos para avanzar este pedido'})
+
+        # Encontrar siguiente estado
+        siguiente_estado = None
+        for i, (estado, rol) in enumerate(estados_secuencia):
+            if estado == estado_actual and i < len(estados_secuencia) - 1:
+                siguiente_estado = estados_secuencia[i + 1][0]
+                break
+
+        if not siguiente_estado:
+            return jsonify({'success': False, 'message': 'El pedido ya está en el estado final'})
+
+        # Actualizar estado del pedido
+        cursor.execute('''
+            UPDATE pedidos_seguimiento 
+            SET estado = ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (siguiente_estado, pedido_id))
+
+        # Si es el último estado, marcar fecha de entrega real
+        if siguiente_estado == 'entregado':
+            cursor.execute('''
+                UPDATE pedidos_seguimiento 
+                SET fecha_entrega_real = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ''', (pedido_id,))
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('pedidos_seguimiento', ?, 'UPDATE', ?, ?)
+        ''', (pedido_id, session['user_id'], 
+              json.dumps({
+                  'accion': 'avanzar_pedido',
+                  'estado_anterior': estado_actual,
+                  'estado_nuevo': siguiente_estado,
+                  'codigo_pedido': codigo_pedido
+              })))
+
+        conn.commit()
+        return jsonify({
+            'success': True, 
+            'message': f'Pedido {codigo_pedido} avanzado a: {siguiente_estado.replace("_", " ").title()}'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al avanzar pedido: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/retroceder_pedido/<int:pedido_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def retroceder_pedido(pedido_id):
+    """Retroceder un pedido al estado anterior (solo admin/general)"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    try:
+        # Obtener información del pedido
+        cursor.execute('''
+            SELECT ps.estado, ps.codigo_pedido
+            FROM pedidos_seguimiento ps
+            WHERE ps.id = ?
+        ''', (pedido_id,))
+
+        pedido = cursor.fetchone()
+        if not pedido:
+            return jsonify({'success': False, 'message': 'Pedido no encontrado'})
+
+        estado_actual, codigo_pedido = pedido
+
+        # Estados secuenciales
+        estados_secuencia = [
+            'en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 
+            'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado'
+        ]
+
+        # Encontrar estado anterior
+        estado_anterior = None
+        for i, estado in enumerate(estados_secuencia):
+            if estado == estado_actual and i > 0:
+                estado_anterior = estados_secuencia[i - 1]
+                break
+
+        if not estado_anterior:
+            return jsonify({'success': False, 'message': 'No se puede retroceder más'})
+
+        # Actualizar estado del pedido
+        cursor.execute('''
+            UPDATE pedidos_seguimiento 
+            SET estado = ?, updated_at = CURRENT_TIMESTAMP, fecha_entrega_real = NULL
+            WHERE id = ?
+        ''', (estado_anterior, pedido_id))
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('pedidos_seguimiento', ?, 'UPDATE', ?, ?)
+        ''', (pedido_id, session['user_id'], 
+              json.dumps({
+                  'accion': 'retroceder_pedido',
+                  'estado_anterior': estado_actual,
+                  'estado_nuevo': estado_anterior,
+                  'codigo_pedido': codigo_pedido
+              })))
+
+        conn.commit()
+        return jsonify({
+            'success': True, 
+            'message': f'Pedido {codigo_pedido} retrocedido a: {estado_anterior.replace("_", " ").title()}'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al retroceder pedido: {str(e)}'})
     finally:
         conn.close()
 
