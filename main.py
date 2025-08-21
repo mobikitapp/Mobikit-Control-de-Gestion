@@ -261,46 +261,75 @@ def dashboard():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
-    # Estadísticas generales
+    # Estadísticas de órdenes de compra
     cursor.execute('SELECT COUNT(*) FROM proyectos')
-    total_proyectos = cursor.fetchone()[0]
+    total_ordenes = cursor.fetchone()[0]
 
-    cursor.execute('SELECT COUNT(*) FROM tareas WHERE estado = "pendiente"')
-    tareas_pendientes = cursor.fetchone()[0]
+    cursor.execute('SELECT COUNT(*) FROM proyectos WHERE estado IN ("en_desarrollo", "seccionado", "enchapado", "mecanizado")')
+    ordenes_en_proceso = cursor.fetchone()[0]
 
-    cursor.execute('SELECT COUNT(*) FROM tareas WHERE estado = "completada"')
-    tareas_completadas = cursor.fetchone()[0]
+    cursor.execute('SELECT COUNT(*) FROM proyectos WHERE estado = "listo_despacho"')
+    ordenes_listas = cursor.fetchone()[0]
 
-    # Tareas asignadas al usuario actual o su rol
-    cursor.execute(
-        '''
-        SELECT t.id, t.titulo, p.nombre as proyecto, t.fecha_programada, t.estado
-        FROM tareas t
-        JOIN proyectos p ON t.proyecto_id = p.id
-        WHERE t.usuario_asignado_id = ? OR t.rol_asignado = ?
-        ORDER BY t.fecha_programada ASC
-        LIMIT 10
-    ''', (session['user_id'], session['user_role']))
-    mis_tareas = cursor.fetchall()
+    cursor.execute('SELECT COUNT(*) FROM proyectos WHERE estado = "entregado"')
+    ordenes_entregadas = cursor.fetchone()[0]
 
-    # Proyectos recientes
+    # Órdenes próximas a vencer (7 días)
     cursor.execute('''
-        SELECT p.id, p.nombre, c.nombre as cliente, p.estado, p.fecha_entrega
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente, p.fecha_entrega, p.estado,
+               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE p.fecha_entrega IS NOT NULL 
+        AND julianday(p.fecha_entrega) - julianday('now') <= 7
+        AND p.estado NOT IN ('entregado', 'cancelado')
+        ORDER BY p.fecha_entrega ASC
+        LIMIT 10
+    ''')
+    ordenes_urgentes = cursor.fetchall()
+
+    # Órdenes por estado (para el dashboard visual)
+    cursor.execute('''
+        SELECT p.estado, COUNT(*) as cantidad
+        FROM proyectos p
+        WHERE p.estado NOT IN ('entregado', 'cancelado')
+        GROUP BY p.estado
+        ORDER BY 
+            CASE p.estado
+                WHEN 'en_desarrollo' THEN 1
+                WHEN 'aprobado_produccion' THEN 2
+                WHEN 'seccionado' THEN 3
+                WHEN 'enchapado' THEN 4
+                WHEN 'mecanizado' THEN 5
+                WHEN 'produccion_completa' THEN 6
+                WHEN 'embalando' THEN 7
+                WHEN 'listo_despacho' THEN 8
+                ELSE 9
+            END
+    ''')
+    ordenes_por_estado = cursor.fetchall()
+
+    # Órdenes recientes (últimas 5)
+    cursor.execute('''
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente, p.estado, p.fecha_entrega,
+               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         ORDER BY p.created_at DESC
         LIMIT 5
     ''')
-    proyectos_recientes = cursor.fetchall()
+    ordenes_recientes = cursor.fetchall()
 
     conn.close()
 
     return render_template('dashboard.html',
-                           total_proyectos=total_proyectos,
-                           tareas_pendientes=tareas_pendientes,
-                           tareas_completadas=tareas_completadas,
-                           mis_tareas=mis_tareas,
-                           proyectos_recientes=proyectos_recientes)
+                           total_ordenes=total_ordenes,
+                           ordenes_en_proceso=ordenes_en_proceso,
+                           ordenes_listas=ordenes_listas,
+                           ordenes_entregadas=ordenes_entregadas,
+                           ordenes_urgentes=ordenes_urgentes,
+                           ordenes_por_estado=ordenes_por_estado,
+                           ordenes_recientes=ordenes_recientes)
 
 
 @app.route('/clientes')
@@ -1488,19 +1517,64 @@ def calendario():
 @app.route('/api/calendar_events')
 @login_required
 def api_calendar_events():
-    """API para obtener eventos del calendario"""
+    """API para obtener eventos del calendario con focus en órdenes de compra"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
     events = []
 
-    # Obtener despachos
+    # Obtener órdenes de compra con fechas de entrega
+    cursor.execute('''
+        SELECT p.id, p.codigo, p.nombre, p.fecha_entrega, p.estado, p.prioridad,
+               c.nombre as cliente_nombre,
+               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE p.fecha_entrega IS NOT NULL AND p.estado NOT IN ('entregado', 'cancelado')
+    ''')
+
+    for row in cursor.fetchall():
+        # Colores según estado
+        color = '#6c757d'  # gris por defecto
+        if row[4] == 'en_desarrollo':
+            color = '#6c757d'
+        elif row[4] == 'aprobado_produccion':
+            color = '#0d6efd'
+        elif row[4] in ['seccionado', 'enchapado', 'mecanizado']:
+            color = '#fd7e14'
+        elif row[4] == 'produccion_completa':
+            color = '#20c997'
+        elif row[4] == 'embalando':
+            color = '#198754'
+        elif row[4] == 'listo_despacho':
+            color = '#dc3545'
+
+        # Marcar como urgente si faltan pocos días
+        if row[7] is not None and row[7] <= 3:
+            color = '#dc3545'  # rojo para urgente
+
+        events.append({
+            'id': f'orden_{row[0]}',
+            'title': f'OC: {row[1]} - {row[2]}',
+            'start': row[3],
+            'type': 'orden_compra',
+            'backgroundColor': color,
+            'borderColor': color,
+            'proyecto': row[2],
+            'cliente': row[6],
+            'estado': row[4],
+            'prioridad': row[5],
+            'dias_restantes': row[7],
+            'codigo': row[1]
+        })
+
+    # Obtener despachos programados
     cursor.execute('''
         SELECT d.id, d.codigo_despacho, d.fecha_programada, d.estado,
-               p.nombre as proyecto_nombre, c.nombre as cliente_nombre,
-               d.direccion_entrega
+               p.nombre as proyecto_nombre, p.codigo as proyecto_codigo,
+               c.nombre as cliente_nombre
         FROM despachos d
-        JOIN proyectos p ON d.proyecto_id = p.id
+        LEFT JOIN proyectos p ON d.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE d.fecha_programada IS NOT NULL
     ''')
@@ -1508,44 +1582,18 @@ def api_calendar_events():
     for row in cursor.fetchall():
         events.append({
             'id': f'despacho_{row[0]}',
-            'title': f'Despacho: {row[1]}',
+            'title': f'Despacho: {row[5] or row[1]}',
             'start': row[2],
             'type': 'despacho',
-            'backgroundColor': '#dc3545',
-            'borderColor': '#dc3545',
-            'proyecto': row[4],
-            'cliente': row[5],
-            'direccion': row[6],
-            'estado': row[3]
-        })
-
-    # Obtener tareas
-    cursor.execute('''
-        SELECT t.id, t.titulo, t.fecha_programada, t.estado, t.descripcion,
-               p.nombre as proyecto_nombre, u.nombre as usuario_nombre,
-               t.rol_asignado
-        FROM tareas t
-        LEFT JOIN proyectos p ON t.proyecto_id = p.id
-        LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
-        WHERE t.fecha_programada IS NOT NULL
-    ''')
-
-    for row in cursor.fetchall():
-        events.append({
-            'id': f'tarea_{row[0]}',
-            'title': f'Tarea: {row[1]}',
-            'start': row[2],
-            'type': 'tarea',
-            'backgroundColor': '#28a745',
-            'borderColor': '#28a745',
-            'proyecto': row[5],
-            'asignado': row[6],
-            'rol_asignado': row[7],
+            'backgroundColor': '#e83e8c',
+            'borderColor': '#e83e8c',
+            'proyecto': row[4] or 'Proyecto Manual',
+            'cliente': row[6] or 'Cliente Manual',
             'estado': row[3],
-            'descripcion': row[4]
+            'codigo_despacho': row[1]
         })
 
-    # Obtener recordatorios
+    # Obtener recordatorios de producción
     cursor.execute('''
         SELECT r.id, r.titulo, r.fecha_recordatorio, r.mensaje, r.enviado,
                u.nombre as usuario_nombre, a.nombre as area_nombre
@@ -1553,6 +1601,7 @@ def api_calendar_events():
         LEFT JOIN usuarios u ON r.usuario_id = u.id
         LEFT JOIN areas a ON r.area_id = a.id
         WHERE r.activo = TRUE AND r.fecha_recordatorio IS NOT NULL
+        AND r.tipo IN ('proyecto', 'despacho', 'general')
     ''')
 
     for row in cursor.fetchall():
@@ -2006,6 +2055,137 @@ def retroceder_tarea(tarea_id):
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al retroceder tarea: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/nueva_orden_compra', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'diseñador'])
+def nueva_orden_compra():
+    """Crear nueva orden de compra específica para fábrica"""
+    try:
+        numero_oc = request.form['numero_oc']
+        cliente_id = request.form['cliente_id']
+        nombre_proyecto = request.form['nombre_proyecto']
+        descripcion = request.form.get('descripcion', '').strip() or None
+        fecha_entrega = request.form['fecha_entrega']
+        prioridad = request.form.get('prioridad', 'media')
+        monto = request.form.get('monto')
+
+        # Validar monto
+        monto_float = None
+        if monto:
+            try:
+                monto_float = float(monto)
+            except ValueError:
+                flash('Monto inválido', 'error')
+                return redirect(url_for('dashboard'))
+
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Verificar que el cliente existe
+        cursor.execute('SELECT nombre FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
+        cliente = cursor.fetchone()
+        if not cliente:
+            flash('Cliente no válido', 'error')
+            return redirect(url_for('dashboard'))
+
+        # Crear proyecto con código de orden de compra
+        cursor.execute('''
+            INSERT INTO proyectos (
+                codigo, nombre, cliente_id, descripcion, estado, prioridad,
+                fecha_inicio, fecha_entrega, presupuesto
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (numero_oc, nombre_proyecto, cliente_id, descripcion, 'en_desarrollo', 
+              prioridad, datetime.now().date(), fecha_entrega, monto_float))
+
+        proyecto_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        flash(f'Orden de compra {numero_oc} creada exitosamente', 'success')
+        return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+
+    except sqlite3.IntegrityError:
+        flash('Ya existe una orden con ese número', 'error')
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        flash(f'Error al crear orden de compra: {str(e)}', 'error')
+        return redirect(url_for('dashboard'))
+
+
+@app.route('/api/clientes_activos')
+@login_required
+def api_clientes_activos():
+    """API para obtener clientes activos"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, nombre FROM clientes WHERE activo = TRUE ORDER BY nombre ASC')
+    clientes = [{'id': row[0], 'nombre': row[1]} for row in cursor.fetchall()]
+    
+    conn.close()
+    return jsonify(clientes)
+
+
+@app.route('/avanzar_estado_proyecto/<int:proyecto_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'operación', 'embalaje'])
+def avanzar_estado_proyecto(proyecto_id):
+    """Avanzar estado de proyecto según los estados de fábrica"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    try:
+        # Obtener estado actual del proyecto
+        cursor.execute('SELECT estado, nombre, codigo FROM proyectos WHERE id = ?', (proyecto_id,))
+        proyecto = cursor.fetchone()
+        
+        if not proyecto:
+            return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
+
+        estado_actual, nombre_proyecto, codigo_proyecto = proyecto
+
+        # Definir secuencia de estados
+        estados_secuencia = [
+            'en_desarrollo',
+            'aprobado_produccion', 
+            'seccionado',
+            'enchapado',
+            'mecanizado',
+            'produccion_completa',
+            'embalando',
+            'listo_despacho',
+            'entregado'
+        ]
+
+        try:
+            indice_actual = estados_secuencia.index(estado_actual)
+            if indice_actual < len(estados_secuencia) - 1:
+                nuevo_estado = estados_secuencia[indice_actual + 1]
+                
+                cursor.execute('UPDATE proyectos SET estado = ? WHERE id = ?', 
+                             (nuevo_estado, proyecto_id))
+                
+                # Registrar en auditoría
+                cursor.execute('''
+                    INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+                    VALUES ('proyectos', ?, 'UPDATE', ?, ?)
+                ''', (proyecto_id, session['user_id'], 
+                      json.dumps({'accion': 'avanzar_estado', 'estado_anterior': estado_actual, 'estado_nuevo': nuevo_estado})))
+                
+                conn.commit()
+                return jsonify({'success': True, 'message': f'Proyecto avanzado a: {nuevo_estado.replace("_", " ").title()}'})
+            else:
+                return jsonify({'success': False, 'message': 'El proyecto ya está en el estado final'})
+                
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Estado actual no válido'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al avanzar estado: {str(e)}'})
     finally:
         conn.close()
 
