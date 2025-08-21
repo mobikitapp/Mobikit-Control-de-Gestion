@@ -49,12 +49,36 @@ CREATE TABLE IF NOT EXISTS clientes (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tabla de categorías de productos
+CREATE TABLE IF NOT EXISTS categorias_producto (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT UNIQUE NOT NULL,
+    descripcion TEXT,
+    color TEXT DEFAULT '#E31E24',
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla de subcategorías de productos
+CREATE TABLE IF NOT EXISTS subcategorias_producto (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    categoria_id INTEGER NOT NULL,
+    nombre TEXT NOT NULL,
+    descripcion TEXT,
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (categoria_id) REFERENCES categorias_producto (id),
+    UNIQUE(categoria_id, nombre)
+);
+
 -- Tabla de proyectos/obras (expandida)
 CREATE TABLE IF NOT EXISTS proyectos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     codigo TEXT UNIQUE NOT NULL, -- Código único del proyecto
     nombre TEXT NOT NULL,
     cliente_id INTEGER NOT NULL,
+    categoria_id INTEGER,
+    subcategoria_id INTEGER,
     descripcion TEXT,
     estado TEXT DEFAULT 'diseño' CHECK (estado IN ('diseño', 'aprobado', 'pendiente_fabricacion', 'producción', 'embalaje', 'despacho', 'entregado', 'cancelado')),
     prioridad TEXT DEFAULT 'media' CHECK (prioridad IN ('baja', 'media', 'alta', 'urgente')),
@@ -69,6 +93,8 @@ CREATE TABLE IF NOT EXISTS proyectos (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (cliente_id) REFERENCES clientes (id),
+    FOREIGN KEY (categoria_id) REFERENCES categorias_producto (id),
+    FOREIGN KEY (subcategoria_id) REFERENCES subcategorias_producto (id),
     FOREIGN KEY (diseñador_id) REFERENCES usuarios (id),
     FOREIGN KEY (supervisor_id) REFERENCES usuarios (id)
 );
@@ -349,3 +375,20 @@ INSERT OR IGNORE INTO configuraciones (clave, valor, descripcion, tipo) VALUES
     ('notificaciones_email', 'true', 'Activar notificaciones por email', 'boolean'),
     ('tiempo_sesion_minutos', '480', 'Duración de sesión en minutos', 'integer'),
     ('backup_automatico', 'true', 'Realizar backup automático diario', 'boolean');
+
+-- Datos iniciales de categorías
+INSERT OR IGNORE INTO categorias_producto (nombre, descripcion, color) VALUES 
+    ('Cocinas', 'Muebles de cocina y accesorios', '#E31E24'),
+    ('Closet', 'Closets y vestidores', '#8B4513');
+
+-- Datos iniciales de subcategorías para Cocinas
+INSERT OR IGNORE INTO subcategorias_producto (categoria_id, nombre, descripcion) VALUES 
+    (1, 'Bases', 'Muebles base de cocina'),
+    (1, 'Murales', 'Muebles murales de cocina'),
+    (1, 'Kits de Instalación', 'Kits y accesorios para instalación');
+
+-- Datos iniciales de subcategorías para Closet
+INSERT OR IGNORE INTO subcategorias_producto (categoria_id, nombre, descripcion) VALUES 
+    (2, 'Interiores', 'Interiores y organizadores de closet'),
+    (2, 'Piernas', 'Piernas y estructura de soporte'),
+    (2, 'Puertas', 'Puertas y frentes de closet');
