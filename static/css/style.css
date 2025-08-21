@@ -260,7 +260,7 @@ h4, h5, h6 {
 }
 
 .table tbody tr:hover {
-    background-color: var(--mobikit-hover);
+    background-color: transparent;
 }
 
 /* Badges - Notion Tags Style */

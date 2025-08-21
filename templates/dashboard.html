@@ -198,17 +198,27 @@
                                 <td>{{ orden[3] or 'Sin cliente' }}</td>
                                 <td>{{ orden[2] }}</td>
                                 <td>
-                                    <span class="badge bg-{% if orden[4] == 'en_desarrollo' %}secondary{% elif orden[4] == 'aprobado_produccion' %}primary{% elif orden[4] == 'seccionado' %}warning{% elif orden[4] == 'enchapado' %}info{% elif orden[4] == 'mecanizado' %}primary{% elif orden[4] == 'produccion_completa' %}success{% elif orden[4] == 'embalando' %}success{% elif orden[4] == 'listo_despacho' %}danger{% elif orden[4] == 'entregado' %}dark{% endif %}">
-                                        {% if orden[4] == 'en_desarrollo' %}En Desarrollo
-                                        {% elif orden[4] == 'aprobado_produccion' %}Aprobado Producción
-                                        {% elif orden[4] == 'seccionado' %}Seccionando
-                                        {% elif orden[4] == 'enchapado' %}Enchapando
-                                        {% elif orden[4] == 'mecanizado' %}Mecanizando
-                                        {% elif orden[4] == 'produccion_completa' %}Producción Completa
-                                        {% elif orden[4] == 'embalando' %}Embalando
-                                        {% elif orden[4] == 'listo_despacho' %}Listo Despacho
-                                        {% else %}{{ orden[4]|title }}{% endif %}
-                                    </span>
+                                    {% if orden[4] == 'en_desarrollo' %}
+                                    <span class="text-muted fw-bold">En Desarrollo</span>
+                                    {% elif orden[4] == 'aprobado_produccion' %}
+                                    <span class="text-primary fw-bold">Aprobado Producción</span>
+                                    {% elif orden[4] == 'seccionado' %}
+                                    <span class="text-warning fw-bold">Seccionando</span>
+                                    {% elif orden[4] == 'enchapado' %}
+                                    <span class="text-info fw-bold">Enchapando</span>
+                                    {% elif orden[4] == 'mecanizado' %}
+                                    <span class="text-primary fw-bold">Mecanizando</span>
+                                    {% elif orden[4] == 'produccion_completa' %}
+                                    <span class="text-success fw-bold">Producción Completa</span>
+                                    {% elif orden[4] == 'embalando' %}
+                                    <span class="text-success fw-bold">Embalando</span>
+                                    {% elif orden[4] == 'listo_despacho' %}
+                                    <span class="text-danger fw-bold">Listo Despacho</span>
+                                    {% elif orden[4] == 'entregado' %}
+                                    <span class="text-dark fw-bold">Entregado</span>
+                                    {% else %}
+                                    <span class="text-dark fw-bold">{{ orden[4]|title }}</span>
+                                    {% endif %}
                                 </td>
                                 <td>{{ orden[5] if orden[5] else 'Sin fecha' }}</td>
                                 <td>
