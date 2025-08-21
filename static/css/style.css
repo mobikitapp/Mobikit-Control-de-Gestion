@@ -61,6 +61,12 @@ body {
     text-transform: lowercase;
 }
 
+.brand-container {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
 .navbar-brand .brand-text {
     color: var(--mobikit-gray-logo) !important;
 }
@@ -68,6 +74,15 @@ body {
 .navbar-brand .brand-accent {
     color: var(--mobikit-red) !important;
     font-weight: 400;
+}
+
+.brand-subtitle {
+    color: var(--mobikit-text-light) !important;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: -2px;
 }
 
 .navbar-brand i {
