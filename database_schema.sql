@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS categorias_producto (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT UNIQUE NOT NULL,
     descripcion TEXT,
-    color TEXT DEFAULT '#E31E24',
+    color TEXT DEFAULT '#EF1A1F',
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -378,8 +378,8 @@ INSERT OR IGNORE INTO configuraciones (clave, valor, descripcion, tipo) VALUES
 
 -- Datos iniciales de categorías
 INSERT OR IGNORE INTO categorias_producto (nombre, descripcion, color) VALUES 
-    ('Cocinas', 'Muebles de cocina y accesorios', '#E31E24'),
-    ('Closet', 'Closets y vestidores', '#6D6E71');
+    ('Cocinas', 'Muebles de cocina y accesorios', '#EF1A1F'),
+    ('Closet', 'Closets y vestidores', '#626363');
 
 -- Datos iniciales de subcategorías para Cocinas
 INSERT OR IGNORE INTO subcategorias_producto (categoria_id, nombre, descripcion) VALUES 

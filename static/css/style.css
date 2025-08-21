@@ -2,28 +2,28 @@
 /* Mobikit - Notion-inspired Design */
 
 :root {
-    /* Colores principales del logo Mobikit */
-    --mobikit-red: #E31E24;
-    --mobikit-red-light: #F3949A;
-    --mobikit-red-dark: #B8141A;
-    --mobikit-gray-logo: #6D6E71; /* Gris del logo "mobikit" */
-    --mobikit-gray: #4A4A4A;
+    /* Colores corporativos oficiales Mobikit */
+    --mobikit-red: #EF1A1F; /* Rojo intenso oficial */
+    --mobikit-red-light: #F58B8F;
+    --mobikit-red-dark: #C7161A;
+    --mobikit-gray: #626363; /* Gris oscuro oficial */
+    --mobikit-gray-logo: #626363; /* Mismo gris para coherencia */
     --mobikit-light-gray: #8C8C8C;
-    --mobikit-dark-gray: #2D2D2D;
-    --mobikit-white: #FFFFFF;
+    --mobikit-dark-gray: #4A4A4A;
+    --mobikit-white: #FDFDFD; /* Blanco oficial */
     --mobikit-light-bg: #FAFAFA;
     --mobikit-border: #E5E5E5;
     --mobikit-hover: #F5F5F5;
     --mobikit-text-light: #787774;
     --mobikit-sidebar: #F7F6F3;
     
-    /* Colores corporativos específicos basados en logo */
-    --mobikit-cocinas: #E31E24;
-    --mobikit-closet: #6D6E71; /* Usar gris del logo para closets */
+    /* Colores corporativos específicos */
+    --mobikit-cocinas: #EF1A1F; /* Rojo para cocinas */
+    --mobikit-closet: #626363; /* Gris para closets */
     --mobikit-success: #22C55E;
     --mobikit-warning: #F59E0B;
-    --mobikit-info: #6D6E71;
-    --mobikit-danger: #E31E24;
+    --mobikit-info: #626363;
+    --mobikit-danger: #EF1A1F;
 }
 
 * {
@@ -180,7 +180,7 @@ h4, h5, h6 {
 }
 
 .btn-primary:hover {
-    background-color: #C11A1F;
+    background-color: #C7161A;
     transform: translateY(-1px);
 }
 
@@ -430,8 +430,8 @@ h4, h5, h6 {
 }
 
 .fc-button-primary:hover {
-    background-color: #C11A1F !important;
-    border-color: #C11A1F !important;
+    background-color: #C7161A !important;
+    border-color: #C7161A !important;
 }
 
 .fc-day-today {
@@ -472,7 +472,7 @@ a {
 }
 
 a:hover {
-    color: #C11A1F;
+    color: #C7161A;
     text-decoration: underline;
 }
 
