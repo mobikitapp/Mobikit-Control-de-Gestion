@@ -274,24 +274,22 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="cliente_id" class="form-label">Cliente/Constructora *</label>
-                                <select class="form-select" id="cliente_id" name="cliente_id" required>
-                                    <option value="">Seleccionar cliente...</option>
-                                    <!-- Se llenarán dinámicamente -->
+                                <label for="prioridad" class="form-label">Prioridad</label>
+                                <select class="form-select" id="prioridad" name="prioridad">
+                                    <option value="media">Media</option>
+                                    <option value="alta">Alta</option>
+                                    <option value="urgente">Urgente</option>
                                 </select>
                             </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="nombre_proyecto" class="form-label">Nombre del Proyecto *</label>
-                        <input type="text" class="form-control" id="nombre_proyecto" name="nombre_proyecto" required placeholder="Ej: Muebles Cocina Torre A">
-                    </div>
+
                     <!-- Selección de Cliente -->
                     <div class="mb-3">
                         <label class="form-label">Cliente/Constructora *</label>
                         <div class="row">
                             <div class="col-md-8">
-                                <select class="form-select" id="cliente_select" name="cliente_id" onchange="toggleClienteNuevo()">
+                                <select class="form-select" id="cliente_select" name="cliente_id" onchange="toggleClienteNuevo()" required>
                                     <option value="">Seleccionar cliente existente...</option>
                                     <option value="nuevo">+ Crear nuevo cliente</option>
                                     <!-- Se llenarán dinámicamente -->
@@ -356,23 +354,13 @@
                         <textarea class="form-control" id="descripcion" name="descripcion" rows="3" placeholder="Detalle de los muebles a fabricar..."></textarea>
                     </div>
                     <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="fecha_entrega" class="form-label">Fecha Entrega *</label>
                                 <input type="date" class="form-control" id="fecha_entrega" name="fecha_entrega" required>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="prioridad" class="form-label">Prioridad</label>
-                                <select class="form-select" id="prioridad" name="prioridad">
-                                    <option value="media">Media</option>
-                                    <option value="alta">Alta</option>
-                                    <option value="urgente">Urgente</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="monto" class="form-label">Monto (CLP)</label>
                                 <input type="number" class="form-control" id="monto" name="monto" step="1000" min="0" placeholder="0">
@@ -422,6 +410,9 @@ document.addEventListener('DOMContentLoaded', function() {
 function llenarSelectCategorias() {
     const selects = document.querySelectorAll('.categoria-select');
     selects.forEach(select => {
+        // Guardar el valor seleccionado actual
+        const valorActual = select.value;
+        
         // Limpiar opciones existentes excepto la primera
         select.innerHTML = '<option value="">Seleccionar categoría...</option>';
         
@@ -432,6 +423,13 @@ function llenarSelectCategorias() {
             option.setAttribute('data-color', categoria.color);
             select.appendChild(option);
         });
+        
+        // Restaurar el valor seleccionado si existía
+        if (valorActual) {
+            select.value = valorActual;
+            // Disparar evento change para cargar subcategorías si es necesario
+            select.dispatchEvent(new Event('change'));
+        }
     });
 }
 
@@ -491,12 +489,12 @@ function cargarSubcategorias(categoriaSelect) {
     if (!categoriaSelect.value) {
         subcategoriaSelect.disabled = true;
         subcategoriaSelect.innerHTML = '<option value="">Primero selecciona una categoría</option>';
-        return;
+        return Promise.resolve();
     }
     
     subcategoriaSelect.disabled = false;
     
-    fetch(`/api/subcategorias/${categoriaSelect.value}`)
+    return fetch(`/api/subcategorias/${categoriaSelect.value}`)
         .then(response => response.json())
         .then(data => {
             data.forEach(subcategoria => {
@@ -514,6 +512,19 @@ function cargarSubcategorias(categoriaSelect) {
 
 function agregarCategoria() {
     const container = document.getElementById('categorias_container');
+    
+    // Guardar valores actuales de todas las categorías y subcategorías
+    const valoresActuales = [];
+    const categoriaItems = container.querySelectorAll('.categoria-item');
+    categoriaItems.forEach(item => {
+        const categoriaSelect = item.querySelector('.categoria-select');
+        const subcategoriaSelect = item.querySelector('.subcategoria-select');
+        valoresActuales.push({
+            categoria: categoriaSelect.value,
+            subcategoria: subcategoriaSelect.value
+        });
+    });
+    
     const nuevaCategoria = document.createElement('div');
     nuevaCategoria.className = 'categoria-item border rounded p-3 mb-3';
     nuevaCategoria.innerHTML = `
@@ -539,7 +550,32 @@ function agregarCategoria() {
     `;
     
     container.appendChild(nuevaCategoria);
+    
+    // Llenar select de categorías para todos los elementos
     llenarSelectCategorias();
+    
+    // Restaurar valores previos
+    const categoriaItemsActualizados = container.querySelectorAll('.categoria-item');
+    valoresActuales.forEach((valores, index) => {
+        if (index < categoriaItemsActualizados.length - 1) { // Excluir el nuevo item
+            const item = categoriaItemsActualizados[index];
+            const categoriaSelect = item.querySelector('.categoria-select');
+            const subcategoriaSelect = item.querySelector('.subcategoria-select');
+            
+            if (valores.categoria) {
+                categoriaSelect.value = valores.categoria;
+                
+                // Cargar subcategorías si hay una categoría seleccionada
+                if (valores.categoria) {
+                    cargarSubcategorias(categoriaSelect).then(() => {
+                        if (valores.subcategoria) {
+                            subcategoriaSelect.value = valores.subcategoria;
+                        }
+                    });
+                }
+            }
+        }
+    });
     
     // Mostrar botones de eliminar si hay más de una categoría
     const botonesEliminar = document.querySelectorAll('.categoria-item .btn-outline-danger');
