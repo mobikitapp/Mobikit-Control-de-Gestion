@@ -513,13 +513,9 @@ def proyectos():
         cursor.execute('''
             SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, p.prioridad,
                    p.fecha_entrega, p.presupuesto, u.nombre as diseñador_nombre,
-                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes,
-                   c.nombre as categoria_nombre, c.color as categoria_color,
-                   sc.nombre as subcategoria_nombre
+                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes
             FROM proyectos p
             LEFT JOIN usuarios u ON p.diseñador_id = u.id
-            LEFT JOIN categorias_producto c ON p.categoria_id = c.id
-            LEFT JOIN subcategorias_producto sc ON p.subcategoria_id = sc.id
             WHERE p.cliente_id = ?
             ORDER BY 
                 CASE p.estado 
@@ -535,10 +531,12 @@ def proyectos():
                 p.fecha_entrega ASC
         ''', (cliente_info['id'],))
 
-        proyectos = cursor.fetchall()
+        proyectos_raw = cursor.fetchall()
 
-        for proyecto in proyectos:
-            proyecto_info = {
+        # Obtener categorías para cada proyecto
+        proyectos = []
+        for proyecto in proyectos_raw:
+            proyecto_dict = {
                 'id': proyecto[0],
                 'codigo': proyecto[1],
                 'nombre': proyecto[2],
@@ -549,11 +547,26 @@ def proyectos():
                 'presupuesto': proyecto[7],
                 'diseñador_nombre': proyecto[8],
                 'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None,
-                'categoria_nombre': proyecto[10],
-                'categoria_color': proyecto[11],
-                'subcategoria_nombre': proyecto[12]
+                'categorias': []
             }
-            cliente_info['proyectos'].append(proyecto_info)
+
+            # Obtener categorías asociadas al proyecto
+            cursor.execute('''
+                SELECT cat.nombre, subcat.nombre
+                FROM proyecto_categorias pc
+                JOIN categorias_producto cat ON pc.categoria_id = cat.id
+                LEFT JOIN subcategorias_producto subcat ON pc.subcategoria_id = subcat.id
+                WHERE pc.proyecto_id = ?
+            ''', (proyecto[0],))
+
+            categorias = cursor.fetchall()
+            for cat_nombre, subcat_nombre in categorias:
+                categoria_texto = cat_nombre
+                if subcat_nombre:
+                    categoria_texto += f" - {subcat_nombre}"
+                proyecto_dict['categorias'].append(categoria_texto)
+
+            cliente_info['proyectos'].append(proyecto_dict)
 
         proyectos_por_cliente.append(cliente_info)
 
@@ -1095,7 +1108,7 @@ def programar_despacho_con_orden():
                       fecha_programada, 'pendiente', prioridad, etapa_fab))
 
         else:
-            # Verificar que el proyecto existe y obtener su información
+            # Verificar que el proyecto existe y pertenece al cliente
             cursor.execute('''
                 SELECT p.nombre, p.codigo FROM proyectos p 
                 WHERE p.id = ? AND p.cliente_id = ?
@@ -2081,7 +2094,7 @@ def nueva_orden_compra():
         fecha_entrega = request.form['fecha_entrega']
         prioridad = request.form.get('prioridad', 'media')
         monto = request.form.get('monto')
-        
+
         # Obtener categorías y subcategorías
         categorias = request.form.getlist('categorias[]')
         subcategorias = request.form.getlist('subcategorias[]')
@@ -2108,7 +2121,7 @@ def nueva_orden_compra():
             if not nuevo_cliente_nombre:
                 flash('Debe especificar el nombre del nuevo cliente', 'error')
                 return redirect(url_for('dashboard'))
-            
+
             # Crear nuevo cliente
             cursor.execute('''
                 INSERT INTO clientes (nombre, activo) VALUES (?, ?)
@@ -2126,7 +2139,7 @@ def nueva_orden_compra():
             if not nombre_proyecto:
                 flash('Debe especificar el nombre del nuevo proyecto', 'error')
                 return redirect(url_for('dashboard'))
-            
+
             # Crear nuevo proyecto
             cursor.execute('''
                 INSERT INTO proyectos (
@@ -2148,13 +2161,13 @@ def nueva_orden_compra():
         for i, categoria_id in enumerate(categorias):
             if categoria_id:  # Solo procesar categorías válidas
                 subcategoria_id = subcategorias[i] if i < len(subcategorias) and subcategorias[i] else None
-                
+
                 # Verificar que la categoría existe
                 cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ? AND activo = TRUE', (categoria_id,))
                 categoria_info = cursor.fetchone()
                 if not categoria_info:
                     continue
-                
+
                 # Verificar subcategoría si se proporciona
                 if subcategoria_id:
                     cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ? AND activo = TRUE', (subcategoria_id,))
@@ -2177,7 +2190,7 @@ def nueva_orden_compra():
                 # Obtener nombres para el pedido
                 cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ?', (categoria_id,))
                 categoria_nombre = cursor.fetchone()[0]
-                
+
                 nombre_pedido = f"{categoria_nombre}"
                 if subcategoria_id:
                     cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ?', (subcategoria_id,))
@@ -2215,10 +2228,10 @@ def api_clientes_activos():
     """API para obtener clientes activos"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('SELECT id, nombre FROM clientes WHERE activo = TRUE ORDER BY nombre ASC')
     clientes = [{'id': row[0], 'nombre': row[1]} for row in cursor.fetchall()]
-    
+
     conn.close()
     return jsonify(clientes)
 
@@ -2229,10 +2242,10 @@ def api_categorias():
     """API para obtener categorías de productos"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('SELECT id, nombre, color FROM categorias_producto WHERE activo = TRUE ORDER BY nombre ASC')
     categorias = [{'id': row[0], 'nombre': row[1], 'color': row[2]} for row in cursor.fetchall()]
-    
+
     conn.close()
     return jsonify(categorias)
 
@@ -2243,14 +2256,14 @@ def api_subcategorias(categoria_id):
     """API para obtener subcategorías de una categoría específica"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT id, nombre FROM subcategorias_producto 
         WHERE categoria_id = ? AND activo = TRUE 
         ORDER BY nombre ASC
     ''', (categoria_id,))
     subcategorias = [{'id': row[0], 'nombre': row[1]} for row in cursor.fetchall()]
-    
+
     conn.close()
     return jsonify(subcategorias)
 
@@ -2261,14 +2274,14 @@ def api_proyectos_cliente(cliente_id):
     """API para obtener proyectos de un cliente específico"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT id, codigo, nombre FROM proyectos 
         WHERE cliente_id = ? AND estado NOT IN ('entregado', 'cancelado')
         ORDER BY created_at DESC
     ''', (cliente_id,))
     proyectos = [{'id': row[0], 'codigo': row[1], 'nombre': row[2]} for row in cursor.fetchall()]
-    
+
     conn.close()
     return jsonify(proyectos)
 
@@ -2285,7 +2298,7 @@ def avanzar_estado_proyecto(proyecto_id):
         # Obtener estado actual del proyecto
         cursor.execute('SELECT estado, nombre, codigo FROM proyectos WHERE id = ?', (proyecto_id,))
         proyecto = cursor.fetchone()
-        
+
         if not proyecto:
             return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
 
@@ -2308,22 +2321,22 @@ def avanzar_estado_proyecto(proyecto_id):
             indice_actual = estados_secuencia.index(estado_actual)
             if indice_actual < len(estados_secuencia) - 1:
                 nuevo_estado = estados_secuencia[indice_actual + 1]
-                
+
                 cursor.execute('UPDATE proyectos SET estado = ? WHERE id = ?', 
                              (nuevo_estado, proyecto_id))
-                
+
                 # Registrar en auditoría
                 cursor.execute('''
                     INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
                     VALUES ('proyectos', ?, 'UPDATE', ?, ?)
                 ''', (proyecto_id, session['user_id'], 
                       json.dumps({'accion': 'avanzar_estado', 'estado_anterior': estado_actual, 'estado_nuevo': nuevo_estado})))
-                
+
                 conn.commit()
                 return jsonify({'success': True, 'message': f'Proyecto avanzado a: {nuevo_estado.replace("_", " ").title()}'})
             else:
                 return jsonify({'success': False, 'message': 'El proyecto ya está en el estado final'})
-                
+
         except ValueError:
             return jsonify({'success': False, 'message': 'Estado actual no válido'})
 
