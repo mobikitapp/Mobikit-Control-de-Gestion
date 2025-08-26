@@ -3373,6 +3373,63 @@ def eliminar_pedido_seguimiento(pedido_id):
         conn.close()
 
 
+@app.route('/ordenes_fabricacion')
+@login_required
+def ordenes_fabricacion():
+    """Vista principal de órdenes de fabricación organizadas por estado"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    # Órdenes de fabricación pendientes
+    cursor.execute('''
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada, 
+               of.cantidad_tableros, of.estado, of.observaciones,
+               p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               c.nombre as cliente_nombre
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.estado IN ('pendiente_fabricacion', 'aprobado_diseño')
+        ORDER BY of.fecha_entrega_estimada ASC
+    ''')
+    fabricacion_pendientes = cursor.fetchall()
+
+    # Órdenes de fabricación en proceso
+    cursor.execute('''
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada, 
+               of.cantidad_tableros, of.estado, of.observaciones,
+               p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               c.nombre as cliente_nombre
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.estado IN ('enviado_produccion', 'seccionado', 'enchapando', 'mecanizado')
+        ORDER BY of.fecha_entrega_estimada ASC
+    ''')
+    fabricacion_proceso = cursor.fetchall()
+
+    # Órdenes de fabricación terminadas
+    cursor.execute('''
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada, 
+               of.cantidad_tableros, of.estado, of.observaciones,
+               p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               c.nombre as cliente_nombre, of.fecha_entrega_real
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.estado IN ('listo_embalaje', 'embalando', 'listo_despacho', 'despachado')
+        ORDER BY of.fecha_entrega_real DESC
+    ''')
+    fabricacion_terminadas = cursor.fetchall()
+
+    conn.close()
+
+    return render_template('ordenes_fabricacion.html',
+                           fabricacion_pendientes=fabricacion_pendientes,
+                           fabricacion_proceso=fabricacion_proceso,
+                           fabricacion_terminadas=fabricacion_terminadas)
+
+
 @app.route('/eliminar_orden_fabricacion/<int:orden_fabricacion_id>', methods=['POST'])
 @login_required
 @role_required(['admin', 'general'])

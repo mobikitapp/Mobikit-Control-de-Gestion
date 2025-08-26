@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-cogs"></i> Gestión de Órdenes de Fabricación</h1>
+    <h1><i class="fas fa-cogs"></i> Órdenes de Fabricación</h1>
     <div>
         {% if session.user_role in ['admin', 'general', 'operación'] %}
         <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#nuevaOrdenFabricacionModal">
@@ -16,7 +16,7 @@
             <i class="fas fa-file-invoice"></i> Ver Órdenes de Compra
         </a>
     </div>
-</div></div>
+</div>
 
 <!-- Pestañas de Estados -->
 <ul class="nav nav-tabs" id="fabricacionTab" role="tablist">
@@ -45,126 +45,46 @@
                 <h5><i class="fas fa-pause-circle"></i> Órdenes Pendientes de Iniciar Producción</h5>
             </div>
             <div class="card-body">
-                {% if ordenes_fabricacion_pendientes or fabricacion_legacy %}
+                {% if fabricacion_pendientes %}
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Código Fabricación</th>
-                                <th>Orden de Compra</th>
+                                <th>Código Orden</th>
+                                <th>Proyecto</th>
                                 <th>Cliente</th>
-                                <th>Tipo/Producto</th>
+                                <th>Tipo</th>
                                 <th>Tableros</th>
-                                <th>Fecha Estimada</th>
-                                <th>Prioridad</th>
+                                <th>Fecha Entrega</th>
+                                <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Órdenes de fabricación personalizadas -->
-                            {% for of in ordenes_fabricacion_pendientes %}
-                            <tr class="table-info">
-                                <td>
-                                    <strong>{{ of[1] }}</strong><br>
-                                    <small class="text-muted">{{ of[2]|title }}</small><br>
-                                    <span class="badge bg-{% if of[3] == 'pendiente_fabricacion' %}secondary{% elif of[3] == 'aprobado_diseño' %}info{% else %}warning{% endif %}">
-                                        {{ of[3]|replace('_', ' ')|title }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('orden_compra_detalle', orden_id=of[6]) }}" class="text-decoration-none">
-                                        {{ of[7] }}
-                                    </a>
-                                </td>
-                                <td>{{ of[8] }}</td>
-                                <td>
-                                    <strong>Orden {{ of[2]|title }}</strong>
-                                    {% if of[10] %}
-                                    <br><small class="text-muted">{{ of[10] }}</small>
-                                    {% endif %}
-                                </td>
-                                <td><span class="badge bg-primary">{{ of[5] }} tableros</span></td>
-                                <td>
-                                    {{ of[4] if of[4] else 'Sin fecha' }}
-                                    {% if of[11] is not none %}
-                                        {% if of[11] < 0 %}
-                                        <br><small class="text-danger">Vencida</small>
-                                        {% elif of[11] <= 7 %}
-                                        <br><small class="text-warning">{{ of[11] }} días</small>
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge bg-{% if of[9] == 'alta' %}danger{% elif of[9] == 'media' %}warning{% else %}info{% endif %}">
-                                        {{ of[9]|title }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        {% if of[3] == 'pendiente_fabricacion' and session.user_role in ['admin', 'general', 'diseñador'] %}
-                                        <button class="btn btn-sm btn-info" onclick="avanzarEtapa({{ of[0] }})" title="Aprobar Diseño">
-                                            <i class="fas fa-check"></i> Diseño Aprobado
-                                        </button>
-                                        {% elif of[3] == 'aprobado_diseño' and session.user_role in ['admin', 'general', 'operación'] %}
-                                        <button class="btn btn-sm btn-success" onclick="avanzarEtapa({{ of[0] }})" title="Enviar a Producción">
-                                            <i class="fas fa-arrow-right"></i> Enviar a Producción
-                                        </button>
-                                        {% endif %}
-                                        
-                                        {% if session.user_role in ['admin', 'general'] and of[3] not in ['listo_embalaje', 'embalando', 'listo_despacho', 'despachado'] %}
-                                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrdenFabricacion({{ of[0] }}, '{{ of[1] }}')" title="Eliminar Orden">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                            
-                            <!-- Pedidos de seguimiento legacy -->
-                            {% for fab in fabricacion_legacy %}
+                            {% for orden in fabricacion_pendientes %}
                             <tr>
-                                <td><strong>{{ fab[1] }}</strong></td>
+                                <td><strong>{{ orden[1] }}</strong></td>
                                 <td>
-                                    <a href="{{ url_for('orden_compra_detalle', orden_id=fab[5]) }}" class="text-decoration-none">
-                                        {{ fab[6] }}
-                                    </a>
+                                    <div>{{ orden[7] }} - {{ orden[8] }}</div>
                                 </td>
-                                <td>{{ fab[7] }}</td>
+                                <td>{{ orden[9] or 'Sin cliente' }}</td>
                                 <td>
-                                    {{ fab[2] }}
-                                    <br><small class="text-muted">{{ fab[8] }}{% if fab[9] %} - {{ fab[9] }}{% endif %}</small>
+                                    <span class="badge bg-info">{{ orden[2].title() }}</span>
                                 </td>
-                                <td><span class="text-muted">N/A</span></td>
+                                <td>{{ orden[4] }}</td>
+                                <td>{{ orden[3] }}</td>
                                 <td>
-                                    {{ fab[4] if fab[4] else 'Sin fecha' }}
-                                    {% if fab[12] is not none %}
-                                        {% if fab[12] < 0 %}
-                                        <br><small class="text-danger">Vencida</small>
-                                        {% elif fab[12] <= 7 %}
-                                        <br><small class="text-warning">{{ fab[12] }} días</small>
-                                        {% endif %}
+                                    <span class="badge bg-warning">{{ orden[5].replace('_', ' ').title() }}</span>
+                                </td>
+                                <td>
+                                    {% if session.user_role in ['admin', 'general', 'operación'] %}
+                                    <button class="btn btn-sm btn-success" onclick="iniciarFabricacion({{ orden[0] }})">
+                                        <i class="fas fa-play"></i> Iniciar
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="eliminarOrdenFabricacion({{ orden[0] }})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                     {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge bg-{% if fab[10] == 'alta' %}danger{% elif fab[10] == 'media' %}warning{% else %}info{% endif %}">
-                                        {{ fab[10]|title }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        {% if session.user_role in ['admin', 'general', 'operación'] %}
-                                        <button class="btn btn-sm btn-success" onclick="iniciarProduccion({{ fab[0] }})" title="Iniciar Producción">
-                                            <i class="fas fa-play"></i> Iniciar
-                                        </button>
-                                        {% endif %}
-                                        
-                                        {% if session.user_role in ['admin', 'general'] %}
-                                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarPedidoSeguimiento({{ fab[0] }}, '{{ fab[1] }}')" title="Eliminar Pedido">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                        {% endif %}
-                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -174,7 +94,7 @@
                 {% else %}
                 <div class="text-center py-4">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No hay órdenes pendientes de producción</p>
+                    <p class="text-muted">No hay órdenes de fabricación pendientes</p>
                 </div>
                 {% endif %}
             </div>
@@ -189,106 +109,55 @@
             </div>
             <div class="card-body">
                 {% if fabricacion_proceso %}
-                <div class="row">
-                    {% for fab in fabricacion_proceso %}
-                    <div class="col-md-6 mb-4">
-                        <div class="card border-primary h-100">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0">{{ fab[1] }}</h6>
-                                    <span class="badge bg-{% if fab[3] == 'seccionado' %}warning{% elif fab[3] == 'enchapado' %}info{% elif fab[3] == 'mecanizado' %}primary{% elif fab[3] == 'produccion_completa' %}success{% endif %}">
-                                        {{ fab[3]|replace('_', ' ')|title }}
-                                    </span>
-                                </div>
-                                <small class="text-muted">
-                                    OC: {{ fab[6] }} | {{ fab[7] }}
-                                </small>
-                            </div>
-                            <div class="card-body">
-                                <h6>{{ fab[2] }}</h6>
-                                <p class="small text-muted mb-3">{{ fab[8] }}{% if fab[9] %} - {{ fab[9] }}{% endif %}</p>
-                                
-                                <!-- Progreso detallado por etapas -->
-                                {% set etapas = [
-                                    ('aprobado_diseño', 'Diseño Aprobado', 'info'),
-                                    ('enviado_produccion', 'Enviado Producción', 'warning'),
-                                    ('seccionado', 'Seccionado', 'warning'),
-                                    ('enchapando', 'Enchapando', 'primary'),
-                                    ('mecanizado', 'Mecanizado', 'primary'),
-                                    ('listo_embalaje', 'Listo Embalaje', 'success'),
-                                    ('embalando', 'Embalando', 'success'),
-                                    ('listo_despacho', 'Listo Despacho', 'danger')
-                                ] %}
-                                
-                                <div class="mb-3">
-                                    <h6 class="small mb-2"><i class="fas fa-tasks"></i> Progreso de Fabricación:</h6>
-                                    {% set estados_orden = ['aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 'embalando', 'listo_despacho'] %}
-                                    {% set indice_actual_fab = estados_orden.index(fab[3]) if fab[3] in estados_orden else -1 %}
-                                    {% for etapa_id, etapa_nombre, color_clase in etapas %}
-                                    {% set indice_etapa = estados_orden.index(etapa_id) if etapa_id in estados_orden else -1 %}
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="small">{{ etapa_nombre }}</span>
-                                        {% if fab[3] == etapa_id %}
-                                        <span class="badge bg-{{ color_clase }}">
-                                            <i class="fas fa-clock"></i> En Proceso
-                                        </span>
-                                        {% elif indice_etapa != -1 and indice_actual_fab != -1 and indice_etapa < indice_actual_fab %}
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check"></i> Completado
-                                        </span>
-                                        {% else %}
-                                        <span class="badge bg-light text-dark">
-                                            <i class="fas fa-hourglass-half"></i> Pendiente
-                                        </span>
-                                        {% endif %}
-                                    </div>
-                                    {% endfor %}
-                                </div>
-
-                                <!-- Barra de progreso general -->
-                                {% set estados_progreso = ['aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 'embalando', 'listo_despacho'] %}
-                                {% set indice_actual = estados_progreso.index(fab[3]) if fab[3] in estados_progreso else 0 %}
-                                {% set porcentaje = ((indice_actual + 1) / estados_progreso|length * 100)|int %}
-                                
-                                <div class="progress mb-3" style="height: 20px;">
-                                    <div class="progress-bar bg-{% if porcentaje < 40 %}warning{% elif porcentaje < 80 %}info{% else %}success{% endif %}" 
-                                         role="progressbar" style="width: {{ porcentaje }}%" 
-                                         aria-valuenow="{{ porcentaje }}" aria-valuemin="0" aria-valuemax="100">
-                                        {{ porcentaje }}%
-                                    </div>
-                                </div>
-
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">
-                                        Entrega: {{ fab[4] if fab[4] else 'Sin fecha' }}
-                                    </small>
-                                    <div class="btn-group">
-                                        {% if session.user_role in ['admin', 'general', 'operación'] and fab[3] != 'produccion_completa' %}
-                                        <button class="btn btn-sm btn-success" onclick="avanzarEtapa({{ fab[0] }})" title="Avanzar Etapa">
-                                            <i class="fas fa-arrow-right"></i>
-                                        </button>
-                                        {% endif %}
-                                        {% if session.user_role in ['admin', 'general'] %}
-                                        <button class="btn btn-sm btn-outline-warning" onclick="retrocederEtapa({{ fab[0] }})" title="Retroceder Etapa">
-                                            <i class="fas fa-arrow-left"></i>
-                                        </button>
-                                        {% endif %}
-                                        {% if session.user_role in ['admin', 'general'] and fab[3] not in ['listo_embalaje', 'embalando', 'listo_despacho', 'despachado'] %}
-                                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrdenFabricacion({{ fab[0] }}, '{{ fab[1] }}')" title="Eliminar Orden">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Código Orden</th>
+                                <th>Proyecto</th>
+                                <th>Cliente</th>
+                                <th>Tipo</th>
+                                <th>Tableros</th>
+                                <th>Fecha Entrega</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for orden in fabricacion_proceso %}
+                            <tr>
+                                <td><strong>{{ orden[1] }}</strong></td>
+                                <td>
+                                    <div>{{ orden[7] }} - {{ orden[8] }}</div>
+                                </td>
+                                <td>{{ orden[9] or 'Sin cliente' }}</td>
+                                <td>
+                                    <span class="badge bg-info">{{ orden[2].title() }}</span>
+                                </td>
+                                <td>{{ orden[4] }}</td>
+                                <td>{{ orden[3] }}</td>
+                                <td>
+                                    <span class="badge bg-primary">{{ orden[5].replace('_', ' ').title() }}</span>
+                                </td>
+                                <td>
+                                    {% if session.user_role in ['admin', 'general', 'operación'] %}
+                                    <button class="btn btn-sm btn-primary" onclick="avanzarFabricacion({{ orden[0] }})">
+                                        <i class="fas fa-arrow-right"></i> Avanzar
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="retrocederFabricacion({{ orden[0] }})">
+                                        <i class="fas fa-arrow-left"></i> Retroceder
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
                 {% else %}
                 <div class="text-center py-4">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No hay órdenes en proceso de fabricación</p>
+                    <p class="text-muted">No hay órdenes de fabricación en proceso</p>
                 </div>
                 {% endif %}
             </div>
@@ -307,38 +176,33 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Código Fabricación</th>
-                                <th>Orden de Compra</th>
+                                <th>Código Orden</th>
+                                <th>Proyecto</th>
                                 <th>Cliente</th>
-                                <th>Producto</th>
-                                <th>Fecha Programada</th>
-                                <th>Fecha Terminación</th>
-                                <th>Tiempo Total</th>
+                                <th>Tipo</th>
+                                <th>Tableros</th>
+                                <th>Fecha Entrega</th>
+                                <th>Estado</th>
+                                <th>Fecha Completada</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for fab in fabricacion_terminadas %}
+                            {% for orden in fabricacion_terminadas %}
                             <tr>
-                                <td><strong>{{ fab[1] }}</strong></td>
+                                <td><strong>{{ orden[1] }}</strong></td>
                                 <td>
-                                    <a href="{{ url_for('orden_compra_detalle', orden_id=fab[5]) }}" class="text-decoration-none">
-                                        {{ fab[6] }}
-                                    </a>
+                                    <div>{{ orden[7] }} - {{ orden[8] }}</div>
                                 </td>
-                                <td>{{ fab[7] }}</td>
+                                <td>{{ orden[9] or 'Sin cliente' }}</td>
                                 <td>
-                                    {{ fab[2] }}
-                                    <br><small class="text-muted">{{ fab[8] }}{% if fab[9] %} - {{ fab[9] }}{% endif %}</small>
+                                    <span class="badge bg-info">{{ orden[2].title() }}</span>
                                 </td>
-                                <td>{{ fab[4] if fab[4] else 'Sin fecha' }}</td>
-                                <td>{{ fab[11] if fab[11] else 'N/A' }}</td>
+                                <td>{{ orden[4] }}</td>
+                                <td>{{ orden[3] }}</td>
                                 <td>
-                                    {% if fab[10] and fab[11] %}
-                                    <span class="badge bg-info">Completado</span>
-                                    {% else %}
-                                    <span class="text-muted">N/A</span>
-                                    {% endif %}
+                                    <span class="badge bg-success">{{ orden[5].replace('_', ' ').title() }}</span>
                                 </td>
+                                <td>{{ orden[10] or 'N/A' }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -360,64 +224,42 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Nueva Orden de Fabricación</h5>
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Nueva Orden de Fabricación</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('crear_orden_fabricacion') }}" method="POST">
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="proyecto_id" class="form-label">Orden de Compra / Contrato *</label>
-                                <select class="form-select" id="proyecto_id" name="proyecto_id" required onchange="cargarCategoriasProyecto()">
-                                    <option value="">Seleccionar OC...</option>
-                                </select>
-                            </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="proyecto_id" class="form-label">Proyecto</label>
+                            <select class="form-select" id="proyecto_id" name="proyecto_id" required>
+                                <option value="">Seleccionar proyecto...</option>
+                            </select>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="tipo_orden" class="form-label">Tipo de Orden *</label>
-                                <select class="form-select" id="tipo_orden" name="tipo_orden" required>
-                                    <option value="parcial">Parcial</option>
-                                    <option value="total">Total</option>
-                                </select>
-                            </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="tipo_orden" class="form-label">Tipo de Orden</label>
+                            <select class="form-select" id="tipo_orden" name="tipo_orden" required>
+                                <option value="parcial">Parcial</option>
+                                <option value="total">Total</option>
+                            </select>
                         </div>
                     </div>
-
                     <div class="row">
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="fecha_entrega_estimada" class="form-label">Fecha Entrega Estimada *</label>
-                                <input type="date" class="form-control" id="fecha_entrega_estimada" name="fecha_entrega_estimada" required>
-                            </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha_entrega_estimada" class="form-label">Fecha Entrega Estimada</label>
+                            <input type="date" class="form-control" id="fecha_entrega_estimada" name="fecha_entrega_estimada" required>
                         </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="cantidad_tableros" class="form-label">Cantidad de Tableros *</label>
-                                <input type="number" class="form-control" id="cantidad_tableros" name="cantidad_tableros" min="1" required>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="prioridad" class="form-label">Prioridad *</label>
-                                <select class="form-select" id="prioridad" name="prioridad" required>
-                                    <option value="baja">Baja</option>
-                                    <option value="media" selected>Media</option>
-                                    <option value="alta">Alta</option>
-                                    <option value="urgente">Urgente</option>
-                                </select>
-                            </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="cantidad_tableros" class="form-label">Cantidad de Tableros</label>
+                            <input type="number" class="form-control" id="cantidad_tableros" name="cantidad_tableros" min="1" required>
                         </div>
                     </div>
-
                     <div class="mb-3">
-                        <label class="form-label">Categorías a Fabricar *</label>
-                        <div id="categorias-container">
-                            <p class="text-muted">Seleccione una OC para ver las categorías disponibles</p>
+                        <label for="categorias_fabricacion" class="form-label">Categorías a Fabricar</label>
+                        <div id="categorias_fabricacion" class="border p-3 rounded">
+                            <p class="text-muted">Seleccione un proyecto para ver las categorías disponibles</p>
                         </div>
                     </div>
-
                     <div class="mb-3">
                         <label for="observaciones" class="form-label">Observaciones</label>
                         <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
@@ -425,32 +267,23 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Crear Orden de Fabricación
-                    </button>
+                    <button type="submit" class="btn btn-primary">Crear Orden de Fabricación</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-let proyectosDisponibles = [];
-let categoriasProyecto = [];
-
-// Cargar proyectos al abrir el modal
-document.getElementById('nuevaOrdenFabricacionModal').addEventListener('shown.bs.modal', function () {
-    cargarProyectosDisponibles();
-});
-
-function cargarProyectosDisponibles() {
+// Cargar proyectos disponibles al abrir el modal
+document.getElementById('nuevaOrdenFabricacionModal').addEventListener('show.bs.modal', function() {
     fetch('/api/proyectos_disponibles_fabricacion')
         .then(response => response.json())
         .then(data => {
-            proyectosDisponibles = data;
             const select = document.getElementById('proyecto_id');
-            select.innerHTML = '<option value="">Seleccionar OC...</option>';
-            
+            select.innerHTML = '<option value="">Seleccionar proyecto...</option>';
             data.forEach(proyecto => {
                 const option = document.createElement('option');
                 option.value = proyecto.id;
@@ -458,64 +291,43 @@ function cargarProyectosDisponibles() {
                 select.appendChild(option);
             });
         })
-        .catch(error => console.error('Error cargando proyectos:', error));
-}
+        .catch(error => console.error('Error:', error));
+});
 
-function cargarCategoriasProyecto() {
-    const proyectoId = document.getElementById('proyecto_id').value;
-    const container = document.getElementById('categorias-container');
+// Cargar categorías cuando se selecciona un proyecto
+document.getElementById('proyecto_id').addEventListener('change', function() {
+    const proyectoId = this.value;
+    const categoriasDiv = document.getElementById('categorias_fabricacion');
     
-    if (!proyectoId) {
-        container.innerHTML = '<p class="text-muted">Seleccione una OC para ver las categorías disponibles</p>';
-        return;
+    if (proyectoId) {
+        fetch(`/api/categorias_proyecto/${proyectoId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    categoriasDiv.innerHTML = data.map(cat => `
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="categorias_seleccionadas" value="${cat.categoria_id},${cat.subcategoria_id || ''}" id="cat_${cat.categoria_id}_${cat.subcategoria_id || ''}">
+                            <label class="form-check-label" for="cat_${cat.categoria_id}_${cat.subcategoria_id || ''}">
+                                ${cat.categoria_nombre}${cat.subcategoria_nombre ? ' - ' + cat.subcategoria_nombre : ''}
+                            </label>
+                        </div>
+                    `).join('');
+                } else {
+                    categoriasDiv.innerHTML = '<p class="text-muted">No hay categorías disponibles para este proyecto</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                categoriasDiv.innerHTML = '<p class="text-danger">Error al cargar categorías</p>';
+            });
+    } else {
+        categoriasDiv.innerHTML = '<p class="text-muted">Seleccione un proyecto para ver las categorías disponibles</p>';
     }
+});
 
-    fetch(`/api/categorias_proyecto/${proyectoId}`)
-        .then(response => response.json())
-        .then(data => {
-            categoriasProyecto = data;
-            mostrarCategoriasProyecto();
-        })
-        .catch(error => {
-            console.error('Error cargando categorías:', error);
-            container.innerHTML = '<p class="text-danger">Error cargando categorías</p>';
-        });
-}
-
-function mostrarCategoriasProyecto() {
-    const container = document.getElementById('categorias-container');
-    container.innerHTML = '';
-
-    if (categoriasProyecto.length === 0) {
-        container.innerHTML = '<p class="text-muted">No hay categorías disponibles para este proyecto</p>';
-        return;
-    }
-
-    // Crear un contenedor con scroll si hay muchas categorías
-    const scrollContainer = document.createElement('div');
-    scrollContainer.style.maxHeight = '200px';
-    scrollContainer.style.overflowY = 'auto';
-    scrollContainer.className = 'border rounded p-2';
-
-    categoriasProyecto.forEach((categoria, index) => {
-        const div = document.createElement('div');
-        div.className = 'form-check mb-2';
-        div.innerHTML = `
-            <input class="form-check-input" type="checkbox" id="categoria_${categoria.categoria_id}_${categoria.subcategoria_id || 0}" 
-                   name="categorias_seleccionadas" value="${categoria.categoria_id},${categoria.subcategoria_id || ''}" checked>
-            <label class="form-check-label" for="categoria_${categoria.categoria_id}_${categoria.subcategoria_id || 0}">
-                <strong>${categoria.categoria_nombre}</strong>${categoria.subcategoria_nombre ? ' - ' + categoria.subcategoria_nombre : ''}
-            </label>
-        `;
-        scrollContainer.appendChild(div);
-    });
-
-    container.appendChild(scrollContainer);
-}
-
-function iniciarOrdenFabricacion(ordenFabricacionId) {
-    if (confirm('¿Confirmas iniciar esta orden de fabricación?')) {
-        fetch(`/api/iniciar_orden_fabricacion/${ordenFabricacionId}`, {
+function iniciarFabricacion(ordenId) {
+    if (confirm('¿Confirmas iniciar la fabricación de esta orden?')) {
+        fetch(`/api/iniciar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
@@ -535,9 +347,9 @@ function iniciarOrdenFabricacion(ordenFabricacionId) {
     }
 }
 
-function iniciarProduccion(fabricacionId) {
-    if (confirm('¿Confirmas iniciar la producción de esta orden de fabricación?')) {
-        fetch(`/api/iniciar_produccion/${fabricacionId}`, {
+function avanzarFabricacion(ordenId) {
+    if (confirm('¿Confirmas avanzar esta orden a la siguiente etapa?')) {
+        fetch(`/api/avanzar_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
@@ -557,31 +369,9 @@ function iniciarProduccion(fabricacionId) {
     }
 }
 
-function avanzarEtapa(fabricacionId) {
-    if (confirm('¿Confirmas avanzar esta orden a la siguiente etapa de fabricación?')) {
-        fetch(`/api/avanzar_etapa_fabricacion/${fabricacionId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error de conexión');
-        });
-    }
-}
-
-function retrocederEtapa(fabricacionId) {
+function retrocederFabricacion(ordenId) {
     if (confirm('¿Confirmas retroceder esta orden a la etapa anterior?')) {
-        fetch(`/api/retroceder_etapa_fabricacion/${fabricacionId}`, {
+        fetch(`/api/retroceder_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
@@ -601,31 +391,9 @@ function retrocederEtapa(fabricacionId) {
     }
 }
 
-function eliminarOrdenFabricacion(ordenFabricacionId, codigoOrden) {
-    if (confirm(`¿Estás seguro de eliminar la orden de fabricación ${codigoOrden}?\n\nEsta acción eliminará:\n- La orden de fabricación\n- Todos los pedidos de seguimiento asociados\n- Los recordatorios relacionados\n\nEsta acción NO se puede deshacer.`)) {
-        fetch(`/eliminar_orden_fabricacion/${ordenFabricacionId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error de conexión');
-        });
-    }
-}
-
-function eliminarPedidoSeguimiento(pedidoId, codigoPedido) {
-    if (confirm(`¿Estás seguro de eliminar el pedido de seguimiento ${codigoPedido}?\n\nEsta acción eliminará:\n- El pedido de seguimiento\n- Los recordatorios relacionados\n\nEsta acción NO se puede deshacer.`)) {
-        fetch(`/eliminar_pedido_seguimiento/${pedidoId}`, {
+function eliminarOrdenFabricacion(ordenId) {
+    if (confirm('¿Estás seguro de que deseas eliminar esta orden de fabricación? Esta acción no se puede deshacer.')) {
+        fetch(`/eliminar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
