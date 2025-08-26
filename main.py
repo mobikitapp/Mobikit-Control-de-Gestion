@@ -3066,7 +3066,10 @@ def api_proyectos_disponibles_fabricacion():
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.estado IN ('en_desarrollo', 'diseño')
+        WHERE p.estado IN ('en_desarrollo', 'diseño', 'aprobado_produccion')
+        AND EXISTS (
+            SELECT 1 FROM proyecto_categorias pc WHERE pc.proyecto_id = p.id
+        )
         ORDER BY p.created_at DESC
     ''')
 

@@ -227,7 +227,7 @@
                 <h5 class="modal-title"><i class="fas fa-plus"></i> Nueva Orden de Fabricación</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('crear_orden_fabricacion') }}" method="POST">
+            <form action="{{ url_for('crear_orden_fabricacion') }}" method="POST" id="formOrdenFabricacion">
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -267,7 +267,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Crear Orden de Fabricación</button>
+                    <button type="submit" class="btn btn-primary" id="btnCrearOrden">Crear Orden de Fabricación</button>
                 </div>
             </form>
         </div>
@@ -278,60 +278,140 @@
 {% block scripts %}
 <script>
 // Cargar proyectos disponibles al abrir el modal
-document.getElementById('nuevaOrdenFabricacionModal').addEventListener('show.bs.modal', function() {
-    fetch('/api/proyectos_disponibles_fabricacion')
-        .then(response => response.json())
-        .then(data => {
-            const select = document.getElementById('proyecto_id');
-            select.innerHTML = '<option value="">Seleccionar proyecto...</option>';
-            data.forEach(proyecto => {
-                const option = document.createElement('option');
-                option.value = proyecto.id;
-                option.textContent = `${proyecto.codigo} - ${proyecto.nombre} (${proyecto.cliente})`;
-                select.appendChild(option);
-            });
-        })
-        .catch(error => console.error('Error:', error));
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('nuevaOrdenFabricacionModal');
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function() {
+            console.log('Loading projects...');
+            cargarProyectosDisponibles();
+        });
+    }
+
+    // Event listener para cambio de proyecto
+    const proyectoSelect = document.getElementById('proyecto_id');
+    if (proyectoSelect) {
+        proyectoSelect.addEventListener('change', function() {
+            const proyectoId = this.value;
+            cargarCategoriasProyecto(proyectoId);
+        });
+    }
+
+    // Event listener para el formulario
+    const form = document.getElementById('formOrdenFabricacion');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const categoriasSeleccionadas = document.querySelectorAll('input[name="categorias_seleccionadas"]:checked');
+            if (categoriasSeleccionadas.length === 0) {
+                e.preventDefault();
+                alert('Debe seleccionar al menos una categoría para fabricar');
+                return false;
+            }
+        });
+    }
 });
 
-// Cargar categorías cuando se selecciona un proyecto
-document.getElementById('proyecto_id').addEventListener('change', function() {
-    const proyectoId = this.value;
+function cargarProyectosDisponibles() {
+    const select = document.getElementById('proyecto_id');
+    if (!select) {
+        console.error('Select proyecto_id not found');
+        return;
+    }
+
+    // Mostrar loading
+    select.innerHTML = '<option value="">Cargando proyectos...</option>';
+    
+    fetch('/api/proyectos_disponibles_fabricacion')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Projects loaded:', data);
+            select.innerHTML = '<option value="">Seleccionar proyecto...</option>';
+            
+            if (data && data.length > 0) {
+                data.forEach(proyecto => {
+                    const option = document.createElement('option');
+                    option.value = proyecto.id;
+                    option.textContent = `${proyecto.codigo || 'N/A'} - ${proyecto.nombre} (${proyecto.cliente})`;
+                    select.appendChild(option);
+                });
+            } else {
+                select.innerHTML = '<option value="">No hay proyectos disponibles</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading projects:', error);
+            select.innerHTML = '<option value="">Error al cargar proyectos</option>';
+        });
+}
+
+function cargarCategoriasProyecto(proyectoId) {
     const categoriasDiv = document.getElementById('categorias_fabricacion');
+    if (!categoriasDiv) {
+        console.error('Categorias div not found');
+        return;
+    }
     
     if (proyectoId) {
+        categoriasDiv.innerHTML = '<p class="text-muted">Cargando categorías...</p>';
+        
         fetch(`/api/categorias_proyecto/${proyectoId}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
-                if (data.length > 0) {
-                    categoriasDiv.innerHTML = data.map(cat => `
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="categorias_seleccionadas" value="${cat.categoria_id},${cat.subcategoria_id || ''}" id="cat_${cat.categoria_id}_${cat.subcategoria_id || ''}">
-                            <label class="form-check-label" for="cat_${cat.categoria_id}_${cat.subcategoria_id || ''}">
-                                ${cat.categoria_nombre}${cat.subcategoria_nombre ? ' - ' + cat.subcategoria_nombre : ''}
-                            </label>
-                        </div>
-                    `).join('');
+                console.log('Categories loaded:', data);
+                if (data && data.length > 0) {
+                    let html = '';
+                    data.forEach(cat => {
+                        const subcatText = cat.subcategoria_nombre ? ` - ${cat.subcategoria_nombre}` : '';
+                        const checkboxId = `cat_${cat.categoria_id}_${cat.subcategoria_id || 'none'}`;
+                        const checkboxValue = `${cat.categoria_id},${cat.subcategoria_id || ''}`;
+                        
+                        html += `
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="categorias_seleccionadas" value="${checkboxValue}" id="${checkboxId}">
+                                <label class="form-check-label" for="${checkboxId}">
+                                    ${cat.categoria_nombre}${subcatText}
+                                </label>
+                            </div>
+                        `;
+                    });
+                    categoriasDiv.innerHTML = html;
                 } else {
-                    categoriasDiv.innerHTML = '<p class="text-muted">No hay categorías disponibles para este proyecto</p>';
+                    categoriasDiv.innerHTML = '<p class="text-warning">No hay categorías disponibles para este proyecto. Debe asignar categorías al proyecto primero.</p>';
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Error loading categories:', error);
                 categoriasDiv.innerHTML = '<p class="text-danger">Error al cargar categorías</p>';
             });
     } else {
         categoriasDiv.innerHTML = '<p class="text-muted">Seleccione un proyecto para ver las categorías disponibles</p>';
     }
-});
+}
 
 function iniciarFabricacion(ordenId) {
     if (confirm('¿Confirmas iniciar la fabricación de esta orden?')) {
         fetch(`/api/iniciar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 alert(data.message);
@@ -351,9 +431,17 @@ function avanzarFabricacion(ordenId) {
     if (confirm('¿Confirmas avanzar esta orden a la siguiente etapa?')) {
         fetch(`/api/avanzar_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 alert(data.message);
@@ -373,9 +461,17 @@ function retrocederFabricacion(ordenId) {
     if (confirm('¿Confirmas retroceder esta orden a la etapa anterior?')) {
         fetch(`/api/retroceder_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 alert(data.message);
@@ -395,9 +491,17 @@ function eliminarOrdenFabricacion(ordenId) {
     if (confirm('¿Estás seguro de que deseas eliminar esta orden de fabricación? Esta acción no se puede deshacer.')) {
         fetch(`/eliminar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 alert(data.message);
