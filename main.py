@@ -772,9 +772,6 @@ def orden_compra_detalle(orden_id):
                            ordenes_fabricacion=ordenes_fabricacion)
 
 
-
-
-
 @app.route('/proyecto/<int:proyecto_id>')
 @login_required
 def proyecto_detalle(proyecto_id):
@@ -2617,33 +2614,8 @@ def crear_orden_fabricacion():
                 ) VALUES (?, ?, ?)
             ''', (orden_fabricacion_id, categoria_id, subcategoria_id))
 
-            # Crear pedido de seguimiento para cada categoría
-            cursor.execute('''
-                SELECT cat.nombre, subcat.nombre
-                FROM categorias_producto cat
-                LEFT JOIN subcategorias_producto subcat ON subcat.id = ?
-                WHERE cat.id = ?
-            ''', (subcategoria_id, categoria_id))
-
-            cat_info = cursor.fetchone()
-            categoria_nombre = cat_info[0] if cat_info else 'Categoría'
-            subcategoria_nombre = cat_info[1] if cat_info and cat_info[1] else ''
-
-            nombre_pedido = f"{categoria_nombre}"
-            if subcategoria_nombre:
-                nombre_pedido += f" - {subcategoria_nombre}"
-
-            cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
-            pedido_numero = cursor.fetchone()[0] + 1
-            codigo_pedido = f"PS-{datetime.now().year}-{pedido_numero:04d}"
-
-            cursor.execute('''
-                INSERT INTO pedidos_seguimiento (
-                    proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
-                    codigo_pedido, nombre, estado, fecha_entrega_estimada
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
-                  codigo_pedido, nombre_pedido, 'pendiente_fabricacion', fecha_entrega_estimada))
+            # Las categorías ahora se manejan solo a través de orden_fabricacion_categorias
+            # No se crean pedidos de seguimiento separados
 
         conn.commit()
         conn.close()
@@ -2873,33 +2845,8 @@ def crear_orden_fabricacion_desde_oc():
                 ) VALUES (?, ?, ?)
             ''', (orden_fabricacion_id, categoria_id, subcategoria_id))
 
-            # Crear pedido de seguimiento para cada categoría
-            cursor.execute('''
-                SELECT cat.nombre, subcat.nombre
-                FROM categorias_producto cat
-                LEFT JOIN subcategorias_producto subcat ON subcat.id = ?
-                WHERE cat.id = ?
-            ''', (subcategoria_id, categoria_id))
-
-            cat_info = cursor.fetchone()
-            categoria_nombre = cat_info[0] if cat_info else 'Categoría'
-            subcategoria_nombre = cat_info[1] if cat_info and cat_info[1] else ''
-
-            nombre_pedido = f"{categoria_nombre}"
-            if subcategoria_nombre:
-                nombre_pedido += f" - {subcategoria_nombre}"
-
-            cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
-            pedido_numero = cursor.fetchone()[0] + 1
-            codigo_pedido = f"PS-{datetime.now().year}-{pedido_numero:04d}"
-
-            cursor.execute('''
-                INSERT INTO pedidos_seguimiento (
-                    proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
-                    codigo_pedido, nombre, estado, fecha_entrega_estimada
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
-                  codigo_pedido, nombre_pedido, 'pendiente_fabricacion', fecha_entrega_estimada))
+            # Las categorías ahora se manejan solo a través de orden_fabricacion_categorias
+            # No se crean pedidos de seguimiento separados
 
         conn.commit()
         conn.close()
