@@ -1,80 +1,61 @@
-
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Mobikit Order & Dispatch{% endblock %}
+{% block title %}Dashboard - Mobikit Control de Órdenes{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-clipboard-list"></i> Control de Órdenes y Despachos</h1>
+    <h1><i class="fas fa-tachometer-alt"></i> Control de Órdenes de Compra</h1>
     <div>
         {% if session.user_role in ['admin', 'general', 'diseñador'] %}
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaOrdenModal">
             <i class="fas fa-plus"></i> Nueva Orden de Compra
         </button>
         {% endif %}
-        <a href="{{ url_for('calendario') }}" class="btn btn-success">
-            <i class="fas fa-calendar-alt"></i> Ver Calendario
-        </a>
     </div>
 </div>
 
 <!-- Estadísticas Principales -->
 <div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card">
+    <div class="col-md-4">
+        <div class="card border-warning">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-grow-1">
-                        <h5 class="card-title text-muted">Total Órdenes</h5>
-                        <h2 class="mb-0 text-dark">{{ total_ordenes }}</h2>
+                        <h5 class="card-title text-warning">Órdenes Pendientes</h5>
+                        <h2 class="mb-0 text-dark">{{ ordenes_pendientes|length }}</h2>
                     </div>
                     <div class="flex-shrink-0">
-                        <i class="fas fa-file-invoice fa-2x text-primary"></i>
+                        <i class="fas fa-clock fa-2x text-warning"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card">
+    <div class="col-md-4">
+        <div class="card border-primary">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-grow-1">
-                        <h5 class="card-title text-muted">En Proceso</h5>
-                        <h2 class="mb-0 text-dark">{{ ordenes_en_proceso }}</h2>
+                        <h5 class="card-title text-primary">Órdenes en Proceso</h5>
+                        <h2 class="mb-0 text-dark">{{ ordenes_proceso|length }}</h2>
                     </div>
                     <div class="flex-shrink-0">
-                        <i class="fas fa-cogs fa-2x text-warning"></i>
+                        <i class="fas fa-cogs fa-2x text-primary"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card">
+    <div class="col-md-4">
+        <div class="card border-success">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-grow-1">
-                        <h5 class="card-title text-muted">Listas para Despacho</h5>
-                        <h2 class="mb-0 text-dark">{{ ordenes_listas }}</h2>
+                        <h5 class="card-title text-success">Órdenes Terminadas</h5>
+                        <h2 class="mb-0 text-dark">{{ ordenes_terminadas|length }}</h2>
                     </div>
                     <div class="flex-shrink-0">
-                        <i class="fas fa-truck fa-2x text-success"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <h5 class="card-title text-muted">Entregadas</h5>
-                        <h2 class="mb-0 text-dark">{{ ordenes_entregadas }}</h2>
-                    </div>
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-check-circle fa-2x text-info"></i>
+                        <i class="fas fa-check-circle fa-2x text-success"></i>
                     </div>
                 </div>
             </div>
@@ -82,172 +63,163 @@
     </div>
 </div>
 
-<!-- Estados de Producción -->
-<div class="row mb-4">
-    <div class="col-md-8">
+<!-- Panel de Órdenes de Compra -->
+<div class="row">
+    <!-- Órdenes Pendientes -->
+    <div class="col-md-4">
         <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-chart-bar"></i> Estados de Producción Activos</h5>
+            <div class="card-header bg-warning text-white">
+                <h5><i class="fas fa-clock"></i> Órdenes Pendientes</h5>
             </div>
-            <div class="card-body">
-                {% if ordenes_por_estado %}
-                <div class="row">
-                    {% for estado in ordenes_por_estado %}
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card h-100 {% if estado[0] == 'en_desarrollo' %}border-secondary{% elif estado[0] == 'aprobado_produccion' %}border-primary{% elif estado[0] in ['seccionado', 'enchapado', 'mecanizado'] %}border-warning{% elif estado[0] == 'produccion_completa' %}border-info{% elif estado[0] == 'embalando' %}border-success{% elif estado[0] == 'listo_despacho' %}border-danger{% endif %}">
-                            <div class="card-body text-center">
-                                <h3 class="card-title text-{% if estado[0] == 'en_desarrollo' %}secondary{% elif estado[0] == 'aprobado_produccion' %}primary{% elif estado[0] in ['seccionado', 'enchapado', 'mecanizado'] %}warning{% elif estado[0] == 'produccion_completa' %}info{% elif estado[0] == 'embalando' %}success{% elif estado[0] == 'listo_despacho' %}danger{% endif %}">
-                                    {{ estado[1] }}
-                                </h3>
-                                <p class="card-text">
-                                    {% if estado[0] == 'en_desarrollo' %}En Desarrollo
-                                    {% elif estado[0] == 'aprobado_produccion' %}Aprobado para Producción
-                                    {% elif estado[0] == 'seccionado' %}Seccionando
-                                    {% elif estado[0] == 'enchapado' %}Enchapando
-                                    {% elif estado[0] == 'mecanizado' %}Mecanizando
-                                    {% elif estado[0] == 'produccion_completa' %}Producción Completa
-                                    {% elif estado[0] == 'embalando' %}Embalando
-                                    {% elif estado[0] == 'listo_despacho' %}Listo para Despacho
-                                    {% else %}{{ estado[0]|title }}{% endif %}
-                                </p>
+            <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+                {% if ordenes_pendientes %}
+                    {% for orden in ordenes_pendientes %}
+                    <div class="card mb-3 border-warning">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden[0]) }}" class="text-decoration-none">
+                                    {{ orden[1] }}
+                                </a>
+                            </h6>
+                            <p class="card-text small">
+                                <strong>Cliente:</strong> {{ orden[3] }}<br>
+                                <strong>Proyecto:</strong> {{ orden[2] }}<br>
+                                <strong>Fecha Entrega:</strong> {{ orden[4] if orden[4] else 'Sin fecha' }}
+                            </p>
+                            {% if orden[5] %}
+                            <p class="card-text">
+                                <small class="text-muted">{{ orden[5][:60] }}{% if orden[5]|length > 60 %}...{% endif %}</small>
+                            </p>
+                            {% endif %}
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-{{ 'danger' if orden[6] == 'alta' else 'warning' if orden[6] == 'media' else 'info' }}">
+                                    {{ orden[6]|title }}
+                                </span>
+                                <button class="btn btn-sm btn-outline-primary" onclick="iniciarProceso({{ orden[0] }})">
+                                    <i class="fas fa-play"></i> Iniciar
+                                </button>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No hay órdenes activas en producción</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    
-    <!-- Órdenes Urgentes -->
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header bg-danger text-white">
-                <h5><i class="fas fa-exclamation-triangle"></i> Órdenes Urgentes (7 días)</h5>
-            </div>
-            <div class="card-body">
-                {% if ordenes_urgentes %}
-                {% for orden in ordenes_urgentes %}
-                <div class="border-bottom pb-2 mb-2">
-                    <h6 class="mb-1">
-                        <a href="{{ url_for('proyecto_detalle', proyecto_id=orden[0]) }}" class="text-decoration-none">
-                            <strong>{{ orden[1] }}</strong>
-                        </a>
-                    </h6>
-                    <small class="text-muted d-block">{{ orden[3] }}</small>
-                    <small class="text-muted d-block">{{ orden[2] }}</small>
-                    <div class="d-flex justify-content-between align-items-center mt-1">
-                        <span class="badge bg-{% if orden[5] == 'en_desarrollo' %}secondary{% elif orden[5] == 'seccionado' %}warning{% elif orden[5] == 'enchapado' %}info{% elif orden[5] == 'mecanizado' %}primary{% elif orden[5] == 'produccion_completa' %}success{% elif orden[5] == 'listo_despacho' %}danger{% endif %}">
-                            {{ orden[5]|replace('_', ' ')|title }}
-                        </span>
-                        {% if orden[6] is not none %}
-                            {% if orden[6] < 0 %}
-                            <span class="badge bg-danger">Vencida ({{ -orden[6]|int }} días)</span>
-                            {% elif orden[6] == 0 %}
-                            <span class="badge bg-warning">Vence hoy</span>
-                            {% else %}
-                            <span class="badge bg-warning">{{ orden[6]|int }} días</span>
-                            {% endif %}
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
                 {% else %}
                 <div class="text-center py-3">
-                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                    <p class="text-success mb-0">No hay órdenes urgentes</p>
+                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No hay órdenes pendientes</p>
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
-</div>
 
-<!-- Órdenes Recientes -->
-<div class="row">
-    <div class="col-12">
+    <!-- Órdenes en Proceso -->
+    <div class="col-md-4">
         <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-history"></i> Órdenes de Compra Recientes</h5>
+            <div class="card-header bg-primary text-white">
+                <h5><i class="fas fa-cogs"></i> Órdenes en Proceso</h5>
             </div>
-            <div class="card-body">
-                {% if ordenes_recientes %}
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>N° Orden</th>
-                                <th>Cliente</th>
-                                <th>Proyecto</th>
-                                <th>Estado Actual</th>
-                                <th>Fecha Entrega</th>
-                                <th>Días Restantes</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for orden in ordenes_recientes %}
-                            <tr>
-                                <td><strong>{{ orden[1] }}</strong></td>
-                                <td>{{ orden[3] or 'Sin cliente' }}</td>
-                                <td>{{ orden[2] }}</td>
-                                <td>
-                                    {% if orden[4] == 'en_desarrollo' %}
-                                    <span class="text-muted fw-bold">En Desarrollo</span>
-                                    {% elif orden[4] == 'aprobado_produccion' %}
-                                    <span class="text-primary fw-bold">Aprobado Producción</span>
-                                    {% elif orden[4] == 'seccionado' %}
-                                    <span class="text-warning fw-bold">Seccionando</span>
-                                    {% elif orden[4] == 'enchapado' %}
-                                    <span class="text-info fw-bold">Enchapando</span>
-                                    {% elif orden[4] == 'mecanizado' %}
-                                    <span class="text-primary fw-bold">Mecanizando</span>
-                                    {% elif orden[4] == 'produccion_completa' %}
-                                    <span class="text-success fw-bold">Producción Completa</span>
-                                    {% elif orden[4] == 'embalando' %}
-                                    <span class="text-success fw-bold">Embalando</span>
-                                    {% elif orden[4] == 'listo_despacho' %}
-                                    <span class="text-danger fw-bold">Listo Despacho</span>
-                                    {% elif orden[4] == 'entregado' %}
-                                    <span class="text-dark fw-bold">Entregado</span>
-                                    {% else %}
-                                    <span class="text-dark fw-bold">{{ orden[4]|title }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ orden[5] if orden[5] else 'Sin fecha' }}</td>
-                                <td>
-                                    {% if orden[6] is not none %}
-                                        {% if orden[6] < 0 %}
-                                        <span class="text-danger fw-bold">Vencida</span>
-                                        {% elif orden[6] == 0 %}
-                                        <span class="text-warning fw-bold">Hoy</span>
-                                        {% elif orden[6] <= 7 %}
-                                        <span class="text-warning fw-bold">{{ orden[6]|int }} días</span>
-                                        {% else %}
-                                        <span class="text-muted">{{ orden[6]|int }} días</span>
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('proyecto_detalle', proyecto_id=orden[0]) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye"></i> Ver
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+                {% if ordenes_proceso %}
+                    {% for orden in ordenes_proceso %}
+                    <div class="card mb-3 border-primary">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden[0]) }}" class="text-decoration-none">
+                                    {{ orden[1] }}
+                                </a>
+                            </h6>
+                            <p class="card-text small">
+                                <strong>Cliente:</strong> {{ orden[3] }}<br>
+                                <strong>Proyecto:</strong> {{ orden[2] }}<br>
+                                <strong>Fecha Entrega:</strong> {{ orden[4] if orden[4] else 'Sin fecha' }}
+                            </p>
+
+                            <!-- Órdenes de Fabricación Asociadas -->
+                            {% if orden.ordenes_fabricacion %}
+                            <div class="mt-2">
+                                <h6 class="small"><i class="fas fa-cog"></i> Órdenes de Fabricación:</h6>
+                                {% for fab in orden.ordenes_fabricacion %}
+                                <div class="border rounded p-2 mb-1 bg-light">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small"><strong>{{ fab.codigo_pedido }}</strong></span>
+                                        <span class="badge bg-{% if fab.estado == 'en_desarrollo' %}secondary{% elif fab.estado == 'seccionado' %}warning{% elif fab.estado == 'enchapado' %}info{% elif fab.estado == 'mecanizado' %}primary{% elif fab.estado == 'produccion_completa' %}success{% endif %}">
+                                            {{ fab.estado|replace('_', ' ')|title }}
+                                        </span>
+                                    </div>
+                                    <div class="small text-muted">{{ fab.nombre }}</div>
+                                    <!-- Barra de progreso -->
+                                    {% set estados_progreso = ['en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'] %}
+                                    {% set indice_actual = estados_progreso.index(fab.estado) if fab.estado in estados_progreso else 0 %}
+                                    {% set porcentaje = ((indice_actual + 1) / estados_progreso|length * 100)|int %}
+                                    <div class="progress mt-1" style="height: 5px;">
+                                        <div class="progress-bar" role="progressbar" style="width: {{ porcentaje }}%" 
+                                             aria-valuenow="{{ porcentaje }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <span class="badge bg-{{ 'danger' if orden[6] == 'alta' else 'warning' if orden[6] == 'media' else 'info' }}">
+                                    {{ orden[6]|title }}
+                                </span>
+                                <button class="btn btn-sm btn-outline-success" onclick="terminarOrden({{ orden[0] }})">
+                                    <i class="fas fa-check"></i> Terminar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No hay órdenes recientes</p>
+                <div class="text-center py-3">
+                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No hay órdenes en proceso</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Órdenes Terminadas -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5><i class="fas fa-check-circle"></i> Órdenes Terminadas</h5>
+            </div>
+            <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+                {% if ordenes_terminadas %}
+                    {% for orden in ordenes_terminadas %}
+                    <div class="card mb-3 border-success">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden[0]) }}" class="text-decoration-none">
+                                    {{ orden[1] }}
+                                </a>
+                            </h6>
+                            <p class="card-text small">
+                                <strong>Cliente:</strong> {{ orden[3] }}<br>
+                                <strong>Proyecto:</strong> {{ orden[2] }}<br>
+                                <strong>Fecha Entrega:</strong> {{ orden[4] if orden[4] else 'Sin fecha' }}
+                            </p>
+                            {% if orden[5] %}
+                            <p class="card-text">
+                                <small class="text-muted">{{ orden[5][:60] }}{% if orden[5]|length > 60 %}...{% endif %}</small>
+                            </p>
+                            {% endif %}
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-success">Completada</span>
+                                <small class="text-muted">
+                                    <i class="fas fa-check"></i> Terminada
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No hay órdenes terminadas</p>
                 </div>
                 {% endif %}
             </div>
@@ -292,7 +264,6 @@
                                 <select class="form-select" id="cliente_select" name="cliente_id" onchange="toggleClienteNuevo()" required>
                                     <option value="">Seleccionar cliente existente...</option>
                                     <option value="nuevo">+ Crear nuevo cliente</option>
-                                    <!-- Se llenarán dinámicamente -->
                                 </select>
                             </div>
                             <div class="col-md-4" id="nuevo_cliente_section" style="display: none;">
@@ -301,24 +272,12 @@
                         </div>
                     </div>
 
-                    <!-- Selección de Proyecto -->
                     <div class="mb-3">
-                        <label class="form-label">Proyecto *</label>
-                        <div class="row">
-                            <div class="col-md-8">
-                                <select class="form-select" id="proyecto_select" name="proyecto_existente_id" onchange="toggleProyectoNuevo()">
-                                    <option value="">Seleccionar proyecto existente...</option>
-                                    <option value="nuevo">+ Crear nuevo proyecto</option>
-                                    <!-- Se llenarán dinámicamente según cliente -->
-                                </select>
-                            </div>
-                            <div class="col-md-4" id="nuevo_proyecto_section" style="display: none;">
-                                <input type="text" class="form-control" id="nuevo_proyecto_nombre" name="nombre_proyecto" placeholder="Nombre del nuevo proyecto">
-                            </div>
-                        </div>
+                        <label for="nombre_proyecto" class="form-label">Nombre del Proyecto *</label>
+                        <input type="text" class="form-control" id="nombre_proyecto" name="nombre_proyecto" required placeholder="Ej: Muebles Cocina Torre A">
                     </div>
 
-                    <!-- Categorías y Subcategorías Múltiples -->
+                    <!-- Categorías Múltiples -->
                     <div class="mb-3">
                         <label class="form-label">Categorías de Productos *</label>
                         <div id="categorias_container">
@@ -328,7 +287,6 @@
                                         <label class="form-label">Categoría</label>
                                         <select class="form-select categoria-select" name="categorias[]" onchange="cargarSubcategorias(this)" required>
                                             <option value="">Seleccionar categoría...</option>
-                                            <!-- Se llenarán dinámicamente -->
                                         </select>
                                     </div>
                                     <div class="col-md-5">
@@ -349,6 +307,7 @@
                             <i class="fas fa-plus"></i> Agregar otra categoría
                         </button>
                     </div>
+
                     <div class="mb-3">
                         <label for="descripcion" class="form-label">Descripción de Productos</label>
                         <textarea class="form-control" id="descripcion" name="descripcion" rows="3" placeholder="Detalle de los muebles a fabricar..."></textarea>
@@ -383,7 +342,7 @@
 let categoriasData = [];
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Cargar clientes disponibles para el modal
+    // Cargar clientes disponibles
     fetch('/api/clientes_activos')
         .then(response => response.json())
         .then(data => {
@@ -407,94 +366,96 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => console.error('Error cargando categorías:', error));
 });
 
-function llenarSelectCategorias() {
-    const selects = document.querySelectorAll('.categoria-select');
-    selects.forEach(select => {
-        // Guardar el valor seleccionado actual
-        const valorActual = select.value;
-        
-        // Limpiar opciones existentes excepto la primera
-        select.innerHTML = '<option value="">Seleccionar categoría...</option>';
-        
-        categoriasData.forEach(categoria => {
-            const option = document.createElement('option');
-            option.value = categoria.id;
-            option.textContent = categoria.nombre;
-            option.setAttribute('data-color', categoria.color);
-            select.appendChild(option);
+function iniciarProceso(ordenId) {
+    if (confirm('¿Confirmas iniciar el proceso de fabricación para esta orden?')) {
+        fetch(`/api/iniciar_proceso_orden/${ordenId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
         });
-        
-        // Restaurar el valor seleccionado si existía
-        if (valorActual) {
-            select.value = valorActual;
-            // Disparar evento change para cargar subcategorías si es necesario
-            select.dispatchEvent(new Event('change'));
-        }
-    });
+    }
+}
+
+function terminarOrden(ordenId) {
+    if (confirm('¿Confirmas marcar esta orden como terminada?')) {
+        fetch(`/api/terminar_orden/${ordenId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
 }
 
 function toggleClienteNuevo() {
     const clienteSelect = document.getElementById('cliente_select');
     const nuevoClienteSection = document.getElementById('nuevo_cliente_section');
-    const proyectoSelect = document.getElementById('proyecto_select');
-    
+
     if (clienteSelect.value === 'nuevo') {
         nuevoClienteSection.style.display = 'block';
-        // Limpiar proyectos si se va a crear nuevo cliente
-        proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto existente...</option><option value="nuevo">+ Crear nuevo proyecto</option>';
     } else {
         nuevoClienteSection.style.display = 'none';
-        // Cargar proyectos del cliente seleccionado
-        if (clienteSelect.value) {
-            cargarProyectosCliente(clienteSelect.value);
+    }
+}
+
+function llenarSelectCategorias() {
+    const selects = document.querySelectorAll('.categoria-select');
+    selects.forEach(select => {
+        const valorActual = select.value;
+        select.innerHTML = '<option value="">Seleccionar categoría...</option>';
+
+        categoriasData.forEach(categoria => {
+            const option = document.createElement('option');
+            option.value = categoria.id;
+            option.textContent = categoria.nombre;
+            select.appendChild(option);
+        });
+
+        if (valorActual) {
+            select.value = valorActual;
+            select.dispatchEvent(new Event('change'));
         }
-    }
-}
-
-function toggleProyectoNuevo() {
-    const proyectoSelect = document.getElementById('proyecto_select');
-    const nuevoProyectoSection = document.getElementById('nuevo_proyecto_section');
-    
-    if (proyectoSelect.value === 'nuevo') {
-        nuevoProyectoSection.style.display = 'block';
-    } else {
-        nuevoProyectoSection.style.display = 'none';
-    }
-}
-
-function cargarProyectosCliente(clienteId) {
-    const proyectoSelect = document.getElementById('proyecto_select');
-    proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto existente...</option><option value="nuevo">+ Crear nuevo proyecto</option>';
-    
-    fetch(`/api/proyectos_cliente/${clienteId}`)
-        .then(response => response.json())
-        .then(data => {
-            data.forEach(proyecto => {
-                const option = document.createElement('option');
-                option.value = proyecto.id;
-                option.textContent = `${proyecto.codigo} - ${proyecto.nombre}`;
-                proyectoSelect.appendChild(option);
-            });
-        })
-        .catch(error => console.error('Error cargando proyectos:', error));
+    });
 }
 
 function cargarSubcategorias(categoriaSelect) {
     const categoriaItem = categoriaSelect.closest('.categoria-item');
     const subcategoriaSelect = categoriaItem.querySelector('.subcategoria-select');
-    
-    // Limpiar subcategorías
+
     subcategoriaSelect.innerHTML = '<option value="">Seleccionar subcategoría...</option>';
-    
+
     if (!categoriaSelect.value) {
         subcategoriaSelect.disabled = true;
         subcategoriaSelect.innerHTML = '<option value="">Primero selecciona una categoría</option>';
-        return Promise.resolve();
+        return;
     }
-    
+
     subcategoriaSelect.disabled = false;
-    
-    return fetch(`/api/subcategorias/${categoriaSelect.value}`)
+
+    fetch(`/api/subcategorias/${categoriaSelect.value}`)
         .then(response => response.json())
         .then(data => {
             data.forEach(subcategoria => {
@@ -512,19 +473,7 @@ function cargarSubcategorias(categoriaSelect) {
 
 function agregarCategoria() {
     const container = document.getElementById('categorias_container');
-    
-    // Guardar valores actuales de todas las categorías y subcategorías
-    const valoresActuales = [];
-    const categoriaItems = container.querySelectorAll('.categoria-item');
-    categoriaItems.forEach(item => {
-        const categoriaSelect = item.querySelector('.categoria-select');
-        const subcategoriaSelect = item.querySelector('.subcategoria-select');
-        valoresActuales.push({
-            categoria: categoriaSelect.value,
-            subcategoria: subcategoriaSelect.value
-        });
-    });
-    
+
     const nuevaCategoria = document.createElement('div');
     nuevaCategoria.className = 'categoria-item border rounded p-3 mb-3';
     nuevaCategoria.innerHTML = `
@@ -548,36 +497,10 @@ function agregarCategoria() {
             </div>
         </div>
     `;
-    
+
     container.appendChild(nuevaCategoria);
-    
-    // Llenar select de categorías para todos los elementos
     llenarSelectCategorias();
-    
-    // Restaurar valores previos
-    const categoriaItemsActualizados = container.querySelectorAll('.categoria-item');
-    valoresActuales.forEach((valores, index) => {
-        if (index < categoriaItemsActualizados.length - 1) { // Excluir el nuevo item
-            const item = categoriaItemsActualizados[index];
-            const categoriaSelect = item.querySelector('.categoria-select');
-            const subcategoriaSelect = item.querySelector('.subcategoria-select');
-            
-            if (valores.categoria) {
-                categoriaSelect.value = valores.categoria;
-                
-                // Cargar subcategorías si hay una categoría seleccionada
-                if (valores.categoria) {
-                    cargarSubcategorias(categoriaSelect).then(() => {
-                        if (valores.subcategoria) {
-                            subcategoriaSelect.value = valores.subcategoria;
-                        }
-                    });
-                }
-            }
-        }
-    });
-    
-    // Mostrar botones de eliminar si hay más de una categoría
+
     const botonesEliminar = document.querySelectorAll('.categoria-item .btn-outline-danger');
     if (botonesEliminar.length > 1) {
         botonesEliminar.forEach(btn => btn.style.display = 'block');
@@ -587,8 +510,7 @@ function agregarCategoria() {
 function removerCategoria(boton) {
     const categoriaItem = boton.closest('.categoria-item');
     categoriaItem.remove();
-    
-    // Ocultar botones de eliminar si solo queda una categoría
+
     const botonesEliminar = document.querySelectorAll('.categoria-item .btn-outline-danger');
     if (botonesEliminar.length === 1) {
         botonesEliminar[0].style.display = 'none';

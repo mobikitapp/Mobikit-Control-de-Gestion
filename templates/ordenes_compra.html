@@ -1,0 +1,322 @@
+
+{% extends "base.html" %}
+
+{% block title %}Órdenes de Compra - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-file-invoice"></i> Gestión de Órdenes de Compra</h1>
+    <div>
+        {% if session.user_role in ['admin', 'general', 'diseñador'] %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaOrdenModal">
+            <i class="fas fa-plus"></i> Nueva Orden de Compra
+        </button>
+        {% endif %}
+        <a href="{{ url_for('clientes') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-building"></i> Gestionar Clientes
+        </a>
+    </div>
+</div>
+
+<!-- Pestañas de Estados -->
+<ul class="nav nav-tabs" id="ordenesTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="pendientes-tab" data-bs-toggle="tab" data-bs-target="#pendientes" type="button" role="tab">
+            <i class="fas fa-clock text-warning"></i> Pendientes ({{ ordenes_pendientes|length }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="proceso-tab" data-bs-toggle="tab" data-bs-target="#proceso" type="button" role="tab">
+            <i class="fas fa-cogs text-primary"></i> En Proceso ({{ ordenes_proceso|length }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="terminadas-tab" data-bs-toggle="tab" data-bs-target="#terminadas" type="button" role="tab">
+            <i class="fas fa-check-circle text-success"></i> Terminadas ({{ ordenes_terminadas|length }})
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="ordenesTabContent">
+    <!-- Panel Órdenes Pendientes -->
+    <div class="tab-pane fade show active" id="pendientes" role="tabpanel">
+        <div class="card mt-3">
+            <div class="card-header bg-warning text-dark">
+                <h5><i class="fas fa-clock"></i> Órdenes Pendientes de Iniciar Proceso</h5>
+            </div>
+            <div class="card-body">
+                {% if ordenes_pendientes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>N° Orden</th>
+                                <th>Cliente</th>
+                                <th>Proyecto</th>
+                                <th>Categorías</th>
+                                <th>Fecha Entrega</th>
+                                <th>Prioridad</th>
+                                <th>Monto</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for orden in ordenes_pendientes %}
+                            <tr>
+                                <td><strong>{{ orden.codigo }}</strong></td>
+                                <td>{{ orden.cliente_nombre }}</td>
+                                <td>
+                                    <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="text-decoration-none">
+                                        {{ orden.nombre }}
+                                    </a>
+                                    {% if orden.descripcion %}
+                                    <br><small class="text-muted">{{ orden.descripcion[:50] }}...</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% for categoria in orden.categorias %}
+                                    <span class="badge bg-secondary me-1">{{ categoria }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}
+                                    {% if orden.dias_restantes is not none %}
+                                        {% if orden.dias_restantes < 0 %}
+                                        <br><small class="text-danger">Vencida</small>
+                                        {% elif orden.dias_restantes <= 7 %}
+                                        <br><small class="text-warning">{{ orden.dias_restantes }} días</small>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if orden.prioridad == 'alta' %}danger{% elif orden.prioridad == 'media' %}warning{% else %}info{% endif %}">
+                                        {{ orden.prioridad|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if orden.presupuesto %}
+                                    ${{ "{:,.0f}".format(orden.presupuesto) }}
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-success" onclick="iniciarProceso({{ orden.id }})" title="Iniciar Proceso">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay órdenes pendientes</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Órdenes en Proceso -->
+    <div class="tab-pane fade" id="proceso" role="tabpanel">
+        <div class="card mt-3">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="fas fa-cogs"></i> Órdenes en Proceso de Fabricación</h5>
+            </div>
+            <div class="card-body">
+                {% if ordenes_proceso %}
+                {% for orden in ordenes_proceso %}
+                <div class="card mb-4 border-primary">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="text-decoration-none">
+                                    <strong>{{ orden.codigo }}</strong> - {{ orden.nombre }}
+                                </a>
+                            </h6>
+                            <div>
+                                <span class="badge bg-{{ 'danger' if orden.prioridad == 'alta' else 'warning' if orden.prioridad == 'media' else 'info' }}">
+                                    {{ orden.prioridad|title }}
+                                </span>
+                                <button class="btn btn-sm btn-success ms-2" onclick="terminarOrden({{ orden.id }})">
+                                    <i class="fas fa-check"></i> Terminar
+                                </button>
+                            </div>
+                        </div>
+                        <small class="text-muted">Cliente: {{ orden.cliente_nombre }} | Entrega: {{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}</small>
+                    </div>
+                    <div class="card-body">
+                        <h6><i class="fas fa-cog"></i> Órdenes de Fabricación:</h6>
+                        {% if orden.ordenes_fabricacion %}
+                        <div class="row">
+                            {% for fab in orden.ordenes_fabricacion %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-{% if fab.estado == 'en_desarrollo' %}secondary{% elif fab.estado == 'seccionado' %}warning{% elif fab.estado == 'enchapado' %}info{% elif fab.estado == 'mecanizado' %}primary{% elif fab.estado == 'produccion_completa' %}success{% endif %}">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="mb-0">{{ fab.codigo_pedido }}</h6>
+                                            <span class="badge bg-{% if fab.estado == 'en_desarrollo' %}secondary{% elif fab.estado == 'seccionado' %}warning{% elif fab.estado == 'enchapado' %}info{% elif fab.estado == 'mecanizado' %}primary{% elif fab.estado == 'produccion_completa' %}success{% endif %}">
+                                                {{ fab.estado|replace('_', ' ')|title }}
+                                            </span>
+                                        </div>
+                                        <p class="small mb-2">{{ fab.nombre }}</p>
+                                        
+                                        <!-- Barra de progreso detallada -->
+                                        {% set estados_progreso = ['en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'] %}
+                                        {% set nombres_estados = ['Desarrollo', 'Aprobado', 'Seccionado', 'Enchapado', 'Mecanizado', 'Terminado'] %}
+                                        {% set indice_actual = estados_progreso.index(fab.estado) if fab.estado in estados_progreso else 0 %}
+                                        {% set porcentaje = ((indice_actual + 1) / estados_progreso|length * 100)|int %}
+                                        
+                                        <div class="progress mb-2" style="height: 20px;">
+                                            <div class="progress-bar" role="progressbar" style="width: {{ porcentaje }}%" 
+                                                 aria-valuenow="{{ porcentaje }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ porcentaje }}%
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="d-flex justify-content-between small text-muted">
+                                            <span>{{ nombres_estados[indice_actual] }}</span>
+                                            <span>{{ fab.fecha_entrega_estimada if fab.fecha_entrega_estimada else 'Sin fecha' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                            <p class="text-muted">No hay órdenes de fabricación creadas</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay órdenes en proceso</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Órdenes Terminadas -->
+    <div class="tab-pane fade" id="terminadas" role="tabpanel">
+        <div class="card mt-3">
+            <div class="card-header bg-success text-white">
+                <h5><i class="fas fa-check-circle"></i> Órdenes Terminadas</h5>
+            </div>
+            <div class="card-body">
+                {% if ordenes_terminadas %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>N° Orden</th>
+                                <th>Cliente</th>
+                                <th>Proyecto</th>
+                                <th>Fecha Entrega</th>
+                                <th>Fecha Terminación</th>
+                                <th>Monto</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for orden in ordenes_terminadas %}
+                            <tr>
+                                <td><strong>{{ orden.codigo }}</strong></td>
+                                <td>{{ orden.cliente_nombre }}</td>
+                                <td>
+                                    <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="text-decoration-none">
+                                        {{ orden.nombre }}
+                                    </a>
+                                </td>
+                                <td>{{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}</td>
+                                <td>{{ orden.fecha_entrega_real if orden.fecha_entrega_real else 'N/A' }}</td>
+                                <td>
+                                    {% if orden.presupuesto %}
+                                    ${{ "{:,.0f}".format(orden.presupuesto) }}
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay órdenes terminadas</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal incluido desde dashboard -->
+{% include 'modal_nueva_orden.html' %}
+
+<script>
+function iniciarProceso(ordenId) {
+    if (confirm('¿Confirmas iniciar el proceso de fabricación para esta orden?')) {
+        fetch(`/api/iniciar_proceso_orden/${ordenId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function terminarOrden(ordenId) {
+    if (confirm('¿Confirmas marcar esta orden como terminada?')) {
+        fetch(`/api/terminar_orden/${ordenId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+</script>
+{% endblock %}

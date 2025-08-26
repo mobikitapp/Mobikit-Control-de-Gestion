@@ -1,0 +1,403 @@
+
+{% extends "base.html" %}
+
+{% block title %}Orden {{ orden[1] }} - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-file-invoice"></i> Orden de Compra: {{ orden[1] }}</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('ordenes_compra') }}">Órdenes de Compra</a></li>
+                <li class="breadcrumb-item active">{{ orden[1] }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div>
+        <a href="{{ url_for('ordenes_compra') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Órdenes
+        </a>
+        {% if session.user_role in ['admin', 'general'] %}
+        <button class="btn btn-outline-primary" onclick="editarOrden()">
+            <i class="fas fa-edit"></i> Editar
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Información Principal -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Información de la Orden</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Detalles del Proyecto</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Código:</strong></td>
+                                <td>{{ orden[1] }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Nombre:</strong></td>
+                                <td>{{ orden[2] }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Estado:</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if orden[4] == 'diseño' %}secondary{% elif orden[4] == 'en_desarrollo' %}warning{% elif orden[4] == 'aprobado_produccion' %}primary{% elif orden[4] == 'entregado' %}success{% endif %}">
+                                        {{ orden[4]|replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Prioridad:</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if orden[5] == 'alta' %}danger{% elif orden[5] == 'media' %}warning{% else %}info{% endif %}">
+                                        {{ orden[5]|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Información del Cliente</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Cliente:</strong></td>
+                                <td>{{ orden[11] }}</td>
+                            </tr>
+                            {% if orden[12] %}
+                            <tr>
+                                <td><strong>Email:</strong></td>
+                                <td>{{ orden[12] }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if orden[13] %}
+                            <tr>
+                                <td><strong>Teléfono:</strong></td>
+                                <td>{{ orden[13] }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if orden[14] %}
+                            <tr>
+                                <td><strong>Contacto:</strong></td>
+                                <td>{{ orden[14] }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+
+                {% if orden[3] %}
+                <div class="mt-3">
+                    <h6>Descripción</h6>
+                    <p class="text-muted">{{ orden[3] }}</p>
+                </div>
+                {% endif %}
+
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <h6>Fechas</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Fecha Inicio:</strong></td>
+                                <td>{{ orden[6] if orden[6] else 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Fecha Entrega:</strong></td>
+                                <td>{{ orden[7] if orden[7] else 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Fecha Real:</strong></td>
+                                <td>{{ orden[8] if orden[8] else 'Pendiente' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Valores</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Presupuesto:</strong></td>
+                                <td>
+                                    {% if orden[10] %}
+                                    ${{ "{:,.0f}".format(orden[10]) }}
+                                    {% else %}
+                                    No definido
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Costo Real:</strong></td>
+                                <td>
+                                    {% if orden[11] %}
+                                    ${{ "{:,.0f}".format(orden[11]) }}
+                                    {% else %}
+                                    Pendiente
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Categorías de Productos</h6>
+                        {% if categorias %}
+                            {% for categoria in categorias %}
+                            <span class="badge bg-secondary me-1 mb-1">
+                                {{ categoria[0] }}{% if categoria[1] %} - {{ categoria[1] }}{% endif %}
+                            </span>
+                            {% endfor %}
+                        {% else %}
+                        <span class="text-muted">No definidas</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Órdenes de Fabricación -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cogs"></i> Órdenes de Fabricación</h5>
+            </div>
+            <div class="card-body">
+                {% if ordenes_fabricacion %}
+                <div class="row">
+                    {% for fab in ordenes_fabricacion %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-{% if fab[4] == 'en_desarrollo' %}secondary{% elif fab[4] == 'seccionado' %}warning{% elif fab[4] == 'enchapado' %}info{% elif fab[4] == 'mecanizado' %}primary{% elif fab[4] == 'produccion_completa' %}success{% endif %}">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">{{ fab[2] }}</h6>
+                                    <span class="badge bg-{% if fab[4] == 'en_desarrollo' %}secondary{% elif fab[4] == 'seccionado' %}warning{% elif fab[4] == 'enchapado' %}info{% elif fab[4] == 'mecanizado' %}primary{% elif fab[4] == 'produccion_completa' %}success{% endif %}">
+                                        {{ fab[4]|replace('_', ' ')|title }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ fab[3] }}</small>
+                            </div>
+                            <div class="card-body">
+                                <p class="small mb-2">
+                                    <strong>Categoría:</strong> {{ fab[10] }}{% if fab[11] %} - {{ fab[11] }}{% endif %}
+                                </p>
+                                
+                                <!-- Progreso de fabricación -->
+                                {% set estados_progreso = ['en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'] %}
+                                {% set nombres_estados = ['Desarrollo', 'Aprobado', 'Seccionado', 'Enchapado', 'Mecanizado', 'Terminado'] %}
+                                {% set indice_actual = estados_progreso.index(fab[4]) if fab[4] in estados_progreso else 0 %}
+                                {% set porcentaje = ((indice_actual + 1) / estados_progreso|length * 100)|int %}
+                                
+                                <div class="progress mb-2" style="height: 15px;">
+                                    <div class="progress-bar bg-{% if porcentaje < 40 %}warning{% elif porcentaje < 80 %}info{% else %}success{% endif %}" 
+                                         role="progressbar" style="width: {{ porcentaje }}%" 
+                                         aria-valuenow="{{ porcentaje }}" aria-valuemin="0" aria-valuemax="100">
+                                        {{ porcentaje }}%
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        {% if fab[6] %}Inicio: {{ fab[6] }}{% endif %}
+                                        {% if fab[7] %}<br>Entrega: {{ fab[7] }}{% endif %}
+                                    </small>
+                                    <div class="btn-group">
+                                        {% if session.user_role in ['admin', 'general', 'operación'] and fab[4] not in ['produccion_completa', 'entregado'] %}
+                                        <button class="btn btn-xs btn-success" onclick="avanzarFabricacion({{ fab[0] }})" title="Avanzar">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if session.user_role in ['admin', 'general'] and fab[4] != 'en_desarrollo' %}
+                                        <button class="btn btn-xs btn-outline-warning" onclick="retrocederFabricacion({{ fab[0] }})" title="Retroceder">
+                                            <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-cog fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay órdenes de fabricación creadas</p>
+                    {% if session.user_role in ['admin', 'general'] %}
+                    <button class="btn btn-primary" onclick="crearOrdenesFabricacion()">
+                        <i class="fas fa-plus"></i> Crear Órdenes de Fabricación
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Lateral -->
+    <div class="col-md-4">
+        <!-- Acciones Rápidas -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6><i class="fas fa-bolt"></i> Acciones Rápidas</h6>
+            </div>
+            <div class="card-body">
+                {% if orden[4] in ['diseño', 'en_desarrollo'] and session.user_role in ['admin', 'general', 'operación'] %}
+                <button class="btn btn-success btn-sm w-100 mb-2" onclick="iniciarProceso({{ orden[0] }})">
+                    <i class="fas fa-play"></i> Iniciar Proceso de Fabricación
+                </button>
+                {% endif %}
+
+                {% if orden[4] in ['aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'] and session.user_role in ['admin', 'general'] %}
+                <button class="btn btn-primary btn-sm w-100 mb-2" onclick="terminarOrden({{ orden[0] }})">
+                    <i class="fas fa-check"></i> Marcar Como Terminada
+                </button>
+                {% endif %}
+
+                <a href="{{ url_for('ordenes_fabricacion') }}" class="btn btn-outline-info btn-sm w-100 mb-2">
+                    <i class="fas fa-cogs"></i> Ver Órdenes de Fabricación
+                </a>
+
+                {% if session.user_role in ['admin', 'general'] %}
+                <button class="btn btn-outline-secondary btn-sm w-100" onclick="generarReporte()">
+                    <i class="fas fa-file-pdf"></i> Generar Reporte
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Información Adicional -->
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info"></i> Información Adicional</h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">
+                    <strong>Creado:</strong> {{ orden[12] if orden[12] else 'N/A' }}
+                </p>
+                <p class="small mb-2">
+                    <strong>Actualizado:</strong> {{ orden[13] if orden[13] else 'N/A' }}
+                </p>
+                {% if orden[9] %}
+                <p class="small mb-0">
+                    <strong>Diseñador:</strong> {{ orden[9] }}
+                </p>
+                {% endif %}
+                {% if orden[10] %}
+                <p class="small mb-0">
+                    <strong>Supervisor:</strong> {{ orden[10] }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function iniciarProceso(ordenId) {
+    if (confirm('¿Confirmas iniciar el proceso de fabricación para esta orden?')) {
+        fetch(`/api/iniciar_proceso_orden/${ordenId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function terminarOrden(ordenId) {
+    if (confirm('¿Confirmas marcar esta orden como terminada?')) {
+        fetch(`/api/terminar_orden/${ordenId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function avanzarFabricacion(fabricacionId) {
+    if (confirm('¿Confirmas avanzar esta orden de fabricación a la siguiente etapa?')) {
+        fetch(`/api/avanzar_etapa_fabricacion/${fabricacionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function retrocederFabricacion(fabricacionId) {
+    if (confirm('¿Confirmas retroceder esta orden de fabricación a la etapa anterior?')) {
+        fetch(`/api/retroceder_etapa_fabricacion/${fabricacionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function editarOrden() {
+    // Implementar función de edición
+    alert('Función de edición pendiente de implementar');
+}
+
+function crearOrdenesFabricacion() {
+    // Implementar función para crear órdenes de fabricación
+    alert('Función pendiente de implementar');
+}
+
+function generarReporte() {
+    // Implementar función de reporte
+    alert('Función de reporte pendiente de implementar');
+}
+</script>
+{% endblock %}
