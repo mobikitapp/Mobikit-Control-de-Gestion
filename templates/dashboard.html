@@ -135,10 +135,10 @@
                             </p>
 
                             <!-- Órdenes de Fabricación Asociadas -->
-                            {% if orden.ordenes_fabricacion %}
+                            {% if orden[8] %}
                             <div class="mt-2">
                                 <h6 class="small"><i class="fas fa-cog"></i> Órdenes de Fabricación:</h6>
-                                {% for fab in orden.ordenes_fabricacion %}
+                                {% for fab in orden[8] %}
                                 <div class="border rounded p-2 mb-1 bg-light">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="small"><strong>{{ fab.codigo_pedido }}</strong></span>

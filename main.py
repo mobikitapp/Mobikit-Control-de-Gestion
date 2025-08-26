@@ -298,20 +298,18 @@ def dashboard():
         ''', (orden[0],))
         ordenes_fabricacion = cursor.fetchall()
 
-        orden_dict = {
-            'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
-            'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6],
-            'dias_restantes': orden[7], 'ordenes_fabricacion': []
-        }
+        # Keep tuple structure but add ordenes_fabricacion as a new attribute
+        orden_extended = list(orden)  # Convert tuple to list
+        orden_extended.append([])  # Add empty list for ordenes_fabricacion
 
         for fab in ordenes_fabricacion:
             fab_dict = {
                 'id': fab[0], 'codigo_pedido': fab[1], 'nombre': fab[2], 
                 'estado': fab[3], 'fecha_entrega_estimada': fab[4]
             }
-            orden_dict['ordenes_fabricacion'].append(fab_dict)
+            orden_extended[-1].append(fab_dict)  # Add to the ordenes_fabricacion list
 
-        ordenes_proceso.append(orden_dict)
+        ordenes_proceso.append(tuple(orden_extended))  # Convert back to tuple
 
     # Órdenes Terminadas
     cursor.execute('''
