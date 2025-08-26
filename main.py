@@ -170,7 +170,7 @@ def create_basic_tables(cursor):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (proyecto_id) REFERENCES proyectos (id),
-            FOREIGN KEY (usuario_asignado_id) REFERENCES usuarios (id)
+            FOREIGNKEY (usuario_asignado_id) REFERENCES usuarios (id)
         )
     ''')
 
@@ -297,20 +297,20 @@ def dashboard():
             ORDER BY ps.created_at ASC
         ''', (orden[0],))
         ordenes_fabricacion = cursor.fetchall()
-        
+
         orden_dict = {
             'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
             'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6],
             'dias_restantes': orden[7], 'ordenes_fabricacion': []
         }
-        
+
         for fab in ordenes_fabricacion:
             fab_dict = {
                 'id': fab[0], 'codigo_pedido': fab[1], 'nombre': fab[2], 
                 'estado': fab[3], 'fecha_entrega_estimada': fab[4]
             }
             orden_dict['ordenes_fabricacion'].append(fab_dict)
-        
+
         ordenes_proceso.append(orden_dict)
 
     # Órdenes Terminadas
@@ -689,7 +689,7 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('pendiente', 'aprobado_produccion')
+        WHERE of.estado IN ('pendiente_fabricacion', 'aprobado_produccion')
         ORDER BY of.fecha_entrega_estimada ASC, p.prioridad DESC
     ''')
     ordenes_fabricacion_pendientes = cursor.fetchall()
@@ -1990,7 +1990,7 @@ def api_iniciar_proceso_orden(orden_id):
         # Verificar que la orden existe y está pendiente
         cursor.execute('SELECT estado, codigo FROM proyectos WHERE id = ?', (orden_id,))
         orden = cursor.fetchone()
-        
+
         if not orden:
             return jsonify({'success': False, 'message': 'Orden no encontrada'})
 
@@ -2070,11 +2070,11 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
         # Verificar estado actual de la orden de fabricación
         cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = ?', (orden_fabricacion_id,))
         orden = cursor.fetchone()
-        
+
         if not orden:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        if orden[0] not in ['pendiente', 'aprobado_produccion']:
+        if orden[0] not in ['pendiente_fabricacion', 'aprobado_produccion']:
             return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
 
         # Cambiar estado de la orden de fabricación a primera etapa
@@ -2112,7 +2112,7 @@ def api_iniciar_produccion(fabricacion_id):
         # Verificar estado actual
         cursor.execute('SELECT estado, codigo_pedido FROM pedidos_seguimiento WHERE id = ?', (fabricacion_id,))
         fab = cursor.fetchone()
-        
+
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
@@ -2147,7 +2147,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
         # Obtener estado actual
         cursor.execute('SELECT estado, codigo_pedido FROM pedidos_seguimiento WHERE id = ?', (fabricacion_id,))
         fab = cursor.fetchone()
-        
+
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
@@ -2161,7 +2161,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
             indice_actual = estados_secuencia.index(estado_actual)
             if indice_actual < len(estados_secuencia) - 1:
                 nuevo_estado = estados_secuencia[indice_actual + 1]
-                
+
                 # Si es la última etapa, marcar fecha de terminación
                 if nuevo_estado == 'produccion_completa':
                     cursor.execute('''
@@ -2199,7 +2199,7 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
         # Obtener estado actual
         cursor.execute('SELECT estado, codigo_pedido FROM pedidos_seguimiento WHERE id = ?', (fabricacion_id,))
         fab = cursor.fetchone()
-        
+
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
@@ -2910,7 +2910,7 @@ def api_proyectos_disponibles_fabricacion():
         WHERE p.estado IN ('en_desarrollo', 'diseño')
         ORDER BY p.created_at DESC
     ''')
-    
+
     proyectos = []
     for row in cursor.fetchall():
         proyectos.append({
@@ -2940,7 +2940,7 @@ def api_categorias_proyecto(proyecto_id):
         WHERE pc.proyecto_id = ?
         ORDER BY cat.nombre, subcat.nombre
     ''', (proyecto_id,))
-    
+
     categorias = []
     for row in cursor.fetchall():
         categorias.append({
@@ -2993,7 +2993,7 @@ def crear_orden_fabricacion():
                 cantidad_tableros, observaciones, estado
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada, 
-              cantidad_tableros, observaciones, 'pendiente'))
+              cantidad_tableros, observaciones, 'pendiente_fabricacion'))
 
         orden_fabricacion_id = cursor.lastrowid
 
@@ -3249,7 +3249,7 @@ def gestion_pedidos():
 
     # Obtener pedidos de seguimiento con información del proyecto y cliente
     user_role = session['user_role']
-    
+
     if user_role == 'admin':
         # Admin ve todos los pedidos
         cursor.execute('''
@@ -3284,7 +3284,7 @@ def gestion_pedidos():
             'embalaje': ['produccion_completa', 'embalando'],
             'despacho': ['embalando', 'listo_despacho']
         }
-        
+
         estados_permitidos = roles_estados.get(user_role, [])
         if estados_permitidos:
             placeholders = ','.join(['?' for _ in estados_permitidos])
