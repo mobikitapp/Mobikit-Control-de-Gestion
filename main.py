@@ -975,10 +975,18 @@ def nuevo_proyecto():
             flash('Cliente no válido', 'error')
             return redirect(url_for('clientes'))
 
-        # Generar código único del proyecto
-        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
+        # Obtener nombre del cliente para generar código
+        cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (cliente_id,))
+        cliente_info = cursor.fetchone()
+        cliente_nombre = cliente_info[0] if cliente_info else 'CLIENTE'
+        
+        # Limpiar nombre del cliente para código (solo letras y números, máximo 8 caracteres)
+        cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
+        
+        # Generar número secuencial para este cliente
+        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
         proyecto_numero = cursor.fetchone()[0] + 1
-        codigo_proyecto = f"MOB-{datetime.now().year}-{proyecto_numero:03d}"
+        codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
         # Crear proyecto
         cursor.execute('''
@@ -1375,10 +1383,18 @@ def programar_despacho_con_orden():
                 flash('Debe especificar un nombre para el nuevo proyecto', 'error')
                 return redirect(request.referrer or url_for('despachos'))
 
-            # Generar código único del proyecto
-            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
+            # Obtener nombre del cliente para generar código
+            cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (cliente_id,))
+            cliente_info = cursor.fetchone()
+            cliente_nombre = cliente_info[0] if cliente_info else 'CLIENTE'
+            
+            # Limpiar nombre del cliente para código (solo letras y números, máximo 8 caracteres)
+            cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
+            
+            # Generar número secuencial para este cliente
+            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
             proyecto_numero = cursor.fetchone()[0] + 1
-            codigo_proyecto = f"MOB-{datetime.now().year}-{proyecto_numero:03d}"
+            codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
             # Convertir presupuesto si se proporciona
             presupuesto_num = None
@@ -2748,13 +2764,26 @@ def nueva_orden_compra():
                 flash('Debe especificar el nombre del nuevo proyecto', 'error')
                 return redirect(url_for('dashboard'))
 
+            # Obtener nombre del cliente para generar código
+            cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (cliente_id,))
+            cliente_info = cursor.fetchone()
+            cliente_nombre = cliente_info[0] if cliente_info else 'CLIENTE'
+            
+            # Limpiar nombre del cliente para código (solo letras y números, máximo 8 caracteres)
+            cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
+            
+            # Generar número secuencial para este cliente
+            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
+            proyecto_numero = cursor.fetchone()[0] + 1
+            codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
+
             # Crear nuevo proyecto
             cursor.execute('''
                 INSERT INTO proyectos (
                     codigo, nombre, cliente_id, descripcion, estado, prioridad, 
                     fecha_inicio, fecha_entrega, presupuesto
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (numero_oc, nombre_proyecto, cliente_id, descripcion, 'en_desarrollo', 
+            ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, 'en_desarrollo', 
                   prioridad, datetime.now().date(), fecha_entrega, monto_float))
             proyecto_id = cursor.lastrowid
         else:
