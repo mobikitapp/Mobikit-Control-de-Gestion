@@ -877,26 +877,16 @@ def proyecto_detalle(proyecto_id):
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
-    # Datos del proyecto
+    # Datos del proyecto con información del cliente
     cursor.execute(
         '''
-        SELECT p.*, u.nombre as diseñador
+        SELECT p.*, u.nombre as diseñador, c.nombre as cliente_nombre
         FROM proyectos p
         LEFT JOIN usuarios u ON p.diseñador_id = u.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE p.id = ?
     ''', (proyecto_id, ))
     proyecto = cursor.fetchone()
-
-    # Tareas del proyecto
-    cursor.execute(
-        '''
-        SELECT t.*, u.nombre as asignado
-        FROM tareas t
-        LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
-        WHERE t.proyecto_id = ?
-        ORDER BY t.fecha_programada ASC
-    ''', (proyecto_id, ))
-    tareas = cursor.fetchall()
 
     conn.close()
 
@@ -905,8 +895,7 @@ def proyecto_detalle(proyecto_id):
         return redirect(url_for('proyectos'))
 
     return render_template('proyecto_detalle.html',
-                           proyecto=proyecto,
-                           tareas=tareas)
+                           proyecto=proyecto)
 
 
 @app.route('/nuevo_proyecto', methods=['POST'])
