@@ -2129,7 +2129,7 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
         if not orden:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        if orden[0] not in ['pendiente_fabricacion', 'aprobado_produccion']:
+        if orden[0] not in ['pendiente_fabricacion', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
 
         # Cambiar estado de la orden de fabricación a primera etapa
