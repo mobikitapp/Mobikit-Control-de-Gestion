@@ -261,14 +261,18 @@ def dashboard():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
-    # Proyectos en desarrollo (no son órdenes de compra automáticamente)
+    # Órdenes de compra pendientes (solo proyectos con categorías asignadas)
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_estimada_inicio, 
                p.descripcion, p.estado_proyecto,
                julianday(p.fecha_estimada_inicio) - julianday('now') as dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.estado_proyecto IN ('presupuestado', 'adjudicado')
+        INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
+        WHERE p.estado_proyecto IN ('presupuestado', 'adjudicado') 
+        AND p.estado IN ('diseño', 'en_desarrollo')
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_estimada_inicio, 
+                 p.descripcion, p.estado_proyecto
         ORDER BY p.fecha_estimada_inicio ASC, p.estado_proyecto DESC
     ''')
     ordenes_pendientes = cursor.fetchall()
@@ -558,19 +562,22 @@ def ordenes_compra():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
-    # Órdenes Pendientes
+    # Órdenes Pendientes - Solo proyectos que tienen categorías asignadas (creados como órdenes de compra)
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
                p.descripcion, p.prioridad, p.presupuesto,
                julianday(p.fecha_entrega) - julianday('now') as dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
+        INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('diseño', 'en_desarrollo')
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
+                 p.descripcion, p.prioridad, p.presupuesto
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_pendientes_raw = cursor.fetchall()
 
-    # Órdenes en Proceso
+    # Órdenes en Proceso - Solo proyectos que tienen categorías asignadas
     cursor.execute('''
         SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
                p.descripcion, p.prioridad, p.presupuesto,
@@ -578,18 +585,24 @@ def ordenes_compra():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN pedidos_seguimiento ps ON p.id = ps.proyecto_id
+        INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE ps.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
+                 p.descripcion, p.prioridad, p.presupuesto
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_proceso_raw = cursor.fetchall()
 
-    # Órdenes Terminadas
+    # Órdenes Terminadas - Solo proyectos que tienen categorías asignadas
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
                p.descripcion, p.prioridad, p.presupuesto, p.fecha_entrega_real
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
+        INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('entregado', 'completado')
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
+                 p.descripcion, p.prioridad, p.presupuesto, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
     ''')
     ordenes_terminadas_raw = cursor.fetchall()
@@ -823,24 +836,29 @@ def proyectos():
             'proyectos': []
         }
 
-        # Obtener proyectos del cliente
+        # Obtener proyectos del cliente (incluyendo proyectos simples y órdenes de compra)
         cursor.execute('''
             SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, p.prioridad,
                    p.fecha_entrega, p.presupuesto, u.nombre as diseñador_nombre,
-                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes,
+                   CASE WHEN pc.proyecto_id IS NOT NULL THEN 1 ELSE 0 END as tiene_categorias
             FROM proyectos p
             LEFT JOIN usuarios u ON p.diseñador_id = u.id
+            LEFT JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
             WHERE p.cliente_id = ?
+            GROUP BY p.id, p.codigo, p.nombre, p.descripcion, p.estado, p.prioridad,
+                     p.fecha_entrega, p.presupuesto, u.nombre
             ORDER BY 
                 CASE p.estado 
-                    WHEN 'diseño' THEN 1
-                    WHEN 'aprobado' THEN 2
-                    WHEN 'producción' THEN 3
-                    WHEN 'embalaje' THEN 4
-                    WHEN 'despacho' THEN 5
-                    WHEN 'entregado' THEN 6
-                    WHEN 'cancelado' THEN 7
-                    ELSE 8
+                    WHEN 'proyecto_simple' THEN 1
+                    WHEN 'diseño' THEN 2
+                    WHEN 'aprobado' THEN 3
+                    WHEN 'producción' THEN 4
+                    WHEN 'embalaje' THEN 5
+                    WHEN 'despacho' THEN 6
+                    WHEN 'entregado' THEN 7
+                    WHEN 'cancelado' THEN 8
+                    ELSE 9
                 END,
                 p.fecha_entrega ASC
         ''', (cliente_info['id'],))
@@ -861,6 +879,7 @@ def proyectos():
                 'presupuesto': proyecto[7],
                 'diseñador_nombre': proyecto[8],
                 'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None,
+                'tiene_categorias': proyecto[10],
                 'categorias': []
             }
 
@@ -996,21 +1015,21 @@ def nuevo_proyecto():
         proyecto_numero = cursor.fetchone()[0] + 1
         codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
-        # Crear proyecto con los nuevos campos
+        # Crear proyecto con los nuevos campos (sin categorías, por lo tanto no aparecerá como orden de compra)
         cursor.execute('''
             INSERT INTO proyectos (
                 codigo, nombre, cliente_id, descripcion, estado_proyecto, estado,
                 fecha_estimada_inicio, diseñador_id, monto_neto_provision, 
                 monto_neto_instalacion, observaciones, fecha_inicio
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'en_desarrollo',
+        ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'proyecto_simple',
               fecha_estimada_inicio, diseñador_id, monto_neto_provision, 
               monto_neto_instalacion, observaciones, datetime.now().date()))
 
         proyecto_id = cursor.lastrowid
 
-        # Los proyectos no crean automáticamente órdenes de compra o tareas
-        # Las órdenes de compra y tareas se crean por separado según sea necesario
+        # Los proyectos creados aquí NO tienen categorías asignadas, por lo tanto no aparecerán 
+        # en "Órdenes de Compra". Solo se crean como proyectos simples sin flujo de producción automático.
 
         conn.commit()
         conn.close()
