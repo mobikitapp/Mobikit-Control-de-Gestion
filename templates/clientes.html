@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Clientes y Proyectos - Mobikit{% endblock %}
@@ -24,7 +23,7 @@
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center">
-                    <button class="btn btn-link p-0 me-3" type="button" data-bs-toggle="collapse" 
+                    <button class="btn btn-link p-0 me-3" type="button" data-bs-toggle="collapse"
                             data-bs-target="#cliente-{{ cliente.id }}" aria-expanded="false">
                         <i class="fas fa-chevron-right" id="chevron-{{ cliente.id }}"></i>
                     </button>
@@ -45,14 +44,14 @@
                 </div>
                 <div class="d-flex gap-2">
                     {% if session.user_role in ['admin', 'general', 'diseñador'] %}
-                    <button type="button" class="btn btn-sm btn-outline-success" 
+                    <button type="button" class="btn btn-sm btn-outline-success"
                             onclick="nuevoProyecto({{ cliente.id }}, '{{ cliente.nombre }}')" title="Nuevo proyecto">
                         <i class="fas fa-plus"></i>
                     </button>
                     {% endif %}
                     {% if session.user_role in ['admin', 'general'] %}
-                    <button type="button" class="btn btn-sm btn-outline-primary" 
-                            onclick="editarCliente({{ cliente.id }}, '{{ cliente.nombre }}', '{{ cliente.rut or '' }}', '{{ cliente.email or '' }}', '{{ cliente.telefono or '' }}', '{{ cliente.direccion or '' }}', '{{ cliente.ciudad or '' }}', '{{ cliente.region or '' }}', '{{ cliente.contacto_principal or '' }}', '{{ cliente.observaciones or '' }}')" 
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            onclick="editarCliente({{ cliente.id }}, '{{ cliente.nombre }}', '{{ cliente.rut or '' }}', '{{ cliente.email or '' }}', '{{ cliente.telefono or '' }}', '{{ cliente.direccion or '' }}', '{{ cliente.ciudad or '' }}', '{{ cliente.region or '' }}', '{{ cliente.contacto_principal or '' }}', '{{ cliente.observaciones or '' }}')"
                             title="Editar cliente">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -60,7 +59,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="collapse" id="cliente-{{ cliente.id }}">
             <div class="card-body">
                 {% if cliente.proyectos %}
@@ -132,15 +131,21 @@
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group">
-                                        <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}" 
+                                        <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}"
                                            class="btn btn-sm btn-outline-primary" title="Ver detalles">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         {% if session.user_role in ['admin', 'general', 'diseñador'] %}
                                         <button type="button" class="btn btn-sm btn-outline-secondary"
-                                                onclick="editarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}', '{{ proyecto.descripcion or '' }}', '{{ proyecto.prioridad }}', '{{ proyecto.fecha_entrega or '' }}', {{ proyecto.presupuesto or 'null' }})" 
+                                                onclick="editarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}', '{{ proyecto.descripcion or '' }}', '{{ proyecto.prioridad }}', '{{ proyecto.fecha_entrega or '' }}', {{ proyecto.presupuesto or 'null' }})"
                                                 title="Editar">
                                             <i class="fas fa-edit"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if session.user_role == 'admin' %}
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                onclick="eliminarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}')" title="Eliminar proyecto">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                         {% endif %}
                                     </div>
@@ -155,7 +160,7 @@
                     <i class="fas fa-project-diagram fa-2x text-muted mb-2"></i>
                     <p class="text-muted mb-2">No hay proyectos para este cliente</p>
                     {% if session.user_role in ['admin', 'general', 'diseñador'] %}
-                    <button type="button" class="btn btn-sm btn-primary" 
+                    <button type="button" class="btn btn-sm btn-primary"
                             onclick="nuevoProyecto({{ cliente.id }}, '{{ cliente.nombre }}')">
                         <i class="fas fa-plus"></i> Crear primer proyecto
                     </button>
@@ -349,18 +354,18 @@
                             {% endfor %}
                         </select>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="nuevo_nombre" class="form-label">Nombre del Proyecto *</label>
                         <input type="text" class="form-control" id="nuevo_nombre" name="nombre" required>
                         <small class="text-muted">El código del proyecto se generará automáticamente con formato Cliente-XXX</small>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="nuevo_descripcion" class="form-label">Descripción</label>
                         <textarea class="form-control" id="nuevo_descripcion" name="descripcion" rows="3"></textarea>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -380,7 +385,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -400,7 +405,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="nuevo_observaciones" class="form-label">Observaciones</label>
                         <textarea class="form-control" id="nuevo_observaciones" name="observaciones" rows="2"></textarea>
@@ -430,17 +435,17 @@
                         <label for="edit_proyecto_codigo" class="form-label">Código</label>
                         <input type="text" class="form-control" id="edit_proyecto_codigo" name="codigo" readonly>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="edit_proyecto_nombre" class="form-label">Nombre del Proyecto *</label>
                         <input type="text" class="form-control" id="edit_proyecto_nombre" name="nombre" required>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="edit_proyecto_descripcion" class="form-label">Descripción</label>
                         <textarea class="form-control" id="edit_proyecto_descripcion" name="descripcion" rows="3"></textarea>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -460,7 +465,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="edit_proyecto_presupuesto" class="form-label">Presupuesto</label>
                         <input type="number" class="form-control" id="edit_proyecto_presupuesto" name="presupuesto">
@@ -487,7 +492,7 @@ function editarCliente(id, nombre, rut, email, telefono, direccion, ciudad, regi
     document.getElementById('edit_region').value = region;
     document.getElementById('edit_contacto_principal').value = contacto;
     document.getElementById('edit_observaciones').value = observaciones;
-    
+
     new bootstrap.Modal(document.getElementById('editarClienteModal')).show();
 }
 
@@ -495,7 +500,7 @@ function nuevoProyecto(clienteId, clienteNombre) {
     // Pre-seleccionar el cliente
     const selectCliente = document.getElementById('nuevo_cliente_id');
     selectCliente.value = clienteId;
-    
+
     new bootstrap.Modal(document.getElementById('nuevoProyectoModal')).show();
 }
 
@@ -507,8 +512,38 @@ function editarProyecto(id, codigo, nombre, descripcion, prioridad, fechaEntrega
     document.getElementById('edit_proyecto_prioridad').value = prioridad;
     document.getElementById('edit_proyecto_fecha_entrega').value = fechaEntrega;
     document.getElementById('edit_proyecto_presupuesto').value = presupuesto;
-    
+
     new bootstrap.Modal(document.getElementById('editarProyectoModal')).show();
+}
+
+function eliminarProyecto(proyectoId, codigoProyecto, nombreProyecto) {
+    if (confirm(`¿Estás seguro de que deseas eliminar el proyecto ${codigoProyecto} - ${nombreProyecto}?\n\nEsta acción no se puede deshacer y eliminará todos los datos asociados al proyecto.`)) {
+        fetch(`/eliminar_proyecto/${proyectoId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error completo:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    }
 }
 
 // Manejar colapso/expansión de tarjetas
@@ -518,12 +553,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const target = this.getAttribute('data-bs-target');
             const chevron = this.querySelector('i');
             const collapse = document.querySelector(target);
-            
+
             collapse.addEventListener('show.bs.collapse', function() {
                 chevron.classList.remove('fa-chevron-right');
                 chevron.classList.add('fa-chevron-down');
             });
-            
+
             collapse.addEventListener('hide.bs.collapse', function() {
                 chevron.classList.remove('fa-chevron-down');
                 chevron.classList.add('fa-chevron-right');
