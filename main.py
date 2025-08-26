@@ -2297,43 +2297,67 @@ def avanzar_estado_proyecto(proyecto_id):
 
         estado_actual, nombre_proyecto, codigo_proyecto = proyecto
 
-        # Definir secuencia de estados
+        # Definir secuencia de estados con nombres descriptivos
         estados_secuencia = [
-            'en_desarrollo',
-            'aprobado_produccion', 
-            'seccionado',
-            'enchapado',
-            'mecanizado',
-            'produccion_completa',
-            'embalando',
-            'listo_despacho',
-            'entregado'
+            ('en_desarrollo', 'En Desarrollo'),
+            ('aprobado_produccion', 'Aprobado para Producción'), 
+            ('seccionado', 'Seccionado'),
+            ('enchapado', 'Enchapado'),
+            ('mecanizado', 'Mecanizado'),
+            ('produccion_completa', 'Producción P&P Lista'),
+            ('embalando', 'Embalando'),
+            ('listo_despacho', 'Listo para Despacho'),
+            ('entregado', 'Despachado')
         ]
 
-        try:
-            indice_actual = estados_secuencia.index(estado_actual)
-            if indice_actual < len(estados_secuencia) - 1:
-                nuevo_estado = estados_secuencia[indice_actual + 1]
+        # Buscar el estado actual en la secuencia
+        indice_actual = -1
+        for i, (estado, nombre) in enumerate(estados_secuencia):
+            if estado == estado_actual:
+                indice_actual = i
+                break
 
-                cursor.execute('UPDATE proyectos SET estado = ? WHERE id = ?', 
-                             (nuevo_estado, proyecto_id))
+        if indice_actual == -1:
+            return jsonify({'success': False, 'message': f'Estado actual "{estado_actual}" no válido'})
+
+        if indice_actual < len(estados_secuencia) - 1:
+            nuevo_estado, nuevo_nombre = estados_secuencia[indice_actual + 1]
+
+            cursor.execute('UPDATE proyectos SET estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+                         (nuevo_estado, proyecto_id))
+
+            if cursor.rowcount > 0:
+                # También actualizar pedidos de seguimiento relacionados si existen
+                cursor.execute('''
+                    UPDATE pedidos_seguimiento 
+                    SET estado = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE proyecto_id = ? AND estado != 'entregado'
+                ''', (nuevo_estado, proyecto_id))
 
                 # Registrar en auditoría
                 cursor.execute('''
                     INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
                     VALUES ('proyectos', ?, 'UPDATE', ?, ?)
                 ''', (proyecto_id, session['user_id'], 
-                      json.dumps({'accion': 'avanzar_estado', 'estado_anterior': estado_actual, 'estado_nuevo': nuevo_estado})))
+                      json.dumps({
+                          'accion': 'avanzar_estado', 
+                          'estado_anterior': estado_actual, 
+                          'estado_nuevo': nuevo_estado,
+                          'proyecto': codigo_proyecto
+                      })))
 
                 conn.commit()
-                return jsonify({'success': True, 'message': f'Proyecto avanzado a: {nuevo_estado.replace("_", " ").title()}'})
+                return jsonify({
+                    'success': True, 
+                    'message': f'Proyecto {codigo_proyecto} avanzado a: {nuevo_nombre}'
+                })
             else:
-                return jsonify({'success': False, 'message': 'El proyecto ya está en el estado final'})
-
-        except ValueError:
-            return jsonify({'success': False, 'message': 'Estado actual no válido'})
+                return jsonify({'success': False, 'message': 'No se pudo actualizar el proyecto'})
+        else:
+            return jsonify({'success': False, 'message': 'El proyecto ya está en el estado final'})
 
     except Exception as e:
+        conn.rollback()
         return jsonify({'success': False, 'message': f'Error al avanzar estado: {str(e)}'})
     finally:
         conn.close()

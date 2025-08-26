@@ -309,19 +309,26 @@ function avanzarEstado(proyectoId) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
+                alert(data.message);
                 location.reload();
             } else {
                 alert('Error: ' + data.message);
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Error de conexión');
+            console.error('Error completo:', error);
+            alert('Error de conexión: ' + error.message);
         });
     }
 }
