@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Tareas de Operación - Mobikit{% endblock %}
@@ -24,7 +23,6 @@
                         <th>Proyecto</th>
                         <th>Tarea</th>
                         <th>Estado</th>
-                        <th>Etapa Fabricación</th>
                         <th>Fecha Programada</th>
                         <th>Asignado</th>
                         <th>Acciones</th>
@@ -42,13 +40,6 @@
                             <span class="badge bg-{{ 'success' if tarea[4] == 'completada' else 'warning' if tarea[4] == 'en_progreso' else 'secondary' }}">
                                 {{ tarea[4]|title }}
                             </span>
-                        </td>
-                        <td>
-                            {% if tarea[8] %}
-                            <span class="badge bg-info">{{ tarea[8]|title|replace('_', ' ') }}</span>
-                            {% else %}
-                            <span class="text-muted">Sin etapa</span>
-                            {% endif %}
                         </td>
                         <td>{{ tarea[5] if tarea[5] else 'Sin fecha' }}</td>
                         <td>{{ tarea[7] if tarea[7] else 'Sin asignar' }}</td>
@@ -74,20 +65,7 @@
                 </tbody>
             </table>
         </div>
-        
-        <!-- Leyenda de Etapas -->
-        <div class="mt-4">
-            <h6>Etapas de Fabricación:</h6>
-            <div class="d-flex flex-wrap gap-2">
-                <span class="badge bg-info">Seccionado</span>
-                <i class="fas fa-arrow-right text-muted"></i>
-                <span class="badge bg-info">Enchapado</span>
-                <i class="fas fa-arrow-right text-muted"></i>
-                <span class="badge bg-info">Mecanizado</span>
-                <i class="fas fa-arrow-right text-muted"></i>
-                <span class="badge bg-info">Fabricación Completo</span>
-            </div>
-        </div>
+
         {% else %}
         <div class="text-center py-4">
             <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
