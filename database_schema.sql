@@ -118,9 +118,11 @@ CREATE TABLE IF NOT EXISTS ordenes_fabricacion (
     tipo_orden TEXT DEFAULT 'parcial' CHECK (tipo_orden IN ('parcial', 'total')),
     fecha_entrega_estimada DATE NOT NULL,
     cantidad_tableros INTEGER NOT NULL,
-    estado TEXT DEFAULT 'pendiente' CHECK (estado IN (
-        'pendiente', 'aprobado_produccion', 'seccionado', 'enchapado', 
-        'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado'
+    prioridad TEXT DEFAULT 'media' CHECK (prioridad IN ('baja', 'media', 'alta', 'urgente')),
+    estado TEXT DEFAULT 'pendiente_fabricacion' CHECK (estado IN (
+        'pendiente_fabricacion', 'aprobado_diseño', 'enviado_produccion', 
+        'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 
+        'embalando', 'listo_despacho', 'despachado'
     )),
     observaciones TEXT,
     fecha_inicio DATE,
@@ -153,9 +155,10 @@ CREATE TABLE IF NOT EXISTS pedidos_seguimiento (
     subcategoria_id INTEGER,
     codigo_pedido TEXT UNIQUE NOT NULL,
     nombre TEXT NOT NULL,
-    estado TEXT DEFAULT 'en_desarrollo' CHECK (estado IN (
-        'en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 
-        'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado'
+    estado TEXT DEFAULT 'pendiente_fabricacion' CHECK (estado IN (
+        'pendiente_fabricacion', 'aprobado_diseño', 'enviado_produccion',
+        'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje',
+        'embalando', 'listo_despacho', 'despachado'
     )),
     fecha_inicio DATE,
     fecha_entrega_estimada DATE,
