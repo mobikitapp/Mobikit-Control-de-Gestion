@@ -152,11 +152,19 @@
                                     </span>
                                 </td>
                                 <td>
-                                    {% if session.user_role in ['admin', 'general', 'operación'] %}
-                                    <button class="btn btn-sm btn-success" onclick="iniciarProduccion({{ fab[0] }})" title="Iniciar Producción">
-                                        <i class="fas fa-play"></i> Iniciar
-                                    </button>
-                                    {% endif %}
+                                    <div class="btn-group" role="group">
+                                        {% if session.user_role in ['admin', 'general', 'operación'] %}
+                                        <button class="btn btn-sm btn-success" onclick="iniciarProduccion({{ fab[0] }})" title="Iniciar Producción">
+                                            <i class="fas fa-play"></i> Iniciar
+                                        </button>
+                                        {% endif %}
+                                        
+                                        {% if session.user_role in ['admin', 'general'] %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarPedidoSeguimiento({{ fab[0] }}, '{{ fab[1] }}')" title="Eliminar Pedido">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -596,6 +604,28 @@ function retrocederEtapa(fabricacionId) {
 function eliminarOrdenFabricacion(ordenFabricacionId, codigoOrden) {
     if (confirm(`¿Estás seguro de eliminar la orden de fabricación ${codigoOrden}?\n\nEsta acción eliminará:\n- La orden de fabricación\n- Todos los pedidos de seguimiento asociados\n- Los recordatorios relacionados\n\nEsta acción NO se puede deshacer.`)) {
         fetch(`/eliminar_orden_fabricacion/${ordenFabricacionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function eliminarPedidoSeguimiento(pedidoId, codigoPedido) {
+    if (confirm(`¿Estás seguro de eliminar el pedido de seguimiento ${codigoPedido}?\n\nEsta acción eliminará:\n- El pedido de seguimiento\n- Los recordatorios relacionados\n\nEsta acción NO se puede deshacer.`)) {
+        fetch(`/eliminar_pedido_seguimiento/${pedidoId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
