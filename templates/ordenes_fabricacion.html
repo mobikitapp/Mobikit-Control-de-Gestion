@@ -57,35 +57,35 @@
                         <tbody>
                             {% for fab in fabricacion_pendientes %}
                             <tr>
-                                <td><strong>{{ fab.codigo_pedido }}</strong></td>
+                                <td><strong>{{ fab[1] }}</strong></td>
                                 <td>
-                                    <a href="{{ url_for('orden_compra_detalle', orden_id=fab.proyecto_id) }}" class="text-decoration-none">
-                                        {{ fab.proyecto_codigo }}
+                                    <a href="{{ url_for('orden_compra_detalle', orden_id=fab[5]) }}" class="text-decoration-none">
+                                        {{ fab[6] }}
                                     </a>
                                 </td>
-                                <td>{{ fab.cliente_nombre }}</td>
+                                <td>{{ fab[7] }}</td>
                                 <td>
-                                    {{ fab.nombre }}
-                                    <br><small class="text-muted">{{ fab.categoria_nombre }}{% if fab.subcategoria_nombre %} - {{ fab.subcategoria_nombre }}{% endif %}</small>
+                                    {{ fab[2] }}
+                                    <br><small class="text-muted">{{ fab[8] }}{% if fab[9] %} - {{ fab[9] }}{% endif %}</small>
                                 </td>
                                 <td>
-                                    {{ fab.fecha_entrega_estimada if fab.fecha_entrega_estimada else 'Sin fecha' }}
-                                    {% if fab.dias_restantes is not none %}
-                                        {% if fab.dias_restantes < 0 %}
+                                    {{ fab[4] if fab[4] else 'Sin fecha' }}
+                                    {% if fab[12] is not none %}
+                                        {% if fab[12] < 0 %}
                                         <br><small class="text-danger">Vencida</small>
-                                        {% elif fab.dias_restantes <= 7 %}
-                                        <br><small class="text-warning">{{ fab.dias_restantes }} días</small>
+                                        {% elif fab[12] <= 7 %}
+                                        <br><small class="text-warning">{{ fab[12] }} días</small>
                                         {% endif %}
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge bg-{% if fab.prioridad == 'alta' %}danger{% elif fab.prioridad == 'media' %}warning{% else %}info{% endif %}">
-                                        {{ fab.prioridad|title }}
+                                    <span class="badge bg-{% if fab[10] == 'alta' %}danger{% elif fab[10] == 'media' %}warning{% else %}info{% endif %}">
+                                        {{ fab[10]|title }}
                                     </span>
                                 </td>
                                 <td>
                                     {% if session.user_role in ['admin', 'general', 'operación'] %}
-                                    <button class="btn btn-sm btn-success" onclick="iniciarProduccion({{ fab.id }})" title="Iniciar Producción">
+                                    <button class="btn btn-sm btn-success" onclick="iniciarProduccion({{ fab[0] }})" title="Iniciar Producción">
                                         <i class="fas fa-play"></i> Iniciar
                                     </button>
                                     {% endif %}
@@ -119,18 +119,18 @@
                         <div class="card border-primary h-100">
                             <div class="card-header">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0">{{ fab.codigo_pedido }}</h6>
-                                    <span class="badge bg-{% if fab.estado == 'seccionado' %}warning{% elif fab.estado == 'enchapado' %}info{% elif fab.estado == 'mecanizado' %}primary{% elif fab.estado == 'produccion_completa' %}success{% endif %}">
-                                        {{ fab.estado|replace('_', ' ')|title }}
+                                    <h6 class="mb-0">{{ fab[1] }}</h6>
+                                    <span class="badge bg-{% if fab[3] == 'seccionado' %}warning{% elif fab[3] == 'enchapado' %}info{% elif fab[3] == 'mecanizado' %}primary{% elif fab[3] == 'produccion_completa' %}success{% endif %}">
+                                        {{ fab[3]|replace('_', ' ')|title }}
                                     </span>
                                 </div>
                                 <small class="text-muted">
-                                    OC: {{ fab.proyecto_codigo }} | {{ fab.cliente_nombre }}
+                                    OC: {{ fab[6] }} | {{ fab[7] }}
                                 </small>
                             </div>
                             <div class="card-body">
-                                <h6>{{ fab.nombre }}</h6>
-                                <p class="small text-muted mb-3">{{ fab.categoria_nombre }}{% if fab.subcategoria_nombre %} - {{ fab.subcategoria_nombre }}{% endif %}</p>
+                                <h6>{{ fab[2] }}</h6>
+                                <p class="small text-muted mb-3">{{ fab[8] }}{% if fab[9] %} - {{ fab[9] }}{% endif %}</p>
                                 
                                 <!-- Progreso detallado por etapas -->
                                 {% set etapas = [
@@ -146,11 +146,11 @@
                                     {% for etapa_id, etapa_nombre, color_clase in etapas %}
                                     <div class="d-flex justify-content-between align-items-center mb-1">
                                         <span class="small">{{ etapa_nombre }}</span>
-                                        {% if fab.estado == etapa_id %}
+                                        {% if fab[3] == etapa_id %}
                                         <span class="badge bg-{{ color_clase }}">
                                             <i class="fas fa-clock"></i> En Proceso
                                         </span>
-                                        {% elif etapas.index((etapa_id, etapa_nombre, color_clase)) < etapas.index((fab.estado, '', '')) %}
+                                        {% elif etapas.index((etapa_id, etapa_nombre, color_clase)) < etapas.index((fab[3], '', '')) %}
                                         <span class="badge bg-success">
                                             <i class="fas fa-check"></i> Completado
                                         </span>
@@ -165,7 +165,7 @@
 
                                 <!-- Barra de progreso general -->
                                 {% set estados_progreso = ['aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'] %}
-                                {% set indice_actual = estados_progreso.index(fab.estado) if fab.estado in estados_progreso else 0 %}
+                                {% set indice_actual = estados_progreso.index(fab[3]) if fab[3] in estados_progreso else 0 %}
                                 {% set porcentaje = ((indice_actual + 1) / estados_progreso|length * 100)|int %}
                                 
                                 <div class="progress mb-3" style="height: 20px;">
@@ -178,16 +178,16 @@
 
                                 <div class="d-flex justify-content-between align-items-center">
                                     <small class="text-muted">
-                                        Entrega: {{ fab.fecha_entrega_estimada if fab.fecha_entrega_estimada else 'Sin fecha' }}
+                                        Entrega: {{ fab[4] if fab[4] else 'Sin fecha' }}
                                     </small>
                                     <div class="btn-group">
-                                        {% if session.user_role in ['admin', 'general', 'operación'] and fab.estado != 'produccion_completa' %}
-                                        <button class="btn btn-sm btn-success" onclick="avanzarEtapa({{ fab.id }})" title="Avanzar Etapa">
+                                        {% if session.user_role in ['admin', 'general', 'operación'] and fab[3] != 'produccion_completa' %}
+                                        <button class="btn btn-sm btn-success" onclick="avanzarEtapa({{ fab[0] }})" title="Avanzar Etapa">
                                             <i class="fas fa-arrow-right"></i>
                                         </button>
                                         {% endif %}
                                         {% if session.user_role in ['admin', 'general'] %}
-                                        <button class="btn btn-sm btn-outline-warning" onclick="retrocederEtapa({{ fab.id }})" title="Retroceder Etapa">
+                                        <button class="btn btn-sm btn-outline-warning" onclick="retrocederEtapa({{ fab[0] }})" title="Retroceder Etapa">
                                             <i class="fas fa-arrow-left"></i>
                                         </button>
                                         {% endif %}
@@ -232,24 +232,22 @@
                         <tbody>
                             {% for fab in fabricacion_terminadas %}
                             <tr>
-                                <td><strong>{{ fab.codigo_pedido }}</strong></td>
+                                <td><strong>{{ fab[1] }}</strong></td>
                                 <td>
-                                    <a href="{{ url_for('orden_compra_detalle', orden_id=fab.proyecto_id) }}" class="text-decoration-none">
-                                        {{ fab.proyecto_codigo }}
+                                    <a href="{{ url_for('orden_compra_detalle', orden_id=fab[5]) }}" class="text-decoration-none">
+                                        {{ fab[6] }}
                                     </a>
                                 </td>
-                                <td>{{ fab.cliente_nombre }}</td>
+                                <td>{{ fab[7] }}</td>
                                 <td>
-                                    {{ fab.nombre }}
-                                    <br><small class="text-muted">{{ fab.categoria_nombre }}{% if fab.subcategoria_nombre %} - {{ fab.subcategoria_nombre }}{% endif %}</small>
+                                    {{ fab[2] }}
+                                    <br><small class="text-muted">{{ fab[8] }}{% if fab[9] %} - {{ fab[9] }}{% endif %}</small>
                                 </td>
-                                <td>{{ fab.fecha_entrega_estimada if fab.fecha_entrega_estimada else 'Sin fecha' }}</td>
-                                <td>{{ fab.fecha_entrega_real if fab.fecha_entrega_real else 'N/A' }}</td>
+                                <td>{{ fab[4] if fab[4] else 'Sin fecha' }}</td>
+                                <td>{{ fab[11] if fab[11] else 'N/A' }}</td>
                                 <td>
-                                    {% if fab.fecha_inicio and fab.fecha_entrega_real %}
-                                    {% set inicio = fab.fecha_inicio %}
-                                    {% set fin = fab.fecha_entrega_real %}
-                                    <span class="badge bg-info">{{ (fin - inicio).days }} días</span>
+                                    {% if fab[10] and fab[11] %}
+                                    <span class="badge bg-info">Completado</span>
                                     {% else %}
                                     <span class="text-muted">N/A</span>
                                     {% endif %}
