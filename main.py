@@ -1085,50 +1085,54 @@ def eliminar_proyecto(proyecto_id):
 
         codigo_proyecto, nombre_proyecto = proyecto
 
-        # Verificar si tiene órdenes de fabricación
-        cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE proyecto_id = ?', (proyecto_id,))
-        ordenes_fabricacion = cursor.fetchone()[0]
+        # Verificar si tiene despachos en estados avanzados (estos no se pueden eliminar)
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE proyecto_id = ? AND estado IN ("en_transito", "entregado")', (proyecto_id,))
+        despachos_criticos = cursor.fetchone()[0]
 
-        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE proyecto_id = ?', (proyecto_id,))
-        ordenes_fabricacion_custom = cursor.fetchone()[0]
-
-        # Verificar si tiene tareas
-        cursor.execute('SELECT COUNT(*) FROM tareas WHERE proyecto_id = ?', (proyecto_id,))
-        tareas_count = cursor.fetchone()[0]
-
-        # Verificar si tiene despachos
-        cursor.execute('SELECT COUNT(*) FROM despachos WHERE proyecto_id = ?', (proyecto_id,))
-        despachos_count = cursor.fetchone()[0]
-
-        total_dependencias = ordenes_fabricacion + ordenes_fabricacion_custom + tareas_count + despachos_count
-
-        if total_dependencias > 0:
-            dependencias_info = []
-            if ordenes_fabricacion > 0:
-                dependencias_info.append(f'{ordenes_fabricacion} pedido(s) de seguimiento')
-            if ordenes_fabricacion_custom > 0:
-                dependencias_info.append(f'{ordenes_fabricacion_custom} orden(es) de fabricación')
-            if tareas_count > 0:
-                dependencias_info.append(f'{tareas_count} tarea(s)')
-            if despachos_count > 0:
-                dependencias_info.append(f'{despachos_count} despacho(s)')
-
+        if despachos_criticos > 0:
             return jsonify({
                 'success': False, 
-                'message': f'No se puede eliminar el proyecto porque tiene dependencias activas: {", ".join(dependencias_info)}'
+                'message': f'No se puede eliminar el proyecto porque tiene {despachos_criticos} despacho(s) en estado crítico (en tránsito o entregado)'
             })
 
-        # Eliminar evidencias asociadas a tareas del proyecto (si existen)
+        # Eliminar todas las dependencias del proyecto en orden
+
+        # 1. Eliminar evidencias asociadas a tareas del proyecto
+        cursor.execute('DELETE FROM evidencias WHERE tarea_id IN (SELECT id FROM tareas WHERE proyecto_id = ?)', (proyecto_id,))
         cursor.execute('DELETE FROM evidencias WHERE proyecto_id = ?', (proyecto_id,))
 
-        # Eliminar documentos del proyecto
+        # 2. Eliminar tareas del proyecto
+        cursor.execute('DELETE FROM tareas WHERE proyecto_id = ?', (proyecto_id,))
+
+        # 3. Eliminar pedidos de seguimiento
+        cursor.execute('DELETE FROM pedidos_seguimiento WHERE proyecto_id = ?', (proyecto_id,))
+
+        # 4. Eliminar categorías de órdenes de fabricación
+        cursor.execute('''
+            DELETE FROM orden_fabricacion_categorias 
+            WHERE orden_fabricacion_id IN (SELECT id FROM ordenes_fabricacion WHERE proyecto_id = ?)
+        ''', (proyecto_id,))
+
+        # 5. Eliminar órdenes de fabricación
+        cursor.execute('DELETE FROM ordenes_fabricacion WHERE proyecto_id = ?', (proyecto_id,))
+
+        # 6. Eliminar entregas de contrato
+        cursor.execute('DELETE FROM entregas_contrato WHERE proyecto_id = ?', (proyecto_id,))
+
+        # 7. Eliminar despachos programados (no críticos)
+        cursor.execute('DELETE FROM despachos WHERE proyecto_id = ? AND estado NOT IN ("en_transito", "entregado")', (proyecto_id,))
+
+        # 8. Eliminar documentos del proyecto
         cursor.execute('DELETE FROM documentos_proyecto WHERE proyecto_id = ?', (proyecto_id,))
 
-        # Eliminar categorías del proyecto
+        # 9. Eliminar categorías del proyecto
         cursor.execute('DELETE FROM proyecto_categorias WHERE proyecto_id = ?', (proyecto_id,))
 
-        # Eliminar recordatorios del proyecto
+        # 10. Eliminar recordatorios del proyecto
         cursor.execute('DELETE FROM recordatorios WHERE tipo = "proyecto" AND referencia_id = ?', (proyecto_id,))
+
+        # 11. Eliminar incidencias del proyecto
+        cursor.execute('DELETE FROM incidencias WHERE proyecto_id = ?', (proyecto_id,))
 
         # Finalmente eliminar el proyecto
         cursor.execute('DELETE FROM proyectos WHERE id = ?', (proyecto_id,))
