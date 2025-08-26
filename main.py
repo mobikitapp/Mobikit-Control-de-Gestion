@@ -336,22 +336,97 @@ def dashboard():
 @app.route('/clientes')
 @login_required
 def clientes():
-    """Gestión de clientes"""
+    """Gestión de clientes y proyectos"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
+    # Obtener clientes con información de proyectos
     cursor.execute('''
-        SELECT c.*, COUNT(p.id) as total_proyectos
+        SELECT c.id, c.nombre, c.rut, c.email, c.telefono, c.direccion,
+               c.ciudad, c.region, c.contacto_principal, c.observaciones,
+               COUNT(p.id) as total_proyectos
         FROM clientes c
         LEFT JOIN proyectos p ON c.id = p.cliente_id
         WHERE c.activo = TRUE
-        GROUP BY c.id
+        GROUP BY c.id, c.nombre, c.rut, c.email, c.telefono, c.direccion,
+                 c.ciudad, c.region, c.contacto_principal, c.observaciones
         ORDER BY c.nombre ASC
     ''')
-    clientes_list = cursor.fetchall()
+    clientes_raw = cursor.fetchall()
+
+    clientes_con_proyectos = []
+    for cliente in clientes_raw:
+        cliente_info = {
+            'id': cliente[0],
+            'nombre': cliente[1],
+            'rut': cliente[2],
+            'email': cliente[3],
+            'telefono': cliente[4],
+            'direccion': cliente[5],
+            'ciudad': cliente[6],
+            'region': cliente[7],
+            'contacto_principal': cliente[8],
+            'observaciones': cliente[9],
+            'total_proyectos': cliente[10],
+            'proyectos': []
+        }
+
+        # Obtener proyectos del cliente
+        cursor.execute('''
+            SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, p.prioridad,
+                   p.fecha_entrega, p.presupuesto, u.nombre as diseñador_nombre,
+                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+            FROM proyectos p
+            LEFT JOIN usuarios u ON p.diseñador_id = u.id
+            WHERE p.cliente_id = ?
+            ORDER BY 
+                CASE p.estado 
+                    WHEN 'en_desarrollo' THEN 1
+                    WHEN 'aprobado_produccion' THEN 2
+                    WHEN 'seccionado' THEN 3
+                    WHEN 'enchapado' THEN 4
+                    WHEN 'mecanizado' THEN 5
+                    WHEN 'produccion_completa' THEN 6
+                    WHEN 'embalando' THEN 7
+                    WHEN 'listo_despacho' THEN 8
+                    WHEN 'entregado' THEN 9
+                    ELSE 10
+                END,
+                p.fecha_entrega ASC
+        ''', (cliente_info['id'],))
+
+        proyectos = cursor.fetchall()
+        for proyecto in proyectos:
+            proyecto_dict = {
+                'id': proyecto[0],
+                'codigo': proyecto[1],
+                'nombre': proyecto[2],
+                'descripcion': proyecto[3],
+                'estado': proyecto[4],
+                'prioridad': proyecto[5],
+                'fecha_entrega': proyecto[6],
+                'presupuesto': proyecto[7],
+                'diseñador_nombre': proyecto[8],
+                'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None
+            }
+            cliente_info['proyectos'].append(proyecto_dict)
+
+        clientes_con_proyectos.append(cliente_info)
+
+    # Obtener clientes disponibles para nuevo proyecto
+    cursor.execute('SELECT id, nombre FROM clientes WHERE activo = TRUE ORDER BY nombre ASC')
+    clientes_disponibles = cursor.fetchall()
+
+    # Obtener diseñadores disponibles
+    cursor.execute('SELECT id, nombre FROM usuarios WHERE rol = "diseñador" AND activo = TRUE ORDER BY nombre ASC')
+    diseñadores_disponibles = cursor.fetchall()
+
     conn.close()
 
-    return render_template('clientes.html', clientes=clientes_list)
+    return render_template('clientes.html', 
+                         clientes_con_proyectos=clientes_con_proyectos,
+                         clientes_disponibles=clientes_disponibles,
+                         diseñadores_disponibles=diseñadores_disponibles)
 
 
 @app.route('/nuevo_cliente', methods=['POST'])
@@ -890,7 +965,7 @@ def nuevo_proyecto():
         cursor.execute('SELECT id FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
         if not cursor.fetchone():
             flash('Cliente no válido', 'error')
-            return redirect(url_for('proyectos'))
+            return redirect(url_for('clientes'))
 
         # Generar código único del proyecto
         cursor.execute('SELECT COUNT(*) FROM proyectos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
@@ -903,7 +978,7 @@ def nuevo_proyecto():
                 codigo, nombre, cliente_id, descripcion, estado, prioridad,
                 fecha_inicio, fecha_entrega, diseñador_id, presupuesto, observaciones
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (codigo_proyecto, nombre, cliente_id, descripcion, 'diseño', prioridad,
+        ''', (codigo_proyecto, nombre, cliente_id, descripcion, 'en_desarrollo', prioridad,
               fecha_inicio, fecha_entrega, diseñador_id, presupuesto, observaciones))
 
         proyecto_id = cursor.lastrowid
@@ -936,11 +1011,55 @@ def nuevo_proyecto():
         conn.close()
 
         flash(f'Proyecto {codigo_proyecto} creado exitosamente', 'success')
-        return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+        return redirect(url_for('clientes'))
 
     except Exception as e:
         flash(f'Error al crear proyecto: {str(e)}', 'error')
-        return redirect(url_for('proyectos'))
+        return redirect(url_for('clientes'))
+
+
+@app.route('/editar_proyecto', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'diseñador'])
+def editar_proyecto():
+    """Editar proyecto existente"""
+    try:
+        proyecto_id = request.form['proyecto_id']
+        codigo = request.form['codigo']
+        nombre = request.form['nombre']
+        descripcion = request.form.get('descripcion', '').strip() or None
+        prioridad = request.form.get('prioridad', 'media')
+        fecha_entrega = request.form.get('fecha_entrega') or None
+        presupuesto = request.form.get('presupuesto')
+
+        # Convertir presupuesto a float si se proporciona
+        if presupuesto:
+            try:
+                presupuesto = float(presupuesto)
+            except ValueError:
+                presupuesto = None
+
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Actualizar proyecto
+        cursor.execute('''
+            UPDATE proyectos SET
+                nombre = ?, descripcion = ?, prioridad = ?,
+                fecha_entrega = ?, presupuesto = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (nombre, descripcion, prioridad, fecha_entrega, presupuesto, proyecto_id))
+
+        conn.commit()
+        conn.close()
+
+        flash('Proyecto actualizado exitosamente', 'success')
+
+    except Exception as e:
+        flash(f'Error al actualizar proyecto: {str(e)}', 'error')
+
+    return redirect(url_for('clientes'))
 
 
 @app.route('/tareas')
