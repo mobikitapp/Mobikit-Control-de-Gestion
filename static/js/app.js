@@ -1,4 +1,3 @@
-
 // Funcionalidades JavaScript para Mobikit
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -33,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function(e) {
             const requiredFields = form.querySelectorAll('[required]');
             let valid = true;
-            
+
             requiredFields.forEach(field => {
                 if (!field.value.trim()) {
                     field.classList.add('is-invalid');
@@ -42,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     field.classList.remove('is-invalid');
                 }
             });
-            
+
             if (!valid) {
                 e.preventDefault();
                 alert('Por favor completa todos los campos requeridos');
@@ -66,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
             input.addEventListener('input', function() {
                 const searchTerm = this.value.toLowerCase();
                 const rows = targetTable.querySelectorAll('tbody tr');
-                
+
                 rows.forEach(row => {
                     const text = row.textContent.toLowerCase();
                     row.style.display = text.includes(searchTerm) ? '' : 'none';
@@ -136,6 +135,86 @@ function makeRequest(url, method = 'GET', data = null) {
         return response.json();
     });
 }
+
+// Función global para mostrar/ocultar carga
+function toggleLoading(show, elementId = 'loadingIndicator') {
+    const loader = document.getElementById(elementId);
+    if (loader) {
+        loader.style.display = show ? 'block' : 'none';
+    }
+}
+
+// Funciones para gestión de pedidos
+function avanzarPedido(pedidoId) {
+    if (confirm('¿Está seguro de que desea avanzar este pedido al siguiente estado?')) {
+        fetch(`/api/avanzar_pedido/${pedidoId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('error', 'Error al procesar la solicitud');
+        });
+    }
+}
+
+function retrocederPedido(pedidoId) {
+    if (confirm('¿Está seguro de que desea retroceder este pedido al estado anterior?')) {
+        fetch(`/api/retroceder_pedido/${pedidoId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('error', 'Error al procesar la solicitud');
+        });
+    }
+}
+
+function showAlert(type, message) {
+    // Crear elemento de alerta
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    // Remover después de 5 segundos
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    }, 5000);
+}
+
 
 // Export functions for global use
 window.MobikitApp = {
