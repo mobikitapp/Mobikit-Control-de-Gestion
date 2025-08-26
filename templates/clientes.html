@@ -66,93 +66,88 @@
                 <div class="table-responsive">
                     <table class="table table-sm table-hover mb-0">
                         <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>Proyecto</th>
-                                <th>Estado</th>
-                                <th>Prioridad</th>
-                                <th>Fecha Entrega</th>
-                                <th>Monto Neto</th>
-                                <th>Diseñador</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for proyecto in cliente.proyectos %}
-                            <tr>
-                                <td><strong>{{ proyecto.codigo }}</strong></td>
-                                <td>
-                                    <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}" class="text-decoration-none fw-bold">
-                                        {{ proyecto.nombre }}
-                                    </a>
-                                    {% if proyecto.descripcion %}
-                                    <br><small class="text-muted">{{ proyecto.descripcion[:80] }}{% if proyecto.descripcion|length > 80 %}...{% endif %}</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge bg-{{ 'secondary' if proyecto.estado == 'en_desarrollo' else 'primary' if proyecto.estado == 'aprobado_produccion' else 'warning' if proyecto.estado in ['seccionado', 'enchapado', 'mecanizado'] else 'info' if proyecto.estado == 'produccion_completa' else 'success' if proyecto.estado == 'listo_despacho' else 'dark' }}">
-                                        {{ proyecto.estado.replace('_', ' ').title() }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-{{ 'danger' if proyecto.prioridad == 'urgente' else 'warning' if proyecto.prioridad == 'alta' else 'info' if proyecto.prioridad == 'media' else 'secondary' }}">
-                                        {{ proyecto.prioridad.title() }}
-                                    </span>
-                                </td>
-                                <td>
-                                    {% if proyecto.fecha_entrega %}
-                                        {{ proyecto.fecha_entrega }}
-                                        {% if proyecto.dias_restantes is not none %}
-                                            {% if proyecto.dias_restantes < 0 %}
-                                                <br><small class="text-danger">Vencido ({{ -proyecto.dias_restantes|int }} días)</small>
-                                            {% elif proyecto.dias_restantes <= 3 %}
-                                                <br><small class="text-warning">{{ proyecto.dias_restantes|int }} días restantes</small>
-                                            {% else %}
-                                                <br><small class="text-muted">{{ proyecto.dias_restantes|int }} días restantes</small>
-                                            {% endif %}
-                                        {% endif %}
-                                    {% else %}
-                                        <small class="text-muted">Sin fecha</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if proyecto.monto_neto %}
-                                        ${{ "{:,.2f}".format(proyecto.monto_neto) }}
-                                    {% else %}
-                                        <small class="text-muted">No definido</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if proyecto.diseñador_nombre %}
-                                        {{ proyecto.diseñador_nombre }}
-                                    {% else %}
-                                        <small class="text-muted">Sin asignar</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}"
-                                           class="btn btn-sm btn-outline-primary" title="Ver detalles">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        {% if session.user_role in ['admin', 'general', 'diseñador'] %}
-                                        <button type="button" class="btn btn-sm btn-outline-secondary"
-                                                onclick="editarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}', '{{ proyecto.descripcion or '' }}', '{{ proyecto.prioridad }}', '{{ proyecto.fecha_entrega or '' }}', {{ proyecto.monto_neto or 'null' }}, {{ proyecto.diseñador_id or 'null' }})"
-                                                title="Editar">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        {% endif %}
-                                        {% if session.user_role == 'admin' %}
-                                        <button type="button" class="btn btn-sm btn-outline-danger"
-                                                onclick="eliminarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}')" title="Eliminar proyecto">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
+                                        <tr>
+                                            <th>Código Proyecto</th>
+                                            <th>Nombre</th>
+                                            <th>Estado Proyecto</th>
+                                            <th>Fecha Est. Inicio</th>
+                                            <th>Monto Provisión</th>
+                                            <th>Monto Instalación</th>
+                                            <th>Diseñador</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for proyecto in cliente.proyectos %}
+                                        <tr>
+                                            <td><strong>{{ proyecto.codigo }}</strong></td>
+                                            <td>
+                                                <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}" class="text-decoration-none">
+                                                    {{ proyecto.nombre }}
+                                                </a>
+                                                {% if proyecto.descripcion %}
+                                                <br><small class="text-muted">{{ proyecto.descripcion[:80] }}{% if proyecto.descripcion|length > 80 %}...{% endif %}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{% if proyecto.estado_proyecto == 'pendiente_presupuesto' %}secondary{% elif proyecto.estado_proyecto == 'presupuestado' %}warning{% elif proyecto.estado_estado_proyecto == 'adjudicado' %}success{% endif %}">
+                                                    {% if proyecto.estado_proyecto == 'pendiente_presupuesto' %}Pendiente Presupuesto
+                                                    {% elif proyecto.estado_proyecto == 'presupuestado' %}Presupuestado
+                                                    {% elif proyecto.estado_proyecto == 'adjudicado' %}Adjudicado
+                                                    {% else %}{{ proyecto.estado_proyecto|replace('_', ' ')|title }}{% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if proyecto.fecha_estimada_inicio %}
+                                                    {% set fecha_obj = proyecto.fecha_estimada_inicio | strptime('%Y-%m-%d') %}
+                                                    {{ fecha_obj.strftime('%m/%Y') }}
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if proyecto.monto_neto_provision %}
+                                                    <strong>${{ "{:,.0f}".format(proyecto.monto_neto_provision) }}</strong>
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if proyecto.monto_neto_instalacion %}
+                                                    <strong>${{ "{:,.0f}".format(proyecto.monto_neto_instalacion) }}</strong>
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if proyecto.diseñador_nombre %}
+                                                    {{ proyecto.diseñador_nombre }}
+                                                {% else %}
+                                                    <span class="text-muted">Sin asignar</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    {% if session.user_role in ['admin', 'general'] %}
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                            onclick="editarProyecto({{ proyecto.id }})" title="Editar">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                    {% if session.user_role == 'admin' %}
+                                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                                            onclick="eliminarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}')" title="Eliminar proyecto">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
                     </table>
                 </div>
                 {% else %}
@@ -345,53 +340,83 @@
             </div>
             <form action="{{ url_for('nuevo_proyecto') }}" method="POST">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="nuevo_cliente_id" class="form-label">Cliente *</label>
-                        <select class="form-select" id="nuevo_cliente_id" name="cliente_id" required>
-                            <option value="">Seleccionar cliente...</option>
-                            {% for cliente in clientes_disponibles %}
-                            <option value="{{ cliente[0] }}">{{ cliente[1] }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="nuevo_nombre" class="form-label">Nombre del Proyecto *</label>
-                        <input type="text" class="form-control" id="nuevo_nombre" name="nombre" required>
-                        <small class="text-muted">El código del proyecto se generará automáticamente con formato Cliente-XXX</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="nuevo_descripcion" class="form-label">Descripción</label>
-                        <textarea class="form-control" id="nuevo_descripcion" name="descripcion" rows="3"></textarea>
-                    </div>
-
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="nuevo_fecha_inicio" class="form-label">Fecha de Inicio</label>
-                                <input type="date" class="form-control" id="nuevo_fecha_inicio" name="fecha_inicio" value="{{ fecha_hoy }}">
+                                <label for="cliente_id_proyecto" class="form-label">Cliente *</label>
+                                <select class="form-select" id="cliente_id_proyecto" name="cliente_id" required>
+                                    <option value="">Seleccionar cliente...</option>
+                                    {% for cliente in clientes_disponibles %}
+                                    <option value="{{ cliente[0] }}">{{ cliente[1] }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="nuevo_monto_neto" class="form-label">Monto Neto</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="nuevo_monto_neto" name="monto_neto" step="0.01" min="0" placeholder="0.00">
+                                <label for="nombre_proyecto" class="form-label">Nombre del Proyecto *</label>
+                                <input type="text" class="form-control" id="nombre_proyecto" name="nombre" required placeholder="Ej: Muebles Cocina Torre A">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="descripcion_proyecto" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion_proyecto" name="descripcion" rows="3" placeholder="Detalle del proyecto..."></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="estado_proyecto" class="form-label">Estado Proyecto *</label>
+                                <select class="form-select" id="estado_proyecto" name="estado_proyecto" required onchange="toggleMontoFields()">
+                                    <option value="pendiente_presupuesto">Pendiente Presupuesto</option>
+                                    <option value="presupuestado">Presupuestado</option>
+                                    <option value="adjudicado">Adjudicado</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="fecha_estimada_inicio" class="form-label">Fecha Estimada Inicio</label>
+                                <input type="date" class="form-control" id="fecha_estimada_inicio" name="fecha_estimada_inicio">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="diseñador_id_proyecto" class="form-label">Diseñador</label>
+                                <select class="form-select" id="diseñador_id_proyecto" name="diseñador_id">
+                                    <option value="">Sin asignar</option>
+                                    {% for diseñador in diseñadores_disponibles %}
+                                    <option value="{{ diseñador[0] }}">{{ diseñador[1] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campos de monto (se muestran solo si está presupuestado o adjudicado) -->
+                    <div id="montos_section" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="monto_neto_provision" class="form-label">Monto Neto de Provisión (CLP) *</label>
+                                    <input type="number" class="form-control" id="monto_neto_provision" name="monto_neto_provision" step="1000" min="0" placeholder="0">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="monto_neto_instalacion" class="form-label">Monto Neto de Instalación (CLP)</label>
+                                    <input type="number" class="form-control" id="monto_neto_instalacion" name="monto_neto_instalacion" step="1000" min="0" placeholder="0">
+                                    <small class="text-muted">Opcional</small>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="nuevo_diseñador_id" class="form-label">Diseñador</label>
-                        <select class="form-select" id="nuevo_diseñador_id" name="diseñador_id">
-                            <option value="">Asignar más tarde...</option>
-                            {% for diseñador in diseñadores_disponibles %}
-                            <option value="{{ diseñador[0] }}">{{ diseñador[1] }}</option>
-                            {% endfor %}
-                        </select>
+                        <label for="observaciones_proyecto" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones_proyecto" name="observaciones" rows="2" placeholder="Observaciones adicionales..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -481,24 +506,37 @@ function editarCliente(id, nombre, rut, email, telefono, direccion, ciudad, regi
 
 function nuevoProyecto(clienteId, clienteNombre) {
     // Pre-seleccionar el cliente
-    const selectCliente = document.getElementById('nuevo_cliente_id');
+    const selectCliente = document.getElementById('cliente_id_proyecto'); // Corrected ID
     selectCliente.value = clienteId;
 
     new bootstrap.Modal(document.getElementById('nuevoProyectoModal')).show();
 }
 
-function editarProyecto(id, codigo, nombre, descripcion, prioridad, fechaEntrega, montoNeto, diseñadorId) {
-    document.getElementById('edit_proyecto_id').value = id;
-    document.getElementById('edit_proyecto_codigo').value = codigo;
-    document.getElementById('edit_proyecto_nombre').value = nombre;
-    document.getElementById('edit_proyecto_descripcion').value = descripcion;
-    document.getElementById('edit_proyecto_prioridad').value = prioridad;
-    document.getElementById('edit_proyecto_fecha_entrega').value = fechaEntrega;
-    document.getElementById('edit_proyecto_monto_neto').value = montoNeto;
-    document.getElementById('edit_proyecto_diseñador_id').value = diseñadorId; // Asignar diseñadorId
+function editarProyecto(id) {
+    // Fetch project details to populate the modal
+    fetch(`/api/proyecto/${id}`) // Assuming an API endpoint to get project details
+        .then(response => response.json())
+        .then(proyecto => {
+            document.getElementById('edit_proyecto_id').value = proyecto.id;
+            document.getElementById('edit_proyecto_codigo').value = proyecto.codigo;
+            document.getElementById('edit_proyecto_nombre').value = proyecto.nombre;
+            document.getElementById('edit_proyecto_descripcion').value = proyecto.descripcion;
+            document.getElementById('edit_proyecto_prioridad').value = proyecto.prioridad;
+            document.getElementById('edit_proyecto_fecha_entrega').value = proyecto.fecha_entrega;
+            document.getElementById('edit_proyecto_monto_neto').value = proyecto.monto_neto;
+            // If there's a designer_id, set it
+            if (proyecto.diseñador_id) {
+                 document.getElementById('edit_proyecto_diseñador_id').value = proyecto.diseñador_id;
+            }
 
-    new bootstrap.Modal(document.getElementById('editarProyectoModal')).show();
+            new bootstrap.Modal(document.getElementById('editarProyectoModal')).show();
+        })
+        .catch(error => {
+            console.error('Error fetching project details:', error);
+            alert('No se pudieron cargar los detalles del proyecto.');
+        });
 }
+
 
 function eliminarProyecto(proyectoId, codigoProyecto, nombreProyecto) {
     if (confirm(`¿Estás seguro de que deseas eliminar el proyecto ${codigoProyecto} - ${nombreProyecto}?\n\nEsta acción no se puede deshacer y eliminará todos los datos asociados al proyecto.`)) {
@@ -549,6 +587,36 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+});
+
+function toggleMontoFields() {
+    const estadoProyecto = document.getElementById('estado_proyecto').value;
+    const montosSection = document.getElementById('montos_section');
+    const montoProvision = document.getElementById('monto_neto_provision');
+    const montoInstalacion = document.getElementById('monto_neto_instalacion');
+
+    if (estadoProyecto === 'presupuestado' || estadoProyecto === 'adjudicado') {
+        montosSection.style.display = 'block';
+        montoProvision.required = true;
+    } else {
+        montosSection.style.display = 'none';
+        montoProvision.required = false;
+        // Limpiar valores
+        montoProvision.value = '';
+        montoInstalacion.value = '';
+    }
+}
+
+// Inicializar la visibilidad de campos al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    toggleMontoFields();
+
+    // Establecer fecha mínima como hoy
+    const fechaInput = document.getElementById('fecha_estimada_inicio');
+    if (fechaInput) {
+        const today = new Date().toISOString().split('T')[0];
+        fechaInput.min = today;
+    }
 });
 </script>
 {% endblock %}

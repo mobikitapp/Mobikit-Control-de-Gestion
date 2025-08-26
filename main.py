@@ -372,25 +372,20 @@ def clientes():
         # Obtener proyectos del cliente
         cursor.execute('''
             SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, 
-                   p.adjudicacion_tipo, p.fecha_entrega, p.monto_neto, u.nombre as diseñador_nombre,
-                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes, p.prioridad, p.diseñador_id
+                   p.estado_proyecto, p.fecha_estimada_inicio, p.monto_neto_provision, 
+                   p.monto_neto_instalacion, u.nombre as diseñador_nombre,
+                   p.prioridad, p.diseñador_id, p.observaciones
             FROM proyectos p
             LEFT JOIN usuarios u ON p.diseñador_id = u.id
             WHERE p.cliente_id = ?
             ORDER BY 
-                CASE p.estado 
-                    WHEN 'en_desarrollo' THEN 1
-                    WHEN 'aprobado_produccion' THEN 2
-                    WHEN 'seccionado' THEN 3
-                    WHEN 'enchapado' THEN 4
-                    WHEN 'mecanizado' THEN 5
-                    WHEN 'produccion_completa' THEN 6
-                    WHEN 'embalando' THEN 7
-                    WHEN 'listo_despacho' THEN 8
-                    WHEN 'entregado' THEN 9
-                    ELSE 10
+                CASE p.estado_proyecto 
+                    WHEN 'pendiente_presupuesto' THEN 1
+                    WHEN 'presupuestado' THEN 2
+                    WHEN 'adjudicado' THEN 3
+                    ELSE 4
                 END,
-                p.fecha_entrega ASC
+                p.created_at DESC
         ''', (cliente_info['id'],))
 
         proyectos = cursor.fetchall()
@@ -401,13 +396,14 @@ def clientes():
                 'nombre': proyecto[2],
                 'descripcion': proyecto[3],
                 'estado': proyecto[4],
-                'adjudicacion_tipo': proyecto[5],
-                'fecha_entrega': proyecto[6],
-                'monto_neto': proyecto[7],
-                'diseñador_nombre': proyecto[8],
-                'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None,
+                'estado_proyecto': proyecto[5] or 'pendiente_presupuesto',
+                'fecha_estimada_inicio': proyecto[6],
+                'monto_neto_provision': proyecto[7],
+                'monto_neto_instalacion': proyecto[8],
+                'diseñador_nombre': proyecto[9],
                 'prioridad': proyecto[10] or 'media',
-                'diseñador_id': proyecto[11]
+                'diseñador_id': proyecto[11],
+                'observaciones': proyecto[12]
             }
             cliente_info['proyectos'].append(proyecto_dict)
 
@@ -949,23 +945,34 @@ def proyecto_detalle(proyecto_id):
 @login_required
 @role_required(['admin', 'general', 'diseñador'])
 def nuevo_proyecto():
-    """Crear nuevo proyecto con sistema de adjudicación por contrato u orden de compra"""
+    """Crear nuevo proyecto con nuevos campos de estado"""
     try:
         nombre = request.form['nombre']
         cliente_id = request.form['cliente_id']
         descripcion = request.form.get('descripcion', '').strip() or None
-        adjudicacion_tipo = request.form.get('adjudicacion_tipo', 'orden_compra')
-        fecha_inicio = request.form.get('fecha_inicio') or datetime.now().date()
+        estado_proyecto = request.form.get('estado_proyecto', 'pendiente_presupuesto')
+        fecha_estimada_inicio = request.form.get('fecha_estimada_inicio') or None
         diseñador_id = request.form.get('diseñador_id') or None
-        monto_neto = request.form.get('monto_neto')
         observaciones = request.form.get('observaciones', '').strip() or None
 
-        # Convertir monto_neto a float si se proporciona
-        if monto_neto:
-            try:
-                monto_neto = float(monto_neto)
-            except ValueError:
-                monto_neto = None
+        # Montos según el estado del proyecto
+        monto_neto_provision = None
+        monto_neto_instalacion = None
+
+        if estado_proyecto in ['presupuestado', 'adjudicado']:
+            monto_provision = request.form.get('monto_neto_provision')
+            if monto_provision:
+                try:
+                    monto_neto_provision = float(monto_provision)
+                except ValueError:
+                    pass
+
+            monto_instalacion = request.form.get('monto_neto_instalacion')
+            if monto_instalacion:
+                try:
+                    monto_neto_instalacion = float(monto_instalacion)
+                except ValueError:
+                    pass
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
@@ -989,57 +996,38 @@ def nuevo_proyecto():
         proyecto_numero = cursor.fetchone()[0] + 1
         codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
-        # Para orden de compra, obtener la fecha de entrega estimada
-        fecha_entrega = None
-        if adjudicacion_tipo == 'orden_compra':
-            fecha_entrega = request.form.get('fecha_entrega') or None
-
-        # Crear proyecto
+        # Crear proyecto con los nuevos campos
         cursor.execute('''
             INSERT INTO proyectos (
-                codigo, nombre, cliente_id, descripcion, adjudicacion_tipo, estado,
-                fecha_inicio, fecha_entrega, diseñador_id, monto_neto, observaciones
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (codigo_proyecto, nombre, cliente_id, descripcion, adjudicacion_tipo, 'en_desarrollo',
-              fecha_inicio, fecha_entrega, diseñador_id, monto_neto, observaciones))
+                codigo, nombre, cliente_id, descripcion, estado_proyecto, estado,
+                fecha_estimada_inicio, diseñador_id, monto_neto_provision, 
+                monto_neto_instalacion, observaciones, fecha_inicio
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'en_desarrollo',
+              fecha_estimada_inicio, diseñador_id, monto_neto_provision, 
+              monto_neto_instalacion, observaciones, datetime.now().date()))
 
         proyecto_id = cursor.lastrowid
 
-        # Si es contrato, procesar las entregas
-        if adjudicacion_tipo == 'contrato':
-            detalles_entrega = request.form.getlist('detalle_entrega[]')
-            fechas_entrega = request.form.getlist('fecha_entrega[]')
-            
-            for i, detalle in enumerate(detalles_entrega):
-                if detalle.strip() and i < len(fechas_entrega) and fechas_entrega[i]:
-                    cursor.execute('''
-                        INSERT INTO entregas_contrato (proyecto_id, detalle, fecha_entrega)
-                        VALUES (?, ?, ?)
-                    ''', (proyecto_id, detalle.strip(), fechas_entrega[i]))
+        # Solo crear tareas automáticas si el proyecto está adjudicado
+        if estado_proyecto == 'adjudicado':
+            tareas_ciclo = [
+                ('Diseño inicial', 'Crear diseño y planos del mueble', 'diseñador', 'diseño', 1),
+                ('Revisión de diseño', 'Revisar y aprobar diseño', 'general', 'diseño', 3),
+                ('Planificación de producción', 'Planificar proceso de fabricación', 'operación', 'fabricación', 5),
+            ]
 
-        # Crear tareas automáticas del ciclo de vida
-        tareas_ciclo = [
-            ('Diseño inicial', 'Crear diseño y planos del mueble', 'diseñador', 'diseño', 1),
-            ('Revisión de diseño', 'Revisar y aprobar diseño', 'general', 'diseño', 3),
-            ('Planificación de producción', 'Planificar proceso de fabricación', 'operación', 'fabricación', 5),
-            ('Fabricación', 'Fabricar el mueble según especificaciones', 'operación', 'fabricación', 15),
-            ('Control de calidad', 'Revisar calidad del producto terminado', 'operación', 'control_calidad', 18),
-            ('Embalaje', 'Embalar producto para despacho', 'embalaje', 'embalaje', 20),
-            ('Preparación de despacho', 'Preparar documentos y coordinar entrega', 'despacho', 'despacho', 22),
-            ('Entrega', 'Entregar producto al cliente', 'despacho', 'despacho', 24)
-        ]
+            fecha_base = datetime.strptime(str(fecha_estimada_inicio), '%Y-%m-%d').date() if fecha_estimada_inicio else datetime.now().date()
 
-        fecha_base = datetime.strptime(str(fecha_inicio), '%Y-%m-%d').date() if isinstance(fecha_inicio, str) else fecha_inicio
-
-        for titulo, descripcion_tarea, rol, tipo, dias in tareas_ciclo:
-            fecha_programada = fecha_base + timedelta(days=dias)
-            cursor.execute('''
-                INSERT INTO tareas (
-                    proyecto_id, titulo, descripcion, rol_asignado, tipo, 
-                    fecha_programada, estado
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (proyecto_id, titulo, descripcion_tarea, rol, tipo, 
-                  fecha_programada, 'pendiente'))
+            for titulo, descripcion_tarea, rol, tipo, dias in tareas_ciclo:
+                fecha_programada = fecha_base + timedelta(days=dias)
+                cursor.execute('''
+                    INSERT INTO tareas (
+                        proyecto_id, titulo, descripcion, rol_asignado, tipo, 
+                        fecha_programada, estado
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (proyecto_id, titulo, descripcion_tarea, rol, tipo, 
+                      fecha_programada, 'pendiente'))
 
         conn.commit()
         conn.close()
