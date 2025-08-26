@@ -438,10 +438,13 @@ function terminarOrden(ordenId) {
 }
 
 function eliminarOrdenCompra(ordenId) {
-    if (confirm('¿Estás seguro de que deseas eliminar esta orden de compra? Esta acción no se puede deshacer.')) {
+    if (confirm('¿Estás seguro de que deseas eliminar esta orden de compra?\n\nEsta acción eliminará:\n- El proyecto y todas sus tareas\n- Las órdenes de fabricación asociadas\n- Los pedidos de seguimiento\n- Todos los datos relacionados\n\nEsta acción NO se puede deshacer.')) {
         fetch(`/eliminar_proyecto/${ordenId}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         })
         .then(response => response.json())
         .then(data => {
