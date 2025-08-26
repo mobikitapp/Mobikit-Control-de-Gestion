@@ -1,25 +1,30 @@
 
-<!-- Modal Nueva Orden de Compra -->
+<!-- Modal Nueva Orden de Compra/Contrato -->
 <div class="modal fade" id="nuevaOrdenModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Nueva Orden de Compra</h5>
+                <h5 class="modal-title">Nueva Orden de Compra/Contrato</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('nueva_orden_compra') }}" method="POST">
                 <div class="modal-body">
+                    <!-- Tipo de Adjudicación -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="numero_oc" class="form-label">Número de OC *</label>
-                                <input type="text" class="form-control" id="numero_oc" name="numero_oc" required>
+                                <label for="tipo_adjudicacion" class="form-label">Tipo *</label>
+                                <select class="form-select" id="tipo_adjudicacion" name="tipo_adjudicacion" required onchange="toggleTipoAdjudicacion()">
+                                    <option value="">Seleccionar tipo...</option>
+                                    <option value="orden_compra">Orden de Compra</option>
+                                    <option value="contrato">Contrato</option>
+                                </select>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="fecha_entrega" class="form-label">Fecha de Entrega *</label>
-                                <input type="date" class="form-control" id="fecha_entrega" name="fecha_entrega" required>
+                                <label for="numero_oc" class="form-label">Número *</label>
+                                <input type="text" class="form-control" id="numero_oc" name="numero_oc" required placeholder="Ej: OC-2024-001 o CONT-2024-001">
                             </div>
                         </div>
                     </div>
@@ -58,6 +63,69 @@
                         <textarea class="form-control" id="descripcion" name="descripcion" rows="3"></textarea>
                     </div>
 
+                    <!-- Campos específicos para Orden de Compra -->
+                    <div id="orden_compra_fields" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fecha_entrega_oc" class="form-label">Fecha de Entrega Estimada *</label>
+                                    <input type="date" class="form-control" id="fecha_entrega_oc" name="fecha_entrega_oc">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="monto_neto_provision" class="form-label">Monto Neto Provisión ($)</label>
+                                    <input type="number" class="form-control" id="monto_neto_provision" name="monto_neto_provision" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campos específicos para Contrato -->
+                    <div id="contrato_fields" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fecha_inicio_contrato" class="form-label">Fecha de Inicio</label>
+                                    <input type="date" class="form-control" id="fecha_inicio_contrato" name="fecha_inicio_contrato">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="monto_total_contrato" class="form-label">Monto Total Contrato ($)</label>
+                                    <input type="number" class="form-control" id="monto_total_contrato" name="monto_total_contrato" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Entregas Programadas para Contrato -->
+                        <div class="mb-3">
+                            <label class="form-label">Entregas Programadas *</label>
+                            <div id="entregas-container">
+                                <div class="entrega-item mb-3 p-3 border rounded">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Detalle de Entrega</label>
+                                            <input type="text" class="form-control entrega-detalle" name="entrega_detalles[]" placeholder="Ej: Piso 1, Oficinas" required>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label">Fecha de Entrega</label>
+                                            <input type="date" class="form-control entrega-fecha" name="entrega_fechas[]" required>
+                                        </div>
+                                        <div class="col-md-1 d-flex align-items-end">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarEntrega(this)" style="display: none;">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarEntrega()">
+                                <i class="fas fa-plus"></i> Agregar Otra Entrega
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -68,12 +136,6 @@
                                     <option value="alta">Alta</option>
                                     <option value="urgente">Urgente</option>
                                 </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="monto" class="form-label">Monto ($)</label>
-                                <input type="number" class="form-control" id="monto" name="monto" step="0.01">
                             </div>
                         </div>
                     </div>
@@ -116,7 +178,9 @@
                 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" onclick="prepararEnvio()">Crear Orden de Compra</button>
+                    <button type="submit" class="btn btn-primary" onclick="prepararEnvio()">
+                        <span id="submit-text">Crear</span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -132,6 +196,87 @@ document.getElementById('nuevaOrdenModal').addEventListener('shown.bs.modal', fu
     cargarCategorias();
     cargarClientesDisponibles();
 });
+
+function toggleTipoAdjudicacion() {
+    const tipo = document.getElementById('tipo_adjudicacion').value;
+    const ordenCompraFields = document.getElementById('orden_compra_fields');
+    const contratoFields = document.getElementById('contrato_fields');
+    const submitText = document.getElementById('submit-text');
+    
+    if (tipo === 'orden_compra') {
+        ordenCompraFields.style.display = 'block';
+        contratoFields.style.display = 'none';
+        submitText.textContent = 'Crear Orden de Compra';
+        
+        // Hacer campos de OC requeridos
+        document.getElementById('fecha_entrega_oc').required = true;
+        
+        // Remover requerido de campos de contrato
+        document.querySelectorAll('.entrega-detalle, .entrega-fecha').forEach(el => el.required = false);
+    } else if (tipo === 'contrato') {
+        ordenCompraFields.style.display = 'none';
+        contratoFields.style.display = 'block';
+        submitText.textContent = 'Crear Contrato';
+        
+        // Remover requerido de campos de OC
+        document.getElementById('fecha_entrega_oc').required = false;
+        
+        // Hacer campos de contrato requeridos
+        document.querySelectorAll('.entrega-detalle, .entrega-fecha').forEach(el => el.required = true);
+    } else {
+        ordenCompraFields.style.display = 'none';
+        contratoFields.style.display = 'none';
+        submitText.textContent = 'Crear';
+        
+        // Remover todos los requeridos
+        document.getElementById('fecha_entrega_oc').required = false;
+        document.querySelectorAll('.entrega-detalle, .entrega-fecha').forEach(el => el.required = false);
+    }
+}
+
+function agregarEntrega() {
+    const container = document.getElementById('entregas-container');
+    const nuevaEntrega = document.createElement('div');
+    nuevaEntrega.className = 'entrega-item mb-3 p-3 border rounded';
+    nuevaEntrega.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <label class="form-label">Detalle de Entrega</label>
+                <input type="text" class="form-control entrega-detalle" name="entrega_detalles[]" placeholder="Ej: Piso 2, Área común" required>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Fecha de Entrega</label>
+                <input type="date" class="form-control entrega-fecha" name="entrega_fechas[]" required>
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarEntrega(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(nuevaEntrega);
+    actualizarBotonesEliminarEntregas();
+}
+
+function eliminarEntrega(boton) {
+    const entregaItem = boton.closest('.entrega-item');
+    entregaItem.remove();
+    actualizarBotonesEliminarEntregas();
+}
+
+function actualizarBotonesEliminarEntregas() {
+    const items = document.querySelectorAll('.entrega-item');
+    items.forEach((item, index) => {
+        const boton = item.querySelector('.btn-outline-danger');
+        if (items.length > 1) {
+            boton.style.display = 'block';
+        } else {
+            boton.style.display = 'none';
+        }
+    });
+}
 
 function cargarCategorias() {
     fetch('/api/categorias')

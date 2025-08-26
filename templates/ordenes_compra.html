@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Órdenes de Compra - Mobikit{% endblock %}
@@ -9,7 +8,7 @@
     <div>
         {% if session.user_role in ['admin', 'general', 'diseñador'] %}
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaOrdenModal">
-            <i class="fas fa-plus"></i> Nueva Orden de Compra
+            <i class="fas fa-plus"></i> Nueva Orden de Compra/Contrato
         </button>
         {% endif %}
         <a href="{{ url_for('clientes') }}" class="btn btn-outline-secondary">
@@ -176,20 +175,20 @@
                                             </span>
                                         </div>
                                         <p class="small mb-2">{{ fab.nombre }}</p>
-                                        
+
                                         <!-- Barra de progreso detallada -->
                                         {% set estados_progreso = ['en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'] %}
                                         {% set nombres_estados = ['Desarrollo', 'Aprobado', 'Seccionado', 'Enchapado', 'Mecanizado', 'Terminado'] %}
                                         {% set indice_actual = estados_progreso.index(fab.estado) if fab.estado in estados_progreso else 0 %}
                                         {% set porcentaje = ((indice_actual + 1) / estados_progreso|length * 100)|int %}
-                                        
+
                                         <div class="progress mb-2" style="height: 20px;">
                                             <div class="progress-bar" role="progressbar" style="width: {{ porcentaje }}%" 
                                                  aria-valuenow="{{ porcentaje }}" aria-valuemin="0" aria-valuemax="100">
                                                 {{ porcentaje }}%
                                             </div>
                                         </div>
-                                        
+
                                         <div class="d-flex justify-content-between small text-muted">
                                             <span>{{ nombres_estados[indice_actual] }}</span>
                                             <span>{{ fab.fecha_entrega_estimada if fab.fecha_entrega_estimada else 'Sin fecha' }}</span>
@@ -349,11 +348,11 @@ function crearOrdenFabricacion(ordenId) {
     // Buscar la información de la orden
     const ordenes = {{ ordenes_pendientes|tojson }};
     const orden = ordenes.find(o => o.id === ordenId);
-    
+
     if (orden) {
         document.getElementById('proyecto_id_fab').value = ordenId;
         document.getElementById('oc-info').textContent = `${orden.codigo} - ${orden.nombre} (${orden.cliente_nombre})`;
-        
+
         // Cargar categorías de la orden
         fetch(`/api/categorias_proyecto/${ordenId}`)
             .then(response => response.json())
