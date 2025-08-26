@@ -258,9 +258,21 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye"></i> Ver
-                                    </a>
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> Ver
+                                        </a>
+                                        {% if session.user_role in ['admin', 'general'] %}
+                                        <button class="btn btn-sm btn-warning" onclick="archivarOrden({{ orden.id }})" title="Archivar orden">
+                                            <i class="fas fa-archive"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if session.user_role in ['admin'] %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrdenCompra({{ orden.id }})" title="Eliminar orden">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -419,6 +431,31 @@ function terminarOrden(ordenId) {
         fetch(`/api/terminar_orden/${ordenId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function archivarOrden(ordenId) {
+    if (confirm('¿Confirmas archivar esta orden terminada?\n\nLa orden archivada solo será visible en la sección de Clientes y Proyectos con estado terminado.')) {
+        fetch(`/archivar_proyecto/${ordenId}`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         })
         .then(response => response.json())
         .then(data => {
