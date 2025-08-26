@@ -261,15 +261,15 @@ def dashboard():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
-    # Órdenes Pendientes (estado 'diseño' o 'en_desarrollo')
+    # Proyectos en desarrollo (no son órdenes de compra automáticamente)
     cursor.execute('''
-        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
-               p.descripcion, p.prioridad,
-               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_estimada_inicio, 
+               p.descripcion, p.estado_proyecto,
+               julianday(p.fecha_estimada_inicio) - julianday('now') as dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.estado IN ('diseño', 'en_desarrollo')
-        ORDER BY p.fecha_entrega ASC, p.prioridad DESC
+        WHERE p.estado_proyecto IN ('presupuestado', 'adjudicado')
+        ORDER BY p.fecha_estimada_inicio ASC, p.estado_proyecto DESC
     ''')
     ordenes_pendientes = cursor.fetchall()
 
@@ -1009,25 +1009,8 @@ def nuevo_proyecto():
 
         proyecto_id = cursor.lastrowid
 
-        # Solo crear tareas automáticas si el proyecto está adjudicado
-        if estado_proyecto == 'adjudicado':
-            tareas_ciclo = [
-                ('Diseño inicial', 'Crear diseño y planos del mueble', 'diseñador', 'diseño', 1),
-                ('Revisión de diseño', 'Revisar y aprobar diseño', 'general', 'diseño', 3),
-                ('Planificación de producción', 'Planificar proceso de fabricación', 'operación', 'fabricación', 5),
-            ]
-
-            fecha_base = datetime.strptime(str(fecha_estimada_inicio), '%Y-%m-%d').date() if fecha_estimada_inicio else datetime.now().date()
-
-            for titulo, descripcion_tarea, rol, tipo, dias in tareas_ciclo:
-                fecha_programada = fecha_base + timedelta(days=dias)
-                cursor.execute('''
-                    INSERT INTO tareas (
-                        proyecto_id, titulo, descripcion, rol_asignado, tipo, 
-                        fecha_programada, estado
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (proyecto_id, titulo, descripcion_tarea, rol, tipo, 
-                      fecha_programada, 'pendiente'))
+        # Los proyectos no crean automáticamente órdenes de compra o tareas
+        # Las órdenes de compra y tareas se crean por separado según sea necesario
 
         conn.commit()
         conn.close()
@@ -2783,7 +2766,7 @@ def retroceder_tarea(tarea_id):
 @login_required
 @role_required(['admin', 'general', 'diseñador'])
 def nueva_orden_compra():
-    """Crear nueva orden de compra con múltiples categorías y pedidos de seguimiento"""
+    """Crear nueva orden de compra real (separada de proyectos) con múltiples categorías y pedidos de seguimiento"""
     try:
         numero_oc = request.form['numero_oc']
         proyecto_existente_id = request.form.get('proyecto_existente_id')
