@@ -74,6 +74,13 @@ def init_db():
         # Fallback: crear solo las tablas básicas si no existe el archivo de schema
         create_basic_tables(cursor)
 
+    # Agregar columna archivado si no existe
+    try:
+        cursor.execute('ALTER TABLE proyectos ADD COLUMN archivado BOOLEAN DEFAULT FALSE')
+    except sqlite3.OperationalError:
+        # La columna ya existe
+        pass
+
     # Crear usuario admin por defecto si no existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = "admin"')
     if cursor.fetchone()[0] == 0:
@@ -407,7 +414,8 @@ def clientes():
                 'diseñador_nombre': proyecto[9],
                 'prioridad': proyecto[10] or 'media',
                 'diseñador_id': proyecto[11],
-                'observaciones': proyecto[12]
+                'observaciones': proyecto[12],
+                'archivado': proyecto[13] if len(proyecto) > 13 else False
             }
             cliente_info['proyectos'].append(proyecto_dict)
 
@@ -562,7 +570,7 @@ def ordenes_compra():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
-    # Órdenes de compra pendientes (proyectos con categorías asignadas)
+    # Órdenes de compra pendientes (proyectos con categorías asignadas, no archivados)
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
                p.descripcion, p.estado, p.prioridad,
@@ -570,14 +578,14 @@ def ordenes_compra():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('en_desarrollo')
+        WHERE p.estado IN ('en_desarrollo') AND (p.archivado IS NULL OR p.archivado = FALSE)
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
                  p.descripcion, p.estado, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_pendientes_raw = cursor.fetchall()
 
-    # Órdenes en Proceso - Solo proyectos que tienen categorías asignadas
+    # Órdenes en Proceso - Solo proyectos que tienen categorías asignadas, no archivados
     cursor.execute('''
         SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
                p.descripcion, p.prioridad,
@@ -587,19 +595,21 @@ def ordenes_compra():
         INNER JOIN pedidos_seguimiento ps ON p.id = ps.proyecto_id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE ps.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
+        AND (p.archivado IS NULL OR p.archivado = FALSE)
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
                  p.descripcion, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_proceso_raw = cursor.fetchall()
 
-    # Órdenes Terminadas - Solo proyectos que tienen categorías asignadas
+    # Órdenes Terminadas - Solo proyectos que tienen categorías asignadas, no archivados
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
                p.descripcion, p.prioridad, p.fecha_entrega_real
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
+        WHERE p.estado IN ('entregado', 'completado') AND (p.archivado IS NULL OR p.archivado = FALSE)
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
                  p.descripcion, p.prioridad, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
@@ -1148,13 +1158,32 @@ def eliminar_proyecto(proyecto_id):
         cursor = conn.cursor()
 
         # Verificar que el proyecto existe y obtener información
-        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = ?', (proyecto_id,))
+        cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = ?', (proyecto_id,))
         proyecto = cursor.fetchone()
 
         if not proyecto:
             return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
 
-        codigo_proyecto, nombre_proyecto = proyecto
+        codigo_proyecto, nombre_proyecto, estado_proyecto = proyecto
+
+        # Si el proyecto está terminado, solo archivar en lugar de eliminar
+        if estado_proyecto in ['entregado', 'completado']:
+            cursor.execute('UPDATE proyectos SET archivado = TRUE WHERE id = ?', (proyecto_id,))
+            
+            # Registrar en auditoría
+            cursor.execute('''
+                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+                VALUES ('proyectos', ?, 'ARCHIVE', ?, ?)
+            ''', (proyecto_id, session['user_id'], 
+                  json.dumps({
+                      'accion': 'archivar_proyecto',
+                      'codigo': codigo_proyecto,
+                      'nombre': nombre_proyecto,
+                      'archivado_por': session['user_name']
+                  })))
+
+            conn.commit()
+            return jsonify({'success': True, 'message': f'Proyecto {codigo_proyecto} archivado exitosamente'})
 
         # Verificar si tiene despachos en estados avanzados (estos no se pueden eliminar)
         cursor.execute('SELECT COUNT(*) FROM despachos WHERE proyecto_id = ? AND estado IN ("en_transito", "entregado")', (proyecto_id,))
@@ -1228,6 +1257,93 @@ def eliminar_proyecto(proyecto_id):
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al eliminar proyecto: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/archivar_proyecto/<int:proyecto_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def archivar_proyecto(proyecto_id):
+    """Archivar proyecto terminado"""
+    try:
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Verificar que el proyecto existe y está terminado
+        cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = ?', (proyecto_id,))
+        proyecto = cursor.fetchone()
+
+        if not proyecto:
+            return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
+
+        codigo_proyecto, nombre_proyecto, estado_proyecto = proyecto
+
+        if estado_proyecto not in ['entregado', 'completado']:
+            return jsonify({'success': False, 'message': 'Solo se pueden archivar proyectos terminados'})
+
+        # Archivar el proyecto
+        cursor.execute('UPDATE proyectos SET archivado = TRUE WHERE id = ?', (proyecto_id,))
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('proyectos', ?, 'ARCHIVE', ?, ?)
+        ''', (proyecto_id, session['user_id'], 
+              json.dumps({
+                  'accion': 'archivar_proyecto',
+                  'codigo': codigo_proyecto,
+                  'nombre': nombre_proyecto,
+                  'archivado_por': session['user_name']
+              })))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Proyecto {codigo_proyecto} archivado exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al archivar proyecto: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/desarchivar_proyecto/<int:proyecto_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def desarchivar_proyecto(proyecto_id):
+    """Desarchivar proyecto"""
+    try:
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Verificar que el proyecto existe
+        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = ?', (proyecto_id,))
+        proyecto = cursor.fetchone()
+
+        if not proyecto:
+            return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
+
+        codigo_proyecto, nombre_proyecto = proyecto
+
+        # Desarchivar el proyecto
+        cursor.execute('UPDATE proyectos SET archivado = FALSE WHERE id = ?', (proyecto_id,))
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('proyectos', ?, 'UNARCHIVE', ?, ?)
+        ''', (proyecto_id, session['user_id'], 
+              json.dumps({
+                  'accion': 'desarchivar_proyecto',
+                  'codigo': codigo_proyecto,
+                  'nombre': nombre_proyecto,
+                  'desarchivado_por': session['user_name']
+              })))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Proyecto {codigo_proyecto} desarchivado exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al desarchivar proyecto: {str(e)}'})
     finally:
         conn.close()
 
@@ -2653,7 +2769,7 @@ def api_categorias_proyecto(proyecto_id):
         LEFT JOIN subcategorias_producto subcat ON pc.subcategoria_id = subcat.id
         WHERE pc.proyecto_id = ?
         ORDER BY cat.nombre, subcat.nombre
-    ''')
+    ''', (proyecto_id,))
 
     categorias = []
     for row in cursor.fetchall():
