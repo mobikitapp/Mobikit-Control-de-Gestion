@@ -1242,16 +1242,14 @@ def gestion_pedidos():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
-    # Obtener órdenes de compra en diferentes estados - solo proyectos con categorías asignadas
+    # Obtener órdenes de compra en diferentes estados
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
                p.descripcion, p.estado, p.prioridad,
                julianday(p.fecha_entrega) - julianday('now') as dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado NOT IN ('entregado', 'cancelado') AND (p.archivado IS NULL OR p.archivado = FALSE)
-        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, p.descripcion, p.estado, p.prioridad
+        WHERE p.estado NOT IN ('entregado', 'cancelado')
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     pedidos = cursor.fetchall()
@@ -1997,111 +1995,6 @@ def marcar_despacho_entregado(despacho_id):
     cursor = conn.cursor()
 
     try:
-
-
-
-@app.route('/api/avanzar_pedido/<int:pedido_id>', methods=['POST'])
-@login_required
-@role_required(['admin', 'general', 'operación', 'embalaje', 'despacho'])
-def api_avanzar_pedido(pedido_id):
-    """Avanzar un pedido al siguiente estado"""
-    conn = sqlite3.connect('mobikit.db')
-    cursor = conn.cursor()
-
-    try:
-        # Obtener estado actual del proyecto
-        cursor.execute('SELECT estado, codigo FROM proyectos WHERE id = ?', (pedido_id,))
-        proyecto = cursor.fetchone()
-
-        if not proyecto:
-            return jsonify({'success': False, 'message': 'Pedido no encontrado'})
-
-        estado_actual, codigo = proyecto
-
-        # Definir secuencia de estados
-        estados_secuencia = [
-            'en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 
-            'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado'
-        ]
-
-        try:
-            indice_actual = estados_secuencia.index(estado_actual)
-            if indice_actual < len(estados_secuencia) - 1:
-                nuevo_estado = estados_secuencia[indice_actual + 1]
-
-                # Si es la entrega final, marcar fecha real
-                if nuevo_estado == 'entregado':
-                    cursor.execute('''
-                        UPDATE proyectos 
-                        SET estado = ?, fecha_entrega_real = CURRENT_TIMESTAMP 
-                        WHERE id = ?
-                    ''', (nuevo_estado, pedido_id))
-                else:
-                    cursor.execute('UPDATE proyectos SET estado = ? WHERE id = ?', 
-                                 (nuevo_estado, pedido_id))
-
-                conn.commit()
-                return jsonify({'success': True, 'message': f'Pedido {codigo} avanzado a: {nuevo_estado.replace("_", " ").title()}'})
-            else:
-                return jsonify({'success': False, 'message': 'El pedido ya está en estado final'})
-
-        except ValueError:
-            return jsonify({'success': False, 'message': 'Estado actual no válido'})
-
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
-    finally:
-        conn.close()
-
-
-@app.route('/api/retroceder_pedido/<int:pedido_id>', methods=['POST'])
-@login_required
-@role_required(['admin', 'general'])
-def api_retroceder_pedido(pedido_id):
-    """Retroceder un pedido al estado anterior"""
-    conn = sqlite3.connect('mobikit.db')
-    cursor = conn.cursor()
-
-    try:
-        # Obtener estado actual del proyecto
-        cursor.execute('SELECT estado, codigo FROM proyectos WHERE id = ?', (pedido_id,))
-        proyecto = cursor.fetchone()
-
-        if not proyecto:
-            return jsonify({'success': False, 'message': 'Pedido no encontrado'})
-
-        estado_actual, codigo = proyecto
-
-        # Definir secuencia de estados
-        estados_secuencia = [
-            'en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 
-            'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado'
-        ]
-
-        try:
-            indice_actual = estados_secuencia.index(estado_actual)
-            if indice_actual > 0:
-                nuevo_estado = estados_secuencia[indice_actual - 1]
-                cursor.execute('''
-                    UPDATE proyectos 
-                    SET estado = ?, fecha_entrega_real = NULL 
-                    WHERE id = ?
-                ''', (nuevo_estado, pedido_id))
-
-                conn.commit()
-                return jsonify({'success': True, 'message': f'Pedido {codigo} retrocedido a: {nuevo_estado.replace("_", " ").title()}'})
-            else:
-                return jsonify({'success': False, 'message': 'No se puede retroceder más'})
-
-        except ValueError:
-            return jsonify({'success': False, 'message': 'Estado actual no válido'})
-
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
-    finally:
-        conn.close()
-
-
         cursor.execute('''
             UPDATE despachos SET estado = 'entregado', fecha_entrega = CURRENT_TIMESTAMP
             WHERE id = ? AND estado = 'en_transito'
@@ -2344,17 +2237,13 @@ def api_terminar_orden(orden_id):
     try:
         # Verificar que todas las órdenes de fabricación están terminadas
         cursor.execute('''
-            SELECT name FROM sqlite_master WHERE type='table' AND name='ordenes_fabricacion'
-        ''')
-        if cursor.fetchone():
-            cursor.execute('''
-                SELECT COUNT(*) FROM ordenes_fabricacion 
-                WHERE proyecto_id = ? AND estado NOT IN ('listo_despacho', 'entregado')
-            ''', (orden_id,))
-            pendientes = cursor.fetchone()[0]
+            SELECT COUNT(*) FROM pedidos_seguimiento 
+            WHERE proyecto_id = ? AND estado != 'produccion_completa'
+        ''', (orden_id,))
+        pendientes = cursor.fetchone()[0]
 
-            if pendientes > 0:
-                return jsonify({'success': False, 'message': 'Hay órdenes de fabricación pendientes de terminar'})
+        if pendientes > 0:
+            return jsonify({'success': False, 'message': 'Hay órdenes de fabricación pendientes de terminar'})
 
         # Marcar orden como terminada
         cursor.execute('''
@@ -2363,16 +2252,12 @@ def api_terminar_orden(orden_id):
             WHERE id = ?
         ''', (orden_id,))
 
-        # Marcar todas las órdenes de fabricación como entregadas si existen
+        # Marcar todas las órdenes de fabricación como entregadas
         cursor.execute('''
-            SELECT name FROM sqlite_master WHERE type='table' AND name='ordenes_fabricacion'
-        ''')
-        if cursor.fetchone():
-            cursor.execute('''
-                UPDATE ordenes_fabricacion 
-                SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP 
-                WHERE proyecto_id = ?
-            ''', (orden_id,))
+            UPDATE pedidos_seguimiento 
+            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP 
+            WHERE proyecto_id = ?
+        ''', (orden_id,))
 
         conn.commit()
         return jsonify({'success': True, 'message': 'Orden marcada como terminada'})
