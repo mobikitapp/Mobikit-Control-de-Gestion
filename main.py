@@ -644,10 +644,17 @@ def ordenes_compra():
     # Procesar órdenes pendientes
     ordenes_pendientes = []
     for orden in ordenes_pendientes_raw:
+        dias_restantes = None
+        if orden[7] is not None:
+            try:
+                dias_restantes = int(float(orden[7]))
+            except (ValueError, TypeError):
+                dias_restantes = None
+                
         orden_dict = {
             'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
             'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6], 
-            'dias_restantes': orden[7],
+            'dias_restantes': dias_restantes,
             'categorias': obtener_categorias_orden(orden[0])
         }
         ordenes_pendientes.append(orden_dict)
@@ -655,10 +662,17 @@ def ordenes_compra():
     # Procesar órdenes en proceso
     ordenes_proceso = []
     for orden in ordenes_proceso_raw:
+        dias_restantes = None
+        if orden[7] is not None:
+            try:
+                dias_restantes = int(float(orden[7]))
+            except (ValueError, TypeError):
+                dias_restantes = None
+                
         orden_dict = {
             'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
             'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6], 
-            'dias_restantes': orden[7],
+            'dias_restantes': dias_restantes,
             'categorias': obtener_categorias_orden(orden[0]),
             'ordenes_fabricacion': obtener_ordenes_fabricacion(orden[0])
         }
