@@ -383,16 +383,11 @@ def clientes():
             LEFT JOIN usuarios u ON p.diseñador_id = u.id
             WHERE p.cliente_id = ?
             ORDER BY 
-                CASE p.estado 
-                    WHEN 'proyecto_simple' THEN 1
-                    WHEN 'diseño' THEN 2
-                    WHEN 'aprobado' THEN 3
-                    WHEN 'producción' THEN 4
-                    WHEN 'embalaje' THEN 5
-                    WHEN 'despacho' THEN 6
-                    WHEN 'entregado' THEN 7
-                    WHEN 'cancelado' THEN 8
-                    ELSE 9
+                CASE p.estado_proyecto 
+                    WHEN 'pendiente_presupuesto' THEN 1
+                    WHEN 'presupuestado' THEN 2
+                    WHEN 'adjudicado' THEN 3
+                    ELSE 4
                 END,
                 p.created_at DESC
         ''', (cliente_info['id'],))
@@ -783,7 +778,7 @@ def proyectos():
         # Obtener proyectos del cliente (incluyendo proyectos simples y órdenes de compra)
         cursor.execute('''
             SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, p.prioridad,
-                   p.fecha_entrega, p.monto_neto, u.nombre as diseñador_nombre,
+                   p.fecha_entrega, p.presupuesto, u.nombre as diseñador_nombre,
                    julianday(p.fecha_entrega) - julianday('now') as dias_restantes,
                    CASE WHEN pc.proyecto_id IS NOT NULL THEN 1 ELSE 0 END as tiene_categorias
             FROM proyectos p
@@ -791,21 +786,18 @@ def proyectos():
             LEFT JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
             WHERE p.cliente_id = ?
             GROUP BY p.id, p.codigo, p.nombre, p.descripcion, p.estado, p.prioridad,
-                     p.fecha_entrega, p.monto_neto, u.nombre
+                     p.fecha_entrega, p.presupuesto, u.nombre
             ORDER BY 
                 CASE p.estado 
                     WHEN 'proyecto_simple' THEN 1
                     WHEN 'diseño' THEN 2
-                    WHEN 'aprobado_produccion' THEN 3
-                    WHEN 'seccionado' THEN 4
-                    WHEN 'enchapado' THEN 5
-                    WHEN 'mecanizado' THEN 6
-                    WHEN 'produccion_completa' THEN 7
-                    WHEN 'embalando' THEN 8
-                    WHEN 'listo_despacho' THEN 9
-                    WHEN 'entregado' THEN 10
-                    WHEN 'cancelado' THEN 11
-                    ELSE 12
+                    WHEN 'aprobado' THEN 3
+                    WHEN 'producción' THEN 4
+                    WHEN 'embalaje' THEN 5
+                    WHEN 'despacho' THEN 6
+                    WHEN 'entregado' THEN 7
+                    WHEN 'cancelado' THEN 8
+                    ELSE 9
                 END,
                 p.fecha_entrega ASC
         ''', (cliente_info['id'],))
@@ -823,7 +815,7 @@ def proyectos():
                 'estado': proyecto[4],
                 'prioridad': proyecto[5],
                 'fecha_entrega': proyecto[6],
-                'monto_neto': proyecto[7],
+                'presupuesto': proyecto[7],
                 'diseñador_nombre': proyecto[8],
                 'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None,
                 'tiene_categorias': proyecto[10],
@@ -916,12 +908,10 @@ def nuevo_proyecto():
         nombre = request.form['nombre']
         cliente_id = request.form['cliente_id']
         descripcion = request.form.get('descripcion', '').strip() or None
-        estado_proyecto = request.form.get('estado_proyecto', 'pendiente_presupuesto') # Default to 'pendiente_presupuesto'
+        estado_proyecto = request.form.get('estado_proyecto', 'pendiente_presupuesto')
         fecha_estimada_inicio = request.form.get('fecha_estimada_inicio') or None
         diseñador_id = request.form.get('diseñador_id') or None
         observaciones = request.form.get('observaciones', '').strip() or None
-        tipo_adjudicacion = request.form.get('tipo_adjudicacion', 'orden_compra') # Default to 'orden_compra'
-        prioridad = request.form.get('prioridad', 'media') # Default priority
 
         # Montos según el estado del proyecto
         monto_neto_provision = None
@@ -933,17 +923,14 @@ def nuevo_proyecto():
                 try:
                     monto_neto_provision = float(monto_provision)
                 except ValueError:
-                    pass # Handle error if needed
+                    pass
 
             monto_instalacion = request.form.get('monto_neto_instalacion')
             if monto_instalacion:
                 try:
                     monto_neto_instalacion = float(monto_instalacion)
                 except ValueError:
-                    pass # Handle error if needed
-        
-        # Usar fecha de inicio si está disponible, si no, la fecha actual
-        fecha_inicio_proyecto = fecha_estimada_inicio if fecha_estimada_inicio else datetime.now().date()
+                    pass
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
@@ -967,16 +954,16 @@ def nuevo_proyecto():
         proyecto_numero = cursor.fetchone()[0] + 1
         codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
-        # Crear proyecto con los nuevos campos
+        # Crear proyecto con los nuevos campos (sin categorías, por lo tanto no aparecerá como orden de compra)
         cursor.execute('''
             INSERT INTO proyectos (
                 codigo, nombre, cliente_id, descripcion, estado_proyecto, estado,
                 fecha_estimada_inicio, diseñador_id, monto_neto_provision, 
-                monto_neto_instalacion, observaciones, fecha_inicio, adjudicacion_tipo, prioridad
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                monto_neto_instalacion, observaciones, fecha_inicio
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'proyecto_simple',
               fecha_estimada_inicio, diseñador_id, monto_neto_provision, 
-              monto_neto_instalacion, observaciones, fecha_inicio_proyecto, tipo_adjudicacion, prioridad))
+              monto_neto_instalacion, observaciones, datetime.now().date()))
 
         proyecto_id = cursor.lastrowid
 
@@ -1005,17 +992,15 @@ def editar_proyecto():
         nombre = request.form['nombre']
         descripcion = request.form.get('descripcion', '').strip() or None
         prioridad = request.form.get('prioridad', 'media')
-        fecha_entrega = request.form.get('fecha_entrega')
-        estado_proyecto = request.form.get('estado_proyecto') # Keep the actual state
+        fecha_entrega = request.form.get('fecha_entrega') or None
+        presupuesto = request.form.get('presupuesto')
 
-        # Convertir monto a float si se proporciona
-        presupuesto_str = request.form.get('monto_neto')
-        presupuesto = None
-        if presupuesto_str:
+        # Convertir presupuesto a float si se proporciona
+        if presupuesto:
             try:
-                presupuesto = float(presupuesto_str)
+                presupuesto = float(presupuesto)
             except ValueError:
-                pass # Handle error if needed
+                presupuesto = None
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
@@ -1024,10 +1009,10 @@ def editar_proyecto():
         cursor.execute('''
             UPDATE proyectos SET
                 nombre = ?, descripcion = ?, prioridad = ?,
-                fecha_entrega = ?, monto_neto = ?, estado_proyecto = ?,
+                fecha_entrega = ?, presupuesto = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        ''', (nombre, descripcion, prioridad, fecha_entrega, presupuesto, estado_proyecto, proyecto_id))
+        ''', (nombre, descripcion, prioridad, fecha_entrega, presupuesto, proyecto_id))
 
         conn.commit()
         conn.close()
@@ -1072,7 +1057,7 @@ def eliminar_proyecto(proyecto_id):
 
         # 1. Eliminar evidencias asociadas a tareas del proyecto
         cursor.execute('DELETE FROM evidencias WHERE tarea_id IN (SELECT id FROM tareas WHERE proyecto_id = ?)', (proyecto_id,))
-        cursor.execute('DELETE FROM evidencias WHERE proyecto_id = ?', (proyecto_id,)) # Redundante, pero seguro
+        cursor.execute('DELETE FROM evidencias WHERE proyecto_id = ?', (proyecto_id,))
 
         # 2. Eliminar tareas del proyecto
         cursor.execute('DELETE FROM tareas WHERE proyecto_id = ?', (proyecto_id,))
@@ -1191,7 +1176,6 @@ def completar_tarea(tarea_id):
         flash('Tarea no encontrada', 'error')
         return redirect(url_for('tareas'))
 
-    # Permiso para completar tarea: rol asignado, usuario asignado o admin
     if (tarea[0] != session['user_role'] and tarea[1] != session['user_id']
             and session['user_role'] != 'admin'):
         flash('No tienes permisos para completar esta tarea', 'error')
@@ -1408,9 +1392,9 @@ def programar_despacho_con_orden():
     try:
         cliente_id = request.form.get('cliente_id')
         proyecto_id = request.form.get('proyecto_id')
-        proyecto_nombre_form = request.form.get('proyecto_nombre', '').strip()
+        proyecto_nombre = request.form.get('proyecto_nombre', '').strip()
         descripcion = request.form.get('descripcion', '').strip()
-        presupuesto_str = request.form.get('presupuesto', '').strip()
+        presupuesto = request.form.get('presupuesto', '').strip()
         fecha_despacho = request.form.get('fecha_despacho')
         prioridad = request.form.get('prioridad', 'media')
         direccion_entrega = request.form.get('direccion_entrega', '').strip()
@@ -1418,7 +1402,7 @@ def programar_despacho_con_orden():
         observaciones = request.form.get('observaciones', '').strip()
 
         # Validar campos obligatorios
-        if not cliente_id or not fecha_despacho or not direccion_entrega:
+        if not all([cliente_id, fecha_despacho, direccion_entrega]):
             flash('Cliente, fecha de despacho y dirección son obligatorios', 'error')
             return redirect(request.referrer or url_for('despachos'))
 
@@ -1434,41 +1418,40 @@ def programar_despacho_con_orden():
 
         cliente_nombre = cliente[0]
 
-        # Convertir presupuesto a número si se proporciona
-        presupuesto_num = None
-        if presupuesto_str:
-            try:
-                presupuesto_num = float(presupuesto_str)
-            except ValueError:
-                flash('Monto de presupuesto inválido', 'error')
-                return redirect(request.referrer or url_for('despachos'))
-
         # Si no se seleccionó proyecto existente, crear uno nuevo
         if not proyecto_id:
-            if not proyecto_nombre_form:
+            if not proyecto_nombre:
                 flash('Debe especificar un nombre para el nuevo proyecto', 'error')
                 return redirect(request.referrer or url_for('despachos'))
 
             # Obtener nombre del cliente para generar código
             cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (cliente_id,))
             cliente_info = cursor.fetchone()
-            cliente_nombre_actual = cliente_info[0] if cliente_info else 'CLIENTE'
+            cliente_nombre = cliente_info[0] if cliente_info else 'CLIENTE'
 
             # Limpiar nombre del cliente para código (solo letras y números, máximo 8 caracteres)
-            cliente_codigo = ''.join(c.upper() for c in cliente_nombre_actual if c.isalnum())[:8]
+            cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
 
             # Generar número secuencial para este cliente
             cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
             proyecto_numero = cursor.fetchone()[0] + 1
             codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
+            # Convertir presupuesto si se proporciona
+            presupuesto_num = None
+            if presupuesto:
+                try:
+                    presupuesto_num = float(presupuesto)
+                except ValueError:
+                    pass
+
             # Crear proyecto
             cursor.execute('''
                 INSERT INTO proyectos (
                     codigo, nombre, cliente_id, descripcion, estado, prioridad,
-                    fecha_inicio, fecha_entrega, monto_neto
+                    fecha_inicio, fecha_entrega, presupuesto
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (codigo_proyecto, proyecto_nombre_form, cliente_id, descripcion, 'pendiente_fabricacion', prioridad,
+            ''', (codigo_proyecto, proyecto_nombre, cliente_id, descripcion, 'pendiente_fabricacion', prioridad,
                   datetime.now().date(), fecha_despacho, presupuesto_num))
 
             proyecto_id = cursor.lastrowid
@@ -1476,36 +1459,42 @@ def programar_despacho_con_orden():
             # Crear tareas automáticas del ciclo de vida de producción
             fecha_inicio = datetime.now().date()
             fecha_despacho_dt = datetime.strptime(fecha_despacho, '%Y-%m-%d').date()
-            dias_disponibles = (fecha_despacho_dt - fecha_inicio).days if fecha_despacho_dt > fecha_inicio else 0
+            dias_disponibles = (fecha_despacho_dt - fecha_inicio).days
 
             # Distribuir las tareas proporcionalmente en el tiempo disponible
             tareas_produccion = [
                 ('Diseño y planificación', 'Crear diseño y planificar producción', 'diseñador', 'diseño', 0.15),
                 ('Aprobación de diseño', 'Revisar y aprobar diseño para producción', 'general', 'diseño', 0.25),
-                ('Seccionado', 'Corte y seccionado de materiales', 'operación', 'seccionado', 0.35),
-                ('Enchapado', 'Proceso de enchapado de piezas', 'operación', 'enchapado', 0.55),
-                ('Mecanizado', 'Mecanizado y acabado de piezas', 'operación', 'mecanizado', 0.75),
-                ('Fabricación completa', 'Ensamble y fabricación final', 'operación', 'produccion_completa', 0.85),
+                ('Seccionado', 'Corte y seccionado de materiales', 'operación', 'fabricación', 0.35),
+                ('Enchapado', 'Proceso de enchapado de piezas', 'operación', 'fabricación', 0.55),
+                ('Mecanizado', 'Mecanizado y acabado de piezas', 'operación', 'fabricación', 0.75),
+                ('Fabricación completa', 'Ensamble y fabricación final', 'operación', 'fabricación', 0.85),
                 ('Control de calidad', 'Inspección y control de calidad', 'operación', 'control_calidad', 0.90),
                 ('Embalaje', 'Embalaje para despacho', 'embalaje', 'embalaje', 0.95),
                 ('Preparación despacho', 'Preparar documentación y coordinar despacho', 'despacho', 'despacho', 1.0)
             ]
 
-            for titulo, desc_tarea, rol, etapa_fab, factor_tiempo in tareas_produccion:
-                # Asegurar que la fecha programada no sea anterior a la fecha de inicio del proyecto
-                dias_desde_inicio = max(0, int(dias_disponibles * factor_tiempo))
+            for titulo, descripcion_tarea, rol, tipo, factor_tiempo in tareas_produccion:
+                dias_desde_inicio = int(dias_disponibles * factor_tiempo)
                 fecha_programada = fecha_inicio + timedelta(days=dias_desde_inicio)
 
-                # Si la fecha programada excede la fecha de entrega, ajustar a la fecha de entrega
-                if fecha_programada > fecha_despacho_dt:
-                    fecha_programada = fecha_despacho_dt
+                etapa_fab = None
+                if rol == 'operación' and tipo == 'fabricación':
+                    if 'Seccionado' in titulo:
+                        etapa_fab = 'seccionado'
+                    elif 'Enchapado' in titulo:
+                        etapa_fab = 'enchapado'
+                    elif 'Mecanizado' in titulo:
+                        etapa_fab = 'mecanizado'
+                    elif 'Fabricación completa' in titulo:
+                        etapa_fab = 'fabricacion_completo'
 
                 cursor.execute('''
                     INSERT INTO tareas (
                         proyecto_id, titulo, descripcion, rol_asignado, tipo, 
                         fecha_programada, estado, prioridad, etapa_fabricacion
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (proyecto_id, titulo, desc_tarea, rol, etapa_fab, 
+                ''', (proyecto_id, titulo, descripcion_tarea, rol, tipo, 
                       fecha_programada, 'pendiente', prioridad, etapa_fab))
 
         else:
@@ -1519,13 +1508,13 @@ def programar_despacho_con_orden():
                 flash('Proyecto no válido para el cliente seleccionado', 'error')
                 return redirect(request.referrer or url_for('despachos'))
 
-            proyecto_nombre_actual = proyecto_info[0]
+            proyecto_nombre = proyecto_info[0]
             codigo_proyecto = proyecto_info[1]
 
             # Actualizar estado del proyecto a pendiente_fabricacion si no lo está
             cursor.execute('''
                 UPDATE proyectos SET estado = 'pendiente_fabricacion', 
-                fecha_entrega = ?, prioridad = ?, updated_at = CURRENT_TIMESTAMP
+                fecha_entrega = ?, prioridad = ?
                 WHERE id = ?
             ''', (fecha_despacho, prioridad, proyecto_id))
 
@@ -1534,7 +1523,7 @@ def programar_despacho_con_orden():
         despacho_numero = cursor.fetchone()[0] + 1
         codigo_despacho = f"DESP-{datetime.now().year}-{despacho_numero:04d}"
 
-        observaciones_completas = f"ORDEN DE PRODUCCIÓN AUTOMÁTICA\nCliente: {cliente_nombre}\nProyecto: {proyecto_nombre_actual}"
+        observaciones_completas = f"ORDEN DE PRODUCCIÓN AUTOMÁTICA\nCliente: {cliente_nombre}\nProyecto: {proyecto_nombre}"
         if observaciones:
             observaciones_completas += f"\n\nObservaciones: {observaciones}"
 
@@ -1557,7 +1546,7 @@ def programar_despacho_con_orden():
         area_prod_id = area_produccion[0] if area_produccion else None
 
         titulo_produccion = f"Nueva orden de producción: {codigo_proyecto}"
-        mensaje_produccion = f"Se ha creado una nueva orden de producción para el proyecto {proyecto_nombre_actual}.\nCliente: {cliente_nombre}\nFecha límite de despacho: {fecha_despacho}\nPrioridad: {prioridad.upper()}"
+        mensaje_produccion = f"Se ha creado una nueva orden de producción para el proyecto {proyecto_nombre}.\nCliente: {cliente_nombre}\nFecha límite de despacho: {fecha_despacho}\nPrioridad: {prioridad.upper()}"
 
         cursor.execute('''
             INSERT INTO recordatorios (
@@ -1574,7 +1563,7 @@ def programar_despacho_con_orden():
         area_desp_id = area_despacho[0] if area_despacho else None
 
         titulo_despacho = f"Preparar despacho {codigo_despacho}"
-        mensaje_despacho = f"Despacho programado para {fecha_despacho}.\nProyecto: {proyecto_nombre_actual}\nCliente: {cliente_nombre}\nDirección: {direccion_entrega}"
+        mensaje_despacho = f"Despacho programado para {fecha_despacho}.\nProyecto: {proyecto_nombre}\nCliente: {cliente_nombre}\nDirección: {direccion_entrega}"
 
         cursor.execute('''
             INSERT INTO recordatorios (
@@ -1646,7 +1635,7 @@ def despacho_detalle(despacho_id):
         SELECT d.*, p.nombre as proyecto_nombre, p.codigo as proyecto_codigo,
                c.nombre as cliente_nombre, c.direccion as cliente_direccion
         FROM despachos d
-        LEFT JOIN proyectos p ON d.proyecto_id = p.id
+        JOIN proyectos p ON d.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE d.id = ?
     ''', (despacho_id,))
@@ -1729,7 +1718,7 @@ def editar_despacho(despacho_id):
     cursor.execute('''
         SELECT d.*, p.nombre as proyecto_nombre, p.codigo as proyecto_codigo
         FROM despachos d
-        LEFT JOIN proyectos p ON d.proyecto_id = p.id
+        JOIN proyectos p ON d.proyecto_id = p.id
         WHERE d.id = ?
     ''', (despacho_id,))
 
@@ -1856,19 +1845,17 @@ def marcar_despacho_entregado(despacho_id):
             WHERE id = ? AND estado = 'en_transito'
         ''', (despacho_id,))
 
-        # También actualizar el proyecto como entregado si existe y el despacho está asociado a un proyecto
+        # También actualizar el proyecto como entregado
         cursor.execute('''
             UPDATE proyectos SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP
-            WHERE id = (SELECT proyecto_id FROM despachos WHERE id = ?) AND estado != 'entregado'
+            WHERE id = (SELECT proyecto_id FROM despachos WHERE id = ?)
         ''', (despacho_id,))
 
         if cursor.rowcount > 0:
             conn.commit()
             return jsonify({'success': True, 'message': 'Despacho marcado como entregado'})
         else:
-            # Si el rowcount es 0, puede ser que el estado no era 'en_transito' o no había proyecto asociado
-            # En este caso, solo devolvemos un mensaje indicando el posible problema
-            return jsonify({'success': False, 'message': 'No se pudo actualizar el despacho (verifique estado o proyecto asociado)'})
+            return jsonify({'success': False, 'message': 'No se pudo actualizar el despacho'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -2062,13 +2049,13 @@ def api_iniciar_proceso_orden(orden_id):
         if not orden:
             return jsonify({'success': False, 'message': 'Orden no encontrada'})
 
-        if orden[0] not in ['en_desarrollo', 'diseño']: # Permitir iniciar desde estos estados
-            return jsonify({'success': False, 'message': 'La orden no está en estado pendiente para iniciar producción'})
+        if orden[0] not in ['diseño', 'en_desarrollo']:
+            return jsonify({'success': False, 'message': 'La orden no está en estado pendiente'})
 
-        # Cambiar estado de la orden a 'aprobado_produccion'
-        cursor.execute('UPDATE proyectos SET estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', ('aprobado_produccion', orden_id))
+        # Cambiar estado de la orden a en proceso
+        cursor.execute('UPDATE proyectos SET estado = ? WHERE id = ?', ('aprobado_produccion', orden_id))
 
-        # Cambiar estado de todas las órdenes de fabricación asociadas a 'aprobado_produccion'
+        # Cambiar estado de todas las órdenes de fabricación a aprobado_produccion
         cursor.execute('''
             UPDATE pedidos_seguimiento 
             SET estado = ?, fecha_inicio = CURRENT_TIMESTAMP 
@@ -2096,25 +2083,25 @@ def api_terminar_orden(orden_id):
         # Verificar que todas las órdenes de fabricación están terminadas
         cursor.execute('''
             SELECT COUNT(*) FROM pedidos_seguimiento 
-            WHERE proyecto_id = ? AND estado NOT IN ('entregado', 'produccion_completa')
+            WHERE proyecto_id = ? AND estado != 'produccion_completa'
         ''', (orden_id,))
         pendientes = cursor.fetchone()[0]
 
         if pendientes > 0:
-            return jsonify({'success': False, 'message': 'Hay pedidos de seguimiento pendientes de terminar'})
+            return jsonify({'success': False, 'message': 'Hay órdenes de fabricación pendientes de terminar'})
 
         # Marcar orden como terminada
         cursor.execute('''
             UPDATE proyectos 
-            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP 
             WHERE id = ?
         ''', (orden_id,))
 
         # Marcar todas las órdenes de fabricación como entregadas
         cursor.execute('''
             UPDATE pedidos_seguimiento 
-            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
-            WHERE proyecto_id = ? AND estado != 'entregado'
+            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP 
+            WHERE proyecto_id = ?
         ''', (orden_id,))
 
         conn.commit()
@@ -2145,19 +2132,19 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
         if orden[0] not in ['pendiente_fabricacion', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
 
-        # Cambiar estado de la orden de fabricación a 'seccionado'
+        # Cambiar estado de la orden de fabricación a primera etapa
         cursor.execute('''
             UPDATE ordenes_fabricacion 
-            SET estado = ?, fecha_inicio = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+            SET estado = 'seccionado', fecha_inicio = CURRENT_TIMESTAMP 
             WHERE id = ?
-        ''', ('seccionado', orden_fabricacion_id))
+        ''', (orden_fabricacion_id,))
 
         # También actualizar todos los pedidos de seguimiento asociados
         cursor.execute('''
             UPDATE pedidos_seguimiento 
-            SET estado = ?, fecha_inicio = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
-            WHERE orden_fabricacion_id = ? AND estado = 'en_desarrollo'
-        ''', ('seccionado', orden_fabricacion_id))
+            SET estado = 'seccionado', fecha_inicio = CURRENT_TIMESTAMP 
+            WHERE orden_fabricacion_id = ?
+        ''', (orden_fabricacion_id,))
 
         conn.commit()
         return jsonify({'success': True, 'message': f'Orden de fabricación {orden[1]} iniciada'})
@@ -2190,9 +2177,9 @@ def api_iniciar_produccion(fabricacion_id):
         # Cambiar a primera etapa de fabricación
         cursor.execute('''
             UPDATE pedidos_seguimiento 
-            SET estado = ?, fecha_inicio = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+            SET estado = 'seccionado', fecha_inicio = CURRENT_TIMESTAMP 
             WHERE id = ?
-        ''', ('seccionado', fabricacion_id))
+        ''', (fabricacion_id,))
 
         conn.commit()
         return jsonify({'success': True, 'message': f'Producción iniciada para {fab[1]}'})
@@ -2234,11 +2221,11 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
                 if nuevo_estado == 'produccion_completa':
                     cursor.execute('''
                         UPDATE pedidos_seguimiento 
-                        SET estado = ?, fecha_entrega_real = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+                        SET estado = ?, fecha_entrega_real = CURRENT_TIMESTAMP 
                         WHERE id = ?
                     ''', (nuevo_estado, fabricacion_id))
                 else:
-                    cursor.execute('UPDATE pedidos_seguimiento SET estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+                    cursor.execute('UPDATE pedidos_seguimiento SET estado = ? WHERE id = ?', 
                                  (nuevo_estado, fabricacion_id))
 
                 conn.commit()
@@ -2283,7 +2270,7 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
                 nuevo_estado = estados_secuencia[indice_actual - 1]
                 cursor.execute('''
                     UPDATE pedidos_seguimiento 
-                    SET estado = ?, fecha_entrega_real = NULL, updated_at = CURRENT_TIMESTAMP 
+                    SET estado = ?, fecha_entrega_real = NULL 
                     WHERE id = ?
                 ''', (nuevo_estado, fabricacion_id))
 
@@ -2323,29 +2310,12 @@ def api_update_event_date():
                 return jsonify({'success': False, 'message': 'Sin permisos para modificar despachos'})
 
             cursor.execute('''
-                UPDATE despachos SET fecha_programada = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+                UPDATE despachos SET fecha_programada = ? WHERE id = ?
             ''', (new_start, numeric_id))
 
         elif event_type == 'tarea':
-            # Solo permitir si el usuario es admin, el asignado o el supervisor
-            cursor.execute('SELECT usuario_asignado_id, proyecto_id FROM tareas WHERE id = ?', (numeric_id,))
-            tarea_info = cursor.fetchone()
-            if not tarea_info:
-                return jsonify({'success': False, 'message': 'Tarea no encontrada'})
-            
-            usuario_asignado_id = tarea_info[0]
-            proyecto_id = tarea_info[1]
-
-            # Obtener supervisor del proyecto si existe
-            cursor.execute('SELECT supervisor_id FROM proyectos WHERE id = ?', (proyecto_id,))
-            proyecto_info = cursor.fetchone()
-            supervisor_id = proyecto_info[0] if proyecto_info else None
-
-            if session['user_role'] != 'admin' and session['user_id'] != usuario_asignado_id and session['user_id'] != supervisor_id:
-                 return jsonify({'success': False, 'message': 'Sin permisos para modificar esta tarea'})
-                 
             cursor.execute('''
-                UPDATE tareas SET fecha_programada = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+                UPDATE tareas SET fecha_programada = ? WHERE id = ?
             ''', (new_start, numeric_id))
 
         elif event_type == 'recordatorio':
@@ -2354,7 +2324,7 @@ def api_update_event_date():
                 return jsonify({'success': False, 'message': 'Sin permisos para modificar recordatorios'})
 
             cursor.execute('''
-                UPDATE recordatorios SET fecha_recordatorio = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+                UPDATE recordatorios SET fecha_recordatorio = ? WHERE id = ?
             ''', (new_start, numeric_id))
 
         else:
@@ -2364,7 +2334,7 @@ def api_update_event_date():
             conn.commit()
             return jsonify({'success': True, 'message': 'Fecha actualizada exitosamente'})
         else:
-            return jsonify({'success': False, 'message': 'No se encontró el evento o no se pudo actualizar'})
+            return jsonify({'success': False, 'message': 'No se encontró el evento'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al actualizar: {str(e)}'})
@@ -2385,7 +2355,7 @@ def api_proyectos_para_despacho():
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.estado IN ('embalando', 'listo_despacho')
+        WHERE p.estado IN ('fabricacion', 'control_calidad', 'embalaje', 'despacho')
         ORDER BY p.nombre
     ''')
 
@@ -2621,77 +2591,64 @@ def avanzar_tarea(tarea_id):
         if session['user_role'] not in ['admin', 'general'] and session['user_role'] != rol:
             return jsonify({'success': False, 'message': 'Sin permisos para modificar esta tarea'})
 
-        nuevo_estado = None
-        nueva_etapa = None
-
-        # Determinar siguiente estado según el rol y estado actual
+        # Determinar siguiente estado según el rol
         if rol == 'diseñador':
             if estado_actual == 'pendiente':
                 nuevo_estado = 'en_progreso'
-                cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+                cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = ? WHERE id = ?', 
                              (nuevo_estado, datetime.now(), tarea_id))
             elif estado_actual == 'en_progreso':
                 nuevo_estado = 'completada'
-                cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+                cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ? WHERE id = ?', 
                              (nuevo_estado, datetime.now(), tarea_id))
             else:
-                return jsonify({'success': False, 'message': 'Tarea ya completada o en estado inválido'})
+                return jsonify({'success': False, 'message': 'Tarea ya completada'})
 
         elif rol == 'operación':
             etapas = ['seccionado', 'enchapado', 'mecanizado', 'fabricacion_completo']
 
             if estado_actual == 'pendiente':
                 nuevo_estado = 'en_progreso'
-                nueva_etapa = 'seccionado' # Primera etapa de operación
-                cursor.execute('UPDATE tareas SET estado = ?, etapa_fabricacion = ?, fecha_inicio = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+                nueva_etapa = 'seccionado'
+                cursor.execute('UPDATE tareas SET estado = ?, etapa_fabricacion = ?, fecha_inicio = ? WHERE id = ?', 
                              (nuevo_estado, nueva_etapa, datetime.now(), tarea_id))
             elif estado_actual == 'en_progreso':
-                if etapa_actual: # Si ya tiene una etapa definida
-                    if etapa_actual in etapas:
-                        indice_actual = etapas.index(etapa_actual)
-                        if indice_actual < len(etapas) - 1:
-                            nueva_etapa = etapas[indice_actual + 1]
-                            cursor.execute('UPDATE tareas SET etapa_fabricacion = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
-                                         (nueva_etapa, tarea_id))
-                        else:
-                            # Última etapa completada
-                            nuevo_estado = 'completada'
-                            cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ?, etapa_fabricacion = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
-                                         (nuevo_estado, datetime.now(), tarea_id))
-                    else: # Etapa actual no está en la lista de etapas de fabricación
-                         return jsonify({'success': False, 'message': 'Etapa de fabricación actual inválida'})
-                else: # Si está en 'en_progreso' pero sin etapa definida (caso inicial)
+                if etapa_actual in etapas:
+                    indice_actual = etapas.index(etapa_actual)
+                    if indice_actual < len(etapas) - 1:
+                        nueva_etapa = etapas[indice_actual + 1]
+                        cursor.execute('UPDATE tareas SET etapa_fabricacion = ? WHERE id = ?', 
+                                     (nueva_etapa, tarea_id))
+                    else:
+                        # Última etapa completada
+                        cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ? WHERE id = ?', 
+                                     ('completada', datetime.now(), tarea_id))
+                        nuevo_estado = 'completada'
+                else:
                     nueva_etapa = 'seccionado'
-                    cursor.execute('UPDATE tareas SET etapa_fabricacion = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+                    cursor.execute('UPDATE tareas SET etapa_fabricacion = ? WHERE id = ?', 
                                  (nueva_etapa, tarea_id))
-            else: # Estado es 'completada' o similar
-                return jsonify({'success': False, 'message': 'Tarea ya completada o en estado inválido'})
+            else:
+                return jsonify({'success': False, 'message': 'Tarea ya completada'})
 
-        else: # Roles: embalaje, despacho, o tipo: 'embalaje', 'despacho'
+        else:  # embalaje, despacho, general
             if estado_actual == 'pendiente':
                 nuevo_estado = 'en_progreso'
-                cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+                cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = ? WHERE id = ?', 
                              (nuevo_estado, datetime.now(), tarea_id))
             elif estado_actual == 'en_progreso':
                 nuevo_estado = 'completada'
-                cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+                cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ? WHERE id = ?', 
                              (nuevo_estado, datetime.now(), tarea_id))
             else:
-                return jsonify({'success': False, 'message': 'Tarea ya completada o en estado inválido'})
+                return jsonify({'success': False, 'message': 'Tarea ya completada'})
 
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
             VALUES ('tareas', ?, 'UPDATE', ?, ?)
         ''', (tarea_id, session['user_id'], 
-              json.dumps({
-                  'accion': 'avanzar_tarea', 
-                  'titulo': titulo, 
-                  'proyecto': proyecto_nombre,
-                  'estado_anterior': estado_actual,
-                  'nuevo_estado': nuevo_estado,
-                  'nueva_etapa': nueva_etapa
-              })))
+              json.dumps({'accion': 'avanzar_tarea', 'titulo': titulo, 'proyecto': proyecto_nombre})))
 
         conn.commit()
         return jsonify({'success': True, 'message': 'Tarea avanzada exitosamente'})
@@ -2729,59 +2686,37 @@ def retroceder_tarea(tarea_id):
         if session['user_role'] not in ['admin', 'general']:
             return jsonify({'success': False, 'message': 'Sin permisos para retroceder tareas'})
 
-        nuevo_estado = None
-        nueva_etapa = None
-
-        # Determinar estado anterior según el rol y estado actual
-        if rol == 'operación':
+        # Determinar estado anterior según el rol
+        if rol == 'operación' and estado_actual == 'en_progreso' and etapa_actual:
             etapas = ['seccionado', 'enchapado', 'mecanizado', 'fabricacion_completo']
-            if estado_actual == 'en_progreso' and etapa_actual:
-                if etapa_actual in etapas:
-                    indice_actual = etapas.index(etapa_actual)
-                    if indice_actual > 0:
-                        nueva_etapa = etapas[indice_actual - 1]
-                        cursor.execute('UPDATE tareas SET etapa_fabricacion = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
-                                     (nueva_etapa, tarea_id))
-                    else: # Retroceder de 'seccionado' a 'pendiente'
-                        nuevo_estado = 'pendiente'
-                        cursor.execute('UPDATE tareas SET estado = ?, etapa_fabricacion = NULL, fecha_inicio = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
-                                     (nuevo_estado, tarea_id))
-                # Si etapa_actual es None o no está en la lista, no se puede retroceder esta etapa
-            elif estado_actual == 'completada': # Retroceder de completada a en progreso
-                nuevo_estado = 'en_progreso'
-                cursor.execute('UPDATE tareas SET estado = ?, etapa_fabricacion = ?, fecha_completada = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
-                             (nuevo_estado, etapas[etapas.index(etapa_actual)-1] if etapa_actual and etapa_actual != 'seccionado' else 'seccionado', tarea_id)) # Intentar mantener etapa o volver a seccionado
-        
-        elif estado_actual == 'completada': # Para roles que no son operación
-            nuevo_estado = 'en_progreso'
-            cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
-                         (nuevo_estado, tarea_id))
-        elif estado_actual == 'en_progreso': # Retroceder de en_progreso a pendiente
-            nuevo_estado = 'pendiente'
-            cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
-                         (nuevo_estado, tarea_id))
-        else: # Estado es 'pendiente' o inválido para retroceder
-            return jsonify({'success': False, 'message': 'No se puede retroceder el estado actual'})
-
-        if nuevo_estado or nueva_etapa:
-            # Registrar en auditoría
-            cursor.execute('''
-                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-                VALUES ('tareas', ?, 'UPDATE', ?, ?)
-            ''', (tarea_id, session['user_id'], 
-                  json.dumps({
-                      'accion': 'retroceder_tarea', 
-                      'titulo': titulo, 
-                      'proyecto': proyecto_nombre,
-                      'estado_anterior': estado_actual,
-                      'nuevo_estado': nuevo_estado,
-                      'nueva_etapa': nueva_etapa
-                  })))
-
-            conn.commit()
-            return jsonify({'success': True, 'message': 'Tarea retrocedida exitosamente'})
+            if etapa_actual in etapas:
+                indice_actual = etapas.index(etapa_actual)
+                if indice_actual > 0:
+                    nueva_etapa = etapas[indice_actual - 1]
+                    cursor.execute('UPDATE tareas SET etapa_fabricacion = ? WHERE id = ?', 
+                                 (nueva_etapa, tarea_id))
+                else:
+                    # Volver a pendiente
+                    cursor.execute('UPDATE tareas SET estado = ?, etapa_fabricacion = NULL, fecha_inicio = NULL WHERE id = ?', 
+                                 ('pendiente', tarea_id))
+        elif estado_actual == 'completada':
+            cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = NULL WHERE id = ?', 
+                         ('en_progreso', tarea_id))
+        elif estado_actual == 'en_progreso':
+            cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = NULL WHERE id = ?', 
+                         ('pendiente', tarea_id))
         else:
-             return jsonify({'success': False, 'message': 'No se pudo determinar el estado anterior'})
+            return jsonify({'success': False, 'message': 'No se puede retroceder más'})
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('tareas', ?, 'UPDATE', ?, ?)
+        ''', (tarea_id, session['user_id'], 
+              json.dumps({'accion': 'retroceder_tarea', 'titulo': titulo, 'proyecto': proyecto_nombre})))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Tarea retrocedida exitosamente'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al retroceder tarea: {str(e)}'})
@@ -2805,74 +2740,67 @@ def nueva_orden_compra():
         prioridad = request.form.get('prioridad', 'media')
 
         # Campos específicos según tipo
-        fecha_entrega = None
-        monto_neto = None
-        entregas_contrato_data = []
-
         if tipo_adjudicacion == 'orden_compra':
-            fecha_entrega = request.form.get('fecha_entrega_oc')
-            monto_neto_provision_str = request.form.get('monto_neto_provision')
-            if monto_neto_provision_str:
+            fecha_entrega = request.form['fecha_entrega_oc']
+            monto_neto_provision = request.form.get('monto_neto_provision')
+            monto_float = None
+            if monto_neto_provision:
                 try:
-                    monto_neto = float(monto_neto_provision_str)
+                    monto_float = float(monto_neto_provision)
                 except ValueError:
                     flash('Monto neto provisión inválido', 'error')
                     return redirect(url_for('dashboard'))
         elif tipo_adjudicacion == 'contrato':
-            fecha_entrega = request.form.get('fecha_entrega_contrato') # Usar fecha de entrega principal del contrato
-            monto_total_contrato_str = request.form.get('monto_total_contrato')
-            if monto_total_contrato_str:
-                try:
-                    monto_neto = float(monto_total_contrato_str)
-                except ValueError:
-                    flash('Monto total contrato inválido', 'error')
-                    return redirect(url_for('dashboard'))
-            
+            fecha_inicio_contrato = request.form.get('fecha_inicio_contrato')
+            monto_total_contrato = request.form.get('monto_total_contrato')
             entrega_detalles = request.form.getlist('entrega_detalles[]')
             entrega_fechas = request.form.getlist('entrega_fechas[]')
 
-            if len(entrega_detalles) == len(entrega_fechas):
-                for i, detalle in enumerate(entrega_detalles):
-                    if detalle and entrega_fechas[i]:
-                        entregas_contrato_data.append({'detalle': detalle, 'fecha_entrega': entrega_fechas[i]})
-            
-            if not entregas_contrato_data:
+            # Validar entregas para contrato
+            if not entrega_detalles or not entrega_fechas or len(entrega_detalles) != len(entrega_fechas):
                 flash('Debe especificar al menos una entrega válida para el contrato', 'error')
                 return redirect(url_for('dashboard'))
 
+            # Usar la fecha de la primera entrega como fecha de entrega principal del proyecto
+            fecha_entrega = entrega_fechas[0] if entrega_fechas else None
+
+            monto_float = None
+            if monto_total_contrato:
+                try:
+                    monto_float = float(monto_total_contrato)
+                except ValueError:
+                    flash('Monto total contrato inválido', 'error')
+                    return redirect(url_for('dashboard'))
         else:
             flash('Tipo de adjudicación inválido', 'error')
             return redirect(url_for('dashboard'))
 
-        # Obtener categorías y subcategorías
+        # Obtener categorías y subcategorías como arrays
         categorias_raw = request.form.get('categorias_selected', '').strip()
         subcategorias_raw = request.form.get('subcategorias_selected', '').strip()
 
-        categorias_data = []
-        if categorias_raw:
+        # Si no vienen como arrays, intentar obtener individualmente
+        if not categorias_raw:
+            categoria_simple = request.form.get('categoria_id')
+            subcategoria_simple = request.form.get('subcategoria_id')
+            if categoria_simple:
+                categorias = [categoria_simple]
+                subcategorias = [subcategoria_simple] if subcategoria_simple else ['']
+            else:
+                categorias = []
+                subcategorias = []
+        else:
+            # Procesar arrays JSON
             try:
                 import json
-                categorias_ids = json.loads(categorias_raw) if categorias_raw else []
-                subcategorias_ids = json.loads(subcategorias_raw) if subcategorias_raw else []
-                
-                # Asegurar que las listas tengan la misma longitud
-                min_len = min(len(categorias_ids), len(subcategorias_ids))
-                for i in range(min_len):
-                    if categorias_ids[i]: # Solo procesar si la categoría es válida
-                       categorias_data.append({'categoria_id': categorias_ids[i], 'subcategoria_id': subcategorias_ids[i] if subcategorias_ids[i] else None})
-            except Exception as e:
-                flash(f'Error al procesar categorías: {str(e)}', 'error')
-                return redirect(url_for('dashboard'))
-        
-        # Si no se seleccionaron categorías (ej. formulario simple), intentar obtener una
-        if not categorias_data:
-            categoria_simple_id = request.form.get('categoria_id')
-            subcategoria_simple_id = request.form.get('subcategoria_id')
-            if categoria_simple_id:
-                categorias_data.append({'categoria_id': categoria_simple_id, 'subcategoria_id': subcategoria_simple_id})
+                categorias = json.loads(categorias_raw) if categorias_raw else []
+                subcategorias = json.loads(subcategorias_raw) if subcategorias_raw else []
+            except:
+                categorias = categorias_raw.split(',') if categorias_raw else []
+                subcategorias = subcategorias_raw.split(',') if subcategorias_raw else []
 
         # Validar que hay al menos una categoría
-        if not categorias_data:
+        if not categorias or not any(cat for cat in categorias if cat and cat != ''):
             flash('Debe seleccionar al menos una categoría', 'error')
             return redirect(url_for('dashboard'))
 
@@ -2880,7 +2808,6 @@ def nueva_orden_compra():
         cursor = conn.cursor()
 
         # Manejar cliente
-        actual_cliente_id = None
         if cliente_id == 'nuevo':
             if not nuevo_cliente_nombre:
                 flash('Debe especificar el nombre del nuevo cliente', 'error')
@@ -2890,136 +2817,124 @@ def nueva_orden_compra():
             cursor.execute('''
                 INSERT INTO clientes (nombre, activo) VALUES (?, ?)
             ''', (nuevo_cliente_nombre, True))
-            actual_cliente_id = cursor.lastrowid
+            cliente_id = cursor.lastrowid
         else:
             # Verificar que el cliente existe
             cursor.execute('SELECT nombre FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
             if not cursor.fetchone():
                 flash('Cliente no válido', 'error')
                 return redirect(url_for('dashboard'))
-            actual_cliente_id = cliente_id
 
         # Manejar proyecto
-        actual_proyecto_id = None
-        codigo_proyecto_creado = None
         if proyecto_existente_id == 'nuevo':
             if not nombre_proyecto:
                 flash('Debe especificar el nombre del nuevo proyecto', 'error')
                 return redirect(url_for('dashboard'))
 
             # Obtener nombre del cliente para generar código
-            cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (actual_cliente_id,))
+            cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (cliente_id,))
             cliente_info = cursor.fetchone()
-            cliente_nombre_para_codigo = cliente_info[0] if cliente_info else 'CLIENTE'
+            cliente_nombre = cliente_info[0] if cliente_info else 'CLIENTE'
 
             # Limpiar nombre del cliente para código (solo letras y números, máximo 8 caracteres)
-            cliente_codigo_prefijo = ''.join(c.upper() for c in cliente_nombre_para_codigo if c.isalnum())[:8]
+            cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
 
             # Generar número secuencial para este cliente
-            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (actual_cliente_id,))
+            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
             proyecto_numero = cursor.fetchone()[0] + 1
-            codigo_proyecto_creado = f"{cliente_codigo_prefijo}-{proyecto_numero:03d}"
+            codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
-            # Determinar estado inicial del proyecto
-            estado_inicial_proyecto = 'diseño' # Por defecto
-            if tipo_adjudicacion == 'orden_compra':
-                 estado_inicial_proyecto = 'en_desarrollo' # Para OC, iniciar en 'en_desarrollo'
-            elif tipo_adjudicacion == 'contrato':
-                 estado_inicial_proyecto = 'diseño' # Para Contratos, empezar en 'diseño'
-
-            # Crear nuevo proyecto
+            # Crear nuevo proyecto con tipo de adjudicacion
             cursor.execute('''
                 INSERT INTO proyectos (
                     codigo, nombre, cliente_id, descripcion, adjudicacion_tipo, estado, prioridad, 
                     fecha_inicio, fecha_entrega, monto_neto
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (codigo_proyecto_creado, nombre_proyecto, actual_cliente_id, descripcion, tipo_adjudicacion, estado_inicial_proyecto, 
-                  prioridad, datetime.now().date(), fecha_entrega, monto_neto))
-            actual_proyecto_id = cursor.lastrowid
+            ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion, 'en_desarrollo', 
+                  prioridad, datetime.now().date(), fecha_entrega, monto_float))
+            proyecto_id = cursor.lastrowid
         else:
-            actual_proyecto_id = proyecto_existente_id
+            proyecto_id = proyecto_existente_id
             # Verificar que el proyecto existe y pertenece al cliente
-            cursor.execute('SELECT nombre FROM proyectos WHERE id = ? AND cliente_id = ?', (actual_proyecto_id, actual_cliente_id))
+            cursor.execute('SELECT nombre FROM proyectos WHERE id = ? AND cliente_id = ?', (proyecto_id, cliente_id))
             if not cursor.fetchone():
                 flash('Proyecto no válido para el cliente seleccionado', 'error')
                 return redirect(url_for('dashboard'))
 
         # Crear relaciones de categorías y pedidos de seguimiento
-        for item in categorias_data:
-            categoria_id = item['categoria_id']
-            subcategoria_id = item['subcategoria_id']
+        for i, categoria_id in enumerate(categorias):
+            if categoria_id:  # Solo procesar categorías válidas
+                subcategoria_id = subcategorias[i] if i < len(subcategorias) and subcategorias[i] else None
 
-            # Verificar que la categoría existe
-            cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ? AND activo = TRUE', (categoria_id,))
-            categoria_info = cursor.fetchone()
-            if not categoria_info:
-                continue # Saltar si la categoría no es válida
+                # Verificar que la categoría existe
+                cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ? AND activo = TRUE', (categoria_id,))
+                categoria_info = cursor.fetchone()
+                if not categoria_info:
+                    continue
 
-            # Verificar subcategoría si se proporciona
-            if subcategoria_id:
-                cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ? AND activo = TRUE', (subcategoria_id,))
-                subcategoria_info = cursor.fetchone()
-                if not subcategoria_info:
-                    subcategoria_id = None # Invalidar subcategoría si no existe
+                # Verificar subcategoría si se proporciona
+                if subcategoria_id:
+                    cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ? AND activo = TRUE', (subcategoria_id,))
+                    subcategoria_info = cursor.fetchone()
+                    if not subcategoria_info:
+                        subcategoria_id = None
 
-            # Insertar relación proyecto-categoría
-            cursor.execute('''
-                INSERT OR IGNORE INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
-                VALUES (?, ?, ?)
-            ''', (actual_proyecto_id, categoria_id, subcategoria_id))
+                # Insertar relación proyecto-categoría
+                cursor.execute('''
+                    INSERT OR IGNORE INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
+                    VALUES (?, ?, ?)
+                ''', (proyecto_id, categoria_id, subcategoria_id))
 
-            # Crear pedido de seguimiento
-            cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE SUBSTRING(codigo_pedido, 1, 13) = ?', 
-                         (f"PED-{datetime.now().year}-",))
-            pedido_numero = cursor.fetchone()[0] + 1
-            codigo_pedido_seguimiento = f"PED-{datetime.now().year}-{pedido_numero:04d}"
+                # Crear pedido de seguimiento
+                cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE SUBSTRING(codigo_pedido, 1, 13) = ?', 
+                             (f"PED-{datetime.now().year}-",))
+                pedido_numero = cursor.fetchone()[0] + 1
+                codigo_pedido = f"PED-{datetime.now().year}-{pedido_numero:04d}"
 
-            # Obtener nombres para el pedido
-            cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ?', (categoria_id,))
-            categoria_nombre = cursor.fetchone()[0]
+                # Obtener nombres para el pedido
+                cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ?', (categoria_id,))
+                categoria_nombre = cursor.fetchone()[0]
 
-            nombre_pedido_seguimiento = f"{codigo_proyecto_creado or ''} - {categoria_nombre}" # Incluir código de proyecto si se creó nuevo
-            if subcategoria_id:
-                cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ?', (subcategoria_id,))
-                subcategoria_nombre = cursor.fetchone()[0]
-                nombre_pedido_seguimiento += f" - {subcategoria_nombre}"
+                nombre_pedido = f"{categoria_nombre}"
+                if subcategoria_id:
+                    cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ?', (subcategoria_id,))
+                    subcategoria_nombre = cursor.fetchone()[0]
+                    nombre_pedido += f" - {subcategoria_nombre}"
 
-            cursor.execute('''
-                INSERT INTO pedidos_seguimiento (
-                    proyecto_id, categoria_id, subcategoria_id, codigo_pedido, 
-                    nombre, estado, fecha_entrega_estimada
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (actual_proyecto_id, categoria_id, subcategoria_id, codigo_pedido_seguimiento,
-                  nombre_pedido_seguimiento, 'en_desarrollo', fecha_entrega))
+                cursor.execute('''
+                    INSERT INTO pedidos_seguimiento (
+                        proyecto_id, categoria_id, subcategoria_id, codigo_pedido, 
+                        nombre, estado, fecha_inicio, fecha_entrega_estimada
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (proyecto_id, categoria_id, subcategoria_id, codigo_pedido,
+                      nombre_pedido, 'en_desarrollo', datetime.now().date(), fecha_entrega))
 
         # Si es contrato, crear entregas programadas
         if tipo_adjudicacion == 'contrato':
-            for entrega in entregas_contrato_data:
-                cursor.execute('''
-                    INSERT INTO entregas_contrato (
-                        proyecto_id, detalle, fecha_entrega, estado
-                    ) VALUES (?, ?, ?, ?)
-                ''', (actual_proyecto_id, entrega['detalle'], entrega['fecha_entrega'], 'programada'))
+            for i, detalle in enumerate(entrega_detalles):
+                if detalle.strip() and i < len(entrega_fechas) and entrega_fechas[i]:
+                    cursor.execute('''
+                        INSERT INTO entregas_contrato (
+                            proyecto_id, detalle, fecha_entrega, estado
+                        ) VALUES (?, ?, ?, ?)
+                    ''', (proyecto_id, detalle.strip(), entrega_fechas[i], 'programada'))
 
         conn.commit()
         conn.close()
 
         tipo_texto = 'Contrato' if tipo_adjudicacion == 'contrato' else 'Orden de compra'
-        mensaje_exito = f'{tipo_texto} creada exitosamente.'
-        if codigo_proyecto_creado:
-             mensaje_exito += f' Proyecto "{nombre_proyecto}" ({codigo_proyecto_creado}) creado.'
-        
-        flash(mensaje_exito, 'success')
-        
-        # Redirigir al detalle del proyecto si se creó uno nuevo, de lo contrario a dashboard u ordenes_compra
-        if actual_proyecto_id:
-            return redirect(url_for('proyecto_detalle', proyecto_id=actual_proyecto_id))
-        else:
-            return redirect(url_for('dashboard')) # O 'ordenes_compra' si se prefiere
+        flash(f'{tipo_texto} {numero_oc} creado exitosamente con pedidos de seguimiento', 'success')
+        return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
 
+    except sqlite3.IntegrityError as e:
+        if 'codigo' in str(e).lower():
+            flash('Ya existe una orden con ese número', 'error')
+        else:
+            flash('Error de datos duplicados', 'error')
+        return redirect(url_for('dashboard'))
     except Exception as e:
         flash(f'Error al crear orden de compra: {str(e)}', 'error')
-        return redirect(url_for('dashboard')) # O 'ordenes_compra'
+        return redirect(url_for('dashboard'))
 
 
 @app.route('/api/clientes_activos')
@@ -3151,7 +3066,7 @@ def api_proyectos_disponibles_fabricacion():
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.estado IN ('en_desarrollo', 'diseño', 'aprobado_produccion') # Permite iniciar fabricación desde estos estados
+        WHERE p.estado IN ('en_desarrollo', 'diseño')
         ORDER BY p.created_at DESC
     ''')
 
@@ -3207,41 +3122,22 @@ def crear_orden_fabricacion():
         proyecto_id = request.form['proyecto_id']
         tipo_orden = request.form['tipo_orden']
         fecha_entrega_estimada = request.form['fecha_entrega_estimada']
-        cantidad_tableros_str = request.form.get('cantidad_tableros', '1') # Default to 1
+        cantidad_tableros = int(request.form['cantidad_tableros'])
         observaciones = request.form.get('observaciones', '').strip() or None
-        
-        # Procesar categorías seleccionadas
-        categorias_seleccionadas_raw = request.form.getlist('categorias_seleccionadas')
+        categorias_seleccionadas = request.form.getlist('categorias_seleccionadas')
 
-        if not proyecto_id:
-             flash('Debe seleccionar un proyecto', 'error')
-             return redirect(url_for('ordenes_fabricacion'))
-
-        if not categorias_seleccionadas_raw:
+        if not categorias_seleccionadas:
             flash('Debe seleccionar al menos una categoría', 'error')
-            return redirect(url_for('ordenes_fabricacion'))
-        
-        try:
-            cantidad_tableros = int(cantidad_tableros_str)
-            if cantidad_tableros <= 0:
-                raise ValueError("La cantidad de tableros debe ser positiva.")
-        except ValueError as e:
-            flash(f'Cantidad de tableros inválida: {str(e)}', 'error')
             return redirect(url_for('ordenes_fabricacion'))
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
 
         # Verificar que el proyecto existe
-        cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = ?', (proyecto_id,))
+        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = ?', (proyecto_id,))
         proyecto = cursor.fetchone()
         if not proyecto:
             flash('Proyecto no encontrado', 'error')
-            return redirect(url_for('ordenes_fabricacion'))
-
-        # Validar que el proyecto está en un estado que permite fabricar
-        if proyecto[2] not in ['aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa']:
-            flash(f'El proyecto "{proyecto[1]}" ({proyecto[0]}) no está en un estado que permita crear órdenes de fabricación (Estado actual: {proyecto[2]})', 'error')
             return redirect(url_for('ordenes_fabricacion'))
 
         # Generar código único para la orden de fabricación
@@ -3261,25 +3157,9 @@ def crear_orden_fabricacion():
         orden_fabricacion_id = cursor.lastrowid
 
         # Crear relaciones de categorías
-        for categoria_str in categorias_seleccionadas_raw:
-            try:
-                categoria_id, subcategoria_id = categoria_str.split(',')
-                subcategoria_id = subcategoria_id if subcategoria_id and subcategoria_id != 'None' else None
-            except ValueError:
-                continue # Saltar si el formato es incorrecto
-
-            # Verificar que la categoría existe
-            cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ? AND activo = TRUE', (categoria_id,))
-            categoria_info = cursor.fetchone()
-            if not categoria_info:
-                continue
-
-            # Verificar subcategoría si se proporciona
-            if subcategoria_id:
-                cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ? AND activo = TRUE', (subcategoria_id,))
-                subcategoria_info = cursor.fetchone()
-                if not subcategoria_info:
-                    subcategoria_id = None
+        for categoria_str in categorias_seleccionadas:
+            categoria_id, subcategoria_id = categoria_str.split(',')
+            subcategoria_id = subcategoria_id if subcategoria_id else None
 
             cursor.execute('''
                 INSERT INTO orden_fabricacion_categorias (
@@ -3291,17 +3171,17 @@ def crear_orden_fabricacion():
             cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE SUBSTRING(codigo_pedido, 1, 13) = ?', 
                          (f"PED-{datetime.now().year}-",))
             pedido_numero = cursor.fetchone()[0] + 1
-            codigo_pedido_seguimiento = f"PED-{datetime.now().year}-{pedido_numero:04d}"
+            codigo_pedido = f"PED-{datetime.now().year}-{pedido_numero:04d}"
 
             # Obtener nombres para el pedido
             cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ?', (categoria_id,))
             categoria_nombre = cursor.fetchone()[0]
 
-            nombre_pedido_seguimiento = f"{codigo_orden} - {categoria_nombre}"
+            nombre_pedido = f"{codigo_orden} - {categoria_nombre}"
             if subcategoria_id:
                 cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ?', (subcategoria_id,))
                 subcategoria_nombre = cursor.fetchone()[0]
-                nombre_pedido_seguimiento += f" - {subcategoria_nombre}"
+                nombre_pedido += f" - {subcategoria_nombre}"
 
             cursor.execute('''
                 INSERT INTO pedidos_seguimiento (
@@ -3309,15 +3189,7 @@ def crear_orden_fabricacion():
                     codigo_pedido, nombre, estado, fecha_entrega_estimada
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
-                  codigo_pedido_seguimiento, nombre_pedido_seguimiento, 'en_desarrollo', fecha_entrega_estimada))
-
-        # Actualizar estado del proyecto si es necesario (ej. si estaba en 'diseño' o 'en_desarrollo')
-        if proyecto[2] in ['diseño', 'en_desarrollo']:
-            cursor.execute('''
-                UPDATE proyectos 
-                SET estado = 'aprobado_produccion', updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (proyecto_id,))
+                  codigo_pedido, nombre_pedido, 'en_desarrollo', fecha_entrega_estimada))
 
         conn.commit()
         conn.close()
@@ -3336,29 +3208,15 @@ def crear_orden_fabricacion():
 def crear_orden_fabricacion_desde_oc():
     """Crear orden de fabricación desde orden de compra y cambiar estado a 'En proceso'"""
     try:
-        proyecto_id = request.form.get('proyecto_id')
-        tipo_orden = request.form.get('tipo_orden', 'estandar') # Default to 'estandar'
-        fecha_entrega_estimada = request.form.get('fecha_entrega_estimada')
-        cantidad_tableros_str = request.form.get('cantidad_tableros', '1') # Default to 1
+        proyecto_id = request.form['proyecto_id']
+        tipo_orden = request.form['tipo_orden']
+        fecha_entrega_estimada = request.form['fecha_entrega_estimada']
+        cantidad_tableros = int(request.form['cantidad_tableros'])
         observaciones = request.form.get('observaciones', '').strip() or None
-        
-        # Procesar categorías seleccionadas
-        categorias_seleccionadas_raw = request.form.getlist('categorias_seleccionadas')
+        categorias_seleccionadas = request.form.getlist('categorias_seleccionadas')
 
-        if not proyecto_id:
-            flash('Debe seleccionar un proyecto', 'error')
-            return redirect(url_for('ordenes_compra'))
-
-        if not categorias_seleccionadas_raw:
+        if not categorias_seleccionadas:
             flash('Debe seleccionar al menos una categoría', 'error')
-            return redirect(url_for('ordenes_compra'))
-        
-        try:
-            cantidad_tableros = int(cantidad_tableros_str)
-            if cantidad_tableros <= 0:
-                raise ValueError("La cantidad de tableros debe ser positiva.")
-        except ValueError as e:
-            flash(f'Cantidad de tableros inválida: {str(e)}', 'error')
             return redirect(url_for('ordenes_compra'))
 
         conn = sqlite3.connect('mobikit.db')
@@ -3372,7 +3230,7 @@ def crear_orden_fabricacion_desde_oc():
             return redirect(url_for('ordenes_compra'))
 
         if proyecto[2] not in ['en_desarrollo', 'diseño']:
-            flash('El proyecto no está en estado que permita crear órdenes de fabricación', 'error')
+            flash('El proyecto no está en estado pendiente', 'error')
             return redirect(url_for('ordenes_compra'))
 
         # Generar código único para la orden de fabricación
@@ -3387,30 +3245,14 @@ def crear_orden_fabricacion_desde_oc():
                 cantidad_tableros, observaciones, estado
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada, 
-              cantidad_tableros, observaciones, 'pendiente')) # Inicia en 'pendiente' para que la secuencia de estados funcione
+              cantidad_tableros, observaciones, 'pendiente'))
 
         orden_fabricacion_id = cursor.lastrowid
 
         # Crear relaciones de categorías y pedidos de seguimiento
-        for categoria_str in categorias_seleccionadas_raw:
-            try:
-                categoria_id, subcategoria_id = categoria_str.split(',')
-                subcategoria_id = subcategoria_id if subcategoria_id and subcategoria_id != 'None' else None
-            except ValueError:
-                continue # Saltar si el formato es incorrecto
-
-            # Verificar que la categoría existe
-            cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ? AND activo = TRUE', (categoria_id,))
-            categoria_info = cursor.fetchone()
-            if not categoria_info:
-                continue
-
-            # Verificar subcategoría si se proporciona
-            if subcategoria_id:
-                cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ? AND activo = TRUE', (subcategoria_id,))
-                subcategoria_info = cursor.fetchone()
-                if not subcategoria_info:
-                    subcategoria_id = None
+        for categoria_str in categorias_seleccionadas:
+            categoria_id, subcategoria_id = categoria_str.split(',')
+            subcategoria_id = subcategoria_id if subcategoria_id else None
 
             cursor.execute('''
                 INSERT INTO orden_fabricacion_categorias (
@@ -3422,17 +3264,17 @@ def crear_orden_fabricacion_desde_oc():
             cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE SUBSTRING(codigo_pedido, 1, 13) = ?', 
                          (f"PED-{datetime.now().year}-",))
             pedido_numero = cursor.fetchone()[0] + 1
-            codigo_pedido_seguimiento = f"PED-{datetime.now().year}-{pedido_numero:04d}"
+            codigo_pedido = f"PED-{datetime.now().year}-{pedido_numero:04d}"
 
             # Obtener nombres para el pedido
             cursor.execute('SELECT nombre FROM categorias_producto WHERE id = ?', (categoria_id,))
             categoria_nombre = cursor.fetchone()[0]
 
-            nombre_pedido_seguimiento = f"{codigo_orden} - {categoria_nombre}"
+            nombre_pedido = f"{codigo_orden} - {categoria_nombre}"
             if subcategoria_id:
                 cursor.execute('SELECT nombre FROM subcategorias_producto WHERE id = ?', (subcategoria_id,))
                 subcategoria_nombre = cursor.fetchone()[0]
-                nombre_pedido_seguimiento += f" - {subcategoria_nombre}"
+                nombre_pedido += f" - {subcategoria_nombre}"
 
             cursor.execute('''
                 INSERT INTO pedidos_seguimiento (
@@ -3440,9 +3282,9 @@ def crear_orden_fabricacion_desde_oc():
                     codigo_pedido, nombre, estado, fecha_entrega_estimada
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
-                  codigo_pedido_seguimiento, nombre_pedido_seguimiento, 'en_desarrollo', fecha_entrega_estimada))
+                  codigo_pedido, nombre_pedido, 'en_desarrollo', fecha_entrega_estimada))
 
-        # Cambiar estado del proyecto a 'aprobado_produccion'
+        # Cambiar estado del proyecto a "En proceso"
         cursor.execute('''
             UPDATE proyectos 
             SET estado = 'aprobado_produccion', updated_at = CURRENT_TIMESTAMP
@@ -3452,11 +3294,11 @@ def crear_orden_fabricacion_desde_oc():
         conn.commit()
         conn.close()
 
-        flash(f'Orden de fabricación {codigo_orden} creada. Proyecto cambió a estado "Aprobado para Producción"', 'success')
+        flash(f'Orden de fabricación {codigo_orden} creada. Proyecto cambió a estado "En proceso"', 'success')
         return redirect(url_for('ordenes_compra'))
 
     except Exception as e:
-        flash(f'Error al crear orden de fabricación desde OC: {str(e)}', 'error')
+        flash(f'Error al crear orden de fabricación: {str(e)}', 'error')
         return redirect(url_for('ordenes_compra'))
 
 
@@ -3479,16 +3321,14 @@ def eliminar_pedido_seguimiento(pedido_id):
         codigo_pedido, proyecto_id, estado = pedido
 
         # Verificar que no esté en etapa avanzada de producción
-        if estado in ['seccionado', 'enchapado', 'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado']:
+        if estado in ['listo_embalaje', 'embalando', 'listo_despacho', 'despachado']:
             return jsonify({
                 'success': False, 
                 'message': 'No se puede eliminar un pedido en etapa avanzada de producción'
             })
 
-        # Eliminar evidencias relacionadas si existen (asociadas a tareas del proyecto)
-        # Esto puede ser complejo si una tarea tiene múltiples evidencias o si un pedido es parte de una tarea.
-        # Por ahora, se asume que las evidencias están ligadas a tareas, no directamente a pedidos.
-        # Si hay un vínculo directo pedido -> tarea, se debería eliminar aquí.
+        # Eliminar evidencias relacionadas si existen
+        cursor.execute('DELETE FROM evidencias WHERE tarea_id IN (SELECT id FROM tareas WHERE proyecto_id = ?)', (proyecto_id,))
 
         # Eliminar recordatorios relacionados
         cursor.execute('DELETE FROM recordatorios WHERE tipo = "pedido" AND referencia_id = ?', (pedido_id,))
@@ -3549,7 +3389,7 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('pendiente_fabricacion', 'aprobado_diseño') # Estados iniciales
+        WHERE of.estado IN ('pendiente_fabricacion', 'aprobado_diseño')
         ORDER BY of.fecha_entrega_estimada ASC
     ''')
     fabricacion_pendientes = cursor.fetchall()
@@ -3563,7 +3403,7 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('enviado_produccion', 'seccionado', 'enchapado', 'mecanizado') # Estados de proceso
+        WHERE of.estado IN ('enviado_produccion', 'seccionado', 'enchapando', 'mecanizado')
         ORDER BY of.fecha_entrega_estimada ASC
     ''')
     fabricacion_proceso = cursor.fetchall()
@@ -3577,7 +3417,7 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('produccion_completa', 'embalando', 'listo_despacho', 'despachado') # Estados finales
+        WHERE of.estado IN ('listo_embalaje', 'embalando', 'listo_despacho', 'despachado')
         ORDER BY of.fecha_entrega_real DESC
     ''')
     fabricacion_terminadas = cursor.fetchall()
@@ -3609,7 +3449,7 @@ def eliminar_orden_fabricacion(orden_fabricacion_id):
         codigo_orden, proyecto_id, estado = orden
 
         # Verificar que no esté en proceso avanzado
-        if estado in ['seccionado', 'enchapado', 'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'despachado']:
+        if estado in ['listo_embalaje', 'embalando', 'listo_despacho', 'despachado']:
             return jsonify({
                 'success': False, 
                 'message': 'No se puede eliminar una orden en etapa avanzada de producción'
@@ -3668,9 +3508,9 @@ def eliminar_orden_fabricacion(orden_fabricacion_id):
 
 @app.route('/avanzar_estado_proyecto/<int:proyecto_id>', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'operación', 'embalaje', 'despacho']) # Permitir avance a despacho
+@role_required(['admin', 'general', 'operación', 'embalaje'])
 def avanzar_estado_proyecto(proyecto_id):
-    """Avanzar estado de proyecto según los estados de fábrica y despacho"""
+    """Avanzar estado de proyecto según los estados de fábrica"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
@@ -3684,50 +3524,42 @@ def avanzar_estado_proyecto(proyecto_id):
 
         estado_actual, nombre_proyecto, codigo_proyecto = proyecto
 
-        # Definir secuencia de estados con nombres descriptivos y roles responsables
+        # Definir secuencia de estados con nombres descriptivos
         estados_secuencia = [
-            ('en_desarrollo', 'En Desarrollo', 'diseñador'),
-            ('diseño', 'Diseño', 'diseñador'),
-            ('aprobado_produccion', 'Aprobado para Producción', 'general'),
-            ('seccionado', 'Seccionado', 'operación'),
-            ('enchapado', 'Enchapado', 'operación'),
-            ('mecanizado', 'Mecanizado', 'operación'),
-            ('produccion_completa', 'Producción P&P Lista', 'operación'),
-            ('embalando', 'Embalando', 'embalaje'),
-            ('listo_despacho', 'Listo para Despacho', 'despacho'),
-            ('entregado', 'Despachado', 'despacho')
+            ('en_desarrollo', 'En Desarrollo'),
+            ('aprobado_produccion', 'Aprobado para Producción'), 
+            ('seccionado', 'Seccionado'),
+            ('enchapado', 'Enchapado'),
+            ('mecanizado', 'Mecanizado'),
+            ('produccion_completa', 'Producción P&P Lista'),
+            ('embalando', 'Embalando'),
+            ('listo_despacho', 'Listo para Despacho'),
+            ('entregado', 'Despachado')
         ]
 
         # Buscar el estado actual en la secuencia
         indice_actual = -1
-        rol_responsable_actual = None
-        for i, (estado, nombre, rol) in enumerate(estados_secuencia):
+        for i, (estado, nombre) in enumerate(estados_secuencia):
             if estado == estado_actual:
                 indice_actual = i
-                rol_responsable_actual = rol
                 break
 
         if indice_actual == -1:
             return jsonify({'success': False, 'message': f'Estado actual "{estado_actual}" no válido'})
 
-        # Verificar permisos del usuario actual para avanzar desde este estado
-        if session['user_role'] not in ['admin', 'general'] and session['user_role'] != rol_responsable_actual:
-            return jsonify({'success': False, 'message': f'Sin permisos para avanzar desde el estado "{estado_actual}" (Requiere rol: {rol_responsable_actual})'})
-
-        # Determinar el siguiente estado y rol
         if indice_actual < len(estados_secuencia) - 1:
-            nuevo_estado, nuevo_nombre, rol_responsable_nuevo = estados_secuencia[indice_actual + 1]
+            nuevo_estado, nuevo_nombre = estados_secuencia[indice_actual + 1]
 
             cursor.execute('UPDATE proyectos SET estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
                          (nuevo_estado, proyecto_id))
 
             if cursor.rowcount > 0:
-                # También actualizar pedidos de seguimiento relacionados si existen y están en estados previos
+                # También actualizar pedidos de seguimiento relacionados si existen
                 cursor.execute('''
                     UPDATE pedidos_seguimiento 
                     SET estado = ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE proyecto_id = ? AND estado IN (SELECT estado FROM estados_secuencia WHERE index < ?)
-                ''', (nuevo_estado, proyecto_id, indice_actual + 1)) # Placeholder para estados previos
+                    WHERE proyecto_id = ? AND estado != 'entregado'
+                ''', (nuevo_estado, proyecto_id))
 
                 # Registrar en auditoría
                 cursor.execute('''
@@ -3765,7 +3597,7 @@ def gestion_pedidos():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
-    # Estados secuenciales obligatorios y sus roles responsables
+    # Estados secuenciales obligatorios
     estados_secuencia = [
         ('en_desarrollo', 'Diseño', 'diseñador'),
         ('aprobado_produccion', 'Aprobado Producción', 'general'),
@@ -3781,53 +3613,69 @@ def gestion_pedidos():
     # Obtener pedidos de seguimiento con información del proyecto y cliente
     user_role = session['user_role']
 
-    # Construir la consulta SQL basada en el rol del usuario
-    query_parts = [
-        'SELECT ps.id, ps.codigo_pedido, ps.nombre, ps.estado, ps.fecha_inicio, ',
-        '       ps.fecha_entrega_estimada, p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,',
-        '       c.nombre as cliente_nombre, ps.categoria_id, ps.subcategoria_id,',
-        '       julianday(ps.fecha_entrega_estimada) - julianday("now") as dias_restantes',
-        'FROM pedidos_seguimiento ps',
-        'JOIN proyectos p ON ps.proyecto_id = p.id',
-        'LEFT JOIN clientes c ON p.cliente_id = c.id',
-        'WHERE ps.estado != "entregado"'
-    ]
-
-    if user_role != 'admin':
-        roles_estados_map = {
+    if user_role == 'admin':
+        # Admin ve todos los pedidos
+        cursor.execute('''
+            SELECT ps.id, ps.codigo_pedido, ps.nombre, ps.estado, ps.fecha_inicio, 
+                   ps.fecha_entrega_estimada, p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+                   c.nombre as cliente_nombre, ps.categoria_id, ps.subcategoria_id,
+                   julianday(ps.fecha_entrega_estimada) - julianday('now') as dias_restantes
+            FROM pedidos_seguimiento ps
+            JOIN proyectos p ON ps.proyecto_id = p.id
+            LEFT JOIN clientes c ON p.cliente_id = c.id
+            WHERE ps.estado != 'entregado'
+            ORDER BY 
+                CASE ps.estado
+                    WHEN 'en_desarrollo' THEN 1
+                    WHEN 'aprobado_produccion' THEN 2
+                    WHEN 'seccionado' THEN 3
+                    WHEN 'enchapado' THEN 4
+                    WHEN 'mecanizado' THEN 5
+                    WHEN 'produccion_completa' THEN 6
+                    WHEN 'embalando' THEN 7
+                    WHEN 'listo_despacho' THEN 8
+                    ELSE 9
+                END,
+                ps.fecha_entrega_estimada ASC
+        ''')
+    else:
+        # Filtrar por rol - cada rol ve los pedidos que le corresponden o están próximos
+        roles_estados = {
             'diseñador': ['en_desarrollo'],
             'general': ['en_desarrollo', 'aprobado_produccion'],
             'operación': ['aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'],
             'embalaje': ['produccion_completa', 'embalando'],
             'despacho': ['embalando', 'listo_despacho']
         }
-        estados_permitidos = roles_estados_map.get(user_role, [])
-        
+
+        estados_permitidos = roles_estados.get(user_role, [])
         if estados_permitidos:
             placeholders = ','.join(['?' for _ in estados_permitidos])
-            query_parts.append(f'AND ps.estado IN ({placeholders})')
+            cursor.execute(f'''
+                SELECT ps.id, ps.codigo_pedido, ps.nombre, ps.estado, ps.fecha_inicio, 
+                       ps.fecha_entrega_estimada, p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+                       c.nombre as cliente_nombre, ps.categoria_id, ps.subcategoria_id,
+                       julianday(ps.fecha_entrega_estimada) - julianday('now') as dias_restantes
+                FROM pedidos_seguimiento ps
+                JOIN proyectos p ON ps.proyecto_id = p.id
+                LEFT JOIN clientes c ON p.cliente_id = c.id
+                WHERE ps.estado IN ({placeholders})
+                ORDER BY 
+                    CASE ps.estado
+                        WHEN 'en_desarrollo' THEN 1
+                        WHEN 'aprobado_produccion' THEN 2
+                        WHEN 'seccionado' THEN 3
+                        WHEN 'enchapado' THEN 4
+                        WHEN 'mecanizado' THEN 5
+                        WHEN 'produccion_completa' THEN 6
+                        WHEN 'embalando' THEN 7
+                        WHEN 'listo_despacho' THEN 8
+                        ELSE 9
+                    END,
+                    ps.fecha_entrega_estimada ASC
+            ''', estados_permitidos)
         else:
-            # Si el rol no está mapeado o no tiene estados permitidos, no mostrar nada
-            cursor.execute('SELECT NULL LIMIT 0') # Consulta vacía
-            pedidos = [] # Inicializar lista vacía
-
-    # Ordenar los resultados
-    order_by_clause = (
-        'ORDER BY CASE ps.estado '
-        'WHEN "en_desarrollo" THEN 1 WHEN "aprobado_produccion" THEN 2 WHEN "seccionado" THEN 3 '
-        'WHEN "enchapado" THEN 4 WHEN "mecanizado" THEN 5 WHEN "produccion_completa" THEN 6 '
-        'WHEN "embalando" THEN 7 WHEN "listo_despacho" THEN 8 ELSE 9 END, '
-        'ps.fecha_entrega_estimada ASC'
-    )
-    query_parts.append(order_by_clause)
-
-    sql_query = ' '.join(query_parts)
-
-    if user_role != 'admin' and estados_permitidos:
-        cursor.execute(sql_query, estados_permitidos)
-    elif user_role == 'admin':
-        cursor.execute(sql_query)
-    # Si no hay estados permitidos y no es admin, la consulta ya fue manejada como vacía
+            cursor.execute('SELECT NULL LIMIT 0')  # No hay resultados
 
     pedidos = cursor.fetchall()
 
@@ -3863,7 +3711,7 @@ def avanzar_pedido(pedido_id):
     try:
         # Obtener información del pedido
         cursor.execute('''
-            SELECT ps.estado, ps.codigo_pedido, ps.nombre, p.nombre as proyecto_nombre, ps.proyecto_id
+            SELECT ps.estado, ps.codigo_pedido, ps.nombre, p.nombre as proyecto_nombre
             FROM pedidos_seguimiento ps
             JOIN proyectos p ON ps.proyecto_id = p.id
             WHERE ps.id = ?
@@ -3873,35 +3721,38 @@ def avanzar_pedido(pedido_id):
         if not pedido:
             return jsonify({'success': False, 'message': 'Pedido no encontrado'})
 
-        estado_actual, codigo_pedido, nombre_pedido, proyecto_nombre, proyecto_id = pedido
+        estado_actual, codigo_pedido, nombre_pedido, proyecto_nombre = pedido
 
-        # Estados secuenciales con roles responsables
+        # Estados secuenciales
         estados_secuencia = [
-            ('en_desarrollo', 'diseñador'), ('aprobado_produccion', 'general'), ('seccionado', 'operación'),
-            ('enchapado', 'operación'), ('mecanizado', 'operación'), ('produccion_completa', 'operación'),
-            ('embalando', 'embalaje'), ('listo_despacho', 'despacho'), ('entregado', 'despacho')
+            ('en_desarrollo', 'diseñador'),
+            ('aprobado_produccion', 'general'),
+            ('seccionado', 'operación'),
+            ('enchapado', 'operación'),
+            ('mecanizado', 'operación'),
+            ('produccion_completa', 'operación'),
+            ('embalando', 'embalaje'),
+            ('listo_despacho', 'despacho'),
+            ('entregado', 'despacho')
         ]
 
-        # Verificar permisos según el rol responsable del estado actual
-        rol_actual_responsable = None
-        indice_actual = -1
+        # Verificar permisos según el estado actual
+        rol_actual = None
         for i, (estado, rol) in enumerate(estados_secuencia):
             if estado == estado_actual:
-                rol_actual_responsable = rol
-                indice_actual = i
+                rol_actual = rol
                 break
 
-        if rol_actual_responsable is None: # Estado actual no válido en la secuencia
-             return jsonify({'success': False, 'message': 'Estado actual del pedido no válido'})
-
-        if session['user_role'] not in ['admin', 'general'] and session['user_role'] != rol_actual_responsable:
-            return jsonify({'success': False, 'message': f'Sin permisos para avanzar desde el estado "{estado_actual}" (Requiere rol: {rol_actual_responsable})'})
+        if session['user_role'] not in ['admin', 'general'] and session['user_role'] != rol_actual:
+            return jsonify({'success': False, 'message': 'Sin permisos para avanzar este pedido'})
 
         # Encontrar siguiente estado
         siguiente_estado = None
-        if indice_actual < len(estados_secuencia) - 1:
-            siguiente_estado = estados_secuencia[indice_actual + 1][0]
-        
+        for i, (estado, rol) in enumerate(estados_secuencia):
+            if estado == estado_actual and i < len(estados_secuencia) - 1:
+                siguiente_estado = estados_secuencia[i + 1][0]
+                break
+
         if not siguiente_estado:
             return jsonify({'success': False, 'message': 'El pedido ya está en el estado final'})
 
@@ -3912,23 +3763,13 @@ def avanzar_pedido(pedido_id):
             WHERE id = ?
         ''', (siguiente_estado, pedido_id))
 
-        # Si el siguiente estado es 'entregado', actualizar fecha_entrega_real del proyecto y del pedido
+        # Si es el último estado, marcar fecha de entrega real
         if siguiente_estado == 'entregado':
-            cursor.execute('UPDATE pedidos_seguimiento SET fecha_entrega_real = CURRENT_TIMESTAMP WHERE id = ?', (pedido_id,))
-            
-            # Verificar si todas las órdenes de fabricación del proyecto están entregadas para actualizar el proyecto
             cursor.execute('''
-                SELECT COUNT(*) FROM pedidos_seguimiento 
-                WHERE proyecto_id = ? AND estado != 'entregado'
-            ''', (proyecto_id,))
-            pedidos_pendientes_proyecto = cursor.fetchone()[0]
-
-            if pedidos_pendientes_proyecto == 0:
-                cursor.execute('''
-                    UPDATE proyectos 
-                    SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
-                    WHERE id = ?
-                ''', (proyecto_id,))
+                UPDATE pedidos_seguimiento 
+                SET fecha_entrega_real = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ''', (pedido_id,))
 
         # Registrar en auditoría
         cursor.execute('''
@@ -3999,10 +3840,6 @@ def retroceder_pedido(pedido_id):
             WHERE id = ?
         ''', (estado_anterior, pedido_id))
 
-        # Si el estado anterior es 'produccion_completa', resetear fecha de entrega real
-        if estado_anterior == 'produccion_completa':
-            cursor.execute('UPDATE pedidos_seguimiento SET fecha_entrega_real = NULL WHERE id = ?', (pedido_id,))
-
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
@@ -4046,12 +3883,11 @@ def reportes():
     cursor.execute('''
         SELECT rol_asignado, COUNT(*) as cantidad
         FROM tareas
-        WHERE rol_asignado IS NOT NULL
         GROUP BY rol_asignado
     ''')
     tareas_rol = cursor.fetchall()
 
-    # Productividad por usuario (tareas completadas)
+    # Productividad por usuario
     cursor.execute('''
         SELECT u.nombre, COUNT(t.id) as tareas_completadas
         FROM usuarios u
