@@ -134,6 +134,7 @@ def create_basic_tables(cursor):
             nombre TEXT NOT NULL,
             cliente_id INTEGER NOT NULL,
             descripcion TEXT,
+            adjudicacion_tipo TEXT DEFAULT 'orden_compra' CHECK (adjudicacion_tipo IN ('contrato', 'orden_compra')),
             estado TEXT DEFAULT 'diseño',
             prioridad TEXT DEFAULT 'media',
             fecha_inicio DATE,
@@ -141,7 +142,7 @@ def create_basic_tables(cursor):
             fecha_entrega_real DATE,
             diseñador_id INTEGER,
             supervisor_id INTEGER,
-            presupuesto DECIMAL(12,2),
+            monto_neto DECIMAL(12,2),
             costo_real DECIMAL(12,2),
             observaciones TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -2789,17 +2790,52 @@ def retroceder_tarea(tarea_id):
 @login_required
 @role_required(['admin', 'general', 'diseñador'])
 def nueva_orden_compra():
-    """Crear nueva orden de compra real (separada de proyectos) con múltiples categorías y pedidos de seguimiento"""
+    """Crear nueva orden de compra o contrato con múltiples categorías y pedidos de seguimiento"""
     try:
         numero_oc = request.form['numero_oc']
+        tipo_adjudicacion = request.form['tipo_adjudicacion']
         proyecto_existente_id = request.form.get('proyecto_existente_id')
         cliente_id = request.form.get('cliente_id')
         nuevo_cliente_nombre = request.form.get('nuevo_cliente_nombre', '').strip()
         nombre_proyecto = request.form.get('nombre_proyecto', '').strip()
         descripcion = request.form.get('descripcion', '').strip() or None
-        fecha_entrega = request.form['fecha_entrega']
         prioridad = request.form.get('prioridad', 'media')
-        monto = request.form.get('monto')
+
+        # Campos específicos según tipo
+        if tipo_adjudicacion == 'orden_compra':
+            fecha_entrega = request.form['fecha_entrega_oc']
+            monto_neto_provision = request.form.get('monto_neto_provision')
+            monto_float = None
+            if monto_neto_provision:
+                try:
+                    monto_float = float(monto_neto_provision)
+                except ValueError:
+                    flash('Monto neto provisión inválido', 'error')
+                    return redirect(url_for('dashboard'))
+        elif tipo_adjudicacion == 'contrato':
+            fecha_inicio_contrato = request.form.get('fecha_inicio_contrato')
+            monto_total_contrato = request.form.get('monto_total_contrato')
+            entrega_detalles = request.form.getlist('entrega_detalles[]')
+            entrega_fechas = request.form.getlist('entrega_fechas[]')
+            
+            # Validar entregas para contrato
+            if not entrega_detalles or not entrega_fechas or len(entrega_detalles) != len(entrega_fechas):
+                flash('Debe especificar al menos una entrega válida para el contrato', 'error')
+                return redirect(url_for('dashboard'))
+            
+            # Usar la fecha de la primera entrega como fecha de entrega principal del proyecto
+            fecha_entrega = entrega_fechas[0] if entrega_fechas else None
+            
+            monto_float = None
+            if monto_total_contrato:
+                try:
+                    monto_float = float(monto_total_contrato)
+                except ValueError:
+                    flash('Monto total contrato inválido', 'error')
+                    return redirect(url_for('dashboard'))
+        else:
+            flash('Tipo de adjudicación inválido', 'error')
+            return redirect(url_for('dashboard'))
 
         # Obtener categorías y subcategorías como arrays
         categorias_raw = request.form.get('categorias_selected', '').strip()
@@ -2829,15 +2865,6 @@ def nueva_orden_compra():
         if not categorias or not any(cat for cat in categorias if cat and cat != ''):
             flash('Debe seleccionar al menos una categoría', 'error')
             return redirect(url_for('dashboard'))
-
-        # Validar monto
-        monto_float = None
-        if monto:
-            try:
-                monto_float = float(monto)
-            except ValueError:
-                flash('Monto inválido', 'error')
-                return redirect(url_for('dashboard'))
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
@@ -2879,13 +2906,13 @@ def nueva_orden_compra():
             proyecto_numero = cursor.fetchone()[0] + 1
             codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
-            # Crear nuevo proyecto
+            # Crear nuevo proyecto con tipo de adjudicación
             cursor.execute('''
                 INSERT INTO proyectos (
-                    codigo, nombre, cliente_id, descripcion, estado, prioridad, 
-                    fecha_inicio, fecha_entrega, presupuesto
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, 'en_desarrollo', 
+                    codigo, nombre, cliente_id, descripcion, adjudicacion_tipo, estado, prioridad, 
+                    fecha_inicio, fecha_entrega, monto_neto
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion, 'en_desarrollo', 
                   prioridad, datetime.now().date(), fecha_entrega, monto_float))
             proyecto_id = cursor.lastrowid
         else:
@@ -2944,10 +2971,21 @@ def nueva_orden_compra():
                 ''', (proyecto_id, categoria_id, subcategoria_id, codigo_pedido,
                       nombre_pedido, 'en_desarrollo', datetime.now().date(), fecha_entrega))
 
+        # Si es contrato, crear entregas programadas
+        if tipo_adjudicacion == 'contrato':
+            for i, detalle in enumerate(entrega_detalles):
+                if detalle.strip() and i < len(entrega_fechas) and entrega_fechas[i]:
+                    cursor.execute('''
+                        INSERT INTO entregas_contrato (
+                            proyecto_id, detalle, fecha_entrega, estado
+                        ) VALUES (?, ?, ?, ?)
+                    ''', (proyecto_id, detalle.strip(), entrega_fechas[i], 'programada'))
+
         conn.commit()
         conn.close()
 
-        flash(f'Orden de compra {numero_oc} creada exitosamente con pedidos de seguimiento', 'success')
+        tipo_texto = 'Contrato' if tipo_adjudicacion == 'contrato' else 'Orden de compra'
+        flash(f'{tipo_texto} {numero_oc} creado exitosamente con pedidos de seguimiento', 'success')
         return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
 
     except sqlite3.IntegrityError as e:
@@ -3051,6 +3089,32 @@ def api_entregas_proyecto(proyecto_id):
 
     conn.close()
     return jsonify(entregas)
+
+@app.route('/marcar_entrega_completada/<int:entrega_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def marcar_entrega_completada(entrega_id):
+    """Marcar una entrega de contrato como completada"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE entregas_contrato 
+            SET estado = 'completada', updated_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (entrega_id,))
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Entrega marcada como completada'})
+        else:
+            return jsonify({'success': False, 'message': 'Entrega no encontrada'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
 
 
 @app.route('/api/proyectos_disponibles_fabricacion')

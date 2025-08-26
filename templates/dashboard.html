@@ -8,7 +8,7 @@
     <div>
         {% if session.user_role in ['admin', 'general', 'diseñador'] %}
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaOrdenModal">
-            <i class="fas fa-plus"></i> Nueva Orden de Compra
+            <i class="fas fa-plus"></i> Nueva Orden de Compra/Contrato
         </button>
         {% endif %}
     </div>
@@ -232,21 +232,57 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Nueva Orden de Compra</h5>
+                <h5 class="modal-title">Nueva Orden de Compra/Contrato</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('nueva_orden_compra') }}" method="POST">
                 <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Orden de Compra Real:</strong> Esta es una orden de compra externa de un cliente, no un proyecto interno.
+                    <!-- Selección de Tipo: Contrato o Orden de Compra -->
+                    <div class="mb-3">
+                        <label for="tipo_orden" class="form-label">Tipo de Orden *</label>
+                        <select class="form-select" id="tipo_orden" name="tipo_orden" required onchange="toggleTipoOrden()">
+                            <option value="">Seleccionar tipo...</option>
+                            <option value="contrato">Contrato</option>
+                            <option value="orden_compra">Orden de Compra</option>
+                        </select>
                     </div>
+
+                    <div id="contrato_fields" style="display: none;">
+                        <!-- Campos específicos para Contrato -->
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Contrato:</strong> Aquí puedes asignar las entregas de forma manual.
+                        </div>
+                        <div id="entregas_container">
+                            <!-- Registros de entrega se agregarán aquí -->
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="agregarEntrega()">
+                            <i class="fas fa-plus"></i> Agregar Registro de Entrega
+                        </button>
+                    </div>
+
+                    <div id="orden_compra_fields" style="display: none;">
+                        <!-- Campos específicos para Orden de Compra -->
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Orden de Compra:</strong> Ingresa la fecha de entrega estimada al cliente.
+                        </div>
+                        <div class="mb-3">
+                            <label for="fecha_entrega_estimada_cliente" class="form-label">Fecha de Entrega Estimada al Cliente</label>
+                            <input type="date" class="form-control" id="fecha_entrega_estimada_cliente" name="fecha_entrega_estimada_cliente">
+                        </div>
+                        <div class="mb-3">
+                            <label for="monto_neto_provision" class="form-label">Monto Neto Provisión</label>
+                            <input type="number" class="form-control" id="monto_neto_provision" name="monto_neto_provision" step="1000" min="0" placeholder="0">
+                        </div>
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="numero_oc" class="form-label">Número de Orden de Compra *</label>
-                                <input type="text" class="form-control" id="numero_oc" name="numero_oc" required placeholder="Ej: OC-CLIENTE-2024-001">
-                                <small class="text-muted">Número proporcionado por el cliente</small>
+                                <label for="numero_oc" class="form-label">Número de Orden de Compra / Contrato *</label>
+                                <input type="text" class="form-control" id="numero_oc" name="numero_oc" required placeholder="Ej: OC-CLIENTE-2024-001 / CONTRATO-XYZ">
+                                <small class="text-muted">Número proporcionado por el cliente o generado</small>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -320,13 +356,13 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="fecha_entrega" class="form-label">Fecha Entrega *</label>
-                                <input type="date" class="form-control" id="fecha_entrega" name="fecha_entrega" required>
+                                <label for="fecha_entrega_general" class="form-label">Fecha Entrega General *</label>
+                                <input type="date" class="form-control" id="fecha_entrega_general" name="fecha_entrega_general" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="monto" class="form-label">Monto (CLP)</label>
+                                <label for="monto" class="form-label">Monto Total (CLP)</label>
                                 <input type="number" class="form-control" id="monto" name="monto" step="1000" min="0" placeholder="0">
                             </div>
                         </div>
@@ -334,7 +370,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Crear Orden de Compra</button>
+                    <button type="submit" class="btn btn-primary">Crear Orden</button>
                 </div>
             </form>
         </div>
@@ -345,6 +381,7 @@
 {% block scripts %}
 <script>
 let categoriasData = [];
+let entregaCounter = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Cargar clientes disponibles
@@ -426,22 +463,97 @@ function toggleClienteNuevo() {
     }
 }
 
+function toggleTipoOrden() {
+    const tipoOrden = document.getElementById('tipo_orden').value;
+    const contratoFields = document.getElementById('contrato_fields');
+    const ordenCompraFields = document.getElementById('orden_compra_fields');
+
+    if (tipoOrden === 'contrato') {
+        contratoFields.style.display = 'block';
+        ordenCompraFields.style.display = 'none';
+        document.getElementById('fecha_entrega_general').removeAttribute('required'); // Opcional para contrato
+        document.getElementById('monto').removeAttribute('required'); // Opcional para contrato
+        document.getElementById('fecha_entrega_estimada_cliente').removeAttribute('name'); // Quitar name si no se usa
+        document.getElementById('monto_neto_provision').removeAttribute('name'); // Quitar name si no se usa
+        document.getElementById('numero_oc').placeholder = "Ej: CONTRATO-XYZ";
+        document.querySelector('form button[type="submit"]').textContent = 'Crear Contrato';
+    } else if (tipoOrden === 'orden_compra') {
+        contratoFields.style.display = 'none';
+        ordenCompraFields.style.display = 'block';
+        document.getElementById('fecha_entrega_general').setAttribute('required', 'true');
+        document.getElementById('monto').setAttribute('required', 'true');
+        document.getElementById('fecha_entrega_estimada_cliente').setAttribute('name', 'fecha_entrega_estimada_cliente');
+        document.getElementById('monto_neto_provision').setAttribute('name', 'monto_neto_provision');
+        document.getElementById('numero_oc').placeholder = "Ej: OC-CLIENTE-2024-001";
+        document.querySelector('form button[type="submit"]').textContent = 'Crear Orden de Compra';
+    } else {
+        contratoFields.style.display = 'none';
+        ordenCompraFields.style.display = 'none';
+        document.getElementById('fecha_entrega_general').removeAttribute('required');
+        document.getElementById('monto').removeAttribute('required');
+        document.getElementById('fecha_entrega_estimada_cliente').removeAttribute('name');
+        document.getElementById('monto_neto_provision').removeAttribute('name');
+        document.querySelector('form button[type="submit"]').textContent = 'Crear Orden';
+    }
+}
+
+function agregarEntrega() {
+    const container = document.getElementById('entregas_container');
+    entregaCounter++;
+
+    const nuevaEntrega = document.createElement('div');
+    nuevaEntrega.className = 'entrega-item border rounded p-3 mb-3';
+    nuevaEntrega.innerHTML = `
+        <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <label for="detalle_entrega_${entregaCounter}" class="form-label">Detalle</label>
+                <input type="text" class="form-control" id="detalle_entrega_${entregaCounter}" name="detalle_entregas[]" placeholder="Ej: Piso 1, Oficina Principal">
+            </div>
+            <div class="col-md-5">
+                <label for="fecha_entrega_${entregaCounter}" class="form-label">Fecha Entrega</label>
+                <input type="date" class="form-control" id="fecha_entrega_${entregaCounter}" name="fechas_entrega[]" required>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removerEntrega(this)">
+                    <i class="fas fa-trash"></i> Eliminar
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(nuevaEntrega);
+
+    // Mostrar botón de eliminar solo si hay más de una entrega
+    const botonesEliminar = container.querySelectorAll('.btn-outline-danger');
+    if (botonesEliminar.length > 1) {
+        botonesEliminar.forEach(btn => btn.style.display = 'block');
+    } else {
+        botonesEliminar[0].style.display = 'none'; // Ocultar si solo hay una
+    }
+}
+
+function removerEntrega(boton) {
+    const entregaItem = boton.closest('.entrega-item');
+    entregaItem.remove();
+    // Re-evaluar visibilidad de botones de eliminar si es necesario
+    const container = document.getElementById('entregas_container');
+    const botonesEliminar = container.querySelectorAll('.btn-outline-danger');
+    if (botonesEliminar.length === 1) {
+        botonesEliminar[0].style.display = 'none';
+    }
+}
+
+
 function llenarSelectCategorias() {
     const selects = document.querySelectorAll('.categoria-select');
     selects.forEach(select => {
-        const valorActual = select.value;
-        select.innerHTML = '<option value="">Seleccionar categoría...</option>';
-
-        categoriasData.forEach(categoria => {
-            const option = document.createElement('option');
-            option.value = categoria.id;
-            option.textContent = categoria.nombre;
-            select.appendChild(option);
-        });
-
-        if (valorActual) {
-            select.value = valorActual;
-            select.dispatchEvent(new Event('change'));
+        // Solo agregar opciones si el select está vacío
+        if (select.options.length <= 1) {
+            categoriasData.forEach(categoria => {
+                const option = document.createElement('option');
+                option.value = categoria.id;
+                option.textContent = categoria.nombre;
+                select.appendChild(option);
+            });
         }
     });
 }
@@ -450,19 +562,24 @@ function cargarSubcategorias(categoriaSelect) {
     const categoriaItem = categoriaSelect.closest('.categoria-item');
     const subcategoriaSelect = categoriaItem.querySelector('.subcategoria-select');
 
-    subcategoriaSelect.innerHTML = '<option value="">Seleccionar subcategoría...</option>';
+    // Limpiar subcategorias anteriores y deshabilitar
+    subcategoriaSelect.innerHTML = '<option value="">Primero selecciona una categoría</option>';
+    subcategoriaSelect.disabled = true;
 
     if (!categoriaSelect.value) {
-        subcategoriaSelect.disabled = true;
-        subcategoriaSelect.innerHTML = '<option value="">Primero selecciona una categoría</option>';
-        return;
+        return; // No hacer nada si no hay categoría seleccionada
     }
 
-    subcategoriaSelect.disabled = false;
+    subcategoriaSelect.disabled = false; // Habilitar si hay categoría
 
     fetch(`/api/subcategorias/${categoriaSelect.value}`)
         .then(response => response.json())
         .then(data => {
+            if(data.length === 0) {
+                subcategoriaSelect.innerHTML = '<option value="">No hay subcategorías disponibles</option>';
+                subcategoriaSelect.disabled = true;
+                return;
+            }
             data.forEach(subcategoria => {
                 const option = document.createElement('option');
                 option.value = subcategoria.id;
@@ -504,11 +621,13 @@ function agregarCategoria() {
     `;
 
     container.appendChild(nuevaCategoria);
-    llenarSelectCategorias();
+    llenarSelectCategorias(); // Asegura que las nuevas categorías se carguen
 
     const botonesEliminar = document.querySelectorAll('.categoria-item .btn-outline-danger');
     if (botonesEliminar.length > 1) {
         botonesEliminar.forEach(btn => btn.style.display = 'block');
+    } else {
+        botonesEliminar[0].style.display = 'none'; // Ocultar si solo hay una
     }
 }
 
@@ -518,7 +637,7 @@ function removerCategoria(boton) {
 
     const botonesEliminar = document.querySelectorAll('.categoria-item .btn-outline-danger');
     if (botonesEliminar.length === 1) {
-        botonesEliminar[0].style.display = 'none';
+        botonesEliminar[0].style.display = 'none'; // Ocultar si solo queda uno
     }
 }
 </script>
