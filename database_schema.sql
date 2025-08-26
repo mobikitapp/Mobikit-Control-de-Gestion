@@ -78,14 +78,14 @@ CREATE TABLE IF NOT EXISTS proyectos (
     nombre TEXT NOT NULL,
     cliente_id INTEGER NOT NULL,
     descripcion TEXT,
+    adjudicacion_tipo TEXT DEFAULT 'orden_compra' CHECK (adjudicacion_tipo IN ('contrato', 'orden_compra')),
     estado TEXT DEFAULT 'en_desarrollo' CHECK (estado IN ('en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado', 'cancelado')),
-    prioridad TEXT DEFAULT 'media' CHECK (prioridad IN ('baja', 'media', 'alta', 'urgente')),
     fecha_inicio DATE,
     fecha_entrega DATE,
     fecha_entrega_real DATE,
     diseñador_id INTEGER,
     supervisor_id INTEGER,
-    presupuesto DECIMAL(12,2),
+    monto_neto DECIMAL(12,2),
     costo_real DECIMAL(12,2),
     observaciones TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -354,6 +354,19 @@ CREATE TABLE IF NOT EXISTS documentos_proyecto (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (proyecto_id) REFERENCES proyectos (id),
     FOREIGN KEY (usuario_subida_id) REFERENCES usuarios (id)
+);
+
+-- Tabla de entregas programadas para contratos
+CREATE TABLE IF NOT EXISTS entregas_contrato (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    proyecto_id INTEGER NOT NULL,
+    detalle TEXT NOT NULL,
+    fecha_entrega DATE NOT NULL,
+    estado TEXT DEFAULT 'programada' CHECK (estado IN ('programada', 'en_proceso', 'completada', 'retrasada')),
+    observaciones TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (proyecto_id) REFERENCES proyectos (id) ON DELETE CASCADE
 );
 
 -- Índices para optimizar consultas
