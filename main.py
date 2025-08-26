@@ -1078,6 +1078,96 @@ def editar_proyecto():
     return redirect(url_for('clientes'))
 
 
+@app.route('/eliminar_proyecto/<int:proyecto_id>', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def eliminar_proyecto(proyecto_id):
+    """Eliminar proyecto (solo administradores)"""
+    try:
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Verificar que el proyecto existe y obtener información
+        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = ?', (proyecto_id,))
+        proyecto = cursor.fetchone()
+
+        if not proyecto:
+            return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
+
+        codigo_proyecto, nombre_proyecto = proyecto
+
+        # Verificar si tiene órdenes de fabricación
+        cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE proyecto_id = ?', (proyecto_id,))
+        ordenes_fabricacion = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE proyecto_id = ?', (proyecto_id,))
+        ordenes_fabricacion_custom = cursor.fetchone()[0]
+
+        # Verificar si tiene tareas
+        cursor.execute('SELECT COUNT(*) FROM tareas WHERE proyecto_id = ?', (proyecto_id,))
+        tareas_count = cursor.fetchone()[0]
+
+        # Verificar si tiene despachos
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE proyecto_id = ?', (proyecto_id,))
+        despachos_count = cursor.fetchone()[0]
+
+        total_dependencias = ordenes_fabricacion + ordenes_fabricacion_custom + tareas_count + despachos_count
+
+        if total_dependencias > 0:
+            dependencias_info = []
+            if ordenes_fabricacion > 0:
+                dependencias_info.append(f'{ordenes_fabricacion} pedido(s) de seguimiento')
+            if ordenes_fabricacion_custom > 0:
+                dependencias_info.append(f'{ordenes_fabricacion_custom} orden(es) de fabricación')
+            if tareas_count > 0:
+                dependencias_info.append(f'{tareas_count} tarea(s)')
+            if despachos_count > 0:
+                dependencias_info.append(f'{despachos_count} despacho(s)')
+
+            return jsonify({
+                'success': False, 
+                'message': f'No se puede eliminar el proyecto porque tiene dependencias activas: {", ".join(dependencias_info)}'
+            })
+
+        # Eliminar evidencias asociadas a tareas del proyecto (si existen)
+        cursor.execute('DELETE FROM evidencias WHERE proyecto_id = ?', (proyecto_id,))
+
+        # Eliminar documentos del proyecto
+        cursor.execute('DELETE FROM documentos_proyecto WHERE proyecto_id = ?', (proyecto_id,))
+
+        # Eliminar categorías del proyecto
+        cursor.execute('DELETE FROM proyecto_categorias WHERE proyecto_id = ?', (proyecto_id,))
+
+        # Eliminar recordatorios del proyecto
+        cursor.execute('DELETE FROM recordatorios WHERE tipo = "proyecto" AND referencia_id = ?', (proyecto_id,))
+
+        # Finalmente eliminar el proyecto
+        cursor.execute('DELETE FROM proyectos WHERE id = ?', (proyecto_id,))
+
+        if cursor.rowcount > 0:
+            # Registrar en auditoría
+            cursor.execute('''
+                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+                VALUES ('proyectos', ?, 'DELETE', ?, ?)
+            ''', (proyecto_id, session['user_id'], 
+                  json.dumps({
+                      'accion': 'eliminar_proyecto',
+                      'codigo': codigo_proyecto,
+                      'nombre': nombre_proyecto,
+                      'eliminado_por': session['user_name']
+                  })))
+
+            conn.commit()
+            return jsonify({'success': True, 'message': f'Proyecto {codigo_proyecto} eliminado exitosamente'})
+        else:
+            return jsonify({'success': False, 'message': 'No se pudo eliminar el proyecto'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al eliminar proyecto: {str(e)}'})
+    finally:
+        conn.close()
+
+
 @app.route('/tareas')
 @login_required
 def tareas():
