@@ -330,7 +330,6 @@ def dashboard():
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE p.estado IN ('entregado', 'completado')
         ORDER BY p.fecha_entrega_real DESC
-        LIMIT 10
     ''')
     ordenes_terminadas = cursor.fetchall()
 
@@ -1407,7 +1406,7 @@ def crear_despacho():
         if telefono_contacto:
             info_completa += f"\nTELÉFONO CONTACTO: {telefono_contacto}"
         if hora_programada:
-            info_completa += f"\nHORA PROGRAMADA: {hora_programada}"
+            info_completa += f"\nHhora_programada: {hora_programada}"
         if horario_entrega:
             info_completa += f"\nHORARIO ENTREGA: {horario_entrega}"
         if restricciones:
@@ -3088,7 +3087,8 @@ def avanzar_tarea(tarea_id):
         # Obtener información actual de la tarea
         cursor.execute('''
             SELECT t.estado, t.rol_asignado, t.tipo, 
-                   t.proyecto_id, t.titulo, p.nombre as proyecto_nombre
+                   t.proyecto_id, t.titulo, p.nombre as proyecto_nombre,
+                   t.etapa_fabricacion
             FROM tareas t
             JOIN proyectos p ON t.proyecto_id = p.id
             WHERE t.id = ?
@@ -3098,7 +3098,7 @@ def avanzar_tarea(tarea_id):
         if not tarea:
             return jsonify({'success': False, 'message': 'Tarea no encontrada'})
 
-        estado_actual, rol, tipo, proyecto_id, titulo, proyecto_nombre = tarea
+        estado_actual, rol, tipo, proyecto_id, titulo, proyecto_nombre, etapa_actual = tarea
 
         # Verificar permisos
         if session['user_role'] not in ['admin', 'general'] and session['user_role'] != rol:
@@ -3183,7 +3183,8 @@ def retroceder_tarea(tarea_id):
         # Obtener información actual de la tarea
         cursor.execute('''
             SELECT t.estado, t.rol_asignado, t.tipo, 
-                   t.proyecto_id, t.titulo, p.nombre as proyecto_nombre
+                   t.proyecto_id, t.titulo, p.nombre as proyecto_nombre,
+                   t.etapa_fabricacion
             FROM tareas t
             JOIN proyectos p ON t.proyecto_id = p.id
             WHERE t.id = ?
@@ -3193,7 +3194,7 @@ def retroceder_tarea(tarea_id):
         if not tarea:
             return jsonify({'success': False, 'message': 'Tarea no encontrada'})
 
-        estado_actual, rol, tipo, proyecto_id, titulo, proyecto_nombre = tarea
+        estado_actual, rol, tipo, proyecto_id, titulo, proyecto_nombre, etapa_actual = tarea
 
         # Solo admin y general pueden retroceder tareas
         if session['user_role'] not in ['admin', 'general']:
