@@ -1,84 +1,105 @@
 
 #!/usr/bin/env python3
 """
-Script para eliminar la tabla pedidos_seguimiento y limpiar el sistema de estados
+Script para eliminar tabla pedidos_seguimiento y simplificar estados
 """
 
 import sqlite3
 from datetime import datetime
 
 def migrate_remove_pedidos_seguimiento():
-    """Elimina la tabla pedidos_seguimiento y actualiza estados de órdenes de fabricación"""
+    """Elimina tabla pedidos_seguimiento y simplifica estados de fabricación"""
     print("Eliminando tabla pedidos_seguimiento y simplificando estados...")
     
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
     
     try:
-        # Verificar si la tabla existe
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pedidos_seguimiento'")
+        # Verificar si la tabla pedidos_seguimiento existe
+        cursor.execute('''
+            SELECT name FROM sqlite_master WHERE type='table' AND name='pedidos_seguimiento'
+        ''')
         if cursor.fetchone():
-            print("Tabla pedidos_seguimiento encontrada, eliminando...")
-            
-            # Eliminar la tabla pedidos_seguimiento
-            cursor.execute('DROP TABLE IF EXISTS pedidos_seguimiento')
-            print("Tabla pedidos_seguimiento eliminada exitosamente")
+            cursor.execute('DROP TABLE pedidos_seguimiento')
+            print("Tabla pedidos_seguimiento eliminada")
         else:
             print("Tabla pedidos_seguimiento no existe")
 
-        # Actualizar estados de órdenes de fabricación para que coincidan con los estados simplificados
+        # Recrear tabla ordenes_fabricacion con estados correctos
+        cursor.execute('DROP TABLE IF EXISTS ordenes_fabricacion')
+        print("Tabla ordenes_fabricacion eliminada para recreación")
+        
+        cursor.execute('''
+            CREATE TABLE ordenes_fabricacion (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo_orden TEXT UNIQUE NOT NULL,
+                proyecto_id INTEGER NOT NULL,
+                tipo_orden TEXT DEFAULT 'parcial' CHECK (tipo_orden IN ('parcial', 'total')),
+                fecha_entrega_estimada DATE NOT NULL,
+                cantidad_tableros INTEGER NOT NULL,
+                estado TEXT DEFAULT 'pendiente_fabricacion' CHECK (estado IN (
+                    'pendiente_fabricacion', 'aprobado_diseño', 'enviado_produccion', 
+                    'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 
+                    'embalando', 'listo_despacho', 'despachado'
+                )),
+                prioridad TEXT DEFAULT 'media' CHECK (prioridad IN ('baja', 'media', 'alta', 'urgente')),
+                observaciones TEXT,
+                fecha_inicio DATE,
+                fecha_entrega_real DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (proyecto_id) REFERENCES proyectos (id) ON DELETE CASCADE
+            )
+        ''')
+        print("Tabla ordenes_fabricacion recreada con estados correctos")
+
+        # Recrear tabla orden_fabricacion_categorias
+        cursor.execute('DROP TABLE IF EXISTS orden_fabricacion_categorias')
+        cursor.execute('''
+            CREATE TABLE orden_fabricacion_categorias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                orden_fabricacion_id INTEGER NOT NULL,
+                categoria_id INTEGER NOT NULL,
+                subcategoria_id INTEGER,
+                cantidad INTEGER DEFAULT 1,
+                observaciones TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (orden_fabricacion_id) REFERENCES ordenes_fabricacion (id) ON DELETE CASCADE,
+                FOREIGN KEY (categoria_id) REFERENCES categorias_producto (id),
+                FOREIGN KEY (subcategoria_id) REFERENCES subcategorias_producto (id)
+            )
+        ''')
+        print("Tabla orden_fabricacion_categorias recreada")
+
+        # Actualizar estados de proyectos para que sean consistentes
         estados_mapping = {
-            'pendiente': 'pendiente_fabricacion',
-            'aprobado_diseño': 'aprobado_produccion',
-            'enviado_produccion': 'aprobado_produccion',
-            'enchapando': 'enchapado',
-            'listo_embalaje': 'produccion_completa',
-            'despachado': 'entregado'
+            'pendiente': 'en_desarrollo',
+            'diseño': 'en_desarrollo',
+            'aprobado_produccion': 'aprobado_produccion',
+            'fabricacion': 'produccion_completa',
+            'control_calidad': 'produccion_completa',
+            'embalaje': 'embalando',
+            'despacho': 'listo_despacho'
         }
 
         for estado_viejo, estado_nuevo in estados_mapping.items():
             cursor.execute('''
-                UPDATE ordenes_fabricacion 
+                UPDATE proyectos 
                 SET estado = ? 
                 WHERE estado = ?
             ''', (estado_nuevo, estado_viejo))
             
             affected_rows = cursor.rowcount
             if affected_rows > 0:
-                print(f"Actualizados {affected_rows} registros de '{estado_viejo}' a '{estado_nuevo}'")
+                print(f"Actualizados {affected_rows} proyectos de '{estado_viejo}' a '{estado_nuevo}'")
 
-        # Actualizar estados de proyectos para consistencia
-        cursor.execute('''
-            UPDATE proyectos 
-            SET estado = 'en_desarrollo' 
-            WHERE estado IN ('diseño', 'pendiente')
-        ''')
-        
-        cursor.execute('''
-            UPDATE proyectos 
-            SET estado = 'produccion_completa' 
-            WHERE estado = 'fabricacion'
-        ''')
-
-        # Eliminar índices relacionados con pedidos_seguimiento si existen
-        indices_a_eliminar = [
-            'idx_pedidos_seguimiento_proyecto',
-            'idx_pedidos_seguimiento_estado',
-            'idx_pedidos_seguimiento_orden'
-        ]
-        
-        for indice in indices_a_eliminar:
-            try:
-                cursor.execute(f'DROP INDEX IF EXISTS {indice}')
-                print(f"Índice {indice} eliminado")
-            except sqlite3.OperationalError:
-                pass
+        # Crear índices
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ordenes_fabricacion_proyecto ON ordenes_fabricacion(proyecto_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ordenes_fabricacion_estado ON ordenes_fabricacion(estado)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_orden_fabricacion_categorias_orden ON orden_fabricacion_categorias(orden_fabricacion_id)')
 
         conn.commit()
-        print("Migración completada exitosamente!")
-        print("Estados simplificados:")
-        print("- Proyectos: en_desarrollo, aprobado_produccion, seccionado, enchapado, mecanizado, produccion_completa, embalando, listo_despacho, entregado, cancelado")
-        print("- Órdenes de Fabricación: pendiente_fabricacion, aprobado_produccion, seccionado, enchapado, mecanizado, produccion_completa, embalando, listo_despacho, entregado")
+        print("Migración completada exitosamente")
 
     except Exception as e:
         conn.rollback()

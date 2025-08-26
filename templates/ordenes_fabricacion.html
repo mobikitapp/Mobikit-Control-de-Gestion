@@ -328,7 +328,7 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary" id="btnCrearOrden">Crear Orden de Fabricación</button>
                 </div>
-            </form>
+            </form></old_str>
         </div>
     </div>
 </div>
@@ -336,14 +336,21 @@
 
 {% block scripts %}
 <script>
+// Variables globales
+let proyectosData = [];
+
 // Cargar proyectos disponibles al abrir el modal
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, setting up modal listeners');
+    
     const modal = document.getElementById('nuevaOrdenFabricacionModal');
     if (modal) {
         modal.addEventListener('show.bs.modal', function() {
-            console.log('Loading projects...');
+            console.log('Modal opening, loading projects...');
             cargarProyectosDisponibles();
         });
+    } else {
+        console.error('Modal nuevaOrdenFabricacionModal not found');
     }
 
     // Event listener para cambio de proyecto
@@ -351,21 +358,36 @@ document.addEventListener('DOMContentLoaded', function() {
     if (proyectoSelect) {
         proyectoSelect.addEventListener('change', function() {
             const proyectoId = this.value;
-            cargarCategoriasProyecto(proyectoId);
+            console.log('Project changed:', proyectoId);
+            if (proyectoId) {
+                cargarCategoriasProyecto(proyectoId);
+            } else {
+                resetCategorias();
+            }
         });
+    } else {
+        console.error('Proyecto select not found');
     }
 
     // Event listener para el formulario
     const form = document.getElementById('formOrdenFabricacion');
     if (form) {
         form.addEventListener('submit', function(e) {
+            console.log('Form submitting...');
             const categoriasSeleccionadas = document.querySelectorAll('input[name="categorias_seleccionadas"]:checked');
+            console.log('Selected categories:', categoriasSeleccionadas.length);
+            
             if (categoriasSeleccionadas.length === 0) {
                 e.preventDefault();
                 alert('Debe seleccionar al menos una categoría para fabricar');
                 return false;
             }
+            
+            // Permitir que el formulario se envíe normalmente
+            return true;
         });
+    } else {
+        console.error('Form not found');
     }
 });
 
@@ -381,16 +403,19 @@ function cargarProyectosDisponibles() {
 
     fetch('/api/proyectos_disponibles_fabricacion')
         .then(response => {
+            console.log('Response status:', response.status);
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             return response.json();
         })
         .then(data => {
             console.log('Projects loaded:', data);
+            proyectosData = data;
+            
             select.innerHTML = '<option value="">Seleccionar proyecto...</option>';
 
-            if (data && data.length > 0) {
+            if (data && Array.isArray(data) && data.length > 0) {
                 data.forEach(proyecto => {
                     const option = document.createElement('option');
                     option.value = proyecto.id;
@@ -414,44 +439,53 @@ function cargarCategoriasProyecto(proyectoId) {
         return;
     }
 
-    if (proyectoId) {
-        categoriasDiv.innerHTML = '<p class="text-muted">Cargando categorías...</p>';
+    if (!proyectoId) {
+        resetCategorias();
+        return;
+    }
 
-        fetch(`/api/categorias_proyecto/${proyectoId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Categories loaded:', data);
-                if (data && data.length > 0) {
-                    let html = '';
-                    data.forEach(cat => {
-                        const subcatText = cat.subcategoria_nombre ? ` - ${cat.subcategoria_nombre}` : '';
-                        const checkboxId = `cat_${cat.categoria_id}_${cat.subcategoria_id || 'none'}`;
-                        const checkboxValue = `${cat.categoria_id},${cat.subcategoria_id || ''}`;
+    categoriasDiv.innerHTML = '<p class="text-muted">Cargando categorías...</p>';
 
-                        html += `
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="categorias_seleccionadas" value="${checkboxValue}" id="${checkboxId}">
-                                <label class="form-check-label" for="${checkboxId}">
-                                    ${cat.categoria_nombre}${subcatText}
-                                </label>
-                            </div>
-                        `;
-                    });
-                    categoriasDiv.innerHTML = html;
-                } else {
-                    categoriasDiv.innerHTML = '<p class="text-warning">No hay categorías disponibles para este proyecto. Debe asignar categorías al proyecto primero.</p>';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading categories:', error);
-                categoriasDiv.innerHTML = '<p class="text-danger">Error al cargar categorías</p>';
-            });
-    } else {
+    fetch(`/api/categorias_proyecto/${proyectoId}`)
+        .then(response => {
+            console.log('Categories response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Categories loaded:', data);
+            if (data && Array.isArray(data) && data.length > 0) {
+                let html = '';
+                data.forEach((cat, index) => {
+                    const subcatText = cat.subcategoria_nombre ? ` - ${cat.subcategoria_nombre}` : '';
+                    const checkboxId = `cat_${index}_${cat.categoria_id}_${cat.subcategoria_id || 'none'}`;
+                    const checkboxValue = `${cat.categoria_id},${cat.subcategoria_id || ''}`;
+
+                    html += `
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="categorias_seleccionadas" value="${checkboxValue}" id="${checkboxId}">
+                            <label class="form-check-label" for="${checkboxId}">
+                                ${cat.categoria_nombre}${subcatText}
+                            </label>
+                        </div>
+                    `;
+                });
+                categoriasDiv.innerHTML = html;
+            } else {
+                categoriasDiv.innerHTML = '<p class="text-warning"><i class="fas fa-exclamation-triangle"></i> No hay categorías disponibles para este proyecto. Debe asignar categorías al proyecto primero.</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading categories:', error);
+            categoriasDiv.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle"></i> Error al cargar categorías</p>';
+        });
+}
+
+function resetCategorias() {
+    const categoriasDiv = document.getElementById('categorias_fabricacion');
+    if (categoriasDiv) {
         categoriasDiv.innerHTML = '<p class="text-muted">Seleccione un proyecto para ver las categorías disponibles</p>';
     }
 }
@@ -467,7 +501,7 @@ function iniciarFabricacion(ordenId) {
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             return response.json();
         })
@@ -481,7 +515,7 @@ function iniciarFabricacion(ordenId) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error de conexión');
+            alert('Error de conexión: ' + error.message);
         });
     }
 }
@@ -497,7 +531,7 @@ function avanzarFabricacion(ordenId) {
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             return response.json();
         })
@@ -511,7 +545,7 @@ function avanzarFabricacion(ordenId) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error de conexión');
+            alert('Error de conexión: ' + error.message);
         });
     }
 }
@@ -527,7 +561,7 @@ function retrocederFabricacion(ordenId) {
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             return response.json();
         })
@@ -541,7 +575,7 @@ function retrocederFabricacion(ordenId) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error de conexión');
+            alert('Error de conexión: ' + error.message);
         });
     }
 }
@@ -557,7 +591,7 @@ function eliminarOrdenFabricacion(ordenId) {
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             return response.json();
         })
@@ -571,9 +605,9 @@ function eliminarOrdenFabricacion(ordenId) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error de conexión');
+            alert('Error de conexión: ' + error.message);
         });
     }
 }
 </script>
-{% endblock %}
+{% endblock %}</old_str>

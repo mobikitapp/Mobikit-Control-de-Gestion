@@ -291,23 +291,29 @@ def dashboard():
                julianday(p.fecha_entrega) - julianday('now') as dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        INNER JOIN pedidos_seguimiento ps ON p.id = ps.proyecto_id
-        WHERE ps.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
-        AND ps.estado != 'entregado'
+        WHERE p.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
+        AND p.estado != 'entregado'
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_proceso_raw = cursor.fetchall()
 
-    # Para cada orden en proceso, obtener sus órdenes de fabricación
+    # Para cada orden en proceso, obtener sus órdenes de fabricación si existen
     ordenes_proceso = []
     for orden in ordenes_proceso_raw:
+        # Check if ordenes_fabricacion table exists
         cursor.execute('''
-            SELECT ps.id, ps.codigo_pedido, ps.nombre, ps.estado, ps.fecha_entrega_estimada
-            FROM pedidos_seguimiento ps
-            WHERE ps.proyecto_id = ? AND ps.estado != 'entregado'
-            ORDER BY ps.created_at ASC
-        ''', (orden[0],))
-        ordenes_fabricacion = cursor.fetchall()
+            SELECT name FROM sqlite_master WHERE type='table' AND name='ordenes_fabricacion'
+        ''')
+        if cursor.fetchone():
+            cursor.execute('''
+                SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
+                FROM ordenes_fabricacion of
+                WHERE of.proyecto_id = ? AND of.estado != 'entregado'
+                ORDER BY of.created_at ASC
+            ''', (orden[0],))
+            ordenes_fabricacion = cursor.fetchall()
+        else:
+            ordenes_fabricacion = []
 
         # Keep tuple structure but add ordenes_fabricacion as a new attribute
         orden_extended = list(orden)  # Convert tuple to list
@@ -591,9 +597,8 @@ def ordenes_compra():
                julianday(p.fecha_entrega) - julianday('now') as dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        INNER JOIN pedidos_seguimiento ps ON p.id = ps.proyecto_id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE ps.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
+        WHERE p.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
         AND (p.archivado IS NULL OR p.archivado = FALSE)
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
                  p.descripcion, p.prioridad
@@ -634,20 +639,27 @@ def ordenes_compra():
 
     # Función para obtener órdenes de fabricación de una orden
     def obtener_ordenes_fabricacion(proyecto_id):
+        # Check if ordenes_fabricacion table exists
         cursor.execute('''
-            SELECT ps.id, ps.codigo_pedido, ps.nombre, ps.estado, ps.fecha_entrega_estimada
-            FROM pedidos_seguimiento ps
-            WHERE ps.proyecto_id = ? AND ps.estado != 'entregado'
-            ORDER BY ps.created_at ASC
-        ''', (proyecto_id,))
-        ordenes_fab = []
-        for fab in cursor.fetchall():
-            fab_dict = {
-                'id': fab[0], 'codigo_pedido': fab[1], 'nombre': fab[2], 
-                'estado': fab[3], 'fecha_entrega_estimada': fab[4]
-            }
-            ordenes_fab.append(fab_dict)
-        return ordenes_fab
+            SELECT name FROM sqlite_master WHERE type='table' AND name='ordenes_fabricacion'
+        ''')
+        if cursor.fetchone():
+            cursor.execute('''
+                SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
+                FROM ordenes_fabricacion of
+                WHERE of.proyecto_id = ? AND of.estado != 'entregado'
+                ORDER BY of.created_at ASC
+            ''', (proyecto_id,))
+            ordenes_fab = []
+            for fab in cursor.fetchall():
+                fab_dict = {
+                    'id': fab[0], 'codigo_pedido': fab[1], 'nombre': fab[2], 
+                    'estado': fab[3], 'fecha_entrega_estimada': fab[4]
+                }
+                ordenes_fab.append(fab_dict)
+            return ordenes_fab
+        else:
+            return []
 
     # Procesar órdenes pendientes
     ordenes_pendientes = []
@@ -735,16 +747,22 @@ def orden_compra_detalle(orden_id):
     ''', (orden_id,))
     categorias = cursor.fetchall()
 
-    # Obtener órdenes de fabricación
+    # Obtener órdenes de fabricación si la tabla existe
     cursor.execute('''
-        SELECT ps.*, cat.nombre as categoria_nombre, subcat.nombre as subcategoria_nombre
-        FROM pedidos_seguimiento ps
-        LEFT JOIN categorias_producto cat ON ps.categoria_id = cat.id
-        LEFT JOIN subcategorias_producto subcat ON ps.subcategoria_id = subcat.id
-        WHERE ps.proyecto_id = ?
-        ORDER BY ps.created_at ASC
-    ''', (orden_id,))
-    ordenes_fabricacion = cursor.fetchall()
+        SELECT name FROM sqlite_master WHERE type='table' AND name='ordenes_fabricacion'
+    ''')
+    if cursor.fetchone():
+        cursor.execute('''
+            SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
+                   of.cantidad_tableros, of.observaciones, of.created_at, of.updated_at,
+                   '' as categoria_nombre, '' as subcategoria_nombre
+            FROM ordenes_fabricacion of
+            WHERE of.proyecto_id = ?
+            ORDER BY of.created_at ASC
+        ''', (orden_id,))
+        ordenes_fabricacion = cursor.fetchall()
+    else:
+        ordenes_fabricacion = []
 
     conn.close()
 
@@ -1222,6 +1240,45 @@ def desarchivar_proyecto(proyecto_id):
     finally:
         conn.close()
 
+
+@app.route('/gestion_pedidos')
+@login_required
+def gestion_pedidos():
+    """Vista de gestión de pedidos por estado (reemplaza el sistema anterior)"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    # Obtener órdenes de compra en diferentes estados
+    cursor.execute('''
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
+               p.descripcion, p.estado, p.prioridad,
+               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE p.estado NOT IN ('entregado', 'cancelado')
+        ORDER BY p.fecha_entrega ASC, p.prioridad DESC
+    ''')
+    pedidos = cursor.fetchall()
+
+    # Agrupar por estado
+    pedidos_por_estado = {
+        'en_desarrollo': {'nombre': 'En Desarrollo', 'pedidos': [], 'rol_responsable': 'diseñador'},
+        'aprobado_produccion': {'nombre': 'Aprobado para Producción', 'pedidos': [], 'rol_responsable': 'operación'},
+        'seccionado': {'nombre': 'En Seccionado', 'pedidos': [], 'rol_responsable': 'operación'},
+        'enchapado': {'nombre': 'En Enchapado', 'pedidos': [], 'rol_responsable': 'operación'},
+        'mecanizado': {'nombre': 'En Mecanizado', 'pedidos': [], 'rol_responsable': 'operación'},
+        'produccion_completa': {'nombre': 'Producción Completa', 'pedidos': [], 'rol_responsable': 'embalaje'},
+        'embalando': {'nombre': 'En Embalaje', 'pedidos': [], 'rol_responsable': 'embalaje'},
+        'listo_despacho': {'nombre': 'Listo para Despacho', 'pedidos': [], 'rol_responsable': 'despacho'},
+    }
+
+    for pedido in pedidos:
+        estado = pedido[6]  # estado field
+        if estado in pedidos_por_estado:
+            pedidos_por_estado[estado]['pedidos'].append(pedido)
+
+    conn.close()
+    return render_template('gestion_pedidos.html', pedidos_por_estado=pedidos_por_estado)
 
 @app.route('/tareas')
 @login_required
