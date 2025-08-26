@@ -102,6 +102,9 @@
                                 </td>
                                 <td>
                                     <div class="btn-group">
+                                        <button class="btn btn-sm btn-primary" onclick="crearOrdenFabricacion({{ orden.id }})" title="Crear Orden de Fabricación">
+                                            <i class="fas fa-cogs"></i>
+                                        </button>
                                         <button class="btn btn-sm btn-success" onclick="iniciarProceso({{ orden.id }})" title="Iniciar Proceso">
                                             <i class="fas fa-play"></i>
                                         </button>
@@ -274,7 +277,118 @@
 <!-- Modal incluido desde dashboard -->
 {% include 'modal_nueva_orden.html' %}
 
+<!-- Modal para Crear Orden de Fabricación desde OC -->
+<div class="modal fade" id="crearFabricacionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Crear Orden de Fabricación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('crear_orden_fabricacion_desde_oc') }}" method="POST">
+                <input type="hidden" id="proyecto_id_fab" name="proyecto_id">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Orden de Compra:</strong> <span id="oc-info"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tipo_orden_fab" class="form-label">Tipo de Orden *</label>
+                                <select class="form-select" id="tipo_orden_fab" name="tipo_orden" required>
+                                    <option value="parcial">Parcial</option>
+                                    <option value="total">Total</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="cantidad_tableros_fab" class="form-label">Cantidad de Tableros *</label>
+                                <input type="number" class="form-control" id="cantidad_tableros_fab" name="cantidad_tableros" min="1" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="fecha_entrega_estimada_fab" class="form-label">Fecha Entrega Estimada *</label>
+                        <input type="date" class="form-control" id="fecha_entrega_estimada_fab" name="fecha_entrega_estimada" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Categorías a Fabricar *</label>
+                        <div id="categorias-container-fab">
+                            <!-- Las categorías se cargarán dinámicamente -->
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="observaciones_fab" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones_fab" name="observaciones" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-cogs"></i> Crear Orden de Fabricación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+function crearOrdenFabricacion(ordenId) {
+    // Buscar la información de la orden
+    const ordenes = {{ ordenes_pendientes|tojson }};
+    const orden = ordenes.find(o => o.id === ordenId);
+    
+    if (orden) {
+        document.getElementById('proyecto_id_fab').value = ordenId;
+        document.getElementById('oc-info').textContent = `${orden.codigo} - ${orden.nombre} (${orden.cliente_nombre})`;
+        
+        // Cargar categorías de la orden
+        fetch(`/api/categorias_proyecto/${ordenId}`)
+            .then(response => response.json())
+            .then(data => {
+                mostrarCategoriasProyectoFab(data);
+                // Mostrar modal
+                const modal = new bootstrap.Modal(document.getElementById('crearFabricacionModal'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Error cargando categorías:', error);
+                alert('Error al cargar categorías del proyecto');
+            });
+    }
+}
+
+function mostrarCategoriasProyectoFab(categorias) {
+    const container = document.getElementById('categorias-container-fab');
+    container.innerHTML = '';
+
+    if (categorias.length === 0) {
+        container.innerHTML = '<p class="text-muted">No hay categorías disponibles para este proyecto</p>';
+        return;
+    }
+
+    categorias.forEach((categoria, index) => {
+        const div = document.createElement('div');
+        div.className = 'form-check mb-2';
+        div.innerHTML = `
+            <input class="form-check-input" type="checkbox" id="categoria_fab_${categoria.categoria_id}_${categoria.subcategoria_id || 0}" 
+                   name="categorias_seleccionadas" value="${categoria.categoria_id},${categoria.subcategoria_id || ''}" checked>
+            <label class="form-check-label" for="categoria_fab_${categoria.categoria_id}_${categoria.subcategoria_id || 0}">
+                ${categoria.categoria_nombre}${categoria.subcategoria_nombre ? ' - ' + categoria.subcategoria_nombre : ''}
+            </label>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function iniciarProceso(ordenId) {
 function iniciarProceso(ordenId) {
     if (confirm('¿Confirmas iniciar el proceso de fabricación para esta orden?')) {
         fetch(`/api/iniciar_proceso_orden/${ordenId}`, {

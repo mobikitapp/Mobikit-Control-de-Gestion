@@ -110,10 +110,45 @@ CREATE TABLE IF NOT EXISTS proyecto_categorias (
     UNIQUE(proyecto_id, categoria_id, subcategoria_id)
 );
 
+-- Tabla de órdenes de fabricación personalizadas
+CREATE TABLE IF NOT EXISTS ordenes_fabricacion (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    codigo_orden TEXT UNIQUE NOT NULL,
+    proyecto_id INTEGER NOT NULL,
+    tipo_orden TEXT DEFAULT 'parcial' CHECK (tipo_orden IN ('parcial', 'total')),
+    fecha_entrega_estimada DATE NOT NULL,
+    cantidad_tableros INTEGER NOT NULL,
+    estado TEXT DEFAULT 'pendiente' CHECK (estado IN (
+        'pendiente', 'aprobado_produccion', 'seccionado', 'enchapado', 
+        'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado'
+    )),
+    observaciones TEXT,
+    fecha_inicio DATE,
+    fecha_entrega_real DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (proyecto_id) REFERENCES proyectos (id) ON DELETE CASCADE
+);
+
+-- Tabla de categorías por orden de fabricación
+CREATE TABLE IF NOT EXISTS orden_fabricacion_categorias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    orden_fabricacion_id INTEGER NOT NULL,
+    categoria_id INTEGER NOT NULL,
+    subcategoria_id INTEGER,
+    cantidad INTEGER DEFAULT 1,
+    observaciones TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (orden_fabricacion_id) REFERENCES ordenes_fabricacion (id) ON DELETE CASCADE,
+    FOREIGN KEY (categoria_id) REFERENCES categorias_producto (id),
+    FOREIGN KEY (subcategoria_id) REFERENCES subcategorias_producto (id)
+);
+
 -- Tabla de pedidos de seguimiento (generados automáticamente por categoría)
 CREATE TABLE IF NOT EXISTS pedidos_seguimiento (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     proyecto_id INTEGER NOT NULL,
+    orden_fabricacion_id INTEGER,
     categoria_id INTEGER NOT NULL,
     subcategoria_id INTEGER,
     codigo_pedido TEXT UNIQUE NOT NULL,
@@ -129,6 +164,7 @@ CREATE TABLE IF NOT EXISTS pedidos_seguimiento (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (proyecto_id) REFERENCES proyectos (id) ON DELETE CASCADE,
+    FOREIGN KEY (orden_fabricacion_id) REFERENCES ordenes_fabricacion (id) ON DELETE CASCADE,
     FOREIGN KEY (categoria_id) REFERENCES categorias_producto (id),
     FOREIGN KEY (subcategoria_id) REFERENCES subcategorias_producto (id)
 );
@@ -323,7 +359,11 @@ CREATE INDEX IF NOT EXISTS idx_proyectos_estado ON proyectos(estado);
 CREATE INDEX IF NOT EXISTS idx_proyectos_fecha_entrega ON proyectos(fecha_entrega);
 CREATE INDEX IF NOT EXISTS idx_proyecto_categorias_proyecto ON proyecto_categorias(proyecto_id);
 CREATE INDEX IF NOT EXISTS idx_proyecto_categorias_categoria ON proyecto_categorias(categoria_id);
+CREATE INDEX IF NOT EXISTS idx_ordenes_fabricacion_proyecto ON ordenes_fabricacion(proyecto_id);
+CREATE INDEX IF NOT EXISTS idx_ordenes_fabricacion_estado ON ordenes_fabricacion(estado);
+CREATE INDEX IF NOT EXISTS idx_orden_fabricacion_categorias_orden ON orden_fabricacion_categorias(orden_fabricacion_id);
 CREATE INDEX IF NOT EXISTS idx_pedidos_seguimiento_proyecto ON pedidos_seguimiento(proyecto_id);
+CREATE INDEX IF NOT EXISTS idx_pedidos_seguimiento_orden ON pedidos_seguimiento(orden_fabricacion_id);
 CREATE INDEX IF NOT EXISTS idx_pedidos_seguimiento_estado ON pedidos_seguimiento(estado);
 CREATE INDEX IF NOT EXISTS idx_tareas_proyecto ON tareas(proyecto_id);
 CREATE INDEX IF NOT EXISTS idx_tareas_usuario ON tareas(usuario_asignado_id);

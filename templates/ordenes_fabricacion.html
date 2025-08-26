@@ -7,11 +7,16 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-cogs"></i> Gestión de Órdenes de Fabricación</h1>
     <div>
+        {% if session.user_role in ['admin', 'general', 'operación'] %}
+        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#nuevaOrdenFabricacionModal">
+            <i class="fas fa-plus"></i> Nueva Orden de Fabricación
+        </button>
+        {% endif %}
         <a href="{{ url_for('ordenes_compra') }}" class="btn btn-outline-primary">
             <i class="fas fa-file-invoice"></i> Ver Órdenes de Compra
         </a>
     </div>
-</div>
+</div></div>
 
 <!-- Pestañas de Estados -->
 <ul class="nav nav-tabs" id="fabricacionTab" role="tablist">
@@ -40,7 +45,7 @@
                 <h5><i class="fas fa-pause-circle"></i> Órdenes Pendientes de Iniciar Producción</h5>
             </div>
             <div class="card-body">
-                {% if fabricacion_pendientes %}
+                {% if ordenes_fabricacion_pendientes or fabricacion_legacy %}
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -48,14 +53,58 @@
                                 <th>Código Fabricación</th>
                                 <th>Orden de Compra</th>
                                 <th>Cliente</th>
-                                <th>Producto</th>
+                                <th>Tipo/Producto</th>
+                                <th>Tableros</th>
                                 <th>Fecha Estimada</th>
                                 <th>Prioridad</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for fab in fabricacion_pendientes %}
+                            <!-- Órdenes de fabricación personalizadas -->
+                            {% for of in ordenes_fabricacion_pendientes %}
+                            <tr class="table-info">
+                                <td><strong>{{ of[1] }}</strong><br><small class="text-muted">{{ of[2]|title }}</small></td>
+                                <td>
+                                    <a href="{{ url_for('orden_compra_detalle', orden_id=of[6]) }}" class="text-decoration-none">
+                                        {{ of[7] }}
+                                    </a>
+                                </td>
+                                <td>{{ of[8] }}</td>
+                                <td>
+                                    <strong>Orden {{ of[2]|title }}</strong>
+                                    {% if of[10] %}
+                                    <br><small class="text-muted">{{ of[10] }}</small>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge bg-primary">{{ of[5] }} tableros</span></td>
+                                <td>
+                                    {{ of[4] if of[4] else 'Sin fecha' }}
+                                    {% if of[11] is not none %}
+                                        {% if of[11] < 0 %}
+                                        <br><small class="text-danger">Vencida</small>
+                                        {% elif of[11] <= 7 %}
+                                        <br><small class="text-warning">{{ of[11] }} días</small>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if of[9] == 'alta' %}danger{% elif of[9] == 'media' %}warning{% else %}info{% endif %}">
+                                        {{ of[9]|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if session.user_role in ['admin', 'general', 'operación'] %}
+                                    <button class="btn btn-sm btn-success" onclick="iniciarOrdenFabricacion({{ of[0] }})" title="Iniciar Orden de Fabricación">
+                                        <i class="fas fa-play"></i> Iniciar
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            
+                            <!-- Pedidos de seguimiento legacy -->
+                            {% for fab in fabricacion_legacy %}
                             <tr>
                                 <td><strong>{{ fab[1] }}</strong></td>
                                 <td>
@@ -68,6 +117,7 @@
                                     {{ fab[2] }}
                                     <br><small class="text-muted">{{ fab[8] }}{% if fab[9] %} - {{ fab[9] }}{% endif %}</small>
                                 </td>
+                                <td><span class="text-muted">N/A</span></td>
                                 <td>
                                     {{ fab[4] if fab[4] else 'Sin fecha' }}
                                     {% if fab[12] is not none %}
@@ -271,7 +321,159 @@
     </div>
 </div>
 
+<!-- Modal para Nueva Orden de Fabricación -->
+<div class="modal fade" id="nuevaOrdenFabricacionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nueva Orden de Fabricación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('crear_orden_fabricacion') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="proyecto_id" class="form-label">Orden de Compra / Contrato *</label>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id" required onchange="cargarCategoriasProyecto()">
+                                    <option value="">Seleccionar OC...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tipo_orden" class="form-label">Tipo de Orden *</label>
+                                <select class="form-select" id="tipo_orden" name="tipo_orden" required>
+                                    <option value="parcial">Parcial</option>
+                                    <option value="total">Total</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fecha_entrega_estimada" class="form-label">Fecha Entrega Estimada *</label>
+                                <input type="date" class="form-control" id="fecha_entrega_estimada" name="fecha_entrega_estimada" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="cantidad_tableros" class="form-label">Cantidad de Tableros *</label>
+                                <input type="number" class="form-control" id="cantidad_tableros" name="cantidad_tableros" min="1" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Categorías a Fabricar *</label>
+                        <div id="categorias-container">
+                            <!-- Las categorías se cargarán dinámicamente -->
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Crear Orden de Fabricación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+let proyectosDisponibles = [];
+let categoriasProyecto = [];
+
+// Cargar proyectos al abrir el modal
+document.getElementById('nuevaOrdenFabricacionModal').addEventListener('shown.bs.modal', function () {
+    cargarProyectosDisponibles();
+});
+
+function cargarProyectosDisponibles() {
+    fetch('/api/proyectos_disponibles_fabricacion')
+        .then(response => response.json())
+        .then(data => {
+            proyectosDisponibles = data;
+            const select = document.getElementById('proyecto_id');
+            select.innerHTML = '<option value="">Seleccionar OC...</option>';
+            
+            data.forEach(proyecto => {
+                const option = document.createElement('option');
+                option.value = proyecto.id;
+                option.textContent = `${proyecto.codigo} - ${proyecto.nombre} (${proyecto.cliente})`;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error cargando proyectos:', error));
+}
+
+function cargarCategoriasProyecto() {
+    const proyectoId = document.getElementById('proyecto_id').value;
+    if (!proyectoId) return;
+
+    fetch(`/api/categorias_proyecto/${proyectoId}`)
+        .then(response => response.json())
+        .then(data => {
+            categoriasProyecto = data;
+            mostrarCategoriasProyecto();
+        })
+        .catch(error => console.error('Error cargando categorías:', error));
+}
+
+function mostrarCategoriasProyecto() {
+    const container = document.getElementById('categorias-container');
+    container.innerHTML = '';
+
+    if (categoriasProyecto.length === 0) {
+        container.innerHTML = '<p class="text-muted">No hay categorías disponibles para este proyecto</p>';
+        return;
+    }
+
+    categoriasProyecto.forEach((categoria, index) => {
+        const div = document.createElement('div');
+        div.className = 'form-check mb-2';
+        div.innerHTML = `
+            <input class="form-check-input" type="checkbox" id="categoria_${categoria.categoria_id}_${categoria.subcategoria_id || 0}" 
+                   name="categorias_seleccionadas" value="${categoria.categoria_id},${categoria.subcategoria_id || ''}" checked>
+            <label class="form-check-label" for="categoria_${categoria.categoria_id}_${categoria.subcategoria_id || 0}">
+                ${categoria.categoria_nombre}${categoria.subcategoria_nombre ? ' - ' + categoria.subcategoria_nombre : ''}
+            </label>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function iniciarOrdenFabricacion(ordenFabricacionId) {
+    if (confirm('¿Confirmas iniciar esta orden de fabricación?')) {
+        fetch(`/api/iniciar_orden_fabricacion/${ordenFabricacionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
 function iniciarProduccion(fabricacionId) {
     if (confirm('¿Confirmas iniciar la producción de esta orden de fabricación?')) {
         fetch(`/api/iniciar_produccion/${fabricacionId}`, {
