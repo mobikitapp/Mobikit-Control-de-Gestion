@@ -262,19 +262,18 @@ def dashboard():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
-    # Órdenes de compra pendientes (solo proyectos con categorías asignadas)
+    # Órdenes de compra pendientes (proyectos con categorías asignadas)
     cursor.execute('''
-        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_estimada_inicio, 
-               p.descripcion, p.estado_proyecto,
-               julianday(p.fecha_estimada_inicio) - julianday('now') as dias_restantes
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
+               p.descripcion, p.estado, p.prioridad,
+               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado_proyecto IN ('presupuestado', 'adjudicado') 
-        AND p.estado IN ('diseño', 'en_desarrollo')
-        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_estimada_inicio, 
-                 p.descripcion, p.estado_proyecto
-        ORDER BY p.fecha_estimada_inicio ASC, p.estado_proyecto DESC
+        WHERE p.estado IN ('en_desarrollo')
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
+                 p.descripcion, p.estado, p.prioridad
+        ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_pendientes = cursor.fetchall()
 
@@ -563,17 +562,17 @@ def ordenes_compra():
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
 
-    # Órdenes Pendientes - Solo proyectos que tienen categorías asignadas (creados como órdenes de compra)
+    # Órdenes de compra pendientes (proyectos con categorías asignadas)
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
-               p.descripcion, p.prioridad, p.presupuesto,
+               p.descripcion, p.estado, p.prioridad,
                julianday(p.fecha_entrega) - julianday('now') as dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('diseño', 'en_desarrollo')
+        WHERE p.estado IN ('en_desarrollo')
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
-                 p.descripcion, p.prioridad, p.presupuesto
+                 p.descripcion, p.estado, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_pendientes_raw = cursor.fetchall()
@@ -581,7 +580,7 @@ def ordenes_compra():
     # Órdenes en Proceso - Solo proyectos que tienen categorías asignadas
     cursor.execute('''
         SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
-               p.descripcion, p.prioridad, p.presupuesto,
+               p.descripcion, p.prioridad,
                julianday(p.fecha_entrega) - julianday('now') as dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
@@ -589,7 +588,7 @@ def ordenes_compra():
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE ps.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
-                 p.descripcion, p.prioridad, p.presupuesto
+                 p.descripcion, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_proceso_raw = cursor.fetchall()
@@ -597,13 +596,13 @@ def ordenes_compra():
     # Órdenes Terminadas - Solo proyectos que tienen categorías asignadas
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
-               p.descripcion, p.prioridad, p.presupuesto, p.fecha_entrega_real
+               p.descripcion, p.prioridad, p.fecha_entrega_real
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('entregado', 'completado')
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
-                 p.descripcion, p.prioridad, p.presupuesto, p.fecha_entrega_real
+                 p.descripcion, p.prioridad, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
     ''')
     ordenes_terminadas_raw = cursor.fetchall()
@@ -648,7 +647,7 @@ def ordenes_compra():
         orden_dict = {
             'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
             'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6], 
-            'presupuesto': orden[7], 'dias_restantes': orden[8],
+            'dias_restantes': orden[7],
             'categorias': obtener_categorias_orden(orden[0])
         }
         ordenes_pendientes.append(orden_dict)
@@ -659,7 +658,7 @@ def ordenes_compra():
         orden_dict = {
             'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
             'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6], 
-            'presupuesto': orden[7], 'dias_restantes': orden[8],
+            'dias_restantes': orden[7],
             'categorias': obtener_categorias_orden(orden[0]),
             'ordenes_fabricacion': obtener_ordenes_fabricacion(orden[0])
         }
@@ -671,7 +670,7 @@ def ordenes_compra():
         orden_dict = {
             'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
             'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6], 
-            'presupuesto': orden[7], 'fecha_entrega_real': orden[8]
+            'fecha_entrega_real': orden[7]
         }
         ordenes_terminadas.append(orden_dict)
 
@@ -1007,10 +1006,10 @@ def nuevo_proyecto():
         cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (cliente_id,))
         cliente_info = cursor.fetchone()
         cliente_nombre = cliente_info[0] if cliente_info else 'CLIENTE'
-        
+
         # Limpiar nombre del cliente para código (solo letras y números, máximo 8 caracteres)
         cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
-        
+
         # Generar número secuencial para este cliente
         cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
         proyecto_numero = cursor.fetchone()[0] + 1
@@ -1490,10 +1489,10 @@ def programar_despacho_con_orden():
             cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (cliente_id,))
             cliente_info = cursor.fetchone()
             cliente_nombre = cliente_info[0] if cliente_info else 'CLIENTE'
-            
+
             # Limpiar nombre del cliente para código (solo letras y números, máximo 8 caracteres)
             cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
-            
+
             # Generar número secuencial para este cliente
             cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
             proyecto_numero = cursor.fetchone()[0] + 1
@@ -2817,15 +2816,15 @@ def nueva_orden_compra():
             monto_total_contrato = request.form.get('monto_total_contrato')
             entrega_detalles = request.form.getlist('entrega_detalles[]')
             entrega_fechas = request.form.getlist('entrega_fechas[]')
-            
+
             # Validar entregas para contrato
             if not entrega_detalles or not entrega_fechas or len(entrega_detalles) != len(entrega_fechas):
                 flash('Debe especificar al menos una entrega válida para el contrato', 'error')
                 return redirect(url_for('dashboard'))
-            
+
             # Usar la fecha de la primera entrega como fecha de entrega principal del proyecto
             fecha_entrega = entrega_fechas[0] if entrega_fechas else None
-            
+
             monto_float = None
             if monto_total_contrato:
                 try:
@@ -2897,16 +2896,16 @@ def nueva_orden_compra():
             cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (cliente_id,))
             cliente_info = cursor.fetchone()
             cliente_nombre = cliente_info[0] if cliente_info else 'CLIENTE'
-            
+
             # Limpiar nombre del cliente para código (solo letras y números, máximo 8 caracteres)
             cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
-            
+
             # Generar número secuencial para este cliente
             cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
             proyecto_numero = cursor.fetchone()[0] + 1
             codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
-            # Crear nuevo proyecto con tipo de adjudicación
+            # Crear nuevo proyecto con tipo de adjudicacion
             cursor.execute('''
                 INSERT INTO proyectos (
                     codigo, nombre, cliente_id, descripcion, adjudicacion_tipo, estado, prioridad, 
@@ -3076,7 +3075,7 @@ def api_entregas_proyecto(proyecto_id):
         WHERE proyecto_id = ?
         ORDER BY fecha_entrega ASC
     ''', (proyecto_id,))
-    
+
     entregas = []
     for row in cursor.fetchall():
         entregas.append({
@@ -3097,20 +3096,20 @@ def marcar_entrega_completada(entrega_id):
     """Marcar una entrega de contrato como completada"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute('''
             UPDATE entregas_contrato 
             SET estado = 'completada', updated_at = CURRENT_TIMESTAMP 
             WHERE id = ?
         ''', (entrega_id,))
-        
+
         if cursor.rowcount > 0:
             conn.commit()
             return jsonify({'success': True, 'message': 'Entrega marcada como completada'})
         else:
             return jsonify({'success': False, 'message': 'Entrega no encontrada'})
-    
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
     finally:
