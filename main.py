@@ -1025,6 +1025,119 @@ def editar_proyecto():
     return redirect(url_for('clientes'))
 
 
+@app.route('/nueva_orden_compra', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'diseñador'])
+def nueva_orden_compra():
+    """Crear nueva orden de compra con categorías"""
+    try:
+        # Obtener datos del formulario
+        tipo_adjudicacion = request.form.get('tipo_adjudicacion', 'orden_compra')
+        numero_oc = request.form['numero_oc']
+        cliente_id = request.form.get('cliente_id')
+        nuevo_cliente_nombre = request.form.get('nuevo_cliente_nombre')
+        nombre_proyecto = request.form['nombre_proyecto']
+        descripcion = request.form.get('descripcion', '').strip() or None
+        prioridad = request.form.get('prioridad', 'media')
+        fecha_entrega_general = request.form.get('fecha_entrega_general')
+        monto = request.form.get('monto')
+        categorias = request.form.getlist('categorias[]')
+        subcategorias = request.form.getlist('subcategorias[]')
+        
+        # Campos específicos para orden de compra
+        fecha_entrega_estimada_cliente = request.form.get('fecha_entrega_estimada_cliente')
+        monto_neto_provision = request.form.get('monto_neto_provision')
+        
+        # Campos específicos para contrato
+        detalle_entregas = request.form.getlist('detalle_entregas[]')
+        fechas_entrega = request.form.getlist('fechas_entrega[]')
+
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Manejar cliente nuevo o existente
+        if cliente_id == 'nuevo' and nuevo_cliente_nombre:
+            cursor.execute('''
+                INSERT INTO clientes (nombre, activo) VALUES (?, ?)
+            ''', (nuevo_cliente_nombre, True))
+            cliente_id = cursor.lastrowid
+        elif not cliente_id:
+            flash('Debe seleccionar un cliente o crear uno nuevo', 'error')
+            return redirect(url_for('dashboard'))
+
+        # Verificar que el cliente existe
+        cursor.execute('SELECT nombre FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
+        cliente_info = cursor.fetchone()
+        if not cliente_info:
+            flash('Cliente no válido', 'error')
+            return redirect(url_for('dashboard'))
+
+        cliente_nombre = cliente_info[0]
+
+        # Generar código del proyecto
+        cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
+        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
+        proyecto_numero = cursor.fetchone()[0] + 1
+        codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
+
+        # Convertir monto si se proporciona
+        monto_num = None
+        if monto:
+            try:
+                monto_num = float(monto)
+            except ValueError:
+                pass
+
+        monto_provision_num = None
+        if monto_neto_provision:
+            try:
+                monto_provision_num = float(monto_neto_provision)
+            except ValueError:
+                pass
+
+        # Crear proyecto
+        cursor.execute('''
+            INSERT INTO proyectos (
+                codigo, nombre, cliente_id, descripcion, adjudicacion_tipo,
+                estado, prioridad, fecha_inicio, fecha_entrega, 
+                monto_neto, monto_neto_provision, observaciones
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion,
+              'en_desarrollo', prioridad, datetime.now().date(), 
+              fecha_entrega_general or fecha_entrega_estimada_cliente,
+              monto_num, monto_provision_num, f"Número OC/Contrato: {numero_oc}"))
+
+        proyecto_id = cursor.lastrowid
+
+        # Agregar categorías al proyecto
+        for i, categoria_id in enumerate(categorias):
+            if categoria_id:  # Solo si hay categoría seleccionada
+                subcategoria_id = subcategorias[i] if i < len(subcategorias) and subcategorias[i] else None
+                cursor.execute('''
+                    INSERT INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
+                    VALUES (?, ?, ?)
+                ''', (proyecto_id, categoria_id, subcategoria_id))
+
+        # Si es contrato, agregar entregas programadas
+        if tipo_adjudicacion == 'contrato' and detalle_entregas:
+            for i, detalle in enumerate(detalle_entregas):
+                if detalle and i < len(fechas_entrega) and fechas_entrega[i]:
+                    cursor.execute('''
+                        INSERT INTO entregas_contrato (proyecto_id, detalle, fecha_entrega, estado)
+                        VALUES (?, ?, ?, ?)
+                    ''', (proyecto_id, detalle, fechas_entrega[i], 'programada'))
+
+        conn.commit()
+        conn.close()
+
+        flash(f'{"Contrato" if tipo_adjudicacion == "contrato" else "Orden de compra"} {codigo_proyecto} creada exitosamente', 'success')
+        return redirect(url_for('ordenes_compra'))
+
+    except Exception as e:
+        flash(f'Error al crear orden: {str(e)}', 'error')
+        return redirect(url_for('dashboard'))
+
+
 @app.route('/eliminar_proyecto/<int:proyecto_id>', methods=['POST'])
 @login_required
 @role_required(['admin'])
@@ -2593,6 +2706,162 @@ def eliminar_orden_fabricacion(orden_id):
         return jsonify({'success': False, 'message': f'Error al eliminar orden: {str(e)}'})
     finally:
         conn.close()
+
+
+@app.route('/api/clientes_activos')
+@login_required
+def api_clientes_activos():
+    """API para obtener clientes activos"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, nombre FROM clientes WHERE activo = TRUE ORDER BY nombre ASC')
+    clientes = []
+    for row in cursor.fetchall():
+        clientes.append({
+            'id': row[0],
+            'nombre': row[1]
+        })
+    
+    conn.close()
+    return jsonify(clientes)
+
+
+@app.route('/api/categorias')
+@login_required
+def api_categorias():
+    """API para obtener categorías disponibles"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, nombre FROM categorias_producto WHERE activo = TRUE ORDER BY nombre ASC')
+    categorias = []
+    for row in cursor.fetchall():
+        categorias.append({
+            'id': row[0],
+            'nombre': row[1]
+        })
+    
+    conn.close()
+    return jsonify(categorias)
+
+
+@app.route('/api/subcategorias/<int:categoria_id>')
+@login_required
+def api_subcategorias(categoria_id):
+    """API para obtener subcategorías de una categoría"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, nombre FROM subcategorias_producto 
+        WHERE categoria_id = ? AND activo = TRUE 
+        ORDER BY nombre ASC
+    ''', (categoria_id,))
+    
+    subcategorias = []
+    for row in cursor.fetchall():
+        subcategorias.append({
+            'id': row[0],
+            'nombre': row[1]
+        })
+    
+    conn.close()
+    return jsonify(subcategorias)
+
+
+@app.route('/crear_orden_fabricacion_desde_oc', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'operación'])
+def crear_orden_fabricacion_desde_oc():
+    """Crear orden de fabricación desde una orden de compra"""
+    try:
+        proyecto_id = request.form['proyecto_id']
+        tipo_orden = request.form['tipo_orden']
+        fecha_entrega_estimada = request.form['fecha_entrega_estimada']
+        cantidad_tableros = request.form['cantidad_tableros']
+        observaciones = request.form.get('observaciones', '').strip() or None
+        categorias_seleccionadas = request.form.getlist('categorias_seleccionadas')
+
+        if not categorias_seleccionadas:
+            flash('Debe seleccionar al menos una categoría para fabricar', 'error')
+            return redirect(url_for('ordenes_compra'))
+
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Verificar que el proyecto existe
+        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = ?', (proyecto_id,))
+        proyecto = cursor.fetchone()
+        if not proyecto:
+            flash('Proyecto no encontrado', 'error')
+            return redirect(url_for('ordenes_compra'))
+
+        # Generar código único para la orden
+        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
+        orden_numero = cursor.fetchone()[0] + 1
+        codigo_orden = f"OF-{datetime.now().year}-{orden_numero:04d}"
+
+        # Crear orden de fabricación
+        cursor.execute('''
+            INSERT INTO ordenes_fabricacion (
+                codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
+                cantidad_tableros, estado, observaciones
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
+              cantidad_tableros, 'pendiente_fabricacion', observaciones))
+
+        orden_fabricacion_id = cursor.lastrowid
+
+        # Procesar categorías seleccionadas y crear pedidos de seguimiento
+        for categoria_data in categorias_seleccionadas:
+            categoria_id, subcategoria_id = categoria_data.split(',')
+            subcategoria_id = subcategoria_id if subcategoria_id else None
+
+            # Agregar categoría a la orden de fabricación
+            cursor.execute('''
+                INSERT INTO orden_fabricacion_categorias (
+                    orden_fabricacion_id, categoria_id, subcategoria_id
+                ) VALUES (?, ?, ?)
+            ''', (orden_fabricacion_id, categoria_id, subcategoria_id))
+
+            # Crear pedido de seguimiento para cada categoría
+            cursor.execute('''
+                SELECT cat.nombre, subcat.nombre
+                FROM categorias_producto cat
+                LEFT JOIN subcategorias_producto subcat ON subcat.id = ?
+                WHERE cat.id = ?
+            ''', (subcategoria_id, categoria_id))
+            
+            cat_info = cursor.fetchone()
+            categoria_nombre = cat_info[0] if cat_info else 'Categoría'
+            subcategoria_nombre = cat_info[1] if cat_info and cat_info[1] else ''
+            
+            nombre_pedido = f"{categoria_nombre}"
+            if subcategoria_nombre:
+                nombre_pedido += f" - {subcategoria_nombre}"
+
+            cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
+            pedido_numero = cursor.fetchone()[0] + 1
+            codigo_pedido = f"PS-{datetime.now().year}-{pedido_numero:04d}"
+
+            cursor.execute('''
+                INSERT INTO pedidos_seguimiento (
+                    proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
+                    codigo_pedido, nombre, estado, fecha_entrega_estimada
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
+                  codigo_pedido, nombre_pedido, 'pendiente_fabricacion', fecha_entrega_estimada))
+
+        conn.commit()
+        conn.close()
+
+        flash(f'Orden de fabricación {codigo_orden} creada exitosamente', 'success')
+        return redirect(url_for('ordenes_compra'))
+
+    except Exception as e:
+        flash(f'Error al crear orden de fabricación: {str(e)}', 'error')
+        return redirect(url_for('ordenes_compra'))
 
 
 @app.route('/api/proyectos_para_despacho')
