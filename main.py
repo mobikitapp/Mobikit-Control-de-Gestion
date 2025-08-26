@@ -330,7 +330,6 @@ def dashboard():
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE p.estado IN ('entregado', 'completado')
         ORDER BY p.fecha_entrega_real DESC
-        LIMIT 10
     ''')
     ordenes_terminadas = cursor.fetchall()
 
@@ -929,11 +928,11 @@ def nueva_orden_compra():
         monto = request.form.get('monto')
         categorias = request.form.getlist('categorias[]')
         subcategorias = request.form.getlist('subcategorias[]')
-        
+
         # Campos específicos para orden de compra
         fecha_entrega_estimada_cliente = request.form.get('fecha_entrega_estimada_cliente')
         monto_neto_provision = request.form.get('monto_neto_provision')
-        
+
         # Campos específicos para contrato
         detalle_entregas = request.form.getlist('detalle_entregas[]')
         fechas_entrega = request.form.getlist('fechas_entrega[]')
@@ -1045,7 +1044,7 @@ def eliminar_proyecto(proyecto_id):
         # Si el proyecto está terminado, solo archivar en lugar de eliminar
         if estado_proyecto in ['entregado', 'completado']:
             cursor.execute('UPDATE proyectos SET archivado = TRUE WHERE id = ?', (proyecto_id,))
-            
+
             # Registrar en auditoría
             cursor.execute('''
                 INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
@@ -1407,7 +1406,7 @@ def crear_despacho():
         if telefono_contacto:
             info_completa += f"\nTELÉFONO CONTACTO: {telefono_contacto}"
         if hora_programada:
-            info_completa += f"\nHORA PROGRAMADA: {hora_programada}"
+            info_completa += f"\nHhora_programada: {hora_programada}"
         if horario_entrega:
             info_completa += f"\nHORARIO ENTREGA: {horario_entrega}"
         if restricciones:
@@ -2568,11 +2567,11 @@ def crear_orden_fabricacion():
                 LEFT JOIN subcategorias_producto subcat ON subcat.id = ?
                 WHERE cat.id = ?
             ''', (subcategoria_id, categoria_id))
-            
+
             cat_info = cursor.fetchone()
             categoria_nombre = cat_info[0] if cat_info else 'Categoría'
             subcategoria_nombre = cat_info[1] if cat_info and cat_info[1] else ''
-            
+
             nombre_pedido = f"{categoria_nombre}"
             if subcategoria_nombre:
                 nombre_pedido += f" - {subcategoria_nombre}"
@@ -2706,7 +2705,7 @@ def api_clientes_activos():
     """API para obtener clientes activos"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('SELECT id, nombre FROM clientes WHERE activo = TRUE ORDER BY nombre ASC')
     clientes = []
     for row in cursor.fetchall():
@@ -2714,7 +2713,7 @@ def api_clientes_activos():
             'id': row[0],
             'nombre': row[1]
         })
-    
+
     conn.close()
     return jsonify(clientes)
 
@@ -2725,7 +2724,7 @@ def api_categorias():
     """API para obtener categorías disponibles"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('SELECT id, nombre FROM categorias_producto WHERE activo = TRUE ORDER BY nombre ASC')
     categorias = []
     for row in cursor.fetchall():
@@ -2733,7 +2732,7 @@ def api_categorias():
             'id': row[0],
             'nombre': row[1]
         })
-    
+
     conn.close()
     return jsonify(categorias)
 
@@ -2744,20 +2743,20 @@ def api_subcategorias(categoria_id):
     """API para obtener subcategorías de una categoría"""
     conn = sqlite3.connect('mobikit.db')
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT id, nombre FROM subcategorias_producto 
         WHERE categoria_id = ? AND activo = TRUE 
         ORDER BY nombre ASC
     ''', (categoria_id,))
-    
+
     subcategorias = []
     for row in cursor.fetchall():
         subcategorias.append({
             'id': row[0],
             'nombre': row[1]
         })
-    
+
     conn.close()
     return jsonify(subcategorias)
 
@@ -2824,11 +2823,11 @@ def crear_orden_fabricacion_desde_oc():
                 LEFT JOIN subcategorias_producto subcat ON subcat.id = ?
                 WHERE cat.id = ?
             ''', (subcategoria_id, categoria_id))
-            
+
             cat_info = cursor.fetchone()
             categoria_nombre = cat_info[0] if cat_info else 'Categoría'
             subcategoria_nombre = cat_info[1] if cat_info and cat_info[1] else ''
-            
+
             nombre_pedido = f"{categoria_nombre}"
             if subcategoria_nombre:
                 nombre_pedido += f" - {subcategoria_nombre}"
@@ -3087,8 +3086,9 @@ def avanzar_tarea(tarea_id):
     try:
         # Obtener información actual de la tarea
         cursor.execute('''
-            SELECT t.estado, t.rol_asignado, t.tipo, t.etapa_fabricacion, 
-                   t.proyecto_id, t.titulo, p.nombre as proyecto_nombre
+            SELECT t.estado, t.rol_asignado, t.tipo, 
+                   t.proyecto_id, t.titulo, p.nombre as proyecto_nombre,
+                   t.etapa_fabricacion
             FROM tareas t
             JOIN proyectos p ON t.proyecto_id = p.id
             WHERE t.id = ?
@@ -3098,7 +3098,7 @@ def avanzar_tarea(tarea_id):
         if not tarea:
             return jsonify({'success': False, 'message': 'Tarea no encontrada'})
 
-        estado_actual, rol, tipo, etapa_actual, proyecto_id, titulo, proyecto_nombre = tarea
+        estado_actual, rol, tipo, proyecto_id, titulo, proyecto_nombre, etapa_actual = tarea
 
         # Verificar permisos
         if session['user_role'] not in ['admin', 'general'] and session['user_role'] != rol:
@@ -3182,8 +3182,9 @@ def retroceder_tarea(tarea_id):
     try:
         # Obtener información actual de la tarea
         cursor.execute('''
-            SELECT t.estado, t.rol_asignado, t.tipo, t.etapa_fabricacion, 
-                   t.proyecto_id, t.titulo, p.nombre as proyecto_nombre
+            SELECT t.estado, t.rol_asignado, t.tipo, 
+                   t.proyecto_id, t.titulo, p.nombre as proyecto_nombre,
+                   t.etapa_fabricacion
             FROM tareas t
             JOIN proyectos p ON t.proyecto_id = p.id
             WHERE t.id = ?
@@ -3193,7 +3194,7 @@ def retroceder_tarea(tarea_id):
         if not tarea:
             return jsonify({'success': False, 'message': 'Tarea no encontrada'})
 
-        estado_actual, rol, tipo, etapa_actual, proyecto_id, titulo, proyecto_nombre = tarea
+        estado_actual, rol, tipo, proyecto_id, titulo, proyecto_nombre, etapa_actual = tarea
 
         # Solo admin y general pueden retroceder tareas
         if session['user_role'] not in ['admin', 'general']:
