@@ -111,6 +111,11 @@
                                         <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        {% if session.user_role in ['admin'] %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrdenCompra({{ orden.id }})" title="Eliminar Orden">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
@@ -389,7 +394,6 @@ function mostrarCategoriasProyectoFab(categorias) {
 }
 
 function iniciarProceso(ordenId) {
-function iniciarProceso(ordenId) {
     if (confirm('¿Confirmas iniciar el proceso de fabricación para esta orden?')) {
         fetch(`/api/iniciar_proceso_orden/${ordenId}`, {
             method: 'POST',
@@ -414,6 +418,28 @@ function iniciarProceso(ordenId) {
 function terminarOrden(ordenId) {
     if (confirm('¿Confirmas marcar esta orden como terminada?')) {
         fetch(`/api/terminar_orden/${ordenId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function eliminarOrdenCompra(ordenId) {
+    if (confirm('¿Estás seguro de que deseas eliminar esta orden de compra? Esta acción no se puede deshacer.')) {
+        fetch(`/eliminar_proyecto/${ordenId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
