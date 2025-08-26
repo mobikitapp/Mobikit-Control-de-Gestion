@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Órdenes de Fabricación - Mobikit{% endblock %}
@@ -74,7 +73,27 @@
                                 <td>{{ orden[4] }}</td>
                                 <td>{{ orden[3] }}</td>
                                 <td>
-                                    <span class="badge bg-warning">{{ orden[5].replace('_', ' ').title() }}</span>
+                                    {% if orden[5] == 'pendiente' %}
+                                            <span class="badge bg-warning">Pendiente</span>
+                                        {% elif orden[5] == 'aprobado_produccion' %}
+                                            <span class="badge bg-info">Aprobado Producción</span>
+                                        {% elif orden[5] == 'seccionado' %}
+                                            <span class="badge bg-secondary">Seccionado</span>
+                                        {% elif orden[5] == 'enchapado' %}
+                                            <span class="badge bg-info">Enchapado</span>
+                                        {% elif orden[5] == 'mecanizado' %}
+                                            <span class="badge bg-primary">Mecanizado</span>
+                                        {% elif orden[5] == 'produccion_completa' %}
+                                            <span class="badge bg-success">Producción Completa</span>
+                                        {% elif orden[5] == 'embalando' %}
+                                            <span class="badge bg-warning">Embalando</span>
+                                        {% elif orden[5] == 'listo_despacho' %}
+                                            <span class="badge bg-danger">Listo Despacho</span>
+                                        {% elif orden[5] == 'entregado' %}
+                                            <span class="badge bg-dark">Entregado</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ orden[5]|title }}</span>
+                                        {% endif %}
                                 </td>
                                 <td>
                                     {% if session.user_role in ['admin', 'general', 'operación'] %}
@@ -137,7 +156,27 @@
                                 <td>{{ orden[4] }}</td>
                                 <td>{{ orden[3] }}</td>
                                 <td>
-                                    <span class="badge bg-primary">{{ orden[5].replace('_', ' ').title() }}</span>
+                                    {% if orden[5] == 'pendiente' %}
+                                            <span class="badge bg-warning">Pendiente</span>
+                                        {% elif orden[5] == 'aprobado_produccion' %}
+                                            <span class="badge bg-info">Aprobado Producción</span>
+                                        {% elif orden[5] == 'seccionado' %}
+                                            <span class="badge bg-secondary">Seccionado</span>
+                                        {% elif orden[5] == 'enchapado' %}
+                                            <span class="badge bg-info">Enchapado</span>
+                                        {% elif orden[5] == 'mecanizado' %}
+                                            <span class="badge bg-primary">Mecanizado</span>
+                                        {% elif orden[5] == 'produccion_completa' %}
+                                            <span class="badge bg-success">Producción Completa</span>
+                                        {% elif orden[5] == 'embalando' %}
+                                            <span class="badge bg-warning">Embalando</span>
+                                        {% elif orden[5] == 'listo_despacho' %}
+                                            <span class="badge bg-danger">Listo Despacho</span>
+                                        {% elif orden[5] == 'entregado' %}
+                                            <span class="badge bg-dark">Entregado</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ orden[5]|title }}</span>
+                                        {% endif %}
                                 </td>
                                 <td>
                                     {% if session.user_role in ['admin', 'general', 'operación'] %}
@@ -200,7 +239,27 @@
                                 <td>{{ orden[4] }}</td>
                                 <td>{{ orden[3] }}</td>
                                 <td>
-                                    <span class="badge bg-success">{{ orden[5].replace('_', ' ').title() }}</span>
+                                    {% if orden[5] == 'pendiente' %}
+                                            <span class="badge bg-warning">Pendiente</span>
+                                        {% elif orden[5] == 'aprobado_produccion' %}
+                                            <span class="badge bg-info">Aprobado Producción</span>
+                                        {% elif orden[5] == 'seccionado' %}
+                                            <span class="badge bg-secondary">Seccionado</span>
+                                        {% elif orden[5] == 'enchapado' %}
+                                            <span class="badge bg-info">Enchapado</span>
+                                        {% elif orden[5] == 'mecanizado' %}
+                                            <span class="badge bg-primary">Mecanizado</span>
+                                        {% elif orden[5] == 'produccion_completa' %}
+                                            <span class="badge bg-success">Producción Completa</span>
+                                        {% elif orden[5] == 'embalando' %}
+                                            <span class="badge bg-warning">Embalando</span>
+                                        {% elif orden[5] == 'listo_despacho' %}
+                                            <span class="badge bg-danger">Listo Despacho</span>
+                                        {% elif orden[5] == 'entregado' %}
+                                            <span class="badge bg-dark">Entregado</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ orden[5]|title }}</span>
+                                        {% endif %}
                                 </td>
                                 <td>{{ orden[10] or 'N/A' }}</td>
                             </tr>
@@ -319,7 +378,7 @@ function cargarProyectosDisponibles() {
 
     // Mostrar loading
     select.innerHTML = '<option value="">Cargando proyectos...</option>';
-    
+
     fetch('/api/proyectos_disponibles_fabricacion')
         .then(response => {
             if (!response.ok) {
@@ -330,7 +389,7 @@ function cargarProyectosDisponibles() {
         .then(data => {
             console.log('Projects loaded:', data);
             select.innerHTML = '<option value="">Seleccionar proyecto...</option>';
-            
+
             if (data && data.length > 0) {
                 data.forEach(proyecto => {
                     const option = document.createElement('option');
@@ -354,10 +413,10 @@ function cargarCategoriasProyecto(proyectoId) {
         console.error('Categorias div not found');
         return;
     }
-    
+
     if (proyectoId) {
         categoriasDiv.innerHTML = '<p class="text-muted">Cargando categorías...</p>';
-        
+
         fetch(`/api/categorias_proyecto/${proyectoId}`)
             .then(response => {
                 if (!response.ok) {
@@ -373,7 +432,7 @@ function cargarCategoriasProyecto(proyectoId) {
                         const subcatText = cat.subcategoria_nombre ? ` - ${cat.subcategoria_nombre}` : '';
                         const checkboxId = `cat_${cat.categoria_id}_${cat.subcategoria_id || 'none'}`;
                         const checkboxValue = `${cat.categoria_id},${cat.subcategoria_id || ''}`;
-                        
+
                         html += `
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="categorias_seleccionadas" value="${checkboxValue}" id="${checkboxId}">
