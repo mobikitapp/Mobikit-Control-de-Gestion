@@ -99,8 +99,8 @@
                                             </td>
                                             <td>
                                                 {% if proyecto.fecha_estimada_inicio %}
-                                                    {% set fecha_obj = proyecto.fecha_estimada_inicio | strptime('%Y-%m-%d') %}
-                                                    {{ fecha_obj.strftime('%m/%Y') }}
+                                                    {% set fecha_parts = proyecto.fecha_estimada_inicio.split('-') %}
+                                                    {{ fecha_parts[1] }}/{{ fecha_parts[0] }}
                                                 {% else %}
                                                     <span class="text-muted">N/A</span>
                                                 {% endif %}
