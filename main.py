@@ -373,7 +373,7 @@ def clientes():
         cursor.execute('''
             SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, 
                    p.adjudicacion_tipo, p.fecha_entrega, p.monto_neto, u.nombre as diseñador_nombre,
-                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+                   julianday(p.fecha_entrega) - julianday('now') as dias_restantes, p.prioridad, p.diseñador_id
             FROM proyectos p
             LEFT JOIN usuarios u ON p.diseñador_id = u.id
             WHERE p.cliente_id = ?
@@ -405,7 +405,9 @@ def clientes():
                 'fecha_entrega': proyecto[6],
                 'monto_neto': proyecto[7],
                 'diseñador_nombre': proyecto[8],
-                'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None
+                'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None,
+                'prioridad': proyecto[10] or 'media',
+                'diseñador_id': proyecto[11]
             }
             cliente_info['proyectos'].append(proyecto_dict)
 
