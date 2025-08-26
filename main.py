@@ -371,8 +371,8 @@ def clientes():
 
         # Obtener proyectos del cliente
         cursor.execute('''
-            SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, p.prioridad,
-                   p.fecha_entrega, p.presupuesto, u.nombre as diseñador_nombre,
+            SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, 
+                   p.adjudicacion_tipo, p.fecha_entrega, p.monto_neto, u.nombre as diseñador_nombre,
                    julianday(p.fecha_entrega) - julianday('now') as dias_restantes
             FROM proyectos p
             LEFT JOIN usuarios u ON p.diseñador_id = u.id
@@ -401,9 +401,9 @@ def clientes():
                 'nombre': proyecto[2],
                 'descripcion': proyecto[3],
                 'estado': proyecto[4],
-                'prioridad': proyecto[5],
+                'adjudicacion_tipo': proyecto[5],
                 'fecha_entrega': proyecto[6],
-                'presupuesto': proyecto[7],
+                'monto_neto': proyecto[7],
                 'diseñador_nombre': proyecto[8],
                 'dias_restantes': int(proyecto[9]) if proyecto[9] is not None else None
             }
@@ -947,24 +947,23 @@ def proyecto_detalle(proyecto_id):
 @login_required
 @role_required(['admin', 'general', 'diseñador'])
 def nuevo_proyecto():
-    """Crear nuevo proyecto desde modal"""
+    """Crear nuevo proyecto con sistema de adjudicación por contrato u orden de compra"""
     try:
         nombre = request.form['nombre']
         cliente_id = request.form['cliente_id']
         descripcion = request.form.get('descripcion', '').strip() or None
-        prioridad = request.form.get('prioridad', 'media')
+        adjudicacion_tipo = request.form.get('adjudicacion_tipo', 'orden_compra')
         fecha_inicio = request.form.get('fecha_inicio') or datetime.now().date()
-        fecha_entrega = request.form.get('fecha_entrega') or None
         diseñador_id = request.form.get('diseñador_id') or None
-        presupuesto = request.form.get('presupuesto')
+        monto_neto = request.form.get('monto_neto')
         observaciones = request.form.get('observaciones', '').strip() or None
 
-        # Convertir presupuesto a float si se proporciona
-        if presupuesto:
+        # Convertir monto_neto a float si se proporciona
+        if monto_neto:
             try:
-                presupuesto = float(presupuesto)
+                monto_neto = float(monto_neto)
             except ValueError:
-                presupuesto = None
+                monto_neto = None
 
         conn = sqlite3.connect('mobikit.db')
         cursor = conn.cursor()
@@ -988,16 +987,33 @@ def nuevo_proyecto():
         proyecto_numero = cursor.fetchone()[0] + 1
         codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
+        # Para orden de compra, obtener la fecha de entrega estimada
+        fecha_entrega = None
+        if adjudicacion_tipo == 'orden_compra':
+            fecha_entrega = request.form.get('fecha_entrega') or None
+
         # Crear proyecto
         cursor.execute('''
             INSERT INTO proyectos (
-                codigo, nombre, cliente_id, descripcion, estado, prioridad,
-                fecha_inicio, fecha_entrega, diseñador_id, presupuesto, observaciones
+                codigo, nombre, cliente_id, descripcion, adjudicacion_tipo, estado,
+                fecha_inicio, fecha_entrega, diseñador_id, monto_neto, observaciones
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (codigo_proyecto, nombre, cliente_id, descripcion, 'en_desarrollo', prioridad,
-              fecha_inicio, fecha_entrega, diseñador_id, presupuesto, observaciones))
+        ''', (codigo_proyecto, nombre, cliente_id, descripcion, adjudicacion_tipo, 'en_desarrollo',
+              fecha_inicio, fecha_entrega, diseñador_id, monto_neto, observaciones))
 
         proyecto_id = cursor.lastrowid
+
+        # Si es contrato, procesar las entregas
+        if adjudicacion_tipo == 'contrato':
+            detalles_entrega = request.form.getlist('detalle_entrega[]')
+            fechas_entrega = request.form.getlist('fecha_entrega[]')
+            
+            for i, detalle in enumerate(detalles_entrega):
+                if detalle.strip() and i < len(fechas_entrega) and fechas_entrega[i]:
+                    cursor.execute('''
+                        INSERT INTO entregas_contrato (proyecto_id, detalle, fecha_entrega)
+                        VALUES (?, ?, ?)
+                    ''', (proyecto_id, detalle.strip(), fechas_entrega[i]))
 
         # Crear tareas automáticas del ciclo de vida
         tareas_ciclo = [
@@ -1018,10 +1034,10 @@ def nuevo_proyecto():
             cursor.execute('''
                 INSERT INTO tareas (
                     proyecto_id, titulo, descripcion, rol_asignado, tipo, 
-                    fecha_programada, estado, prioridad
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    fecha_programada, estado
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (proyecto_id, titulo, descripcion_tarea, rol, tipo, 
-                  fecha_programada, 'pendiente', prioridad))
+                  fecha_programada, 'pendiente'))
 
         conn.commit()
         conn.close()
@@ -3011,6 +3027,34 @@ def api_proyectos_cliente(cliente_id):
 
     conn.close()
     return jsonify(proyectos)
+
+
+@app.route('/api/entregas_proyecto/<int:proyecto_id>')
+@login_required
+def api_entregas_proyecto(proyecto_id):
+    """API para obtener entregas programadas de un proyecto por contrato"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, detalle, fecha_entrega, estado, observaciones
+        FROM entregas_contrato
+        WHERE proyecto_id = ?
+        ORDER BY fecha_entrega ASC
+    ''', (proyecto_id,))
+    
+    entregas = []
+    for row in cursor.fetchall():
+        entregas.append({
+            'id': row[0],
+            'detalle': row[1],
+            'fecha_entrega': row[2],
+            'estado': row[3],
+            'observaciones': row[4]
+        })
+
+    conn.close()
+    return jsonify(entregas)
 
 
 @app.route('/api/proyectos_disponibles_fabricacion')

@@ -72,7 +72,7 @@
                                 <th>Estado</th>
                                 <th>Prioridad</th>
                                 <th>Fecha Entrega</th>
-                                <th>Presupuesto</th>
+                                <th>Monto Neto</th>
                                 <th>Diseñador</th>
                                 <th>Acciones</th>
                             </tr>
@@ -116,8 +116,8 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if proyecto.presupuesto %}
-                                        ${{ "{:,.0f}".format(proyecto.presupuesto) }}
+                                    {% if proyecto.monto_neto %}
+                                        ${{ "{:,.2f}".format(proyecto.monto_neto) }}
                                     {% else %}
                                         <small class="text-muted">No definido</small>
                                     {% endif %}
@@ -137,7 +137,7 @@
                                         </a>
                                         {% if session.user_role in ['admin', 'general', 'diseñador'] %}
                                         <button type="button" class="btn btn-sm btn-outline-secondary"
-                                                onclick="editarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}', '{{ proyecto.descripcion or '' }}', '{{ proyecto.prioridad }}', '{{ proyecto.fecha_entrega or '' }}', {{ proyecto.presupuesto or 'null' }})"
+                                                onclick="editarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}', '{{ proyecto.descripcion or '' }}', '{{ proyecto.prioridad }}', '{{ proyecto.fecha_entrega or '' }}', {{ proyecto.monto_neto or 'null' }}, {{ proyecto.diseñador_id or 'null' }})"
                                                 title="Editar">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -369,46 +369,29 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="nuevo_prioridad" class="form-label">Prioridad</label>
-                                <select class="form-select" id="nuevo_prioridad" name="prioridad">
-                                    <option value="baja">Baja</option>
-                                    <option value="media" selected>Media</option>
-                                    <option value="alta">Alta</option>
-                                    <option value="urgente">Urgente</option>
-                                </select>
+                                <label for="nuevo_fecha_inicio" class="form-label">Fecha de Inicio</label>
+                                <input type="date" class="form-control" id="nuevo_fecha_inicio" name="fecha_inicio" value="{{ fecha_hoy }}">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="nuevo_fecha_entrega" class="form-label">Fecha de Entrega</label>
-                                <input type="date" class="form-control" id="nuevo_fecha_entrega" name="fecha_entrega">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="nuevo_diseñador_id" class="form-label">Diseñador</label>
-                                <select class="form-select" id="nuevo_diseñador_id" name="diseñador_id">
-                                    <option value="">Sin asignar</option>
-                                    {% for diseñador in diseñadores_disponibles %}
-                                    <option value="{{ diseñador[0] }}">{{ diseñador[1] }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="nuevo_presupuesto" class="form-label">Presupuesto</label>
-                                <input type="number" class="form-control" id="nuevo_presupuesto" name="presupuesto" placeholder="0">
+                                <label for="nuevo_monto_neto" class="form-label">Monto Neto</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="nuevo_monto_neto" name="monto_neto" step="0.01" min="0" placeholder="0.00">
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="nuevo_observaciones" class="form-label">Observaciones</label>
-                        <textarea class="form-control" id="nuevo_observaciones" name="observaciones" rows="2"></textarea>
+                        <label for="nuevo_diseñador_id" class="form-label">Diseñador</label>
+                        <select class="form-select" id="nuevo_diseñador_id" name="diseñador_id">
+                            <option value="">Asignar más tarde...</option>
+                            {% for diseñador in diseñadores_disponibles %}
+                            <option value="{{ diseñador[0] }}">{{ diseñador[1] }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -467,8 +450,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="edit_proyecto_presupuesto" class="form-label">Presupuesto</label>
-                        <input type="number" class="form-control" id="edit_proyecto_presupuesto" name="presupuesto">
+                        <label for="edit_proyecto_monto_neto" class="form-label">Monto Neto</label>
+                        <input type="number" class="form-control" id="edit_proyecto_monto_neto" name="monto_neto">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -504,14 +487,15 @@ function nuevoProyecto(clienteId, clienteNombre) {
     new bootstrap.Modal(document.getElementById('nuevoProyectoModal')).show();
 }
 
-function editarProyecto(id, codigo, nombre, descripcion, prioridad, fechaEntrega, presupuesto) {
+function editarProyecto(id, codigo, nombre, descripcion, prioridad, fechaEntrega, montoNeto, diseñadorId) {
     document.getElementById('edit_proyecto_id').value = id;
     document.getElementById('edit_proyecto_codigo').value = codigo;
     document.getElementById('edit_proyecto_nombre').value = nombre;
     document.getElementById('edit_proyecto_descripcion').value = descripcion;
     document.getElementById('edit_proyecto_prioridad').value = prioridad;
     document.getElementById('edit_proyecto_fecha_entrega').value = fechaEntrega;
-    document.getElementById('edit_proyecto_presupuesto').value = presupuesto;
+    document.getElementById('edit_proyecto_monto_neto').value = montoNeto;
+    document.getElementById('edit_proyecto_diseñador_id').value = diseñadorId; // Asignar diseñadorId
 
     new bootstrap.Modal(document.getElementById('editarProyectoModal')).show();
 }
