@@ -35,42 +35,15 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('proyectos') }}">
-                            <i class="fas fa-project-diagram"></i> Proyectos
+                        <a class="nav-link {% if request.endpoint == 'ordenes_compra' %}active{% endif %}" href="{{ url_for('ordenes_compra') }}">
+                            <i class="fas fa-file-invoice"></i> Órdenes de Compra
                         </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="tareasDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-tasks"></i> Tareas
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('tareas') }}">Mis Tareas</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('tareas_area') }}">Gestión por Área</a></li>
-                        </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('calendario') }}">
-                            <i class="fas fa-calendar-alt"></i> Calendario
+                        <a class="nav-link {% if request.endpoint == 'ordenes_fabricacion' %}active{% endif %}" href="{{ url_for('ordenes_fabricacion') }}">
+                            <i class="fas fa-cogs"></i> Órdenes de Fabricación
                         </a>
                     </li>
-                    {% if session.user_role in ['admin', 'general'] %}
-                    <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('despachos') }}">
-                                <i class="fas fa-truck"></i> Despachos
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('recordatorios_activos') }}">
-                                <i class="fas fa-bell"></i> Recordatorios
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('reportes') }}">
-                                <i class="fas fa-chart-bar"></i> Reportes
-                            </a>
-                        </li>
-                    {% endif %}
                     {% if session.user_role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('usuarios') }}">

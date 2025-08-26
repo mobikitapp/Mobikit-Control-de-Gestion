@@ -1,0 +1,340 @@
+
+{% extends "base.html" %}
+
+{% block title %}Órdenes de Fabricación - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-cogs"></i> Gestión de Órdenes de Fabricación</h1>
+    <div>
+        <a href="{{ url_for('ordenes_compra') }}" class="btn btn-outline-primary">
+            <i class="fas fa-file-invoice"></i> Ver Órdenes de Compra
+        </a>
+    </div>
+</div>
+
+<!-- Pestañas de Estados -->
+<ul class="nav nav-tabs" id="fabricacionTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="pendientes-fab-tab" data-bs-toggle="tab" data-bs-target="#pendientes-fab" type="button" role="tab">
+            <i class="fas fa-pause-circle text-warning"></i> Pendiente Producción ({{ fabricacion_pendientes|length }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="proceso-fab-tab" data-bs-toggle="tab" data-bs-target="#proceso-fab" type="button" role="tab">
+            <i class="fas fa-cogs text-primary"></i> En Proceso ({{ fabricacion_proceso|length }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="terminadas-fab-tab" data-bs-toggle="tab" data-bs-target="#terminadas-fab" type="button" role="tab">
+            <i class="fas fa-check-circle text-success"></i> Terminadas ({{ fabricacion_terminadas|length }})
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="fabricacionTabContent">
+    <!-- Panel Órdenes Pendientes de Producción -->
+    <div class="tab-pane fade show active" id="pendientes-fab" role="tabpanel">
+        <div class="card mt-3">
+            <div class="card-header bg-warning text-dark">
+                <h5><i class="fas fa-pause-circle"></i> Órdenes Pendientes de Iniciar Producción</h5>
+            </div>
+            <div class="card-body">
+                {% if fabricacion_pendientes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Código Fabricación</th>
+                                <th>Orden de Compra</th>
+                                <th>Cliente</th>
+                                <th>Producto</th>
+                                <th>Fecha Estimada</th>
+                                <th>Prioridad</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fab in fabricacion_pendientes %}
+                            <tr>
+                                <td><strong>{{ fab.codigo_pedido }}</strong></td>
+                                <td>
+                                    <a href="{{ url_for('orden_compra_detalle', orden_id=fab.proyecto_id) }}" class="text-decoration-none">
+                                        {{ fab.proyecto_codigo }}
+                                    </a>
+                                </td>
+                                <td>{{ fab.cliente_nombre }}</td>
+                                <td>
+                                    {{ fab.nombre }}
+                                    <br><small class="text-muted">{{ fab.categoria_nombre }}{% if fab.subcategoria_nombre %} - {{ fab.subcategoria_nombre }}{% endif %}</small>
+                                </td>
+                                <td>
+                                    {{ fab.fecha_entrega_estimada if fab.fecha_entrega_estimada else 'Sin fecha' }}
+                                    {% if fab.dias_restantes is not none %}
+                                        {% if fab.dias_restantes < 0 %}
+                                        <br><small class="text-danger">Vencida</small>
+                                        {% elif fab.dias_restantes <= 7 %}
+                                        <br><small class="text-warning">{{ fab.dias_restantes }} días</small>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if fab.prioridad == 'alta' %}danger{% elif fab.prioridad == 'media' %}warning{% else %}info{% endif %}">
+                                        {{ fab.prioridad|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if session.user_role in ['admin', 'general', 'operación'] %}
+                                    <button class="btn btn-sm btn-success" onclick="iniciarProduccion({{ fab.id }})" title="Iniciar Producción">
+                                        <i class="fas fa-play"></i> Iniciar
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay órdenes pendientes de producción</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Órdenes en Proceso -->
+    <div class="tab-pane fade" id="proceso-fab" role="tabpanel">
+        <div class="card mt-3">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="fas fa-cogs"></i> Órdenes en Proceso de Fabricación</h5>
+            </div>
+            <div class="card-body">
+                {% if fabricacion_proceso %}
+                <div class="row">
+                    {% for fab in fabricacion_proceso %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card border-primary h-100">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">{{ fab.codigo_pedido }}</h6>
+                                    <span class="badge bg-{% if fab.estado == 'seccionado' %}warning{% elif fab.estado == 'enchapado' %}info{% elif fab.estado == 'mecanizado' %}primary{% elif fab.estado == 'produccion_completa' %}success{% endif %}">
+                                        {{ fab.estado|replace('_', ' ')|title }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">
+                                    OC: {{ fab.proyecto_codigo }} | {{ fab.cliente_nombre }}
+                                </small>
+                            </div>
+                            <div class="card-body">
+                                <h6>{{ fab.nombre }}</h6>
+                                <p class="small text-muted mb-3">{{ fab.categoria_nombre }}{% if fab.subcategoria_nombre %} - {{ fab.subcategoria_nombre }}{% endif %}</p>
+                                
+                                <!-- Progreso detallado por etapas -->
+                                {% set etapas = [
+                                    ('aprobado_produccion', 'Aprobado', 'secondary'),
+                                    ('seccionado', 'Seccionado', 'warning'),
+                                    ('enchapado', 'Enchapado', 'info'),
+                                    ('mecanizado', 'Mecanizado', 'primary'),
+                                    ('produccion_completa', 'Terminado', 'success')
+                                ] %}
+                                
+                                <div class="mb-3">
+                                    <h6 class="small mb-2"><i class="fas fa-tasks"></i> Progreso de Fabricación:</h6>
+                                    {% for etapa_id, etapa_nombre, color_clase in etapas %}
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="small">{{ etapa_nombre }}</span>
+                                        {% if fab.estado == etapa_id %}
+                                        <span class="badge bg-{{ color_clase }}">
+                                            <i class="fas fa-clock"></i> En Proceso
+                                        </span>
+                                        {% elif etapas.index((etapa_id, etapa_nombre, color_clase)) < etapas.index((fab.estado, '', '')) %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check"></i> Completado
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-light text-dark">
+                                            <i class="fas fa-hourglass-half"></i> Pendiente
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                <!-- Barra de progreso general -->
+                                {% set estados_progreso = ['aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'] %}
+                                {% set indice_actual = estados_progreso.index(fab.estado) if fab.estado in estados_progreso else 0 %}
+                                {% set porcentaje = ((indice_actual + 1) / estados_progreso|length * 100)|int %}
+                                
+                                <div class="progress mb-3" style="height: 20px;">
+                                    <div class="progress-bar bg-{% if porcentaje < 40 %}warning{% elif porcentaje < 80 %}info{% else %}success{% endif %}" 
+                                         role="progressbar" style="width: {{ porcentaje }}%" 
+                                         aria-valuenow="{{ porcentaje }}" aria-valuemin="0" aria-valuemax="100">
+                                        {{ porcentaje }}%
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        Entrega: {{ fab.fecha_entrega_estimada if fab.fecha_entrega_estimada else 'Sin fecha' }}
+                                    </small>
+                                    <div class="btn-group">
+                                        {% if session.user_role in ['admin', 'general', 'operación'] and fab.estado != 'produccion_completa' %}
+                                        <button class="btn btn-sm btn-success" onclick="avanzarEtapa({{ fab.id }})" title="Avanzar Etapa">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if session.user_role in ['admin', 'general'] %}
+                                        <button class="btn btn-sm btn-outline-warning" onclick="retrocederEtapa({{ fab.id }})" title="Retroceder Etapa">
+                                            <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay órdenes en proceso de fabricación</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Órdenes Terminadas -->
+    <div class="tab-pane fade" id="terminadas-fab" role="tabpanel">
+        <div class="card mt-3">
+            <div class="card-header bg-success text-white">
+                <h5><i class="fas fa-check-circle"></i> Órdenes de Fabricación Terminadas</h5>
+            </div>
+            <div class="card-body">
+                {% if fabricacion_terminadas %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Código Fabricación</th>
+                                <th>Orden de Compra</th>
+                                <th>Cliente</th>
+                                <th>Producto</th>
+                                <th>Fecha Programada</th>
+                                <th>Fecha Terminación</th>
+                                <th>Tiempo Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fab in fabricacion_terminadas %}
+                            <tr>
+                                <td><strong>{{ fab.codigo_pedido }}</strong></td>
+                                <td>
+                                    <a href="{{ url_for('orden_compra_detalle', orden_id=fab.proyecto_id) }}" class="text-decoration-none">
+                                        {{ fab.proyecto_codigo }}
+                                    </a>
+                                </td>
+                                <td>{{ fab.cliente_nombre }}</td>
+                                <td>
+                                    {{ fab.nombre }}
+                                    <br><small class="text-muted">{{ fab.categoria_nombre }}{% if fab.subcategoria_nombre %} - {{ fab.subcategoria_nombre }}{% endif %}</small>
+                                </td>
+                                <td>{{ fab.fecha_entrega_estimada if fab.fecha_entrega_estimada else 'Sin fecha' }}</td>
+                                <td>{{ fab.fecha_entrega_real if fab.fecha_entrega_real else 'N/A' }}</td>
+                                <td>
+                                    {% if fab.fecha_inicio and fab.fecha_entrega_real %}
+                                    {% set inicio = fab.fecha_inicio %}
+                                    {% set fin = fab.fecha_entrega_real %}
+                                    <span class="badge bg-info">{{ (fin - inicio).days }} días</span>
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay órdenes de fabricación terminadas</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function iniciarProduccion(fabricacionId) {
+    if (confirm('¿Confirmas iniciar la producción de esta orden de fabricación?')) {
+        fetch(`/api/iniciar_produccion/${fabricacionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function avanzarEtapa(fabricacionId) {
+    if (confirm('¿Confirmas avanzar esta orden a la siguiente etapa de fabricación?')) {
+        fetch(`/api/avanzar_etapa_fabricacion/${fabricacionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function retrocederEtapa(fabricacionId) {
+    if (confirm('¿Confirmas retroceder esta orden a la etapa anterior?')) {
+        fetch(`/api/retroceder_etapa_fabricacion/${fabricacionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+</script>
+{% endblock %}
