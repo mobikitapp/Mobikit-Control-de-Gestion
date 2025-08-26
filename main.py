@@ -1094,16 +1094,13 @@ def eliminar_proyecto(proyecto_id):
         # 2. Eliminar tareas del proyecto
         cursor.execute('DELETE FROM tareas WHERE proyecto_id = ?', (proyecto_id,))
 
-        # 3. Eliminar pedidos de seguimiento
-        cursor.execute('DELETE FROM pedidos_seguimiento WHERE proyecto_id = ?', (proyecto_id,))
-
-        # 4. Eliminar categorías de órdenes de fabricación
+        # 3. Eliminar categorías de órdenes de fabricación
         cursor.execute('''
             DELETE FROM orden_fabricacion_categorias 
             WHERE orden_fabricacion_id IN (SELECT id FROM ordenes_fabricacion WHERE proyecto_id = ?)
         ''', (proyecto_id,))
 
-        # 5. Eliminar órdenes de fabricación
+        # 4. Eliminar órdenes de fabricación
         cursor.execute('DELETE FROM ordenes_fabricacion WHERE proyecto_id = ?', (proyecto_id,))
 
         # 6. Eliminar entregas de contrato
@@ -2297,13 +2294,6 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
             WHERE id = ?
         ''', (orden_fabricacion_id,))
 
-        # También actualizar todos los pedidos de seguimiento asociados
-        cursor.execute('''
-            UPDATE pedidos_seguimiento 
-            SET estado = 'seccionado', fecha_inicio = CURRENT_TIMESTAMP 
-            WHERE orden_fabricacion_id = ?
-        ''', (orden_fabricacion_id,))
-
         conn.commit()
         return jsonify({'success': True, 'message': f'Orden de fabricación {orden[1]} iniciada'})
 
@@ -2322,19 +2312,19 @@ def api_iniciar_produccion(fabricacion_id):
     cursor = conn.cursor()
 
     try:
-        # Verificar estado actual
-        cursor.execute('SELECT estado, codigo_pedido FROM pedidos_seguimiento WHERE id = ?', (fabricacion_id,))
+        # Verificar estado actual de la orden de fabricación
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = ?', (fabricacion_id,))
         fab = cursor.fetchone()
 
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        if fab[0] not in ['en_desarrollo', 'aprobado_produccion']:
+        if fab[0] not in ['pendiente_fabricacion', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
 
         # Cambiar a primera etapa de fabricación
         cursor.execute('''
-            UPDATE pedidos_seguimiento 
+            UPDATE ordenes_fabricacion 
             SET estado = 'seccionado', fecha_inicio = CURRENT_TIMESTAMP 
             WHERE id = ?
         ''', (fabricacion_id,))
@@ -2357,18 +2347,18 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
     cursor = conn.cursor()
 
     try:
-        # Obtener estado actual
-        cursor.execute('SELECT estado, codigo_pedido FROM pedidos_seguimiento WHERE id = ?', (fabricacion_id,))
+        # Obtener estado actual de la orden de fabricación
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = ?', (fabricacion_id,))
         fab = cursor.fetchone()
 
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
         estado_actual = fab[0]
-        codigo_pedido = fab[1]
+        codigo_orden = fab[1]
 
-        # Definir secuencia de estados
-        estados_secuencia = ['seccionado', 'enchapado', 'mecanizado', 'produccion_completa']
+        # Definir secuencia de estados para órdenes de fabricación
+        estados_secuencia = ['seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -2376,18 +2366,18 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
                 nuevo_estado = estados_secuencia[indice_actual + 1]
 
                 # Si es la última etapa, marcar fecha de terminación
-                if nuevo_estado == 'produccion_completa':
+                if nuevo_estado == 'listo_embalaje':
                     cursor.execute('''
-                        UPDATE pedidos_seguimiento 
+                        UPDATE ordenes_fabricacion 
                         SET estado = ?, fecha_entrega_real = CURRENT_TIMESTAMP 
                         WHERE id = ?
                     ''', (nuevo_estado, fabricacion_id))
                 else:
-                    cursor.execute('UPDATE pedidos_seguimiento SET estado = ? WHERE id = ?', 
+                    cursor.execute('UPDATE ordenes_fabricacion SET estado = ? WHERE id = ?', 
                                  (nuevo_estado, fabricacion_id))
 
                 conn.commit()
-                return jsonify({'success': True, 'message': f'{codigo_pedido} avanzado a: {nuevo_estado.replace("_", " ").title()}'})
+                return jsonify({'success': True, 'message': f'{codigo_orden} avanzado a: {nuevo_estado.replace("_", " ").title()}'})
             else:
                 return jsonify({'success': False, 'message': 'Ya está en la etapa final'})
 
@@ -2409,31 +2399,31 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
     cursor = conn.cursor()
 
     try:
-        # Obtener estado actual
-        cursor.execute('SELECT estado, codigo_pedido FROM pedidos_seguimiento WHERE id = ?', (fabricacion_id,))
+        # Obtener estado actual de la orden de fabricación
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = ?', (fabricacion_id,))
         fab = cursor.fetchone()
 
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
         estado_actual = fab[0]
-        codigo_pedido = fab[1]
+        codigo_orden = fab[1]
 
-        # Definir secuencia de estados
-        estados_secuencia = ['aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa']
+        # Definir secuencia de estados para órdenes de fabricación
+        estados_secuencia = ['pendiente_fabricacion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
             if indice_actual > 0:
                 nuevo_estado = estados_secuencia[indice_actual - 1]
                 cursor.execute('''
-                    UPDATE pedidos_seguimiento 
+                    UPDATE ordenes_fabricacion 
                     SET estado = ?, fecha_entrega_real = NULL 
                     WHERE id = ?
                 ''', (nuevo_estado, fabricacion_id))
 
                 conn.commit()
-                return jsonify({'success': True, 'message': f'{codigo_pedido} retrocedido a: {nuevo_estado.replace("_", " ").title()}'})
+                return jsonify({'success': True, 'message': f'{codigo_orden} retrocedido a: {nuevo_estado.replace("_", " ").title()}'})
             else:
                 return jsonify({'success': False, 'message': 'No se puede retroceder más'})
 
@@ -2709,9 +2699,6 @@ def eliminar_orden_fabricacion(orden_id):
         # Solo permitir eliminar órdenes pendientes
         if estado not in ['pendiente_fabricacion', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'No se puede eliminar una orden en proceso o terminada'})
-
-        # Eliminar pedidos de seguimiento asociados
-        cursor.execute('DELETE FROM pedidos_seguimiento WHERE orden_fabricacion_id = ?', (orden_id,))
 
         # Eliminar categorías de la orden
         cursor.execute('DELETE FROM orden_fabricacion_categorias WHERE orden_fabricacion_id = ?', (orden_id,))
