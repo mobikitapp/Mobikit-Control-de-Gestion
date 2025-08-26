@@ -600,7 +600,6 @@ def ordenes_compra():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('entregado', 'completado')
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
                  p.descripcion, p.prioridad, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
@@ -650,7 +649,7 @@ def ordenes_compra():
                 dias_restantes = int(float(orden[7]))
             except (ValueError, TypeError):
                 dias_restantes = None
-                
+
         orden_dict = {
             'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
             'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6], 
@@ -668,7 +667,7 @@ def ordenes_compra():
                 dias_restantes = int(float(orden[7]))
             except (ValueError, TypeError):
                 dias_restantes = None
-                
+
         orden_dict = {
             'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
             'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6], 
@@ -694,80 +693,6 @@ def ordenes_compra():
                            ordenes_pendientes=ordenes_pendientes,
                            ordenes_proceso=ordenes_proceso,
                            ordenes_terminadas=ordenes_terminadas)
-
-
-@app.route('/ordenes_fabricacion')
-@login_required
-def ordenes_fabricacion():
-    """Vista principal de órdenes de fabricación organizadas por estado"""
-    conn = sqlite3.connect('mobikit.db')
-    cursor = conn.cursor()
-
-    # Obtener órdenes de fabricación personalizadas pendientes
-    cursor.execute('''
-        SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
-               of.cantidad_tableros, p.id as proyecto_id, p.codigo as proyecto_codigo, 
-               c.nombre as cliente_nombre, p.prioridad, of.observaciones,
-               julianday(of.fecha_entrega_estimada) - julianday('now') as dias_restantes
-        FROM ordenes_fabricacion of
-        JOIN proyectos p ON of.proyecto_id = p.id
-        LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('pendiente_fabricacion', 'aprobado_produccion')
-        ORDER BY of.fecha_entrega_estimada ASC, p.prioridad DESC
-    ''')
-    ordenes_fabricacion_pendientes = cursor.fetchall()
-
-    # Obtener órdenes de fabricación en proceso
-    cursor.execute('''
-        SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
-               of.cantidad_tableros, p.id as proyecto_id, p.codigo as proyecto_codigo, 
-               c.nombre as cliente_nombre, p.prioridad, of.observaciones
-        FROM ordenes_fabricacion of
-        JOIN proyectos p ON of.proyecto_id = p.id
-        LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('seccionado', 'enchapado', 'mecanizado')
-        ORDER BY of.fecha_entrega_estimada ASC
-    ''')
-    ordenes_fabricacion_proceso = cursor.fetchall()
-
-    # Obtener órdenes de fabricación terminadas
-    cursor.execute('''
-        SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
-               of.cantidad_tableros, p.id as proyecto_id, p.codigo as proyecto_codigo, 
-               c.nombre as cliente_nombre, of.fecha_inicio, of.fecha_entrega_real
-        FROM ordenes_fabricacion of
-        JOIN proyectos p ON of.proyecto_id = p.id
-        LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado = 'produccion_completa'
-        ORDER BY of.fecha_entrega_real DESC
-    ''')
-    ordenes_fabricacion_terminadas = cursor.fetchall()
-
-    # También obtener pedidos de seguimiento legacy (para compatibilidad)
-    cursor.execute('''
-        SELECT ps.id, ps.codigo_pedido, ps.nombre, ps.estado, ps.fecha_entrega_estimada,
-               p.id as proyecto_id, p.codigo as proyecto_codigo, c.nombre as cliente_nombre,
-               cat.nombre as categoria_nombre, subcat.nombre as subcategoria_nombre,
-               p.prioridad, ps.fecha_inicio,
-               julianday(ps.fecha_entrega_estimada) - julianday('now') as dias_restantes
-        FROM pedidos_seguimiento ps
-        JOIN proyectos p ON ps.proyecto_id = p.id
-        LEFT JOIN clientes c ON p.cliente_id = c.id
-        LEFT JOIN categorias_producto cat ON ps.categoria_id = cat.id
-        LEFT JOIN subcategorias_producto subcat ON ps.subcategoria_id = subcat.id
-        WHERE ps.orden_fabricacion_id IS NULL 
-        AND ps.estado IN ('en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
-        ORDER BY ps.fecha_entrega_estimada ASC, p.prioridad DESC
-    ''')
-    fabricacion_legacy = cursor.fetchall()
-
-    conn.close()
-
-    return render_template('ordenes_fabricacion.html',
-                           ordenes_fabricacion_pendientes=ordenes_fabricacion_pendientes,
-                           ordenes_fabricacion_proceso=ordenes_fabricacion_proceso,
-                           ordenes_fabricacion_terminadas=ordenes_fabricacion_terminadas,
-                           fabricacion_legacy=fabricacion_legacy)
 
 
 @app.route('/orden_compra/<int:orden_id>')
@@ -3264,7 +3189,7 @@ def crear_orden_fabricacion():
                     codigo_pedido, nombre, estado, fecha_entrega_estimada
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
-                  codigo_pedido, nombre_pedido, 'pendiente', fecha_entrega_estimada))
+                  codigo_pedido, nombre_pedido, 'en_desarrollo', fecha_entrega_estimada))
 
         conn.commit()
         conn.close()
@@ -3357,7 +3282,7 @@ def crear_orden_fabricacion_desde_oc():
                     codigo_pedido, nombre, estado, fecha_entrega_estimada
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
-                  codigo_pedido, nombre_pedido, 'pendiente', fecha_entrega_estimada))
+                  codigo_pedido, nombre_pedido, 'en_desarrollo', fecha_entrega_estimada))
 
         # Cambiar estado del proyecto a "En proceso"
         cursor.execute('''
