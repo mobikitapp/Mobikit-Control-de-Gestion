@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS proyectos (
     nombre TEXT NOT NULL,
     cliente_id INTEGER NOT NULL,
     descripcion TEXT,
-    estado TEXT DEFAULT 'diseño' CHECK (estado IN ('diseño', 'aprobado', 'pendiente_fabricacion', 'producción', 'embalaje', 'despacho', 'entregado', 'cancelado')),
+    estado TEXT DEFAULT 'en_desarrollo' CHECK (estado IN ('en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado', 'cancelado')),
     prioridad TEXT DEFAULT 'media' CHECK (prioridad IN ('baja', 'media', 'alta', 'urgente')),
     fecha_inicio DATE,
     fecha_entrega DATE,
