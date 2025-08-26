@@ -2343,6 +2343,258 @@ def api_update_event_date():
             conn.close()
 
 
+@app.route('/ordenes_fabricacion')
+@login_required
+def ordenes_fabricacion():
+    """Vista de órdenes de fabricación organizadas por estado"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    # Órdenes de fabricación pendientes
+    cursor.execute('''
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada, 
+               of.cantidad_tableros, of.estado, of.observaciones,
+               p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               c.nombre as cliente_nombre, of.fecha_entrega_real
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.estado IN ('pendiente_fabricacion', 'aprobado_diseño')
+        ORDER BY of.fecha_entrega_estimada ASC
+    ''')
+    fabricacion_pendientes = cursor.fetchall()
+
+    # Órdenes de fabricación en proceso
+    cursor.execute('''
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada, 
+               of.cantidad_tableros, of.estado, of.observaciones,
+               p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               c.nombre as cliente_nombre, of.fecha_entrega_real
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.estado IN ('enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje')
+        ORDER BY of.fecha_entrega_estimada ASC
+    ''')
+    fabricacion_proceso = cursor.fetchall()
+
+    # Órdenes de fabricación terminadas
+    cursor.execute('''
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada, 
+               of.cantidad_tableros, of.estado, of.observaciones,
+               p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               c.nombre as cliente_nombre, of.fecha_entrega_real
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.estado IN ('embalando', 'listo_despacho', 'despachado')
+        ORDER BY of.fecha_entrega_real DESC
+        LIMIT 20
+    ''')
+    fabricacion_terminadas = cursor.fetchall()
+
+    conn.close()
+
+    return render_template('ordenes_fabricacion.html',
+                           fabricacion_pendientes=fabricacion_pendientes,
+                           fabricacion_proceso=fabricacion_proceso,
+                           fabricacion_terminadas=fabricacion_terminadas)
+
+
+@app.route('/crear_orden_fabricacion', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'operación'])
+def crear_orden_fabricacion():
+    """Crear nueva orden de fabricación"""
+    try:
+        proyecto_id = request.form['proyecto_id']
+        tipo_orden = request.form['tipo_orden']
+        fecha_entrega_estimada = request.form['fecha_entrega_estimada']
+        cantidad_tableros = request.form['cantidad_tableros']
+        observaciones = request.form.get('observaciones', '').strip() or None
+        categorias_seleccionadas = request.form.getlist('categorias_seleccionadas')
+
+        if not categorias_seleccionadas:
+            flash('Debe seleccionar al menos una categoría para fabricar', 'error')
+            return redirect(url_for('ordenes_fabricacion'))
+
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Verificar que el proyecto existe
+        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = ?', (proyecto_id,))
+        proyecto = cursor.fetchone()
+        if not proyecto:
+            flash('Proyecto no encontrado', 'error')
+            return redirect(url_for('ordenes_fabricacion'))
+
+        # Generar código único para la orden
+        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
+        orden_numero = cursor.fetchone()[0] + 1
+        codigo_orden = f"OF-{datetime.now().year}-{orden_numero:04d}"
+
+        # Crear orden de fabricación
+        cursor.execute('''
+            INSERT INTO ordenes_fabricacion (
+                codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
+                cantidad_tableros, estado, observaciones
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
+              cantidad_tableros, 'pendiente_fabricacion', observaciones))
+
+        orden_fabricacion_id = cursor.lastrowid
+
+        # Procesar categorías seleccionadas
+        for categoria_data in categorias_seleccionadas:
+            categoria_id, subcategoria_id = categoria_data.split(',')
+            subcategoria_id = subcategoria_id if subcategoria_id else None
+
+            # Agregar categoría a la orden de fabricación
+            cursor.execute('''
+                INSERT INTO orden_fabricacion_categorias (
+                    orden_fabricacion_id, categoria_id, subcategoria_id
+                ) VALUES (?, ?, ?)
+            ''', (orden_fabricacion_id, categoria_id, subcategoria_id))
+
+            # Crear pedido de seguimiento para cada categoría
+            cursor.execute('''
+                SELECT cat.nombre, subcat.nombre
+                FROM categorias_producto cat
+                LEFT JOIN subcategorias_producto subcat ON subcat.id = ?
+                WHERE cat.id = ?
+            ''', (subcategoria_id, categoria_id))
+            
+            cat_info = cursor.fetchone()
+            categoria_nombre = cat_info[0] if cat_info else 'Categoría'
+            subcategoria_nombre = cat_info[1] if cat_info and cat_info[1] else ''
+            
+            nombre_pedido = f"{categoria_nombre}"
+            if subcategoria_nombre:
+                nombre_pedido += f" - {subcategoria_nombre}"
+
+            cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
+            pedido_numero = cursor.fetchone()[0] + 1
+            codigo_pedido = f"PS-{datetime.now().year}-{pedido_numero:04d}"
+
+            cursor.execute('''
+                INSERT INTO pedidos_seguimiento (
+                    proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
+                    codigo_pedido, nombre, estado, fecha_entrega_estimada
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (proyecto_id, orden_fabricacion_id, categoria_id, subcategoria_id,
+                  codigo_pedido, nombre_pedido, 'pendiente_fabricacion', fecha_entrega_estimada))
+
+        conn.commit()
+        conn.close()
+
+        flash(f'Orden de fabricación {codigo_orden} creada exitosamente', 'success')
+        return redirect(url_for('ordenes_fabricacion'))
+
+    except Exception as e:
+        flash(f'Error al crear orden de fabricación: {str(e)}', 'error')
+        return redirect(url_for('ordenes_fabricacion'))
+
+
+@app.route('/api/proyectos_disponibles_fabricacion')
+@login_required
+def api_proyectos_disponibles_fabricacion():
+    """API para obtener proyectos disponibles para órdenes de fabricación"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
+        WHERE p.estado NOT IN ('entregado', 'cancelado')
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre
+        ORDER BY p.nombre
+    ''')
+
+    proyectos = []
+    for row in cursor.fetchall():
+        proyectos.append({
+            'id': row[0],
+            'codigo': row[1] or f'PROJ-{row[0]}',
+            'nombre': row[2],
+            'cliente': row[3] or 'Sin cliente'
+        })
+
+    conn.close()
+    return jsonify(proyectos)
+
+
+@app.route('/api/categorias_proyecto/<int:proyecto_id>')
+@login_required
+def api_categorias_proyecto(proyecto_id):
+    """API para obtener categorías de un proyecto"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT pc.categoria_id, pc.subcategoria_id, 
+               cat.nombre as categoria_nombre, subcat.nombre as subcategoria_nombre
+        FROM proyecto_categorias pc
+        JOIN categorias_producto cat ON pc.categoria_id = cat.id
+        LEFT JOIN subcategorias_producto subcat ON pc.subcategoria_id = subcat.id
+        WHERE pc.proyecto_id = ?
+        ORDER BY cat.nombre, subcat.nombre
+    ''')
+
+    categorias = []
+    for row in cursor.fetchall():
+        categorias.append({
+            'categoria_id': row[0],
+            'subcategoria_id': row[1],
+            'categoria_nombre': row[2],
+            'subcategoria_nombre': row[3]
+        })
+
+    conn.close()
+    return jsonify(categorias)
+
+
+@app.route('/eliminar_orden_fabricacion/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def eliminar_orden_fabricacion(orden_id):
+    """Eliminar orden de fabricación"""
+    try:
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Verificar que la orden existe
+        cursor.execute('SELECT codigo_orden, estado FROM ordenes_fabricacion WHERE id = ?', (orden_id,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
+
+        codigo_orden, estado = orden
+
+        # Solo permitir eliminar órdenes pendientes
+        if estado not in ['pendiente_fabricacion', 'aprobado_diseño']:
+            return jsonify({'success': False, 'message': 'No se puede eliminar una orden en proceso o terminada'})
+
+        # Eliminar pedidos de seguimiento asociados
+        cursor.execute('DELETE FROM pedidos_seguimiento WHERE orden_fabricacion_id = ?', (orden_id,))
+
+        # Eliminar categorías de la orden
+        cursor.execute('DELETE FROM orden_fabricacion_categorias WHERE orden_fabricacion_id = ?', (orden_id,))
+
+        # Eliminar la orden
+        cursor.execute('DELETE FROM ordenes_fabricacion WHERE id = ?', (orden_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Orden {codigo_orden} eliminada exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al eliminar orden: {str(e)}'})
+    finally:
+        conn.close()
+
+
 @app.route('/api/proyectos_para_despacho')
 @login_required
 @role_required(['admin', 'general', 'despacho'])
