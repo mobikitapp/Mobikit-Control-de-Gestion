@@ -3260,6 +3260,82 @@ def crear_orden_fabricacion_desde_oc():
         return redirect(url_for('ordenes_compra'))
 
 
+@app.route('/eliminar_orden_fabricacion/<int:orden_fabricacion_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def eliminar_orden_fabricacion(orden_fabricacion_id):
+    """Eliminar orden de fabricación y sus dependencias"""
+    try:
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Verificar que la orden existe y obtener información
+        cursor.execute('SELECT codigo_orden, proyecto_id, estado FROM ordenes_fabricacion WHERE id = ?', (orden_fabricacion_id,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
+
+        codigo_orden, proyecto_id, estado = orden
+
+        # Verificar que no esté en proceso avanzado
+        if estado in ['listo_embalaje', 'embalando', 'listo_despacho', 'despachado']:
+            return jsonify({
+                'success': False, 
+                'message': 'No se puede eliminar una orden en etapa avanzada de producción'
+            })
+
+        # Eliminar pedidos de seguimiento asociados
+        cursor.execute('DELETE FROM pedidos_seguimiento WHERE orden_fabricacion_id = ?', (orden_fabricacion_id,))
+        pedidos_eliminados = cursor.rowcount
+
+        # Eliminar categorías de la orden
+        cursor.execute('DELETE FROM orden_fabricacion_categorias WHERE orden_fabricacion_id = ?', (orden_fabricacion_id,))
+
+        # Eliminar recordatorios relacionados
+        cursor.execute('DELETE FROM recordatorios WHERE tipo = "orden_fabricacion" AND referencia_id = ?', (orden_fabricacion_id,))
+
+        # Eliminar la orden de fabricación
+        cursor.execute('DELETE FROM ordenes_fabricacion WHERE id = ?', (orden_fabricacion_id,))
+
+        if cursor.rowcount > 0:
+            # Verificar si quedan órdenes de fabricación para el proyecto
+            cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE proyecto_id = ?', (proyecto_id,))
+            ordenes_restantes = cursor.fetchone()[0]
+
+            cursor.execute('SELECT COUNT(*) FROM pedidos_seguimiento WHERE proyecto_id = ? AND estado NOT IN ("entregado", "cancelado")', (proyecto_id,))
+            pedidos_restantes = cursor.fetchone()[0]
+
+            # Si no quedan órdenes activas, cambiar proyecto a estado pendiente
+            if ordenes_restantes == 0 and pedidos_restantes == 0:
+                cursor.execute('UPDATE proyectos SET estado = "en_desarrollo" WHERE id = ?', (proyecto_id,))
+
+            # Registrar en auditoría
+            cursor.execute('''
+                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+                VALUES ('ordenes_fabricacion', ?, 'DELETE', ?, ?)
+            ''', (orden_fabricacion_id, session['user_id'], 
+                  json.dumps({
+                      'accion': 'eliminar_orden_fabricacion',
+                      'codigo_orden': codigo_orden,
+                      'pedidos_eliminados': pedidos_eliminados,
+                      'eliminado_por': session['user_name']
+                  })))
+
+            conn.commit()
+            return jsonify({
+                'success': True, 
+                'message': f'Orden de fabricación {codigo_orden} eliminada exitosamente'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'No se pudo eliminar la orden de fabricación'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al eliminar orden: {str(e)}'})
+    finally:
+        conn.close()
+
+
 @app.route('/avanzar_estado_proyecto/<int:proyecto_id>', methods=['POST'])
 @login_required
 @role_required(['admin', 'general', 'operación', 'embalaje'])

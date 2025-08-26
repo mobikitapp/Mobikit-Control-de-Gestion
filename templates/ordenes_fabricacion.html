@@ -100,15 +100,23 @@
                                     </span>
                                 </td>
                                 <td>
-                                    {% if of[3] == 'pendiente_fabricacion' and session.user_role in ['admin', 'general', 'diseñador'] %}
-                                    <button class="btn btn-sm btn-info" onclick="avanzarEtapa({{ of[0] }})" title="Aprobar Diseño">
-                                        <i class="fas fa-check"></i> Diseño Aprobado
-                                    </button>
-                                    {% elif of[3] == 'aprobado_diseño' and session.user_role in ['admin', 'general', 'operación'] %}
-                                    <button class="btn btn-sm btn-success" onclick="avanzarEtapa({{ of[0] }})" title="Enviar a Producción">
-                                        <i class="fas fa-arrow-right"></i> Enviar a Producción
-                                    </button>
-                                    {% endif %}
+                                    <div class="btn-group" role="group">
+                                        {% if of[3] == 'pendiente_fabricacion' and session.user_role in ['admin', 'general', 'diseñador'] %}
+                                        <button class="btn btn-sm btn-info" onclick="avanzarEtapa({{ of[0] }})" title="Aprobar Diseño">
+                                            <i class="fas fa-check"></i> Diseño Aprobado
+                                        </button>
+                                        {% elif of[3] == 'aprobado_diseño' and session.user_role in ['admin', 'general', 'operación'] %}
+                                        <button class="btn btn-sm btn-success" onclick="avanzarEtapa({{ of[0] }})" title="Enviar a Producción">
+                                            <i class="fas fa-arrow-right"></i> Enviar a Producción
+                                        </button>
+                                        {% endif %}
+                                        
+                                        {% if session.user_role in ['admin', 'general'] and of[3] not in ['listo_embalaje', 'embalando', 'listo_despacho', 'despachado'] %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrdenFabricacion({{ of[0] }}, '{{ of[1] }}')" title="Eliminar Orden">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -255,6 +263,11 @@
                                         {% if session.user_role in ['admin', 'general'] %}
                                         <button class="btn btn-sm btn-outline-warning" onclick="retrocederEtapa({{ fab[0] }})" title="Retroceder Etapa">
                                             <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if session.user_role in ['admin', 'general'] and fab[3] not in ['listo_embalaje', 'embalando', 'listo_despacho', 'despachado'] %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrdenFabricacion({{ fab[0] }}, '{{ fab[1] }}')" title="Eliminar Orden">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                         {% endif %}
                                     </div>
@@ -561,6 +574,28 @@ function avanzarEtapa(fabricacionId) {
 function retrocederEtapa(fabricacionId) {
     if (confirm('¿Confirmas retroceder esta orden a la etapa anterior?')) {
         fetch(`/api/retroceder_etapa_fabricacion/${fabricacionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+function eliminarOrdenFabricacion(ordenFabricacionId, codigoOrden) {
+    if (confirm(`¿Estás seguro de eliminar la orden de fabricación ${codigoOrden}?\n\nEsta acción eliminará:\n- La orden de fabricación\n- Todos los pedidos de seguimiento asociados\n- Los recordatorios relacionados\n\nEsta acción NO se puede deshacer.`)) {
+        fetch(`/eliminar_orden_fabricacion/${ordenFabricacionId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
