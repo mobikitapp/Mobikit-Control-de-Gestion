@@ -143,14 +143,17 @@
                                 
                                 <div class="mb-3">
                                     <h6 class="small mb-2"><i class="fas fa-tasks"></i> Progreso de Fabricación:</h6>
+                                    {% set estados_orden = ['aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'] %}
+                                    {% set indice_actual_fab = estados_orden.index(fab[3]) if fab[3] in estados_orden else -1 %}
                                     {% for etapa_id, etapa_nombre, color_clase in etapas %}
+                                    {% set indice_etapa = estados_orden.index(etapa_id) if etapa_id in estados_orden else -1 %}
                                     <div class="d-flex justify-content-between align-items-center mb-1">
                                         <span class="small">{{ etapa_nombre }}</span>
                                         {% if fab[3] == etapa_id %}
                                         <span class="badge bg-{{ color_clase }}">
                                             <i class="fas fa-clock"></i> En Proceso
                                         </span>
-                                        {% elif etapas.index((etapa_id, etapa_nombre, color_clase)) < etapas.index((fab[3], '', '')) %}
+                                        {% elif indice_etapa != -1 and indice_actual_fab != -1 and indice_etapa < indice_actual_fab %}
                                         <span class="badge bg-success">
                                             <i class="fas fa-check"></i> Completado
                                         </span>
