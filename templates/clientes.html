@@ -378,18 +378,33 @@
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="fecha_estimada_inicio" class="form-label">Fecha Estimada Inicio</label>
+                                <label for="fecha_estimada_inicio" class="form-label">Fecha Est. Inicio</label>
                                 <input type="date" class="form-control" id="fecha_estimada_inicio" name="fecha_estimada_inicio">
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
+                                <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                                <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fecha_entrega" class="form-label">Fecha Término</label>
+                                <input type="date" class="form-control" id="fecha_entrega" name="fecha_entrega">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
                                 <label class="form-label">Vendedor</label>
-                                    <select class="form-select" name="diseñador_id">
-                                        <option value="">Seleccionar vendedor (opcional)</option>
-                                        {% for vendedor in vendedores_disponibles %}
-                                        <option value="{{ vendedor.id }}">{{ vendedor.nombre }}</option>
-                                        {% endfor %}
+                                <select class="form-select" name="diseñador_id">
+                                    <option value="">Seleccionar vendedor (opcional)</option>
+                                    {% for vendedor in vendedores_disponibles %}
+                                    <option value="{{ vendedor.id }}">{{ vendedor.nombre }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                         </div>
@@ -409,6 +424,23 @@
                                     <label for="monto_neto_instalacion" class="form-label">Monto Neto de Instalación (CLP)</label>
                                     <input type="number" class="form-control" id="monto_neto_instalacion" name="monto_neto_instalacion" step="1000" min="0" placeholder="0">
                                     <small class="text-muted">Opcional</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="margen_provision" class="form-label">Margen Venta Provisión (%)</label>
+                                    <input type="number" class="form-control" id="margen_provision" name="margen_provision" step="0.1" min="0" max="100" placeholder="0.0">
+                                    <small class="text-muted">Margen de ganancia presupuestado para provisión</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="margen_instalacion" class="form-label">Margen Venta Instalación (%)</label>
+                                    <input type="number" class="form-control" id="margen_instalacion" name="margen_instalacion" step="0.1" min="0" max="100" placeholder="0.0">
+                                    <small class="text-muted">Margen de ganancia presupuestado para instalación</small>
                                 </div>
                             </div>
                         </div>
@@ -467,7 +499,7 @@
                         <label for="edit_proyecto_diseñador_id" class="form-label">Vendedor</label>
                         <select class="form-select" id="edit_proyecto_diseñador_id" name="diseñador_id">
                             <option value="">Seleccionar vendedor...</option>
-                            {% for vendedor in vendedores %}
+                            {% for vendedor in vendedores_disponibles %}
                             <option value="{{ vendedor.id }}">{{ vendedor.nombre }}</option>
                             {% endfor %}
                         </select>
@@ -476,16 +508,21 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="edit_proyecto_fecha_entrega" class="form-label">Fecha Término</label>
-                                <input type="date" class="form-control" id="edit_proyecto_fecha_entrega" name="fecha_entrega">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
                                 <label for="edit_proyecto_fecha_estimada_inicio" class="form-label">Fecha Est. Inicio</label>
                                 <input type="date" class="form-control" id="edit_proyecto_fecha_estimada_inicio" name="fecha_estimada_inicio">
                             </div>
                         </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_proyecto_fecha_inicio" class="form-label">Fecha Inicio</label>
+                                <input type="date" class="form-control" id="edit_proyecto_fecha_inicio" name="fecha_inicio">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_proyecto_fecha_entrega" class="form-label">Fecha Término</label>
+                        <input type="date" class="form-control" id="edit_proyecto_fecha_entrega" name="fecha_entrega">
                     </div>
 
                     <div class="row">
@@ -506,6 +543,23 @@
                     <div class="mb-3">
                         <label for="edit_proyecto_monto_neto_instalacion" class="form-label">Monto Instalación</label>
                         <input type="number" class="form-control" id="edit_proyecto_monto_neto_instalacion" name="monto_neto_instalacion" step="0.01" placeholder="0.00">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_proyecto_margen_provision" class="form-label">Margen Venta Provisión (%)</label>
+                                <input type="number" class="form-control" id="edit_proyecto_margen_provision" name="margen_provision" step="0.1" min="0" max="100" placeholder="0.0">
+                                <small class="text-muted">Margen de ganancia presupuestado para provisión</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_proyecto_margen_instalacion" class="form-label">Margen Venta Instalación (%)</label>
+                                <input type="number" class="form-control" id="edit_proyecto_margen_instalacion" name="margen_instalacion" step="0.1" min="0" max="100" placeholder="0.0">
+                                <small class="text-muted">Margen de ganancia presupuestado para instalación</small>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -562,6 +616,9 @@ function editarProyecto(id) {
             document.getElementById('edit_proyecto_monto_neto_provision').value = proyecto.monto_neto_provision || '';
             document.getElementById('edit_proyecto_monto_neto_instalacion').value = proyecto.monto_neto_instalacion || '';
             document.getElementById('edit_proyecto_observaciones').value = proyecto.observaciones || '';
+            document.getElementById('edit_proyecto_fecha_inicio').value = proyecto.fecha_inicio || '';
+            document.getElementById('edit_proyecto_margen_provision').value = proyecto.margen_provision || '';
+            document.getElementById('edit_proyecto_margen_instalacion').value = proyecto.margen_instalacion || '';
             
             // Set designer/vendor if exists
             if (proyecto.diseñador_id) {

@@ -250,7 +250,7 @@ def create_basic_tables(cursor):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (proyecto_id) REFERENCES proyectos (id),
-            FOREIGN KEY (usuario_asignado_id) REFERENCES usuarios (id)
+            FOREIGN FOREIGN KEY (usuario_asignado_id) REFERENCES usuarios (id)
         )
     ''')
 
@@ -883,6 +883,8 @@ def nuevo_proyecto():
         # Montos según el estado del proyecto
         monto_neto_provision = None
         monto_neto_instalacion = None
+        margen_provision = None
+        margen_instalacion = None
 
         if estado_proyecto in ['presupuestado', 'adjudicado']:
             monto_provision = request.form.get('monto_neto_provision')
@@ -896,6 +898,20 @@ def nuevo_proyecto():
             if monto_instalacion:
                 try:
                     monto_neto_instalacion = float(monto_instalacion)
+                except ValueError:
+                    pass
+
+            margen_provision = request.form.get('margen_provision')
+            if margen_provision:
+                try:
+                    margen_provision = float(margen_provision)
+                except ValueError:
+                    pass
+
+            margen_instalacion = request.form.get('margen_instalacion')
+            if margen_instalacion:
+                try:
+                    margen_instalacion = float(margen_instalacion)
                 except ValueError:
                     pass
 
@@ -923,14 +939,17 @@ def nuevo_proyecto():
 
         # Crear proyecto con los nuevos campos (sin categorías, por lo tanto no aparecerá como orden de compra)
         cursor.execute('''
-            INSERT INTO proyectos (
-                codigo, nombre, cliente_id, descripcion, estado_proyecto, estado,
-                fecha_estimada_inicio, diseñador_id, monto_neto_provision,
-                monto_neto_instalacion, observaciones, fecha_inicio
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO proyectos (codigo, nombre, cliente_id, descripcion, estado_proyecto, estado,
+                                   fecha_estimada_inicio, fecha_inicio, fecha_entrega, diseñador_id, 
+                                   monto_neto_provision, monto_neto_instalacion, margen_provision, 
+                                   margen_instalacion, observaciones)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'proyecto_simple',
-              fecha_estimada_inicio, vendedor_id, monto_neto_provision,
-              monto_neto_instalacion, observaciones, datetime.now().date()))
+              fecha_estimada_inicio, request.form.get('fecha_inicio') or None, 
+              request.form.get('fecha_entrega') or None, diseñador_id, monto_neto_provision,
+              monto_neto_instalacion, 
+              margen_provision,
+              margen_instalacion, observaciones))
 
         proyecto_id = cursor.lastrowid
 
@@ -987,6 +1006,20 @@ def editar_proyecto():
             except ValueError:
                 pass
 
+        margen_provision = None
+        if request.form.get('margen_provision'):
+            try:
+                margen_provision = float(request.form['margen_provision'])
+            except ValueError:
+                pass
+
+        margen_instalacion = None
+        if request.form.get('margen_instalacion'):
+            try:
+                margen_instalacion = float(request.form['margen_instalacion'])
+            except ValueError:
+                pass
+
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
@@ -997,11 +1030,13 @@ def editar_proyecto():
                 prioridad = %s, diseñador_id = %s, fecha_entrega = %s,
                 fecha_estimada_inicio = %s, monto_neto = %s,
                 monto_neto_provision = %s, monto_neto_instalacion = %s,
+                margen_provision = %s, margen_instalacion = %s,
                 observaciones = %s, updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
         ''', (nombre, descripcion, estado, estado_proyecto, prioridad, diseñador_id,
               fecha_entrega, fecha_estimada_inicio, monto_neto, monto_neto_provision,
-              monto_neto_instalacion, observaciones, proyecto_id))
+              monto_neto_instalacion, margen_provision, margen_instalacion,
+              observaciones, proyecto_id))
 
         conn.commit()
         conn.close()
@@ -1193,7 +1228,7 @@ def nueva_orden_compra():
                     codigo, nombre, cliente_id, descripcion, adjudicacion_tipo,
                     estado, prioridad, fecha_inicio, fecha_entrega,
                     monto_neto, monto_neto_provision, observaciones
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion,
                   'en_desarrollo', prioridad, datetime.now().date(),
                   fecha_entrega_general or fecha_entrega_oc or None,
@@ -1786,7 +1821,7 @@ def programar_despacho_con_orden():
                 INSERT INTO proyectos (
                     codigo, nombre, cliente_id, descripcion, estado, prioridad,
                     fecha_inicio, fecha_entrega, presupuesto
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (codigo_proyecto, proyecto_nombre, cliente_id, descripcion, 'pendiente_fabricacion', prioridad,
                   datetime.now().date(), fecha_despacho, presupuesto_num))
             proyecto_id = cursor.fetchone()['id']
@@ -1866,7 +1901,7 @@ def programar_despacho_con_orden():
             INSERT INTO despachos (
                 proyecto_id, codigo_despacho, transportista, direccion_entrega,
                 fecha_programada, observaciones, estado
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         ''', (proyecto_id, codigo_despacho, transportista, direccion_entrega,
               fecha_despacho, observaciones_completas, 'programado'))
         despacho_id = cursor.fetchone()['id']
@@ -2556,9 +2591,6 @@ def revertir_orden_a_pendiente(orden_id):
         return jsonify({'success': False, 'message': f'Error interno: {str(e)}'})
 
 
-
-
-
 @app.route('/api/iniciar_orden_fabricacion/<int:orden_fabricacion_id>', methods=['POST'])
 @login_required
 @role_required(['admin', 'general', 'operación'])
@@ -3187,7 +3219,7 @@ def api_proyecto_detalle(proyecto_id):
     ''', (proyecto_id,))
 
     proyecto = cursor.fetchone()
-    
+
     if not proyecto:
         conn.close()
         return jsonify({'error': 'Proyecto no encontrado'}), 404

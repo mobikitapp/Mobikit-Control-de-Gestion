@@ -107,6 +107,8 @@ CREATE TABLE IF NOT EXISTS proyectos (
     monto_neto DECIMAL(12,2),
     monto_neto_provision DECIMAL(12,2),
     monto_neto_instalacion DECIMAL(12,2),
+    margen_provision DECIMAL(5,2),
+    margen_instalacion DECIMAL(5,2),
     costo_real DECIMAL(12,2),
     observaciones TEXT,
     archivado BOOLEAN DEFAULT FALSE,
