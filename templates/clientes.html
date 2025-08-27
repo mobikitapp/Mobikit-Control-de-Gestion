@@ -346,8 +346,8 @@
                                 <label for="cliente_id_proyecto" class="form-label">Cliente *</label>
                                 <select class="form-select" id="cliente_id_proyecto" name="cliente_id" required>
                                     <option value="">Seleccionar cliente...</option>
-                                    {% for cliente in clientes_disponibles %}
-                                    <option value="{{ cliente[0] }}">{{ cliente[1] }}</option>
+                                    {% for cliente in clientes_con_proyectos %}
+                                    <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
