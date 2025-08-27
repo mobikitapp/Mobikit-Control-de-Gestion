@@ -142,23 +142,26 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <div class="btn-group" role="group">
-                                                    <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
-                                                        <i class="fas fa-eye"></i>
-                                                    </a>
-                                                    {% if session.user_role in ['admin', 'general'] %}
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary"
-                                                            onclick="editarProyecto({{ proyecto.id }})" title="Editar">
-                                                        <i class="fas fa-edit"></i>
-                                                    </button>
-                                                    {% endif %}
-                                                    {% if session.user_role == 'admin' %}
-                                                    <button type="button" class="btn btn-sm btn-outline-danger"
-                                                            onclick="eliminarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}')" title="Eliminar proyecto">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                    {% endif %}
-                                                </div>
+                                                <div class="btn-group">
+                                                                    <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}" class="btn btn-sm btn-outline-info">
+                                                                        <i class="fas fa-eye"></i> Ver
+                                                                    </a>
+                                                                    {% if proyecto.monto_provision_presupuestada and proyecto.monto_provision_presupuestada > 0 %}
+                                                                    <a href="{{ url_for('proyecto_ordenes_compra', proyecto_id=proyecto.id) }}" class="btn btn-sm btn-outline-success" title="Ver Órdenes de Compra">
+                                                                        <i class="fas fa-file-invoice-dollar"></i> OC
+                                                                    </a>
+                                                                    {% endif %}
+                                                                    {% if session.user_role in ['admin', 'general', 'vendedor'] %}
+                                                                    <button class="btn btn-sm btn-outline-warning" onclick="editarProyecto({{ proyecto.id }}, '{{ proyecto.nombre }}', '{{ proyecto.descripcion or '' }}', '{{ proyecto.estado }}', '{{ proyecto.estado_proyecto }}', '{{ proyecto.prioridad }}', '{{ proyecto.diseñador_id or '' }}', '{{ proyecto.fecha_entrega or '' }}', '{{ proyecto.fecha_estimada_inicio or '' }}', '{{ proyecto.monto_neto or '' }}', '{{ proyecto.monto_neto_provision or '' }}', '{{ proyecto.monto_neto_instalacion or '' }}', '{{ proyecto.margen_provision or '' }}', '{{ proyecto.margen_instalacion or '' }}', '{{ proyecto.observaciones or '' }}', '{{ proyecto.monto_provision_presupuestada or '' }}')">
+                                                                        <i class="fas fa-edit"></i>
+                                                                    </button>
+                                                                    {% endif %}
+                                                                    {% if session.user_role in ['admin'] %}
+                                                                    <button class="btn btn-sm btn-outline-danger" onclick="eliminarProyecto({{ proyecto.id }})">
+                                                                        <i class="fas fa-trash"></i>
+                                                                    </button>
+                                                                    {% endif %}
+                                                                </div>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -442,7 +445,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
@@ -453,11 +456,16 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="margen_instalacion" class="form-label">Margen Venta Instalación (%)</label>
-                                    <input type="number" class="form-control" id="margen_instalacion" name="margen_instalacion" step="0.1" min="0" max="100" placeholder="0.0">
-                                    <small class="text-muted">Margen de ganancia presupuestado para instalación</small>
+                                    <label for="margen_instalacion" class="form-label">Margen Instalación (%)</label>
+                                    <input type="number" class="form-control" id="margen_instalacion" name="margen_instalacion" step="0.1" min="0" max="100">
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="monto_provision_presupuestada" class="form-label">Provisión Presupuestada</label>
+                            <input type="number" class="form-control" id="monto_provision_presupuestada" name="monto_provision_presupuestada" step="0.01" min="0">
+                            <div class="form-text">Monto base para seguimiento de órdenes de compra del proyecto</div>
                         </div>
                     </div>
 
@@ -578,6 +586,12 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="edit_monto_provision_presupuestada" class="form-label">Provisión Presupuestada</label>
+                        <input type="number" class="form-control" id="edit_monto_provision_presupuestada" name="monto_provision_presupuestada" step="0.01" min="0">
+                        <div class="form-text">Monto base para seguimiento de órdenes de compra del proyecto</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="edit_proyecto_observaciones" class="form-label">Observaciones</label>
                         <textarea class="form-control" id="edit_proyecto_observaciones" name="observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
                     </div>
@@ -615,7 +629,7 @@ function nuevoProyecto(clienteId, clienteNombre) {
     new bootstrap.Modal(document.getElementById('nuevoProyectoModal')).show();
 }
 
-function editarProyecto(id) {
+function editarProyecto(id, nombre, descripcion, estado, estado_proyecto, prioridad, diseñador_id, fecha_entrega, fecha_estimada_inicio, monto_neto, monto_neto_provision, monto_neto_instalacion, margen_provision, margen_instalacion, observaciones, monto_provision_presupuestada) {
     // Fetch project details to populate the modal
     fetch(`/api/proyecto/${id}`)
         .then(response => response.json())
@@ -634,7 +648,9 @@ function editarProyecto(id) {
             document.getElementById('edit_proyecto_fecha_inicio').value = proyecto.fecha_inicio || '';
             document.getElementById('edit_proyecto_margen_provision').value = proyecto.margen_provision || '';
             document.getElementById('edit_proyecto_margen_instalacion').value = proyecto.margen_instalacion || '';
-            
+            document.getElementById('edit_monto_provision_presupuestada').value = proyecto.monto_provision_presupuestada || '';
+
+
             // Set designer/vendor if exists
             if (proyecto.diseñador_id) {
                 document.getElementById('edit_proyecto_diseñador_id').value = proyecto.diseñador_id;
