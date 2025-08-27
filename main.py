@@ -462,11 +462,14 @@ def clientes():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Obtener clientes con información de proyectos
+    # Obtener clientes con información de proyectos y conteos por estado
     cursor.execute('''
         SELECT c.id, c.nombre, c.rut, c.email, c.telefono, c.direccion,
                c.ciudad, c.region, c.contacto_principal, c.observaciones,
-               COUNT(p.id) as total_proyectos
+               COUNT(p.id) as total_proyectos,
+               COUNT(CASE WHEN p.estado_proyecto = 'adjudicado' THEN 1 END) as adjudicados,
+               COUNT(CASE WHEN p.estado_proyecto = 'presupuestado' THEN 1 END) as presupuestados,
+               COUNT(CASE WHEN p.estado_proyecto = 'pendiente_presupuesto' OR p.estado_proyecto IS NULL THEN 1 END) as pendientes_presupuesto
         FROM clientes c
         LEFT JOIN proyectos p ON c.id = p.cliente_id
         WHERE c.activo = TRUE
