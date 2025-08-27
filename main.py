@@ -3150,6 +3150,50 @@ def api_proyectos_cliente(cliente_id):
     return jsonify(proyectos)
 
 
+@app.route('/api/proyecto/<int:proyecto_id>')
+@login_required
+def api_proyecto_detalle(proyecto_id):
+    """API para obtener detalles de un proyecto específico"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT p.*, u.nombre as diseñador_nombre
+        FROM proyectos p
+        LEFT JOIN usuarios u ON p.diseñador_id = u.id
+        WHERE p.id = %s
+    ''', (proyecto_id,))
+
+    proyecto = cursor.fetchone()
+    
+    if not proyecto:
+        conn.close()
+        return jsonify({'error': 'Proyecto no encontrado'}), 404
+
+    # Convert to dict and handle None values
+    proyecto_dict = {
+        'id': proyecto['id'],
+        'codigo': proyecto['codigo'] or f'PROJ-{proyecto["id"]}',
+        'nombre': proyecto['nombre'],
+        'descripcion': proyecto['descripcion'] or '',
+        'estado': proyecto['estado'],
+        'estado_proyecto': proyecto.get('estado_proyecto') or 'pendiente_presupuesto',
+        'prioridad': proyecto.get('prioridad') or 'media',
+        'fecha_entrega': proyecto['fecha_entrega'].isoformat() if proyecto.get('fecha_entrega') else '',
+        'fecha_estimada_inicio': proyecto['fecha_estimada_inicio'].isoformat() if proyecto.get('fecha_estimada_inicio') else '',
+        'monto_neto': float(proyecto['monto_neto']) if proyecto.get('monto_neto') else '',
+        'monto_neto_provision': float(proyecto['monto_neto_provision']) if proyecto.get('monto_neto_provision') else '',
+        'monto_neto_instalacion': float(proyecto['monto_neto_instalacion']) if proyecto.get('monto_neto_instalacion') else '',
+        'diseñador_id': proyecto['diseñador_id'],
+        'diseñador_nombre': proyecto.get('diseñador_nombre') or '',
+        'observaciones': proyecto.get('observaciones') or '',
+        'archivado': proyecto.get('archivado') or False
+    }
+
+    conn.close()
+    return jsonify(proyecto_dict)
+
+
 @app.route('/crear_orden_fabricacion_desde_oc', methods=['POST'])
 @login_required
 @role_required(['admin', 'general', 'operación'])
