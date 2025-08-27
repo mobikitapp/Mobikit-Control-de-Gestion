@@ -2890,6 +2890,45 @@ def api_categorias_proyecto(proyecto_id):
     return jsonify(categorias)
 
 
+@app.route('/orden_fabricacion/<int:orden_id>')
+@login_required
+def orden_fabricacion_detalle(orden_id):
+    """Detalle de una orden de fabricación específica"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    # Obtener datos de la orden de fabricación
+    cursor.execute('''
+        SELECT of.*, p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               p.adjudicacion_tipo, c.nombre as cliente_nombre, c.email as cliente_email,
+               c.telefono as cliente_telefono, c.direccion as cliente_direccion
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.id = %s
+    ''', (orden_id,))
+    orden = cursor.fetchone()
+
+    if not orden:
+        flash('Orden de fabricación no encontrada', 'error')
+        return redirect(url_for('ordenes_fabricacion'))
+
+    # Obtener categorías asociadas a la orden de fabricación
+    cursor.execute('''
+        SELECT cat.nombre as categoria_nombre, subcat.nombre as subcategoria_nombre
+        FROM orden_fabricacion_categorias ofc
+        JOIN categorias_producto cat ON ofc.categoria_id = cat.id
+        LEFT JOIN subcategorias_producto subcat ON ofc.subcategoria_id = subcat.id
+        WHERE ofc.orden_fabricacion_id = %s
+        ORDER BY cat.nombre, subcat.nombre
+    ''', (orden_id,))
+    categorias = cursor.fetchall()
+
+    conn.close()
+
+    return render_template('orden_fabricacion_detalle.html', orden=orden, categorias=categorias)
+
+
 @app.route('/eliminar_orden_fabricacion/<int:orden_id>', methods=['POST'])
 @login_required
 @role_required(['admin', 'general'])

@@ -49,38 +49,30 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Código Orden</th>
-                                <th>OC/Contrato</th>
                                 <th>Proyecto</th>
-                                <th>Cliente</th>
-                                <th>Tipo</th>
+                                <th>OC/Contrato</th>
+                                <th>Código Orden</th>
                                 <th>Glosa</th>
-                                <th>Tableros</th>
-                                <th>Fecha Entrega</th>
                                 <th>Estado</th>
+                                <th>Fecha Entrega</th>
+                                <th>Días Restantes</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for orden in fabricacion_pendientes %}
                             <tr>
-                                <td><strong>{{ orden.codigo_orden }}</strong></td>
+                                <td>
+                                    <div><strong>{{ orden.proyecto_codigo }}</strong></div>
+                                    <small>{{ orden.proyecto_nombre }}</small>
+                                </td>
                                 <td>
                                     <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
                                         {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
-                                    </span><br>
-                                    <small>{{ orden.proyecto_codigo }}</small>
+                                    </span>
                                 </td>
-                                <td>
-                                    <div>{{ orden.proyecto_codigo }} - {{ orden.proyecto_nombre }}</div>
-                                </td>
-                                <td>{{ orden.cliente_nombre or 'Sin cliente' }}</td>
-                                <td>
-                                    <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
-                                </td>
+                                <td><strong>{{ orden.codigo_orden }}</strong></td>
                                 <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
-                                <td>{{ orden.cantidad_tableros }}</td>
-                                <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
                                     {% if orden.estado == 'pendiente_fabricacion' %}
                                             <span class="badge bg-warning">Pendiente Fabricación</span>
@@ -104,15 +96,39 @@
                                             <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                         {% endif %}
                                 </td>
+                                <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
-                                    {% if session.user_role in ['admin', 'general', 'operación'] %}
-                                    <button class="btn btn-sm btn-success" onclick="iniciarFabricacion({{ orden.id }})">
-                                        <i class="fas fa-play"></i> Iniciar
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" onclick="eliminarOrdenFabricacion({{ orden.id }})">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    {% if orden.fecha_entrega_estimada %}
+                                        {% set fecha_entrega = orden.fecha_entrega_estimada %}
+                                        {% set hoy = moment().format('YYYY-MM-DD') %}
+                                        {% set dias = (fecha_entrega|string|replace('-', '')|int - hoy|replace('-', '')|int) %}
+                                        {% if dias < 0 %}
+                                            <span class="badge bg-danger">{{ dias * -1 }} días atraso</span>
+                                        {% elif dias == 0 %}
+                                            <span class="badge bg-warning">Hoy</span>
+                                        {% elif dias <= 3 %}
+                                            <span class="badge bg-warning">{{ dias }} días</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ dias }} días</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
                                     {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm btn-outline-info" onclick="verDetalleOrden({{ orden.id }})" title="Ver Detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if session.user_role in ['admin', 'general', 'operación'] %}
+                                        <button class="btn btn-sm btn-success" onclick="iniciarFabricacion({{ orden.id }})" title="Iniciar">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="eliminarOrdenFabricacion({{ orden.id }})" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -141,38 +157,30 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Código Orden</th>
-                                <th>OC/Contrato</th>
                                 <th>Proyecto</th>
-                                <th>Cliente</th>
-                                <th>Tipo</th>
+                                <th>OC/Contrato</th>
+                                <th>Código Orden</th>
                                 <th>Glosa</th>
-                                <th>Tableros</th>
-                                <th>Fecha Entrega</th>
                                 <th>Estado</th>
+                                <th>Fecha Entrega</th>
+                                <th>Días Restantes</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for orden in fabricacion_proceso %}
                             <tr>
-                                <td><strong>{{ orden.codigo_orden }}</strong></td>
+                                <td>
+                                    <div><strong>{{ orden.proyecto_codigo }}</strong></div>
+                                    <small>{{ orden.proyecto_nombre }}</small>
+                                </td>
                                 <td>
                                     <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
                                         {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
-                                    </span><br>
-                                    <small>{{ orden.proyecto_codigo }}</small>
+                                    </span>
                                 </td>
-                                <td>
-                                    <div>{{ orden.proyecto_codigo }} - {{ orden.proyecto_nombre }}</div>
-                                </td>
-                                <td>{{ orden.cliente_nombre or 'Sin cliente' }}</td>
-                                <td>
-                                    <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
-                                </td>
+                                <td><strong>{{ orden.codigo_orden }}</strong></td>
                                 <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
-                                <td>{{ orden.cantidad_tableros }}</td>
-                                <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
                                     {% if orden.estado == 'pendiente_fabricacion' %}
                                             <span class="badge bg-warning">Pendiente Fabricación</span>
@@ -196,15 +204,39 @@
                                             <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                         {% endif %}
                                 </td>
+                                <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
-                                    {% if session.user_role in ['admin', 'general', 'operación'] %}
-                                    <button class="btn btn-sm btn-primary" onclick="avanzarFabricacion({{ orden.id }})">
-                                        <i class="fas fa-arrow-right"></i> Avanzar
-                                    </button>
-                                    <button class="btn btn-sm btn-secondary" onclick="retrocederFabricacion({{ orden.id }})">
-                                        <i class="fas fa-arrow-left"></i> Retroceder
-                                    </button>
+                                    {% if orden.fecha_entrega_estimada %}
+                                        {% set fecha_entrega = orden.fecha_entrega_estimada %}
+                                        {% set hoy = moment().format('YYYY-MM-DD') %}
+                                        {% set dias = (fecha_entrega|string|replace('-', '')|int - hoy|replace('-', '')|int) %}
+                                        {% if dias < 0 %}
+                                            <span class="badge bg-danger">{{ dias * -1 }} días atraso</span>
+                                        {% elif dias == 0 %}
+                                            <span class="badge bg-warning">Hoy</span>
+                                        {% elif dias <= 3 %}
+                                            <span class="badge bg-warning">{{ dias }} días</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ dias }} días</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
                                     {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm btn-outline-info" onclick="verDetalleOrden({{ orden.id }})" title="Ver Detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if session.user_role in ['admin', 'general', 'operación'] %}
+                                        <button class="btn btn-sm btn-primary" onclick="avanzarFabricacion({{ orden.id }})" title="Avanzar">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-secondary" onclick="retrocederFabricacion({{ orden.id }})" title="Retroceder">
+                                            <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -233,38 +265,30 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Código Orden</th>
-                                <th>OC/Contrato</th>
                                 <th>Proyecto</th>
-                                <th>Cliente</th>
-                                <th>Tipo</th>
+                                <th>OC/Contrato</th>
+                                <th>Código Orden</th>
                                 <th>Glosa</th>
-                                <th>Tableros</th>
-                                <th>Fecha Entrega</th>
                                 <th>Estado</th>
+                                <th>Fecha Entrega</th>
                                 <th>Fecha Completada</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for orden in fabricacion_terminadas %}
                             <tr>
-                                <td><strong>{{ orden.codigo_orden }}</strong></td>
+                                <td>
+                                    <div><strong>{{ orden.proyecto_codigo }}</strong></div>
+                                    <small>{{ orden.proyecto_nombre }}</small>
+                                </td>
                                 <td>
                                     <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
                                         {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
-                                    </span><br>
-                                    <small>{{ orden.proyecto_codigo }}</small>
+                                    </span>
                                 </td>
-                                <td>
-                                    <div>{{ orden.proyecto_codigo }} - {{ orden.proyecto_nombre }}</div>
-                                </td>
-                                <td>{{ orden.cliente_nombre or 'Sin cliente' }}</td>
-                                <td>
-                                    <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
-                                </td>
+                                <td><strong>{{ orden.codigo_orden }}</strong></td>
                                 <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
-                                <td>{{ orden.cantidad_tableros }}</td>
-                                <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
                                     {% if orden.estado == 'pendiente_fabricacion' %}
                                             <span class="badge bg-warning">Pendiente Fabricación</span>
@@ -274,7 +298,7 @@
                                             <span class="badge bg-secondary">Seccionado</span>
                                         {% elif orden.estado == 'enchapando' %}
                                             <span class="badge bg-info">Enchapando</span>
-                                        {% elif orden.estado == 'mecanizado' %}
+                                        {% elif orden.estado == 'mecanizado' %>
                                             <span class="badge bg-primary">Mecanizado</span>
                                         {% elif orden.estado == 'listo_embalaje' %}
                                             <span class="badge bg-success">Listo Embalaje</span>
@@ -290,7 +314,13 @@
                                             <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                         {% endif %}
                                 </td>
+                                <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>{{ orden.fecha_entrega_real or 'N/A' }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="verDetalleOrden({{ orden.id }})" title="Ver Detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -683,6 +713,10 @@ function eliminarOrdenFabricacion(ordenId) {
             alert('Error de conexión: ' + error.message);
         });
     }
+}
+
+function verDetalleOrden(ordenId) {
+    window.location.href = `/orden_fabricacion/${ordenId}`;
 }
 </script>
 {% endblock %}
