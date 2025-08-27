@@ -111,6 +111,11 @@
                                         <button class="btn btn-sm btn-outline-warning" onclick="editarOrdenCompra({{ orden.id }})" title="Editar Orden">
                                             <i class="fas fa-edit"></i>
                                         </button>
+                                        {% if orden.ordenes_fabricacion|length == 0 %}
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="revertirAPendiente({{ orden.id }})" title="Revertir a Pendiente">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                        {% endif %}
                                         {% endif %}
                                         {% if session.user_role in ['admin'] %}
                                         <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrdenCompra({{ orden.id }})" title="Eliminar Orden">
@@ -598,5 +603,31 @@ function eliminarOrdenCompra(ordenId) {
         });
     }
 }
+
+function revertirAPendiente(ordenId) {
+    if (confirm('¿Estás seguro de que deseas revertir esta orden a estado "Pendiente"?\n\nEsto solo es posible si no tiene ninguna orden de fabricación asociada.')) {
+        fetch(`/revertir_orden_a_pendiente/${ordenId}`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
 </script>
 {% endblock %}
