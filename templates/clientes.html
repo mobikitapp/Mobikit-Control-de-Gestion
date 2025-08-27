@@ -99,8 +99,12 @@
                                             </td>
                                             <td>
                                                 {% if proyecto.fecha_estimada_inicio %}
-                                                    {% set fecha_parts = proyecto.fecha_estimada_inicio.split('-') %}
-                                                    {{ fecha_parts[1] }}/{{ fecha_parts[0] }}
+                                                    {% if proyecto.fecha_estimada_inicio is string %}
+                                                        {% set fecha_parts = proyecto.fecha_estimada_inicio.split('-') %}
+                                                        {{ fecha_parts[2] }}/{{ fecha_parts[1] }}/{{ fecha_parts[0] }}
+                                                    {% else %}
+                                                        {{ proyecto.fecha_estimada_inicio.strftime('%d/%m/%Y') }}
+                                                    {% endif %}
                                                 {% else %}
                                                     <span class="text-muted">N/A</span>
                                                 {% endif %}
@@ -120,8 +124,8 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% if proyecto.vendedor_nombre %}
-                                                    {{ proyecto.vendedor_nombre }}
+                                                {% if proyecto.diseñador_nombre %}
+                                                    {{ proyecto.diseñador_nombre }}
                                                 {% else %}
                                                     <span class="text-muted">Sin asignar</span>
                                                 {% endif %}

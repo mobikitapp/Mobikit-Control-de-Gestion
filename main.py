@@ -484,8 +484,8 @@ def clientes():
         # Obtener proyectos del cliente
         cursor.execute('''
             SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado,
-                   p.estado_proyecto, p.fecha_inicio, p.monto_neto,
-                   p.monto_neto_instalacion, u.nombre as diseñador_nombre,
+                   p.estado_proyecto, p.fecha_inicio, p.fecha_estimada_inicio, p.monto_neto,
+                   p.monto_neto_provision, p.monto_neto_instalacion, u.nombre as diseñador_nombre,
                    p.prioridad, p.diseñador_id, p.observaciones, p.archivado
             FROM proyectos p
             LEFT JOIN usuarios u ON p.diseñador_id = u.id
