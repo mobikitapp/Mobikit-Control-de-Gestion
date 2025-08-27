@@ -9,9 +9,13 @@ from functools import wraps
 import uuid
 
 app = Flask(__name__)
-app.secret_key = 'mobikit_secret_key_2024'
+app.secret_key = os.getenv('SECRET_KEY', 'mobikit_secret_key_2024')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# Database configuration
+DATABASE_URL = os.getenv('DATABASE_URL', 'mobikit.db')
+ADMIN_DEFAULT_PASSWORD = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin123')
 
 # Tipos de archivos permitidos
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx'}
@@ -57,12 +61,18 @@ def delete_file(file_path):
                 print(f"Error al eliminar archivo {full_path}: {e}")
     return False
 
+def get_db_connection():
+    """Helper function to get database connection"""
+    db_path = DATABASE_URL.replace('sqlite:///', '') if DATABASE_URL.startswith('sqlite:///') else DATABASE_URL
+    return sqlite3.connect(db_path)
+
 # Roles disponibles
 ROLES = ['admin', 'general', 'diseñador', 'operación', 'embalaje', 'despacho']
 
 
 def init_db():
-    conn = sqlite3.connect('mobikit.db')
+    db_path = DATABASE_URL.replace('sqlite:///', '') if DATABASE_URL.startswith('sqlite:///') else DATABASE_URL
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     # Ejecutar el schema completo desde el archivo SQL
@@ -84,7 +94,7 @@ def init_db():
     # Crear usuario admin por defecto si no existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = "admin"')
     if cursor.fetchone()[0] == 0:
-        admin_password = generate_password_hash('admin123')
+        admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
         cursor.execute(
             '''
             INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
@@ -991,13 +1001,15 @@ def nueva_orden_compra():
         numero_oc = request.form['numero_oc']
         cliente_id = request.form.get('cliente_id')
         nuevo_cliente_nombre = request.form.get('nuevo_cliente_nombre')
-        nombre_proyecto = request.form['nombre_proyecto']
+        proyecto_existente_id = request.form.get('proyecto_existente_id')
+        nombre_proyecto = request.form.get('nombre_proyecto')
         descripcion = request.form.get('descripcion', '').strip() or None
         prioridad = request.form.get('prioridad', 'media')
         fecha_entrega_general = request.form.get('fecha_entrega_general')
+        fecha_entrega_oc = request.form.get('fecha_entrega_oc')
         monto = request.form.get('monto')
-        categorias = request.form.getlist('categorias[]')
-        subcategorias = request.form.getlist('subcategorias[]')
+        categorias_selected = request.form.get('categorias_selected')
+        subcategorias_selected = request.form.get('subcategorias_selected')
 
         # Campos específicos para orden de compra
         fecha_entrega_estimada_cliente = request.form.get('fecha_entrega_estimada_cliente')
@@ -1035,43 +1047,90 @@ def nueva_orden_compra():
         proyecto_numero = cursor.fetchone()[0] + 1
         codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
-        # Convertir monto si se proporciona
-        monto_num = None
-        if monto:
-            try:
-                monto_num = float(monto)
-            except ValueError:
-                pass
+        # Determinar si usar proyecto existente o crear nuevo
+        if proyecto_existente_id and proyecto_existente_id != 'nuevo':
+            # Usar proyecto existente
+            cursor.execute('SELECT id, codigo, nombre FROM proyectos WHERE id = ? AND cliente_id = ?', 
+                         (proyecto_existente_id, cliente_id))
+            proyecto_info = cursor.fetchone()
+            if not proyecto_info:
+                flash('Proyecto no válido para el cliente seleccionado', 'error')
+                return redirect(url_for('ordenes_compra'))
+            
+            proyecto_id = proyecto_info[0]
+            codigo_proyecto = proyecto_info[1]
+            
+            # Actualizar proyecto con información de la orden/contrato
+            observaciones_actuales = f"Número OC/Contrato: {numero_oc}"
+            if descripcion:
+                observaciones_actuales += f"\nDescripción: {descripcion}"
+                
+            cursor.execute('''
+                UPDATE proyectos SET 
+                    adjudicacion_tipo = ?, estado = 'en_desarrollo', prioridad = ?,
+                    fecha_entrega = ?, observaciones = COALESCE(observaciones, '') || CHAR(10) || ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (tipo_adjudicacion, prioridad, 
+                  fecha_entrega_general or fecha_entrega_oc,
+                  observaciones_actuales, proyecto_id))
+        else:
+            # Crear nuevo proyecto
+            if not nombre_proyecto:
+                flash('Debe especificar un nombre para el nuevo proyecto', 'error')
+                return redirect(url_for('ordenes_compra'))
+                
+            # Generar código del proyecto
+            cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
+            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
+            proyecto_numero = cursor.fetchone()[0] + 1
+            codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
-        monto_provision_num = None
-        if monto_neto_provision:
-            try:
-                monto_provision_num = float(monto_neto_provision)
-            except ValueError:
-                pass
+            # Convertir monto si se proporciona
+            monto_num = None
+            if monto:
+                try:
+                    monto_num = float(monto)
+                except ValueError:
+                    pass
 
-        # Crear proyecto
-        cursor.execute('''
-            INSERT INTO proyectos (
-                codigo, nombre, cliente_id, descripcion, adjudicacion_tipo,
-                estado, prioridad, fecha_inicio, fecha_entrega, 
-                monto_neto, monto_neto_provision, observaciones
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion,
-              'en_desarrollo', prioridad, datetime.now().date(), 
-              fecha_entrega_general or fecha_entrega_estimada_cliente,
-              monto_num, monto_provision_num, f"Número OC/Contrato: {numero_oc}"))
+            monto_provision_num = None
+            if monto_neto_provision:
+                try:
+                    monto_provision_num = float(monto_neto_provision)
+                except ValueError:
+                    pass
 
-        proyecto_id = cursor.lastrowid
+            # Crear proyecto
+            cursor.execute('''
+                INSERT INTO proyectos (
+                    codigo, nombre, cliente_id, descripcion, adjudicacion_tipo,
+                    estado, prioridad, fecha_inicio, fecha_entrega, 
+                    monto_neto, monto_neto_provision, observaciones
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion,
+                  'en_desarrollo', prioridad, datetime.now().date(), 
+                  fecha_entrega_general or fecha_entrega_oc,
+                  monto_num, monto_provision_num, f"Número OC/Contrato: {numero_oc}"))
+
+            proyecto_id = cursor.lastrowid
 
         # Agregar categorías al proyecto
-        for i, categoria_id in enumerate(categorias):
-            if categoria_id:  # Solo si hay categoría seleccionada
-                subcategoria_id = subcategorias[i] if i < len(subcategorias) and subcategorias[i] else None
-                cursor.execute('''
-                    INSERT INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
-                    VALUES (?, ?, ?)
-                ''', (proyecto_id, categoria_id, subcategoria_id))
+        if categorias_selected and subcategorias_selected:
+            try:
+                categorias = json.loads(categorias_selected) if categorias_selected else []
+                subcategorias = json.loads(subcategorias_selected) if subcategorias_selected else []
+                
+                for i, categoria_id in enumerate(categorias):
+                    if categoria_id:  # Solo si hay categoría seleccionada
+                        subcategoria_id = subcategorias[i] if i < len(subcategorias) and subcategorias[i] else None
+                        cursor.execute('''
+                            INSERT INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
+                            VALUES (?, ?, ?)
+                        ''', (proyecto_id, categoria_id, subcategoria_id))
+            except json.JSONDecodeError:
+                flash('Error procesando categorías seleccionadas', 'error')
+                return redirect(url_for('ordenes_compra'))
 
         # Si es contrato, agregar entregas programadas
         if tipo_adjudicacion == 'contrato' and detalle_entregas:
@@ -2815,6 +2874,32 @@ def api_subcategorias(categoria_id):
 
     conn.close()
     return jsonify(subcategorias)
+
+
+@app.route('/api/proyectos_cliente/<int:cliente_id>')
+@login_required
+def api_proyectos_cliente(cliente_id):
+    """API para obtener proyectos de un cliente específico"""
+    conn = sqlite3.connect('mobikit.db')
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, codigo, nombre
+        FROM proyectos 
+        WHERE cliente_id = ? AND (archivado IS NULL OR archivado = FALSE)
+        ORDER BY created_at DESC
+    ''', (cliente_id,))
+
+    proyectos = []
+    for row in cursor.fetchall():
+        proyectos.append({
+            'id': row[0],
+            'codigo': row[1] or f'PROJ-{row[0]}',
+            'nombre': row[2]
+        })
+
+    conn.close()
+    return jsonify(proyectos)
 
 
 @app.route('/crear_orden_fabricacion_desde_oc', methods=['POST'])

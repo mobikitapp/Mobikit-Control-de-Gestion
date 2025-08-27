@@ -46,7 +46,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="proyecto_existente_id" class="form-label">Proyecto *</label>
-                                <select class="form-select" id="proyecto_existente_id" name="proyecto_existente_id" required onchange="cargarProyecto()">
+                                <select class="form-select" id="proyecto_existente_id" name="proyecto_existente_id" onchange="cargarProyecto()">
                                     <option value="">Primero selecciona un cliente</option>
                                     <option value="nuevo">+ Crear nuevo proyecto</option>
                                 </select>
@@ -425,7 +425,12 @@ function cargarCliente() {
 
 function cargarProyectosCliente(clienteId) {
     fetch(`/api/proyectos_cliente/${clienteId}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             const proyectoSelect = document.getElementById('proyecto_existente_id');
             proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto...</option><option value="nuevo">+ Crear nuevo proyecto</option>';
@@ -437,7 +442,11 @@ function cargarProyectosCliente(clienteId) {
                 proyectoSelect.appendChild(option);
             });
         })
-        .catch(error => console.error('Error cargando proyectos:', error));
+        .catch(error => {
+            console.error('Error cargando proyectos:', error);
+            const proyectoSelect = document.getElementById('proyecto_existente_id');
+            proyectoSelect.innerHTML = '<option value="">Error cargando proyectos</option><option value="nuevo">+ Crear nuevo proyecto</option>';
+        });
 }
 
 function cargarProyecto() {
