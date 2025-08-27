@@ -653,8 +653,8 @@ def ordenes_compra():
         ''', (proyecto_id,))
         categorias = []
         for row in cursor.fetchall():
-            cat_nombre = row[0]
-            subcat_nombre = row[1]
+            cat_nombre = row['nombre']
+            subcat_nombre = row['subcategoria_nombre']
             categoria_texto = cat_nombre
             if subcat_nombre:
                 categoria_texto += f" - {subcat_nombre}"
