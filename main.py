@@ -877,7 +877,7 @@ def nuevo_proyecto():
         descripcion = request.form.get('descripcion', '').strip() or None
         estado_proyecto = request.form.get('estado_proyecto', 'pendiente_presupuesto')
         fecha_estimada_inicio = request.form.get('fecha_estimada_inicio') or None
-        vendedor_id = request.form.get('vendedor_id') or None
+        vendedor_id = request.form.get('diseñador_id') or None  # El form usa 'diseñador_id' pero es el vendedor
         observaciones = request.form.get('observaciones', '').strip() or None
 
         # Montos según el estado del proyecto
@@ -946,7 +946,7 @@ def nuevo_proyecto():
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'proyecto_simple',
               fecha_estimada_inicio, request.form.get('fecha_inicio') or None, 
-              request.form.get('fecha_entrega') or None, diseñador_id, monto_neto_provision,
+              request.form.get('fecha_entrega') or None, vendedor_id, monto_neto_provision,
               monto_neto_instalacion, 
               margen_provision,
               margen_instalacion, observaciones))
