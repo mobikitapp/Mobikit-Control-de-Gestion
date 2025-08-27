@@ -454,66 +454,29 @@
                         <textarea class="form-control" id="edit_proyecto_descripcion" name="descripcion" rows="3" placeholder="Detalle del proyecto..."></textarea>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="edit_proyecto_estado" class="form-label">Estado</label>
-                                <select class="form-select" id="edit_proyecto_estado" name="estado">
-                                    <option value="diseño">Diseño</option>
-                                    <option value="proyecto_simple">Proyecto Simple</option>
-                                    <option value="en_desarrollo">En Desarrollo</option>
-                                    <option value="aprobado_produccion">Aprobado Producción</option>
-                                    <option value="seccionado">Seccionado</option>
-                                    <option value="enchapado">Enchapado</option>
-                                    <option value="mecanizado">Mecanizado</option>
-                                    <option value="produccion_completa">Producción Completa</option>
-                                    <option value="embalando">Embalando</option>
-                                    <option value="listo_despacho">Listo Despacho</option>
-                                    <option value="entregado">Entregado</option>
-                                    <option value="completado">Completado</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="edit_proyecto_estado_proyecto" class="form-label">Estado Proyecto</label>
-                                <select class="form-select" id="edit_proyecto_estado_proyecto" name="estado_proyecto">
-                                    <option value="pendiente_presupuesto">Pendiente Presupuesto</option>
-                                    <option value="presupuestado">Presupuestado</option>
-                                    <option value="adjudicado">Adjudicado</option>
-                                </select>
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_proyecto_estado_proyecto" class="form-label">Estado Proyecto</label>
+                        <select class="form-select" id="edit_proyecto_estado_proyecto" name="estado_proyecto">
+                            <option value="pendiente_presupuesto">Pendiente Presupuesto</option>
+                            <option value="presupuestado">Presupuestado</option>
+                            <option value="adjudicado">Adjudicado</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_proyecto_diseñador_id" class="form-label">Vendedor</label>
+                        <select class="form-select" id="edit_proyecto_diseñador_id" name="diseñador_id">
+                            <option value="">Seleccionar vendedor...</option>
+                            {% for vendedor in vendedores %}
+                            <option value="{{ vendedor.id }}">{{ vendedor.nombre }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="edit_proyecto_prioridad" class="form-label">Prioridad</label>
-                                <select class="form-select" id="edit_proyecto_prioridad" name="prioridad">
-                                    <option value="baja">Baja</option>
-                                    <option value="media">Media</option>
-                                    <option value="alta">Alta</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="edit_proyecto_diseñador_id" class="form-label">Vendedor</label>
-                                <select class="form-select" id="edit_proyecto_diseñador_id" name="diseñador_id">
-                                    <option value="">Seleccionar vendedor...</option>
-                                    {% for vendedor in vendedores %}
-                                    <option value="{{ vendedor.id }}">{{ vendedor.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="edit_proyecto_fecha_entrega" class="form-label">Fecha de Entrega</label>
+                                <label for="edit_proyecto_fecha_entrega" class="form-label">Fecha Término</label>
                                 <input type="date" class="form-control" id="edit_proyecto_fecha_entrega" name="fecha_entrega">
                             </div>
                         </div>
@@ -592,9 +555,7 @@ function editarProyecto(id) {
             document.getElementById('edit_proyecto_codigo').value = proyecto.codigo || '';
             document.getElementById('edit_proyecto_nombre').value = proyecto.nombre || '';
             document.getElementById('edit_proyecto_descripcion').value = proyecto.descripcion || '';
-            document.getElementById('edit_proyecto_estado').value = proyecto.estado || 'diseño';
             document.getElementById('edit_proyecto_estado_proyecto').value = proyecto.estado_proyecto || 'pendiente_presupuesto';
-            document.getElementById('edit_proyecto_prioridad').value = proyecto.prioridad || 'media';
             document.getElementById('edit_proyecto_fecha_entrega').value = proyecto.fecha_entrega || '';
             document.getElementById('edit_proyecto_fecha_estimada_inicio').value = proyecto.fecha_estimada_inicio || '';
             document.getElementById('edit_proyecto_monto_neto').value = proyecto.monto_neto || '';
