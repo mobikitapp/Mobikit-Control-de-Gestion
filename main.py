@@ -1077,7 +1077,7 @@ def nueva_orden_compra():
             cursor.execute('''
                 UPDATE proyectos SET
                     adjudicacion_tipo = %s, estado = 'en_desarrollo', prioridad = %s,
-                    fecha_entrega = %s, observaciones = COALESCE(observaciones, '') || CHAR(10) || %s
+                    fecha_entrega = %s, observaciones = COALESCE(observaciones, '') || CHR(10) || %s
                 WHERE id = %s
             ''', (tipo_adjudicacion, prioridad,
                   fecha_entrega_general or fecha_entrega_oc,
