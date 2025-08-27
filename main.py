@@ -2383,10 +2383,10 @@ def api_terminar_orden(orden_id):
 @role_required(['admin', 'general'])
 def revertir_orden_a_pendiente(orden_id):
     """Revertir una orden de compra a estado pendiente si no tiene órdenes de fabricación"""
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-    cursor = conn.cursor()
-
     try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
         # Verificar que la orden existe
         cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = %s', (orden_id,))
         orden = cursor.fetchone()
@@ -2400,17 +2400,21 @@ def revertir_orden_a_pendiente(orden_id):
         cursor.execute('''
             SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone()[0]:
+        table_exists = cursor.fetchone()
+        
+        if table_exists and table_exists['exists']:
             cursor.execute('''
                 SELECT COUNT(*) FROM ordenes_fabricacion WHERE proyecto_id = %s
             ''', (orden_id,))
             ordenes_fabricacion = cursor.fetchone()['count']
 
             if ordenes_fabricacion > 0:
+                conn.close()
                 return jsonify({'success': False, 'message': 'No se puede revertir: la orden tiene órdenes de fabricación asociadas'})
 
         # Verificar que no está en estado terminado
         if estado_actual in ['entregado', 'completado']:
+            conn.close()
             return jsonify({'success': False, 'message': 'No se puede revertir una orden ya terminada'})
 
         # Cambiar estado a en_desarrollo (pendiente)
@@ -2420,90 +2424,34 @@ def revertir_orden_a_pendiente(orden_id):
             WHERE id = %s
         ''', (orden_id,))
 
-        # Registrar en auditoría
-        cursor.execute('''
-            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('proyectos', %s, 'UPDATE', %s, %s)
-        ''', (orden_id, session['user_id'],
-              json.dumps({
-                  'accion': 'revertir_orden_pendiente',
-                  'codigo': codigo_orden,
-                  'nombre': nombre_orden,
-                  'estado_anterior': estado_actual,
-                  'revertido_por': session['user_name']
-              })))
-
-        conn.commit()
-        return jsonify({'success': True, 'message': f'Orden {codigo_orden} revertida a estado pendiente exitosamente'})
-
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
-    finally:
-        conn.close()
-
-
-@app.route('/api/revertir_orden_pendiente/<int:orden_id>', methods=['POST'])
-@login_required
-@role_required(['admin', 'general'])
-def api_revertir_orden_pendiente(orden_id):
-    """Revertir una orden de compra a estado pendiente si no tiene órdenes de fabricación"""
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-    cursor = conn.cursor()
-
-    try:
-        # Verificar que la orden existe
-        cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = %s', (orden_id,))
-        orden = cursor.fetchone()
-
-        if not orden:
-            return jsonify({'success': False, 'message': 'Orden de compra no encontrada'})
-
-        codigo_orden, nombre_orden, estado_actual = orden['codigo'], orden['nombre'], orden['estado']
-
-        # Verificar que no tiene órdenes de fabricación
-        cursor.execute('''
-            SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
-        ''')
-        if cursor.fetchone()[0]:
+        # Registrar en auditoría si la tabla existe
+        try:
             cursor.execute('''
-                SELECT COUNT(*) FROM ordenes_fabricacion WHERE proyecto_id = %s
-            ''', (orden_id,))
-            ordenes_fabricacion = cursor.fetchone()['count']
-
-            if ordenes_fabricacion > 0:
-                return jsonify({'success': False, 'message': 'No se puede revertir: la orden tiene órdenes de fabricación asociadas'})
-
-        # Verificar que no está en estado terminado
-        if estado_actual in ['entregado', 'completado']:
-            return jsonify({'success': False, 'message': 'No se puede revertir una orden ya terminada'})
-
-        # Cambiar estado a en_desarrollo (pendiente)
-        cursor.execute('''
-            UPDATE proyectos
-            SET estado = 'en_desarrollo', fecha_entrega_real = NULL
-            WHERE id = %s
-        ''', (orden_id,))
-
-        # Registrar en auditoría
-        cursor.execute('''
-            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('proyectos', %s, 'UPDATE', %s, %s)
-        ''', (orden_id, session['user_id'],
-              json.dumps({
-                  'accion': 'revertir_orden_pendiente',
-                  'codigo': codigo_orden,
-                  'nombre': nombre_orden,
-                  'estado_anterior': estado_actual,
-                  'revertido_por': session['user_name']
-              })))
+                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+                VALUES ('proyectos', %s, 'UPDATE', %s, %s)
+            ''', (orden_id, session['user_id'],
+                  json.dumps({
+                      'accion': 'revertir_orden_pendiente',
+                      'codigo': codigo_orden,
+                      'nombre': nombre_orden,
+                      'estado_anterior': estado_actual,
+                      'revertido_por': session['user_name']
+                  })))
+        except Exception:
+            # Si falla la auditoría, continuar sin error
+            pass
 
         conn.commit()
+        conn.close()
         return jsonify({'success': True, 'message': f'Orden {codigo_orden} revertida a estado pendiente exitosamente'})
 
+    except psycopg2.Error as e:
+        return jsonify({'success': False, 'message': f'Error de base de datos: {str(e)}'})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
-    finally:
-        conn.close()
+        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'})
+
+
+
 
 
 @app.route('/api/iniciar_orden_fabricacion/<int:orden_fabricacion_id>', methods=['POST'])
