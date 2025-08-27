@@ -7,15 +7,27 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-calendar-alt"></i> Planificación de Producción</h2>
     
-    <div class="btn-group" role="group">
-        <input type="radio" class="btn-check" name="filtro_estado" id="filtro_todos" value="todos" checked>
-        <label class="btn btn-outline-primary" for="filtro_todos">Todos</label>
-        
-        <input type="radio" class="btn-check" name="filtro_estado" id="filtro_adjudicados" value="adjudicado">
-        <label class="btn btn-outline-success" for="filtro_adjudicados">Adjudicados</label>
-        
-        <input type="radio" class="btn-check" name="filtro_estado" id="filtro_presupuestados" value="presupuestado">
-        <label class="btn btn-outline-warning" for="filtro_presupuestados">Presupuestados</label>
+    <div class="d-flex gap-3">
+        <!-- Filtros por Estado -->
+        <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="filtro_estado" id="filtro_todos" value="todos" checked>
+            <label class="btn btn-outline-primary" for="filtro_todos">Todos</label>
+            
+            <input type="radio" class="btn-check" name="filtro_estado" id="filtro_adjudicados" value="adjudicado">
+            <label class="btn btn-outline-success" for="filtro_adjudicados">Adjudicados</label>
+            
+            <input type="radio" class="btn-check" name="filtro_estado" id="filtro_presupuestados" value="presupuestado">
+            <label class="btn btn-outline-warning" for="filtro_presupuestados">Presupuestados</label>
+        </div>
+
+        <!-- Selector de Vista -->
+        <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="vista_tipo" id="vista_proyectos" value="proyectos" checked>
+            <label class="btn btn-outline-info" for="vista_proyectos">Por Proyectos</label>
+            
+            <input type="radio" class="btn-check" name="vista_tipo" id="vista_clientes" value="clientes">
+            <label class="btn btn-outline-info" for="vista_clientes">Por Clientes</label>
+        </div>
     </div>
 </div>
 
@@ -25,8 +37,9 @@
         <small class="text-muted">Montos en provisión (sin instalación)</small>
     </div>
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-bordered table-sm" id="planificacion-matriz">
+        <!-- Vista por Proyectos -->
+        <div class="table-responsive" id="vista-proyectos-tabla">
+            <table class="table table-bordered table-sm" id="planificacion-matriz-proyectos">
                 <thead class="table-dark">
                     <tr>
                         <th style="min-width: 200px;">Proyecto</th>
@@ -41,9 +54,9 @@
                         {% endfor %}
                     </tr>
                 </thead>
-                <tbody id="matriz-body">
+                <tbody id="matriz-body-proyectos">
                     {% for proyecto in proyectos %}
-                    <tr class="proyecto-row" data-estado="{{ proyecto.estado_proyecto }}">
+                    <tr class="proyecto-row" data-estado="{{ proyecto.estado_proyecto }}" data-cliente-id="{{ proyecto.cliente_id if proyecto.cliente_id else '' }}">
                         <td>
                             <strong>{{ proyecto.codigo }}</strong><br>
                             <small>{{ proyecto.nombre }}</small>
@@ -82,7 +95,59 @@
                     <tr>
                         <th colspan="4" class="text-end">Total por Mes:</th>
                         {% for mes in meses %}
-                        <th class="text-center total-mes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
+                        <th class="text-center total-mes-proyectos" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
+                            $0
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Vista por Clientes -->
+        <div class="table-responsive d-none" id="vista-clientes-tabla">
+            <table class="table table-bordered table-sm" id="planificacion-matriz-clientes">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="min-width: 200px;">Cliente</th>
+                        <th style="min-width: 100px;">Proyectos</th>
+                        <th style="min-width: 120px;">Monto Total</th>
+                        {% for mes in meses %}
+                        <th style="min-width: 80px;" class="text-center">
+                            {{ mes.nombre }}<br>
+                            <small>{{ mes.año }}</small>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody id="matriz-body-clientes">
+                    {% for cliente in clientes_con_proyectos %}
+                    <tr class="cliente-row" data-cliente-id="{{ cliente.id }}">
+                        <td>
+                            <strong>{{ cliente.nombre }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-info" id="cliente-{{ cliente.id }}-count">0</span>
+                        </td>
+                        <td class="text-end">
+                            <strong id="cliente-{{ cliente.id }}-total">$0</strong>
+                        </td>
+                        {% for mes in meses %}
+                        <td class="text-center cliente-planificacion-cell" 
+                            data-mes="{{ mes.numero }}" 
+                            data-año="{{ mes.año }}"
+                            data-cliente-id="{{ cliente.id }}">
+                            <!-- Los montos se calcularán con JavaScript -->
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-secondary">
+                    <tr>
+                        <th colspan="3" class="text-end">Total por Mes:</th>
+                        {% for mes in meses %}
+                        <th class="text-center total-mes-clientes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
                             $0
                         </th>
                         {% endfor %}
@@ -161,11 +226,17 @@
     display: none;
 }
 
-#planificacion-matriz th {
+#planificacion-matriz-proyectos th,
+#planificacion-matriz-clientes th {
     position: sticky;
     top: 0;
     background: var(--bs-dark);
     z-index: 10;
+}
+
+.cliente-planificacion-cell {
+    position: relative;
+    padding: 4px !important;
 }
 
 .table-responsive {
@@ -179,17 +250,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // Calcular prorrateo para cada proyecto
     calcularProrrateoProyectos();
     
-    // Manejar filtros
+    // Manejar filtros de estado
     const filtros = document.querySelectorAll('input[name="filtro_estado"]');
     filtros.forEach(filtro => {
         filtro.addEventListener('change', function() {
             filtrarProyectos(this.value);
             calcularTotales();
+            if (document.getElementById('vista_clientes').checked) {
+                calcularTotalesClientes();
+            }
+        });
+    });
+
+    // Manejar cambio de vista
+    const vistas = document.querySelectorAll('input[name="vista_tipo"]');
+    vistas.forEach(vista => {
+        vista.addEventListener('change', function() {
+            cambiarVista(this.value);
         });
     });
     
     // Calcular totales iniciales
     calcularTotales();
+    calcularTotalesClientes();
 });
 
 function filtrarProyectos(filtro) {
@@ -259,8 +342,97 @@ function calcularProrrateoProyectos() {
     });
 }
 
+function cambiarVista(tipoVista) {
+    const vistaProyectos = document.getElementById('vista-proyectos-tabla');
+    const vistaClientes = document.getElementById('vista-clientes-tabla');
+    
+    if (tipoVista === 'clientes') {
+        vistaProyectos.classList.add('d-none');
+        vistaClientes.classList.remove('d-none');
+        calcularTotalesClientes();
+    } else {
+        vistaClientes.classList.add('d-none');
+        vistaProyectos.classList.remove('d-none');
+        calcularTotales();
+    }
+}
+
+function calcularTotalesClientes() {
+    // Resetear totales de clientes
+    const clientesRows = document.querySelectorAll('.cliente-row');
+    const mesesClientes = document.querySelectorAll('.total-mes-clientes');
+    
+    mesesClientes.forEach(mes => {
+        mes.textContent = '$0';
+        mes.dataset.total = '0';
+    });
+    
+    clientesRows.forEach(clienteRow => {
+        const clienteId = clienteRow.dataset.clienteId;
+        let totalCliente = 0;
+        let contadorProyectos = 0;
+        
+        // Resetear celdas del cliente
+        const celdasCliente = clienteRow.querySelectorAll('.cliente-planificacion-cell');
+        celdasCliente.forEach(celda => {
+            celda.innerHTML = '';
+            celda.dataset.montoCliente = '0';
+        });
+        
+        // Obtener proyectos visibles del cliente
+        const proyectosCliente = document.querySelectorAll(`.proyecto-row:not(.filtered-out)[data-cliente-id="${clienteId}"]`);
+        contadorProyectos = proyectosCliente.length;
+        
+        proyectosCliente.forEach(proyectoRow => {
+            const celdasProyecto = proyectoRow.querySelectorAll('.planificacion-cell');
+            
+            celdasProyecto.forEach(celdaProyecto => {
+                const montoProrateado = parseFloat(celdaProyecto.dataset.montoProrateado || '0');
+                const mes = celdaProyecto.dataset.mes;
+                const año = celdaProyecto.dataset.año;
+                
+                if (montoProrateado > 0) {
+                    totalCliente += montoProrateado;
+                    
+                    // Agregar al mes correspondiente del cliente
+                    const celdaClienteMes = clienteRow.querySelector(`.cliente-planificacion-cell[data-mes="${mes}"][data-año="${año}"]`);
+                    if (celdaClienteMes) {
+                        const montoActual = parseFloat(celdaClienteMes.dataset.montoCliente || '0');
+                        const nuevoMonto = montoActual + montoProrateado;
+                        celdaClienteMes.dataset.montoCliente = nuevoMonto.toString();
+                        
+                        if (nuevoMonto > 0) {
+                            celdaClienteMes.innerHTML = `
+                                <div class="planificacion-monto" 
+                                     style="background-color: #0d6efd20; 
+                                            border-left: 4px solid #0d6efd;
+                                            font-size: 0.7em;">
+                                    $${Math.round(nuevoMonto).toLocaleString('es-CL')}
+                                </div>
+                            `;
+                        }
+                        
+                        // Agregar al total del mes
+                        const totalMesElement = document.querySelector(`.total-mes-clientes[data-mes="${mes}"][data-año="${año}"]`);
+                        if (totalMesElement) {
+                            const totalActual = parseFloat(totalMesElement.dataset.total || '0');
+                            const nuevoTotal = totalActual + montoProrateado;
+                            totalMesElement.dataset.total = nuevoTotal.toString();
+                            totalMesElement.textContent = '$' + nuevoTotal.toLocaleString('es-CL', {maximumFractionDigits: 0});
+                        }
+                    }
+                }
+            });
+        });
+        
+        // Actualizar contadores del cliente
+        document.getElementById(`cliente-${clienteId}-count`).textContent = contadorProyectos;
+        document.getElementById(`cliente-${clienteId}-total`).textContent = '$' + totalCliente.toLocaleString('es-CL', {maximumFractionDigits: 0});
+    });
+}
+
 function calcularTotales() {
-    const meses = document.querySelectorAll('.total-mes');
+    const meses = document.querySelectorAll('.total-mes-proyectos');
     let totalAdjudicados = 0;
     let totalPresupuestados = 0;
     
@@ -285,7 +457,7 @@ function calcularTotales() {
             
             if (montoProrateado > 0) {
                 // Agregar al total del mes
-                const totalMesElement = document.querySelector(`.total-mes[data-mes="${mes}"][data-año="${año}"]`);
+                const totalMesElement = document.querySelector(`.total-mes-proyectos[data-mes="${mes}"][data-año="${año}"]`);
                 if (totalMesElement) {
                     const totalActual = parseFloat(totalMesElement.dataset.total || '0');
                     const nuevoTotal = totalActual + montoProrateado;

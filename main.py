@@ -3753,6 +3753,10 @@ def planificacion():
 
     # Generar lista de próximos 12 meses
     meses = []
+    nombres_meses = [
+        'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN',
+        'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'
+    ]
     fecha_actual = datetime.now().date()
     
     for i in range(12):
@@ -3772,14 +3776,29 @@ def planificacion():
         meses.append({
             'numero': mes_fecha.month,
             'año': mes_fecha.year,
-            'nombre': mes_fecha.strftime('%B')[:3].upper()
+            'nombre': nombres_meses[mes_fecha.month - 1]
         })
+
+    # Obtener lista de clientes únicos con proyectos
+    cursor.execute('''
+        SELECT DISTINCT c.id, c.nombre
+        FROM clientes c
+        INNER JOIN proyectos p ON c.id = p.cliente_id
+        WHERE p.estado_proyecto IN ('adjudicado', 'presupuestado')
+        AND p.fecha_entrega IS NOT NULL
+        AND p.fecha_entrega >= CURRENT_DATE
+        AND p.fecha_entrega <= CURRENT_DATE + INTERVAL '12 months'
+        AND p.archivado = FALSE
+        ORDER BY c.nombre
+    ''')
+    clientes_con_proyectos = cursor.fetchall()
 
     conn.close()
 
     return render_template('planificacion.html',
                          proyectos=proyectos,
-                         meses=meses)
+                         meses=meses,
+                         clientes_con_proyectos=clientes_con_proyectos)
 
 
 @app.route('/reportes')
