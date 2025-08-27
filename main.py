@@ -337,7 +337,8 @@ def dashboard():
         cursor.execute('''
             SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone()[0]:
+        table_exists = cursor.fetchone()
+        if table_exists and table_exists['exists']:
             cursor.execute('''
                 SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
                 FROM ordenes_fabricacion of
