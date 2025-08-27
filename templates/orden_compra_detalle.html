@@ -20,7 +20,7 @@
             <i class="fas fa-arrow-left"></i> Volver a Órdenes
         </a>
         {% if session.user_role in ['admin', 'general'] %}
-        <button class="btn btn-outline-primary" onclick="editarOrden()">
+        <button class="btn btn-outline-primary" onclick="editarOrden({{ orden[0] }})">
             <i class="fas fa-edit"></i> Editar
         </button>
         {% endif %}
@@ -385,9 +385,99 @@ function retrocederFabricacion(fabricacionId) {
     }
 }
 
-function editarOrden() {
-    // Implementar función de edición
-    alert('Función de edición pendiente de implementar');
+function editarOrden(ordenId) {
+    // Obtener datos de la orden actual
+    const orden = {
+        id: {{ orden[0] }},
+        codigo: '{{ orden[1] }}',
+        nombre: '{{ orden[2] }}',
+        descripcion: '{{ orden[3] or "" }}',
+        prioridad: '{{ orden[5] or "media" }}',
+        fecha_entrega: '{{ orden[7] or "" }}',
+        monto_neto: {{ orden[10] or 'null' }},
+        observaciones: '{{ orden[12] or "" }}'
+    };
+
+    // Crear y mostrar modal de edición
+    const modalHtml = `
+        <div class="modal fade" id="editarOrdenModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Editar Orden de Compra</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="/editar_orden_compra" method="POST">
+                        <input type="hidden" name="proyecto_id" value="${orden.id}">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Código de Orden</label>
+                                <input type="text" class="form-control" value="${orden.codigo}" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Nombre del Proyecto *</label>
+                                <input type="text" class="form-control" name="nombre" value="${orden.nombre}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Descripción</label>
+                                <textarea class="form-control" name="descripcion" rows="3">${orden.descripcion}</textarea>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Prioridad</label>
+                                        <select class="form-select" name="prioridad">
+                                            <option value="baja" ${orden.prioridad === 'baja' ? 'selected' : ''}>Baja</option>
+                                            <option value="media" ${orden.prioridad === 'media' ? 'selected' : ''}>Media</option>
+                                            <option value="alta" ${orden.prioridad === 'alta' ? 'selected' : ''}>Alta</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Fecha de Entrega</label>
+                                        <input type="date" class="form-control" name="fecha_entrega" value="${orden.fecha_entrega}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Monto Neto</label>
+                                <input type="number" class="form-control" name="monto_neto" step="0.01" value="${orden.monto_neto || ''}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Observaciones</label>
+                                <textarea class="form-control" name="observaciones" rows="3">${orden.observaciones}</textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remover modal existente si existe
+    const existingModal = document.getElementById('editarOrdenModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Agregar modal al DOM
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('editarOrdenModal'));
+    modal.show();
+
+    // Limpiar modal cuando se cierre
+    document.getElementById('editarOrdenModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
 }
 
 function crearOrdenesFabricacion() {
