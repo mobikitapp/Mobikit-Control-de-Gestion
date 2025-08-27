@@ -93,8 +93,8 @@
                                     </span>
                                 </td>
                                 <td>
-                                    {% if orden.presupuesto %}
-                                    ${{ "{:,.0f}".format(orden.presupuesto) }}
+                                    {% if orden.monto_neto %}
+                                    ${{ "{:,.0f}".format(orden.monto_neto) }}
                                     {% else %}
                                     <span class="text-muted">N/A</span>
                                     {% endif %}
@@ -266,8 +266,8 @@
                                 <td>{{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}</td>
                                 <td>{{ orden.fecha_entrega_real if orden.fecha_entrega_real else 'N/A' }}</td>
                                 <td>
-                                    {% if orden[7] %}
-                                    ${{ "{:,.0f}".format(orden[7]) }}
+                                    {% if orden.monto_neto %}
+                                    ${{ "{:,.0f}".format(orden.monto_neto) }}
                                     {% else %}
                                     <span class="text-muted">N/A</span>
                                     {% endif %}

@@ -600,7 +600,7 @@ def ordenes_compra():
     # Órdenes de compra pendientes (proyectos con categorías asignadas, no archivados)
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
-               p.descripcion, p.estado, p.prioridad,
+               p.descripcion, p.estado, p.prioridad, p.monto_neto,
                CASE 
                    WHEN p.fecha_entrega IS NOT NULL THEN 
                        EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
@@ -611,7 +611,7 @@ def ordenes_compra():
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('en_desarrollo') AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
-                 p.descripcion, p.estado, p.prioridad
+                 p.descripcion, p.estado, p.prioridad, p.monto_neto
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_pendientes_raw = cursor.fetchall()
@@ -619,7 +619,7 @@ def ordenes_compra():
     # Órdenes en Proceso - Solo proyectos que tienen categorías asignadas, no archivados
     cursor.execute('''
         SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
-               p.descripcion, p.prioridad,
+               p.descripcion, p.prioridad, p.monto_neto,
                CASE 
                    WHEN p.fecha_entrega IS NOT NULL THEN 
                        EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
@@ -631,7 +631,7 @@ def ordenes_compra():
         WHERE p.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
         AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
-                 p.descripcion, p.prioridad
+                 p.descripcion, p.prioridad, p.monto_neto
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_proceso_raw = cursor.fetchall()
@@ -639,13 +639,13 @@ def ordenes_compra():
     # Órdenes Terminadas - Solo proyectos que tienen categorías asignadas, no archivados
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
-               p.descripcion, p.prioridad, p.fecha_entrega_real
+               p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('entregado', 'completado') AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
-                 p.descripcion, p.prioridad, p.fecha_entrega_real
+                 p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
         ORDER BY p.fecha_entrega_real DESC
     ''')
     ordenes_terminadas_raw = cursor.fetchall()
