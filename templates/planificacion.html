@@ -291,9 +291,11 @@ document.addEventListener('DOMContentLoaded', function() {
     filtros.forEach(filtro => {
         filtro.addEventListener('change', function() {
             filtrarProyectos(this.value);
-            calcularTotales();
+            // Recalcular según la vista activa
             if (document.getElementById('vista_clientes').checked) {
                 calcularTotalesClientes();
+            } else {
+                calcularTotales();
             }
         });
     });
@@ -306,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Calcular totales iniciales
+    // Calcular totales iniciales para ambas vistas
     calcularTotales();
     calcularTotalesClientes();
 });
@@ -528,14 +530,15 @@ function calcularTotalesClientes() {
         if (totalElement) totalElement.textContent = '$' + Math.round(totalCliente).toLocaleString('es-CL');
     });
 
-    // Calcular porcentajes de capacidad utilizada por mes
+    // Calcular porcentajes de capacidad utilizada por mes para vista por clientes
     const objetivoMensual = {{ objetivo_mensual }};
     mesesClientes.forEach(mesElement => {
         const mes = mesElement.dataset.mes;
         const año = mesElement.dataset.año;
         const totalMes = parseFloat(mesElement.dataset.total || '0');
         
-        const porcentajeElement = document.querySelector(`.porcentaje-capacidad-mes[data-mes="${mes}"][data-año="${año}"]`);
+        // Buscar el elemento de porcentaje correspondiente en la vista por clientes
+        const porcentajeElement = document.querySelector(`#vista-clientes-tabla .porcentaje-capacidad-mes[data-mes="${mes}"][data-año="${año}"]`);
         if (porcentajeElement && objetivoMensual > 0) {
             const porcentaje = (totalMes / objetivoMensual) * 100;
             porcentajeElement.textContent = porcentaje.toFixed(1) + '%';
@@ -605,15 +608,25 @@ function calcularTotales() {
     document.getElementById('total-presupuestados').textContent = '$' + totalPresupuestados.toLocaleString('es-CL', {maximumFractionDigits: 0});
     document.getElementById('total-general').textContent = '$' + (totalAdjudicados + totalPresupuestados).toLocaleString('es-CL', {maximumFractionDigits: 0});
     
-    // Calcular porcentajes de capacidad para vista por proyectos también
+    // Calcular porcentajes de capacidad para vista por proyectos
     const objetivoMensual = {{ objetivo_mensual }};
     const mesesProyectos = document.querySelectorAll('.total-mes-proyectos');
+    
+    // Resetear todos los porcentajes primero
+    const todosLosPorcentajes = document.querySelectorAll('.porcentaje-capacidad-mes');
+    todosLosPorcentajes.forEach(elem => {
+        elem.textContent = '0%';
+        elem.style.color = '#dc3545';
+        elem.style.fontWeight = 'bold';
+    });
+    
     mesesProyectos.forEach(mesElement => {
         const mes = mesElement.dataset.mes;
         const año = mesElement.dataset.año;
         const totalMes = parseFloat(mesElement.dataset.total || '0');
         
-        const porcentajeElement = document.querySelector(`.porcentaje-capacidad-mes[data-mes="${mes}"][data-año="${año}"]`);
+        // Buscar el elemento de porcentaje correspondiente en la vista por proyectos
+        const porcentajeElement = document.querySelector(`#vista-proyectos-tabla .porcentaje-capacidad-mes[data-mes="${mes}"][data-año="${año}"]`);
         if (porcentajeElement && objetivoMensual > 0) {
             const porcentaje = (totalMes / objetivoMensual) * 100;
             porcentajeElement.textContent = porcentaje.toFixed(1) + '%';
