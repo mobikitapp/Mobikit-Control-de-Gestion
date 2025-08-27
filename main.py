@@ -19,7 +19,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:
     raise Exception('DATABASE_URL environment variable is required for deployment')
-ADMIN_DEFAULT_PASSWORD = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin123')
+ADMIN_DEFAULT_PASSWORD = os.getenv('ADMIN_DEFAULT_PASSWORD', 'MobikitAdmin4026')
 
 # Tipos de archivos permitidos
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx'}
@@ -99,7 +99,7 @@ def init_db():
         print(f"Error adding 'archivado' column: {e}")
 
 
-    # Crear usuario admin por defecto si no existe
+    # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
     if cursor.fetchone()[0] == 0:
         admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
@@ -109,6 +109,13 @@ def init_db():
             VALUES (%s, %s, %s, %s, %s, %s)
         ''', ('admin', admin_password, 'admin', 'Administrador',
               'admin@mobikit.com', True))
+    else:
+        # Actualizar contraseña del admin existente
+        admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
+        cursor.execute(
+            '''
+            UPDATE usuarios SET password_hash = %s WHERE username = %s AND rol = %s
+        ''', (admin_password, 'admin', 'admin'))
 
     conn.commit()
     conn.close()
