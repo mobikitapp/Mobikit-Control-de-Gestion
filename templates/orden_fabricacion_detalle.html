@@ -1,0 +1,299 @@
+
+{% extends "base.html" %}
+
+{% block title %}Detalle Orden de Fabricación - {{ orden.codigo_orden }} - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-cogs"></i> Detalle Orden de Fabricación: {{ orden.codigo_orden }}</h1>
+    <a href="{{ url_for('ordenes_fabricacion') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Volver a Órdenes de Fabricación
+    </a>
+</div>
+
+<div class="row">
+    <!-- Información Principal -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="fas fa-info-circle"></i> Información General</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Código Orden:</strong> {{ orden.codigo_orden }}</p>
+                        <p><strong>Tipo de Orden:</strong> 
+                            <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
+                        </p>
+                        <p><strong>Estado Actual:</strong>
+                            {% if orden.estado == 'pendiente_fabricacion' %}
+                                <span class="badge bg-warning">Pendiente Fabricación</span>
+                            {% elif orden.estado == 'aprobado_produccion' %}
+                                <span class="badge bg-info">Aprobado Producción</span>
+                            {% elif orden.estado == 'seccionado' %}
+                                <span class="badge bg-secondary">Seccionado</span>
+                            {% elif orden.estado == 'enchapando' %}
+                                <span class="badge bg-info">Enchapando</span>
+                            {% elif orden.estado == 'mecanizado' %}
+                                <span class="badge bg-primary">Mecanizado</span>
+                            {% elif orden.estado == 'listo_embalaje' %}
+                                <span class="badge bg-success">Listo Embalaje</span>
+                            {% elif orden.estado == 'embalando' %}
+                                <span class="badge bg-warning">Embalando</span>
+                            {% elif orden.estado == 'listo_despacho' %}
+                                <span class="badge bg-danger">Listo Despacho</span>
+                            {% elif orden.estado == 'despachado' %}
+                                <span class="badge bg-dark">Despachado</span>
+                            {% elif orden.estado == 'entregado' %}
+                                <span class="badge bg-dark">Entregado</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ orden.estado|title }}</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Glosa:</strong> {{ orden.glosa or 'Sin glosa especificada' }}</p>
+                        <p><strong>Cantidad de Tableros:</strong> {{ orden.cantidad_tableros }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Fecha Entrega Estimada:</strong> {{ orden.fecha_entrega_estimada }}</p>
+                        <p><strong>Fecha de Inicio:</strong> {{ orden.fecha_inicio or 'No iniciada' }}</p>
+                        <p><strong>Fecha Entrega Real:</strong> {{ orden.fecha_entrega_real or 'Pendiente' }}</p>
+                        <p><strong>Creada:</strong> {{ orden.created_at.strftime('%d/%m/%Y %H:%M') if orden.created_at else 'N/A' }}</p>
+                        <p><strong>Última Actualización:</strong> {{ orden.updated_at.strftime('%d/%m/%Y %H:%M') if orden.updated_at else 'N/A' }}</p>
+                    </div>
+                </div>
+
+                {% if orden.observaciones %}
+                <div class="mt-3">
+                    <strong>Observaciones:</strong>
+                    <p class="bg-light p-2 rounded">{{ orden.observaciones }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Categorías a Fabricar -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5><i class="fas fa-tags"></i> Categorías a Fabricar</h5>
+            </div>
+            <div class="card-body">
+                {% if categorias %}
+                <div class="row">
+                    {% for categoria in categorias %}
+                    <div class="col-md-6 mb-2">
+                        <span class="badge bg-secondary me-1">
+                            {{ categoria.categoria_nombre }}
+                            {% if categoria.subcategoria_nombre %}
+                                - {{ categoria.subcategoria_nombre }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No hay categorías asignadas a esta orden.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Lateral -->
+    <div class="col-md-4">
+        <!-- Información del Proyecto -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5><i class="fas fa-project-diagram"></i> Proyecto Asociado</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Código:</strong> {{ orden.proyecto_codigo }}</p>
+                <p><strong>Nombre:</strong> {{ orden.proyecto_nombre }}</p>
+                <p><strong>Tipo:</strong>
+                    <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
+                        {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}ORDEN DE COMPRA{% endif %}
+                    </span>
+                </p>
+                <a href="{{ url_for('orden_compra_detalle', orden_id=orden.proyecto_id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-external-link-alt"></i> Ver Proyecto
+                </a>
+            </div>
+        </div>
+
+        <!-- Información del Cliente -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5><i class="fas fa-user"></i> Cliente</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Nombre:</strong> {{ orden.cliente_nombre or 'Sin cliente' }}</p>
+                {% if orden.cliente_email %}
+                <p><strong>Email:</strong> {{ orden.cliente_email }}</p>
+                {% endif %}
+                {% if orden.cliente_telefono %}
+                <p><strong>Teléfono:</strong> {{ orden.cliente_telefono }}</p>
+                {% endif %}
+                {% if orden.cliente_direccion %}
+                <p><strong>Dirección:</strong> {{ orden.cliente_direccion }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        {% if session.user_role in ['admin', 'general', 'operación'] %}
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5><i class="fas fa-cogs"></i> Acciones</h5>
+            </div>
+            <div class="card-body">
+                {% if orden.estado in ['pendiente_fabricacion', 'aprobado_diseño'] %}
+                <button class="btn btn-success btn-sm mb-2 w-100" onclick="iniciarFabricacion({{ orden.id }})">
+                    <i class="fas fa-play"></i> Iniciar Fabricación
+                </button>
+                {% endif %}
+
+                {% if orden.estado in ['seccionado', 'enchapando', 'mecanizado'] %}
+                <button class="btn btn-primary btn-sm mb-2 w-100" onclick="avanzarFabricacion({{ orden.id }})">
+                    <i class="fas fa-arrow-right"></i> Avanzar Etapa
+                </button>
+                {% endif %}
+
+                {% if session.user_role in ['admin', 'general'] and orden.estado not in ['pendiente_fabricacion'] %}
+                <button class="btn btn-secondary btn-sm mb-2 w-100" onclick="retrocederFabricacion({{ orden.id }})">
+                    <i class="fas fa-arrow-left"></i> Retroceder Etapa
+                </button>
+                {% endif %}
+
+                {% if orden.estado in ['pendiente_fabricacion', 'aprobado_diseño'] %}
+                <button class="btn btn-danger btn-sm w-100" onclick="eliminarOrdenFabricacion({{ orden.id }})">
+                    <i class="fas fa-trash"></i> Eliminar Orden
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function iniciarFabricacion(ordenId) {
+    if (confirm('¿Confirmas iniciar la fabricación de esta orden?')) {
+        fetch(`/api/iniciar_orden_fabricacion/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    }
+}
+
+function avanzarFabricacion(ordenId) {
+    if (confirm('¿Confirmas avanzar esta orden a la siguiente etapa?')) {
+        fetch(`/api/avanzar_etapa_fabricacion/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    }
+}
+
+function retrocederFabricacion(ordenId) {
+    if (confirm('¿Confirmas retroceder esta orden a la etapa anterior?')) {
+        fetch(`/api/retroceder_etapa_fabricacion/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    }
+}
+
+function eliminarOrdenFabricacion(ordenId) {
+    if (confirm('¿Estás seguro de que deseas eliminar esta orden de fabricación? Esta acción no se puede deshacer.')) {
+        fetch(`/eliminar_orden_fabricacion/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.href = '/ordenes_fabricacion';
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    }
+}
+</script>
+{% endblock %}

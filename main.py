@@ -19,7 +19,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:
     raise Exception('DATABASE_URL environment variable is required for deployment')
-ADMIN_DEFAULT_PASSWORD = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin123')
+ADMIN_DEFAULT_PASSWORD = os.getenv('ADMIN_DEFAULT_PASSWORD', 'MobikitAdmin4026')
 
 # Tipos de archivos permitidos
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx'}
@@ -99,7 +99,7 @@ def init_db():
         print(f"Error adding 'archivado' column: {e}")
 
 
-    # Crear usuario admin por defecto si no existe
+    # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
     if cursor.fetchone()[0] == 0:
         admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
@@ -109,6 +109,13 @@ def init_db():
             VALUES (%s, %s, %s, %s, %s, %s)
         ''', ('admin', admin_password, 'admin', 'Administrador',
               'admin@mobikit.com', True))
+    else:
+        # Actualizar contraseña del admin existente
+        admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
+        cursor.execute(
+            '''
+            UPDATE usuarios SET password_hash = %s WHERE username = %s AND rol = %s
+        ''', (admin_password, 'admin', 'admin'))
 
     conn.commit()
     conn.close()
@@ -337,7 +344,8 @@ def dashboard():
         cursor.execute('''
             SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone()[0]:
+        table_exists = cursor.fetchone()
+        if table_exists and table_exists['exists']:
             cursor.execute('''
                 SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
                 FROM ordenes_fabricacion of
@@ -1186,7 +1194,7 @@ def eliminar_proyecto(proyecto_id):
         if despachos_entregados > 0:
             return jsonify({
                 'success': False,
-                'message': f'No se puede eliminar el proyecto porque tiene {despachos_entregados} despacho(s) entregado(s). Solo se pueden eliminar proyectos sin despachos completamente entregados.'
+                'message': 'No se puede eliminar el proyecto porque tiene {despachos_entregados} despacho(s) entregado(s). Solo se pueden eliminar proyectos sin despachos completamente entregados.'
             })
 
         # Eliminar todas las dependencias del proyecto en orden
@@ -2001,9 +2009,6 @@ def eliminar_despacho(despacho_id):
         for archivo in archivos:
             delete_file(archivo['ruta_archivo'])
 
-        # Eliminar registros de archivos
-        cursor.execute('DELETE FROM despacho_archivos WHERE despacho_id = %s', (despacho_id,))
-
         # Eliminar recordatorios asociados
         cursor.execute('DELETE FROM recordatorios WHERE tipo = %s AND referencia_id = %s', ('despacho', despacho_id))
 
@@ -2308,7 +2313,7 @@ def api_iniciar_proceso_orden(orden_id):
         if orden['estado'] not in ['diseño', 'en_desarrollo']:
             return jsonify({'success': False, 'message': 'La orden no está en estado pendiente'})
 
-        # Cambiar estado de la orden a en proceso
+        # Cambiar estado de la orden de compra a aprobado_produccion
         cursor.execute('UPDATE proyectos SET estado = %s WHERE id = %s', ('aprobado_produccion', orden_id))
 
         # Cambiar estado de todas las órdenes de fabricación a aprobado_produccion
@@ -2373,6 +2378,70 @@ def api_terminar_orden(orden_id):
         conn.close()
 
 
+@app.route('/api/revertir_orden_pendiente/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def api_revertir_orden_pendiente(orden_id):
+    """Revertir una orden de compra a estado pendiente si no tiene órdenes de fabricación"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe
+        cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = %s', (orden_id,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden de compra no encontrada'})
+
+        codigo_orden, nombre_orden, estado_actual = orden['codigo'], orden['nombre'], orden['estado']
+
+        # Verificar que no tiene órdenes de fabricación
+        cursor.execute('''
+            SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
+        ''')
+        if cursor.fetchone()[0]:
+            cursor.execute('''
+                SELECT COUNT(*) FROM ordenes_fabricacion WHERE proyecto_id = %s
+            ''', (orden_id,))
+            ordenes_fabricacion = cursor.fetchone()['count']
+
+            if ordenes_fabricacion > 0:
+                return jsonify({'success': False, 'message': 'No se puede revertir: la orden tiene órdenes de fabricación asociadas'})
+
+        # Verificar que no está en estado terminado
+        if estado_actual in ['entregado', 'completado']:
+            return jsonify({'success': False, 'message': 'No se puede revertir una orden ya terminada'})
+
+        # Cambiar estado a en_desarrollo (pendiente)
+        cursor.execute('''
+            UPDATE proyectos
+            SET estado = 'en_desarrollo', fecha_entrega_real = NULL
+            WHERE id = %s
+        ''', (orden_id,))
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('proyectos', %s, 'UPDATE', %s, %s)
+        ''', (orden_id, session['user_id'],
+              json.dumps({
+                  'accion': 'revertir_orden_pendiente',
+                  'codigo': codigo_orden,
+                  'nombre': nombre_orden,
+                  'estado_anterior': estado_actual,
+                  'revertido_por': session['user_name']
+              })))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Orden {codigo_orden} revertida a estado pendiente exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
 @app.route('/api/iniciar_orden_fabricacion/<int:orden_fabricacion_id>', methods=['POST'])
 @login_required
 @role_required(['admin', 'general', 'operación'])
@@ -2399,17 +2468,17 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
             WHERE id = %s
         ''', (orden_fabricacion_id,))
 
-        # Cambiar estado del proyecto/orden de compra automáticamente a "En Proceso"
+        # Cambiar estado del proyecto/orden de compra automáticamente a "aprobado_produccion"
         cursor.execute('''
             UPDATE proyectos 
-            SET estado = 'aprobado_produccion'
+            SET estado = %s
             WHERE id = %s AND estado IN ('en_desarrollo', 'diseño')
-        ''', (orden['proyecto_id'],))
+        ''', ('aprobado_produccion', orden['proyecto_id'],))
 
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('ordenes_fabricacion', %s, 'START_PRODUCTION', %s, %s)
+            VALUES ('ordenes_fabricacion', %s, 'UPDATE', %s, %s)
         ''', (orden_fabricacion_id, session['user_id'],
               json.dumps({
                   'accion': 'iniciar_orden_fabricacion',
@@ -2559,61 +2628,6 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
         conn.close()
 
 
-@app.route('/api/update_event_date', methods=['POST'])
-@login_required
-def api_update_event_date():
-    """API para actualizar la fecha de un evento"""
-    try:
-        data = request.get_json()
-        event_id = data['id']
-        event_type = data['type']
-        new_start = data['start']
-
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-        cursor = conn.cursor()
-
-        # Extraer el ID numérico del event_id
-        numeric_id = int(event_id.split('_')[1])
-
-        if event_type == 'despacho':
-            # Verificar permisos para despachos
-            if session['user_role'] not in ['admin', 'general', 'despacho']:
-                return jsonify({'success': False, 'message': 'Sin permisos para modificar despachos'})
-
-            cursor.execute('''
-                UPDATE despachos SET fecha_programada = %s WHERE id = %s
-            ''', (new_start, numeric_id))
-
-        elif event_type == 'tarea':
-            cursor.execute('''
-                UPDATE tareas SET fecha_programada = %s WHERE id = %s
-            ''', (new_start, numeric_id))
-
-        elif event_type == 'recordatorio':
-            # Verificar permisos para recordatorios
-            if session['user_role'] not in ['admin', 'general']:
-                return jsonify({'success': False, 'message': 'Sin permisos para modificar recordatorios'})
-
-            cursor.execute('''
-                UPDATE recordatorios SET fecha_recordatorio = %s WHERE id = %s
-            ''', (new_start, numeric_id))
-
-        else:
-            return jsonify({'success': False, 'message': 'Tipo de evento no válido'})
-
-        if cursor.rowcount > 0:
-            conn.commit()
-            return jsonify({'success': True, 'message': 'Fecha actualizada exitosamente'})
-        else:
-            return jsonify({'success': False, 'message': 'No se encontró el evento'})
-
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'Error al actualizar: {str(e)}'})
-    finally:
-        if 'conn' in locals():
-            conn.close()
-
-
 @app.route('/ordenes_fabricacion')
 @login_required
 def ordenes_fabricacion():
@@ -2624,7 +2638,7 @@ def ordenes_fabricacion():
     # Órdenes de fabricación pendientes
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
-               of.cantidad_tableros, of.estado, of.observaciones,
+               of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
                p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
         FROM ordenes_fabricacion of
@@ -2638,7 +2652,7 @@ def ordenes_fabricacion():
     # Órdenes de fabricación en proceso
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
-               of.cantidad_tableros, of.estado, of.observaciones,
+               of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
                p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
         FROM ordenes_fabricacion of
@@ -2652,7 +2666,7 @@ def ordenes_fabricacion():
     # Órdenes de fabricación terminadas
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
-               of.cantidad_tableros, of.estado, of.observaciones,
+               of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
                p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
         FROM ordenes_fabricacion of
@@ -2682,6 +2696,7 @@ def crear_orden_fabricacion():
         tipo_orden = request.form['tipo_orden']
         fecha_entrega_estimada = request.form['fecha_entrega_estimada']
         cantidad_tableros = request.form['cantidad_tableros']
+        glosa = request.form.get('glosa', '').strip() or None
         observaciones = request.form.get('observaciones', '').strip() or None
         categorias_seleccionadas = request.form.getlist('categorias_seleccionadas')
 
@@ -2699,19 +2714,19 @@ def crear_orden_fabricacion():
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('ordenes_fabricacion'))
 
-        # Generar código único para la orden
-        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)')
-        orden_numero = cursor.fetchone()['count'] + 1
-        codigo_orden = f"OF-{datetime.now().year}-{orden_numero:04d}"
+        # Generar código único para la orden con formato OP-XXXX
+        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion')
+        total_ordenes = cursor.fetchone()['count'] + 1
+        codigo_orden = f"OP-{total_ordenes:04d}"
 
         # Crear orden de fabricación
         cursor.execute('''
             INSERT INTO ordenes_fabricacion (
                 codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
-                cantidad_tableros, estado, observaciones
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+                cantidad_tableros, glosa, estado, observaciones
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
-              cantidad_tableros, 'pendiente_fabricacion', observaciones))
+              cantidad_tableros, glosa, 'pendiente_fabricacion', observaciones))
         orden_fabricacion_id = cursor.fetchone()['id']
 
         # Procesar categorías seleccionadas
@@ -2794,7 +2809,7 @@ def api_orden_compra_detalle(orden_id):
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE p.id = %s
-    ''')
+    ''', (orden_id,)) # Added orden_id to the query
 
     orden = cursor.fetchone()
     if not orden:
@@ -2873,6 +2888,45 @@ def api_categorias_proyecto(proyecto_id):
 
     conn.close()
     return jsonify(categorias)
+
+
+@app.route('/orden_fabricacion/<int:orden_id>')
+@login_required
+def orden_fabricacion_detalle(orden_id):
+    """Detalle de una orden de fabricación específica"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    # Obtener datos de la orden de fabricación
+    cursor.execute('''
+        SELECT of.*, p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               p.adjudicacion_tipo, c.nombre as cliente_nombre, c.email as cliente_email,
+               c.telefono as cliente_telefono, c.direccion as cliente_direccion
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.id = %s
+    ''', (orden_id,))
+    orden = cursor.fetchone()
+
+    if not orden:
+        flash('Orden de fabricación no encontrada', 'error')
+        return redirect(url_for('ordenes_fabricacion'))
+
+    # Obtener categorías asociadas a la orden de fabricación
+    cursor.execute('''
+        SELECT cat.nombre as categoria_nombre, subcat.nombre as subcategoria_nombre
+        FROM orden_fabricacion_categorias ofc
+        JOIN categorias_producto cat ON ofc.categoria_id = cat.id
+        LEFT JOIN subcategorias_producto subcat ON ofc.subcategoria_id = subcat.id
+        WHERE ofc.orden_fabricacion_id = %s
+        ORDER BY cat.nombre, subcat.nombre
+    ''', (orden_id,))
+    categorias = cursor.fetchall()
+
+    conn.close()
+
+    return render_template('orden_fabricacion_detalle.html', orden=orden, categorias=categorias)
 
 
 @app.route('/eliminar_orden_fabricacion/<int:orden_id>', methods=['POST'])
@@ -3010,6 +3064,7 @@ def crear_orden_fabricacion_desde_oc():
         tipo_orden = request.form['tipo_orden']
         fecha_entrega_estimada = request.form['fecha_entrega_estimada']
         cantidad_tableros = request.form['cantidad_tableros']
+        glosa = request.form.get('glosa', '').strip() or None
         observaciones = request.form.get('observaciones', '').strip() or None
         categorias_seleccionadas = request.form.getlist('categorias_seleccionadas')
 
@@ -3027,19 +3082,19 @@ def crear_orden_fabricacion_desde_oc():
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('ordenes_compra'))
 
-        # Generar código único para la orden
-        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)')
-        orden_numero = cursor.fetchone()['count'] + 1
-        codigo_orden = f"OF-{datetime.now().year}-{orden_numero:04d}"
+        # Generar código único para la orden con formato OP-XXXX
+        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion')
+        total_ordenes = cursor.fetchone()['count'] + 1
+        codigo_orden = f"OP-{total_ordenes:04d}"
 
         # Crear orden de fabricación
         cursor.execute('''
             INSERT INTO ordenes_fabricacion (
                 codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
-                cantidad_tableros, estado, observaciones
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+                cantidad_tableros, glosa, estado, observaciones
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
-              cantidad_tableros, 'pendiente_fabricacion', observaciones))
+              cantidad_tableros, glosa, 'pendiente_fabricacion', observaciones))
         orden_fabricacion_id = cursor.fetchone()['id']
 
         # Procesar categorías seleccionadas y crear pedidos de seguimiento
@@ -3426,6 +3481,8 @@ def retroceder_tarea(tarea_id):
                     # Volver a pendiente
                     cursor.execute('UPDATE tareas SET estado = %s, etapa_fabricacion = NULL, fecha_inicio = NULL WHERE id = %s',
                                  ('pendiente', tarea_id))
+            else:
+                return jsonify({'success': False, 'message': 'Etapa de fabricación no válida para retroceder'})
         elif estado_actual == 'completada':
             cursor.execute('UPDATE tareas SET estado = %s, fecha_completada = NULL WHERE id = %s',
                          ('en_progreso', tarea_id))
