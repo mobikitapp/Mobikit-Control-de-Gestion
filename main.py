@@ -77,6 +77,23 @@ def init_db():
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
 
+    # First, check and fix usuarios table constraint if needed
+    try:
+        cursor.execute("""
+            SELECT constraint_name FROM information_schema.check_constraints 
+            WHERE constraint_name = 'usuarios_rol_check' 
+            AND check_clause LIKE '%vendedor%'
+        """)
+        if not cursor.fetchone():
+            # Drop existing constraint and recreate with vendedor
+            cursor.execute("ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check")
+            cursor.execute("""
+                ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check 
+                CHECK (rol IN ('admin', 'general', 'vendedor', 'operación', 'embalaje', 'despacho'))
+            """)
+    except Exception as e:
+        print(f"Warning: Could not update usuarios constraint: {e}")
+
     # Ejecutar el schema completo desde el archivo SQL
     try:
         with open('database_schema.sql', 'r', encoding='utf-8') as f:
@@ -156,7 +173,7 @@ def create_basic_tables(cursor):
             id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            rol TEXT NOT NULL,
+            rol TEXT NOT NULL CHECK (rol IN ('admin', 'general', 'vendedor', 'operación', 'embalaje', 'despacho')),
             nombre TEXT NOT NULL,
             apellido TEXT,
             email TEXT UNIQUE,
