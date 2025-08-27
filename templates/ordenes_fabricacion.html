@@ -50,6 +50,7 @@
                         <thead>
                             <tr>
                                 <th>Código Orden</th>
+                                <th>OC/Contrato</th>
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
                                 <th>Tipo</th>
@@ -63,6 +64,12 @@
                             {% for orden in fabricacion_pendientes %}
                             <tr>
                                 <td><strong>{{ orden.codigo_orden }}</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
+                                        {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
+                                    </span><br>
+                                    <small>{{ orden.proyecto_codigo }}</small>
+                                </td>
                                 <td>
                                     <div>{{ orden.proyecto_codigo }} - {{ orden.proyecto_nombre }}</div>
                                 </td>
@@ -133,6 +140,7 @@
                         <thead>
                             <tr>
                                 <th>Código Orden</th>
+                                <th>OC/Contrato</th>
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
                                 <th>Tipo</th>
@@ -146,6 +154,12 @@
                             {% for orden in fabricacion_proceso %}
                             <tr>
                                 <td><strong>{{ orden.codigo_orden }}</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
+                                        {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
+                                    </span><br>
+                                    <small>{{ orden.proyecto_codigo }}</small>
+                                </td>
                                 <td>
                                     <div>{{ orden.proyecto_codigo }} - {{ orden.proyecto_nombre }}</div>
                                 </td>
@@ -216,6 +230,7 @@
                         <thead>
                             <tr>
                                 <th>Código Orden</th>
+                                <th>OC/Contrato</th>
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
                                 <th>Tipo</th>
@@ -229,6 +244,12 @@
                             {% for orden in fabricacion_terminadas %}
                             <tr>
                                 <td><strong>{{ orden.codigo_orden }}</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
+                                        {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
+                                    </span><br>
+                                    <small>{{ orden.proyecto_codigo }}</small>
+                                </td>
                                 <td>
                                     <div>{{ orden.proyecto_codigo }} - {{ orden.proyecto_nombre }}</div>
                                 </td>
@@ -354,7 +375,7 @@ let proyectosData = [];
 // Cargar órdenes de compra al abrir el modal
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, setting up modal listeners');
-    
+
     const modal = document.getElementById('nuevaOrdenFabricacionModal');
     if (modal) {
         modal.addEventListener('show.bs.modal', function() {
@@ -371,13 +392,13 @@ document.addEventListener('DOMContentLoaded', function() {
         ordenSelect.addEventListener('change', function() {
             const ordenId = this.value;
             console.log('Order changed:', ordenId);
-            
+
             // Establecer el proyecto_id oculto
             const proyectoIdHidden = document.getElementById('proyecto_id');
             if (proyectoIdHidden) {
                 proyectoIdHidden.value = ordenId;
             }
-            
+
             if (ordenId) {
                 cargarDetallesOrden(ordenId);
                 cargarCategoriasProyecto(ordenId);
@@ -397,13 +418,13 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Form submitting...');
             const categoriasSeleccionadas = document.querySelectorAll('input[name="categorias_seleccionadas"]:checked');
             console.log('Selected categories:', categoriasSeleccionadas.length);
-            
+
             if (categoriasSeleccionadas.length === 0) {
                 e.preventDefault();
                 alert('Debe seleccionar al menos una categoría para fabricar');
                 return false;
             }
-            
+
             // Permitir que el formulario se envíe normalmente
             return true;
         });
@@ -432,7 +453,7 @@ function cargarOrdenesCompraDisponibles() {
         })
         .then(data => {
             console.log('Orders loaded:', data);
-            
+
             select.innerHTML = '<option value="">Seleccionar orden de compra/contrato...</option>';
 
             if (data && Array.isArray(data) && data.length > 0) {
@@ -456,7 +477,7 @@ function cargarOrdenesCompraDisponibles() {
 function cargarDetallesOrden(ordenId) {
     const ordenInfo = document.getElementById('orden_info');
     const ordenDetails = document.getElementById('orden_details');
-    
+
     if (!ordenInfo || !ordenDetails) {
         console.error('Orden info elements not found');
         return;
@@ -566,7 +587,7 @@ function iniciarFabricacion(ordenId) {
     if (confirm('¿Confirmas iniciar la fabricación de esta orden?')) {
         fetch(`/api/iniciar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
@@ -596,7 +617,7 @@ function avanzarFabricacion(ordenId) {
     if (confirm('¿Confirmas avanzar esta orden a la siguiente etapa?')) {
         fetch(`/api/avanzar_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
@@ -626,7 +647,7 @@ function retrocederFabricacion(ordenId) {
     if (confirm('¿Confirmas retroceder esta orden a la etapa anterior?')) {
         fetch(`/api/retroceder_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
@@ -656,7 +677,7 @@ function eliminarOrdenFabricacion(ordenId) {
     if (confirm('¿Estás seguro de que deseas eliminar esta orden de fabricación? Esta acción no se puede deshacer.')) {
         fetch(`/eliminar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
@@ -682,4 +703,4 @@ function eliminarOrdenFabricacion(ordenId) {
     }
 }
 </script>
-{% endblock %}</old_str>
+{% endblock %}
