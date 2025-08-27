@@ -361,7 +361,10 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary" id="btnCrearOrden">Crear Orden de Fabricación</button>
                 </div>
-            </form></old_str>
+            </form>
+        </div>
+    </div>
+</div></old_str>
         </div>
     </div>
 </div>
@@ -441,9 +444,9 @@ function cargarOrdenesCompraDisponibles() {
     }
 
     // Mostrar loading
-    select.innerHTML = '<option value="">Cargando órdenes...</option>';
+    select.innerHTML = '<option value="">Cargando proyectos...</option>';
 
-    fetch('/api/ordenes_compra_disponibles')
+    fetch('/api/proyectos_disponibles_fabricacion')
         .then(response => {
             console.log('Response status:', response.status);
             if (!response.ok) {
@@ -452,29 +455,28 @@ function cargarOrdenesCompraDisponibles() {
             return response.json();
         })
         .then(data => {
-            console.log('Orders loaded:', data);
+            console.log('Projects loaded:', data);
 
             select.innerHTML = '<option value="">Seleccionar orden de compra/contrato...</option>';
 
             if (data && Array.isArray(data) && data.length > 0) {
-                data.forEach(orden => {
+                data.forEach(proyecto => {
                     const option = document.createElement('option');
-                    option.value = orden.id;
-                    const tipoTexto = orden.adjudicacion_tipo === 'contrato' ? 'CONTRATO' : 'OC';
-                    option.textContent = `${tipoTexto}: ${orden.codigo} - ${orden.nombre} (${orden.cliente_nombre})`;
+                    option.value = proyecto.id;
+                    option.textContent = `${proyecto.codigo} - ${proyecto.nombre} (${proyecto.cliente})`;
                     select.appendChild(option);
                 });
             } else {
-                select.innerHTML = '<option value="">No hay órdenes disponibles</option>';
+                select.innerHTML = '<option value="">No hay proyectos disponibles</option>';
             }
         })
         .catch(error => {
-            console.error('Error loading orders:', error);
-            select.innerHTML = '<option value="">Error al cargar órdenes</option>';
+            console.error('Error loading projects:', error);
+            select.innerHTML = '<option value="">Error al cargar proyectos</option>';
         });
 }
 
-function cargarDetallesOrden(ordenId) {
+function cargarDetallesOrden(proyectoId) {
     const ordenInfo = document.getElementById('orden_info');
     const ordenDetails = document.getElementById('orden_details');
 
@@ -483,39 +485,10 @@ function cargarDetallesOrden(ordenId) {
         return;
     }
 
+    // Por simplicidad, solo mostramos que se seleccionó un proyecto
+    // Los detalles completos se pueden obtener si es necesario
     ordenInfo.style.display = 'block';
-    ordenDetails.innerHTML = 'Cargando información de la orden...';
-
-    fetch(`/api/orden_compra_detalle/${ordenId}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Order details loaded:', data);
-            let html = `
-                <strong>Cliente:</strong> ${data.cliente_nombre}<br>
-                <strong>Proyecto:</strong> ${data.codigo} - ${data.nombre}<br>
-                <strong>Tipo:</strong> ${data.adjudicacion_tipo === 'contrato' ? 'Contrato' : 'Orden de Compra'}<br>
-                <strong>Estado:</strong> ${data.estado}<br>
-            `;
-            if (data.fecha_entrega) {
-                html += `<strong>Fecha Entrega:</strong> ${data.fecha_entrega}<br>`;
-            }
-            if (data.monto_neto) {
-                html += `<strong>Monto:</strong> $${Number(data.monto_neto).toLocaleString()}<br>`;
-            }
-            if (data.descripcion) {
-                html += `<strong>Descripción:</strong> ${data.descripcion}`;
-            }
-            ordenDetails.innerHTML = html;
-        })
-        .catch(error => {
-            console.error('Error loading order details:', error);
-            ordenDetails.innerHTML = 'Error al cargar información de la orden';
-        });
+    ordenDetails.innerHTML = `<strong>Proyecto seleccionado:</strong> ID ${proyectoId}`;
 }
 
 function resetOrdenInfo() {
