@@ -1080,7 +1080,7 @@ def nueva_orden_compra():
                     fecha_entrega = %s, observaciones = COALESCE(observaciones, '') || CHR(10) || %s
                 WHERE id = %s
             ''', (tipo_adjudicacion, prioridad,
-                  fecha_entrega_general or fecha_entrega_oc,
+                  fecha_entrega_general or fecha_entrega_oc or None,
                   observaciones_actuales, proyecto_id))
         else:
             # Crear nuevo proyecto
@@ -1118,7 +1118,7 @@ def nueva_orden_compra():
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion,
                   'en_desarrollo', prioridad, datetime.now().date(),
-                  fecha_entrega_general or fecha_entrega_oc,
+                  fecha_entrega_general or fecha_entrega_oc or None,
                   monto_num, monto_provision_num, f"Número OC/Contrato: {numero_oc}"))
             proyecto_id = cursor.fetchone()['id']
 
