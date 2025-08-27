@@ -2683,7 +2683,8 @@ def ordenes_fabricacion():
     return render_template('ordenes_fabricacion.html',
                            fabricacion_pendientes=fabricacion_pendientes,
                            fabricacion_proceso=fabricacion_proceso,
-                           fabricacion_terminadas=fabricacion_terminadas)
+                           fabricacion_terminadas=fabricacion_terminadas,
+                           fecha_hoy=datetime.now().date())
 
 
 @app.route('/crear_orden_fabricacion', methods=['POST'])
