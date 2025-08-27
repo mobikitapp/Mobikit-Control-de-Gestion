@@ -44,6 +44,11 @@
                             <i class="fas fa-industry"></i> Órdenes de Fabricación
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'planificacion' %}active{% endif %}" href="{{ url_for('planificacion') }}">
+                            <i class="fas fa-calendar-alt"></i> Planificación
+                        </a>
+                    </li>
                     {% if session.user_role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('usuarios') }}">

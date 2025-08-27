@@ -1,0 +1,267 @@
+
+{% extends "base.html" %}
+
+{% block title %}Planificación - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-calendar-alt"></i> Planificación de Producción</h2>
+    
+    <div class="btn-group" role="group">
+        <input type="radio" class="btn-check" name="filtro_estado" id="filtro_todos" value="todos" checked>
+        <label class="btn btn-outline-primary" for="filtro_todos">Todos</label>
+        
+        <input type="radio" class="btn-check" name="filtro_estado" id="filtro_adjudicados" value="adjudicado">
+        <label class="btn btn-outline-success" for="filtro_adjudicados">Adjudicados</label>
+        
+        <input type="radio" class="btn-check" name="filtro_estado" id="filtro_presupuestados" value="presupuestado">
+        <label class="btn btn-outline-warning" for="filtro_presupuestados">Presupuestados</label>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Matriz de Planificación - Próximos 12 Meses</h5>
+        <small class="text-muted">Montos en provisión (sin instalación)</small>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm" id="planificacion-matriz">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="min-width: 200px;">Proyecto</th>
+                        <th style="min-width: 120px;">Cliente</th>
+                        <th style="min-width: 100px;">Estado</th>
+                        <th style="min-width: 120px;">Monto Provisión</th>
+                        {% for mes in meses %}
+                        <th style="min-width: 80px;" class="text-center">
+                            {{ mes.nombre }}<br>
+                            <small>{{ mes.año }}</small>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody id="matriz-body">
+                    {% for proyecto in proyectos %}
+                    <tr class="proyecto-row" data-estado="{{ proyecto.estado_proyecto }}">
+                        <td>
+                            <strong>{{ proyecto.codigo }}</strong><br>
+                            <small>{{ proyecto.nombre }}</small>
+                        </td>
+                        <td>{{ proyecto.cliente_nombre }}</td>
+                        <td>
+                            <span class="badge bg-{% if proyecto.estado_proyecto == 'adjudicado' %}success{% elif proyecto.estado_proyecto == 'presupuestado' %}warning{% else %}secondary{% endif %}">
+                                {% if proyecto.estado_proyecto == 'adjudicado' %}Adjudicado
+                                {% elif proyecto.estado_proyecto == 'presupuestado' %}Presupuestado
+                                {% else %}{{ proyecto.estado_proyecto|replace('_', ' ')|title }}{% endif %}
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            {% if proyecto.monto_neto_provision %}
+                            <strong>${{ "{:,.0f}".format(proyecto.monto_neto_provision) }}</strong>
+                            {% else %}
+                            <span class="text-muted">Sin monto</span>
+                            {% endif %}
+                        </td>
+                        {% for mes in meses %}
+                        <td class="text-center planificacion-cell" 
+                            data-mes="{{ mes.numero }}" 
+                            data-año="{{ mes.año }}"
+                            data-proyecto-id="{{ proyecto.id }}">
+                            {% if proyecto.fecha_entrega and proyecto.fecha_entrega.month == mes.numero and proyecto.fecha_entrega.year == mes.año %}
+                            <div class="planificacion-monto" 
+                                 style="background-color: {% if proyecto.estado_proyecto == 'adjudicado' %}#28a745{% elif proyecto.estado_proyecto == 'presupuestado' %}#ffc107{% else %}#6c757d{% endif %}20; 
+                                        border-left: 4px solid {% if proyecto.estado_proyecto == 'adjudicado' %}#28a745{% elif proyecto.estado_proyecto == 'presupuestado' %}#ffc107{% else %}#6c757d{% endif %};">
+                                {% if proyecto.monto_neto_provision %}
+                                ${{ "{:,.0f}".format(proyecto.monto_neto_provision) }}
+                                {% else %}
+                                <i class="fas fa-calendar-check text-muted"></i>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-secondary">
+                    <tr>
+                        <th colspan="4" class="text-end">Total por Mes:</th>
+                        {% for mes in meses %}
+                        <th class="text-center total-mes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
+                            $0
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-chart-line"></i> Resumen de Capacidad</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <h4 class="text-success" id="total-adjudicados">$0</h4>
+                            <small>Adjudicados</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <h4 class="text-warning" id="total-presupuestados">$0</h4>
+                            <small>Presupuestados</small>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-center">
+                    <h5 id="total-general">$0</h5>
+                    <small>Total Planificado (12 meses)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Información</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li><i class="fas fa-circle text-success"></i> <strong>Adjudicados:</strong> Proyectos confirmados</li>
+                    <li><i class="fas fa-circle text-warning"></i> <strong>Presupuestados:</strong> Proyectos cotizados</li>
+                    <li><i class="fas fa-info-circle text-muted"></i> Solo se muestran montos de <strong>provisión</strong></li>
+                    <li><i class="fas fa-calendar text-muted"></i> Basado en fechas de entrega programadas</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.planificacion-cell {
+    position: relative;
+    padding: 4px !important;
+}
+
+.planificacion-monto {
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 600;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.proyecto-row.filtered-out {
+    display: none;
+}
+
+#planificacion-matriz th {
+    position: sticky;
+    top: 0;
+    background: var(--bs-dark);
+    z-index: 10;
+}
+
+.table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Manejar filtros
+    const filtros = document.querySelectorAll('input[name="filtro_estado"]');
+    filtros.forEach(filtro => {
+        filtro.addEventListener('change', function() {
+            filtrarProyectos(this.value);
+            calcularTotales();
+        });
+    });
+    
+    // Calcular totales iniciales
+    calcularTotales();
+});
+
+function filtrarProyectos(filtro) {
+    const filas = document.querySelectorAll('.proyecto-row');
+    
+    filas.forEach(fila => {
+        const estado = fila.dataset.estado;
+        
+        if (filtro === 'todos' || estado === filtro) {
+            fila.classList.remove('filtered-out');
+        } else {
+            fila.classList.add('filtered-out');
+        }
+    });
+}
+
+function calcularTotales() {
+    const meses = document.querySelectorAll('.total-mes');
+    let totalAdjudicados = 0;
+    let totalPresupuestados = 0;
+    
+    // Resetear totales por mes
+    meses.forEach(mes => {
+        mes.textContent = '$0';
+        mes.dataset.total = '0';
+    });
+    
+    // Calcular totales por mes y estado
+    const filasVisibles = document.querySelectorAll('.proyecto-row:not(.filtered-out)');
+    
+    filasVisibles.forEach(fila => {
+        const estado = fila.dataset.estado;
+        const celdas = fila.querySelectorAll('.planificacion-cell');
+        
+        celdas.forEach(celda => {
+            const montoDiv = celda.querySelector('.planificacion-monto');
+            if (montoDiv) {
+                const mes = celda.dataset.mes;
+                const año = celda.dataset.año;
+                const montoTexto = montoDiv.textContent.trim();
+                
+                if (montoTexto.startsWith('$')) {
+                    const monto = parseFloat(montoTexto.replace(/[$,]/g, ''));
+                    
+                    if (!isNaN(monto)) {
+                        // Agregar al total del mes
+                        const totalMesElement = document.querySelector(`.total-mes[data-mes="${mes}"][data-año="${año}"]`);
+                        if (totalMesElement) {
+                            const totalActual = parseFloat(totalMesElement.dataset.total || '0');
+                            const nuevoTotal = totalActual + monto;
+                            totalMesElement.dataset.total = nuevoTotal.toString();
+                            totalMesElement.textContent = '$' + nuevoTotal.toLocaleString('es-CL', {maximumFractionDigits: 0});
+                        }
+                        
+                        // Agregar al total por estado
+                        if (estado === 'adjudicado') {
+                            totalAdjudicados += monto;
+                        } else if (estado === 'presupuestado') {
+                            totalPresupuestados += monto;
+                        }
+                    }
+                }
+            }
+        });
+    });
+    
+    // Actualizar totales en el resumen
+    document.getElementById('total-adjudicados').textContent = '$' + totalAdjudicados.toLocaleString('es-CL', {maximumFractionDigits: 0});
+    document.getElementById('total-presupuestados').textContent = '$' + totalPresupuestados.toLocaleString('es-CL', {maximumFractionDigits: 0});
+    document.getElementById('total-general').textContent = '$' + (totalAdjudicados + totalPresupuestados).toLocaleString('es-CL', {maximumFractionDigits: 0});
+}
+</script>
+{% endblock %}

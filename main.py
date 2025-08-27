@@ -3727,6 +3727,60 @@ def retroceder_tarea(tarea_id):
         conn.close()
 
 
+@app.route('/planificacion')
+@login_required
+def planificacion():
+    """Vista de planificación con matriz de proyectos por mes"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    # Obtener proyectos adjudicados y presupuestados con fechas de entrega
+    cursor.execute('''
+        SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado_proyecto,
+               p.fecha_entrega, p.monto_neto_provision, p.monto_neto_instalacion,
+               c.nombre as cliente_nombre
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE p.estado_proyecto IN ('adjudicado', 'presupuestado')
+        AND p.fecha_entrega IS NOT NULL
+        AND p.fecha_entrega >= CURRENT_DATE
+        AND p.fecha_entrega <= CURRENT_DATE + INTERVAL '12 months'
+        AND p.archivado = FALSE
+        ORDER BY p.fecha_entrega ASC, p.estado_proyecto DESC
+    ''')
+    proyectos = cursor.fetchall()
+
+    # Generar lista de próximos 12 meses
+    meses = []
+    fecha_actual = datetime.now().date()
+    
+    for i in range(12):
+        if i == 0:
+            mes_fecha = fecha_actual
+        else:
+            # Calcular el próximo mes
+            if fecha_actual.month + i > 12:
+                año = fecha_actual.year + ((fecha_actual.month + i - 1) // 12)
+                mes = ((fecha_actual.month + i - 1) % 12) + 1
+            else:
+                año = fecha_actual.year
+                mes = fecha_actual.month + i
+            
+            mes_fecha = fecha_actual.replace(year=año, month=mes, day=1)
+        
+        meses.append({
+            'numero': mes_fecha.month,
+            'año': mes_fecha.year,
+            'nombre': mes_fecha.strftime('%B')[:3].upper()
+        })
+
+    conn.close()
+
+    return render_template('planificacion.html',
+                         proyectos=proyectos,
+                         meses=meses)
+
+
 @app.route('/reportes')
 @login_required
 @role_required(['admin', 'general'])
