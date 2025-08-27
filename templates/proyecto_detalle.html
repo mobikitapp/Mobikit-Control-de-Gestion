@@ -56,24 +56,24 @@
                     <h6><i class="fas fa-dollar-sign"></i> Información Financiera</h6>
                     <div class="row">
                         <div class="col-md-4">
-                            {% if proyecto.monto_neto %}
+                            {% if proyecto.monto_neto and proyecto.monto_neto != 0 %}
                             <strong>Monto Neto:</strong><br>
-                            ${{ "{:,.0f}"|format(proyecto.monto_neto) }}<br>
+                            ${{ "{:,.0f}".format(proyecto.monto_neto) }}<br>
                             {% endif %}
                         </div>
                         <div class="col-md-4">
-                            {% if proyecto.monto_neto_provision %}
+                            {% if proyecto.monto_neto_provision and proyecto.monto_neto_provision != 0 %}
                             <strong>Monto Provisión:</strong><br>
-                            ${{ "{:,.0f}"|format(proyecto.monto_neto_provision) }}<br>
+                            ${{ "{:,.0f}".format(proyecto.monto_neto_provision) }}<br>
                             {% if proyecto.margen_provision %}
                             <small class="text-muted">Margen: {{ proyecto.margen_provision }}%</small><br>
                             {% endif %}
                             {% endif %}
                         </div>
                         <div class="col-md-4">
-                            {% if proyecto.monto_neto_instalacion %}
+                            {% if proyecto.monto_neto_instalacion and proyecto.monto_neto_instalacion != 0 %}
                             <strong>Monto Instalación:</strong><br>
-                            ${{ "{:,.0f}"|format(proyecto.monto_neto_instalacion) }}<br>
+                            ${{ "{:,.0f}".format(proyecto.monto_neto_instalacion) }}<br>
                             {% if proyecto.margen_instalacion %}
                             <small class="text-muted">Margen: {{ proyecto.margen_instalacion }}%</small><br>
                             {% endif %}
@@ -84,7 +84,7 @@
                     {% if proyecto.monto_neto_provision and proyecto.monto_neto_instalacion %}
                     <div class="mt-2">
                         <strong>Total Provisión + Instalación:</strong>
-                        ${{ "{:,.0f}"|format(proyecto.monto_neto_provision + proyecto.monto_neto_instalacion) }}
+                        ${{ "{:,.0f}".format(proyecto.monto_neto_provision + proyecto.monto_neto_instalacion) }}
                     </div>
                     {% endif %}
                 </div>
@@ -120,9 +120,9 @@
                 </div>
                 {% endif %}
 
-                {% if proyecto.costo_real %}
+                {% if proyecto.costo_real and proyecto.costo_real != 0 %}
                 <div class="mt-2">
-                    <strong>Costo Real:</strong> ${{ "{:,.0f}"|format(proyecto.costo_real) }}
+                    <strong>Costo Real:</strong> ${{ "{:,.0f}".format(proyecto.costo_real) }}
                 </div>
                 {% endif %}
 
