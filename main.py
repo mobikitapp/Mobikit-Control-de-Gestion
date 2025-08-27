@@ -2235,28 +2235,32 @@ def api_terminar_orden(orden_id):
     cursor = conn.cursor()
 
     try:
-        # Verificar que todas las órdenes de fabricación están terminadas
+        # Verificar que todas las órdenes de fabricación están terminadas (si existen)
         cursor.execute('''
-            SELECT COUNT(*) FROM pedidos_seguimiento 
-            WHERE proyecto_id = ? AND estado != 'produccion_completa'
-        ''', (orden_id,))
-        pendientes = cursor.fetchone()[0]
+            SELECT name FROM sqlite_master WHERE type='table' AND name='ordenes_fabricacion'
+        ''')
+        if cursor.fetchone():
+            cursor.execute('''
+                SELECT COUNT(*) FROM ordenes_fabricacion 
+                WHERE proyecto_id = ? AND estado NOT IN ('listo_despacho', 'despachado', 'entregado')
+            ''', (orden_id,))
+            pendientes = cursor.fetchone()[0]
 
-        if pendientes > 0:
-            return jsonify({'success': False, 'message': 'Hay órdenes de fabricación pendientes de terminar'})
+            if pendientes > 0:
+                return jsonify({'success': False, 'message': 'Hay órdenes de fabricación pendientes de terminar'})
+
+            # Marcar todas las órdenes de fabricación como entregadas
+            cursor.execute('''
+                UPDATE ordenes_fabricacion 
+                SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP 
+                WHERE proyecto_id = ?
+            ''', (orden_id,))
 
         # Marcar orden como terminada
         cursor.execute('''
             UPDATE proyectos 
             SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP 
             WHERE id = ?
-        ''', (orden_id,))
-
-        # Marcar todas las órdenes de fabricación como entregadas
-        cursor.execute('''
-            UPDATE pedidos_seguimiento 
-            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP 
-            WHERE proyecto_id = ?
         ''', (orden_id,))
 
         conn.commit()
