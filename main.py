@@ -804,7 +804,7 @@ def proyecto_detalle(proyecto_id):
 
     if not proyecto:
         flash('Proyecto no encontrado', 'error')
-        return redirect(url_for('proyectos'))
+        return redirect(url_for('clientes'))
 
     return render_template('proyecto_detalle.html',
                            proyecto=proyecto)
@@ -1009,8 +1009,16 @@ def nueva_orden_compra():
         fecha_entrega_general = request.form.get('fecha_entrega_general')
         fecha_entrega_oc = request.form.get('fecha_entrega_oc')
         monto = request.form.get('monto')
-        categorias_selected = request.form.getlist('categorias_selected')
-        subcategorias_selected = request.form.getlist('subcategorias_selected')
+        # Obtener categorías del formulario
+        try:
+            categorias_json = request.form.get('categorias_selected', '[]')
+            subcategorias_json = request.form.get('subcategorias_selected', '[]')
+            categorias_selected = json.loads(categorias_json) if categorias_json else []
+            subcategorias_selected = json.loads(subcategorias_json) if subcategorias_json else []
+        except (json.JSONDecodeError, TypeError):
+            # Fallback: intentar obtener como lista directa
+            categorias_selected = request.form.getlist('categoria_ids[]')
+            subcategorias_selected = request.form.getlist('subcategoria_ids[]')
 
         # Campos específicos para orden de compra
         fecha_entrega_estimada_cliente = request.form.get('fecha_entrega_estimada_cliente')
