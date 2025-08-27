@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime, timedelta
 import json
@@ -14,7 +15,9 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Database configuration
-DATABASE_URL = os.getenv('DATABASE_URL', 'mobikit.db')
+DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    raise Exception('DATABASE_URL environment variable is required for deployment')
 ADMIN_DEFAULT_PASSWORD = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin123')
 
 # Tipos de archivos permitidos
@@ -63,16 +66,14 @@ def delete_file(file_path):
 
 def get_db_connection():
     """Helper function to get database connection"""
-    db_path = DATABASE_URL.replace('sqlite:///', '') if DATABASE_URL.startswith('sqlite:///') else DATABASE_URL
-    return sqlite3.connect(db_path)
+    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 # Roles disponibles
 ROLES = ['admin', 'general', 'diseñador', 'operación', 'embalaje', 'despacho']
 
 
 def init_db():
-    db_path = DATABASE_URL.replace('sqlite:///', '') if DATABASE_URL.startswith('sqlite:///') else DATABASE_URL
-    conn = sqlite3.connect(db_path)
+    conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
 
     # Ejecutar el schema completo desde el archivo SQL
