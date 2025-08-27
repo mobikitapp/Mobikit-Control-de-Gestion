@@ -295,7 +295,11 @@ def dashboard():
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.estado, p.prioridad,
-               EXTRACT(EPOCH FROM (p.fecha_entrega - CURRENT_DATE)) / 86400 AS dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
@@ -310,7 +314,11 @@ def dashboard():
     cursor.execute('''
         SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.prioridad,
-               EXTRACT(EPOCH FROM (p.fecha_entrega - CURRENT_DATE)) / 86400 AS dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
@@ -585,7 +593,11 @@ def ordenes_compra():
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.estado, p.prioridad,
-               EXTRACT(EPOCH FROM (p.fecha_entrega - CURRENT_DATE)) / 86400 AS dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
@@ -600,7 +612,11 @@ def ordenes_compra():
     cursor.execute('''
         SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.prioridad,
-               EXTRACT(EPOCH FROM (p.fecha_entrega - CURRENT_DATE)) / 86400 AS dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
@@ -1321,7 +1337,11 @@ def gestion_pedidos():
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.estado, p.prioridad,
-               EXTRACT(EPOCH FROM (p.fecha_entrega - CURRENT_DATE)) / 86400 AS dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE p.estado NOT IN ('entregado', 'cancelado') AND p.archivado = FALSE
@@ -2156,7 +2176,11 @@ def api_calendar_events():
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, p.fecha_entrega, p.estado, p.prioridad,
                c.nombre as cliente_nombre,
-               EXTRACT(EPOCH FROM (p.fecha_entrega - CURRENT_DATE)) / 86400 AS dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE p.fecha_entrega IS NOT NULL AND p.estado NOT IN ('entregado', 'cancelado')
