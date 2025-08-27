@@ -115,6 +115,27 @@ def init_db():
     except Exception as e:
         print(f"Error adding 'archivado' column: {e}")
 
+    # Agregar columnas de margen si no existen
+    try:
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'proyectos' AND column_name = 'margen_provision'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE proyectos ADD COLUMN margen_provision DECIMAL(5,2)")
+    except Exception as e:
+        print(f"Error adding 'margen_provision' column: {e}")
+
+    try:
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'proyectos' AND column_name = 'margen_instalacion'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE proyectos ADD COLUMN margen_instalacion DECIMAL(5,2)")
+    except Exception as e:
+        print(f"Error adding 'margen_instalacion' column: {e}")
+
 
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
