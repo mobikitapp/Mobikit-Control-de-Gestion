@@ -33,6 +33,17 @@
                             <span class="badge bg-secondary ms-2">{{ cliente.total_proyectos }} proyecto{{ 's' if cliente.total_proyectos != 1 else '' }}</span>
                         </h5>
                         <div class="mt-1">
+                            {% if cliente.adjudicados > 0 %}
+                            <span class="badge bg-success me-1">{{ cliente.adjudicados }} adjudicado{{ 's' if cliente.adjudicados != 1 else '' }}</span>
+                            {% endif %}
+                            {% if cliente.presupuestados > 0 %}
+                            <span class="badge bg-warning me-1">{{ cliente.presupuestados }} presupuestado{{ 's' if cliente.presupuestados != 1 else '' }}</span>
+                            {% endif %}
+                            {% if cliente.pendientes_presupuesto > 0 %}
+                            <span class="badge bg-secondary me-1">{{ cliente.pendientes_presupuesto }} pendiente{{ 's' if cliente.pendientes_presupuesto != 1 else '' }} de presupuesto</span>
+                            {% endif %}
+                        </div>
+                        <div class="mt-1">
                             <small class="text-muted">
                                 {% if cliente.rut %}RUT: {{ cliente.rut }}{% endif %}
                                 {% if cliente.contacto_principal %} | Contacto: {{ cliente.contacto_principal }}{% endif %}

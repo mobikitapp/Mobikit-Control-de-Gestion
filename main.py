@@ -440,7 +440,7 @@ def dashboard():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('entregado', 'completado')
+        WHERE p.estado IN ('entregado', 'terminado', 'completado')
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.prioridad, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
@@ -462,11 +462,14 @@ def clientes():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Obtener clientes con información de proyectos
+    # Obtener clientes con información de proyectos y conteos por estado
     cursor.execute('''
         SELECT c.id, c.nombre, c.rut, c.email, c.telefono, c.direccion,
                c.ciudad, c.region, c.contacto_principal, c.observaciones,
-               COUNT(p.id) as total_proyectos
+               COUNT(p.id) as total_proyectos,
+               COUNT(CASE WHEN p.estado_proyecto = 'adjudicado' THEN 1 END) as adjudicados,
+               COUNT(CASE WHEN p.estado_proyecto = 'presupuestado' THEN 1 END) as presupuestados,
+               COUNT(CASE WHEN p.estado_proyecto = 'pendiente_presupuesto' OR p.estado_proyecto IS NULL THEN 1 END) as pendientes_presupuesto
         FROM clientes c
         LEFT JOIN proyectos p ON c.id = p.cliente_id
         WHERE c.activo = TRUE
@@ -707,7 +710,7 @@ def ordenes_compra():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('entregado', 'completado') AND p.archivado = FALSE
+        WHERE p.estado IN ('entregado', 'terminado', 'completado') AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
         ORDER BY p.fecha_entrega_real DESC
@@ -886,7 +889,8 @@ def proyecto_detalle(proyecto_id):
         return redirect(url_for('clientes'))
 
     return render_template('proyecto_detalle.html',
-                           proyecto=proyecto)
+                           proyecto=proyecto,
+                           fecha_actual=datetime.now().date())
 
 
 @app.route('/nuevo_proyecto', methods=['POST'])
@@ -1399,7 +1403,7 @@ def archivar_proyecto(proyecto_id):
 
         codigo_proyecto, nombre_proyecto, estado_proyecto = proyecto['codigo'], proyecto['nombre'], proyecto['estado']
 
-        if estado_proyecto not in ['entregado', 'completado']:
+        if estado_proyecto not in ['entregado', 'terminado', 'completado']:
             return jsonify({'success': False, 'message': 'Solo se pueden archivar proyectos terminados'})
 
         # Archivar el proyecto
@@ -1486,7 +1490,7 @@ def gestion_pedidos():
                END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.estado NOT IN ('entregado', 'cancelado') AND p.archivado = FALSE
+        WHERE p.estado NOT IN ('entregado', 'terminado', 'cancelado') AND p.archivado = FALSE
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     pedidos = cursor.fetchall()
@@ -2322,7 +2326,7 @@ def api_calendar_events():
                END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.fecha_entrega IS NOT NULL AND p.estado NOT IN ('entregado', 'cancelado')
+        WHERE p.fecha_entrega IS NOT NULL AND p.estado NOT IN ('entregado', 'terminado', 'cancelado')
     ''')
 
     for row in cursor.fetchall():
@@ -2486,7 +2490,7 @@ def api_terminar_orden(orden_id):
         # Marcar orden como terminada
         cursor.execute('''
             UPDATE proyectos
-            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP
+            SET estado = 'terminado', fecha_entrega_real = CURRENT_TIMESTAMP
             WHERE id = %s
         ''', (orden_id,))
 
@@ -2574,7 +2578,7 @@ def revertir_orden_a_pendiente(orden_id):
                 return jsonify({'success': False, 'message': 'No se puede revertir: la orden tiene órdenes de fabricación asociadas'})
 
         # Verificar que no está en estado terminado
-        if estado_actual in ['entregado', 'completado']:
+        if estado_actual in ['entregado', 'terminado', 'completado']:
             conn.close()
             return jsonify({'success': False, 'message': 'No se puede revertir una orden ya terminada'})
 
@@ -3721,6 +3725,153 @@ def retroceder_tarea(tarea_id):
         return jsonify({'success': False, 'message': f'Error al retroceder tarea: {str(e)}'})
     finally:
         conn.close()
+
+
+@app.route('/planificacion')
+@login_required
+def planificacion():
+    """Vista de planificación con matriz de proyectos por mes"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    # Obtener objetivo mensual desde configuraciones
+    cursor.execute('''
+        SELECT valor FROM configuraciones WHERE clave = 'objetivo_mensual_provision'
+    ''')
+    objetivo_result = cursor.fetchone()
+    objetivo_mensual = int(objetivo_result['valor']) if objetivo_result else 50000000
+
+    # Obtener proyectos adjudicados y presupuestados con fechas de entrega
+    cursor.execute('''
+        SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado_proyecto,
+               p.fecha_inicio, p.fecha_entrega, p.fecha_estimada_inicio,
+               p.monto_neto_provision, p.monto_neto_instalacion, p.cliente_id,
+               c.nombre as cliente_nombre
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE p.estado_proyecto IN ('adjudicado', 'presupuestado')
+        AND p.fecha_entrega IS NOT NULL
+        AND p.fecha_entrega >= CURRENT_DATE
+        AND p.fecha_entrega <= CURRENT_DATE + INTERVAL '12 months'
+        AND p.archivado = FALSE
+        ORDER BY p.fecha_entrega ASC, p.estado_proyecto DESC
+    ''')
+    proyectos = cursor.fetchall()
+
+    # Generar lista de próximos 12 meses
+    meses = []
+    nombres_meses = [
+        'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN',
+        'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'
+    ]
+    fecha_actual = datetime.now().date()
+    
+    for i in range(12):
+        if i == 0:
+            mes_fecha = fecha_actual
+        else:
+            # Calcular el próximo mes
+            if fecha_actual.month + i > 12:
+                año = fecha_actual.year + ((fecha_actual.month + i - 1) // 12)
+                mes = ((fecha_actual.month + i - 1) % 12) + 1
+            else:
+                año = fecha_actual.year
+                mes = fecha_actual.month + i
+            
+            mes_fecha = fecha_actual.replace(year=año, month=mes, day=1)
+        
+        meses.append({
+            'numero': mes_fecha.month,
+            'año': mes_fecha.year,
+            'nombre': nombres_meses[mes_fecha.month - 1]
+        })
+
+    # Obtener lista de clientes únicos con proyectos
+    cursor.execute('''
+        SELECT DISTINCT c.id, c.nombre
+        FROM clientes c
+        INNER JOIN proyectos p ON c.id = p.cliente_id
+        WHERE p.estado_proyecto IN ('adjudicado', 'presupuestado')
+        AND p.fecha_entrega IS NOT NULL
+        AND p.fecha_entrega >= CURRENT_DATE
+        AND p.fecha_entrega <= CURRENT_DATE + INTERVAL '12 months'
+        AND p.archivado = FALSE
+        ORDER BY c.nombre
+    ''')
+    clientes_con_proyectos = cursor.fetchall()
+
+    conn.close()
+
+    return render_template('planificacion.html',
+                         proyectos=proyectos,
+                         meses=meses,
+                         clientes_con_proyectos=clientes_con_proyectos,
+                         objetivo_mensual=objetivo_mensual)
+
+
+@app.route('/configuraciones')
+@login_required
+@role_required(['admin'])
+def configuraciones():
+    """Vista de configuraciones del sistema (solo admin)"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    # Obtener todas las configuraciones
+    cursor.execute('''
+        SELECT clave, valor, descripcion, tipo
+        FROM configuraciones
+        ORDER BY clave
+    ''')
+    configuraciones_list = cursor.fetchall()
+
+    conn.close()
+    return render_template('configuraciones.html', configuraciones=configuraciones_list)
+
+
+@app.route('/actualizar_configuracion', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def actualizar_configuracion():
+    """Actualizar una configuración del sistema"""
+    try:
+        clave = request.form['clave']
+        valor = request.form['valor']
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
+        # Actualizar configuración
+        cursor.execute('''
+            UPDATE configuraciones
+            SET valor = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE clave = %s
+        ''', (valor, clave))
+
+        if cursor.rowcount > 0:
+            # Registrar en auditoría
+            cursor.execute('''
+                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+                VALUES ('configuraciones', %s, 'UPDATE', %s, %s)
+            ''', (0, session['user_id'],
+                  json.dumps({
+                      'accion': 'actualizar_configuracion',
+                      'clave': clave,
+                      'valor': valor,
+                      'actualizado_por': session['user_name']
+                  })))
+
+            conn.commit()
+            flash('Configuración actualizada exitosamente', 'success')
+        else:
+            flash('Configuración no encontrada', 'error')
+
+        conn.close()
+
+    except Exception as e:
+        flash(f'Error al actualizar configuración: {str(e)}', 'error')
+
+    return redirect(url_for('configuraciones'))
 
 
 @app.route('/reportes')

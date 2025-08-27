@@ -1,0 +1,102 @@
+
+{% extends "base.html" %}
+
+{% block title %}Configuraciones - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-cog"></i> Configuraciones del Sistema</h2>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Configuraciones Generales</h5>
+        <small class="text-muted">Solo administradores pueden modificar estas configuraciones</small>
+    </div>
+    <div class="card-body">
+        {% for config in configuraciones %}
+        <div class="mb-4 p-3 border rounded">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <strong>{{ config.descripcion }}</strong>
+                    <br>
+                    <small class="text-muted">{{ config.clave }}</small>
+                </div>
+                <div class="col-md-8">
+                    <form method="POST" action="{{ url_for('actualizar_configuracion') }}" class="d-flex align-items-center gap-2">
+                        <input type="hidden" name="clave" value="{{ config.clave }}">
+                        
+                        {% if config.tipo == 'integer' %}
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" 
+                                   class="form-control" 
+                                   name="valor" 
+                                   value="{{ config.valor }}" 
+                                   step="1000"
+                                   min="0"
+                                   required>
+                        </div>
+                        {% elif config.tipo == 'boolean' %}
+                        <select class="form-select" name="valor" required>
+                            <option value="true" {% if config.valor == 'true' %}selected{% endif %}>Activado</option>
+                            <option value="false" {% if config.valor == 'false' %}selected{% endif %}>Desactivado</option>
+                        </select>
+                        {% else %}
+                        <input type="text" 
+                               class="form-control" 
+                               name="valor" 
+                               value="{{ config.valor }}" 
+                               required>
+                        {% endif %}
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Guardar
+                        </button>
+                    </form>
+                    
+                    {% if config.clave == 'objetivo_mensual_provision' %}
+                    <small class="text-muted mt-1 d-block">
+                        Formato actual: ${{ "{:,.0f}".format(config.valor|int) }} pesos chilenos
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Información</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li><i class="fas fa-target text-primary"></i> <strong>Objetivo Mensual:</strong> Meta de ventas en provisión por mes</li>
+                    <li><i class="fas fa-chart-line text-success"></i> Se usa en la matriz de planificación para calcular el % de capacidad</li>
+                    <li><i class="fas fa-percentage text-warning"></i> % Capacidad = (Total mes / Objetivo mensual) × 100</li>
+                    <li><i class="fas fa-eye text-info"></i> Visible en la pestaña de Planificación para todos los usuarios</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-exclamation-triangle"></i> Consideraciones</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li><i class="fas fa-coins text-warning"></i> Solo incluye montos de <strong>provisión</strong> (no instalación)</li>
+                    <li><i class="fas fa-calendar text-muted"></i> Se compara con proyectos adjudicados y presupuestados</li>
+                    <li><i class="fas fa-clock text-muted"></i> Usa prorrateo basado en fechas de inicio y término</li>
+                    <li><i class="fas fa-shield-alt text-danger"></i> Solo administradores pueden modificar el objetivo</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
