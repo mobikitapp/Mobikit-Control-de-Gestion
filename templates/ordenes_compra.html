@@ -163,9 +163,7 @@
                                     <i class="fas fa-edit"></i> Editar
                                 </button>
                                 {% endif %}
-                                <button class="btn btn-sm btn-success ms-2" onclick="terminarOrden({{ orden.id }})">
-                                    <i class="fas fa-check"></i> Terminar
-                                </button>
+                                <!-- El avance de estado se maneja automáticamente desde órdenes de fabricación -->
                             </div>
                         </div>
                         <small class="text-muted">Cliente: {{ orden.cliente_nombre }} | Entrega: {{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}</small>

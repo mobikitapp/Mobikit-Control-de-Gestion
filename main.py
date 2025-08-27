@@ -667,7 +667,8 @@ def ordenes_compra():
         cursor.execute('''
             SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone()[0]:
+        tabla_existe = cursor.fetchone()
+        if tabla_existe and tabla_existe['exists']:
             cursor.execute('''
                 SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
                 FROM ordenes_fabricacion of
@@ -698,6 +699,7 @@ def ordenes_compra():
         orden_dict = dict(orden)
         orden_dict['dias_restantes'] = dias_restantes
         orden_dict['categorias'] = obtener_categorias_orden(orden['id'])
+        orden_dict['ordenes_fabricacion'] = obtener_ordenes_fabricacion(orden['id'])
         ordenes_pendientes.append(orden_dict)
 
     # Procesar órdenes en proceso
@@ -765,7 +767,8 @@ def orden_compra_detalle(orden_id):
     cursor.execute('''
         SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
     ''')
-    if cursor.fetchone()[0]:
+    tabla_existe = cursor.fetchone()
+    if tabla_existe and tabla_existe['exists']:
         cursor.execute('''
             SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
                    of.cantidad_tableros, of.observaciones, of.created_at, of.updated_at
@@ -2379,8 +2382,8 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
     cursor = conn.cursor()
 
     try:
-        # Verificar estado actual de la orden de fabricación
-        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = %s', (orden_fabricacion_id,))
+        # Verificar estado actual de la orden de fabricación y obtener proyecto
+        cursor.execute('SELECT estado, codigo_orden, proyecto_id FROM ordenes_fabricacion WHERE id = %s', (orden_fabricacion_id,))
         orden = cursor.fetchone()
 
         if not orden:
@@ -2396,8 +2399,15 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
             WHERE id = %s
         ''', (orden_fabricacion_id,))
 
+        # Cambiar estado del proyecto a "En Proceso" si está en desarrollo
+        cursor.execute('''
+            UPDATE proyectos 
+            SET estado = 'aprobado_produccion'
+            WHERE id = %s AND estado = 'en_desarrollo'
+        ''', (orden['proyecto_id'],))
+
         conn.commit()
-        return jsonify({'success': True, 'message': f'Orden de fabricación {orden["codigo_orden"]} iniciada'})
+        return jsonify({'success': True, 'message': f'Orden de fabricación {orden["codigo_orden"]} iniciada. Proyecto movido a En Proceso.'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
