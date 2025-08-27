@@ -257,6 +257,14 @@
                 </button>
                 {% endif %}
 
+                {% if orden[4] in ['aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'] and session.user_role in ['admin', 'general'] %}
+                {% if ordenes_fabricacion|length == 0 %}
+                <button class="btn btn-outline-secondary btn-sm w-100 mb-2" onclick="revertirAPendiente({{ orden[0] }})">
+                    <i class="fas fa-undo"></i> Revertir a Pendiente
+                </button>
+                {% endif %}
+                {% endif %}
+
                 <a href="{{ url_for('ordenes_fabricacion') }}" class="btn btn-outline-info btn-sm w-100 mb-2">
                     <i class="fas fa-cogs"></i> Ver Órdenes de Fabricación
                 </a>
@@ -488,6 +496,31 @@ function crearOrdenesFabricacion() {
 function generarReporte() {
     // Implementar función de reporte
     alert('Función de reporte pendiente de implementar');
+}
+
+function revertirAPendiente(ordenId) {
+    if (confirm('¿Estás seguro de que deseas revertir esta orden a estado "Pendiente"?\n\nEsto solo es posible si no tiene ninguna orden de fabricación asociada.')) {
+        fetch(`/revertir_orden_a_pendiente/${ordenId}`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
 }
 </script>
 {% endblock %}

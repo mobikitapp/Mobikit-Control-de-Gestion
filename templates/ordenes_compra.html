@@ -164,6 +164,11 @@
                                 <button class="btn btn-sm btn-outline-warning ms-2" onclick="editarOrdenCompra({{ orden.id }})" title="Editar Orden">
                                     <i class="fas fa-edit"></i> Editar
                                 </button>
+                                {% if orden.ordenes_fabricacion|length == 0 %}
+                                <button class="btn btn-sm btn-outline-secondary ms-1" onclick="revertirAPendiente({{ orden.id }})" title="Revertir a Pendiente">
+                                    <i class="fas fa-undo"></i> Revertir
+                                </button>
+                                {% endif %}
                                 {% endif %}
                                 <!-- El avance de estado se maneja automáticamente desde órdenes de fabricación -->
                             </div>
