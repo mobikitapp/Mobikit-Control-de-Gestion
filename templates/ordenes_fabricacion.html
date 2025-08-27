@@ -100,16 +100,15 @@
                                 <td>
                                     {% if orden.fecha_entrega_estimada %}
                                         {% set fecha_entrega = orden.fecha_entrega_estimada %}
-                                        {% set hoy = moment().format('YYYY-MM-DD') %}
-                                        {% set dias = (fecha_entrega|string|replace('-', '')|int - hoy|replace('-', '')|int) %}
-                                        {% if dias < 0 %}
-                                            <span class="badge bg-danger">{{ dias * -1 }} días atraso</span>
-                                        {% elif dias == 0 %}
+                                        {% set dias_restantes = (fecha_entrega - fecha_hoy).days %}
+                                        {% if dias_restantes < 0 %}
+                                            <span class="badge bg-danger">{{ dias_restantes * -1 }} días atraso</span>
+                                        {% elif dias_restantes == 0 %}
                                             <span class="badge bg-warning">Hoy</span>
-                                        {% elif dias <= 3 %}
-                                            <span class="badge bg-warning">{{ dias }} días</span>
+                                        {% elif dias_restantes <= 3 %}
+                                            <span class="badge bg-warning">{{ dias_restantes }} días</span>
                                         {% else %}
-                                            <span class="badge bg-success">{{ dias }} días</span>
+                                            <span class="badge bg-success">{{ dias_restantes }} días</span>
                                         {% endif %}
                                     {% else %}
                                         <span class="text-muted">Sin fecha</span>
@@ -208,16 +207,15 @@
                                 <td>
                                     {% if orden.fecha_entrega_estimada %}
                                         {% set fecha_entrega = orden.fecha_entrega_estimada %}
-                                        {% set hoy = moment().format('YYYY-MM-DD') %}
-                                        {% set dias = (fecha_entrega|string|replace('-', '')|int - hoy|replace('-', '')|int) %}
-                                        {% if dias < 0 %}
-                                            <span class="badge bg-danger">{{ dias * -1 }} días atraso</span>
-                                        {% elif dias == 0 %}
+                                        {% set dias_restantes = (fecha_entrega - fecha_hoy).days %}
+                                        {% if dias_restantes < 0 %}
+                                            <span class="badge bg-danger">{{ dias_restantes * -1 }} días atraso</span>
+                                        {% elif dias_restantes == 0 %}
                                             <span class="badge bg-warning">Hoy</span>
-                                        {% elif dias <= 3 %}
-                                            <span class="badge bg-warning">{{ dias }} días</span>
+                                        {% elif dias_restantes <= 3 %}
+                                            <span class="badge bg-warning">{{ dias_restantes }} días</span>
                                         {% else %}
-                                            <span class="badge bg-success">{{ dias }} días</span>
+                                            <span class="badge bg-success">{{ dias_restantes }} días</span>
                                         {% endif %}
                                     {% else %}
                                         <span class="text-muted">Sin fecha</span>
