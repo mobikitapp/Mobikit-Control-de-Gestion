@@ -2409,7 +2409,7 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('ordenes_fabricacion', %s, 'START_PRODUCTION', %s, %s)
+            VALUES ('ordenes_fabricacion', %s, 'UPDATE', %s, %s)
         ''', (orden_fabricacion_id, session['user_id'],
               json.dumps({
                   'accion': 'iniciar_orden_fabricacion',
