@@ -122,7 +122,7 @@
                             <small>{{ mes.año }}</small>
                         </th>
                         {% endfor %}
-                        {% comment %} Agregado para mostrar capacidad {% endcomment %}
+                        {# Agregado para mostrar capacidad #}
                         {% for mes in meses %}
                         <th style="min-width: 80px;" class="text-center">
                             Capacidad {{ mes.nombre }}<br>
@@ -151,7 +151,7 @@
                             <!-- Los montos se calcularán con JavaScript -->
                         </td>
                         {% endfor %}
-                        {% comment %} Celdas para capacidad {% endcomment %}
+                        {# Celdas para capacidad #}
                         {% for mes in meses %}
                         <td class="text-center capacidad-mes-clientes" 
                             data-mes="{{ mes.numero }}" 
@@ -171,7 +171,7 @@
                             $0
                         </th>
                         {% endfor %}
-                        {% comment %} Totales de capacidad por mes {% endcomment %}
+                        {# Totales de capacidad por mes #}
                         {% for mes in meses %}
                         <th class="text-center total-capacidad-mes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
                             $0
