@@ -77,25 +77,25 @@
                     <div class="card mb-3 border-warning">
                         <div class="card-body">
                             <h6 class="card-title">
-                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden[0]) }}" class="text-decoration-none">
-                                    {{ orden[1] }}
+                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="text-decoration-none">
+                                    {{ orden.codigo }}
                                 </a>
                             </h6>
                             <p class="card-text small">
-                                <strong>Cliente:</strong> {{ orden[3] }}<br>
-                                <strong>Proyecto:</strong> {{ orden[2] }}<br>
-                                <strong>Fecha Entrega:</strong> {{ orden[4] if orden[4] else 'Sin fecha' }}
+                                <strong>Cliente:</strong> {{ orden.cliente_nombre }}<br>
+                                <strong>Proyecto:</strong> {{ orden.nombre }}<br>
+                                <strong>Fecha Entrega:</strong> {{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}
                             </p>
-                            {% if orden[5] %}
+                            {% if orden.descripcion %}
                             <p class="card-text">
-                                <small class="text-muted">{{ orden[5][:60] }}{% if orden[5]|length > 60 %}...{% endif %}</small>
+                                <small class="text-muted">{{ orden.descripcion[:60] }}{% if orden.descripcion|length > 60 %}...{% endif %}</small>
                             </p>
                             {% endif %}
                             <div class="d-flex justify-content-between align-items-center">
-                                <span class="badge bg-{% if orden[6] == 'alta' %}danger{% elif orden[6] == 'media' %}warning{% else %}secondary{% endif %}">
-                                            {{ orden[6]|title }}
+                                <span class="badge bg-{% if orden.prioridad == 'alta' %}danger{% elif orden.prioridad == 'media' %}warning{% else %}secondary{% endif %}">
+                                            {{ orden.prioridad|title }}
                                         </span>
-                                <button class="btn btn-sm btn-outline-primary" onclick="iniciarProceso({{ orden[0] }})">
+                                <button class="btn btn-sm btn-outline-primary" onclick="iniciarProceso({{ orden.id }})">
                                     <i class="fas fa-play"></i> Iniciar
                                 </button>
                             </div>
@@ -124,21 +124,21 @@
                     <div class="card mb-3 border-primary">
                         <div class="card-body">
                             <h6 class="card-title">
-                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden[0]) }}" class="text-decoration-none">
-                                    {{ orden[1] }}
+                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="text-decoration-none">
+                                    {{ orden.codigo }}
                                 </a>
                             </h6>
                             <p class="card-text small">
-                                <strong>Cliente:</strong> {{ orden[3] }}<br>
-                                <strong>Proyecto:</strong> {{ orden[2] }}<br>
-                                <strong>Fecha Entrega:</strong> {{ orden[4] if orden[4] else 'Sin fecha' }}
+                                <strong>Cliente:</strong> {{ orden.cliente_nombre }}<br>
+                                <strong>Proyecto:</strong> {{ orden.nombre }}<br>
+                                <strong>Fecha Entrega:</strong> {{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}
                             </p>
 
                             <!-- Órdenes de Fabricación Asociadas -->
-                            {% if orden[8] %}
+                            {% if orden.ordenes_fabricacion %}
                             <div class="mt-2">
                                 <h6 class="small"><i class="fas fa-cog"></i> Órdenes de Fabricación:</h6>
-                                {% for fab in orden[8] %}
+                                {% for fab in orden.ordenes_fabricacion %}
                                 <div class="border rounded p-2 mb-1 bg-light">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="small"><strong>{{ fab.codigo_pedido }}</strong></span>
@@ -161,10 +161,10 @@
                             {% endif %}
 
                             <div class="d-flex justify-content-between align-items-center mt-2">
-                                <span class="badge bg-{% if orden[6] == 'alta' %}danger{% elif orden[6] == 'media' %}warning{% else %}secondary{% endif %}">
-                                            {{ orden[6]|title }}
+                                <span class="badge bg-{% if orden.prioridad == 'alta' %}danger{% elif orden.prioridad == 'media' %}warning{% else %}secondary{% endif %}">
+                                            {{ orden.prioridad|title }}
                                         </span>
-                                <button class="btn btn-sm btn-outline-success" onclick="terminarOrden({{ orden[0] }})">
+                                <button class="btn btn-sm btn-outline-success" onclick="terminarOrden({{ orden.id }})">
                                     <i class="fas fa-check"></i> Terminar
                                 </button>
                             </div>
@@ -193,18 +193,18 @@
                     <div class="card mb-3 border-success">
                         <div class="card-body">
                             <h6 class="card-title">
-                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden[0]) }}" class="text-decoration-none">
-                                    {{ orden[1] }}
+                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="text-decoration-none">
+                                    {{ orden.codigo }}
                                 </a>
                             </h6>
                             <p class="card-text small">
-                                <strong>Cliente:</strong> {{ orden[3] }}<br>
-                                <strong>Proyecto:</strong> {{ orden[2] }}<br>
-                                <strong>Fecha Entrega:</strong> {{ orden[4] if orden[4] else 'Sin fecha' }}
+                                <strong>Cliente:</strong> {{ orden.cliente_nombre }}<br>
+                                <strong>Proyecto:</strong> {{ orden.nombre }}<br>
+                                <strong>Fecha Entrega:</strong> {{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}
                             </p>
-                            {% if orden[5] %}
+                            {% if orden.descripcion %}
                             <p class="card-text">
-                                <small class="text-muted">{{ orden[5][:60] }}{% if orden[5]|length > 60 %}...{% endif %}</small>
+                                <small class="text-muted">{{ orden.descripcion[:60] }}{% if orden.descripcion|length > 60 %}...{% endif %}</small>
                             </p>
                             {% endif %}
                             <div class="d-flex justify-content-between align-items-center">
