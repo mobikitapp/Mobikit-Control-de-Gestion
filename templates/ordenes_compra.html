@@ -110,6 +110,11 @@
                                         <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        {% if session.user_role in ['admin', 'general'] %}
+                                        <button class="btn btn-sm btn-outline-warning" onclick="editarOrdenCompra({{ orden.id }})" title="Editar Orden">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        {% endif %}
                                         {% if session.user_role in ['admin'] %}
                                         <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrdenCompra({{ orden.id }})" title="Eliminar Orden">
                                             <i class="fas fa-trash"></i>
@@ -153,6 +158,11 @@
                                 <span class="badge bg-{{ 'danger' if orden.prioridad == 'alta' else 'warning' if orden.prioridad == 'media' else 'info' }}">
                                     {{ orden.prioridad|title }}
                                 </span>
+                                {% if session.user_role in ['admin', 'general'] %}
+                                <button class="btn btn-sm btn-outline-warning ms-2" onclick="editarOrdenCompra({{ orden.id }})" title="Editar Orden">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                {% endif %}
                                 <button class="btn btn-sm btn-success ms-2" onclick="terminarOrden({{ orden.id }})">
                                     <i class="fas fa-check"></i> Terminar
                                 </button>
@@ -263,6 +273,9 @@
                                             <i class="fas fa-eye"></i> Ver
                                         </a>
                                         {% if session.user_role in ['admin', 'general'] %}
+                                        <button class="btn btn-sm btn-outline-warning" onclick="editarOrdenCompra({{ orden.id }})" title="Editar orden">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
                                         <button class="btn btn-sm btn-warning" onclick="archivarOrden({{ orden.id }})" title="Archivar orden">
                                             <i class="fas fa-archive"></i>
                                         </button>
@@ -473,8 +486,101 @@ function archivarOrden(ordenId) {
     }
 }
 
+function editarOrdenCompra(ordenId) {
+    // Buscar la información de la orden
+    const todasOrdenes = [
+        ...{{ ordenes_pendientes|tojson }},
+        ...{{ ordenes_proceso|tojson }},
+        ...{{ ordenes_terminadas|tojson }}
+    ];
+    const orden = todasOrdenes.find(o => o.id === ordenId);
+
+    if (orden) {
+        // Crear y mostrar modal de edición
+        const modalHtml = `
+            <div class="modal fade" id="editarOrdenModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Editar Orden de Compra</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form action="/editar_orden_compra" method="POST">
+                            <input type="hidden" name="proyecto_id" value="${orden.id}">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Código de Orden</label>
+                                    <input type="text" class="form-control" value="${orden.codigo}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Nombre del Proyecto *</label>
+                                    <input type="text" class="form-control" name="nombre" value="${orden.nombre}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Descripción</label>
+                                    <textarea class="form-control" name="descripcion" rows="3">${orden.descripcion || ''}</textarea>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Prioridad</label>
+                                            <select class="form-select" name="prioridad">
+                                                <option value="baja" ${orden.prioridad === 'baja' ? 'selected' : ''}>Baja</option>
+                                                <option value="media" ${orden.prioridad === 'media' ? 'selected' : ''}>Media</option>
+                                                <option value="alta" ${orden.prioridad === 'alta' ? 'selected' : ''}>Alta</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Fecha de Entrega</label>
+                                            <input type="date" class="form-control" name="fecha_entrega" value="${orden.fecha_entrega || ''}">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Monto Neto</label>
+                                    <input type="number" class="form-control" name="monto_neto" step="0.01" value="${orden.monto_neto || ''}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Observaciones</label>
+                                    <textarea class="form-control" name="observaciones" rows="3">${orden.observaciones || ''}</textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Guardar Cambios
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remover modal existente si existe
+        const existingModal = document.getElementById('editarOrdenModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Agregar modal al DOM
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('editarOrdenModal'));
+        modal.show();
+
+        // Limpiar modal cuando se cierre
+        document.getElementById('editarOrdenModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    }
+}
+
 function eliminarOrdenCompra(ordenId) {
-    if (confirm('¿Estás seguro de que deseas eliminar esta orden de compra?\n\nEsta acción eliminará:\n- El proyecto y todas sus tareas\n- Las órdenes de fabricación asociadas\n- Los pedidos de seguimiento\n- Todos los datos relacionados\n\nEsta acción NO se puede deshacer.')) {
+    if (confirm('¿Estás seguro de que deseas eliminar esta orden de compra?\n\nEsta acción eliminará:\n- El proyecto y todas sus tareas\n- Las órdenes de fabricación asociadas\n- Los despachos no entregados\n- Todos los datos relacionados\n\nNOTA: No se pueden eliminar proyectos con despachos completamente entregados.\n\nEsta acción NO se puede deshacer.')) {
         fetch(`/eliminar_proyecto/${ordenId}`, {
             method: 'POST',
             headers: { 

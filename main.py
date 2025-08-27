@@ -925,6 +925,61 @@ def editar_proyecto():
     return redirect(url_for('clientes'))
 
 
+@app.route('/editar_orden_compra', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def editar_orden_compra():
+    """Editar orden de compra existente"""
+    try:
+        proyecto_id = request.form['proyecto_id']
+        nombre = request.form['nombre']
+        descripcion = request.form.get('descripcion', '').strip() or None
+        prioridad = request.form.get('prioridad', 'media')
+        fecha_entrega = request.form.get('fecha_entrega') or None
+        monto_neto = request.form.get('monto_neto')
+        observaciones = request.form.get('observaciones', '').strip() or None
+
+        # Convertir monto a float si se proporciona
+        if monto_neto:
+            try:
+                monto_neto = float(monto_neto)
+            except ValueError:
+                monto_neto = None
+
+        conn = sqlite3.connect('mobikit.db')
+        cursor = conn.cursor()
+
+        # Actualizar orden de compra
+        cursor.execute('''
+            UPDATE proyectos SET
+                nombre = ?, descripcion = ?, prioridad = ?,
+                fecha_entrega = ?, monto_neto = ?, observaciones = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (nombre, descripcion, prioridad, fecha_entrega, monto_neto, observaciones, proyecto_id))
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('proyectos', ?, 'UPDATE', ?, ?)
+        ''', (proyecto_id, session['user_id'], 
+              json.dumps({
+                  'accion': 'editar_orden_compra',
+                  'nombre': nombre,
+                  'editado_por': session['user_name']
+              })))
+
+        conn.commit()
+        conn.close()
+
+        flash('Orden de compra actualizada exitosamente', 'success')
+
+    except Exception as e:
+        flash(f'Error al actualizar orden de compra: {str(e)}', 'error')
+
+    return redirect(url_for('ordenes_compra'))
+
+
 @app.route('/nueva_orden_compra', methods=['POST'])
 @login_required
 @role_required(['admin', 'general', 'diseñador'])
@@ -1056,33 +1111,14 @@ def eliminar_proyecto(proyecto_id):
 
         codigo_proyecto, nombre_proyecto, estado_proyecto = proyecto
 
-        # Si el proyecto está terminado, solo archivar en lugar de eliminar
-        if estado_proyecto in ['entregado', 'completado']:
-            cursor.execute('UPDATE proyectos SET archivado = TRUE WHERE id = ?', (proyecto_id,))
+        # Verificar si tiene despachos entregados (solo estos no se pueden eliminar)
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE proyecto_id = ? AND estado = "entregado"', (proyecto_id,))
+        despachos_entregados = cursor.fetchone()[0]
 
-            # Registrar en auditoría
-            cursor.execute('''
-                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-                VALUES ('proyectos', ?, 'ARCHIVE', ?, ?)
-            ''', (proyecto_id, session['user_id'], 
-                  json.dumps({
-                      'accion': 'archivar_proyecto',
-                      'codigo': codigo_proyecto,
-                      'nombre': nombre_proyecto,
-                      'archivado_por': session['user_name']
-                  })))
-
-            conn.commit()
-            return jsonify({'success': True, 'message': f'Proyecto {codigo_proyecto} archivado exitosamente'})
-
-        # Verificar si tiene despachos en estados avanzados (estos no se pueden eliminar)
-        cursor.execute('SELECT COUNT(*) FROM despachos WHERE proyecto_id = ? AND estado IN ("en_transito", "entregado")', (proyecto_id,))
-        despachos_criticos = cursor.fetchone()[0]
-
-        if despachos_criticos > 0:
+        if despachos_entregados > 0:
             return jsonify({
                 'success': False, 
-                'message': f'No se puede eliminar el proyecto porque tiene {despachos_criticos} despacho(s) en estado crítico (en tránsito o entregado)'
+                'message': f'No se puede eliminar el proyecto porque tiene {despachos_entregados} despacho(s) entregado(s). Solo se pueden eliminar proyectos sin despachos completamente entregados.'
             })
 
         # Eliminar todas las dependencias del proyecto en orden
