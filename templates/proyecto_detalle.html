@@ -81,6 +81,15 @@
                         </div>
                     </div>
                     
+                    {% if proyecto.monto_provision_presupuestada and proyecto.monto_provision_presupuestada != 0 %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <strong>Provisión Presupuestada:</strong>
+                            ${{ "{:,.0f}".format(proyecto.monto_provision_presupuestada) }}
+                            <br><small class="text-muted">Base para seguimiento de órdenes de compra</small>
+                        </div>
+                    </div>
+                    
                     {% if proyecto.monto_neto_provision and proyecto.monto_neto_instalacion %}
                     <div class="mt-2">
                         <strong>Total Provisión + Instalación:</strong>
@@ -193,6 +202,11 @@
                 {% endif %}
 
                 <div class="d-grid gap-2 mt-3">
+                    {% if proyecto.monto_provision_presupuestada %}
+                    <a href="{{ url_for('proyecto_ordenes_compra', proyecto_id=proyecto.id) }}" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-file-invoice-dollar"></i> Ver Órdenes de Compra
+                    </a>
+                    {% endif %}
                     <a href="{{ url_for('clientes') }}" class="btn btn-outline-secondary btn-sm">
                         <i class="fas fa-arrow-left"></i> Volver a Proyectos
                     </a>

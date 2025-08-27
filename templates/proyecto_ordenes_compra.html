@@ -1,0 +1,384 @@
+
+{% extends "base.html" %}
+
+{% block title %}Órdenes de Compra - {{ proyecto.codigo }} - Mobikit{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('clientes') }}">Proyectos</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}">{{ proyecto.codigo }}</a></li>
+        <li class="breadcrumb-item active">Órdenes de Compra</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-file-invoice-dollar"></i> Órdenes de Compra - {{ proyecto.codigo }}</h1>
+    <div>
+        {% if session.user_role in ['admin', 'general', 'vendedor'] %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaOrdenModal">
+            <i class="fas fa-plus"></i> Nueva Orden de Compra
+        </button>
+        {% endif %}
+        <a href="{{ url_for('proyecto_detalle', proyecto_id=proyecto.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver al Proyecto
+        </a>
+    </div>
+</div>
+
+<!-- Resumen del Progreso -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Presupuesto Total</h5>
+                <h3 class="text-primary">${{ "{:,.0f}".format(presupuesto_provision) if presupuesto_provision else '0' }}</h3>
+                <small class="text-muted">Provisión Presupuestada</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Total Órdenes</h5>
+                <h3 class="text-success">${{ "{:,.0f}".format(total_ordenes) }}</h3>
+                <small class="text-muted">Suma de Órdenes de Compra</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Progreso</h5>
+                <h3 class="text-{% if porcentaje_progreso >= 100 %}success{% elif porcentaje_progreso >= 75 %}warning{% else %}danger{% endif %}">
+                    {{ "{:.1f}".format(porcentaje_progreso) }}%
+                </h3>
+                <div class="progress">
+                    <div class="progress-bar bg-{% if porcentaje_progreso >= 100 %}success{% elif porcentaje_progreso >= 75 %}warning{% else %}danger{% endif %}" 
+                         role="progressbar" style="width: {{ porcentaje_progreso }}%" 
+                         aria-valuenow="{{ porcentaje_progreso }}" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Información del Proyecto -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-project-diagram"></i> Información del Proyecto</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <strong>Proyecto:</strong> {{ proyecto.nombre }}<br>
+                <strong>Cliente:</strong> {{ proyecto.cliente_nombre }}<br>
+                <strong>Estado:</strong> 
+                <span class="badge bg-{{ 'success' if proyecto.estado_proyecto == 'adjudicado' else 'info' if proyecto.estado_proyecto == 'presupuestado' else 'warning' }}">
+                    {{ proyecto.estado_proyecto|replace('_', ' ')|title }}
+                </span>
+            </div>
+            <div class="col-md-6">
+                <strong>Fecha Estimada Inicio:</strong> {{ proyecto.fecha_estimada_inicio.strftime('%d/%m/%Y') if proyecto.fecha_estimada_inicio else 'Sin fecha' }}<br>
+                <strong>Fecha Entrega:</strong> {{ proyecto.fecha_entrega.strftime('%d/%m/%Y') if proyecto.fecha_entrega else 'Sin fecha' }}<br>
+                <strong>Vendedor:</strong> {{ proyecto.diseñador if proyecto.diseñador else 'Sin asignar' }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de Órdenes de Compra -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-list"></i> Órdenes de Compra ({{ ordenes_compra|length }})</h5>
+    </div>
+    <div class="card-body">
+        {% if ordenes_compra %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>N° Orden</th>
+                        <th>Tipo</th>
+                        <th>Descripción</th>
+                        <th>Monto Provisión</th>
+                        <th>Proveedor</th>
+                        <th>Fecha Orden</th>
+                        <th>Fecha Entrega Est.</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for orden in ordenes_compra %}
+                    <tr>
+                        <td><strong>{{ orden.numero_orden }}</strong></td>
+                        <td>
+                            <span class="badge bg-{{ 'primary' if orden.tipo == 'orden_compra' else 'info' }}">
+                                {{ 'Orden de Compra' if orden.tipo == 'orden_compra' else 'Contrato' }}
+                            </span>
+                        </td>
+                        <td>{{ orden.descripcion if orden.descripcion else '-' }}</td>
+                        <td class="text-end">
+                            <strong>${{ "{:,.0f}".format(orden.monto_provision) }}</strong>
+                        </td>
+                        <td>{{ orden.proveedor if orden.proveedor else '-' }}</td>
+                        <td>{{ orden.fecha_orden.strftime('%d/%m/%Y') if orden.fecha_orden else '-' }}</td>
+                        <td>{{ orden.fecha_entrega_estimada.strftime('%d/%m/%Y') if orden.fecha_entrega_estimada else '-' }}</td>
+                        <td>
+                            <span class="badge bg-{% if orden.estado == 'completada' %}success{% elif orden.estado == 'en_proceso' %}warning{% elif orden.estado == 'aprobada' %}info{% elif orden.estado == 'cancelada' %}danger{% else %}secondary{% endif %}">
+                                {{ orden.estado|replace('_', ' ')|title }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                {% if session.user_role in ['admin', 'general', 'vendedor'] %}
+                                <button class="btn btn-sm btn-outline-warning" onclick="editarOrden({{ orden.id }})" title="Editar orden">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% endif %}
+                                {% if session.user_role in ['admin', 'general'] %}
+                                <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrden({{ orden.id }})" title="Eliminar orden">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-info">
+                        <th colspan="3">Total</th>
+                        <th class="text-end"><strong>${{ "{:,.0f}".format(total_ordenes) }}</strong></th>
+                        <th colspan="5"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No hay órdenes de compra registradas para este proyecto</p>
+            {% if session.user_role in ['admin', 'general', 'vendedor'] %}
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaOrdenModal">
+                <i class="fas fa-plus"></i> Crear Primera Orden de Compra
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Nueva Orden de Compra -->
+<div class="modal fade" id="nuevaOrdenModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nueva Orden de Compra</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('nueva_orden_compra_proyecto', proyecto_id=proyecto.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="numero_orden" class="form-label">N° de Orden *</label>
+                                <input type="text" class="form-control" id="numero_orden" name="numero_orden" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tipo" class="form-label">Tipo *</label>
+                                <select class="form-select" id="tipo" name="tipo" required>
+                                    <option value="orden_compra">Orden de Compra</option>
+                                    <option value="contrato">Contrato</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="2"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="monto_provision" class="form-label">Monto Provisión *</label>
+                                <input type="number" class="form-control" id="monto_provision" name="monto_provision" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="proveedor" class="form-label">Proveedor</label>
+                                <input type="text" class="form-control" id="proveedor" name="proveedor">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fecha_orden" class="form-label">Fecha de Orden</label>
+                                <input type="date" class="form-control" id="fecha_orden" name="fecha_orden">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fecha_entrega_estimada" class="form-label">Fecha Entrega Estimada</label>
+                                <input type="date" class="form-control" id="fecha_entrega_estimada" name="fecha_entrega_estimada">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Crear Orden de Compra
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editarOrden(ordenId) {
+    // Buscar la orden en los datos
+    const ordenes = {{ ordenes_compra|tojson }};
+    const orden = ordenes.find(o => o.id === ordenId);
+
+    if (orden) {
+        const modalHtml = `
+            <div class="modal fade" id="editarOrdenModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Editar Orden de Compra</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form action="/orden_compra/${ordenId}/editar" method="POST">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">N° de Orden</label>
+                                    <input type="text" class="form-control" value="${orden.numero_orden}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Descripción</label>
+                                    <textarea class="form-control" name="descripcion" rows="2">${orden.descripcion || ''}</textarea>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Monto Provisión *</label>
+                                            <input type="number" class="form-control" name="monto_provision" step="0.01" value="${orden.monto_provision}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Proveedor</label>
+                                            <input type="text" class="form-control" name="proveedor" value="${orden.proveedor || ''}">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Fecha de Orden</label>
+                                            <input type="date" class="form-control" name="fecha_orden" value="${orden.fecha_orden || ''}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Fecha Entrega Est.</label>
+                                            <input type="date" class="form-control" name="fecha_entrega_estimada" value="${orden.fecha_entrega_estimada || ''}">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Estado</label>
+                                    <select class="form-select" name="estado">
+                                        <option value="pendiente" ${orden.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+                                        <option value="aprobada" ${orden.estado === 'aprobada' ? 'selected' : ''}>Aprobada</option>
+                                        <option value="en_proceso" ${orden.estado === 'en_proceso' ? 'selected' : ''}>En Proceso</option>
+                                        <option value="completada" ${orden.estado === 'completada' ? 'selected' : ''}>Completada</option>
+                                        <option value="cancelada" ${orden.estado === 'cancelada' ? 'selected' : ''}>Cancelada</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Observaciones</label>
+                                    <textarea class="form-control" name="observaciones" rows="3">${orden.observaciones || ''}</textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Guardar Cambios
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remover modal existente
+        const existingModal = document.getElementById('editarOrdenModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Agregar modal al DOM
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('editarOrdenModal'));
+        modal.show();
+
+        // Limpiar modal cuando se cierre
+        document.getElementById('editarOrdenModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    }
+}
+
+function eliminarOrden(ordenId) {
+    if (confirm('¿Estás seguro de que deseas eliminar esta orden de compra?\n\nEsta acción no se puede deshacer.')) {
+        fetch(`/orden_compra/${ordenId}/eliminar`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
+    }
+}
+
+// Establecer fecha actual por defecto
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('fecha_orden').value = today;
+});
+</script>
+{% endblock %}

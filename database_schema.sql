@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS proyectos (
     monto_neto DECIMAL(12,2),
     monto_neto_provision DECIMAL(12,2),
     monto_neto_instalacion DECIMAL(12,2),
+    monto_provision_presupuestada DECIMAL(12,2),
     margen_provision DECIMAL(5,2),
     margen_instalacion DECIMAL(5,2),
     costo_real DECIMAL(12,2),
@@ -114,6 +115,25 @@ CREATE TABLE IF NOT EXISTS proyectos (
     archivado BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Ordenes de compra/contratos table
+CREATE TABLE IF NOT EXISTS ordenes_compra (
+    id SERIAL PRIMARY KEY,
+    proyecto_id INTEGER NOT NULL REFERENCES proyectos(id) ON DELETE CASCADE,
+    numero_orden VARCHAR(100) NOT NULL,
+    tipo VARCHAR(20) DEFAULT 'orden_compra' CHECK (tipo IN ('orden_compra', 'contrato')),
+    descripcion TEXT,
+    monto_provision DECIMAL(12,2) NOT NULL,
+    fecha_orden DATE,
+    fecha_entrega_estimada DATE,
+    estado VARCHAR(20) DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'aprobada', 'en_proceso', 'completada', 'cancelada')),
+    proveedor VARCHAR(200),
+    observaciones TEXT,
+    archivo_orden TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(proyecto_id, numero_orden)
 );
 
 -- Proyecto categorias table

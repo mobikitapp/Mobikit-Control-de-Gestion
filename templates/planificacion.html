@@ -104,6 +104,22 @@
                         </th>
                         {% endfor %}
                     </tr>
+                    <tr class="table-warning">
+                        <th colspan="4" class="text-end">Objetivo Mensual:</th>
+                        {% for mes in meses %}
+                        <th class="text-center">
+                            ${{ "{:,.0f}".format(objetivo_mensual) }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                    <tr class="table-info">
+                        <th colspan="4" class="text-end">% Capacidad Utilizada:</th>
+                        {% for mes in meses %}
+                        <th class="text-center porcentaje-capacidad-mes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
+                            0%
+                        </th>
+                        {% endfor %}
+                    </tr>
                 </tfoot>
             </table>
         </div>
@@ -119,13 +135,6 @@
                         {% for mes in meses %}
                         <th style="min-width: 80px;" class="text-center">
                             {{ mes.nombre }}<br>
-                            <small>{{ mes.año }}</small>
-                        </th>
-                        {% endfor %}
-                        {% comment %} Agregado para mostrar capacidad {% endcomment %}
-                        {% for mes in meses %}
-                        <th style="min-width: 80px;" class="text-center">
-                            Capacidad {{ mes.nombre }}<br>
                             <small>{{ mes.año }}</small>
                         </th>
                         {% endfor %}
@@ -151,15 +160,6 @@
                             <!-- Los montos se calcularán con JavaScript -->
                         </td>
                         {% endfor %}
-                        {% comment %} Celdas para capacidad {% endcomment %}
-                        {% for mes in meses %}
-                        <td class="text-center capacidad-mes-clientes" 
-                            data-mes="{{ mes.numero }}" 
-                            data-año="{{ mes.año }}"
-                            data-cliente-id="{{ cliente.id }}">
-                            <!-- La capacidad se calculará con JavaScript -->
-                        </td>
-                        {% endfor %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -171,10 +171,20 @@
                             $0
                         </th>
                         {% endfor %}
-                        {% comment %} Totales de capacidad por mes {% endcomment %}
+                    </tr>
+                    <tr class="table-warning">
+                        <th colspan="3" class="text-end">Objetivo Mensual:</th>
                         {% for mes in meses %}
-                        <th class="text-center total-capacidad-mes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
-                            $0
+                        <th class="text-center">
+                            ${{ "{:,.0f}".format(objetivo_mensual) }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                    <tr class="table-info">
+                        <th colspan="3" class="text-end">% Capacidad Utilizada:</th>
+                        {% for mes in meses %}
+                        <th class="text-center porcentaje-capacidad-mes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
+                            0%
                         </th>
                         {% endfor %}
                     </tr>
@@ -281,9 +291,11 @@ document.addEventListener('DOMContentLoaded', function() {
     filtros.forEach(filtro => {
         filtro.addEventListener('change', function() {
             filtrarProyectos(this.value);
-            calcularTotales();
+            // Recalcular según la vista activa
             if (document.getElementById('vista_clientes').checked) {
                 calcularTotalesClientes();
+            } else {
+                calcularTotales();
             }
         });
     });
@@ -296,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Calcular totales iniciales
+    // Calcular totales iniciales para ambas vistas
     calcularTotales();
     calcularTotalesClientes();
 });
@@ -387,15 +399,15 @@ function calcularTotalesClientes() {
     // Resetear totales de clientes
     const clientesRows = document.querySelectorAll('.cliente-row');
     const mesesClientes = document.querySelectorAll('.total-mes-clientes');
-    const totalCapacidadMesElements = document.querySelectorAll('.total-capacidad-mes');
+    const porcentajeCapacidadElements = document.querySelectorAll('.porcentaje-capacidad-mes');
 
     // Resetear totales por mes
     mesesClientes.forEach(mes => {
         mes.textContent = '$0';
         mes.dataset.total = '0';
     });
-    totalCapacidadMesElements.forEach(mes => {
-        mes.textContent = '$0';
+    porcentajeCapacidadElements.forEach(mes => {
+        mes.textContent = '0%';
         mes.dataset.total = '0';
     });
 
@@ -434,10 +446,8 @@ function calcularTotalesClientes() {
 
         // Calcular totales por mes para este cliente
         const totalesPorMes = {};
-        const capacidadesPorMes = {};
 
-        // Obtener capacidad para cálculos
-        const capacidadMesesClientes = document.querySelectorAll('.capacidad-mes-clientes');
+        
 
         proyectosDelCliente.forEach(proyectoRow => {
             // Obtener monto de provisión del proyecto
@@ -474,13 +484,7 @@ function calcularTotalesClientes() {
                                 totalesPorMes[clave] = (totalesPorMes[clave] || 0) + montoProrateado;
                                 totalCliente += montoProrateado;
 
-                                // Lógica de capacidad: Asumimos que la capacidad es fija por mes o se obtiene de otro lugar
-                                // Por ahora, usaremos un valor de ejemplo para la capacidad.
-                                // En una implementación real, esto vendría de la configuración o tabla de capacidad.
-                                const capacidadMesActual = 1000000; // Ejemplo de capacidad para el mes
-                                if (!capacidadesPorMes[clave]) {
-                                    capacidadesPorMes[clave] = capacidadMesActual;
-                                }
+                                
                             }
                         }
                     });
@@ -517,47 +521,6 @@ function calcularTotalesClientes() {
             }
         });
 
-        // Aplicar capacidad a las celdas de capacidad del cliente y calcular porcentaje
-        celdasCapacidadCliente.forEach(celda => {
-            const mes = celda.dataset.mes;
-            const año = celda.dataset.año;
-            const clave = `${mes}-${año}`;
-            const montoMes = totalesPorMes[clave] || 0;
-            const capacidadMes = capacidadesPorMes[clave] || 0;
-
-            if (capacidadMes > 0) {
-                const porcentajeCapacidad = (montoMes / capacidadMes) * 100;
-                celda.innerHTML = `
-                    <div class="planificacion-monto" 
-                         style="background-color: #17a2b820; 
-                                border-left: 4px solid #17a2b8;
-                                font-size: 0.7em;">
-                        ${porcentajeCapacidad.toFixed(1)}%
-                    </div>
-                `;
-                celda.dataset.capacidadCliente = capacidadMes.toString();
-
-                // Agregar al total de capacidad del mes
-                const totalCapacidadElement = document.querySelector(`.total-capacidad-mes[data-mes="${mes}"][data-año="${año}"]`);
-                if (totalCapacidadElement) {
-                    const totalActualCapacidad = parseFloat(totalCapacidadElement.dataset.total || '0');
-                    const nuevoTotalCapacidad = totalActualCapacidad + capacidadMes;
-                    totalCapacidadElement.dataset.total = nuevoTotalCapacidad.toString();
-                    totalCapacidadElement.textContent = '$' + Math.round(nuevoTotalCapacidad).toLocaleString('es-CL'); // Mostrar capacidad como monto
-                }
-            } else if (montoMes > 0) {
-                // Si hay monto pero no capacidad definida, mostrar 0% o un indicador
-                 celda.innerHTML = `
-                    <div class="planificacion-monto" 
-                         style="background-color: #ffc10720; 
-                                border-left: 4px solid #ffc107;
-                                font-size: 0.7em;">
-                        N/A%
-                    </div>
-                `;
-            }
-        });
-
 
         // Actualizar contadores del cliente
         const countElement = document.getElementById(`cliente-${clienteId}-count`);
@@ -565,6 +528,33 @@ function calcularTotalesClientes() {
 
         if (countElement) countElement.textContent = contadorProyectos;
         if (totalElement) totalElement.textContent = '$' + Math.round(totalCliente).toLocaleString('es-CL');
+    });
+
+    // Calcular porcentajes de capacidad utilizada por mes para vista por clientes
+    const objetivoMensual = {{ objetivo_mensual }};
+    mesesClientes.forEach(mesElement => {
+        const mes = mesElement.dataset.mes;
+        const año = mesElement.dataset.año;
+        const totalMes = parseFloat(mesElement.dataset.total || '0');
+        
+        // Buscar el elemento de porcentaje correspondiente en la vista por clientes
+        const porcentajeElement = document.querySelector(`#vista-clientes-tabla .porcentaje-capacidad-mes[data-mes="${mes}"][data-año="${año}"]`);
+        if (porcentajeElement && objetivoMensual > 0) {
+            const porcentaje = (totalMes / objetivoMensual) * 100;
+            porcentajeElement.textContent = porcentaje.toFixed(1) + '%';
+            
+            // Colorear según el porcentaje
+            if (porcentaje >= 100) {
+                porcentajeElement.style.color = '#28a745'; // Verde para 100% o más
+                porcentajeElement.style.fontWeight = 'bold';
+            } else if (porcentaje >= 75) {
+                porcentajeElement.style.color = '#ffc107'; // Amarillo para 75-99%
+                porcentajeElement.style.fontWeight = 'bold';
+            } else {
+                porcentajeElement.style.color = '#dc3545'; // Rojo para menos de 75%
+                porcentajeElement.style.fontWeight = 'bold';
+            }
+        }
     });
 }
 
@@ -617,6 +607,43 @@ function calcularTotales() {
     document.getElementById('total-adjudicados').textContent = '$' + totalAdjudicados.toLocaleString('es-CL', {maximumFractionDigits: 0});
     document.getElementById('total-presupuestados').textContent = '$' + totalPresupuestados.toLocaleString('es-CL', {maximumFractionDigits: 0});
     document.getElementById('total-general').textContent = '$' + (totalAdjudicados + totalPresupuestados).toLocaleString('es-CL', {maximumFractionDigits: 0});
+    
+    // Calcular porcentajes de capacidad para vista por proyectos
+    const objetivoMensual = {{ objetivo_mensual }};
+    const mesesProyectos = document.querySelectorAll('.total-mes-proyectos');
+    
+    // Resetear todos los porcentajes primero
+    const todosLosPorcentajes = document.querySelectorAll('.porcentaje-capacidad-mes');
+    todosLosPorcentajes.forEach(elem => {
+        elem.textContent = '0%';
+        elem.style.color = '#dc3545';
+        elem.style.fontWeight = 'bold';
+    });
+    
+    mesesProyectos.forEach(mesElement => {
+        const mes = mesElement.dataset.mes;
+        const año = mesElement.dataset.año;
+        const totalMes = parseFloat(mesElement.dataset.total || '0');
+        
+        // Buscar el elemento de porcentaje correspondiente en la vista por proyectos
+        const porcentajeElement = document.querySelector(`#vista-proyectos-tabla .porcentaje-capacidad-mes[data-mes="${mes}"][data-año="${año}"]`);
+        if (porcentajeElement && objetivoMensual > 0) {
+            const porcentaje = (totalMes / objetivoMensual) * 100;
+            porcentajeElement.textContent = porcentaje.toFixed(1) + '%';
+            
+            // Colorear según el porcentaje
+            if (porcentaje >= 100) {
+                porcentajeElement.style.color = '#28a745'; // Verde para 100% o más
+                porcentajeElement.style.fontWeight = 'bold';
+            } else if (porcentaje >= 75) {
+                porcentajeElement.style.color = '#ffc107'; // Amarillo para 75-99%
+                porcentajeElement.style.fontWeight = 'bold';
+            } else {
+                porcentajeElement.style.color = '#dc3545'; // Rojo para menos de 75%
+                porcentajeElement.style.fontWeight = 'bold';
+            }
+        }
+    });
 }
 </script>
 {% endblock %}

@@ -136,6 +136,41 @@ def init_db():
     except Exception as e:
         print(f"Error adding 'margen_instalacion' column: {e}")
 
+    # Agregar columna de provisión presupuestada
+    try:
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'proyectos' AND column_name = 'monto_provision_presupuestada'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE proyectos ADD COLUMN monto_provision_presupuestada DECIMAL(12,2)")
+    except Exception as e:
+        print(f"Error adding 'monto_provision_presupuestada' column: {e}")
+
+    # Crear tabla de órdenes de compra si no existe
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ordenes_compra (
+                id SERIAL PRIMARY KEY,
+                proyecto_id INTEGER NOT NULL REFERENCES proyectos(id) ON DELETE CASCADE,
+                numero_orden VARCHAR(100) NOT NULL,
+                tipo VARCHAR(20) DEFAULT 'orden_compra' CHECK (tipo IN ('orden_compra', 'contrato')),
+                descripcion TEXT,
+                monto_provision DECIMAL(12,2) NOT NULL,
+                fecha_orden DATE,
+                fecha_entrega_estimada DATE,
+                estado VARCHAR(20) DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'aprobada', 'en_proceso', 'completada', 'cancelada')),
+                proveedor VARCHAR(200),
+                observaciones TEXT,
+                archivo_orden TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(proyecto_id, numero_orden)
+            )
+        """)
+    except Exception as e:
+        print(f"Error creating 'ordenes_compra' table: {e}")
+
 
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
@@ -510,6 +545,24 @@ def clientes():
             proyecto_dict['estado_proyecto'] = proyecto_dict.get('estado_proyecto') or 'pendiente_presupuesto'
             proyecto_dict['prioridad'] = proyecto_dict.get('prioridad') or 'media'
             proyecto_dict['archivado'] = proyecto_dict.get('archivado') or False
+
+            # Calcular progreso de órdenes de compra si tiene provisión presupuestada
+            if proyecto_dict.get('monto_provision_presupuestada'):
+                cursor.execute('''
+                    SELECT COALESCE(SUM(monto_provision), 0) as total_ordenes
+                    FROM ordenes_compra
+                    WHERE proyecto_id = %s
+                ''', (proyecto_dict['id'],))
+                total_ordenes = cursor.fetchone()['total_ordenes']
+                
+                presupuesto = float(proyecto_dict['monto_provision_presupuestada'])
+                progreso_ordenes = (float(total_ordenes) / presupuesto * 100) if presupuesto > 0 else 0
+                
+                proyecto_dict['total_ordenes'] = float(total_ordenes)
+                proyecto_dict['progreso_ordenes'] = progreso_ordenes
+            else:
+                proyecto_dict['total_ordenes'] = 0
+                proyecto_dict['progreso_ordenes'] = 0
 
             cliente_info['proyectos'].append(proyecto_dict)
 
@@ -910,6 +963,7 @@ def nuevo_proyecto():
         # Montos según el estado del proyecto
         monto_neto_provision = None
         monto_neto_instalacion = None
+        monto_provision_presupuestada = None
         margen_provision = None
         margen_instalacion = None
 
@@ -925,6 +979,13 @@ def nuevo_proyecto():
             if monto_instalacion:
                 try:
                     monto_neto_instalacion = float(monto_instalacion)
+                except ValueError:
+                    pass
+
+            monto_presupuestado = request.form.get('monto_provision_presupuestada')
+            if monto_presupuestado:
+                try:
+                    monto_provision_presupuestada = float(monto_presupuestado)
                 except ValueError:
                     pass
 
@@ -968,13 +1029,15 @@ def nuevo_proyecto():
         cursor.execute('''
             INSERT INTO proyectos (codigo, nombre, cliente_id, descripcion, estado_proyecto, estado,
                                    fecha_estimada_inicio, fecha_inicio, fecha_entrega, diseñador_id, 
-                                   monto_neto_provision, monto_neto_instalacion, margen_provision, 
-                                   margen_instalacion, observaciones)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                   monto_neto_provision, monto_neto_instalacion, monto_provision_presupuestada,
+                                   margen_provision, margen_instalacion, observaciones)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'proyecto_simple',
               fecha_estimada_inicio, request.form.get('fecha_inicio') or None, 
               request.form.get('fecha_entrega') or None, vendedor_id, monto_neto_provision,
-              monto_neto_instalacion, margen_provision, margen_instalacion, observaciones))
+              monto_neto_instalacion, monto_provision_presupuestada, margen_provision, 
+              margen_instalacion, observaciones))
 
         proyecto_id = cursor.lastrowid
 
@@ -1045,6 +1108,13 @@ def editar_proyecto():
             except ValueError:
                 pass
 
+        monto_provision_presupuestada = None
+        if request.form.get('monto_provision_presupuestada'):
+            try:
+                monto_provision_presupuestada = float(request.form['monto_provision_presupuestada'])
+            except ValueError:
+                pass
+
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
@@ -1055,13 +1125,13 @@ def editar_proyecto():
                 prioridad = %s, diseñador_id = %s, fecha_entrega = %s,
                 fecha_estimada_inicio = %s, monto_neto = %s,
                 monto_neto_provision = %s, monto_neto_instalacion = %s,
-                margen_provision = %s, margen_instalacion = %s,
-                observaciones = %s, updated_at = CURRENT_TIMESTAMP
+                monto_provision_presupuestada = %s, margen_provision = %s, 
+                margen_instalacion = %s, observaciones = %s, updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
         ''', (nombre, descripcion, estado, estado_proyecto, prioridad, diseñador_id,
               fecha_entrega, fecha_estimada_inicio, monto_neto, monto_neto_provision,
-              monto_neto_instalacion, margen_provision, margen_instalacion,
-              observaciones, proyecto_id))
+              monto_neto_instalacion, monto_provision_presupuestada, margen_provision, 
+              margen_instalacion, observaciones, proyecto_id))
 
         conn.commit()
         conn.close()
@@ -3872,6 +3942,173 @@ def actualizar_configuracion():
         flash(f'Error al actualizar configuración: {str(e)}', 'error')
 
     return redirect(url_for('configuraciones'))
+
+
+@app.route('/proyecto/<int:proyecto_id>/ordenes_compra')
+@login_required
+def proyecto_ordenes_compra(proyecto_id):
+    """Ver órdenes de compra de un proyecto específico"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    # Obtener datos del proyecto
+    cursor.execute('''
+        SELECT p.*, c.nombre as cliente_nombre
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE p.id = %s
+    ''', (proyecto_id,))
+    proyecto = cursor.fetchone()
+
+    if not proyecto:
+        flash('Proyecto no encontrado', 'error')
+        return redirect(url_for('clientes'))
+
+    # Obtener órdenes de compra del proyecto
+    cursor.execute('''
+        SELECT * FROM ordenes_compra
+        WHERE proyecto_id = %s
+        ORDER BY fecha_orden DESC, created_at DESC
+    ''', (proyecto_id,))
+    ordenes_compra = cursor.fetchall()
+
+    # Calcular totales
+    total_ordenes = sum(float(orden['monto_provision']) for orden in ordenes_compra if orden['monto_provision'])
+    presupuesto_provision = float(proyecto['monto_provision_presupuestada']) if proyecto['monto_provision_presupuestada'] else 0
+    porcentaje_progreso = (total_ordenes / presupuesto_provision * 100) if presupuesto_provision > 0 else 0
+
+    conn.close()
+
+    return render_template('proyecto_ordenes_compra.html',
+                         proyecto=proyecto,
+                         ordenes_compra=ordenes_compra,
+                         total_ordenes=total_ordenes,
+                         presupuesto_provision=presupuesto_provision,
+                         porcentaje_progreso=porcentaje_progreso)
+
+
+@app.route('/proyecto/<int:proyecto_id>/nueva_orden_compra', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'vendedor'])
+def nueva_orden_compra_proyecto(proyecto_id):
+    """Crear nueva orden de compra para un proyecto"""
+    try:
+        numero_orden = request.form['numero_orden']
+        tipo = request.form.get('tipo', 'orden_compra')
+        descripcion = request.form.get('descripcion', '').strip() or None
+        monto_provision = float(request.form['monto_provision'])
+        fecha_orden = request.form.get('fecha_orden') or None
+        fecha_entrega_estimada = request.form.get('fecha_entrega_estimada') or None
+        proveedor = request.form.get('proveedor', '').strip() or None
+        observaciones = request.form.get('observaciones', '').strip() or None
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
+        # Verificar que el proyecto existe
+        cursor.execute('SELECT id FROM proyectos WHERE id = %s', (proyecto_id,))
+        if not cursor.fetchone():
+            flash('Proyecto no encontrado', 'error')
+            return redirect(url_for('clientes'))
+
+        # Crear orden de compra
+        cursor.execute('''
+            INSERT INTO ordenes_compra (
+                proyecto_id, numero_orden, tipo, descripcion, monto_provision,
+                fecha_orden, fecha_entrega_estimada, proveedor, observaciones, estado
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (proyecto_id, numero_orden, tipo, descripcion, monto_provision,
+              fecha_orden, fecha_entrega_estimada, proveedor, observaciones, 'pendiente'))
+
+        conn.commit()
+        conn.close()
+
+        flash(f'Orden de compra {numero_orden} creada exitosamente', 'success')
+        return redirect(url_for('proyecto_ordenes_compra', proyecto_id=proyecto_id))
+
+    except psycopg2.errors.UniqueViolation:
+        flash('Ya existe una orden con ese número para este proyecto', 'error')
+        return redirect(url_for('proyecto_ordenes_compra', proyecto_id=proyecto_id))
+    except Exception as e:
+        flash(f'Error al crear orden de compra: {str(e)}', 'error')
+        return redirect(url_for('proyecto_ordenes_compra', proyecto_id=proyecto_id))
+
+
+@app.route('/orden_compra/<int:orden_id>/editar', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'vendedor'])
+def editar_orden_compra_proyecto(orden_id):
+    """Editar orden de compra existente"""
+    try:
+        descripcion = request.form.get('descripcion', '').strip() or None
+        monto_provision = float(request.form['monto_provision'])
+        fecha_orden = request.form.get('fecha_orden') or None
+        fecha_entrega_estimada = request.form.get('fecha_entrega_estimada') or None
+        proveedor = request.form.get('proveedor', '').strip() or None
+        estado = request.form.get('estado', 'pendiente')
+        observaciones = request.form.get('observaciones', '').strip() or None
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
+        # Obtener proyecto_id para redirección
+        cursor.execute('SELECT proyecto_id FROM ordenes_compra WHERE id = %s', (orden_id,))
+        orden = cursor.fetchone()
+        if not orden:
+            flash('Orden de compra no encontrada', 'error')
+            return redirect(url_for('clientes'))
+
+        proyecto_id = orden['proyecto_id']
+
+        # Actualizar orden de compra
+        cursor.execute('''
+            UPDATE ordenes_compra SET
+                descripcion = %s, monto_provision = %s, fecha_orden = %s,
+                fecha_entrega_estimada = %s, proveedor = %s, estado = %s,
+                observaciones = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        ''', (descripcion, monto_provision, fecha_orden, fecha_entrega_estimada,
+              proveedor, estado, observaciones, orden_id))
+
+        conn.commit()
+        conn.close()
+
+        flash('Orden de compra actualizada exitosamente', 'success')
+        return redirect(url_for('proyecto_ordenes_compra', proyecto_id=proyecto_id))
+
+    except Exception as e:
+        flash(f'Error al actualizar orden de compra: {str(e)}', 'error')
+        return redirect(url_for('clientes'))
+
+
+@app.route('/orden_compra/<int:orden_id>/eliminar', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def eliminar_orden_compra_proyecto(orden_id):
+    """Eliminar orden de compra"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Obtener información de la orden
+        cursor.execute('SELECT proyecto_id, numero_orden FROM ordenes_compra WHERE id = %s', (orden_id,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden de compra no encontrada'})
+
+        proyecto_id, numero_orden = orden['proyecto_id'], orden['numero_orden']
+
+        # Eliminar orden de compra
+        cursor.execute('DELETE FROM ordenes_compra WHERE id = %s', (orden_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Orden {numero_orden} eliminada exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al eliminar orden: {str(e)}'})
+    finally:
+        conn.close()
 
 
 @app.route('/reportes')
