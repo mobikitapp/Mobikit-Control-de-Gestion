@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS ordenes_fabricacion (
     fecha_inicio TIMESTAMP,
     fecha_entrega_real TIMESTAMP,
     cantidad_tableros INTEGER,
+    glosa VARCHAR(200),
     observaciones TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

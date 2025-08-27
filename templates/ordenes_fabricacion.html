@@ -54,6 +54,7 @@
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
                                 <th>Tipo</th>
+                                <th>Glosa</th>
                                 <th>Tableros</th>
                                 <th>Fecha Entrega</th>
                                 <th>Estado</th>
@@ -77,6 +78,7 @@
                                 <td>
                                     <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
                                 </td>
+                                <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
                                 <td>{{ orden.cantidad_tableros }}</td>
                                 <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
@@ -144,6 +146,7 @@
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
                                 <th>Tipo</th>
+                                <th>Glosa</th>
                                 <th>Tableros</th>
                                 <th>Fecha Entrega</th>
                                 <th>Estado</th>
@@ -167,6 +170,7 @@
                                 <td>
                                     <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
                                 </td>
+                                <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
                                 <td>{{ orden.cantidad_tableros }}</td>
                                 <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
@@ -234,6 +238,7 @@
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
                                 <th>Tipo</th>
+                                <th>Glosa</th>
                                 <th>Tableros</th>
                                 <th>Fecha Entrega</th>
                                 <th>Estado</th>
@@ -257,6 +262,7 @@
                                 <td>
                                     <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
                                 </td>
+                                <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
                                 <td>{{ orden.cantidad_tableros }}</td>
                                 <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
@@ -346,6 +352,12 @@
                             <input type="number" class="form-control" id="cantidad_tableros" name="cantidad_tableros" min="1" required>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="glosa" class="form-label">Glosa</label>
+                            <input type="text" class="form-control" id="glosa" name="glosa" maxlength="100">
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label for="categorias_fabricacion" class="form-label">Categorías a Fabricar</label>
                         <div id="categorias_fabricacion" class="border p-3 rounded">
@@ -362,9 +374,6 @@
                     <button type="submit" class="btn btn-primary" id="btnCrearOrden">Crear Orden de Fabricación</button>
                 </div>
             </form>
-        </div>
-    </div>
-</div></old_str>
         </div>
     </div>
 </div>
