@@ -1,12 +1,14 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime, timedelta
 import json
 from functools import wraps
 import uuid
+import sqlite3 # Keep this import for the ALTER TABLE fallback, although its functions are replaced.
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'mobikit_secret_key_2024')
@@ -14,7 +16,9 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Database configuration
-DATABASE_URL = os.getenv('DATABASE_URL', 'mobikit.db')
+DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    raise Exception('DATABASE_URL environment variable is required for deployment')
 ADMIN_DEFAULT_PASSWORD = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin123')
 
 # Tipos de archivos permitidos
@@ -63,42 +67,46 @@ def delete_file(file_path):
 
 def get_db_connection():
     """Helper function to get database connection"""
-    db_path = DATABASE_URL.replace('sqlite:///', '') if DATABASE_URL.startswith('sqlite:///') else DATABASE_URL
-    return sqlite3.connect(db_path)
+    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 # Roles disponibles
 ROLES = ['admin', 'general', 'diseñador', 'operación', 'embalaje', 'despacho']
 
 
 def init_db():
-    db_path = DATABASE_URL.replace('sqlite:///', '') if DATABASE_URL.startswith('sqlite:///') else DATABASE_URL
-    conn = sqlite3.connect(db_path)
+    conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
 
     # Ejecutar el schema completo desde el archivo SQL
     try:
         with open('database_schema.sql', 'r', encoding='utf-8') as f:
             schema_sql = f.read()
-            cursor.executescript(schema_sql)
+            cursor.execute(schema_sql)
     except FileNotFoundError:
         # Fallback: crear solo las tablas básicas si no existe el archivo de schema
         create_basic_tables(cursor)
 
     # Agregar columna archivado si no existe
     try:
-        cursor.execute('ALTER TABLE proyectos ADD COLUMN archivado BOOLEAN DEFAULT FALSE')
-    except sqlite3.OperationalError:
-        # La columna ya existe
-        pass
+        # Check if column exists first
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'proyectos' AND column_name = 'archivado'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE proyectos ADD COLUMN archivado BOOLEAN DEFAULT FALSE")
+    except Exception as e:
+        print(f"Error adding 'archivado' column: {e}")
+
 
     # Crear usuario admin por defecto si no existe
-    cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = "admin"')
+    cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
     if cursor.fetchone()[0] == 0:
         admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
         cursor.execute(
             '''
             INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
         ''', ('admin', admin_password, 'admin', 'Administrador',
               'admin@mobikit.com', True))
 
@@ -108,9 +116,11 @@ def init_db():
 
 def create_basic_tables(cursor):
     """Crear tablas básicas como fallback"""
+    # Note: PostgreSQL uses SERIAL for auto-incrementing primary keys and TEXT for strings.
+    # AUTOINCREMENT is SQLite specific.
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             rol TEXT NOT NULL,
@@ -128,7 +138,7 @@ def create_basic_tables(cursor):
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS clientes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             nombre TEXT NOT NULL,
             rut TEXT UNIQUE,
             email TEXT,
@@ -146,7 +156,7 @@ def create_basic_tables(cursor):
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS proyectos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             codigo TEXT UNIQUE NOT NULL,
             nombre TEXT NOT NULL,
             cliente_id INTEGER NOT NULL,
@@ -162,6 +172,7 @@ def create_basic_tables(cursor):
             monto_neto DECIMAL(12,2),
             costo_real DECIMAL(12,2),
             observaciones TEXT,
+            archivado BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (cliente_id) REFERENCES clientes (id),
@@ -172,7 +183,7 @@ def create_basic_tables(cursor):
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tareas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             proyecto_id INTEGER NOT NULL,
             titulo TEXT NOT NULL,
             descripcion TEXT,
@@ -185,16 +196,17 @@ def create_basic_tables(cursor):
             tiempo_estimado INTEGER,
             tiempo_real INTEGER,
             observaciones TEXT,
+            etapa_fabricacion TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (proyecto_id) REFERENCES proyectos (id),
-            FOREIGNKEY (usuario_asignado_id) REFERENCES usuarios (id)
+            FOREIGN KEY (usuario_asignado_id) REFERENCES usuarios (id)
         )
     ''')
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS evidencias (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             tarea_id INTEGER NOT NULL,
             tipo TEXT NOT NULL,
             nombre_archivo TEXT NOT NULL,
@@ -246,19 +258,19 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
         cursor.execute(
-            'SELECT id, password_hash, rol, nombre FROM usuarios WHERE username = ?',
+            'SELECT id, password_hash, rol, nombre FROM usuarios WHERE username = %s',
             (username, ))
         user = cursor.fetchone()
         conn.close()
 
-        if user and check_password_hash(user[1], password):
-            session['user_id'] = user[0]
-            session['user_role'] = user[2]
-            session['user_name'] = user[3]
-            flash(f'Bienvenido, {user[3]}!', 'success')
+        if user and check_password_hash(user['password_hash'], password):
+            session['user_id'] = user['id']
+            session['user_role'] = user['rol']
+            session['user_name'] = user['nombre']
+            flash(f'Bienvenido, {user["nombre"]}!', 'success')
             return redirect(url_for('dashboard'))
         else:
             flash('Credenciales incorrectas', 'error')
@@ -276,19 +288,23 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Órdenes de compra pendientes (proyectos con categorías asignadas)
     cursor.execute('''
-        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.estado, p.prioridad,
-               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('en_desarrollo')
-        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.estado, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
@@ -296,13 +312,20 @@ def dashboard():
 
     # Órdenes en Proceso (tienen órdenes de fabricación activas)
     cursor.execute('''
-        SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
+        SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.prioridad,
-               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
+        INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
         AND p.estado != 'entregado'
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
+                 p.descripcion, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_proceso_raw = cursor.fetchall()
@@ -312,39 +335,42 @@ def dashboard():
     for orden in ordenes_proceso_raw:
         # Check if ordenes_fabricacion table exists
         cursor.execute('''
-            SELECT name FROM sqlite_master WHERE type='table' AND name='ordenes_fabricacion'
+            SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone():
+        if cursor.fetchone()[0]:
             cursor.execute('''
                 SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
                 FROM ordenes_fabricacion of
-                WHERE of.proyecto_id = ? AND of.estado != 'entregado'
+                WHERE of.proyecto_id = %s AND of.estado != 'entregado'
                 ORDER BY of.created_at ASC
-            ''', (orden[0],))
+            ''', (orden['id'],))
             ordenes_fabricacion = cursor.fetchall()
         else:
             ordenes_fabricacion = []
 
-        # Keep tuple structure but add ordenes_fabricacion as a new attribute
-        orden_extended = list(orden)  # Convert tuple to list
-        orden_extended.append([])  # Add empty list for ordenes_fabricacion
+        # Keep dictionary structure but add ordenes_fabricacion as a new attribute
+        orden_extended = dict(orden)
+        orden_extended['ordenes_fabricacion'] = []
 
         for fab in ordenes_fabricacion:
             fab_dict = {
-                'id': fab[0], 'codigo_pedido': fab[1], 'nombre': fab[2], 
-                'estado': fab[3], 'fecha_entrega_estimada': fab[4]
+                'id': fab['id'], 'codigo_pedido': fab['codigo_orden'], 'nombre': fab['tipo_orden'],
+                'estado': fab['estado'], 'fecha_entrega_estimada': fab['fecha_entrega_estimada']
             }
-            orden_extended[-1].append(fab_dict)  # Add to the ordenes_fabricacion list
+            orden_extended['ordenes_fabricacion'].append(fab_dict)
 
-        ordenes_proceso.append(tuple(orden_extended))  # Convert back to tuple
+        ordenes_proceso.append(orden_extended)
 
     # Órdenes Terminadas
     cursor.execute('''
-        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.prioridad, p.fecha_entrega_real
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
+        INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('entregado', 'completado')
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
+                 p.descripcion, p.prioridad, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
     ''')
     ordenes_terminadas = cursor.fetchall()
@@ -361,7 +387,7 @@ def dashboard():
 @login_required
 def clientes():
     """Gestión de clientes y proyectos"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Obtener clientes con información de proyectos
@@ -380,32 +406,20 @@ def clientes():
 
     clientes_con_proyectos = []
     for cliente in clientes_raw:
-        cliente_info = {
-            'id': cliente[0],
-            'nombre': cliente[1],
-            'rut': cliente[2],
-            'email': cliente[3],
-            'telefono': cliente[4],
-            'direccion': cliente[5],
-            'ciudad': cliente[6],
-            'region': cliente[7],
-            'contacto_principal': cliente[8],
-            'observaciones': cliente[9],
-            'total_proyectos': cliente[10],
-            'proyectos': []
-        }
+        cliente_info = dict(cliente)
+        cliente_info['proyectos'] = []
 
         # Obtener proyectos del cliente
         cursor.execute('''
-            SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado, 
-                   p.estado_proyecto, p.fecha_estimada_inicio, p.monto_neto_provision, 
+            SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado,
+                   p.estado_proyecto, p.fecha_inicio, p.monto_neto,
                    p.monto_neto_instalacion, u.nombre as diseñador_nombre,
-                   p.prioridad, p.diseñador_id, p.observaciones
+                   p.prioridad, p.diseñador_id, p.observaciones, p.archivado
             FROM proyectos p
             LEFT JOIN usuarios u ON p.diseñador_id = u.id
-            WHERE p.cliente_id = ?
-            ORDER BY 
-                CASE p.estado_proyecto 
+            WHERE p.cliente_id = %s
+            ORDER BY
+                CASE p.estado_proyecto
                     WHEN 'pendiente_presupuesto' THEN 1
                     WHEN 'presupuestado' THEN 2
                     WHEN 'adjudicado' THEN 3
@@ -416,22 +430,12 @@ def clientes():
 
         proyectos = cursor.fetchall()
         for proyecto in proyectos:
-            proyecto_dict = {
-                'id': proyecto[0],
-                'codigo': proyecto[1],
-                'nombre': proyecto[2],
-                'descripcion': proyecto[3],
-                'estado': proyecto[4],
-                'estado_proyecto': proyecto[5] or 'pendiente_presupuesto',
-                'fecha_estimada_inicio': proyecto[6],
-                'monto_neto_provision': proyecto[7],
-                'monto_neto_instalacion': proyecto[8],
-                'diseñador_nombre': proyecto[9],
-                'prioridad': proyecto[10] or 'media',
-                'diseñador_id': proyecto[11],
-                'observaciones': proyecto[12],
-                'archivado': proyecto[13] if len(proyecto) > 13 else False
-            }
+            proyecto_dict = dict(proyecto)
+            # Handle potential None values for fields that might be null
+            proyecto_dict['estado_proyecto'] = proyecto_dict.get('estado_proyecto') or 'pendiente_presupuesto'
+            proyecto_dict['prioridad'] = proyecto_dict.get('prioridad') or 'media'
+            proyecto_dict['archivado'] = proyecto_dict.get('archivado') or False
+
             cliente_info['proyectos'].append(proyecto_dict)
 
         clientes_con_proyectos.append(cliente_info)
@@ -441,12 +445,12 @@ def clientes():
     clientes_disponibles = cursor.fetchall()
 
     # Obtener diseñadores disponibles
-    cursor.execute('SELECT id, nombre FROM usuarios WHERE rol = "diseñador" AND activo = TRUE ORDER BY nombre ASC')
+    cursor.execute('SELECT id, nombre FROM usuarios WHERE rol = %s AND activo = TRUE ORDER BY nombre ASC', ('diseñador',))
     diseñadores_disponibles = cursor.fetchall()
 
     conn.close()
 
-    return render_template('clientes.html', 
+    return render_template('clientes.html',
                          clientes_con_proyectos=clientes_con_proyectos,
                          clientes_disponibles=clientes_disponibles,
                          diseñadores_disponibles=diseñadores_disponibles)
@@ -468,15 +472,15 @@ def nuevo_cliente():
         contacto_principal = request.form.get('contacto_principal', '').strip() or None
         observaciones = request.form.get('observaciones', '').strip() or None
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         cursor.execute('''
             INSERT INTO clientes (
-                nombre, rut, email, telefono, direccion, ciudad, region, 
+                nombre, rut, email, telefono, direccion, ciudad, region,
                 contacto_principal, observaciones, activo
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (nombre, rut, email, telefono, direccion, ciudad, region, 
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (nombre, rut, email, telefono, direccion, ciudad, region,
               contacto_principal, observaciones, True))
 
         conn.commit()
@@ -484,7 +488,7 @@ def nuevo_cliente():
 
         flash('Cliente creado exitosamente', 'success')
 
-    except sqlite3.IntegrityError as e:
+    except psycopg2.errors.UniqueViolation as e:
         if 'rut' in str(e).lower():
             flash('Ya existe un cliente con ese RUT', 'error')
         elif 'email' in str(e).lower():
@@ -514,16 +518,16 @@ def editar_cliente():
         contacto_principal = request.form.get('contacto_principal', '').strip() or None
         observaciones = request.form.get('observaciones', '').strip() or None
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         cursor.execute('''
             UPDATE clientes SET
-                nombre = ?, rut = ?, email = ?, telefono = ?, direccion = ?,
-                ciudad = ?, region = ?, contacto_principal = ?, observaciones = ?,
+                nombre = %s, rut = %s, email = %s, telefono = %s, direccion = %s,
+                ciudad = %s, region = %s, contacto_principal = %s, observaciones = %s,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (nombre, rut, email, telefono, direccion, ciudad, region, 
+            WHERE id = %s
+        ''', (nombre, rut, email, telefono, direccion, ciudad, region,
               contacto_principal, observaciones, cliente_id))
 
         conn.commit()
@@ -531,7 +535,7 @@ def editar_cliente():
 
         flash('Cliente actualizado exitosamente', 'success')
 
-    except sqlite3.IntegrityError as e:
+    except psycopg2.errors.UniqueViolation as e:
         if 'rut' in str(e).lower():
             flash('Ya existe un cliente con ese RUT', 'error')
         elif 'email' in str(e).lower():
@@ -549,22 +553,22 @@ def editar_cliente():
 @role_required(['admin'])
 def eliminar_cliente(cliente_id):
     """Eliminar cliente (solo si no tiene proyectos)"""
-    try:
-        conn = sqlite3.connect('mobikit.db')
-        cursor = conn.cursor()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
 
+    try:
         # Verificar si tiene proyectos
-        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
-        proyectos_count = cursor.fetchone()[0]
+        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = %s', (cliente_id,))
+        proyectos_count = cursor.fetchone()['count']
 
         if proyectos_count > 0:
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': f'No se puede eliminar el cliente porque tiene {proyectos_count} proyecto(s) asociado(s)'
             })
 
         # Eliminar cliente
-        cursor.execute('DELETE FROM clientes WHERE id = ?', (cliente_id,))
+        cursor.execute('DELETE FROM clientes WHERE id = %s', (cliente_id,))
 
         if cursor.rowcount > 0:
             conn.commit()
@@ -582,19 +586,23 @@ def eliminar_cliente(cliente_id):
 @login_required
 def ordenes_compra():
     """Vista principal de órdenes de compra organizadas por estado"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Órdenes de compra pendientes (proyectos con categorías asignadas, no archivados)
     cursor.execute('''
-        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.estado, p.prioridad,
-               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('en_desarrollo') AND (p.archivado IS NULL OR p.archivado = FALSE)
-        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
+        WHERE p.estado IN ('en_desarrollo') AND p.archivado = FALSE
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.estado, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
@@ -602,15 +610,19 @@ def ordenes_compra():
 
     # Órdenes en Proceso - Solo proyectos que tienen categorías asignadas, no archivados
     cursor.execute('''
-        SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
+        SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.prioridad,
-               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
-        AND (p.archivado IS NULL OR p.archivado = FALSE)
-        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
+        AND p.archivado = FALSE
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
@@ -618,13 +630,13 @@ def ordenes_compra():
 
     # Órdenes Terminadas - Solo proyectos que tienen categorías asignadas, no archivados
     cursor.execute('''
-        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.prioridad, p.fecha_entrega_real
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('entregado', 'completado') AND (p.archivado IS NULL OR p.archivado = FALSE)
-        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega, 
+        WHERE p.estado IN ('entregado', 'completado') AND p.archivado = FALSE
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.prioridad, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
     ''')
@@ -637,7 +649,7 @@ def ordenes_compra():
             FROM proyecto_categorias pc
             JOIN categorias_producto cat ON pc.categoria_id = cat.id
             LEFT JOIN subcategorias_producto subcat ON pc.subcategoria_id = subcat.id
-            WHERE pc.proyecto_id = ?
+            WHERE pc.proyecto_id = %s
         ''', (proyecto_id,))
         categorias = []
         for cat_nombre, subcat_nombre in cursor.fetchall():
@@ -651,20 +663,20 @@ def ordenes_compra():
     def obtener_ordenes_fabricacion(proyecto_id):
         # Check if ordenes_fabricacion table exists
         cursor.execute('''
-            SELECT name FROM sqlite_master WHERE type='table' AND name='ordenes_fabricacion'
+            SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone():
+        if cursor.fetchone()[0]:
             cursor.execute('''
                 SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
                 FROM ordenes_fabricacion of
-                WHERE of.proyecto_id = ? AND of.estado != 'entregado'
+                WHERE of.proyecto_id = %s AND of.estado != 'entregado'
                 ORDER BY of.created_at ASC
             ''', (proyecto_id,))
             ordenes_fab = []
             for fab in cursor.fetchall():
                 fab_dict = {
-                    'id': fab[0], 'codigo_pedido': fab[1], 'nombre': fab[2], 
-                    'estado': fab[3], 'fecha_entrega_estimada': fab[4]
+                    'id': fab['id'], 'codigo_pedido': fab['codigo_orden'], 'nombre': fab['tipo_orden'],
+                    'estado': fab['estado'], 'fecha_entrega_estimada': fab['fecha_entrega_estimada']
                 }
                 ordenes_fab.append(fab_dict)
             return ordenes_fab
@@ -675,47 +687,37 @@ def ordenes_compra():
     ordenes_pendientes = []
     for orden in ordenes_pendientes_raw:
         dias_restantes = None
-        if orden[7] is not None:
+        if orden['dias_restantes'] is not None:
             try:
-                dias_restantes = int(float(orden[7]))
+                dias_restantes = int(orden['dias_restantes'])
             except (ValueError, TypeError):
                 dias_restantes = None
 
-        orden_dict = {
-            'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
-            'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6], 
-            'dias_restantes': dias_restantes,
-            'categorias': obtener_categorias_orden(orden[0])
-        }
+        orden_dict = dict(orden)
+        orden_dict['dias_restantes'] = dias_restantes
+        orden_dict['categorias'] = obtener_categorias_orden(orden['id'])
         ordenes_pendientes.append(orden_dict)
 
     # Procesar órdenes en proceso
     ordenes_proceso = []
     for orden in ordenes_proceso_raw:
         dias_restantes = None
-        if orden[7] is not None:
+        if orden['dias_restantes'] is not None:
             try:
-                dias_restantes = int(float(orden[7]))
+                dias_restantes = int(orden['dias_restantes'])
             except (ValueError, TypeError):
                 dias_restantes = None
 
-        orden_dict = {
-            'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
-            'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6], 
-            'dias_restantes': dias_restantes,
-            'categorias': obtener_categorias_orden(orden[0]),
-            'ordenes_fabricacion': obtener_ordenes_fabricacion(orden[0])
-        }
+        orden_dict = dict(orden)
+        orden_dict['dias_restantes'] = dias_restantes
+        orden_dict['categorias'] = obtener_categorias_orden(orden['id'])
+        orden_dict['ordenes_fabricacion'] = obtener_ordenes_fabricacion(orden['id'])
         ordenes_proceso.append(orden_dict)
 
     # Procesar órdenes terminadas
     ordenes_terminadas = []
     for orden in ordenes_terminadas_raw:
-        orden_dict = {
-            'id': orden[0], 'codigo': orden[1], 'nombre': orden[2], 'cliente_nombre': orden[3],
-            'fecha_entrega': orden[4], 'descripcion': orden[5], 'prioridad': orden[6], 
-            'fecha_entrega_real': orden[7]
-        }
+        orden_dict = dict(orden)
         ordenes_terminadas.append(orden_dict)
 
     conn.close()
@@ -730,7 +732,7 @@ def ordenes_compra():
 @login_required
 def orden_compra_detalle(orden_id):
     """Detalle de una orden de compra específica"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Obtener datos de la orden
@@ -739,7 +741,7 @@ def orden_compra_detalle(orden_id):
                c.telefono as cliente_telefono, c.contacto_principal
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.id = ?
+        WHERE p.id = %s
     ''', (orden_id,))
     orden = cursor.fetchone()
 
@@ -753,21 +755,20 @@ def orden_compra_detalle(orden_id):
         FROM proyecto_categorias pc
         JOIN categorias_producto cat ON pc.categoria_id = cat.id
         LEFT JOIN subcategorias_producto subcat ON pc.subcategoria_id = subcat.id
-        WHERE pc.proyecto_id = ?
+        WHERE pc.proyecto_id = %s
     ''', (orden_id,))
     categorias = cursor.fetchall()
 
     # Obtener órdenes de fabricación si la tabla existe
     cursor.execute('''
-        SELECT name FROM sqlite_master WHERE type='table' AND name='ordenes_fabricacion'
+        SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
     ''')
-    if cursor.fetchone():
+    if cursor.fetchone()[0]:
         cursor.execute('''
             SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
-                   of.cantidad_tableros, of.observaciones, of.created_at, of.updated_at,
-                   '' as categoria_nombre, '' as subcategoria_nombre
+                   of.cantidad_tableros, of.observaciones, of.created_at, of.updated_at
             FROM ordenes_fabricacion of
-            WHERE of.proyecto_id = ?
+            WHERE of.proyecto_id = %s
             ORDER BY of.created_at ASC
         ''', (orden_id,))
         ordenes_fabricacion = cursor.fetchall()
@@ -785,7 +786,7 @@ def orden_compra_detalle(orden_id):
 @app.route('/proyecto/<int:proyecto_id>')
 @login_required
 def proyecto_detalle(proyecto_id):
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Datos del proyecto con información del cliente
@@ -795,7 +796,7 @@ def proyecto_detalle(proyecto_id):
         FROM proyectos p
         LEFT JOIN usuarios u ON p.diseñador_id = u.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.id = ?
+        WHERE p.id = %s
     ''', (proyecto_id, ))
     proyecto = cursor.fetchone()
 
@@ -803,7 +804,7 @@ def proyecto_detalle(proyecto_id):
 
     if not proyecto:
         flash('Proyecto no encontrado', 'error')
-        return redirect(url_for('proyectos'))
+        return redirect(url_for('clientes'))
 
     return render_template('proyecto_detalle.html',
                            proyecto=proyecto)
@@ -842,42 +843,42 @@ def nuevo_proyecto():
                 except ValueError:
                     pass
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         # Verificar que el cliente existe
-        cursor.execute('SELECT id FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
+        cursor.execute('SELECT id FROM clientes WHERE id = %s AND activo = TRUE', (cliente_id,))
         if not cursor.fetchone():
             flash('Cliente no válido', 'error')
             return redirect(url_for('clientes'))
 
         # Obtener nombre del cliente para generar código
-        cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (cliente_id,))
+        cursor.execute('SELECT nombre FROM clientes WHERE id = %s', (cliente_id,))
         cliente_info = cursor.fetchone()
-        cliente_nombre = cliente_info[0] if cliente_info else 'CLIENTE'
+        cliente_nombre = cliente_info['nombre'] if cliente_info else 'CLIENTE'
 
         # Limpiar nombre del cliente para código (solo letras y números, máximo 8 caracteres)
         cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
 
         # Generar número secuencial para este cliente
-        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
-        proyecto_numero = cursor.fetchone()[0] + 1
+        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = %s', (cliente_id,))
+        proyecto_numero = cursor.fetchone()['count'] + 1
         codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
         # Crear proyecto con los nuevos campos (sin categorías, por lo tanto no aparecerá como orden de compra)
         cursor.execute('''
             INSERT INTO proyectos (
                 codigo, nombre, cliente_id, descripcion, estado_proyecto, estado,
-                fecha_estimada_inicio, diseñador_id, monto_neto_provision, 
+                fecha_estimada_inicio, diseñador_id, monto_neto_provision,
                 monto_neto_instalacion, observaciones, fecha_inicio
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'proyecto_simple',
-              fecha_estimada_inicio, diseñador_id, monto_neto_provision, 
+              fecha_estimada_inicio, diseñador_id, monto_neto_provision,
               monto_neto_instalacion, observaciones, datetime.now().date()))
 
         proyecto_id = cursor.lastrowid
 
-        # Los proyectos creados aquí NO tienen categorías asignadas, por lo tanto no aparecerán 
+        # Los proyectos creados aquí NO tienen categorías asignadas, por lo tanto no aparecerán
         # en "Órdenes de Compra". Solo se crean como proyectos simples sin flujo de producción automático.
 
         conn.commit()
@@ -912,16 +913,16 @@ def editar_proyecto():
             except ValueError:
                 presupuesto = None
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         # Actualizar proyecto
         cursor.execute('''
             UPDATE proyectos SET
-                nombre = ?, descripcion = ?, prioridad = ?,
-                fecha_entrega = ?, presupuesto = ?,
+                nombre = %s, descripcion = %s, prioridad = %s,
+                fecha_entrega = %s, presupuesto = %s,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
+            WHERE id = %s
         ''', (nombre, descripcion, prioridad, fecha_entrega, presupuesto, proyecto_id))
 
         conn.commit()
@@ -956,23 +957,23 @@ def editar_orden_compra():
             except ValueError:
                 monto_neto = None
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         # Actualizar orden de compra
         cursor.execute('''
             UPDATE proyectos SET
-                nombre = ?, descripcion = ?, prioridad = ?,
-                fecha_entrega = ?, monto_neto = ?, observaciones = ?,
+                nombre = %s, descripcion = %s, prioridad = %s,
+                fecha_entrega = %s, monto_neto = %s, observaciones = %s,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
+            WHERE id = %s
         ''', (nombre, descripcion, prioridad, fecha_entrega, monto_neto, observaciones, proyecto_id))
 
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('proyectos', ?, 'UPDATE', ?, ?)
-        ''', (proyecto_id, session['user_id'], 
+            VALUES ('proyectos', %s, 'UPDATE', %s, %s)
+        ''', (proyecto_id, session['user_id'],
               json.dumps({
                   'accion': 'editar_orden_compra',
                   'nombre': nombre,
@@ -1008,8 +1009,16 @@ def nueva_orden_compra():
         fecha_entrega_general = request.form.get('fecha_entrega_general')
         fecha_entrega_oc = request.form.get('fecha_entrega_oc')
         monto = request.form.get('monto')
-        categorias_selected = request.form.get('categorias_selected')
-        subcategorias_selected = request.form.get('subcategorias_selected')
+        # Obtener categorías del formulario
+        try:
+            categorias_json = request.form.get('categorias_selected', '[]')
+            subcategorias_json = request.form.get('subcategorias_selected', '[]')
+            categorias_selected = json.loads(categorias_json) if categorias_json else []
+            subcategorias_selected = json.loads(subcategorias_json) if subcategorias_json else []
+        except (json.JSONDecodeError, TypeError):
+            # Fallback: intentar obtener como lista directa
+            categorias_selected = request.form.getlist('categoria_ids[]')
+            subcategorias_selected = request.form.getlist('subcategoria_ids[]')
 
         # Campos específicos para orden de compra
         fecha_entrega_estimada_cliente = request.form.get('fecha_entrega_estimada_cliente')
@@ -1019,71 +1028,70 @@ def nueva_orden_compra():
         detalle_entregas = request.form.getlist('detalle_entregas[]')
         fechas_entrega = request.form.getlist('fechas_entrega[]')
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         # Manejar cliente nuevo o existente
         if cliente_id == 'nuevo' and nuevo_cliente_nombre:
             cursor.execute('''
-                INSERT INTO clientes (nombre, activo) VALUES (?, ?)
+                INSERT INTO clientes (nombre, activo) VALUES (%s, %s) RETURNING id
             ''', (nuevo_cliente_nombre, True))
-            cliente_id = cursor.lastrowid
+            cliente_id = cursor.fetchone()['id']
         elif not cliente_id:
             flash('Debe seleccionar un cliente o crear uno nuevo', 'error')
             return redirect(url_for('dashboard'))
 
         # Verificar que el cliente existe
-        cursor.execute('SELECT nombre FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
+        cursor.execute('SELECT nombre FROM clientes WHERE id = %s AND activo = TRUE', (cliente_id,))
         cliente_info = cursor.fetchone()
         if not cliente_info:
             flash('Cliente no válido', 'error')
             return redirect(url_for('dashboard'))
 
-        cliente_nombre = cliente_info[0]
+        cliente_nombre = cliente_info['nombre']
 
         # Generar código del proyecto
         cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
-        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
-        proyecto_numero = cursor.fetchone()[0] + 1
+        cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = %s', (cliente_id,))
+        proyecto_numero = cursor.fetchone()['count'] + 1
         codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
         # Determinar si usar proyecto existente o crear nuevo
         if proyecto_existente_id and proyecto_existente_id != 'nuevo':
             # Usar proyecto existente
-            cursor.execute('SELECT id, codigo, nombre FROM proyectos WHERE id = ? AND cliente_id = ?', 
+            cursor.execute('SELECT id, codigo, nombre FROM proyectos WHERE id = %s AND cliente_id = %s',
                          (proyecto_existente_id, cliente_id))
             proyecto_info = cursor.fetchone()
             if not proyecto_info:
                 flash('Proyecto no válido para el cliente seleccionado', 'error')
                 return redirect(url_for('ordenes_compra'))
-            
-            proyecto_id = proyecto_info[0]
-            codigo_proyecto = proyecto_info[1]
-            
+
+            proyecto_id = proyecto_info['id']
+            codigo_proyecto = proyecto_info['codigo']
+
             # Actualizar proyecto con información de la orden/contrato
             observaciones_actuales = f"Número OC/Contrato: {numero_oc}"
             if descripcion:
                 observaciones_actuales += f"\nDescripción: {descripcion}"
-                
+
             cursor.execute('''
-                UPDATE proyectos SET 
-                    adjudicacion_tipo = ?, estado = 'en_desarrollo', prioridad = ?,
-                    fecha_entrega = ?, observaciones = COALESCE(observaciones, '') || CHAR(10) || ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (tipo_adjudicacion, prioridad, 
-                  fecha_entrega_general or fecha_entrega_oc,
+                UPDATE proyectos SET
+                    adjudicacion_tipo = %s, estado = 'en_desarrollo', prioridad = %s,
+                    fecha_entrega = %s, observaciones = COALESCE(observaciones, '') || CHR(10) || %s
+                WHERE id = %s
+            ''', (tipo_adjudicacion, prioridad,
+                  fecha_entrega_general or fecha_entrega_oc or None,
                   observaciones_actuales, proyecto_id))
         else:
             # Crear nuevo proyecto
             if not nombre_proyecto:
                 flash('Debe especificar un nombre para el nuevo proyecto', 'error')
                 return redirect(url_for('ordenes_compra'))
-                
+
             # Generar código del proyecto
             cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
-            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
-            proyecto_numero = cursor.fetchone()[0] + 1
+            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = %s', (cliente_id,))
+            proyecto_numero = cursor.fetchone()['count'] + 1
             codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
             # Convertir monto si se proporciona
@@ -1105,31 +1113,27 @@ def nueva_orden_compra():
             cursor.execute('''
                 INSERT INTO proyectos (
                     codigo, nombre, cliente_id, descripcion, adjudicacion_tipo,
-                    estado, prioridad, fecha_inicio, fecha_entrega, 
+                    estado, prioridad, fecha_inicio, fecha_entrega,
                     monto_neto, monto_neto_provision, observaciones
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion,
-                  'en_desarrollo', prioridad, datetime.now().date(), 
-                  fecha_entrega_general or fecha_entrega_oc,
+                  'en_desarrollo', prioridad, datetime.now().date(),
+                  fecha_entrega_general or fecha_entrega_oc or None,
                   monto_num, monto_provision_num, f"Número OC/Contrato: {numero_oc}"))
-
-            proyecto_id = cursor.lastrowid
+            proyecto_id = cursor.fetchone()['id']
 
         # Agregar categorías al proyecto
-        if categorias_selected and subcategorias_selected:
+        if categorias_selected:
             try:
-                categorias = json.loads(categorias_selected) if categorias_selected else []
-                subcategorias = json.loads(subcategorias_selected) if subcategorias_selected else []
-                
-                for i, categoria_id in enumerate(categorias):
+                for i, categoria_id in enumerate(categorias_selected):
                     if categoria_id:  # Solo si hay categoría seleccionada
-                        subcategoria_id = subcategorias[i] if i < len(subcategorias) and subcategorias[i] else None
+                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategorias_selected[i] else None
                         cursor.execute('''
                             INSERT INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
-                            VALUES (?, ?, ?)
+                            VALUES (%s, %s, %s)
                         ''', (proyecto_id, categoria_id, subcategoria_id))
-            except json.JSONDecodeError:
-                flash('Error procesando categorías seleccionadas', 'error')
+            except Exception as e:
+                flash(f'Error procesando categorías: {str(e)}', 'error')
                 return redirect(url_for('ordenes_compra'))
 
         # Si es contrato, agregar entregas programadas
@@ -1138,7 +1142,7 @@ def nueva_orden_compra():
                 if detalle and i < len(fechas_entrega) and fechas_entrega[i]:
                     cursor.execute('''
                         INSERT INTO entregas_contrato (proyecto_id, detalle, fecha_entrega, estado)
-                        VALUES (?, ?, ?, ?)
+                        VALUES (%s, %s, %s, %s)
                     ''', (proyecto_id, detalle, fechas_entrega[i], 'programada'))
 
         conn.commit()
@@ -1157,74 +1161,74 @@ def nueva_orden_compra():
 @role_required(['admin'])
 def eliminar_proyecto(proyecto_id):
     """Eliminar proyecto (solo administradores)"""
-    try:
-        conn = sqlite3.connect('mobikit.db')
-        cursor = conn.cursor()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
 
+    try:
         # Verificar que el proyecto existe y obtener información
-        cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = ?', (proyecto_id,))
+        cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = %s', (proyecto_id,))
         proyecto = cursor.fetchone()
 
         if not proyecto:
             return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
 
-        codigo_proyecto, nombre_proyecto, estado_proyecto = proyecto
+        codigo_proyecto, nombre_proyecto, estado_proyecto = proyecto['codigo'], proyecto['nombre'], proyecto['estado']
 
         # Verificar si tiene despachos entregados (solo estos no se pueden eliminar)
-        cursor.execute('SELECT COUNT(*) FROM despachos WHERE proyecto_id = ? AND estado = "entregado"', (proyecto_id,))
-        despachos_entregados = cursor.fetchone()[0]
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE proyecto_id = %s AND estado = %s', (proyecto_id, 'entregado'))
+        despachos_entregados = cursor.fetchone()['count']
 
         if despachos_entregados > 0:
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': f'No se puede eliminar el proyecto porque tiene {despachos_entregados} despacho(s) entregado(s). Solo se pueden eliminar proyectos sin despachos completamente entregados.'
             })
 
         # Eliminar todas las dependencias del proyecto en orden
 
         # 1. Eliminar evidencias asociadas a tareas del proyecto
-        cursor.execute('DELETE FROM evidencias WHERE tarea_id IN (SELECT id FROM tareas WHERE proyecto_id = ?)', (proyecto_id,))
-        cursor.execute('DELETE FROM evidencias WHERE proyecto_id = ?', (proyecto_id,))
+        cursor.execute('DELETE FROM evidencias WHERE tarea_id IN (SELECT id FROM tareas WHERE proyecto_id = %s)', (proyecto_id,))
+        cursor.execute('DELETE FROM evidencias WHERE proyecto_id = %s', (proyecto_id,)) # This might be redundant if tarea_id is always populated
 
         # 2. Eliminar tareas del proyecto
-        cursor.execute('DELETE FROM tareas WHERE proyecto_id = ?', (proyecto_id,))
+        cursor.execute('DELETE FROM tareas WHERE proyecto_id = %s', (proyecto_id,))
 
         # 3. Eliminar categorías de órdenes de fabricación
         cursor.execute('''
-            DELETE FROM orden_fabricacion_categorias 
-            WHERE orden_fabricacion_id IN (SELECT id FROM ordenes_fabricacion WHERE proyecto_id = ?)
+            DELETE FROM orden_fabricacion_categorias
+            WHERE orden_fabricacion_id IN (SELECT id FROM ordenes_fabricacion WHERE proyecto_id = %s)
         ''', (proyecto_id,))
 
         # 4. Eliminar órdenes de fabricación
-        cursor.execute('DELETE FROM ordenes_fabricacion WHERE proyecto_id = ?', (proyecto_id,))
+        cursor.execute('DELETE FROM ordenes_fabricacion WHERE proyecto_id = %s', (proyecto_id,))
 
         # 6. Eliminar entregas de contrato
-        cursor.execute('DELETE FROM entregas_contrato WHERE proyecto_id = ?', (proyecto_id,))
+        cursor.execute('DELETE FROM entregas_contrato WHERE proyecto_id = %s', (proyecto_id,))
 
         # 7. Eliminar despachos programados (no críticos)
-        cursor.execute('DELETE FROM despachos WHERE proyecto_id = ? AND estado NOT IN ("en_transito", "entregado")', (proyecto_id,))
+        cursor.execute('DELETE FROM despachos WHERE proyecto_id = %s AND estado NOT IN (%s, %s)', (proyecto_id, 'en_transito', 'entregado'))
 
         # 8. Eliminar documentos del proyecto
-        cursor.execute('DELETE FROM documentos_proyecto WHERE proyecto_id = ?', (proyecto_id,))
+        cursor.execute('DELETE FROM documentos_proyecto WHERE proyecto_id = %s', (proyecto_id,))
 
         # 9. Eliminar categorías del proyecto
-        cursor.execute('DELETE FROM proyecto_categorias WHERE proyecto_id = ?', (proyecto_id,))
+        cursor.execute('DELETE FROM proyecto_categorias WHERE proyecto_id = %s', (proyecto_id,))
 
         # 10. Eliminar recordatorios del proyecto
-        cursor.execute('DELETE FROM recordatorios WHERE tipo = "proyecto" AND referencia_id = ?', (proyecto_id,))
+        cursor.execute('DELETE FROM recordatorios WHERE tipo = %s AND referencia_id = %s', ('proyecto', proyecto_id))
 
         # 11. Eliminar incidencias del proyecto
-        cursor.execute('DELETE FROM incidencias WHERE proyecto_id = ?', (proyecto_id,))
+        cursor.execute('DELETE FROM incidencias WHERE proyecto_id = %s', (proyecto_id,))
 
         # Finalmente eliminar el proyecto
-        cursor.execute('DELETE FROM proyectos WHERE id = ?', (proyecto_id,))
+        cursor.execute('DELETE FROM proyectos WHERE id = %s', (proyecto_id,))
 
         if cursor.rowcount > 0:
             # Registrar en auditoría
             cursor.execute('''
                 INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-                VALUES ('proyectos', ?, 'DELETE', ?, ?)
-            ''', (proyecto_id, session['user_id'], 
+                VALUES ('proyectos', %s, 'DELETE', %s, %s)
+            ''', (proyecto_id, session['user_id'],
                   json.dumps({
                       'accion': 'eliminar_proyecto',
                       'codigo': codigo_proyecto,
@@ -1248,30 +1252,30 @@ def eliminar_proyecto(proyecto_id):
 @role_required(['admin', 'general'])
 def archivar_proyecto(proyecto_id):
     """Archivar proyecto terminado"""
-    try:
-        conn = sqlite3.connect('mobikit.db')
-        cursor = conn.cursor()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
 
+    try:
         # Verificar que el proyecto existe y está terminado
-        cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = ?', (proyecto_id,))
+        cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = %s', (proyecto_id,))
         proyecto = cursor.fetchone()
 
         if not proyecto:
             return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
 
-        codigo_proyecto, nombre_proyecto, estado_proyecto = proyecto
+        codigo_proyecto, nombre_proyecto, estado_proyecto = proyecto['codigo'], proyecto['nombre'], proyecto['estado']
 
         if estado_proyecto not in ['entregado', 'completado']:
             return jsonify({'success': False, 'message': 'Solo se pueden archivar proyectos terminados'})
 
         # Archivar el proyecto
-        cursor.execute('UPDATE proyectos SET archivado = TRUE WHERE id = ?', (proyecto_id,))
+        cursor.execute('UPDATE proyectos SET archivado = TRUE WHERE id = %s', (proyecto_id,))
 
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('proyectos', ?, 'ARCHIVE', ?, ?)
-        ''', (proyecto_id, session['user_id'], 
+            VALUES ('proyectos', %s, 'ARCHIVE', %s, %s)
+        ''', (proyecto_id, session['user_id'],
               json.dumps({
                   'accion': 'archivar_proyecto',
                   'codigo': codigo_proyecto,
@@ -1293,27 +1297,27 @@ def archivar_proyecto(proyecto_id):
 @role_required(['admin', 'general'])
 def desarchivar_proyecto(proyecto_id):
     """Desarchivar proyecto"""
-    try:
-        conn = sqlite3.connect('mobikit.db')
-        cursor = conn.cursor()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
 
+    try:
         # Verificar que el proyecto existe
-        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = ?', (proyecto_id,))
+        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = %s', (proyecto_id,))
         proyecto = cursor.fetchone()
 
         if not proyecto:
             return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
 
-        codigo_proyecto, nombre_proyecto = proyecto
+        codigo_proyecto, nombre_proyecto = proyecto['codigo'], proyecto['nombre']
 
         # Desarchivar el proyecto
-        cursor.execute('UPDATE proyectos SET archivado = FALSE WHERE id = ?', (proyecto_id,))
+        cursor.execute('UPDATE proyectos SET archivado = FALSE WHERE id = %s', (proyecto_id,))
 
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('proyectos', ?, 'UNARCHIVE', ?, ?)
-        ''', (proyecto_id, session['user_id'], 
+            VALUES ('proyectos', %s, 'UNARCHIVE', %s, %s)
+        ''', (proyecto_id, session['user_id'],
               json.dumps({
                   'accion': 'desarchivar_proyecto',
                   'codigo': codigo_proyecto,
@@ -1334,17 +1338,21 @@ def desarchivar_proyecto(proyecto_id):
 @login_required
 def gestion_pedidos():
     """Vista de gestión de pedidos por estado (reemplaza el sistema anterior)"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Obtener órdenes de compra en diferentes estados
     cursor.execute('''
-        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega, 
+        SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.estado, p.prioridad,
-               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.estado NOT IN ('entregado', 'cancelado')
+        WHERE p.estado NOT IN ('entregado', 'cancelado') AND p.archivado = FALSE
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     pedidos = cursor.fetchall()
@@ -1362,7 +1370,7 @@ def gestion_pedidos():
     }
 
     for pedido in pedidos:
-        estado = pedido[6]  # estado field
+        estado = pedido['estado']  # estado field
         if estado in pedidos_por_estado:
             pedidos_por_estado[estado]['pedidos'].append(pedido)
 
@@ -1379,7 +1387,7 @@ def tareas():
 @app.route('/tarea/<int:tarea_id>')
 @login_required
 def tarea_detalle(tarea_id):
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute(
@@ -1388,13 +1396,13 @@ def tarea_detalle(tarea_id):
         FROM tareas t
         JOIN proyectos p ON t.proyecto_id = p.id
         LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
-        WHERE t.id = ?
+        WHERE t.id = %s
     ''', (tarea_id, ))
     tarea = cursor.fetchone()
 
     cursor.execute(
         '''
-        SELECT * FROM evidencias WHERE tarea_id = ? ORDER BY uploaded_at DESC
+        SELECT * FROM evidencias WHERE tarea_id = %s ORDER BY uploaded_at DESC
     ''', (tarea_id, ))
     evidencias = cursor.fetchall()
 
@@ -1412,13 +1420,13 @@ def tarea_detalle(tarea_id):
 @app.route('/completar_tarea/<int:tarea_id>', methods=['POST'])
 @login_required
 def completar_tarea(tarea_id):
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Verificar que el usuario puede completar esta tarea
     cursor.execute(
         '''
-        SELECT rol_asignado, usuario_asignado_id FROM tareas WHERE id = ?
+        SELECT rol_asignado, usuario_asignado_id FROM tareas WHERE id = %s
     ''', (tarea_id, ))
     tarea = cursor.fetchone()
 
@@ -1426,15 +1434,15 @@ def completar_tarea(tarea_id):
         flash('Tarea no encontrada', 'error')
         return redirect(url_for('tareas'))
 
-    if (tarea[0] != session['user_role'] and tarea[1] != session['user_id']
+    if (tarea['rol_asignado'] != session['user_role'] and tarea['usuario_asignado_id'] != session['user_id']
             and session['user_role'] != 'admin'):
         flash('No tienes permisos para completar esta tarea', 'error')
         return redirect(url_for('tarea_detalle', tarea_id=tarea_id))
 
     cursor.execute(
         '''
-        UPDATE tareas SET estado = 'completada', fecha_completada = ?
-        WHERE id = ?
+        UPDATE tareas SET estado = 'completada', fecha_completada = %s
+        WHERE id = %s
     ''', (datetime.now(), tarea_id))
 
     conn.commit()
@@ -1448,7 +1456,7 @@ def completar_tarea(tarea_id):
 @login_required
 @role_required(['admin'])
 def usuarios():
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
     cursor.execute(
         'SELECT id, username, nombre, rol, email, created_at FROM usuarios ORDER BY created_at DESC'
@@ -1477,19 +1485,19 @@ def nuevo_usuario():
 
     password_hash = generate_password_hash(password)
 
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         cursor.execute(
             '''
             INSERT INTO usuarios (username, password_hash, nombre, rol, email)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
         ''', (username, password_hash, nombre, rol, email))
         conn.commit()
         flash('Usuario creado exitosamente', 'success')
-    except sqlite3.IntegrityError:
-        flash('El nombre de usuario ya existe', 'error')
+    except psycopg2.errors.UniqueViolation:
+        flash('El nombre de usuario o email ya existe', 'error')
     finally:
         conn.close()
 
@@ -1530,12 +1538,13 @@ def crear_despacho():
         restricciones = request.form.get('restricciones', '').strip()
         observaciones = request.form.get('observaciones', '').strip()
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         # Generar código único para el despacho
-        cursor.execute('SELECT COUNT(*) FROM despachos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
-        despacho_numero = cursor.fetchone()[0] + 1
+        # PostgreSQL uses EXTRACT and TO_CHAR for year and zero-padding
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)')
+        despacho_numero = cursor.fetchone()['count'] + 1
         codigo_despacho = f"DESP-{datetime.now().year}-{despacho_numero:04d}"
 
         # Crear información completa en observaciones
@@ -1552,7 +1561,7 @@ def crear_despacho():
         if telefono_contacto:
             info_completa += f"\nTELÉFONO CONTACTO: {telefono_contacto}"
         if hora_programada:
-            info_completa += f"\nHhora_programada: {hora_programada}"
+            info_completa += f"\nHora Programada: {hora_programada}"
         if horario_entrega:
             info_completa += f"\nHORARIO ENTREGA: {horario_entrega}"
         if restricciones:
@@ -1563,15 +1572,14 @@ def crear_despacho():
         # Insertar el despacho (sin proyecto_id ya que es entrada manual)
         cursor.execute('''
             INSERT INTO despachos (
-                codigo_despacho, transportista, conductor, 
-                telefono_conductor, vehiculo_patente, direccion_entrega, 
+                codigo_despacho, transportista, conductor,
+                telefono_conductor, vehiculo_patente, direccion_entrega,
                 fecha_programada, observaciones, estado
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (codigo_despacho, transportista, conductor, 
-              telefono_conductor, vehiculo_patente, direccion_entrega, 
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+        ''', (codigo_despacho, transportista, conductor,
+              telefono_conductor, vehiculo_patente, direccion_entrega,
               fecha_despacho, info_completa, 'programado'))
-
-        despacho_id = cursor.lastrowid
+        despacho_id = cursor.fetchone()['id']
 
         # Manejar archivos subidos si existen
         for file_key in request.files:
@@ -1583,7 +1591,7 @@ def crear_despacho():
                         tipo_archivo = file_key.replace('archivo_', '')
                         cursor.execute('''
                             INSERT INTO despacho_archivos (despacho_id, tipo, nombre_original, ruta_archivo, tamaño)
-                            VALUES (?, ?, ?, ?, ?)
+                            VALUES (%s, %s, %s, %s, %s)
                         ''', (despacho_id, tipo_archivo, file.filename, file_path, len(file.read()) if hasattr(file, 'read') else 0))
 
         # Crear recordatorios automáticos
@@ -1591,9 +1599,9 @@ def crear_despacho():
 
         # Recordatorio 5 días antes
         fecha_recordatorio = fecha_despacho_dt - timedelta(days=5)
-        cursor.execute('SELECT id FROM areas WHERE nombre = "Despacho" LIMIT 1')
+        cursor.execute('SELECT id FROM areas WHERE nombre = %s LIMIT 1', ('Despacho',))
         area_despacho = cursor.fetchone()
-        area_id = area_despacho[0] if area_despacho else None
+        area_id = area_despacho['id'] if area_despacho else None
 
         titulo_recordatorio = f"Preparar despacho {codigo_despacho}"
         mensaje_recordatorio = f"Despacho programado para {fecha_despacho}.\nCliente: {cliente_nombre}\nObra: {obra_nombre}"
@@ -1602,10 +1610,10 @@ def crear_despacho():
 
         cursor.execute('''
             INSERT INTO recordatorios (
-                tipo, referencia_id, area_id, titulo, mensaje, 
+                tipo, referencia_id, area_id, titulo, mensaje,
                 fecha_recordatorio, activo
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', ('despacho', despacho_id, area_id, titulo_recordatorio, 
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', ('despacho', despacho_id, area_id, titulo_recordatorio,
               mensaje_recordatorio, fecha_recordatorio, True))
 
         # Recordatorio el día anterior
@@ -1615,10 +1623,10 @@ def crear_despacho():
 
         cursor.execute('''
             INSERT INTO recordatorios (
-                tipo, referencia_id, area_id, titulo, mensaje, 
+                tipo, referencia_id, area_id, titulo, mensaje,
                 fecha_recordatorio, activo
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', ('despacho', despacho_id, area_id, titulo_urgente, 
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', ('despacho', despacho_id, area_id, titulo_urgente,
               mensaje_urgente, fecha_recordatorio_urgente, True))
 
         conn.commit()
@@ -1656,17 +1664,17 @@ def programar_despacho_con_orden():
             flash('Cliente, fecha de despacho y dirección son obligatorios', 'error')
             return redirect(request.referrer or url_for('despachos'))
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         # Verificar que el cliente existe
-        cursor.execute('SELECT nombre FROM clientes WHERE id = ? AND activo = TRUE', (cliente_id,))
+        cursor.execute('SELECT nombre FROM clientes WHERE id = %s AND activo = TRUE', (cliente_id,))
         cliente = cursor.fetchone()
         if not cliente:
             flash('Cliente no válido', 'error')
             return redirect(request.referrer or url_for('despachos'))
 
-        cliente_nombre = cliente[0]
+        cliente_nombre = cliente['nombre']
 
         # Si no se seleccionó proyecto existente, crear uno nuevo
         if not proyecto_id:
@@ -1675,16 +1683,16 @@ def programar_despacho_con_orden():
                 return redirect(request.referrer or url_for('despachos'))
 
             # Obtener nombre del cliente para generar código
-            cursor.execute('SELECT nombre FROM clientes WHERE id = ?', (cliente_id,))
+            cursor.execute('SELECT nombre FROM clientes WHERE id = %s', (cliente_id,))
             cliente_info = cursor.fetchone()
-            cliente_nombre = cliente_info[0] if cliente_info else 'CLIENTE'
+            cliente_nombre = cliente_info['nombre'] if cliente_info else 'CLIENTE'
 
             # Limpiar nombre del cliente para código (solo letras y números, máximo 8 caracteres)
             cliente_codigo = ''.join(c.upper() for c in cliente_nombre if c.isalnum())[:8]
 
             # Generar número secuencial para este cliente
-            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = ?', (cliente_id,))
-            proyecto_numero = cursor.fetchone()[0] + 1
+            cursor.execute('SELECT COUNT(*) FROM proyectos WHERE cliente_id = %s', (cliente_id,))
+            proyecto_numero = cursor.fetchone()['count'] + 1
             codigo_proyecto = f"{cliente_codigo}-{proyecto_numero:03d}"
 
             # Convertir presupuesto si se proporciona
@@ -1700,11 +1708,10 @@ def programar_despacho_con_orden():
                 INSERT INTO proyectos (
                     codigo, nombre, cliente_id, descripcion, estado, prioridad,
                     fecha_inicio, fecha_entrega, presupuesto
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             ''', (codigo_proyecto, proyecto_nombre, cliente_id, descripcion, 'pendiente_fabricacion', prioridad,
                   datetime.now().date(), fecha_despacho, presupuesto_num))
-
-            proyecto_id = cursor.lastrowid
+            proyecto_id = cursor.fetchone()['id']
 
             # Crear tareas automáticas del ciclo de vida de producción
             fecha_inicio = datetime.now().date()
@@ -1741,36 +1748,36 @@ def programar_despacho_con_orden():
 
                 cursor.execute('''
                     INSERT INTO tareas (
-                        proyecto_id, titulo, descripcion, rol_asignado, tipo, 
+                        proyecto_id, titulo, descripcion, rol_asignado, tipo,
                         fecha_programada, estado, prioridad, etapa_fabricacion
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (proyecto_id, titulo, descripcion_tarea, rol, tipo, 
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ''', (proyecto_id, titulo, descripcion_tarea, rol, tipo,
                       fecha_programada, 'pendiente', prioridad, etapa_fab))
 
         else:
             # Verificar que el proyecto existe y pertenece al cliente
             cursor.execute('''
-                SELECT p.nombre, p.codigo FROM proyectos p 
-                WHERE p.id = ? AND p.cliente_id = ?
+                SELECT p.nombre, p.codigo FROM proyectos p
+                WHERE p.id = %s AND p.cliente_id = %s
             ''', (proyecto_id, cliente_id))
             proyecto_info = cursor.fetchone()
             if not proyecto_info:
                 flash('Proyecto no válido para el cliente seleccionado', 'error')
                 return redirect(request.referrer or url_for('despachos'))
 
-            proyecto_nombre = proyecto_info[0]
-            codigo_proyecto = proyecto_info[1]
+            proyecto_nombre = proyecto_info['nombre']
+            codigo_proyecto = proyecto_info['codigo']
 
             # Actualizar estado del proyecto a pendiente_fabricacion si no lo está
             cursor.execute('''
-                UPDATE proyectos SET estado = 'pendiente_fabricacion', 
-                fecha_entrega = ?, prioridad = ?
-                WHERE id = ?
-            ''', (fecha_despacho, prioridad, proyecto_id))
+                UPDATE proyectos SET estado = %s,
+                fecha_entrega = %s, prioridad = %s
+                WHERE id = %s
+            ''', ('pendiente_fabricacion', fecha_despacho, prioridad, proyecto_id))
 
         # Crear el despacho
-        cursor.execute('SELECT COUNT(*) FROM despachos WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
-        despacho_numero = cursor.fetchone()[0] + 1
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)')
+        despacho_numero = cursor.fetchone()['count'] + 1
         codigo_despacho = f"DESP-{datetime.now().year}-{despacho_numero:04d}"
 
         observaciones_completas = f"ORDEN DE PRODUCCIÓN AUTOMÁTICA\nCliente: {cliente_nombre}\nProyecto: {proyecto_nombre}"
@@ -1779,48 +1786,47 @@ def programar_despacho_con_orden():
 
         cursor.execute('''
             INSERT INTO despachos (
-                proyecto_id, codigo_despacho, transportista, direccion_entrega, 
+                proyecto_id, codigo_despacho, transportista, direccion_entrega,
                 fecha_programada, observaciones, estado
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (proyecto_id, codigo_despacho, transportista, direccion_entrega, 
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+        ''', (proyecto_id, codigo_despacho, transportista, direccion_entrega,
               fecha_despacho, observaciones_completas, 'programado'))
-
-        despacho_id = cursor.lastrowid
+        despacho_id = cursor.fetchone()['id']
 
         # Crear recordatorios
         fecha_despacho_dt = datetime.strptime(fecha_despacho, '%Y-%m-%d').date()
 
         # Recordatorio para iniciar producción (inmediato)
-        cursor.execute('SELECT id FROM areas WHERE nombre = "Producción" LIMIT 1')
+        cursor.execute('SELECT id FROM areas WHERE nombre = %s LIMIT 1', ('Producción',))
         area_produccion = cursor.fetchone()
-        area_prod_id = area_produccion[0] if area_produccion else None
+        area_prod_id = area_produccion['id'] if area_produccion else None
 
         titulo_produccion = f"Nueva orden de producción: {codigo_proyecto}"
         mensaje_produccion = f"Se ha creado una nueva orden de producción para el proyecto {proyecto_nombre}.\nCliente: {cliente_nombre}\nFecha límite de despacho: {fecha_despacho}\nPrioridad: {prioridad.upper()}"
 
         cursor.execute('''
             INSERT INTO recordatorios (
-                tipo, referencia_id, area_id, titulo, mensaje, 
+                tipo, referencia_id, area_id, titulo, mensaje,
                 fecha_recordatorio, activo
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', ('proyecto', proyecto_id, area_prod_id, titulo_produccion, 
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', ('proyecto', proyecto_id, area_prod_id, titulo_produccion,
               mensaje_produccion, datetime.now().date(), True))
 
         # Recordatorio de despacho 5 días antes
         fecha_recordatorio_despacho = fecha_despacho_dt - timedelta(days=5)
-        cursor.execute('SELECT id FROM areas WHERE nombre = "Despacho" LIMIT 1')
+        cursor.execute('SELECT id FROM areas WHERE nombre = %s LIMIT 1', ('Despacho',))
         area_despacho = cursor.fetchone()
-        area_desp_id = area_despacho[0] if area_despacho else None
+        area_desp_id = area_despacho['id'] if area_despacho else None
 
         titulo_despacho = f"Preparar despacho {codigo_despacho}"
         mensaje_despacho = f"Despacho programado para {fecha_despacho}.\nProyecto: {proyecto_nombre}\nCliente: {cliente_nombre}\nDirección: {direccion_entrega}"
 
         cursor.execute('''
             INSERT INTO recordatorios (
-                tipo, referencia_id, area_id, titulo, mensaje, 
+                tipo, referencia_id, area_id, titulo, mensaje,
                 fecha_recordatorio, activo
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', ('despacho', despacho_id, area_desp_id, titulo_despacho, 
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', ('despacho', despacho_id, area_desp_id, titulo_despacho,
               mensaje_despacho, fecha_recordatorio_despacho, True))
 
         conn.commit()
@@ -1839,23 +1845,14 @@ def programar_despacho_con_orden():
 @role_required(['admin', 'general', 'despacho'])
 def despachos():
     """Ver todos los despachos programados"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT d.*, 
-               CASE 
-                   WHEN p.nombre IS NOT NULL THEN p.nombre
-                   ELSE 'Proyecto Manual'
-               END as proyecto_nombre, 
-               CASE 
-                   WHEN p.codigo IS NOT NULL THEN p.codigo
-                   ELSE d.codigo_despacho
-               END as proyecto_codigo,
-               CASE 
-                   WHEN c.nombre IS NOT NULL THEN c.nombre
-                   ELSE 'Cliente Manual'
-               END as cliente_nombre
+        SELECT d.*,
+               COALESCE(p.nombre, 'Proyecto Manual') as proyecto_nombre,
+               COALESCE(p.codigo, d.codigo_despacho) as proyecto_codigo,
+               COALESCE(c.nombre, 'Cliente Manual') as cliente_nombre
         FROM despachos d
         LEFT JOIN proyectos p ON d.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
@@ -1877,7 +1874,7 @@ def despachos():
 @role_required(['admin', 'general', 'despacho'])
 def despacho_detalle(despacho_id):
     """Ver detalle de un despacho específico"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Obtener datos del despacho
@@ -1885,9 +1882,9 @@ def despacho_detalle(despacho_id):
         SELECT d.*, p.nombre as proyecto_nombre, p.codigo as proyecto_codigo,
                c.nombre as cliente_nombre, c.direccion as cliente_direccion
         FROM despachos d
-        JOIN proyectos p ON d.proyecto_id = p.id
+        LEFT JOIN proyectos p ON d.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE d.id = ?
+        WHERE d.id = %s
     ''', (despacho_id,))
 
     despacho = cursor.fetchone()
@@ -1899,7 +1896,7 @@ def despacho_detalle(despacho_id):
     # Obtener archivos del despacho
     cursor.execute('''
         SELECT * FROM despacho_archivos
-        WHERE despacho_id = ?
+        WHERE despacho_id = %s
         ORDER BY created_at DESC
     ''', (despacho_id,))
 
@@ -1914,7 +1911,7 @@ def despacho_detalle(despacho_id):
 @role_required(['admin', 'general', 'despacho'])
 def editar_despacho(despacho_id):
     """Editar un despacho existente"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     if request.method == 'POST':
@@ -1935,10 +1932,10 @@ def editar_despacho(despacho_id):
             # Actualizar despacho
             cursor.execute('''
                 UPDATE despachos SET
-                    transportista = ?, conductor = ?, telefono_conductor = ?,
-                    vehiculo_patente = ?, direccion_entrega = ?, observaciones = ?,
-                    fecha_programada = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
+                    transportista = %s, conductor = %s, telefono_conductor = %s,
+                    vehiculo_patente = %s, direccion_entrega = %s, observaciones = %s,
+                    fecha_programada = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
             ''', (transportista, conductor, telefono_conductor, vehiculo_patente,
                   direccion_entrega, observaciones, fecha_programada, despacho_id))
 
@@ -1951,7 +1948,7 @@ def editar_despacho(despacho_id):
                         tipo_archivo = file_key.replace('archivo_', '')
                         cursor.execute('''
                             INSERT INTO despacho_archivos (despacho_id, tipo, nombre_original, ruta_archivo)
-                            VALUES (?, ?, ?, ?)
+                            VALUES (%s, %s, %s, %s)
                         ''', (despacho_id, tipo_archivo, file.filename, file_path))
 
             conn.commit()
@@ -1968,8 +1965,8 @@ def editar_despacho(despacho_id):
     cursor.execute('''
         SELECT d.*, p.nombre as proyecto_nombre, p.codigo as proyecto_codigo
         FROM despachos d
-        JOIN proyectos p ON d.proyecto_id = p.id
-        WHERE d.id = ?
+        LEFT JOIN proyectos p ON d.proyecto_id = p.id
+        WHERE d.id = %s
     ''', (despacho_id,))
 
     despacho = cursor.fetchone()
@@ -1987,26 +1984,26 @@ def editar_despacho(despacho_id):
 @role_required(['admin', 'general'])
 def eliminar_despacho(despacho_id):
     """Eliminar un despacho y sus archivos asociados"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         # Obtener archivos para eliminarlos del sistema
-        cursor.execute('SELECT ruta_archivo FROM despacho_archivos WHERE despacho_id = ?', (despacho_id,))
+        cursor.execute('SELECT ruta_archivo FROM despacho_archivos WHERE despacho_id = %s', (despacho_id,))
         archivos = cursor.fetchall()
 
         # Eliminar archivos del sistema de archivos
         for archivo in archivos:
-            delete_file(archivo[0])
+            delete_file(archivo['ruta_archivo'])
 
         # Eliminar registros de archivos
-        cursor.execute('DELETE FROM despacho_archivos WHERE despacho_id = ?', (despacho_id,))
+        cursor.execute('DELETE FROM despacho_archivos WHERE despacho_id = %s', (despacho_id,))
 
         # Eliminar recordatorios asociados
-        cursor.execute('DELETE FROM recordatorios WHERE tipo = "despacho" AND referencia_id = ?', (despacho_id,))
+        cursor.execute('DELETE FROM recordatorios WHERE tipo = %s AND referencia_id = %s', ('despacho', despacho_id))
 
         # Eliminar despacho
-        cursor.execute('DELETE FROM despachos WHERE id = ?', (despacho_id,))
+        cursor.execute('DELETE FROM despachos WHERE id = %s', (despacho_id,))
 
         conn.commit()
         flash('Despacho eliminado exitosamente', 'success')
@@ -2024,22 +2021,22 @@ def eliminar_despacho(despacho_id):
 @role_required(['admin', 'general', 'despacho'])
 def eliminar_archivo_despacho(archivo_id):
     """Eliminar un archivo específico de un despacho"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         # Obtener información del archivo
-        cursor.execute('SELECT despacho_id, ruta_archivo FROM despacho_archivos WHERE id = ?', (archivo_id,))
+        cursor.execute('SELECT despacho_id, ruta_archivo FROM despacho_archivos WHERE id = %s', (archivo_id,))
         archivo = cursor.fetchone()
 
         if archivo:
-            despacho_id, ruta_archivo = archivo
+            despacho_id, ruta_archivo = archivo['despacho_id'], archivo['ruta_archivo']
 
             # Eliminar archivo del sistema
             delete_file(ruta_archivo)
 
             # Eliminar registro de la base de datos
-            cursor.execute('DELETE FROM despacho_archivos WHERE id = ?', (archivo_id,))
+            cursor.execute('DELETE FROM despacho_archivos WHERE id = %s', (archivo_id,))
             conn.commit()
 
             flash('Archivo eliminado exitosamente', 'success')
@@ -2060,13 +2057,13 @@ def eliminar_archivo_despacho(archivo_id):
 @role_required(['admin', 'general', 'despacho'])
 def marcar_despacho_en_transito(despacho_id):
     """Marcar un despacho como en tránsito"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         cursor.execute('''
             UPDATE despachos SET estado = 'en_transito', fecha_despacho = CURRENT_TIMESTAMP
-            WHERE id = ? AND estado = 'programado'
+            WHERE id = %s AND estado = 'programado'
         ''', (despacho_id,))
 
         if cursor.rowcount > 0:
@@ -2086,20 +2083,20 @@ def marcar_despacho_en_transito(despacho_id):
 @role_required(['admin', 'general', 'despacho'])
 def marcar_despacho_entregado(despacho_id):
     """Marcar un despacho como entregado"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         cursor.execute('''
             UPDATE despachos SET estado = 'entregado', fecha_entrega = CURRENT_TIMESTAMP
-            WHERE id = ? AND estado = 'en_transito'
+            WHERE id = %s AND estado = 'en_transito'
         ''', (despacho_id,))
 
         # También actualizar el proyecto como entregado
         cursor.execute('''
-            UPDATE proyectos SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP
-            WHERE id = (SELECT proyecto_id FROM despachos WHERE id = ?)
-        ''', (despacho_id,))
+            UPDATE proyectos SET estado = %s, fecha_entrega_real = CURRENT_TIMESTAMP
+            WHERE id = (SELECT proyecto_id FROM despachos WHERE id = %s)
+        ''', ('entregado', despacho_id))
 
         if cursor.rowcount > 0:
             conn.commit()
@@ -2117,11 +2114,11 @@ def marcar_despacho_entregado(despacho_id):
 @login_required
 def recordatorios_activos():
     """Ver recordatorios activos del usuario o área"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Obtener área del usuario actual
-    cursor.execute('SELECT area_id FROM usuarios WHERE id = ?', (session['user_id'],))
+    cursor.execute('SELECT area_id FROM usuarios WHERE id = %s', (session['user_id'],))
     user_area = cursor.fetchone()
 
     query = '''
@@ -2129,14 +2126,14 @@ def recordatorios_activos():
         FROM recordatorios r
         LEFT JOIN usuarios u ON r.usuario_id = u.id
         LEFT JOIN areas a ON r.area_id = a.id
-        WHERE r.activo = TRUE AND r.fecha_recordatorio <= date('now', '+7 days')
+        WHERE r.activo = TRUE AND r.fecha_recordatorio <= CURRENT_DATE
     '''
     params = []
 
     # Filtrar por usuario o área si no es admin
     if session['user_role'] != 'admin':
-        query += ' AND (r.usuario_id = ? OR r.area_id = ?)'
-        params.extend([session['user_id'], user_area[0] if user_area else None])
+        query += ' AND (r.usuario_id = %s OR r.area_id = %s)'
+        params.extend([session['user_id'], user_area['area_id'] if user_area else None])
 
     query += ' ORDER BY r.fecha_recordatorio ASC'
 
@@ -2151,13 +2148,13 @@ def recordatorios_activos():
 @login_required
 def marcar_recordatorio_enviado(recordatorio_id):
     """Marcar un recordatorio como enviado"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
-        UPDATE recordatorios 
-        SET enviado = TRUE, fecha_envio = CURRENT_TIMESTAMP 
-        WHERE id = ?
+        UPDATE recordatorios
+        SET enviado = TRUE, fecha_envio = CURRENT_TIMESTAMP
+        WHERE id = %s
     ''', (recordatorio_id,))
 
     conn.commit()
@@ -2178,7 +2175,7 @@ def calendario():
 @login_required
 def api_calendar_events():
     """API para obtener eventos del calendario con focus en órdenes de compra"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     events = []
@@ -2187,7 +2184,11 @@ def api_calendar_events():
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, p.fecha_entrega, p.estado, p.prioridad,
                c.nombre as cliente_nombre,
-               julianday(p.fecha_entrega) - julianday('now') as dias_restantes
+               CASE 
+                   WHEN p.fecha_entrega IS NOT NULL THEN 
+                       EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                   ELSE NULL 
+               END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE p.fecha_entrega IS NOT NULL AND p.estado NOT IN ('entregado', 'cancelado')
@@ -2196,36 +2197,36 @@ def api_calendar_events():
     for row in cursor.fetchall():
         # Colores según estado
         color = '#6c757d'  # gris por defecto
-        if row[4] == 'en_desarrollo':
+        if row['estado'] == 'en_desarrollo':
             color = '#6c757d'
-        elif row[4] == 'aprobado_produccion':
+        elif row['estado'] == 'aprobado_produccion':
             color = '#0d6efd'
-        elif row[4] in ['seccionado', 'enchapado', 'mecanizado']:
+        elif row['estado'] in ['seccionado', 'enchapado', 'mecanizado']:
             color = '#fd7e14'
-        elif row[4] == 'produccion_completa':
+        elif row['estado'] == 'produccion_completa':
             color = '#20c997'
-        elif row[4] == 'embalando':
+        elif row['estado'] == 'embalando':
             color = '#198754'
-        elif row[4] == 'listo_despacho':
+        elif row['estado'] == 'listo_despacho':
             color = '#dc3545'
 
         # Marcar como urgente si faltan pocos días
-        if row[7] is not None and row[7] <= 3:
+        if row['dias_restantes'] is not None and row['dias_restantes'] <= 3:
             color = '#dc3545'  # rojo para urgente
 
         events.append({
-            'id': f'orden_{row[0]}',
-            'title': f'OC: {row[1]} - {row[2]}',
-            'start': row[3],
+            'id': f'orden_{row["id"]}',
+            'title': f'OC: {row["codigo"]} - {row["nombre"]}',
+            'start': row["fecha_entrega"].isoformat(), # Format date for FullCalendar
             'type': 'orden_compra',
             'backgroundColor': color,
             'borderColor': color,
-            'proyecto': row[2],
-            'cliente': row[6],
-            'estado': row[4],
-            'prioridad': row[5],
-            'dias_restantes': row[7],
-            'codigo': row[1]
+            'proyecto': row["nombre"],
+            'cliente': row["cliente_nombre"],
+            'estado': row["estado"],
+            'prioridad': row["prioridad"],
+            'dias_restantes': row["dias_restantes"],
+            'codigo': row["codigo"]
         })
 
     # Obtener despachos programados
@@ -2241,16 +2242,16 @@ def api_calendar_events():
 
     for row in cursor.fetchall():
         events.append({
-            'id': f'despacho_{row[0]}',
-            'title': f'Despacho: {row[5] or row[1]}',
-            'start': row[2],
+            'id': f'despacho_{row["id"]}',
+            'title': f'Despacho: {row["proyecto_codigo"] or row["codigo_despacho"]}',
+            'start': row["fecha_programada"].isoformat(), # Format date for FullCalendar
             'type': 'despacho',
             'backgroundColor': '#e83e8c',
             'borderColor': '#e83e8c',
-            'proyecto': row[4] or 'Proyecto Manual',
-            'cliente': row[6] or 'Cliente Manual',
-            'estado': row[3],
-            'codigo_despacho': row[1]
+            'proyecto': row["proyecto_nombre"] or 'Proyecto Manual',
+            'cliente': row["cliente_nombre"] or 'Cliente Manual',
+            'estado': row["estado"],
+            'codigo_despacho': row["codigo_despacho"]
         })
 
     # Obtener recordatorios de producción
@@ -2266,17 +2267,17 @@ def api_calendar_events():
 
     for row in cursor.fetchall():
         events.append({
-            'id': f'recordatorio_{row[0]}',
-            'title': f'Recordatorio: {row[1]}',
-            'start': row[2],
+            'id': f'recordatorio_{row["id"]}',
+            'title': f'Recordatorio: {row["titulo"]}',
+            'start': row["fecha_recordatorio"].isoformat(), # Format date for FullCalendar
             'type': 'recordatorio',
             'backgroundColor': '#ffc107',
             'borderColor': '#ffc107',
             'textColor': '#000',
-            'usuario': row[5],
-            'area': row[6],
-            'mensaje': row[3],
-            'enviado': row[4]
+            'usuario': row["usuario_nombre"],
+            'area': row["area_nombre"],
+            'mensaje': row["mensaje"],
+            'enviado': row["enviado"]
         })
 
     conn.close()
@@ -2288,32 +2289,32 @@ def api_calendar_events():
 @role_required(['admin', 'general', 'operación'])
 def api_iniciar_proceso_orden(orden_id):
     """Iniciar proceso de fabricación para una orden de compra"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         # Verificar que la orden existe y está pendiente
-        cursor.execute('SELECT estado, codigo FROM proyectos WHERE id = ?', (orden_id,))
+        cursor.execute('SELECT estado, codigo FROM proyectos WHERE id = %s', (orden_id,))
         orden = cursor.fetchone()
 
         if not orden:
             return jsonify({'success': False, 'message': 'Orden no encontrada'})
 
-        if orden[0] not in ['diseño', 'en_desarrollo']:
+        if orden['estado'] not in ['diseño', 'en_desarrollo']:
             return jsonify({'success': False, 'message': 'La orden no está en estado pendiente'})
 
         # Cambiar estado de la orden a en proceso
-        cursor.execute('UPDATE proyectos SET estado = ? WHERE id = ?', ('aprobado_produccion', orden_id))
+        cursor.execute('UPDATE proyectos SET estado = %s WHERE id = %s', ('aprobado_produccion', orden_id))
 
         # Cambiar estado de todas las órdenes de fabricación a aprobado_produccion
         cursor.execute('''
-            UPDATE pedidos_seguimiento 
-            SET estado = ?, fecha_inicio = CURRENT_TIMESTAMP 
-            WHERE proyecto_id = ? AND estado = 'en_desarrollo'
+            UPDATE ordenes_fabricacion
+            SET estado = %s, fecha_inicio = CURRENT_TIMESTAMP
+            WHERE proyecto_id = %s AND estado = 'pendiente_fabricacion'
         ''', ('aprobado_produccion', orden_id))
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Proceso iniciado para orden {orden[1]}'})
+        return jsonify({'success': True, 'message': f'Proceso iniciado para orden {orden["codigo"]}'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -2326,36 +2327,36 @@ def api_iniciar_proceso_orden(orden_id):
 @role_required(['admin', 'general'])
 def api_terminar_orden(orden_id):
     """Marcar una orden de compra como terminada"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         # Verificar que todas las órdenes de fabricación están terminadas (si existen)
         cursor.execute('''
-            SELECT name FROM sqlite_master WHERE type='table' AND name='ordenes_fabricacion'
+            SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone():
+        if cursor.fetchone()[0]:
             cursor.execute('''
-                SELECT COUNT(*) FROM ordenes_fabricacion 
-                WHERE proyecto_id = ? AND estado NOT IN ('listo_despacho', 'despachado', 'entregado')
+                SELECT COUNT(*) FROM ordenes_fabricacion
+                WHERE proyecto_id = %s AND estado NOT IN ('listo_embalaje', 'despachado', 'entregado')
             ''', (orden_id,))
-            pendientes = cursor.fetchone()[0]
+            pendientes = cursor.fetchone()['count']
 
             if pendientes > 0:
                 return jsonify({'success': False, 'message': 'Hay órdenes de fabricación pendientes de terminar'})
 
             # Marcar todas las órdenes de fabricación como entregadas
             cursor.execute('''
-                UPDATE ordenes_fabricacion 
-                SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP 
-                WHERE proyecto_id = ?
+                UPDATE ordenes_fabricacion
+                SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP
+                WHERE proyecto_id = %s
             ''', (orden_id,))
 
         # Marcar orden como terminada
         cursor.execute('''
-            UPDATE proyectos 
-            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP 
-            WHERE id = ?
+            UPDATE proyectos
+            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP
+            WHERE id = %s
         ''', (orden_id,))
 
         conn.commit()
@@ -2372,29 +2373,29 @@ def api_terminar_orden(orden_id):
 @role_required(['admin', 'general', 'operación'])
 def api_iniciar_orden_fabricacion(orden_fabricacion_id):
     """Iniciar una orden de fabricación específica"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         # Verificar estado actual de la orden de fabricación
-        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = ?', (orden_fabricacion_id,))
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = %s', (orden_fabricacion_id,))
         orden = cursor.fetchone()
 
         if not orden:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        if orden[0] not in ['pendiente_fabricacion', 'aprobado_diseño']:
+        if orden['estado'] not in ['pendiente_fabricacion', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
 
         # Cambiar estado de la orden de fabricación a primera etapa
         cursor.execute('''
-            UPDATE ordenes_fabricacion 
-            SET estado = 'seccionado', fecha_inicio = CURRENT_TIMESTAMP 
-            WHERE id = ?
+            UPDATE ordenes_fabricacion
+            SET estado = 'seccionado', fecha_inicio = CURRENT_TIMESTAMP
+            WHERE id = %s
         ''', (orden_fabricacion_id,))
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Orden de fabricación {orden[1]} iniciada'})
+        return jsonify({'success': True, 'message': f'Orden de fabricación {orden["codigo_orden"]} iniciada'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -2407,29 +2408,29 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
 @role_required(['admin', 'general', 'operación'])
 def api_iniciar_produccion(fabricacion_id):
     """Iniciar producción de una orden de fabricación específica"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         # Verificar estado actual de la orden de fabricación
-        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = ?', (fabricacion_id,))
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = %s', (fabricacion_id,))
         fab = cursor.fetchone()
 
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        if fab[0] not in ['pendiente_fabricacion', 'aprobado_diseño']:
+        if fab['estado'] not in ['pendiente_fabricacion', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
 
         # Cambiar a primera etapa de fabricación
         cursor.execute('''
-            UPDATE ordenes_fabricacion 
-            SET estado = 'seccionado', fecha_inicio = CURRENT_TIMESTAMP 
-            WHERE id = ?
+            UPDATE ordenes_fabricacion
+            SET estado = 'seccionado', fecha_inicio = CURRENT_TIMESTAMP
+            WHERE id = %s
         ''', (fabricacion_id,))
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Producción iniciada para {fab[1]}'})
+        return jsonify({'success': True, 'message': f'Producción iniciada para {fab["codigo_orden"]}'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -2442,19 +2443,19 @@ def api_iniciar_produccion(fabricacion_id):
 @role_required(['admin', 'general', 'operación'])
 def api_avanzar_etapa_fabricacion(fabricacion_id):
     """Avanzar una orden de fabricación a la siguiente etapa"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         # Obtener estado actual de la orden de fabricación
-        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = ?', (fabricacion_id,))
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = %s', (fabricacion_id,))
         fab = cursor.fetchone()
 
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        estado_actual = fab[0]
-        codigo_orden = fab[1]
+        estado_actual = fab['estado']
+        codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
         estados_secuencia = ['seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
@@ -2467,12 +2468,12 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
                 # Si es la última etapa, marcar fecha de terminación
                 if nuevo_estado == 'listo_embalaje':
                     cursor.execute('''
-                        UPDATE ordenes_fabricacion 
-                        SET estado = ?, fecha_entrega_real = CURRENT_TIMESTAMP 
-                        WHERE id = ?
+                        UPDATE ordenes_fabricacion
+                        SET estado = %s, fecha_entrega_real = CURRENT_TIMESTAMP
+                        WHERE id = %s
                     ''', (nuevo_estado, fabricacion_id))
                 else:
-                    cursor.execute('UPDATE ordenes_fabricacion SET estado = ? WHERE id = ?', 
+                    cursor.execute('UPDATE ordenes_fabricacion SET estado = %s WHERE id = %s',
                                  (nuevo_estado, fabricacion_id))
 
                 conn.commit()
@@ -2494,19 +2495,19 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
 @role_required(['admin', 'general'])
 def api_retroceder_etapa_fabricacion(fabricacion_id):
     """Retroceder una orden de fabricación a la etapa anterior"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         # Obtener estado actual de la orden de fabricación
-        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = ?', (fabricacion_id,))
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = %s', (fabricacion_id,))
         fab = cursor.fetchone()
 
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        estado_actual = fab[0]
-        codigo_orden = fab[1]
+        estado_actual = fab['estado']
+        codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
         estados_secuencia = ['pendiente_fabricacion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
@@ -2516,9 +2517,9 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
             if indice_actual > 0:
                 nuevo_estado = estados_secuencia[indice_actual - 1]
                 cursor.execute('''
-                    UPDATE ordenes_fabricacion 
-                    SET estado = ?, fecha_entrega_real = NULL 
-                    WHERE id = ?
+                    UPDATE ordenes_fabricacion
+                    SET estado = %s, fecha_entrega_real = NULL
+                    WHERE id = %s
                 ''', (nuevo_estado, fabricacion_id))
 
                 conn.commit()
@@ -2545,7 +2546,7 @@ def api_update_event_date():
         event_type = data['type']
         new_start = data['start']
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         # Extraer el ID numérico del event_id
@@ -2557,12 +2558,12 @@ def api_update_event_date():
                 return jsonify({'success': False, 'message': 'Sin permisos para modificar despachos'})
 
             cursor.execute('''
-                UPDATE despachos SET fecha_programada = ? WHERE id = ?
+                UPDATE despachos SET fecha_programada = %s WHERE id = %s
             ''', (new_start, numeric_id))
 
         elif event_type == 'tarea':
             cursor.execute('''
-                UPDATE tareas SET fecha_programada = ? WHERE id = ?
+                UPDATE tareas SET fecha_programada = %s WHERE id = %s
             ''', (new_start, numeric_id))
 
         elif event_type == 'recordatorio':
@@ -2571,7 +2572,7 @@ def api_update_event_date():
                 return jsonify({'success': False, 'message': 'Sin permisos para modificar recordatorios'})
 
             cursor.execute('''
-                UPDATE recordatorios SET fecha_recordatorio = ? WHERE id = ?
+                UPDATE recordatorios SET fecha_recordatorio = %s WHERE id = %s
             ''', (new_start, numeric_id))
 
         else:
@@ -2594,12 +2595,12 @@ def api_update_event_date():
 @login_required
 def ordenes_fabricacion():
     """Vista de órdenes de fabricación organizadas por estado"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Órdenes de fabricación pendientes
     cursor.execute('''
-        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada, 
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
                c.nombre as cliente_nombre, of.fecha_entrega_real
@@ -2613,7 +2614,7 @@ def ordenes_fabricacion():
 
     # Órdenes de fabricación en proceso
     cursor.execute('''
-        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada, 
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
                c.nombre as cliente_nombre, of.fecha_entrega_real
@@ -2627,7 +2628,7 @@ def ordenes_fabricacion():
 
     # Órdenes de fabricación terminadas
     cursor.execute('''
-        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada, 
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
                c.nombre as cliente_nombre, of.fecha_entrega_real
@@ -2665,19 +2666,19 @@ def crear_orden_fabricacion():
             flash('Debe seleccionar al menos una categoría para fabricar', 'error')
             return redirect(url_for('ordenes_fabricacion'))
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         # Verificar que el proyecto existe
-        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = ?', (proyecto_id,))
+        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = %s', (proyecto_id,))
         proyecto = cursor.fetchone()
         if not proyecto:
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('ordenes_fabricacion'))
 
         # Generar código único para la orden
-        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
-        orden_numero = cursor.fetchone()[0] + 1
+        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)')
+        orden_numero = cursor.fetchone()['count'] + 1
         codigo_orden = f"OF-{datetime.now().year}-{orden_numero:04d}"
 
         # Crear orden de fabricación
@@ -2685,11 +2686,10 @@ def crear_orden_fabricacion():
             INSERT INTO ordenes_fabricacion (
                 codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
                 cantidad_tableros, estado, observaciones
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
               cantidad_tableros, 'pendiente_fabricacion', observaciones))
-
-        orden_fabricacion_id = cursor.lastrowid
+        orden_fabricacion_id = cursor.fetchone()['id']
 
         # Procesar categorías seleccionadas
         for categoria_data in categorias_seleccionadas:
@@ -2700,7 +2700,7 @@ def crear_orden_fabricacion():
             cursor.execute('''
                 INSERT INTO orden_fabricacion_categorias (
                     orden_fabricacion_id, categoria_id, subcategoria_id
-                ) VALUES (?, ?, ?)
+                ) VALUES (%s, %s, %s)
             ''', (orden_fabricacion_id, categoria_id, subcategoria_id))
 
             # Las categorías ahora se manejan solo a través de orden_fabricacion_categorias
@@ -2721,7 +2721,7 @@ def crear_orden_fabricacion():
 @login_required
 def api_proyectos_disponibles_fabricacion():
     """API para obtener proyectos disponibles para órdenes de fabricación"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
@@ -2737,10 +2737,10 @@ def api_proyectos_disponibles_fabricacion():
     proyectos = []
     for row in cursor.fetchall():
         proyectos.append({
-            'id': row[0],
-            'codigo': row[1] or f'PROJ-{row[0]}',
-            'nombre': row[2],
-            'cliente': row[3] or 'Sin cliente'
+            'id': row['id'],
+            'codigo': row['codigo'] or f'PROJ-{row["id"]}',
+            'nombre': row['nombre'],
+            'cliente': row['cliente_nombre'] or 'Sin cliente'
         })
 
     conn.close()
@@ -2751,26 +2751,26 @@ def api_proyectos_disponibles_fabricacion():
 @login_required
 def api_categorias_proyecto(proyecto_id):
     """API para obtener categorías de un proyecto"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT pc.categoria_id, pc.subcategoria_id, 
+        SELECT pc.categoria_id, pc.subcategoria_id,
                cat.nombre as categoria_nombre, subcat.nombre as subcategoria_nombre
         FROM proyecto_categorias pc
         JOIN categorias_producto cat ON pc.categoria_id = cat.id
         LEFT JOIN subcategorias_producto subcat ON pc.subcategoria_id = subcat.id
-        WHERE pc.proyecto_id = ?
+        WHERE pc.proyecto_id = %s
         ORDER BY cat.nombre, subcat.nombre
     ''', (proyecto_id,))
 
     categorias = []
     for row in cursor.fetchall():
         categorias.append({
-            'categoria_id': row[0],
-            'subcategoria_id': row[1],
-            'categoria_nombre': row[2],
-            'subcategoria_nombre': row[3]
+            'categoria_id': row['categoria_id'],
+            'subcategoria_id': row['subcategoria_id'],
+            'categoria_nombre': row['categoria_nombre'],
+            'subcategoria_nombre': row['subcategoria_nombre']
         })
 
     conn.close()
@@ -2782,28 +2782,28 @@ def api_categorias_proyecto(proyecto_id):
 @role_required(['admin', 'general'])
 def eliminar_orden_fabricacion(orden_id):
     """Eliminar orden de fabricación"""
-    try:
-        conn = sqlite3.connect('mobikit.db')
-        cursor = conn.cursor()
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
 
+    try:
         # Verificar que la orden existe
-        cursor.execute('SELECT codigo_orden, estado FROM ordenes_fabricacion WHERE id = ?', (orden_id,))
+        cursor.execute('SELECT codigo_orden, estado FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
         orden = cursor.fetchone()
 
         if not orden:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        codigo_orden, estado = orden
+        codigo_orden, estado = orden['codigo_orden'], orden['estado']
 
         # Solo permitir eliminar órdenes pendientes
         if estado not in ['pendiente_fabricacion', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'No se puede eliminar una orden en proceso o terminada'})
 
         # Eliminar categorías de la orden
-        cursor.execute('DELETE FROM orden_fabricacion_categorias WHERE orden_fabricacion_id = ?', (orden_id,))
+        cursor.execute('DELETE FROM orden_fabricacion_categorias WHERE orden_fabricacion_id = %s', (orden_id,))
 
         # Eliminar la orden
-        cursor.execute('DELETE FROM ordenes_fabricacion WHERE id = ?', (orden_id,))
+        cursor.execute('DELETE FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
 
         conn.commit()
         return jsonify({'success': True, 'message': f'Orden {codigo_orden} eliminada exitosamente'})
@@ -2818,15 +2818,15 @@ def eliminar_orden_fabricacion(orden_id):
 @login_required
 def api_clientes_activos():
     """API para obtener clientes activos"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('SELECT id, nombre FROM clientes WHERE activo = TRUE ORDER BY nombre ASC')
     clientes = []
     for row in cursor.fetchall():
         clientes.append({
-            'id': row[0],
-            'nombre': row[1]
+            'id': row['id'],
+            'nombre': row['nombre']
         })
 
     conn.close()
@@ -2837,15 +2837,15 @@ def api_clientes_activos():
 @login_required
 def api_categorias():
     """API para obtener categorías disponibles"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('SELECT id, nombre FROM categorias_producto WHERE activo = TRUE ORDER BY nombre ASC')
     categorias = []
     for row in cursor.fetchall():
         categorias.append({
-            'id': row[0],
-            'nombre': row[1]
+            'id': row['id'],
+            'nombre': row['nombre']
         })
 
     conn.close()
@@ -2856,20 +2856,20 @@ def api_categorias():
 @login_required
 def api_subcategorias(categoria_id):
     """API para obtener subcategorías de una categoría"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT id, nombre FROM subcategorias_producto 
-        WHERE categoria_id = ? AND activo = TRUE 
+        SELECT id, nombre FROM subcategorias_producto
+        WHERE categoria_id = %s AND activo = TRUE
         ORDER BY nombre ASC
     ''', (categoria_id,))
 
     subcategorias = []
     for row in cursor.fetchall():
         subcategorias.append({
-            'id': row[0],
-            'nombre': row[1]
+            'id': row['id'],
+            'nombre': row['nombre']
         })
 
     conn.close()
@@ -2880,22 +2880,22 @@ def api_subcategorias(categoria_id):
 @login_required
 def api_proyectos_cliente(cliente_id):
     """API para obtener proyectos de un cliente específico"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
         SELECT id, codigo, nombre
-        FROM proyectos 
-        WHERE cliente_id = ? AND (archivado IS NULL OR archivado = FALSE)
+        FROM proyectos
+        WHERE cliente_id = %s AND (archivado IS NULL OR archivado = FALSE)
         ORDER BY created_at DESC
     ''', (cliente_id,))
 
     proyectos = []
     for row in cursor.fetchall():
         proyectos.append({
-            'id': row[0],
-            'codigo': row[1] or f'PROJ-{row[0]}',
-            'nombre': row[2]
+            'id': row['id'],
+            'codigo': row['codigo'] or f'PROJ-{row["id"]}',
+            'nombre': row['nombre']
         })
 
     conn.close()
@@ -2919,19 +2919,19 @@ def crear_orden_fabricacion_desde_oc():
             flash('Debe seleccionar al menos una categoría para fabricar', 'error')
             return redirect(url_for('ordenes_compra'))
 
-        conn = sqlite3.connect('mobikit.db')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
         # Verificar que el proyecto existe
-        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = ?', (proyecto_id,))
+        cursor.execute('SELECT codigo, nombre FROM proyectos WHERE id = %s', (proyecto_id,))
         proyecto = cursor.fetchone()
         if not proyecto:
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('ordenes_compra'))
 
         # Generar código único para la orden
-        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE strftime("%Y", created_at) = strftime("%Y", "now")')
-        orden_numero = cursor.fetchone()[0] + 1
+        cursor.execute('SELECT COUNT(*) FROM ordenes_fabricacion WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)')
+        orden_numero = cursor.fetchone()['count'] + 1
         codigo_orden = f"OF-{datetime.now().year}-{orden_numero:04d}"
 
         # Crear orden de fabricación
@@ -2939,11 +2939,10 @@ def crear_orden_fabricacion_desde_oc():
             INSERT INTO ordenes_fabricacion (
                 codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
                 cantidad_tableros, estado, observaciones
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
               cantidad_tableros, 'pendiente_fabricacion', observaciones))
-
-        orden_fabricacion_id = cursor.lastrowid
+        orden_fabricacion_id = cursor.fetchone()['id']
 
         # Procesar categorías seleccionadas y crear pedidos de seguimiento
         for categoria_data in categorias_seleccionadas:
@@ -2954,7 +2953,7 @@ def crear_orden_fabricacion_desde_oc():
             cursor.execute('''
                 INSERT INTO orden_fabricacion_categorias (
                     orden_fabricacion_id, categoria_id, subcategoria_id
-                ) VALUES (?, ?, ?)
+                ) VALUES (%s, %s, %s)
             ''', (orden_fabricacion_id, categoria_id, subcategoria_id))
 
             # Las categorías ahora se manejan solo a través de orden_fabricacion_categorias
@@ -2976,7 +2975,7 @@ def crear_orden_fabricacion_desde_oc():
 @role_required(['admin', 'general', 'despacho'])
 def api_proyectos_para_despacho():
     """API para obtener proyectos listos para despacho"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
@@ -2990,10 +2989,10 @@ def api_proyectos_para_despacho():
     proyectos = []
     for row in cursor.fetchall():
         proyectos.append({
-            'id': row[0],
-            'codigo': row[1] or f'PROJ-{row[0]}',
-            'nombre': row[2],
-            'cliente': row[3] or 'Sin cliente'
+            'id': row['id'],
+            'codigo': row['codigo'] or f'PROJ-{row["id"]}',
+            'nombre': row['nombre'],
+            'cliente': row['cliente_nombre'] or 'Sin cliente'
         })
 
     conn.close()
@@ -3027,22 +3026,22 @@ def tareas_area():
 @role_required(['diseñador', 'admin', 'general'])
 def tareas_diseño():
     """Gestión de tareas de diseño"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
+        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado,
                t.fecha_programada, t.descripcion, u.nombre as asignado,
                t.created_at
         FROM tareas t
         JOIN proyectos p ON t.proyecto_id = p.id
         LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
         WHERE t.rol_asignado = 'diseñador' OR t.tipo = 'diseño'
-        ORDER BY 
-            CASE t.estado 
-                WHEN 'pendiente' THEN 1 
-                WHEN 'en_progreso' THEN 2 
-                WHEN 'completada' THEN 3 
+        ORDER BY
+            CASE t.estado
+                WHEN 'pendiente' THEN 1
+                WHEN 'en_progreso' THEN 2
+                WHEN 'completada' THEN 3
             END,
             t.fecha_programada ASC
     ''')
@@ -3058,23 +3057,23 @@ def tareas_diseño():
 @role_required(['operación', 'admin', 'general'])
 def tareas_operacion():
     """Gestión de tareas de operación con etapas de fabricación"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Obtener tareas de operación/fabricación con sus etapas
     cursor.execute('''
-        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
+        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado,
                t.fecha_programada, t.descripcion, u.nombre as asignado,
                t.etapa_fabricacion, t.created_at
         FROM tareas t
         JOIN proyectos p ON t.proyecto_id = p.id
         LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
         WHERE t.rol_asignado = 'operación' OR t.tipo = 'fabricación'
-        ORDER BY 
-            CASE t.estado 
-                WHEN 'pendiente' THEN 1 
-                WHEN 'en_progreso' THEN 2 
-                WHEN 'completada' THEN 3 
+        ORDER BY
+            CASE t.estado
+                WHEN 'pendiente' THEN 1
+                WHEN 'en_progreso' THEN 2
+                WHEN 'completada' THEN 3
             END,
             CASE t.etapa_fabricacion
                 WHEN 'seccionado' THEN 1
@@ -3097,11 +3096,11 @@ def tareas_operacion():
 @role_required(['embalaje', 'admin', 'general'])
 def tareas_embalaje():
     """Gestión de tareas de embalaje - solo fabricaciones completadas"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
+        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado,
                t.fecha_programada, t.descripcion, u.nombre as asignado,
                t.created_at
         FROM tareas t
@@ -3109,16 +3108,16 @@ def tareas_embalaje():
         LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
         WHERE (t.rol_asignado = 'embalaje' OR t.tipo = 'embalaje')
         AND EXISTS (
-            SELECT 1 FROM tareas t2 
-            WHERE t2.proyecto_id = t.proyecto_id 
+            SELECT 1 FROM tareas t2
+            WHERE t2.proyecto_id = t.proyecto_id
             AND (t2.rol_asignado = 'operación' OR t2.tipo = 'fabricación')
             AND t2.estado = 'completada'
         )
-        ORDER BY 
-            CASE t.estado 
-                WHEN 'pendiente' THEN 1 
-                WHEN 'en_progreso' THEN 2 
-                WHEN 'completada' THEN 3 
+        ORDER BY
+            CASE t.estado
+                WHEN 'pendiente' THEN 1
+                WHEN 'en_progreso' THEN 2
+                WHEN 'completada' THEN 3
             END,
             t.fecha_programada ASC
     ''')
@@ -3134,11 +3133,11 @@ def tareas_embalaje():
 @role_required(['despacho', 'admin', 'general'])
 def tareas_despacho():
     """Gestión de tareas de despacho"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
+        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado,
                t.fecha_programada, t.descripcion, u.nombre as asignado,
                t.created_at, d.codigo_despacho, d.estado as despacho_estado
         FROM tareas t
@@ -3146,11 +3145,11 @@ def tareas_despacho():
         LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
         LEFT JOIN despachos d ON d.proyecto_id = t.proyecto_id
         WHERE t.rol_asignado = 'despacho' OR t.tipo = 'despacho'
-        ORDER BY 
-            CASE t.estado 
-                WHEN 'pendiente' THEN 1 
-                WHEN 'en_progreso' THEN 2 
-                WHEN 'completada' THEN 3 
+        ORDER BY
+            CASE t.estado
+                WHEN 'pendiente' THEN 1
+                WHEN 'en_progreso' THEN 2
+                WHEN 'completada' THEN 3
             END,
             t.fecha_programada ASC
     ''')
@@ -3166,22 +3165,22 @@ def tareas_despacho():
 @role_required(['admin', 'general'])
 def tareas_general():
     """Vista general para admin/general - ve y modifica cualquier tarea"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado, 
+        SELECT t.id, t.titulo, p.nombre as proyecto, p.codigo, t.estado,
                t.fecha_programada, t.descripcion, u.nombre as asignado,
                t.rol_asignado, t.tipo, t.etapa_fabricacion, t.created_at
         FROM tareas t
         JOIN proyectos p ON t.proyecto_id = p.id
         LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
-        ORDER BY 
+        ORDER BY
             t.rol_asignado,
-            CASE t.estado 
-                WHEN 'pendiente' THEN 1 
-                WHEN 'en_progreso' THEN 2 
-                WHEN 'completada' THEN 3 
+            CASE t.estado
+                WHEN 'pendiente' THEN 1
+                WHEN 'en_progreso' THEN 2
+                WHEN 'completada' THEN 3
             END,
             t.fecha_programada ASC
     ''')
@@ -3196,25 +3195,25 @@ def tareas_general():
 @login_required
 def avanzar_tarea(tarea_id):
     """Avanzar una tarea al siguiente estado"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         # Obtener información actual de la tarea
         cursor.execute('''
-            SELECT t.estado, t.rol_asignado, t.tipo, 
+            SELECT t.estado, t.rol_asignado, t.tipo,
                    t.proyecto_id, t.titulo, p.nombre as proyecto_nombre,
                    t.etapa_fabricacion
             FROM tareas t
             JOIN proyectos p ON t.proyecto_id = p.id
-            WHERE t.id = ?
+            WHERE t.id = %s
         ''', (tarea_id,))
 
         tarea = cursor.fetchone()
         if not tarea:
             return jsonify({'success': False, 'message': 'Tarea no encontrada'})
 
-        estado_actual, rol, tipo, proyecto_id, titulo, proyecto_nombre, etapa_actual = tarea
+        estado_actual, rol, tipo, proyecto_id, titulo, proyecto_nombre, etapa_actual = tarea['estado'], tarea['rol_asignado'], tarea['tipo'], tarea['proyecto_id'], tarea['titulo'], tarea['proyecto_nombre'], tarea['etapa_fabricacion']
 
         # Verificar permisos
         if session['user_role'] not in ['admin', 'general'] and session['user_role'] != rol:
@@ -3224,11 +3223,11 @@ def avanzar_tarea(tarea_id):
         if rol == 'diseñador':
             if estado_actual == 'pendiente':
                 nuevo_estado = 'en_progreso'
-                cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = ? WHERE id = ?', 
+                cursor.execute('UPDATE tareas SET estado = %s, fecha_inicio = %s WHERE id = %s',
                              (nuevo_estado, datetime.now(), tarea_id))
             elif estado_actual == 'en_progreso':
                 nuevo_estado = 'completada'
-                cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ? WHERE id = ?', 
+                cursor.execute('UPDATE tareas SET estado = %s, fecha_completada = %s WHERE id = %s',
                              (nuevo_estado, datetime.now(), tarea_id))
             else:
                 return jsonify({'success': False, 'message': 'Tarea ya completada'})
@@ -3239,23 +3238,23 @@ def avanzar_tarea(tarea_id):
             if estado_actual == 'pendiente':
                 nuevo_estado = 'en_progreso'
                 nueva_etapa = 'seccionado'
-                cursor.execute('UPDATE tareas SET estado = ?, etapa_fabricacion = ?, fecha_inicio = ? WHERE id = ?', 
+                cursor.execute('UPDATE tareas SET estado = %s, etapa_fabricacion = %s, fecha_inicio = %s WHERE id = %s',
                              (nuevo_estado, nueva_etapa, datetime.now(), tarea_id))
             elif estado_actual == 'en_progreso':
                 if etapa_actual in etapas:
                     indice_actual = etapas.index(etapa_actual)
                     if indice_actual < len(etapas) - 1:
                         nueva_etapa = etapas[indice_actual + 1]
-                        cursor.execute('UPDATE tareas SET etapa_fabricacion = ? WHERE id = ?', 
+                        cursor.execute('UPDATE tareas SET etapa_fabricacion = %s WHERE id = %s',
                                      (nueva_etapa, tarea_id))
                     else:
                         # Última etapa completada
-                        cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ? WHERE id = ?', 
+                        cursor.execute('UPDATE tareas SET estado = %s, fecha_completada = %s WHERE id = %s',
                                      ('completada', datetime.now(), tarea_id))
                         nuevo_estado = 'completada'
                 else:
                     nueva_etapa = 'seccionado'
-                    cursor.execute('UPDATE tareas SET etapa_fabricacion = ? WHERE id = ?', 
+                    cursor.execute('UPDATE tareas SET etapa_fabricacion = %s WHERE id = %s',
                                  (nueva_etapa, tarea_id))
             else:
                 return jsonify({'success': False, 'message': 'Tarea ya completada'})
@@ -3263,11 +3262,11 @@ def avanzar_tarea(tarea_id):
         else:  # embalaje, despacho, general
             if estado_actual == 'pendiente':
                 nuevo_estado = 'en_progreso'
-                cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = ? WHERE id = ?', 
+                cursor.execute('UPDATE tareas SET estado = %s, fecha_inicio = %s WHERE id = %s',
                              (nuevo_estado, datetime.now(), tarea_id))
             elif estado_actual == 'en_progreso':
                 nuevo_estado = 'completada'
-                cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = ? WHERE id = ?', 
+                cursor.execute('UPDATE tareas SET estado = %s, fecha_completada = %s WHERE id = %s',
                              (nuevo_estado, datetime.now(), tarea_id))
             else:
                 return jsonify({'success': False, 'message': 'Tarea ya completada'})
@@ -3275,8 +3274,8 @@ def avanzar_tarea(tarea_id):
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('tareas', ?, 'UPDATE', ?, ?)
-        ''', (tarea_id, session['user_id'], 
+            VALUES ('tareas', %s, 'UPDATE', %s, %s)
+        ''', (tarea_id, session['user_id'],
               json.dumps({'accion': 'avanzar_tarea', 'titulo': titulo, 'proyecto': proyecto_nombre})))
 
         conn.commit()
@@ -3292,25 +3291,25 @@ def avanzar_tarea(tarea_id):
 @login_required
 def retroceder_tarea(tarea_id):
     """Retroceder una tarea al estado anterior"""
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     try:
         # Obtener información actual de la tarea
         cursor.execute('''
-            SELECT t.estado, t.rol_asignado, t.tipo, 
+            SELECT t.estado, t.rol_asignado, t.tipo,
                    t.proyecto_id, t.titulo, p.nombre as proyecto_nombre,
                    t.etapa_fabricacion
             FROM tareas t
             JOIN proyectos p ON t.proyecto_id = p.id
-            WHERE t.id = ?
+            WHERE t.id = %s
         ''', (tarea_id,))
 
         tarea = cursor.fetchone()
         if not tarea:
             return jsonify({'success': False, 'message': 'Tarea no encontrada'})
 
-        estado_actual, rol, tipo, proyecto_id, titulo, proyecto_nombre, etapa_actual = tarea
+        estado_actual, rol, tipo, proyecto_id, titulo, proyecto_nombre, etapa_actual = tarea['estado'], tarea['rol_asignado'], tarea['tipo'], tarea['proyecto_id'], tarea['titulo'], tarea['proyecto_nombre'], tarea['etapa_fabricacion']
 
         # Solo admin y general pueden retroceder tareas
         if session['user_role'] not in ['admin', 'general']:
@@ -3323,17 +3322,17 @@ def retroceder_tarea(tarea_id):
                 indice_actual = etapas.index(etapa_actual)
                 if indice_actual > 0:
                     nueva_etapa = etapas[indice_actual - 1]
-                    cursor.execute('UPDATE tareas SET etapa_fabricacion = ? WHERE id = ?', 
+                    cursor.execute('UPDATE tareas SET etapa_fabricacion = %s WHERE id = %s',
                                  (nueva_etapa, tarea_id))
                 else:
                     # Volver a pendiente
-                    cursor.execute('UPDATE tareas SET estado = ?, etapa_fabricacion = NULL, fecha_inicio = NULL WHERE id = ?', 
+                    cursor.execute('UPDATE tareas SET estado = %s, etapa_fabricacion = NULL, fecha_inicio = NULL WHERE id = %s',
                                  ('pendiente', tarea_id))
         elif estado_actual == 'completada':
-            cursor.execute('UPDATE tareas SET estado = ?, fecha_completada = NULL WHERE id = ?', 
+            cursor.execute('UPDATE tareas SET estado = %s, fecha_completada = NULL WHERE id = %s',
                          ('en_progreso', tarea_id))
         elif estado_actual == 'en_progreso':
-            cursor.execute('UPDATE tareas SET estado = ?, fecha_inicio = NULL WHERE id = ?', 
+            cursor.execute('UPDATE tareas SET estado = %s, fecha_inicio = NULL WHERE id = %s',
                          ('pendiente', tarea_id))
         else:
             return jsonify({'success': False, 'message': 'No se puede retroceder más'})
@@ -3341,8 +3340,8 @@ def retroceder_tarea(tarea_id):
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('tareas', ?, 'UPDATE', ?, ?)
-        ''', (tarea_id, session['user_id'], 
+            VALUES ('tareas', %s, 'UPDATE', %s, %s)
+        ''', (tarea_id, session['user_id'],
               json.dumps({'accion': 'retroceder_tarea', 'titulo': titulo, 'proyecto': proyecto_nombre})))
 
         conn.commit()
@@ -3358,7 +3357,7 @@ def retroceder_tarea(tarea_id):
 @login_required
 @role_required(['admin', 'general'])
 def reportes():
-    conn = sqlite3.connect('mobikit.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     # Estadísticas por estado de proyecto

@@ -178,7 +178,7 @@
                 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" onclick="prepararEnvio()">
+                    <button type="submit" class="btn btn-primary" onclick="recopilarDatos()">
                         <span id="submit-text">Crear</span>
                     </button>
                 </div>
@@ -474,5 +474,49 @@ function prepararEnvio() {
     
     document.getElementById('categorias_selected').value = JSON.stringify(categorias);
     document.getElementById('subcategorias_selected').value = JSON.stringify(subcategorias);
+}
+
+// Función para recopilar datos antes de enviar el formulario
+function recopilarDatos() {
+    const categoriaSelects = document.querySelectorAll('.categoria-select');
+    const subcategoriaSelects = document.querySelectorAll('.subcategoria-select');
+    
+    const categoriasSeleccionadas = [];
+    const subcategoriasSeleccionadas = [];
+    
+    categoriaSelects.forEach((select, index) => {
+        if (select.value) {
+            categoriasSeleccionadas.push(select.value);
+            subcategoriasSeleccionadas.push(subcategoriaSelects[index] ? subcategoriaSelects[index].value || '' : '');
+        }
+    });
+    
+    // Convertir a formato esperado por el backend
+    const categoriasParaEnvio = categoriasSeleccionadas.map((cat, index) => {
+        return cat + ',' + (subcategoriasSeleccionadas[index] || '');
+    });
+    
+    // Limpiar campos hidden existentes
+    let categoriasSelected = document.getElementById('categorias_selected');
+    if (!categoriasSelected) {
+        categoriasSelected = document.createElement('input');
+        categoriasSelected.type = 'hidden';
+        categoriasSelected.name = 'categorias_selected';
+        categoriasSelected.id = 'categorias_selected';
+        document.querySelector('form').appendChild(categoriasSelected);
+    }
+    
+    let subcategoriasSelected = document.getElementById('subcategorias_selected');
+    if (!subcategoriasSelected) {
+        subcategoriasSelected = document.createElement('input');
+        subcategoriasSelected.type = 'hidden';
+        subcategoriasSelected.name = 'subcategorias_selected';
+        subcategoriasSelected.id = 'subcategorias_selected';
+        document.querySelector('form').appendChild(subcategoriasSelected);
+    }
+    
+    // Asignar valores
+    categoriasSelected.value = JSON.stringify(categoriasSeleccionadas);
+    subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas);
 }
 </script>
