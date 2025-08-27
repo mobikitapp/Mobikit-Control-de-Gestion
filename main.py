@@ -2378,6 +2378,46 @@ def api_terminar_orden(orden_id):
         conn.close()
 
 
+@app.route('/actualizar_observaciones_orden', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def actualizar_observaciones_orden():
+    """Actualizar observaciones de una orden de compra"""
+    try:
+        proyecto_id = request.form['proyecto_id']
+        observaciones = request.form.get('observaciones', '').strip() or None
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
+        # Actualizar observaciones
+        cursor.execute('''
+            UPDATE proyectos SET
+                observaciones = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        ''', (observaciones, proyecto_id))
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('proyectos', %s, 'UPDATE', %s, %s)
+        ''', (proyecto_id, session['user_id'],
+              json.dumps({
+                  'accion': 'actualizar_observaciones',
+                  'observaciones': observaciones,
+                  'actualizado_por': session['user_name']
+              })))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'Observaciones actualizadas exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al actualizar observaciones: {str(e)}'})
+
+
 @app.route('/revertir_orden_a_pendiente/<int:orden_id>', methods=['POST'])
 @login_required
 @role_required(['admin', 'general'])

@@ -6,12 +6,12 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1><i class="fas fa-file-invoice"></i> Orden de Compra: {{ orden[1] }}</h1>
+        <h1><i class="fas fa-file-invoice"></i> Orden de Compra: {{ orden.codigo or orden.id }}</h1>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
                 <li class="breadcrumb-item"><a href="{{ url_for('ordenes_compra') }}">Órdenes de Compra</a></li>
-                <li class="breadcrumb-item active">{{ orden[1] }}</li>
+                <li class="breadcrumb-item active">{{ orden.codigo or orden.id }}</li>
             </ol>
         </nav>
     </div>
@@ -41,25 +41,25 @@
                         <table class="table table-sm">
                             <tr>
                                 <td><strong>Código:</strong></td>
-                                <td>{{ orden[1] }}</td>
+                                <td>{{ orden.codigo or orden.id }}</td>
                             </tr>
                             <tr>
                                 <td><strong>Nombre:</strong></td>
-                                <td>{{ orden[2] }}</td>
+                                <td>{{ orden.nombre }}</td>
                             </tr>
                             <tr>
                                 <td><strong>Estado:</strong></td>
                                 <td>
-                                    <span class="badge bg-{% if orden[4] == 'diseño' %}secondary{% elif orden[4] == 'en_desarrollo' %}warning{% elif orden[4] == 'aprobado_produccion' %}primary{% elif orden[4] == 'entregado' %}success{% endif %}">
-                                        {{ orden[4]|replace('_', ' ')|title }}
+                                    <span class="badge bg-{% if orden.estado == 'diseño' %}secondary{% elif orden.estado == 'en_desarrollo' %}warning{% elif orden.estado == 'aprobado_produccion' %}primary{% elif orden.estado == 'entregado' %}success{% endif %}">
+                                        {{ orden.estado|replace('_', ' ')|title }}
                                     </span>
                                 </td>
                             </tr>
                             <tr>
                                 <td><strong>Prioridad:</strong></td>
                                 <td>
-                                    <span class="badge bg-{% if orden[5] == 'alta' %}danger{% elif orden[5] == 'media' %}warning{% else %}info{% endif %}">
-                                        {{ orden[5]|title }}
+                                    <span class="badge bg-{% if orden.prioridad == 'alta' %}danger{% elif orden.prioridad == 'media' %}warning{% else %}info{% endif %}">
+                                        {{ orden.prioridad|title }}
                                     </span>
                                 </td>
                             </tr>
@@ -70,34 +70,34 @@
                         <table class="table table-sm">
                             <tr>
                                 <td><strong>Cliente:</strong></td>
-                                <td>{{ orden[11] }}</td>
+                                <td>{{ orden.cliente_nombre }}</td>
                             </tr>
-                            {% if orden[12] %}
+                            {% if orden.cliente_email %}
                             <tr>
                                 <td><strong>Email:</strong></td>
-                                <td>{{ orden[12] }}</td>
+                                <td>{{ orden.cliente_email }}</td>
                             </tr>
                             {% endif %}
-                            {% if orden[13] %}
+                            {% if orden.cliente_telefono %}
                             <tr>
                                 <td><strong>Teléfono:</strong></td>
-                                <td>{{ orden[13] }}</td>
+                                <td>{{ orden.cliente_telefono }}</td>
                             </tr>
                             {% endif %}
-                            {% if orden[14] %}
+                            {% if orden.contacto_principal %}
                             <tr>
                                 <td><strong>Contacto:</strong></td>
-                                <td>{{ orden[14] }}</td>
+                                <td>{{ orden.contacto_principal }}</td>
                             </tr>
                             {% endif %}
                         </table>
                     </div>
                 </div>
 
-                {% if orden[3] %}
+                {% if orden.descripcion %}
                 <div class="mt-3">
                     <h6>Descripción</h6>
-                    <p class="text-muted">{{ orden[3] }}</p>
+                    <p class="text-muted">{{ orden.descripcion }}</p>
                 </div>
                 {% endif %}
 
@@ -107,15 +107,15 @@
                         <table class="table table-sm">
                             <tr>
                                 <td><strong>Fecha Inicio:</strong></td>
-                                <td>{{ orden[6] if orden[6] else 'N/A' }}</td>
+                                <td>{{ orden.fecha_inicio if orden.fecha_inicio else 'N/A' }}</td>
                             </tr>
                             <tr>
                                 <td><strong>Fecha Entrega:</strong></td>
-                                <td>{{ orden[7] if orden[7] else 'N/A' }}</td>
+                                <td>{{ orden.fecha_entrega if orden.fecha_entrega else 'N/A' }}</td>
                             </tr>
                             <tr>
                                 <td><strong>Fecha Real:</strong></td>
-                                <td>{{ orden[8] if orden[8] else 'Pendiente' }}</td>
+                                <td>{{ orden.fecha_entrega_real if orden.fecha_entrega_real else 'Pendiente' }}</td>
                             </tr>
                         </table>
                     </div>
@@ -125,8 +125,8 @@
                             <tr>
                                 <td><strong>Presupuesto:</strong></td>
                                 <td>
-                                    {% if orden[10] %}
-                                    ${{ "{:,.0f}".format(orden[10]) }}
+                                    {% if orden.monto_neto %}
+                                    ${{ "{:,.0f}".format(orden.monto_neto) }}
                                     {% else %}
                                     No definido
                                     {% endif %}
@@ -135,8 +135,8 @@
                             <tr>
                                 <td><strong>Costo Real:</strong></td>
                                 <td>
-                                    {% if orden[11] %}
-                                    ${{ "{:,.0f}".format(orden[11]) }}
+                                    {% if orden.costo_real %}
+                                    ${{ "{:,.0f}".format(orden.costo_real) }}
                                     {% else %}
                                     Pendiente
                                     {% endif %}
@@ -284,21 +284,46 @@
             </div>
             <div class="card-body">
                 <p class="small mb-2">
-                    <strong>Creado:</strong> {{ orden[12] if orden[12] else 'N/A' }}
+                    <strong>Creado:</strong> {{ orden.created_at.strftime('%d/%m/%Y') if orden.created_at else 'N/A' }}
                 </p>
                 <p class="small mb-2">
-                    <strong>Actualizado:</strong> {{ orden[13] if orden[13] else 'N/A' }}
+                    <strong>Actualizado:</strong> {{ orden.updated_at.strftime('%d/%m/%Y') if orden.updated_at else 'N/A' }}
                 </p>
-                {% if orden[9] %}
-                <p class="small mb-0">
-                    <strong>Diseñador:</strong> {{ orden[9] }}
-                </p>
-                {% endif %}
-                {% if orden[10] %}
-                <p class="small mb-0">
-                    <strong>Supervisor:</strong> {{ orden[10] }}
-                </p>
-                {% endif %}
+                
+                <!-- Observaciones editables -->
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6>Observaciones</h6>
+                        {% if session.user_role in ['admin', 'general'] %}
+                        <button class="btn btn-sm btn-outline-primary" onclick="editarObservaciones({{ orden.id }})">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div id="observaciones-display">
+                        {% if orden.observaciones %}
+                        <p class="text-muted">{{ orden.observaciones }}</p>
+                        {% else %}
+                        <p class="text-muted fst-italic">Sin observaciones</p>
+                        {% endif %}
+                    </div>
+                    <div id="observaciones-edit" style="display: none;">
+                        <form id="form-observaciones">
+                            <input type="hidden" name="proyecto_id" value="{{ orden.id }}">
+                            <div class="mb-3">
+                                <textarea class="form-control" name="observaciones" rows="3" placeholder="Agregar observaciones...">{{ orden.observaciones or '' }}</textarea>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-save"></i> Guardar
+                                </button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="cancelarEdicionObservaciones()">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -396,14 +421,14 @@ function retrocederFabricacion(fabricacionId) {
 function editarOrden(ordenId) {
     // Obtener datos de la orden actual
     const orden = {
-        id: {{ orden[0] }},
-        codigo: '{{ orden[1] }}',
-        nombre: '{{ orden[2] }}',
-        descripcion: '{{ orden[3] or "" }}',
-        prioridad: '{{ orden[5] or "media" }}',
-        fecha_entrega: '{{ orden[7] or "" }}',
-        monto_neto: {{ orden[10] or 'null' }},
-        observaciones: '{{ orden[12] or "" }}'
+        id: {{ orden.id }},
+        codigo: '{{ orden.codigo or "" }}',
+        nombre: '{{ orden.nombre or "" }}',
+        descripcion: '{{ orden.descripcion or "" }}',
+        prioridad: '{{ orden.prioridad or "media" }}',
+        fecha_entrega: '{{ orden.fecha_entrega or "" }}',
+        monto_neto: {{ orden.monto_neto or 'null' }},
+        observaciones: '{{ orden.observaciones or "" }}'
     };
 
     // Crear y mostrar modal de edición
@@ -522,5 +547,45 @@ function revertirAPendiente(ordenId) {
         });
     }
 }
+
+function editarObservaciones(ordenId) {
+    document.getElementById('observaciones-display').style.display = 'none';
+    document.getElementById('observaciones-edit').style.display = 'block';
+}
+
+function cancelarEdicionObservaciones() {
+    document.getElementById('observaciones-display').style.display = 'block';
+    document.getElementById('observaciones-edit').style.display = 'none';
+}
+
+// Handle observations form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const formObservaciones = document.getElementById('form-observaciones');
+    if (formObservaciones) {
+        formObservaciones.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(formObservaciones);
+            
+            fetch('/actualizar_observaciones_orden', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Observaciones actualizadas exitosamente');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión');
+            });
+        });
+    }
+});
 </script>
 {% endblock %}
