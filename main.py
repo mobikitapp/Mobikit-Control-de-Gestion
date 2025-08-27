@@ -2638,7 +2638,7 @@ def ordenes_fabricacion():
     # Órdenes de fabricación pendientes
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
-               of.cantidad_tableros, of.estado, of.observaciones,
+               of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
                p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
         FROM ordenes_fabricacion of
@@ -2652,7 +2652,7 @@ def ordenes_fabricacion():
     # Órdenes de fabricación en proceso
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
-               of.cantidad_tableros, of.estado, of.observaciones,
+               of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
                p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
         FROM ordenes_fabricacion of
@@ -2666,7 +2666,7 @@ def ordenes_fabricacion():
     # Órdenes de fabricación terminadas
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
-               of.cantidad_tableros, of.estado, of.observaciones,
+               of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
                p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
         FROM ordenes_fabricacion of
