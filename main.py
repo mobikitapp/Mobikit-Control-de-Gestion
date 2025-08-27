@@ -9,9 +9,13 @@ from functools import wraps
 import uuid
 
 app = Flask(__name__)
-app.secret_key = 'mobikit_secret_key_2024'
+app.secret_key = os.getenv('SECRET_KEY', 'mobikit_secret_key_2024')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# Database configuration
+DATABASE_URL = os.getenv('DATABASE_URL', 'mobikit.db')
+ADMIN_DEFAULT_PASSWORD = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin123')
 
 # Tipos de archivos permitidos
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx'}
@@ -57,12 +61,18 @@ def delete_file(file_path):
                 print(f"Error al eliminar archivo {full_path}: {e}")
     return False
 
+def get_db_connection():
+    """Helper function to get database connection"""
+    db_path = DATABASE_URL.replace('sqlite:///', '') if DATABASE_URL.startswith('sqlite:///') else DATABASE_URL
+    return sqlite3.connect(db_path)
+
 # Roles disponibles
 ROLES = ['admin', 'general', 'diseñador', 'operación', 'embalaje', 'despacho']
 
 
 def init_db():
-    conn = sqlite3.connect('mobikit.db')
+    db_path = DATABASE_URL.replace('sqlite:///', '') if DATABASE_URL.startswith('sqlite:///') else DATABASE_URL
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     # Ejecutar el schema completo desde el archivo SQL
@@ -84,7 +94,7 @@ def init_db():
     # Crear usuario admin por defecto si no existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = "admin"')
     if cursor.fetchone()[0] == 0:
-        admin_password = generate_password_hash('admin123')
+        admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
         cursor.execute(
             '''
             INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
