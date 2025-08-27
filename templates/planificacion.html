@@ -138,13 +138,6 @@
                             <small>{{ mes.año }}</small>
                         </th>
                         {% endfor %}
-                        {# Agregado para mostrar capacidad #}
-                        {% for mes in meses %}
-                        <th style="min-width: 80px;" class="text-center">
-                            Capacidad {{ mes.nombre }}<br>
-                            <small>{{ mes.año }}</small>
-                        </th>
-                        {% endfor %}
                     </tr>
                 </thead>
                 <tbody id="matriz-body-clientes">
@@ -167,15 +160,6 @@
                             <!-- Los montos se calcularán con JavaScript -->
                         </td>
                         {% endfor %}
-                        {# Celdas para capacidad #}
-                        {% for mes in meses %}
-                        <td class="text-center capacidad-mes-clientes" 
-                            data-mes="{{ mes.numero }}" 
-                            data-año="{{ mes.año }}"
-                            data-cliente-id="{{ cliente.id }}">
-                            <!-- La capacidad se calculará con JavaScript -->
-                        </td>
-                        {% endfor %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -187,9 +171,11 @@
                             $0
                         </th>
                         {% endfor %}
-                        {# Objetivo mensual por mes #}
+                    </tr>
+                    <tr class="table-warning">
+                        <th colspan="3" class="text-end">Objetivo Mensual:</th>
                         {% for mes in meses %}
-                        <th class="text-center objetivo-mes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
+                        <th class="text-center">
                             ${{ "{:,.0f}".format(objetivo_mensual) }}
                         </th>
                         {% endfor %}
@@ -199,12 +185,6 @@
                         {% for mes in meses %}
                         <th class="text-center porcentaje-capacidad-mes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
                             0%
-                        </th>
-                        {% endfor %}
-                        {# Espacio para % de capacidad utilizada #}
-                        {% for mes in meses %}
-                        <th class="text-center">
-                            &nbsp;
                         </th>
                         {% endfor %}
                     </tr>
