@@ -4,3 +4,4 @@ flask
 psycopg2-binary
 werkzeug
 psycopg2-binary
+replit-object-storage
