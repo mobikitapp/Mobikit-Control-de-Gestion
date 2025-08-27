@@ -943,13 +943,11 @@ def nuevo_proyecto():
                                    fecha_estimada_inicio, fecha_inicio, fecha_entrega, diseñador_id, 
                                    monto_neto_provision, monto_neto_instalacion, margen_provision, 
                                    margen_instalacion, observaciones)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'proyecto_simple',
               fecha_estimada_inicio, request.form.get('fecha_inicio') or None, 
               request.form.get('fecha_entrega') or None, vendedor_id, monto_neto_provision,
-              monto_neto_instalacion, 
-              margen_provision,
-              margen_instalacion, observaciones))
+              monto_neto_instalacion, margen_provision, margen_instalacion, observaciones))
 
         proyecto_id = cursor.lastrowid
 
