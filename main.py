@@ -440,7 +440,7 @@ def dashboard():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('entregado', 'completado')
+        WHERE p.estado IN ('entregado', 'terminado', 'completado')
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.prioridad, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
@@ -710,7 +710,7 @@ def ordenes_compra():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('entregado', 'completado') AND p.archivado = FALSE
+        WHERE p.estado IN ('entregado', 'terminado', 'completado') AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
         ORDER BY p.fecha_entrega_real DESC
@@ -1403,7 +1403,7 @@ def archivar_proyecto(proyecto_id):
 
         codigo_proyecto, nombre_proyecto, estado_proyecto = proyecto['codigo'], proyecto['nombre'], proyecto['estado']
 
-        if estado_proyecto not in ['entregado', 'completado']:
+        if estado_proyecto not in ['entregado', 'terminado', 'completado']:
             return jsonify({'success': False, 'message': 'Solo se pueden archivar proyectos terminados'})
 
         # Archivar el proyecto
@@ -1490,7 +1490,7 @@ def gestion_pedidos():
                END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.estado NOT IN ('entregado', 'cancelado') AND p.archivado = FALSE
+        WHERE p.estado NOT IN ('entregado', 'terminado', 'cancelado') AND p.archivado = FALSE
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     pedidos = cursor.fetchall()
@@ -2326,7 +2326,7 @@ def api_calendar_events():
                END AS dias_restantes
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.fecha_entrega IS NOT NULL AND p.estado NOT IN ('entregado', 'cancelado')
+        WHERE p.fecha_entrega IS NOT NULL AND p.estado NOT IN ('entregado', 'terminado', 'cancelado')
     ''')
 
     for row in cursor.fetchall():
@@ -2490,7 +2490,7 @@ def api_terminar_orden(orden_id):
         # Marcar orden como terminada
         cursor.execute('''
             UPDATE proyectos
-            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP
+            SET estado = 'terminado', fecha_entrega_real = CURRENT_TIMESTAMP
             WHERE id = %s
         ''', (orden_id,))
 
@@ -2578,7 +2578,7 @@ def revertir_orden_a_pendiente(orden_id):
                 return jsonify({'success': False, 'message': 'No se puede revertir: la orden tiene órdenes de fabricación asociadas'})
 
         # Verificar que no está en estado terminado
-        if estado_actual in ['entregado', 'completado']:
+        if estado_actual in ['entregado', 'terminado', 'completado']:
             conn.close()
             return jsonify({'success': False, 'message': 'No se puede revertir una orden ya terminada'})
 
