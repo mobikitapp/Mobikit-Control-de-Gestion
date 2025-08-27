@@ -67,18 +67,12 @@
                         <td class="text-center planificacion-cell" 
                             data-mes="{{ mes.numero }}" 
                             data-año="{{ mes.año }}"
-                            data-proyecto-id="{{ proyecto.id }}">
-                            {% if proyecto.fecha_entrega and proyecto.fecha_entrega.month == mes.numero and proyecto.fecha_entrega.year == mes.año %}
-                            <div class="planificacion-monto" 
-                                 style="background-color: {% if proyecto.estado_proyecto == 'adjudicado' %}#28a745{% elif proyecto.estado_proyecto == 'presupuestado' %}#ffc107{% else %}#6c757d{% endif %}20; 
-                                        border-left: 4px solid {% if proyecto.estado_proyecto == 'adjudicado' %}#28a745{% elif proyecto.estado_proyecto == 'presupuestado' %}#ffc107{% else %}#6c757d{% endif %};">
-                                {% if proyecto.monto_neto_provision %}
-                                ${{ "{:,.0f}".format(proyecto.monto_neto_provision) }}
-                                {% else %}
-                                <i class="fas fa-calendar-check text-muted"></i>
-                                {% endif %}
-                            </div>
-                            {% endif %}
+                            data-proyecto-id="{{ proyecto.id }}"
+                            data-fecha-inicio="{{ proyecto.fecha_inicio if proyecto.fecha_inicio else '' }}"
+                            data-fecha-entrega="{{ proyecto.fecha_entrega if proyecto.fecha_entrega else '' }}"
+                            data-monto="{{ proyecto.monto_neto_provision if proyecto.monto_neto_provision else 0 }}"
+                            data-estado="{{ proyecto.estado_proyecto }}">
+                            <!-- El prorrateo se calculará con JavaScript -->
                         </td>
                         {% endfor %}
                     </tr>
@@ -138,7 +132,8 @@
                     <li><i class="fas fa-circle text-success"></i> <strong>Adjudicados:</strong> Proyectos confirmados</li>
                     <li><i class="fas fa-circle text-warning"></i> <strong>Presupuestados:</strong> Proyectos cotizados</li>
                     <li><i class="fas fa-info-circle text-muted"></i> Solo se muestran montos de <strong>provisión</strong></li>
-                    <li><i class="fas fa-calendar text-muted"></i> Basado en fechas de entrega programadas</li>
+                    <li><i class="fas fa-calendar text-muted"></i> <strong>Prorrateo:</strong> Montos distribuidos proporcionalmente</li>
+                    <li><i class="fas fa-clock text-muted"></i> Días en mes / Días totales del proyecto</li>
                 </ul>
             </div>
         </div>
@@ -181,6 +176,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Calcular prorrateo para cada proyecto
+    calcularProrrateoProyectos();
+    
     // Manejar filtros
     const filtros = document.querySelectorAll('input[name="filtro_estado"]');
     filtros.forEach(filtro => {
@@ -208,6 +206,59 @@ function filtrarProyectos(filtro) {
     });
 }
 
+function calcularProrrateoProyectos() {
+    const celdas = document.querySelectorAll('.planificacion-cell');
+    
+    celdas.forEach(celda => {
+        const fechaInicio = celda.dataset.fechaInicio;
+        const fechaEntrega = celda.dataset.fechaEntrega;
+        const monto = parseFloat(celda.dataset.monto);
+        const estado = celda.dataset.estado;
+        const mesCelda = parseInt(celda.dataset.mes);
+        const añoCelda = parseInt(celda.dataset.año);
+        
+        if (!fechaInicio || !fechaEntrega || !monto || monto === 0) {
+            return;
+        }
+        
+        const inicio = new Date(fechaInicio);
+        const termino = new Date(fechaEntrega);
+        
+        // Verificar si este mes está dentro del rango del proyecto
+        const fechaMes = new Date(añoCelda, mesCelda - 1, 1);
+        const siguienteMes = new Date(añoCelda, mesCelda, 1);
+        
+        if (fechaMes <= termino && siguienteMes > inicio) {
+            // Calcular días de intersección del proyecto con este mes
+            const inicioMes = new Date(Math.max(inicio, fechaMes));
+            const finMes = new Date(Math.min(termino, new Date(añoCelda, mesCelda, 0)));
+            
+            const diasEnMes = Math.ceil((finMes - inicioMes) / (1000 * 60 * 60 * 24)) + 1;
+            const diasTotales = Math.ceil((termino - inicio) / (1000 * 60 * 60 * 24)) + 1;
+            
+            const montoProrateado = (monto * diasEnMes) / diasTotales;
+            
+            if (montoProrateado > 0) {
+                const colorFondo = estado === 'adjudicado' ? '#28a745' : 
+                                 estado === 'presupuestado' ? '#ffc107' : '#6c757d';
+                
+                celda.innerHTML = `
+                    <div class="planificacion-monto" 
+                         style="background-color: ${colorFondo}20; 
+                                border-left: 4px solid ${colorFondo};
+                                font-size: 0.7em;">
+                        $${Math.round(montoProrateado).toLocaleString('es-CL')}
+                        <br><small style="font-size: 0.8em; opacity: 0.7;">${diasEnMes}d</small>
+                    </div>
+                `;
+                
+                // Guardar el monto prorrateado para cálculos posteriores
+                celda.dataset.montoProrateado = Math.round(montoProrateado);
+            }
+        }
+    });
+}
+
 function calcularTotales() {
     const meses = document.querySelectorAll('.total-mes');
     let totalAdjudicados = 0;
@@ -227,32 +278,26 @@ function calcularTotales() {
         const celdas = fila.querySelectorAll('.planificacion-cell');
         
         celdas.forEach(celda => {
-            const montoDiv = celda.querySelector('.planificacion-monto');
-            if (montoDiv) {
-                const mes = celda.dataset.mes;
-                const año = celda.dataset.año;
-                const montoTexto = montoDiv.textContent.trim();
+            const montoProrateado = parseFloat(celda.dataset.montoProrateado || '0');
+            const estado = celda.dataset.estado;
+            const mes = celda.dataset.mes;
+            const año = celda.dataset.año;
+            
+            if (montoProrateado > 0) {
+                // Agregar al total del mes
+                const totalMesElement = document.querySelector(`.total-mes[data-mes="${mes}"][data-año="${año}"]`);
+                if (totalMesElement) {
+                    const totalActual = parseFloat(totalMesElement.dataset.total || '0');
+                    const nuevoTotal = totalActual + montoProrateado;
+                    totalMesElement.dataset.total = nuevoTotal.toString();
+                    totalMesElement.textContent = '$' + nuevoTotal.toLocaleString('es-CL', {maximumFractionDigits: 0});
+                }
                 
-                if (montoTexto.startsWith('$')) {
-                    const monto = parseFloat(montoTexto.replace(/[$,]/g, ''));
-                    
-                    if (!isNaN(monto)) {
-                        // Agregar al total del mes
-                        const totalMesElement = document.querySelector(`.total-mes[data-mes="${mes}"][data-año="${año}"]`);
-                        if (totalMesElement) {
-                            const totalActual = parseFloat(totalMesElement.dataset.total || '0');
-                            const nuevoTotal = totalActual + monto;
-                            totalMesElement.dataset.total = nuevoTotal.toString();
-                            totalMesElement.textContent = '$' + nuevoTotal.toLocaleString('es-CL', {maximumFractionDigits: 0});
-                        }
-                        
-                        // Agregar al total por estado
-                        if (estado === 'adjudicado') {
-                            totalAdjudicados += monto;
-                        } else if (estado === 'presupuestado') {
-                            totalPresupuestados += monto;
-                        }
-                    }
+                // Agregar al total por estado
+                if (estado === 'adjudicado') {
+                    totalAdjudicados += montoProrateado;
+                } else if (estado === 'presupuestado') {
+                    totalPresupuestados += montoProrateado;
                 }
             }
         });

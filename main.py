@@ -3737,7 +3737,8 @@ def planificacion():
     # Obtener proyectos adjudicados y presupuestados con fechas de entrega
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado_proyecto,
-               p.fecha_entrega, p.monto_neto_provision, p.monto_neto_instalacion,
+               p.fecha_inicio, p.fecha_entrega, p.fecha_estimada_inicio,
+               p.monto_neto_provision, p.monto_neto_instalacion,
                c.nombre as cliente_nombre
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
