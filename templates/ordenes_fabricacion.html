@@ -287,12 +287,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('crear_orden_fabricacion') }}" method="POST" id="formOrdenFabricacion">
+                <input type="hidden" id="proyecto_id" name="proyecto_id">
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="proyecto_id" class="form-label">Proyecto</label>
-                            <select class="form-select" id="proyecto_id" name="proyecto_id" required>
-                                <option value="">Seleccionar proyecto...</option>
+                            <label for="orden_compra_id" class="form-label">Orden de Compra/Contrato *</label>
+                            <select class="form-select" id="orden_compra_id" name="orden_compra_id" required>
+                                <option value="">Seleccionar orden de compra/contrato...</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -301,6 +302,15 @@
                                 <option value="parcial">Parcial</option>
                                 <option value="total">Total</option>
                             </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <div class="alert alert-info" id="orden_info" style="display: none;">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Información de la Orden:</strong>
+                                <div id="orden_details"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="row">
@@ -339,34 +349,43 @@
 // Variables globales
 let proyectosData = [];
 
-// Cargar proyectos disponibles al abrir el modal
+// Cargar órdenes de compra al abrir el modal
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, setting up modal listeners');
     
     const modal = document.getElementById('nuevaOrdenFabricacionModal');
     if (modal) {
         modal.addEventListener('show.bs.modal', function() {
-            console.log('Modal opening, loading projects...');
-            cargarProyectosDisponibles();
+            console.log('Modal opening, loading orders...');
+            cargarOrdenesCompraDisponibles();
         });
     } else {
         console.error('Modal nuevaOrdenFabricacionModal not found');
     }
 
-    // Event listener para cambio de proyecto
-    const proyectoSelect = document.getElementById('proyecto_id');
-    if (proyectoSelect) {
-        proyectoSelect.addEventListener('change', function() {
-            const proyectoId = this.value;
-            console.log('Project changed:', proyectoId);
-            if (proyectoId) {
-                cargarCategoriasProyecto(proyectoId);
+    // Event listener para cambio de orden de compra
+    const ordenSelect = document.getElementById('orden_compra_id');
+    if (ordenSelect) {
+        ordenSelect.addEventListener('change', function() {
+            const ordenId = this.value;
+            console.log('Order changed:', ordenId);
+            
+            // Establecer el proyecto_id oculto
+            const proyectoIdHidden = document.getElementById('proyecto_id');
+            if (proyectoIdHidden) {
+                proyectoIdHidden.value = ordenId;
+            }
+            
+            if (ordenId) {
+                cargarDetallesOrden(ordenId);
+                cargarCategoriasProyecto(ordenId);
             } else {
+                resetOrdenInfo();
                 resetCategorias();
             }
         });
     } else {
-        console.error('Proyecto select not found');
+        console.error('Orden compra select not found');
     }
 
     // Event listener para el formulario
@@ -391,17 +410,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function cargarProyectosDisponibles() {
-    const select = document.getElementById('proyecto_id');
+function cargarOrdenesCompraDisponibles() {
+    const select = document.getElementById('orden_compra_id');
     if (!select) {
-        console.error('Select proyecto_id not found');
+        console.error('Select orden_compra_id not found');
         return;
     }
 
     // Mostrar loading
-    select.innerHTML = '<option value="">Cargando proyectos...</option>';
+    select.innerHTML = '<option value="">Cargando órdenes...</option>';
 
-    fetch('/api/proyectos_disponibles_fabricacion')
+    fetch('/api/ordenes_compra_disponibles')
         .then(response => {
             console.log('Response status:', response.status);
             if (!response.ok) {
@@ -410,43 +429,94 @@ function cargarProyectosDisponibles() {
             return response.json();
         })
         .then(data => {
-            console.log('Projects loaded:', data);
-            proyectosData = data;
+            console.log('Orders loaded:', data);
             
-            select.innerHTML = '<option value="">Seleccionar proyecto...</option>';
+            select.innerHTML = '<option value="">Seleccionar orden de compra/contrato...</option>';
 
             if (data && Array.isArray(data) && data.length > 0) {
-                data.forEach(proyecto => {
+                data.forEach(orden => {
                     const option = document.createElement('option');
-                    option.value = proyecto.id;
-                    option.textContent = `${proyecto.codigo || 'N/A'} - ${proyecto.nombre} (${proyecto.cliente})`;
+                    option.value = orden.id;
+                    const tipoTexto = orden.adjudicacion_tipo === 'contrato' ? 'CONTRATO' : 'OC';
+                    option.textContent = `${tipoTexto}: ${orden.codigo} - ${orden.nombre} (${orden.cliente_nombre})`;
                     select.appendChild(option);
                 });
             } else {
-                select.innerHTML = '<option value="">No hay proyectos disponibles</option>';
+                select.innerHTML = '<option value="">No hay órdenes disponibles</option>';
             }
         })
         .catch(error => {
-            console.error('Error loading projects:', error);
-            select.innerHTML = '<option value="">Error al cargar proyectos</option>';
+            console.error('Error loading orders:', error);
+            select.innerHTML = '<option value="">Error al cargar órdenes</option>';
         });
 }
 
-function cargarCategoriasProyecto(proyectoId) {
+function cargarDetallesOrden(ordenId) {
+    const ordenInfo = document.getElementById('orden_info');
+    const ordenDetails = document.getElementById('orden_details');
+    
+    if (!ordenInfo || !ordenDetails) {
+        console.error('Orden info elements not found');
+        return;
+    }
+
+    ordenInfo.style.display = 'block';
+    ordenDetails.innerHTML = 'Cargando información de la orden...';
+
+    fetch(`/api/orden_compra_detalle/${ordenId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Order details loaded:', data);
+            let html = `
+                <strong>Cliente:</strong> ${data.cliente_nombre}<br>
+                <strong>Proyecto:</strong> ${data.codigo} - ${data.nombre}<br>
+                <strong>Tipo:</strong> ${data.adjudicacion_tipo === 'contrato' ? 'Contrato' : 'Orden de Compra'}<br>
+                <strong>Estado:</strong> ${data.estado}<br>
+            `;
+            if (data.fecha_entrega) {
+                html += `<strong>Fecha Entrega:</strong> ${data.fecha_entrega}<br>`;
+            }
+            if (data.monto_neto) {
+                html += `<strong>Monto:</strong> $${Number(data.monto_neto).toLocaleString()}<br>`;
+            }
+            if (data.descripcion) {
+                html += `<strong>Descripción:</strong> ${data.descripcion}`;
+            }
+            ordenDetails.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading order details:', error);
+            ordenDetails.innerHTML = 'Error al cargar información de la orden';
+        });
+}
+
+function resetOrdenInfo() {
+    const ordenInfo = document.getElementById('orden_info');
+    if (ordenInfo) {
+        ordenInfo.style.display = 'none';
+    }
+}
+
+function cargarCategoriasProyecto(ordenId) {
     const categoriasDiv = document.getElementById('categorias_fabricacion');
     if (!categoriasDiv) {
         console.error('Categorias div not found');
         return;
     }
 
-    if (!proyectoId) {
+    if (!ordenId) {
         resetCategorias();
         return;
     }
 
     categoriasDiv.innerHTML = '<p class="text-muted">Cargando categorías...</p>';
 
-    fetch(`/api/categorias_proyecto/${proyectoId}`)
+    fetch(`/api/categorias_proyecto/${ordenId}`)
         .then(response => {
             console.log('Categories response status:', response.status);
             if (!response.ok) {
@@ -474,7 +544,7 @@ function cargarCategoriasProyecto(proyectoId) {
                 });
                 categoriasDiv.innerHTML = html;
             } else {
-                categoriasDiv.innerHTML = '<p class="text-warning"><i class="fas fa-exclamation-triangle"></i> No hay categorías disponibles para este proyecto. Debe asignar categorías al proyecto primero.</p>';
+                categoriasDiv.innerHTML = '<p class="text-warning"><i class="fas fa-exclamation-triangle"></i> No hay categorías disponibles para esta orden. Debe asignar categorías a la orden primero.</p>';
             }
         })
         .catch(error => {
@@ -486,7 +556,7 @@ function cargarCategoriasProyecto(proyectoId) {
 function resetCategorias() {
     const categoriasDiv = document.getElementById('categorias_fabricacion');
     if (categoriasDiv) {
-        categoriasDiv.innerHTML = '<p class="text-muted">Seleccione un proyecto para ver las categorías disponibles</p>';
+        categoriasDiv.innerHTML = '<p class="text-muted">Seleccione una orden de compra/contrato para ver las categorías disponibles</p>';
     }
 }
 
