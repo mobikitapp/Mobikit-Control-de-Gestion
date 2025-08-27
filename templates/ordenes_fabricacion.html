@@ -50,6 +50,7 @@
                         <thead>
                             <tr>
                                 <th>Código Orden</th>
+                                <th>OC/Contrato</th>
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
                                 <th>Tipo</th>
@@ -62,45 +63,51 @@
                         <tbody>
                             {% for orden in fabricacion_pendientes %}
                             <tr>
-                                <td><strong>{{ orden[1] }}</strong></td>
+                                <td><strong>{{ orden.codigo_orden }}</strong></td>
                                 <td>
-                                    <div>{{ orden[7] }} - {{ orden[8] }}</div>
+                                    <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
+                                        {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
+                                    </span><br>
+                                    <small>{{ orden.proyecto_codigo }}</small>
                                 </td>
-                                <td>{{ orden[9] or 'Sin cliente' }}</td>
                                 <td>
-                                    <span class="badge bg-info">{{ orden[2].title() }}</span>
+                                    <div>{{ orden.proyecto_codigo }} - {{ orden.proyecto_nombre }}</div>
                                 </td>
-                                <td>{{ orden[4] }}</td>
-                                <td>{{ orden[3] }}</td>
+                                <td>{{ orden.cliente_nombre or 'Sin cliente' }}</td>
                                 <td>
-                                    {% if orden[5] == 'pendiente' %}
-                                            <span class="badge bg-warning">Pendiente</span>
-                                        {% elif orden[5] == 'aprobado_produccion' %}
+                                    <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
+                                </td>
+                                <td>{{ orden.cantidad_tableros }}</td>
+                                <td>{{ orden.fecha_entrega_estimada }}</td>
+                                <td>
+                                    {% if orden.estado == 'pendiente_fabricacion' %}
+                                            <span class="badge bg-warning">Pendiente Fabricación</span>
+                                        {% elif orden.estado == 'aprobado_produccion' %}
                                             <span class="badge bg-info">Aprobado Producción</span>
-                                        {% elif orden[5] == 'seccionado' %}
+                                        {% elif orden.estado == 'seccionado' %}
                                             <span class="badge bg-secondary">Seccionado</span>
-                                        {% elif orden[5] == 'enchapado' %}
+                                        {% elif orden.estado == 'enchapado' %}
                                             <span class="badge bg-info">Enchapado</span>
-                                        {% elif orden[5] == 'mecanizado' %}
+                                        {% elif orden.estado == 'mecanizado' %}
                                             <span class="badge bg-primary">Mecanizado</span>
-                                        {% elif orden[5] == 'produccion_completa' %}
+                                        {% elif orden.estado == 'produccion_completa' %}
                                             <span class="badge bg-success">Producción Completa</span>
-                                        {% elif orden[5] == 'embalando' %}
+                                        {% elif orden.estado == 'embalando' %}
                                             <span class="badge bg-warning">Embalando</span>
-                                        {% elif orden[5] == 'listo_despacho' %}
+                                        {% elif orden.estado == 'listo_despacho' %}
                                             <span class="badge bg-danger">Listo Despacho</span>
-                                        {% elif orden[5] == 'entregado' %}
+                                        {% elif orden.estado == 'entregado' %}
                                             <span class="badge bg-dark">Entregado</span>
                                         {% else %}
-                                            <span class="badge bg-secondary">{{ orden[5]|title }}</span>
+                                            <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                         {% endif %}
                                 </td>
                                 <td>
                                     {% if session.user_role in ['admin', 'general', 'operación'] %}
-                                    <button class="btn btn-sm btn-success" onclick="iniciarFabricacion({{ orden[0] }})">
+                                    <button class="btn btn-sm btn-success" onclick="iniciarFabricacion({{ orden.id }})">
                                         <i class="fas fa-play"></i> Iniciar
                                     </button>
-                                    <button class="btn btn-sm btn-danger" onclick="eliminarOrdenFabricacion({{ orden[0] }})">
+                                    <button class="btn btn-sm btn-danger" onclick="eliminarOrdenFabricacion({{ orden.id }})">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                     {% endif %}
@@ -133,6 +140,7 @@
                         <thead>
                             <tr>
                                 <th>Código Orden</th>
+                                <th>OC/Contrato</th>
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
                                 <th>Tipo</th>
@@ -145,45 +153,51 @@
                         <tbody>
                             {% for orden in fabricacion_proceso %}
                             <tr>
-                                <td><strong>{{ orden[1] }}</strong></td>
+                                <td><strong>{{ orden.codigo_orden }}</strong></td>
                                 <td>
-                                    <div>{{ orden[7] }} - {{ orden[8] }}</div>
+                                    <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
+                                        {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
+                                    </span><br>
+                                    <small>{{ orden.proyecto_codigo }}</small>
                                 </td>
-                                <td>{{ orden[9] or 'Sin cliente' }}</td>
                                 <td>
-                                    <span class="badge bg-info">{{ orden[2].title() }}</span>
+                                    <div>{{ orden.proyecto_codigo }} - {{ orden.proyecto_nombre }}</div>
                                 </td>
-                                <td>{{ orden[4] }}</td>
-                                <td>{{ orden[3] }}</td>
+                                <td>{{ orden.cliente_nombre or 'Sin cliente' }}</td>
                                 <td>
-                                    {% if orden[5] == 'pendiente' %}
-                                            <span class="badge bg-warning">Pendiente</span>
-                                        {% elif orden[5] == 'aprobado_produccion' %}
+                                    <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
+                                </td>
+                                <td>{{ orden.cantidad_tableros }}</td>
+                                <td>{{ orden.fecha_entrega_estimada }}</td>
+                                <td>
+                                    {% if orden.estado == 'pendiente_fabricacion' %}
+                                            <span class="badge bg-warning">Pendiente Fabricación</span>
+                                        {% elif orden.estado == 'aprobado_produccion' %}
                                             <span class="badge bg-info">Aprobado Producción</span>
-                                        {% elif orden[5] == 'seccionado' %}
+                                        {% elif orden.estado == 'seccionado' %}
                                             <span class="badge bg-secondary">Seccionado</span>
-                                        {% elif orden[5] == 'enchapado' %}
-                                            <span class="badge bg-info">Enchapado</span>
-                                        {% elif orden[5] == 'mecanizado' %}
+                                        {% elif orden.estado == 'enchapando' %}
+                                            <span class="badge bg-info">Enchapando</span>
+                                        {% elif orden.estado == 'mecanizado' %}
                                             <span class="badge bg-primary">Mecanizado</span>
-                                        {% elif orden[5] == 'produccion_completa' %}
-                                            <span class="badge bg-success">Producción Completa</span>
-                                        {% elif orden[5] == 'embalando' %}
+                                        {% elif orden.estado == 'listo_embalaje' %}
+                                            <span class="badge bg-success">Listo Embalaje</span>
+                                        {% elif orden.estado == 'embalando' %}
                                             <span class="badge bg-warning">Embalando</span>
-                                        {% elif orden[5] == 'listo_despacho' %}
+                                        {% elif orden.estado == 'listo_despacho' %}
                                             <span class="badge bg-danger">Listo Despacho</span>
-                                        {% elif orden[5] == 'entregado' %}
+                                        {% elif orden.estado == 'entregado' %}
                                             <span class="badge bg-dark">Entregado</span>
                                         {% else %}
-                                            <span class="badge bg-secondary">{{ orden[5]|title }}</span>
+                                            <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                         {% endif %}
                                 </td>
                                 <td>
                                     {% if session.user_role in ['admin', 'general', 'operación'] %}
-                                    <button class="btn btn-sm btn-primary" onclick="avanzarFabricacion({{ orden[0] }})">
+                                    <button class="btn btn-sm btn-primary" onclick="avanzarFabricacion({{ orden.id }})">
                                         <i class="fas fa-arrow-right"></i> Avanzar
                                     </button>
-                                    <button class="btn btn-sm btn-secondary" onclick="retrocederFabricacion({{ orden[0] }})">
+                                    <button class="btn btn-sm btn-secondary" onclick="retrocederFabricacion({{ orden.id }})">
                                         <i class="fas fa-arrow-left"></i> Retroceder
                                     </button>
                                     {% endif %}
@@ -216,6 +230,7 @@
                         <thead>
                             <tr>
                                 <th>Código Orden</th>
+                                <th>OC/Contrato</th>
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
                                 <th>Tipo</th>
@@ -228,40 +243,48 @@
                         <tbody>
                             {% for orden in fabricacion_terminadas %}
                             <tr>
-                                <td><strong>{{ orden[1] }}</strong></td>
+                                <td><strong>{{ orden.codigo_orden }}</strong></td>
                                 <td>
-                                    <div>{{ orden[7] }} - {{ orden[8] }}</div>
+                                    <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
+                                        {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
+                                    </span><br>
+                                    <small>{{ orden.proyecto_codigo }}</small>
                                 </td>
-                                <td>{{ orden[9] or 'Sin cliente' }}</td>
                                 <td>
-                                    <span class="badge bg-info">{{ orden[2].title() }}</span>
+                                    <div>{{ orden.proyecto_codigo }} - {{ orden.proyecto_nombre }}</div>
                                 </td>
-                                <td>{{ orden[4] }}</td>
-                                <td>{{ orden[3] }}</td>
+                                <td>{{ orden.cliente_nombre or 'Sin cliente' }}</td>
                                 <td>
-                                    {% if orden[5] == 'pendiente' %}
-                                            <span class="badge bg-warning">Pendiente</span>
-                                        {% elif orden[5] == 'aprobado_produccion' %}
+                                    <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
+                                </td>
+                                <td>{{ orden.cantidad_tableros }}</td>
+                                <td>{{ orden.fecha_entrega_estimada }}</td>
+                                <td>
+                                    {% if orden.estado == 'pendiente_fabricacion' %}
+                                            <span class="badge bg-warning">Pendiente Fabricación</span>
+                                        {% elif orden.estado == 'aprobado_produccion' %}
                                             <span class="badge bg-info">Aprobado Producción</span>
-                                        {% elif orden[5] == 'seccionado' %}
+                                        {% elif orden.estado == 'seccionado' %}
                                             <span class="badge bg-secondary">Seccionado</span>
-                                        {% elif orden[5] == 'enchapado' %}
-                                            <span class="badge bg-info">Enchapado</span>
-                                        {% elif orden[5] == 'mecanizado' %}
+                                        {% elif orden.estado == 'enchapando' %}
+                                            <span class="badge bg-info">Enchapando</span>
+                                        {% elif orden.estado == 'mecanizado' %}
                                             <span class="badge bg-primary">Mecanizado</span>
-                                        {% elif orden[5] == 'produccion_completa' %}
-                                            <span class="badge bg-success">Producción Completa</span>
-                                        {% elif orden[5] == 'embalando' %}
+                                        {% elif orden.estado == 'listo_embalaje' %}
+                                            <span class="badge bg-success">Listo Embalaje</span>
+                                        {% elif orden.estado == 'embalando' %}
                                             <span class="badge bg-warning">Embalando</span>
-                                        {% elif orden[5] == 'listo_despacho' %}
+                                        {% elif orden.estado == 'listo_despacho' %}
                                             <span class="badge bg-danger">Listo Despacho</span>
-                                        {% elif orden[5] == 'entregado' %}
+                                        {% elif orden.estado == 'despachado' %}
+                                            <span class="badge bg-dark">Despachado</span>
+                                        {% elif orden.estado == 'entregado' %}
                                             <span class="badge bg-dark">Entregado</span>
                                         {% else %}
-                                            <span class="badge bg-secondary">{{ orden[5]|title }}</span>
+                                            <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                         {% endif %}
                                 </td>
-                                <td>{{ orden[10] or 'N/A' }}</td>
+                                <td>{{ orden.fecha_entrega_real or 'N/A' }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -338,7 +361,10 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary" id="btnCrearOrden">Crear Orden de Fabricación</button>
                 </div>
-            </form></old_str>
+            </form>
+        </div>
+    </div>
+</div></old_str>
         </div>
     </div>
 </div>
@@ -352,7 +378,7 @@ let proyectosData = [];
 // Cargar órdenes de compra al abrir el modal
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, setting up modal listeners');
-    
+
     const modal = document.getElementById('nuevaOrdenFabricacionModal');
     if (modal) {
         modal.addEventListener('show.bs.modal', function() {
@@ -369,13 +395,13 @@ document.addEventListener('DOMContentLoaded', function() {
         ordenSelect.addEventListener('change', function() {
             const ordenId = this.value;
             console.log('Order changed:', ordenId);
-            
+
             // Establecer el proyecto_id oculto
             const proyectoIdHidden = document.getElementById('proyecto_id');
             if (proyectoIdHidden) {
                 proyectoIdHidden.value = ordenId;
             }
-            
+
             if (ordenId) {
                 cargarDetallesOrden(ordenId);
                 cargarCategoriasProyecto(ordenId);
@@ -395,13 +421,13 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Form submitting...');
             const categoriasSeleccionadas = document.querySelectorAll('input[name="categorias_seleccionadas"]:checked');
             console.log('Selected categories:', categoriasSeleccionadas.length);
-            
+
             if (categoriasSeleccionadas.length === 0) {
                 e.preventDefault();
                 alert('Debe seleccionar al menos una categoría para fabricar');
                 return false;
             }
-            
+
             // Permitir que el formulario se envíe normalmente
             return true;
         });
@@ -418,9 +444,9 @@ function cargarOrdenesCompraDisponibles() {
     }
 
     // Mostrar loading
-    select.innerHTML = '<option value="">Cargando órdenes...</option>';
+    select.innerHTML = '<option value="">Cargando proyectos...</option>';
 
-    fetch('/api/ordenes_compra_disponibles')
+    fetch('/api/proyectos_disponibles_fabricacion')
         .then(response => {
             console.log('Response status:', response.status);
             if (!response.ok) {
@@ -429,70 +455,40 @@ function cargarOrdenesCompraDisponibles() {
             return response.json();
         })
         .then(data => {
-            console.log('Orders loaded:', data);
-            
+            console.log('Projects loaded:', data);
+
             select.innerHTML = '<option value="">Seleccionar orden de compra/contrato...</option>';
 
             if (data && Array.isArray(data) && data.length > 0) {
-                data.forEach(orden => {
+                data.forEach(proyecto => {
                     const option = document.createElement('option');
-                    option.value = orden.id;
-                    const tipoTexto = orden.adjudicacion_tipo === 'contrato' ? 'CONTRATO' : 'OC';
-                    option.textContent = `${tipoTexto}: ${orden.codigo} - ${orden.nombre} (${orden.cliente_nombre})`;
+                    option.value = proyecto.id;
+                    option.textContent = `${proyecto.codigo} - ${proyecto.nombre} (${proyecto.cliente})`;
                     select.appendChild(option);
                 });
             } else {
-                select.innerHTML = '<option value="">No hay órdenes disponibles</option>';
+                select.innerHTML = '<option value="">No hay proyectos disponibles</option>';
             }
         })
         .catch(error => {
-            console.error('Error loading orders:', error);
-            select.innerHTML = '<option value="">Error al cargar órdenes</option>';
+            console.error('Error loading projects:', error);
+            select.innerHTML = '<option value="">Error al cargar proyectos</option>';
         });
 }
 
-function cargarDetallesOrden(ordenId) {
+function cargarDetallesOrden(proyectoId) {
     const ordenInfo = document.getElementById('orden_info');
     const ordenDetails = document.getElementById('orden_details');
-    
+
     if (!ordenInfo || !ordenDetails) {
         console.error('Orden info elements not found');
         return;
     }
 
+    // Por simplicidad, solo mostramos que se seleccionó un proyecto
+    // Los detalles completos se pueden obtener si es necesario
     ordenInfo.style.display = 'block';
-    ordenDetails.innerHTML = 'Cargando información de la orden...';
-
-    fetch(`/api/orden_compra_detalle/${ordenId}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Order details loaded:', data);
-            let html = `
-                <strong>Cliente:</strong> ${data.cliente_nombre}<br>
-                <strong>Proyecto:</strong> ${data.codigo} - ${data.nombre}<br>
-                <strong>Tipo:</strong> ${data.adjudicacion_tipo === 'contrato' ? 'Contrato' : 'Orden de Compra'}<br>
-                <strong>Estado:</strong> ${data.estado}<br>
-            `;
-            if (data.fecha_entrega) {
-                html += `<strong>Fecha Entrega:</strong> ${data.fecha_entrega}<br>`;
-            }
-            if (data.monto_neto) {
-                html += `<strong>Monto:</strong> $${Number(data.monto_neto).toLocaleString()}<br>`;
-            }
-            if (data.descripcion) {
-                html += `<strong>Descripción:</strong> ${data.descripcion}`;
-            }
-            ordenDetails.innerHTML = html;
-        })
-        .catch(error => {
-            console.error('Error loading order details:', error);
-            ordenDetails.innerHTML = 'Error al cargar información de la orden';
-        });
+    ordenDetails.innerHTML = `<strong>Proyecto seleccionado:</strong> ID ${proyectoId}`;
 }
 
 function resetOrdenInfo() {
@@ -564,7 +560,7 @@ function iniciarFabricacion(ordenId) {
     if (confirm('¿Confirmas iniciar la fabricación de esta orden?')) {
         fetch(`/api/iniciar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
@@ -594,7 +590,7 @@ function avanzarFabricacion(ordenId) {
     if (confirm('¿Confirmas avanzar esta orden a la siguiente etapa?')) {
         fetch(`/api/avanzar_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
@@ -624,7 +620,7 @@ function retrocederFabricacion(ordenId) {
     if (confirm('¿Confirmas retroceder esta orden a la etapa anterior?')) {
         fetch(`/api/retroceder_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
@@ -654,7 +650,7 @@ function eliminarOrdenFabricacion(ordenId) {
     if (confirm('¿Estás seguro de que deseas eliminar esta orden de fabricación? Esta acción no se puede deshacer.')) {
         fetch(`/eliminar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
@@ -680,4 +676,4 @@ function eliminarOrdenFabricacion(ordenId) {
     }
 }
 </script>
-{% endblock %}</old_str>
+{% endblock %}

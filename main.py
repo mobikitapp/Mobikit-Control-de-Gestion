@@ -667,7 +667,8 @@ def ordenes_compra():
         cursor.execute('''
             SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone()[0]:
+        tabla_existe = cursor.fetchone()
+        if tabla_existe and tabla_existe['exists']:
             cursor.execute('''
                 SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
                 FROM ordenes_fabricacion of
@@ -698,6 +699,7 @@ def ordenes_compra():
         orden_dict = dict(orden)
         orden_dict['dias_restantes'] = dias_restantes
         orden_dict['categorias'] = obtener_categorias_orden(orden['id'])
+        orden_dict['ordenes_fabricacion'] = obtener_ordenes_fabricacion(orden['id'])
         ordenes_pendientes.append(orden_dict)
 
     # Procesar órdenes en proceso
@@ -765,7 +767,8 @@ def orden_compra_detalle(orden_id):
     cursor.execute('''
         SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
     ''')
-    if cursor.fetchone()[0]:
+    tabla_existe = cursor.fetchone()
+    if tabla_existe and tabla_existe['exists']:
         cursor.execute('''
             SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
                    of.cantidad_tableros, of.observaciones, of.created_at, of.updated_at
@@ -2379,8 +2382,8 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
     cursor = conn.cursor()
 
     try:
-        # Verificar estado actual de la orden de fabricación
-        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = %s', (orden_fabricacion_id,))
+        # Verificar estado actual de la orden de fabricación y obtener proyecto
+        cursor.execute('SELECT estado, codigo_orden, proyecto_id FROM ordenes_fabricacion WHERE id = %s', (orden_fabricacion_id,))
         orden = cursor.fetchone()
 
         if not orden:
@@ -2396,8 +2399,26 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
             WHERE id = %s
         ''', (orden_fabricacion_id,))
 
+        # Cambiar estado del proyecto/orden de compra automáticamente a "En Proceso"
+        cursor.execute('''
+            UPDATE proyectos 
+            SET estado = 'aprobado_produccion'
+            WHERE id = %s AND estado IN ('en_desarrollo', 'diseño')
+        ''', (orden['proyecto_id'],))
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('ordenes_fabricacion', %s, 'START_PRODUCTION', %s, %s)
+        ''', (orden_fabricacion_id, session['user_id'],
+              json.dumps({
+                  'accion': 'iniciar_orden_fabricacion',
+                  'codigo_orden': orden['codigo_orden'],
+                  'iniciado_por': session['user_name']
+              })))
+
         conn.commit()
-        return jsonify({'success': True, 'message': f'Orden de fabricación {orden["codigo_orden"]} iniciada'})
+        return jsonify({'success': True, 'message': f'Orden de fabricación {orden["codigo_orden"]} iniciada. Orden de compra/contrato movida automáticamente a "En Proceso".'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -2605,7 +2626,7 @@ def ordenes_fabricacion():
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
-               c.nombre as cliente_nombre, of.fecha_entrega_real
+               p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
@@ -2619,7 +2640,7 @@ def ordenes_fabricacion():
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
-               c.nombre as cliente_nombre, of.fecha_entrega_real
+               p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
@@ -2633,7 +2654,7 @@ def ordenes_fabricacion():
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.estado, of.observaciones,
                p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
-               c.nombre as cliente_nombre, of.fecha_entrega_real
+               p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
