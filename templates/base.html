@@ -49,16 +49,24 @@
                             <i class="fas fa-calendar-alt"></i> Planificación
                         </a>
                     </li>
-                    {% if session.user_role == 'admin' %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('usuarios') }}">
-                            <i class="fas fa-users"></i> Usuarios
+                        <a class="nav-link" href="{{ url_for('tareas') }}">
+                            <i class="fas fa-tasks"></i> Tareas
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'configuraciones' %}active{% endif %}" href="{{ url_for('configuraciones') }}">
+                    {% if session.user_role == 'admin' %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="configuracionesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-cog"></i> Configuraciones
                         </a>
+                        <ul class="dropdown-menu" aria-labelledby="configuracionesDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('configuraciones') }}">
+                                <i class="fas fa-cog"></i> Configuraciones Generales
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('usuarios') }}">
+                                <i class="fas fa-users"></i> Gestión de Usuarios
+                            </a></li>
+                        </ul>
                     </li>
                     {% endif %}
                 </ul>
@@ -111,3 +119,42 @@
     {% block scripts %}{% endblock %}
 </body>
 </html>
+
+<style>
+    .navbar-nav .nav-link {
+        color: #333;
+        font-weight: 500;
+        transition: color 0.3s ease;
+    }
+
+    .navbar-nav .nav-link:hover {
+        color: #1e5b38;
+    }
+
+    .navbar-nav .nav-link.active {
+        color: #1e5b38;
+        font-weight: 600;
+    }
+
+    .dropdown-menu {
+        border: 1px solid #ddd;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    .dropdown-item {
+        color: #333;
+        padding: 0.5rem 1rem;
+        transition: background-color 0.3s ease;
+    }
+
+    .dropdown-item:hover {
+        background-color: #f8f9fa;
+        color: #1e5b38;
+    }
+
+    .dropdown-item i {
+        width: 1.2rem;
+        margin-right: 0.5rem;
+    }
+</style>
