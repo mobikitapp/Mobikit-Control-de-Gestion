@@ -1,2 +1,6 @@
 
 psycopg2-binary==2.9.7
+flask
+psycopg2-binary
+werkzeug
+psycopg2-binary
