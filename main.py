@@ -81,18 +81,20 @@ def init_db():
     try:
         with open('database_schema.sql', 'r', encoding='utf-8') as f:
             schema_sql = f.read()
-            cursor.executescript(schema_sql)
+            cursor.execute(schema_sql)
     except FileNotFoundError:
         # Fallback: crear solo las tablas básicas si no existe el archivo de schema
         create_basic_tables(cursor)
 
     # Agregar columna archivado si no existe
     try:
-        # PostgreSQL uses different syntax for checking column existence or adding
-        cursor.execute("ALTER TABLE proyectos ADD COLUMN archivado BOOLEAN DEFAULT FALSE;")
-    except psycopg2.errors.DuplicateColumn:
-        # The column already exists
-        pass
+        # Check if column exists first
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'proyectos' AND column_name = 'archivado'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE proyectos ADD COLUMN archivado BOOLEAN DEFAULT FALSE")
     except Exception as e:
         print(f"Error adding 'archivado' column: {e}")
 
