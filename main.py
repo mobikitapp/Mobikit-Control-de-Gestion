@@ -3738,7 +3738,7 @@ def planificacion():
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado_proyecto,
                p.fecha_inicio, p.fecha_entrega, p.fecha_estimada_inicio,
-               p.monto_neto_provision, p.monto_neto_instalacion,
+               p.monto_neto_provision, p.monto_neto_instalacion, p.cliente_id,
                c.nombre as cliente_nombre
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
