@@ -138,7 +138,7 @@ def init_db():
     vendedores_existentes = []
     cursor.execute('SELECT nombre FROM usuarios WHERE rol = %s', ('vendedor',))
     for vendedor in cursor.fetchall():
-        vendedores_existentes.append(vendedor['nombre'])
+        vendedores_existentes.append(vendedor[0])
 
     nuevos_vendedores = ["Mobikit", "Ricardo Fuentes", "Lilian Castro", "Leonel Romero"]
     for nombre_vendedor in nuevos_vendedores:
