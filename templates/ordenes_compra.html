@@ -26,7 +26,7 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="proceso-tab" data-bs-toggle="tab" data-bs-target="#proceso" type="button" role="tab">
-            <i class="fas fa-cogs text-primary"></i> En Proceso ({{ ordenes_proceso|length }})
+            <i class="fas fa-industry"></i> En Proceso ({{ ordenes_proceso|length }})
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -102,7 +102,7 @@
                                 <td>
                                     <div class="btn-group">
                                         <button class="btn btn-sm btn-primary" onclick="crearOrdenFabricacion({{ orden.id }})" title="Crear Orden de Fabricación">
-                                            <i class="fas fa-cogs"></i>
+                                            <i class="fas fa-industry"></i>
                                         </button>
                                         <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
                                             <i class="fas fa-eye"></i>
@@ -143,7 +143,7 @@
     <div class="tab-pane fade" id="proceso" role="tabpanel">
         <div class="card mt-3">
             <div class="card-header bg-primary text-white">
-                <h5><i class="fas fa-cogs"></i> Órdenes en Proceso de Fabricación</h5>
+                <h5><i class="fas fa-industry"></i> Órdenes en Proceso de Fabricación</h5>
             </div>
             <div class="card-body">
                 {% if ordenes_proceso %}
@@ -365,7 +365,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-cogs"></i> Crear Orden de Fabricación
+                        <i class="fas fa-industry"></i> Crear Orden de Fabricación
                     </button>
                 </div>
             </form>

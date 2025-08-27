@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-cogs"></i> Órdenes de Fabricación</h1>
+    <h1><i class="fas fa-industry"></i> Órdenes de Fabricación</h1>
     <div>
         {% if session.user_role in ['admin', 'general', 'operación'] %}
         <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#nuevaOrdenFabricacionModal">
@@ -26,7 +26,7 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="proceso-fab-tab" data-bs-toggle="tab" data-bs-target="#proceso-fab" type="button" role="tab">
-            <i class="fas fa-cogs text-primary"></i> En Proceso ({{ fabricacion_proceso|length }})
+            <i class="fas fa-industry text-primary"></i> En Proceso ({{ fabricacion_proceso|length }})
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -148,7 +148,7 @@
     <div class="tab-pane fade" id="proceso-fab" role="tabpanel">
         <div class="card mt-3">
             <div class="card-header bg-primary">
-                <h5><i class="fas fa-cogs"></i> Órdenes en Proceso de Fabricación</h5>
+                <h5><i class="fas fa-industry"></i> Órdenes en Proceso de Fabricación</h5>
             </div>
             <div class="card-body">
                 {% if fabricacion_proceso %}
