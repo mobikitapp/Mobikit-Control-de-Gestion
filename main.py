@@ -886,7 +886,8 @@ def proyecto_detalle(proyecto_id):
         return redirect(url_for('clientes'))
 
     return render_template('proyecto_detalle.html',
-                           proyecto=proyecto)
+                           proyecto=proyecto,
+                           fecha_actual=datetime.now().date())
 
 
 @app.route('/nuevo_proyecto', methods=['POST'])

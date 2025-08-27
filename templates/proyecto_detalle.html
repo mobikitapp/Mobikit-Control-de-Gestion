@@ -151,8 +151,8 @@
                 <div class="mb-3">
                     <small class="text-muted">
                         <strong>Fecha límite:</strong> {{ proyecto.fecha_entrega.strftime('%d/%m/%Y') }}<br>
-                        {% set dias_restantes = (proyecto.fecha_entrega - moment().date()).days if proyecto.fecha_entrega else None %}
-                        {% if dias_restantes is not none %}
+                        {% if fecha_actual and proyecto.fecha_entrega %}
+                            {% set dias_restantes = (proyecto.fecha_entrega - fecha_actual).days %}
                             {% if dias_restantes > 0 %}
                                 <span class="text-success">{{ dias_restantes }} días restantes</span>
                             {% elif dias_restantes == 0 %}
