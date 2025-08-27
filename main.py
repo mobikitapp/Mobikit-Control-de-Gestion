@@ -645,14 +645,16 @@ def ordenes_compra():
     # Función para obtener categorías de una orden
     def obtener_categorias_orden(proyecto_id):
         cursor.execute('''
-            SELECT cat.nombre, subcat.nombre
+            SELECT cat.nombre, COALESCE(subcat.nombre, '') as subcategoria_nombre
             FROM proyecto_categorias pc
             JOIN categorias_producto cat ON pc.categoria_id = cat.id
             LEFT JOIN subcategorias_producto subcat ON pc.subcategoria_id = subcat.id
             WHERE pc.proyecto_id = %s
         ''', (proyecto_id,))
         categorias = []
-        for cat_nombre, subcat_nombre in cursor.fetchall():
+        for row in cursor.fetchall():
+            cat_nombre = row[0]
+            subcat_nombre = row[1]
             categoria_texto = cat_nombre
             if subcat_nombre:
                 categoria_texto += f" - {subcat_nombre}"
