@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Planificación - Mobikit{% endblock %}
@@ -6,16 +5,16 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-calendar-alt"></i> Planificación de Producción</h2>
-    
+
     <div class="d-flex gap-3">
         <!-- Filtros por Estado -->
         <div class="btn-group" role="group">
             <input type="radio" class="btn-check" name="filtro_estado" id="filtro_todos" value="todos" checked>
             <label class="btn btn-outline-primary" for="filtro_todos">Todos</label>
-            
+
             <input type="radio" class="btn-check" name="filtro_estado" id="filtro_adjudicados" value="adjudicado">
             <label class="btn btn-outline-success" for="filtro_adjudicados">Adjudicados</label>
-            
+
             <input type="radio" class="btn-check" name="filtro_estado" id="filtro_presupuestados" value="presupuestado">
             <label class="btn btn-outline-warning" for="filtro_presupuestados">Presupuestados</label>
         </div>
@@ -24,7 +23,7 @@
         <div class="btn-group" role="group">
             <input type="radio" class="btn-check" name="vista_tipo" id="vista_proyectos" value="proyectos" checked>
             <label class="btn btn-outline-info" for="vista_proyectos">Por Proyectos</label>
-            
+
             <input type="radio" class="btn-check" name="vista_tipo" id="vista_clientes" value="clientes">
             <label class="btn btn-outline-info" for="vista_clientes">Por Clientes</label>
         </div>
@@ -123,6 +122,13 @@
                             <small>{{ mes.año }}</small>
                         </th>
                         {% endfor %}
+                        {% comment %} Agregado para mostrar capacidad {% endcomment %}
+                        {% for mes in meses %}
+                        <th style="min-width: 80px;" class="text-center">
+                            Capacidad {{ mes.nombre }}<br>
+                            <small>{{ mes.año }}</small>
+                        </th>
+                        {% endfor %}
                     </tr>
                 </thead>
                 <tbody id="matriz-body-clientes">
@@ -145,6 +151,15 @@
                             <!-- Los montos se calcularán con JavaScript -->
                         </td>
                         {% endfor %}
+                        {% comment %} Celdas para capacidad {% endcomment %}
+                        {% for mes in meses %}
+                        <td class="text-center capacidad-mes-clientes" 
+                            data-mes="{{ mes.numero }}" 
+                            data-año="{{ mes.año }}"
+                            data-cliente-id="{{ cliente.id }}">
+                            <!-- La capacidad se calculará con JavaScript -->
+                        </td>
+                        {% endfor %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -153,6 +168,12 @@
                         <th colspan="3" class="text-end">Total por Mes:</th>
                         {% for mes in meses %}
                         <th class="text-center total-mes-clientes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
+                            $0
+                        </th>
+                        {% endfor %}
+                        {% comment %} Totales de capacidad por mes {% endcomment %}
+                        {% for mes in meses %}
+                        <th class="text-center total-capacidad-mes" data-mes="{{ mes.numero }}" data-año="{{ mes.año }}">
                             $0
                         </th>
                         {% endfor %}
@@ -254,7 +275,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Calcular prorrateo para cada proyecto
     calcularProrrateoProyectos();
-    
+
     // Manejar filtros de estado
     const filtros = document.querySelectorAll('input[name="filtro_estado"]');
     filtros.forEach(filtro => {
@@ -274,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
             cambiarVista(this.value);
         });
     });
-    
+
     // Calcular totales iniciales
     calcularTotales();
     calcularTotalesClientes();
@@ -282,10 +303,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function filtrarProyectos(filtro) {
     const filas = document.querySelectorAll('.proyecto-row');
-    
+
     filas.forEach(fila => {
         const estado = fila.dataset.estado;
-        
+
         if (filtro === 'todos' || estado === filtro) {
             fila.classList.remove('filtered-out');
         } else {
@@ -296,7 +317,7 @@ function filtrarProyectos(filtro) {
 
 function calcularProrrateoProyectos() {
     const celdas = document.querySelectorAll('.planificacion-cell');
-    
+
     celdas.forEach(celda => {
         const fechaInicio = celda.dataset.fechaInicio;
         const fechaEntrega = celda.dataset.fechaEntrega;
@@ -304,32 +325,32 @@ function calcularProrrateoProyectos() {
         const estado = celda.dataset.estado;
         const mesCelda = parseInt(celda.dataset.mes);
         const añoCelda = parseInt(celda.dataset.año);
-        
+
         if (!fechaInicio || !fechaEntrega || !monto || monto === 0) {
             return;
         }
-        
+
         const inicio = new Date(fechaInicio);
         const termino = new Date(fechaEntrega);
-        
+
         // Verificar si este mes está dentro del rango del proyecto
         const fechaMes = new Date(añoCelda, mesCelda - 1, 1);
         const siguienteMes = new Date(añoCelda, mesCelda, 1);
-        
+
         if (fechaMes <= termino && siguienteMes > inicio) {
             // Calcular días de intersección del proyecto con este mes
             const inicioMes = new Date(Math.max(inicio, fechaMes));
             const finMes = new Date(Math.min(termino, new Date(añoCelda, mesCelda, 0)));
-            
+
             const diasEnMes = Math.ceil((finMes - inicioMes) / (1000 * 60 * 60 * 24)) + 1;
             const diasTotales = Math.ceil((termino - inicio) / (1000 * 60 * 60 * 24)) + 1;
-            
+
             const montoProrateado = (monto * diasEnMes) / diasTotales;
-            
+
             if (montoProrateado > 0) {
                 const colorFondo = estado === 'adjudicado' ? '#28a745' : 
                                  estado === 'presupuestado' ? '#ffc107' : '#6c757d';
-                
+
                 celda.innerHTML = `
                     <div class="planificacion-monto" 
                          style="background-color: ${colorFondo}20; 
@@ -339,7 +360,7 @@ function calcularProrrateoProyectos() {
                         <br><small style="font-size: 0.8em; opacity: 0.7;">${diasEnMes}d</small>
                     </div>
                 `;
-                
+
                 // Guardar el monto prorrateado para cálculos posteriores
                 celda.dataset.montoProrateado = Math.round(montoProrateado);
             }
@@ -350,7 +371,7 @@ function calcularProrrateoProyectos() {
 function cambiarVista(tipoVista) {
     const vistaProyectos = document.getElementById('vista-proyectos-tabla');
     const vistaClientes = document.getElementById('vista-clientes-tabla');
-    
+
     if (tipoVista === 'clientes') {
         vistaProyectos.classList.add('d-none');
         vistaClientes.classList.remove('d-none');
@@ -366,29 +387,41 @@ function calcularTotalesClientes() {
     // Resetear totales de clientes
     const clientesRows = document.querySelectorAll('.cliente-row');
     const mesesClientes = document.querySelectorAll('.total-mes-clientes');
-    
+    const totalCapacidadMesElements = document.querySelectorAll('.total-capacidad-mes');
+
     // Resetear totales por mes
     mesesClientes.forEach(mes => {
         mes.textContent = '$0';
         mes.dataset.total = '0';
     });
-    
+    totalCapacidadMesElements.forEach(mes => {
+        mes.textContent = '$0';
+        mes.dataset.total = '0';
+    });
+
     clientesRows.forEach(clienteRow => {
         const clienteId = clienteRow.dataset.clienteId;
         let totalCliente = 0;
         let contadorProyectos = 0;
-        
+
         // Resetear celdas del cliente
         const celdasCliente = clienteRow.querySelectorAll('.cliente-planificacion-cell');
         celdasCliente.forEach(celda => {
             celda.innerHTML = '';
             celda.dataset.montoCliente = '0';
         });
-        
+
+        // Resetear celdas de capacidad del cliente
+        const celdasCapacidadCliente = clienteRow.querySelectorAll('.capacidad-mes-clientes');
+        celdasCapacidadCliente.forEach(celda => {
+            celda.innerHTML = '';
+            celda.dataset.capacidadCliente = '0';
+        });
+
         // Obtener proyectos visibles del cliente
         const proyectosCliente = document.querySelectorAll(`.proyecto-row:not(.filtered-out)`);
         const proyectosDelCliente = [];
-        
+
         // Filtrar proyectos que pertenecen a este cliente
         proyectosCliente.forEach(proyectoRow => {
             const proyectoClienteId = proyectoRow.dataset.clienteId || proyectoRow.getAttribute('data-cliente-id');
@@ -396,60 +429,72 @@ function calcularTotalesClientes() {
                 proyectosDelCliente.push(proyectoRow);
             }
         });
-        
+
         contadorProyectos = proyectosDelCliente.length;
-        
+
         // Calcular totales por mes para este cliente
         const totalesPorMes = {};
-        
+        const capacidadesPorMes = {};
+
+        // Obtener capacidad para cálculos
+        const capacidadMesesClientes = document.querySelectorAll('.capacidad-mes-clientes');
+
         proyectosDelCliente.forEach(proyectoRow => {
             // Obtener monto de provisión del proyecto
             const montoProvision = parseFloat(proyectoRow.dataset.montoProvision || proyectoRow.querySelector('[data-monto]')?.dataset.monto || '0');
             const fechaInicio = proyectoRow.dataset.fechaInicio || proyectoRow.querySelector('[data-fecha-inicio]')?.dataset.fechaInicio;
             const fechaEntrega = proyectoRow.dataset.fechaEntrega || proyectoRow.querySelector('[data-fecha-entrega]')?.dataset.fechaEntrega;
             const estado = proyectoRow.dataset.estado || proyectoRow.querySelector('[data-estado]')?.dataset.estado;
-            
+
             if (fechaInicio && fechaEntrega && montoProvision > 0) {
                 const inicio = new Date(fechaInicio);
                 const termino = new Date(fechaEntrega);
                 const diasTotales = Math.ceil((termino - inicio) / (1000 * 60 * 60 * 24)) + 1;
-                
+
                 if (diasTotales > 0) {
                     // Calcular prorrateo para cada mes
                     celdasCliente.forEach(celda => {
                         const mesCelda = parseInt(celda.dataset.mes);
                         const añoCelda = parseInt(celda.dataset.año);
-                        
+
                         // Verificar si este mes está dentro del rango del proyecto
                         const fechaMes = new Date(añoCelda, mesCelda - 1, 1);
                         const siguienteMes = new Date(añoCelda, mesCelda, 1);
-                        
+
                         if (fechaMes <= termino && siguienteMes > inicio) {
                             // Calcular días de intersección del proyecto con este mes
                             const inicioMes = new Date(Math.max(inicio, fechaMes));
                             const finMes = new Date(Math.min(termino, new Date(añoCelda, mesCelda, 0)));
-                            
+
                             const diasEnMes = Math.ceil((finMes - inicioMes) / (1000 * 60 * 60 * 24)) + 1;
                             const montoProrateado = (montoProvision * diasEnMes) / diasTotales;
-                            
+
                             if (montoProrateado > 0) {
                                 const clave = `${mesCelda}-${añoCelda}`;
                                 totalesPorMes[clave] = (totalesPorMes[clave] || 0) + montoProrateado;
                                 totalCliente += montoProrateado;
+
+                                // Lógica de capacidad: Asumimos que la capacidad es fija por mes o se obtiene de otro lugar
+                                // Por ahora, usaremos un valor de ejemplo para la capacidad.
+                                // En una implementación real, esto vendría de la configuración o tabla de capacidad.
+                                const capacidadMesActual = 1000000; // Ejemplo de capacidad para el mes
+                                if (!capacidadesPorMes[clave]) {
+                                    capacidadesPorMes[clave] = capacidadMesActual;
+                                }
                             }
                         }
                     });
                 }
             }
         });
-        
+
         // Aplicar totales calculados a las celdas del cliente
         celdasCliente.forEach(celda => {
             const mes = celda.dataset.mes;
             const año = celda.dataset.año;
             const clave = `${mes}-${año}`;
             const montoMes = totalesPorMes[clave] || 0;
-            
+
             if (montoMes > 0) {
                 celda.innerHTML = `
                     <div class="planificacion-monto" 
@@ -460,7 +505,7 @@ function calcularTotalesClientes() {
                     </div>
                 `;
                 celda.dataset.montoCliente = montoMes.toString();
-                
+
                 // Agregar al total del mes
                 const totalMesElement = document.querySelector(`.total-mes-clientes[data-mes="${mes}"][data-año="${año}"]`);
                 if (totalMesElement) {
@@ -471,40 +516,83 @@ function calcularTotalesClientes() {
                 }
             }
         });
-        
+
+        // Aplicar capacidad a las celdas de capacidad del cliente y calcular porcentaje
+        celdasCapacidadCliente.forEach(celda => {
+            const mes = celda.dataset.mes;
+            const año = celda.dataset.año;
+            const clave = `${mes}-${año}`;
+            const montoMes = totalesPorMes[clave] || 0;
+            const capacidadMes = capacidadesPorMes[clave] || 0;
+
+            if (capacidadMes > 0) {
+                const porcentajeCapacidad = (montoMes / capacidadMes) * 100;
+                celda.innerHTML = `
+                    <div class="planificacion-monto" 
+                         style="background-color: #17a2b820; 
+                                border-left: 4px solid #17a2b8;
+                                font-size: 0.7em;">
+                        ${porcentajeCapacidad.toFixed(1)}%
+                    </div>
+                `;
+                celda.dataset.capacidadCliente = capacidadMes.toString();
+
+                // Agregar al total de capacidad del mes
+                const totalCapacidadElement = document.querySelector(`.total-capacidad-mes[data-mes="${mes}"][data-año="${año}"]`);
+                if (totalCapacidadElement) {
+                    const totalActualCapacidad = parseFloat(totalCapacidadElement.dataset.total || '0');
+                    const nuevoTotalCapacidad = totalActualCapacidad + capacidadMes;
+                    totalCapacidadElement.dataset.total = nuevoTotalCapacidad.toString();
+                    totalCapacidadElement.textContent = '$' + Math.round(nuevoTotalCapacidad).toLocaleString('es-CL'); // Mostrar capacidad como monto
+                }
+            } else if (montoMes > 0) {
+                // Si hay monto pero no capacidad definida, mostrar 0% o un indicador
+                 celda.innerHTML = `
+                    <div class="planificacion-monto" 
+                         style="background-color: #ffc10720; 
+                                border-left: 4px solid #ffc107;
+                                font-size: 0.7em;">
+                        N/A%
+                    </div>
+                `;
+            }
+        });
+
+
         // Actualizar contadores del cliente
         const countElement = document.getElementById(`cliente-${clienteId}-count`);
         const totalElement = document.getElementById(`cliente-${clienteId}-total`);
-        
+
         if (countElement) countElement.textContent = contadorProyectos;
         if (totalElement) totalElement.textContent = '$' + Math.round(totalCliente).toLocaleString('es-CL');
     });
 }
 
+
 function calcularTotales() {
     const meses = document.querySelectorAll('.total-mes-proyectos');
     let totalAdjudicados = 0;
     let totalPresupuestados = 0;
-    
+
     // Resetear totales por mes
     meses.forEach(mes => {
         mes.textContent = '$0';
         mes.dataset.total = '0';
     });
-    
+
     // Calcular totales por mes y estado
     const filasVisibles = document.querySelectorAll('.proyecto-row:not(.filtered-out)');
-    
+
     filasVisibles.forEach(fila => {
         const estado = fila.dataset.estado;
         const celdas = fila.querySelectorAll('.planificacion-cell');
-        
+
         celdas.forEach(celda => {
             const montoProrateado = parseFloat(celda.dataset.montoProrateado || '0');
             const estado = celda.dataset.estado;
             const mes = celda.dataset.mes;
             const año = celda.dataset.año;
-            
+
             if (montoProrateado > 0) {
                 // Agregar al total del mes
                 const totalMesElement = document.querySelector(`.total-mes-proyectos[data-mes="${mes}"][data-año="${año}"]`);
@@ -514,7 +602,7 @@ function calcularTotales() {
                     totalMesElement.dataset.total = nuevoTotal.toString();
                     totalMesElement.textContent = '$' + nuevoTotal.toLocaleString('es-CL', {maximumFractionDigits: 0});
                 }
-                
+
                 // Agregar al total por estado
                 if (estado === 'adjudicado') {
                     totalAdjudicados += montoProrateado;
@@ -524,7 +612,7 @@ function calcularTotales() {
             }
         });
     });
-    
+
     // Actualizar totales en el resumen
     document.getElementById('total-adjudicados').textContent = '$' + totalAdjudicados.toLocaleString('es-CL', {maximumFractionDigits: 0});
     document.getElementById('total-presupuestados').textContent = '$' + totalPresupuestados.toLocaleString('es-CL', {maximumFractionDigits: 0});

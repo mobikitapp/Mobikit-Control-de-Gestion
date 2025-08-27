@@ -267,6 +267,11 @@ CREATE TABLE IF NOT EXISTS configuraciones (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Insert default monthly objective configuration
+INSERT INTO configuraciones (clave, valor, descripcion, tipo) VALUES
+('objetivo_mensual_provision', '50000000', 'Objetivo mensual de ventas en provisión (pesos chilenos)', 'integer')
+ON CONFLICT (clave) DO NOTHING;
+
 -- Insert initial data
 INSERT INTO areas (nombre, descripcion) VALUES
 ('Diseño', 'Área encargada del diseño y planificación de muebles'),

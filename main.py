@@ -3734,6 +3734,13 @@ def planificacion():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
+    # Obtener objetivo mensual desde configuraciones
+    cursor.execute('''
+        SELECT valor FROM configuraciones WHERE clave = 'objetivo_mensual_provision'
+    ''')
+    objetivo_result = cursor.fetchone()
+    objetivo_mensual = int(objetivo_result['valor']) if objetivo_result else 50000000
+
     # Obtener proyectos adjudicados y presupuestados con fechas de entrega
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado_proyecto,
@@ -3798,7 +3805,73 @@ def planificacion():
     return render_template('planificacion.html',
                          proyectos=proyectos,
                          meses=meses,
-                         clientes_con_proyectos=clientes_con_proyectos)
+                         clientes_con_proyectos=clientes_con_proyectos,
+                         objetivo_mensual=objetivo_mensual)
+
+
+@app.route('/configuraciones')
+@login_required
+@role_required(['admin'])
+def configuraciones():
+    """Vista de configuraciones del sistema (solo admin)"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    # Obtener todas las configuraciones
+    cursor.execute('''
+        SELECT clave, valor, descripcion, tipo
+        FROM configuraciones
+        ORDER BY clave
+    ''')
+    configuraciones_list = cursor.fetchall()
+
+    conn.close()
+    return render_template('configuraciones.html', configuraciones=configuraciones_list)
+
+
+@app.route('/actualizar_configuracion', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def actualizar_configuracion():
+    """Actualizar una configuración del sistema"""
+    try:
+        clave = request.form['clave']
+        valor = request.form['valor']
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
+        # Actualizar configuración
+        cursor.execute('''
+            UPDATE configuraciones
+            SET valor = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE clave = %s
+        ''', (valor, clave))
+
+        if cursor.rowcount > 0:
+            # Registrar en auditoría
+            cursor.execute('''
+                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+                VALUES ('configuraciones', %s, 'UPDATE', %s, %s)
+            ''', (0, session['user_id'],
+                  json.dumps({
+                      'accion': 'actualizar_configuracion',
+                      'clave': clave,
+                      'valor': valor,
+                      'actualizado_por': session['user_name']
+                  })))
+
+            conn.commit()
+            flash('Configuración actualizada exitosamente', 'success')
+        else:
+            flash('Configuración no encontrada', 'error')
+
+        conn.close()
+
+    except Exception as e:
+        flash(f'Error al actualizar configuración: {str(e)}', 'error')
+
+    return redirect(url_for('configuraciones'))
 
 
 @app.route('/reportes')

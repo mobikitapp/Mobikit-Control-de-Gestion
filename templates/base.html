@@ -55,6 +55,11 @@
                             <i class="fas fa-users"></i> Usuarios
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'configuraciones' %}active{% endif %}" href="{{ url_for('configuraciones') }}">
+                            <i class="fas fa-cog"></i> Configuraciones
+                        </a>
+                    </li>
                     {% endif %}
                 </ul>
 
