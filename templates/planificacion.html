@@ -444,10 +444,8 @@ function calcularTotalesClientes() {
 
         // Calcular totales por mes para este cliente
         const totalesPorMes = {};
-        const capacidadesPorMes = {};
 
-        // Obtener capacidad para cálculos
-        const capacidadMesesClientes = document.querySelectorAll('.capacidad-mes-clientes');
+        
 
         proyectosDelCliente.forEach(proyectoRow => {
             // Obtener monto de provisión del proyecto
@@ -484,13 +482,7 @@ function calcularTotalesClientes() {
                                 totalesPorMes[clave] = (totalesPorMes[clave] || 0) + montoProrateado;
                                 totalCliente += montoProrateado;
 
-                                // Lógica de capacidad: Asumimos que la capacidad es fija por mes o se obtiene de otro lugar
-                                // Por ahora, usaremos un valor de ejemplo para la capacidad.
-                                // En una implementación real, esto vendría de la configuración o tabla de capacidad.
-                                const capacidadMesActual = 1000000; // Ejemplo de capacidad para el mes
-                                if (!capacidadesPorMes[clave]) {
-                                    capacidadesPorMes[clave] = capacidadMesActual;
-                                }
+                                
                             }
                         }
                     });
