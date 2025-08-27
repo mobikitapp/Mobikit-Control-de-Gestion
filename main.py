@@ -70,7 +70,7 @@ def get_db_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 # Roles disponibles
-ROLES = ['admin', 'general', 'diseñador', 'operación', 'embalaje', 'despacho']
+ROLES = ['admin', 'general', 'vendedor', 'operación', 'embalaje', 'despacho']
 
 
 def init_db():
@@ -116,6 +116,32 @@ def init_db():
             '''
             UPDATE usuarios SET password_hash = %s WHERE username = %s AND rol = %s
         ''', (admin_password, 'admin', 'admin'))
+
+    # Agregar vendedores si no existen
+    vendedores_existentes = []
+    cursor.execute('SELECT nombre FROM usuarios WHERE rol = %s', ('vendedor',))
+    for vendedor in cursor.fetchall():
+        vendedores_existentes.append(vendedor['nombre'])
+
+    nuevos_vendedores = ["Mobikit", "Ricardo Fuentes", "Lilian Castro", "Leonel Romero"]
+    for nombre_vendedor in nuevos_vendedores:
+        if nombre_vendedor not in vendedores_existentes:
+            # Generar un nombre de usuario simple para el vendedor
+            username_vendedor = nombre_vendedor.lower().replace(' ', '_')
+            # Verificar si el nombre de usuario ya existe
+            cursor.execute('SELECT COUNT(*) FROM usuarios WHERE username = %s', (username_vendedor,))
+            if cursor.fetchone()[0] == 0:
+                # Usar una contraseña por defecto (o generar una más segura si es necesario)
+                password_hash_vendedor = generate_password_hash("mobikit123")
+                cursor.execute(
+                    '''
+                    INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (username_vendedor, password_hash_vendedor, 'vendedor', nombre_vendedor,
+                      f"{username_vendedor}@mobikit.com", True))
+            else:
+                print(f"Advertencia: El nombre de usuario '{username_vendedor}' ya existe para el vendedor '{nombre_vendedor}'. No se creó cuenta.")
+
 
     conn.commit()
     conn.close()
@@ -453,15 +479,15 @@ def clientes():
     clientes_disponibles = cursor.fetchall()
 
     # Obtener diseñadores disponibles
-    cursor.execute('SELECT id, nombre FROM usuarios WHERE rol = %s AND activo = TRUE ORDER BY nombre ASC', ('diseñador',))
-    diseñadores_disponibles = cursor.fetchall()
+    cursor.execute('SELECT id, nombre FROM usuarios WHERE rol = %s AND activo = TRUE ORDER BY nombre ASC', ('vendedor',))
+    vendedores_disponibles = cursor.fetchall()
 
     conn.close()
 
     return render_template('clientes.html',
                          clientes_con_proyectos=clientes_con_proyectos,
                          clientes_disponibles=clientes_disponibles,
-                         diseñadores_disponibles=diseñadores_disponibles)
+                         vendedores_disponibles=vendedores_disponibles)
 
 
 @app.route('/nuevo_cliente', methods=['POST'])
@@ -825,7 +851,7 @@ def proyecto_detalle(proyecto_id):
 
 @app.route('/nuevo_proyecto', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'diseñador'])
+@role_required(['admin', 'general', 'vendedor'])
 def nuevo_proyecto():
     """Crear nuevo proyecto con nuevos campos de estado"""
     try:
@@ -834,7 +860,7 @@ def nuevo_proyecto():
         descripcion = request.form.get('descripcion', '').strip() or None
         estado_proyecto = request.form.get('estado_proyecto', 'pendiente_presupuesto')
         fecha_estimada_inicio = request.form.get('fecha_estimada_inicio') or None
-        diseñador_id = request.form.get('diseñador_id') or None
+        vendedor_id = request.form.get('vendedor_id') or None
         observaciones = request.form.get('observaciones', '').strip() or None
 
         # Montos según el estado del proyecto
@@ -886,7 +912,7 @@ def nuevo_proyecto():
                 monto_neto_instalacion, observaciones, fecha_inicio
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'proyecto_simple',
-              fecha_estimada_inicio, diseñador_id, monto_neto_provision,
+              fecha_estimada_inicio, vendedor_id, monto_neto_provision,
               monto_neto_instalacion, observaciones, datetime.now().date()))
 
         proyecto_id = cursor.lastrowid
@@ -907,7 +933,7 @@ def nuevo_proyecto():
 
 @app.route('/editar_proyecto', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'diseñador'])
+@role_required(['admin', 'general', 'vendedor'])
 def editar_proyecto():
     """Editar proyecto existente"""
     try:
@@ -1006,7 +1032,7 @@ def editar_orden_compra():
 
 @app.route('/nueva_orden_compra', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'diseñador'])
+@role_required(['admin', 'general', 'vendedor'])
 def nueva_orden_compra():
     """Crear nueva orden de compra con categorías"""
     try:
@@ -1372,7 +1398,7 @@ def gestion_pedidos():
 
     # Agrupar por estado
     pedidos_por_estado = {
-        'en_desarrollo': {'nombre': 'En Desarrollo', 'pedidos': [], 'rol_responsable': 'diseñador'},
+        'en_desarrollo': {'nombre': 'En Desarrollo', 'pedidos': [], 'rol_responsable': 'vendedor'},
         'aprobado_produccion': {'nombre': 'Aprobado para Producción', 'pedidos': [], 'rol_responsable': 'operación'},
         'seccionado': {'nombre': 'En Seccionado', 'pedidos': [], 'rol_responsable': 'operación'},
         'enchapado': {'nombre': 'En Enchapado', 'pedidos': [], 'rol_responsable': 'operación'},
@@ -1733,7 +1759,7 @@ def programar_despacho_con_orden():
 
             # Distribuir las tareas proporcionalmente en el tiempo disponible
             tareas_produccion = [
-                ('Diseño y planificación', 'Crear diseño y planificar producción', 'diseñador', 'diseño', 0.15),
+                ('Diseño y planificación', 'Crear diseño y planificar producción', 'vendedor', 'diseño', 0.15),
                 ('Aprobación de diseño', 'Revisar y aprobar diseño para producción', 'general', 'diseño', 0.25),
                 ('Seccionado', 'Corte y seccionado de materiales', 'operación', 'fabricación', 0.35),
                 ('Enchapado', 'Proceso de enchapado de piezas', 'operación', 'fabricación', 0.55),
@@ -2441,7 +2467,7 @@ def revertir_orden_a_pendiente(orden_id):
             SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
         table_exists = cursor.fetchone()
-        
+
         if table_exists and table_exists['exists']:
             cursor.execute('''
                 SELECT COUNT(*) FROM ordenes_fabricacion WHERE proyecto_id = %s
@@ -3212,8 +3238,8 @@ def tareas_area():
     user_role = session['user_role']
 
     # Redirigir según el rol del usuario
-    if user_role == 'diseñador':
-        return redirect(url_for('tareas_diseño'))
+    if user_role == 'vendedor':
+        return redirect(url_for('tareas_diseno'))
     elif user_role == 'operación':
         return redirect(url_for('tareas_operacion'))
     elif user_role == 'embalaje':
@@ -3229,8 +3255,8 @@ def tareas_area():
 
 @app.route('/tareas/diseño')
 @login_required
-@role_required(['diseñador', 'admin', 'general'])
-def tareas_diseño():
+@role_required(['vendedor', 'admin', 'general'])
+def tareas_diseno():
     """Gestión de tareas de diseño"""
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
@@ -3242,7 +3268,7 @@ def tareas_diseño():
         FROM tareas t
         JOIN proyectos p ON t.proyecto_id = p.id
         LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
-        WHERE t.rol_asignado = 'diseñador' OR t.tipo = 'diseño'
+        WHERE t.rol_asignado = 'vendedor' OR t.tipo = 'diseño'
         ORDER BY
             CASE t.estado
                 WHEN 'pendiente' THEN 1
@@ -3255,7 +3281,7 @@ def tareas_diseño():
     tareas_list = cursor.fetchall()
     conn.close()
 
-    return render_template('tareas_diseño.html', tareas=tareas_list)
+    return render_template('tareas_diseno.html', tareas=tareas_list)
 
 
 @app.route('/tareas/operacion')
@@ -3426,7 +3452,7 @@ def avanzar_tarea(tarea_id):
             return jsonify({'success': False, 'message': 'Sin permisos para modificar esta tarea'})
 
         # Determinar siguiente estado según el rol
-        if rol == 'diseñador':
+        if rol == 'vendedor':
             if estado_actual == 'pendiente':
                 nuevo_estado = 'en_progreso'
                 cursor.execute('UPDATE tareas SET estado = %s, fecha_inicio = %s WHERE id = %s',
