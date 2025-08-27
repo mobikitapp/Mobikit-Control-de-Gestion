@@ -955,31 +955,53 @@ def editar_proyecto():
     """Editar proyecto existente"""
     try:
         proyecto_id = request.form['proyecto_id']
-        codigo = request.form['codigo']
         nombre = request.form['nombre']
         descripcion = request.form.get('descripcion', '').strip() or None
+        estado = request.form.get('estado', 'diseño')
+        estado_proyecto = request.form.get('estado_proyecto', 'pendiente_presupuesto')
         prioridad = request.form.get('prioridad', 'media')
+        diseñador_id = request.form.get('diseñador_id') or None
         fecha_entrega = request.form.get('fecha_entrega') or None
-        presupuesto = request.form.get('presupuesto')
+        fecha_estimada_inicio = request.form.get('fecha_estimada_inicio') or None
+        observaciones = request.form.get('observaciones', '').strip() or None
 
-        # Convertir presupuesto a float si se proporciona
-        if presupuesto:
+        # Convert numeric fields
+        monto_neto = None
+        if request.form.get('monto_neto'):
             try:
-                presupuesto = float(presupuesto)
+                monto_neto = float(request.form['monto_neto'])
             except ValueError:
-                presupuesto = None
+                pass
+
+        monto_neto_provision = None
+        if request.form.get('monto_neto_provision'):
+            try:
+                monto_neto_provision = float(request.form['monto_neto_provision'])
+            except ValueError:
+                pass
+
+        monto_neto_instalacion = None
+        if request.form.get('monto_neto_instalacion'):
+            try:
+                monto_neto_instalacion = float(request.form['monto_neto_instalacion'])
+            except ValueError:
+                pass
 
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
-        # Actualizar proyecto
+        # Update project with all fields
         cursor.execute('''
             UPDATE proyectos SET
-                nombre = %s, descripcion = %s, prioridad = %s,
-                fecha_entrega = %s, presupuesto = %s,
-                updated_at = CURRENT_TIMESTAMP
+                nombre = %s, descripcion = %s, estado = %s, estado_proyecto = %s,
+                prioridad = %s, diseñador_id = %s, fecha_entrega = %s,
+                fecha_estimada_inicio = %s, monto_neto = %s,
+                monto_neto_provision = %s, monto_neto_instalacion = %s,
+                observaciones = %s, updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
-        ''', (nombre, descripcion, prioridad, fecha_entrega, presupuesto, proyecto_id))
+        ''', (nombre, descripcion, estado, estado_proyecto, prioridad, diseñador_id,
+              fecha_entrega, fecha_estimada_inicio, monto_neto, monto_neto_provision,
+              monto_neto_instalacion, observaciones, proyecto_id))
 
         conn.commit()
         conn.close()
