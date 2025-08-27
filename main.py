@@ -70,12 +70,29 @@ def get_db_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 # Roles disponibles
-ROLES = ['admin', 'general', 'diseñador', 'operación', 'embalaje', 'despacho']
+ROLES = ['admin', 'general', 'vendedor', 'operación', 'embalaje', 'despacho']
 
 
 def init_db():
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
+
+    # First, check and fix usuarios table constraint if needed
+    try:
+        cursor.execute("""
+            SELECT constraint_name FROM information_schema.check_constraints 
+            WHERE constraint_name = 'usuarios_rol_check' 
+            AND check_clause LIKE '%vendedor%'
+        """)
+        if not cursor.fetchone():
+            # Drop existing constraint and recreate with vendedor
+            cursor.execute("ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check")
+            cursor.execute("""
+                ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check 
+                CHECK (rol IN ('admin', 'general', 'vendedor', 'operación', 'embalaje', 'despacho'))
+            """)
+    except Exception as e:
+        print(f"Warning: Could not update usuarios constraint: {e}")
 
     # Ejecutar el schema completo desde el archivo SQL
     try:
@@ -98,6 +115,27 @@ def init_db():
     except Exception as e:
         print(f"Error adding 'archivado' column: {e}")
 
+    # Agregar columnas de margen si no existen
+    try:
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'proyectos' AND column_name = 'margen_provision'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE proyectos ADD COLUMN margen_provision DECIMAL(5,2)")
+    except Exception as e:
+        print(f"Error adding 'margen_provision' column: {e}")
+
+    try:
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'proyectos' AND column_name = 'margen_instalacion'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE proyectos ADD COLUMN margen_instalacion DECIMAL(5,2)")
+    except Exception as e:
+        print(f"Error adding 'margen_instalacion' column: {e}")
+
 
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
@@ -117,6 +155,32 @@ def init_db():
             UPDATE usuarios SET password_hash = %s WHERE username = %s AND rol = %s
         ''', (admin_password, 'admin', 'admin'))
 
+    # Agregar vendedores si no existen
+    vendedores_existentes = []
+    cursor.execute('SELECT nombre FROM usuarios WHERE rol = %s', ('vendedor',))
+    for vendedor in cursor.fetchall():
+        vendedores_existentes.append(vendedor[0])
+
+    nuevos_vendedores = ["Mobikit", "Ricardo Fuentes", "Lilian Castro", "Leonel Romero"]
+    for nombre_vendedor in nuevos_vendedores:
+        if nombre_vendedor not in vendedores_existentes:
+            # Generar un nombre de usuario simple para el vendedor
+            username_vendedor = nombre_vendedor.lower().replace(' ', '_')
+            # Verificar si el nombre de usuario ya existe
+            cursor.execute('SELECT COUNT(*) FROM usuarios WHERE username = %s', (username_vendedor,))
+            if cursor.fetchone()[0] == 0:
+                # Usar una contraseña por defecto (o generar una más segura si es necesario)
+                password_hash_vendedor = generate_password_hash("mobikit123")
+                cursor.execute(
+                    '''
+                    INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (username_vendedor, password_hash_vendedor, 'vendedor', nombre_vendedor,
+                      f"{username_vendedor}@mobikit.com", True))
+            else:
+                print(f"Advertencia: El nombre de usuario '{username_vendedor}' ya existe para el vendedor '{nombre_vendedor}'. No se creó cuenta.")
+
+
     conn.commit()
     conn.close()
 
@@ -130,7 +194,7 @@ def create_basic_tables(cursor):
             id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            rol TEXT NOT NULL,
+            rol TEXT NOT NULL CHECK (rol IN ('admin', 'general', 'vendedor', 'operación', 'embalaje', 'despacho')),
             nombre TEXT NOT NULL,
             apellido TEXT,
             email TEXT UNIQUE,
@@ -207,7 +271,7 @@ def create_basic_tables(cursor):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (proyecto_id) REFERENCES proyectos (id),
-            FOREIGN KEY (usuario_asignado_id) REFERENCES usuarios (id)
+            FOREIGN FOREIGN KEY (usuario_asignado_id) REFERENCES usuarios (id)
         )
     ''')
 
@@ -420,8 +484,8 @@ def clientes():
         # Obtener proyectos del cliente
         cursor.execute('''
             SELECT p.id, p.codigo, p.nombre, p.descripcion, p.estado,
-                   p.estado_proyecto, p.fecha_inicio, p.monto_neto,
-                   p.monto_neto_instalacion, u.nombre as diseñador_nombre,
+                   p.estado_proyecto, p.fecha_inicio, p.fecha_estimada_inicio, p.monto_neto,
+                   p.monto_neto_provision, p.monto_neto_instalacion, u.nombre as diseñador_nombre,
                    p.prioridad, p.diseñador_id, p.observaciones, p.archivado
             FROM proyectos p
             LEFT JOIN usuarios u ON p.diseñador_id = u.id
@@ -453,15 +517,15 @@ def clientes():
     clientes_disponibles = cursor.fetchall()
 
     # Obtener diseñadores disponibles
-    cursor.execute('SELECT id, nombre FROM usuarios WHERE rol = %s AND activo = TRUE ORDER BY nombre ASC', ('diseñador',))
-    diseñadores_disponibles = cursor.fetchall()
+    cursor.execute('SELECT id, nombre FROM usuarios WHERE rol = %s AND activo = TRUE ORDER BY nombre ASC', ('vendedor',))
+    vendedores_disponibles = cursor.fetchall()
 
     conn.close()
 
     return render_template('clientes.html',
                          clientes_con_proyectos=clientes_con_proyectos,
                          clientes_disponibles=clientes_disponibles,
-                         diseñadores_disponibles=diseñadores_disponibles)
+                         vendedores_disponibles=vendedores_disponibles)
 
 
 @app.route('/nuevo_cliente', methods=['POST'])
@@ -600,7 +664,7 @@ def ordenes_compra():
     # Órdenes de compra pendientes (proyectos con categorías asignadas, no archivados)
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
-               p.descripcion, p.estado, p.prioridad,
+               p.descripcion, p.estado, p.prioridad, p.monto_neto,
                CASE 
                    WHEN p.fecha_entrega IS NOT NULL THEN 
                        EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
@@ -611,7 +675,7 @@ def ordenes_compra():
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('en_desarrollo') AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
-                 p.descripcion, p.estado, p.prioridad
+                 p.descripcion, p.estado, p.prioridad, p.monto_neto
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_pendientes_raw = cursor.fetchall()
@@ -619,7 +683,7 @@ def ordenes_compra():
     # Órdenes en Proceso - Solo proyectos que tienen categorías asignadas, no archivados
     cursor.execute('''
         SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
-               p.descripcion, p.prioridad,
+               p.descripcion, p.prioridad, p.monto_neto,
                CASE 
                    WHEN p.fecha_entrega IS NOT NULL THEN 
                        EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
@@ -631,7 +695,7 @@ def ordenes_compra():
         WHERE p.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
         AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
-                 p.descripcion, p.prioridad
+                 p.descripcion, p.prioridad, p.monto_neto
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_proceso_raw = cursor.fetchall()
@@ -639,13 +703,13 @@ def ordenes_compra():
     # Órdenes Terminadas - Solo proyectos que tienen categorías asignadas, no archivados
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
-               p.descripcion, p.prioridad, p.fecha_entrega_real
+               p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado IN ('entregado', 'completado') AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
-                 p.descripcion, p.prioridad, p.fecha_entrega_real
+                 p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
         ORDER BY p.fecha_entrega_real DESC
     ''')
     ordenes_terminadas_raw = cursor.fetchall()
@@ -802,12 +866,14 @@ def proyecto_detalle(proyecto_id):
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Datos del proyecto con información del cliente
+    # Datos completos del proyecto con información del cliente y diseñador
     cursor.execute(
         '''
-        SELECT p.*, u.nombre as diseñador, c.nombre as cliente_nombre
+        SELECT p.*, u.nombre as diseñador, c.nombre as cliente_nombre,
+               supervisor.nombre as supervisor_nombre
         FROM proyectos p
         LEFT JOIN usuarios u ON p.diseñador_id = u.id
+        LEFT JOIN usuarios supervisor ON p.supervisor_id = supervisor.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE p.id = %s
     ''', (proyecto_id, ))
@@ -825,7 +891,7 @@ def proyecto_detalle(proyecto_id):
 
 @app.route('/nuevo_proyecto', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'diseñador'])
+@role_required(['admin', 'general', 'vendedor'])
 def nuevo_proyecto():
     """Crear nuevo proyecto con nuevos campos de estado"""
     try:
@@ -834,12 +900,14 @@ def nuevo_proyecto():
         descripcion = request.form.get('descripcion', '').strip() or None
         estado_proyecto = request.form.get('estado_proyecto', 'pendiente_presupuesto')
         fecha_estimada_inicio = request.form.get('fecha_estimada_inicio') or None
-        diseñador_id = request.form.get('diseñador_id') or None
+        vendedor_id = request.form.get('diseñador_id') or None  # El form usa 'diseñador_id' pero es el vendedor
         observaciones = request.form.get('observaciones', '').strip() or None
 
         # Montos según el estado del proyecto
         monto_neto_provision = None
         monto_neto_instalacion = None
+        margen_provision = None
+        margen_instalacion = None
 
         if estado_proyecto in ['presupuestado', 'adjudicado']:
             monto_provision = request.form.get('monto_neto_provision')
@@ -853,6 +921,20 @@ def nuevo_proyecto():
             if monto_instalacion:
                 try:
                     monto_neto_instalacion = float(monto_instalacion)
+                except ValueError:
+                    pass
+
+            margen_provision = request.form.get('margen_provision')
+            if margen_provision:
+                try:
+                    margen_provision = float(margen_provision)
+                except ValueError:
+                    pass
+
+            margen_instalacion = request.form.get('margen_instalacion')
+            if margen_instalacion:
+                try:
+                    margen_instalacion = float(margen_instalacion)
                 except ValueError:
                     pass
 
@@ -880,14 +962,15 @@ def nuevo_proyecto():
 
         # Crear proyecto con los nuevos campos (sin categorías, por lo tanto no aparecerá como orden de compra)
         cursor.execute('''
-            INSERT INTO proyectos (
-                codigo, nombre, cliente_id, descripcion, estado_proyecto, estado,
-                fecha_estimada_inicio, diseñador_id, monto_neto_provision,
-                monto_neto_instalacion, observaciones, fecha_inicio
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO proyectos (codigo, nombre, cliente_id, descripcion, estado_proyecto, estado,
+                                   fecha_estimada_inicio, fecha_inicio, fecha_entrega, diseñador_id, 
+                                   monto_neto_provision, monto_neto_instalacion, margen_provision, 
+                                   margen_instalacion, observaciones)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'proyecto_simple',
-              fecha_estimada_inicio, diseñador_id, monto_neto_provision,
-              monto_neto_instalacion, observaciones, datetime.now().date()))
+              fecha_estimada_inicio, request.form.get('fecha_inicio') or None, 
+              request.form.get('fecha_entrega') or None, vendedor_id, monto_neto_provision,
+              monto_neto_instalacion, margen_provision, margen_instalacion, observaciones))
 
         proyecto_id = cursor.lastrowid
 
@@ -907,36 +990,74 @@ def nuevo_proyecto():
 
 @app.route('/editar_proyecto', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'diseñador'])
+@role_required(['admin', 'general', 'vendedor'])
 def editar_proyecto():
     """Editar proyecto existente"""
     try:
         proyecto_id = request.form['proyecto_id']
-        codigo = request.form['codigo']
         nombre = request.form['nombre']
         descripcion = request.form.get('descripcion', '').strip() or None
+        estado = request.form.get('estado', 'diseño')
+        estado_proyecto = request.form.get('estado_proyecto', 'pendiente_presupuesto')
         prioridad = request.form.get('prioridad', 'media')
+        diseñador_id = request.form.get('diseñador_id') or None
         fecha_entrega = request.form.get('fecha_entrega') or None
-        presupuesto = request.form.get('presupuesto')
+        fecha_estimada_inicio = request.form.get('fecha_estimada_inicio') or None
+        observaciones = request.form.get('observaciones', '').strip() or None
 
-        # Convertir presupuesto a float si se proporciona
-        if presupuesto:
+        # Convert numeric fields
+        monto_neto = None
+        if request.form.get('monto_neto'):
             try:
-                presupuesto = float(presupuesto)
+                monto_neto = float(request.form['monto_neto'])
             except ValueError:
-                presupuesto = None
+                pass
+
+        monto_neto_provision = None
+        if request.form.get('monto_neto_provision'):
+            try:
+                monto_neto_provision = float(request.form['monto_neto_provision'])
+            except ValueError:
+                pass
+
+        monto_neto_instalacion = None
+        if request.form.get('monto_neto_instalacion'):
+            try:
+                monto_neto_instalacion = float(request.form['monto_neto_instalacion'])
+            except ValueError:
+                pass
+
+        margen_provision = None
+        if request.form.get('margen_provision'):
+            try:
+                margen_provision = float(request.form['margen_provision'])
+            except ValueError:
+                pass
+
+        margen_instalacion = None
+        if request.form.get('margen_instalacion'):
+            try:
+                margen_instalacion = float(request.form['margen_instalacion'])
+            except ValueError:
+                pass
 
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
-        # Actualizar proyecto
+        # Update project with all fields
         cursor.execute('''
             UPDATE proyectos SET
-                nombre = %s, descripcion = %s, prioridad = %s,
-                fecha_entrega = %s, presupuesto = %s,
-                updated_at = CURRENT_TIMESTAMP
+                nombre = %s, descripcion = %s, estado = %s, estado_proyecto = %s,
+                prioridad = %s, diseñador_id = %s, fecha_entrega = %s,
+                fecha_estimada_inicio = %s, monto_neto = %s,
+                monto_neto_provision = %s, monto_neto_instalacion = %s,
+                margen_provision = %s, margen_instalacion = %s,
+                observaciones = %s, updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
-        ''', (nombre, descripcion, prioridad, fecha_entrega, presupuesto, proyecto_id))
+        ''', (nombre, descripcion, estado, estado_proyecto, prioridad, diseñador_id,
+              fecha_entrega, fecha_estimada_inicio, monto_neto, monto_neto_provision,
+              monto_neto_instalacion, margen_provision, margen_instalacion,
+              observaciones, proyecto_id))
 
         conn.commit()
         conn.close()
@@ -1006,7 +1127,7 @@ def editar_orden_compra():
 
 @app.route('/nueva_orden_compra', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'diseñador'])
+@role_required(['admin', 'general', 'vendedor'])
 def nueva_orden_compra():
     """Crear nueva orden de compra con categorías"""
     try:
@@ -1128,7 +1249,7 @@ def nueva_orden_compra():
                     codigo, nombre, cliente_id, descripcion, adjudicacion_tipo,
                     estado, prioridad, fecha_inicio, fecha_entrega,
                     monto_neto, monto_neto_provision, observaciones
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion,
                   'en_desarrollo', prioridad, datetime.now().date(),
                   fecha_entrega_general or fecha_entrega_oc or None,
@@ -1372,7 +1493,7 @@ def gestion_pedidos():
 
     # Agrupar por estado
     pedidos_por_estado = {
-        'en_desarrollo': {'nombre': 'En Desarrollo', 'pedidos': [], 'rol_responsable': 'diseñador'},
+        'en_desarrollo': {'nombre': 'En Desarrollo', 'pedidos': [], 'rol_responsable': 'vendedor'},
         'aprobado_produccion': {'nombre': 'Aprobado para Producción', 'pedidos': [], 'rol_responsable': 'operación'},
         'seccionado': {'nombre': 'En Seccionado', 'pedidos': [], 'rol_responsable': 'operación'},
         'enchapado': {'nombre': 'En Enchapado', 'pedidos': [], 'rol_responsable': 'operación'},
@@ -1721,7 +1842,7 @@ def programar_despacho_con_orden():
                 INSERT INTO proyectos (
                     codigo, nombre, cliente_id, descripcion, estado, prioridad,
                     fecha_inicio, fecha_entrega, presupuesto
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (codigo_proyecto, proyecto_nombre, cliente_id, descripcion, 'pendiente_fabricacion', prioridad,
                   datetime.now().date(), fecha_despacho, presupuesto_num))
             proyecto_id = cursor.fetchone()['id']
@@ -1733,7 +1854,7 @@ def programar_despacho_con_orden():
 
             # Distribuir las tareas proporcionalmente en el tiempo disponible
             tareas_produccion = [
-                ('Diseño y planificación', 'Crear diseño y planificar producción', 'diseñador', 'diseño', 0.15),
+                ('Diseño y planificación', 'Crear diseño y planificar producción', 'vendedor', 'diseño', 0.15),
                 ('Aprobación de diseño', 'Revisar y aprobar diseño para producción', 'general', 'diseño', 0.25),
                 ('Seccionado', 'Corte y seccionado de materiales', 'operación', 'fabricación', 0.35),
                 ('Enchapado', 'Proceso de enchapado de piezas', 'operación', 'fabricación', 0.55),
@@ -1801,7 +1922,7 @@ def programar_despacho_con_orden():
             INSERT INTO despachos (
                 proyecto_id, codigo_despacho, transportista, direccion_entrega,
                 fecha_programada, observaciones, estado
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         ''', (proyecto_id, codigo_despacho, transportista, direccion_entrega,
               fecha_despacho, observaciones_completas, 'programado'))
         despacho_id = cursor.fetchone()['id']
@@ -2378,15 +2499,55 @@ def api_terminar_orden(orden_id):
         conn.close()
 
 
-@app.route('/api/revertir_orden_pendiente/<int:orden_id>', methods=['POST'])
+@app.route('/actualizar_observaciones_orden', methods=['POST'])
 @login_required
 @role_required(['admin', 'general'])
-def api_revertir_orden_pendiente(orden_id):
-    """Revertir una orden de compra a estado pendiente si no tiene órdenes de fabricación"""
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-    cursor = conn.cursor()
-
+def actualizar_observaciones_orden():
+    """Actualizar observaciones de una orden de compra"""
     try:
+        proyecto_id = request.form['proyecto_id']
+        observaciones = request.form.get('observaciones', '').strip() or None
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
+        # Actualizar observaciones
+        cursor.execute('''
+            UPDATE proyectos SET
+                observaciones = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        ''', (observaciones, proyecto_id))
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('proyectos', %s, 'UPDATE', %s, %s)
+        ''', (proyecto_id, session['user_id'],
+              json.dumps({
+                  'accion': 'actualizar_observaciones',
+                  'observaciones': observaciones,
+                  'actualizado_por': session['user_name']
+              })))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'Observaciones actualizadas exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al actualizar observaciones: {str(e)}'})
+
+
+@app.route('/revertir_orden_a_pendiente/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def revertir_orden_a_pendiente(orden_id):
+    """Revertir una orden de compra a estado pendiente si no tiene órdenes de fabricación"""
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
         # Verificar que la orden existe
         cursor.execute('SELECT codigo, nombre, estado FROM proyectos WHERE id = %s', (orden_id,))
         orden = cursor.fetchone()
@@ -2400,17 +2561,21 @@ def api_revertir_orden_pendiente(orden_id):
         cursor.execute('''
             SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone()[0]:
+        table_exists = cursor.fetchone()
+
+        if table_exists and table_exists['exists']:
             cursor.execute('''
                 SELECT COUNT(*) FROM ordenes_fabricacion WHERE proyecto_id = %s
             ''', (orden_id,))
             ordenes_fabricacion = cursor.fetchone()['count']
 
             if ordenes_fabricacion > 0:
+                conn.close()
                 return jsonify({'success': False, 'message': 'No se puede revertir: la orden tiene órdenes de fabricación asociadas'})
 
         # Verificar que no está en estado terminado
         if estado_actual in ['entregado', 'completado']:
+            conn.close()
             return jsonify({'success': False, 'message': 'No se puede revertir una orden ya terminada'})
 
         # Cambiar estado a en_desarrollo (pendiente)
@@ -2420,26 +2585,31 @@ def api_revertir_orden_pendiente(orden_id):
             WHERE id = %s
         ''', (orden_id,))
 
-        # Registrar en auditoría
-        cursor.execute('''
-            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('proyectos', %s, 'UPDATE', %s, %s)
-        ''', (orden_id, session['user_id'],
-              json.dumps({
-                  'accion': 'revertir_orden_pendiente',
-                  'codigo': codigo_orden,
-                  'nombre': nombre_orden,
-                  'estado_anterior': estado_actual,
-                  'revertido_por': session['user_name']
-              })))
+        # Registrar en auditoría si la tabla existe
+        try:
+            cursor.execute('''
+                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+                VALUES ('proyectos', %s, 'UPDATE', %s, %s)
+            ''', (orden_id, session['user_id'],
+                  json.dumps({
+                      'accion': 'revertir_orden_pendiente',
+                      'codigo': codigo_orden,
+                      'nombre': nombre_orden,
+                      'estado_anterior': estado_actual,
+                      'revertido_por': session['user_name']
+                  })))
+        except Exception:
+            # Si falla la auditoría, continuar sin error
+            pass
 
         conn.commit()
+        conn.close()
         return jsonify({'success': True, 'message': f'Orden {codigo_orden} revertida a estado pendiente exitosamente'})
 
+    except psycopg2.Error as e:
+        return jsonify({'success': False, 'message': f'Error de base de datos: {str(e)}'})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
-    finally:
-        conn.close()
+        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'})
 
 
 @app.route('/api/iniciar_orden_fabricacion/<int:orden_fabricacion_id>', methods=['POST'])
@@ -3055,6 +3225,50 @@ def api_proyectos_cliente(cliente_id):
     return jsonify(proyectos)
 
 
+@app.route('/api/proyecto/<int:proyecto_id>')
+@login_required
+def api_proyecto_detalle(proyecto_id):
+    """API para obtener detalles de un proyecto específico"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT p.*, u.nombre as diseñador_nombre
+        FROM proyectos p
+        LEFT JOIN usuarios u ON p.diseñador_id = u.id
+        WHERE p.id = %s
+    ''', (proyecto_id,))
+
+    proyecto = cursor.fetchone()
+
+    if not proyecto:
+        conn.close()
+        return jsonify({'error': 'Proyecto no encontrado'}), 404
+
+    # Convert to dict and handle None values
+    proyecto_dict = {
+        'id': proyecto['id'],
+        'codigo': proyecto['codigo'] or f'PROJ-{proyecto["id"]}',
+        'nombre': proyecto['nombre'],
+        'descripcion': proyecto['descripcion'] or '',
+        'estado': proyecto['estado'],
+        'estado_proyecto': proyecto.get('estado_proyecto') or 'pendiente_presupuesto',
+        'prioridad': proyecto.get('prioridad') or 'media',
+        'fecha_entrega': proyecto['fecha_entrega'].isoformat() if proyecto.get('fecha_entrega') else '',
+        'fecha_estimada_inicio': proyecto['fecha_estimada_inicio'].isoformat() if proyecto.get('fecha_estimada_inicio') else '',
+        'monto_neto': float(proyecto['monto_neto']) if proyecto.get('monto_neto') else '',
+        'monto_neto_provision': float(proyecto['monto_neto_provision']) if proyecto.get('monto_neto_provision') else '',
+        'monto_neto_instalacion': float(proyecto['monto_neto_instalacion']) if proyecto.get('monto_neto_instalacion') else '',
+        'diseñador_id': proyecto['diseñador_id'],
+        'diseñador_nombre': proyecto.get('diseñador_nombre') or '',
+        'observaciones': proyecto.get('observaciones') or '',
+        'archivado': proyecto.get('archivado') or False
+    }
+
+    conn.close()
+    return jsonify(proyecto_dict)
+
+
 @app.route('/crear_orden_fabricacion_desde_oc', methods=['POST'])
 @login_required
 @role_required(['admin', 'general', 'operación'])
@@ -3160,8 +3374,8 @@ def tareas_area():
     user_role = session['user_role']
 
     # Redirigir según el rol del usuario
-    if user_role == 'diseñador':
-        return redirect(url_for('tareas_diseño'))
+    if user_role == 'vendedor':
+        return redirect(url_for('tareas_diseno'))
     elif user_role == 'operación':
         return redirect(url_for('tareas_operacion'))
     elif user_role == 'embalaje':
@@ -3177,8 +3391,8 @@ def tareas_area():
 
 @app.route('/tareas/diseño')
 @login_required
-@role_required(['diseñador', 'admin', 'general'])
-def tareas_diseño():
+@role_required(['vendedor', 'admin', 'general'])
+def tareas_diseno():
     """Gestión de tareas de diseño"""
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
@@ -3190,7 +3404,7 @@ def tareas_diseño():
         FROM tareas t
         JOIN proyectos p ON t.proyecto_id = p.id
         LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
-        WHERE t.rol_asignado = 'diseñador' OR t.tipo = 'diseño'
+        WHERE t.rol_asignado = 'vendedor' OR t.tipo = 'diseño'
         ORDER BY
             CASE t.estado
                 WHEN 'pendiente' THEN 1
@@ -3203,7 +3417,7 @@ def tareas_diseño():
     tareas_list = cursor.fetchall()
     conn.close()
 
-    return render_template('tareas_diseño.html', tareas=tareas_list)
+    return render_template('tareas_diseno.html', tareas=tareas_list)
 
 
 @app.route('/tareas/operacion')
@@ -3374,7 +3588,7 @@ def avanzar_tarea(tarea_id):
             return jsonify({'success': False, 'message': 'Sin permisos para modificar esta tarea'})
 
         # Determinar siguiente estado según el rol
-        if rol == 'diseñador':
+        if rol == 'vendedor':
             if estado_actual == 'pendiente':
                 nuevo_estado = 'en_progreso'
                 cursor.execute('UPDATE tareas SET estado = %s, fecha_inicio = %s WHERE id = %s',

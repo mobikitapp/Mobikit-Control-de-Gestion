@@ -73,7 +73,7 @@
                                             <th>Fecha Est. Inicio</th>
                                             <th>Monto Provisión</th>
                                             <th>Monto Instalación</th>
-                                            <th>Diseñador</th>
+                                            <th>Vendedor</th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -90,7 +90,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <span class="badge bg-{% if proyecto.estado_proyecto == 'pendiente_presupuesto' %}secondary{% elif proyecto.estado_proyecto == 'presupuestado' %}warning{% elif proyecto.estado_estado_proyecto == 'adjudicado' %}success{% endif %}">
+                                                <span class="badge bg-{% if proyecto.estado_proyecto == 'pendiente_presupuesto' %}secondary{% elif proyecto.estado_proyecto == 'presupuestado' %}warning{% elif proyecto.estado_proyecto == 'adjudicado' %}success{% endif %}">
                                                     {% if proyecto.estado_proyecto == 'pendiente_presupuesto' %}Pendiente Presupuesto
                                                     {% elif proyecto.estado_proyecto == 'presupuestado' %}Presupuestado
                                                     {% elif proyecto.estado_proyecto == 'adjudicado' %}Adjudicado
@@ -99,8 +99,12 @@
                                             </td>
                                             <td>
                                                 {% if proyecto.fecha_estimada_inicio %}
-                                                    {% set fecha_parts = proyecto.fecha_estimada_inicio.split('-') %}
-                                                    {{ fecha_parts[1] }}/{{ fecha_parts[0] }}
+                                                    {% if proyecto.fecha_estimada_inicio is string %}
+                                                        {% set fecha_parts = proyecto.fecha_estimada_inicio.split('-') %}
+                                                        {{ fecha_parts[2] }}/{{ fecha_parts[1] }}/{{ fecha_parts[0] }}
+                                                    {% else %}
+                                                        {{ proyecto.fecha_estimada_inicio.strftime('%d/%m/%Y') }}
+                                                    {% endif %}
                                                 {% else %}
                                                     <span class="text-muted">N/A</span>
                                                 {% endif %}
@@ -378,17 +382,32 @@
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="fecha_estimada_inicio" class="form-label">Fecha Estimada Inicio</label>
+                                <label for="fecha_estimada_inicio" class="form-label">Fecha Est. Inicio</label>
                                 <input type="date" class="form-control" id="fecha_estimada_inicio" name="fecha_estimada_inicio">
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="diseñador_id_proyecto" class="form-label">Diseñador</label>
-                                <select class="form-select" id="diseñador_id_proyecto" name="diseñador_id">
-                                    <option value="">Sin asignar</option>
-                                    {% for diseñador in diseñadores_disponibles %}
-                                    <option value="{{ diseñador[0] }}">{{ diseñador[1] }}</option>
+                                <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                                <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fecha_entrega" class="form-label">Fecha Término</label>
+                                <input type="date" class="form-control" id="fecha_entrega" name="fecha_entrega">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Vendedor</label>
+                                <select class="form-select" name="diseñador_id">
+                                    <option value="">Seleccionar vendedor (opcional)</option>
+                                    {% for vendedor in vendedores_disponibles %}
+                                    <option value="{{ vendedor.id }}">{{ vendedor.nombre }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -409,6 +428,23 @@
                                     <label for="monto_neto_instalacion" class="form-label">Monto Neto de Instalación (CLP)</label>
                                     <input type="number" class="form-control" id="monto_neto_instalacion" name="monto_neto_instalacion" step="1000" min="0" placeholder="0">
                                     <small class="text-muted">Opcional</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="margen_provision" class="form-label">Margen Venta Provisión (%)</label>
+                                    <input type="number" class="form-control" id="margen_provision" name="margen_provision" step="0.1" min="0" max="100" placeholder="0.0">
+                                    <small class="text-muted">Margen de ganancia presupuestado para provisión</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="margen_instalacion" class="form-label">Margen Venta Instalación (%)</label>
+                                    <input type="number" class="form-control" id="margen_instalacion" name="margen_instalacion" step="0.1" min="0" max="100" placeholder="0.0">
+                                    <small class="text-muted">Margen de ganancia presupuestado para instalación</small>
                                 </div>
                             </div>
                         </div>
@@ -446,37 +482,93 @@
 
                     <div class="mb-3">
                         <label for="edit_proyecto_nombre" class="form-label">Nombre del Proyecto *</label>
-                        <input type="text" class="form-control" id="edit_proyecto_nombre" name="nombre" required>
+                        <input type="text" class="form-control" id="edit_proyecto_nombre" name="nombre" required placeholder="Ej: Muebles Cocina Torre A">
                     </div>
 
                     <div class="mb-3">
                         <label for="edit_proyecto_descripcion" class="form-label">Descripción</label>
-                        <textarea class="form-control" id="edit_proyecto_descripcion" name="descripcion" rows="3"></textarea>
+                        <textarea class="form-control" id="edit_proyecto_descripcion" name="descripcion" rows="3" placeholder="Detalle del proyecto..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_proyecto_estado_proyecto" class="form-label">Estado Proyecto</label>
+                        <select class="form-select" id="edit_proyecto_estado_proyecto" name="estado_proyecto">
+                            <option value="pendiente_presupuesto">Pendiente Presupuesto</option>
+                            <option value="presupuestado">Presupuestado</option>
+                            <option value="adjudicado">Adjudicado</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_proyecto_diseñador_id" class="form-label">Vendedor</label>
+                        <select class="form-select" id="edit_proyecto_diseñador_id" name="diseñador_id">
+                            <option value="">Seleccionar vendedor...</option>
+                            {% for vendedor in vendedores_disponibles %}
+                            <option value="{{ vendedor.id }}">{{ vendedor.nombre }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="edit_proyecto_prioridad" class="form-label">Prioridad</label>
-                                <select class="form-select" id="edit_proyecto_prioridad" name="prioridad">
-                                    <option value="baja">Baja</option>
-                                    <option value="media">Media</option>
-                                    <option value="alta">Alta</option>
-                                    <option value="urgente">Urgente</option>
-                                </select>
+                                <label for="edit_proyecto_fecha_estimada_inicio" class="form-label">Fecha Est. Inicio</label>
+                                <input type="date" class="form-control" id="edit_proyecto_fecha_estimada_inicio" name="fecha_estimada_inicio">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="edit_proyecto_fecha_entrega" class="form-label">Fecha de Entrega</label>
-                                <input type="date" class="form-control" id="edit_proyecto_fecha_entrega" name="fecha_entrega">
+                                <label for="edit_proyecto_fecha_inicio" class="form-label">Fecha Inicio</label>
+                                <input type="date" class="form-control" id="edit_proyecto_fecha_inicio" name="fecha_inicio">
                             </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="edit_proyecto_monto_neto" class="form-label">Monto Neto</label>
-                        <input type="number" class="form-control" id="edit_proyecto_monto_neto" name="monto_neto">
+                        <label for="edit_proyecto_fecha_entrega" class="form-label">Fecha Término</label>
+                        <input type="date" class="form-control" id="edit_proyecto_fecha_entrega" name="fecha_entrega">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_proyecto_monto_neto" class="form-label">Monto Neto</label>
+                                <input type="number" class="form-control" id="edit_proyecto_monto_neto" name="monto_neto" step="0.01" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_proyecto_monto_neto_provision" class="form-label">Monto Provisión</label>
+                                <input type="number" class="form-control" id="edit_proyecto_monto_neto_provision" name="monto_neto_provision" step="0.01" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_proyecto_monto_neto_instalacion" class="form-label">Monto Instalación</label>
+                        <input type="number" class="form-control" id="edit_proyecto_monto_neto_instalacion" name="monto_neto_instalacion" step="0.01" placeholder="0.00">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_proyecto_margen_provision" class="form-label">Margen Venta Provisión (%)</label>
+                                <input type="number" class="form-control" id="edit_proyecto_margen_provision" name="margen_provision" step="0.1" min="0" max="100" placeholder="0.0">
+                                <small class="text-muted">Margen de ganancia presupuestado para provisión</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_proyecto_margen_instalacion" class="form-label">Margen Venta Instalación (%)</label>
+                                <input type="number" class="form-control" id="edit_proyecto_margen_instalacion" name="margen_instalacion" step="0.1" min="0" max="100" placeholder="0.0">
+                                <small class="text-muted">Margen de ganancia presupuestado para instalación</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_proyecto_observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="edit_proyecto_observaciones" name="observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -514,19 +606,27 @@ function nuevoProyecto(clienteId, clienteNombre) {
 
 function editarProyecto(id) {
     // Fetch project details to populate the modal
-    fetch(`/api/proyecto/${id}`) // Assuming an API endpoint to get project details
+    fetch(`/api/proyecto/${id}`)
         .then(response => response.json())
         .then(proyecto => {
             document.getElementById('edit_proyecto_id').value = proyecto.id;
-            document.getElementById('edit_proyecto_codigo').value = proyecto.codigo;
-            document.getElementById('edit_proyecto_nombre').value = proyecto.nombre;
-            document.getElementById('edit_proyecto_descripcion').value = proyecto.descripcion;
-            document.getElementById('edit_proyecto_prioridad').value = proyecto.prioridad;
-            document.getElementById('edit_proyecto_fecha_entrega').value = proyecto.fecha_entrega;
-            document.getElementById('edit_proyecto_monto_neto').value = proyecto.monto_neto;
-            // If there's a designer_id, set it
+            document.getElementById('edit_proyecto_codigo').value = proyecto.codigo || '';
+            document.getElementById('edit_proyecto_nombre').value = proyecto.nombre || '';
+            document.getElementById('edit_proyecto_descripcion').value = proyecto.descripcion || '';
+            document.getElementById('edit_proyecto_estado_proyecto').value = proyecto.estado_proyecto || 'pendiente_presupuesto';
+            document.getElementById('edit_proyecto_fecha_entrega').value = proyecto.fecha_entrega || '';
+            document.getElementById('edit_proyecto_fecha_estimada_inicio').value = proyecto.fecha_estimada_inicio || '';
+            document.getElementById('edit_proyecto_monto_neto').value = proyecto.monto_neto || '';
+            document.getElementById('edit_proyecto_monto_neto_provision').value = proyecto.monto_neto_provision || '';
+            document.getElementById('edit_proyecto_monto_neto_instalacion').value = proyecto.monto_neto_instalacion || '';
+            document.getElementById('edit_proyecto_observaciones').value = proyecto.observaciones || '';
+            document.getElementById('edit_proyecto_fecha_inicio').value = proyecto.fecha_inicio || '';
+            document.getElementById('edit_proyecto_margen_provision').value = proyecto.margen_provision || '';
+            document.getElementById('edit_proyecto_margen_instalacion').value = proyecto.margen_instalacion || '';
+            
+            // Set designer/vendor if exists
             if (proyecto.diseñador_id) {
-                 document.getElementById('edit_proyecto_diseñador_id').value = proyecto.diseñador_id;
+                document.getElementById('edit_proyecto_diseñador_id').value = proyecto.diseñador_id;
             }
 
             new bootstrap.Modal(document.getElementById('editarProyectoModal')).show();

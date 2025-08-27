@@ -41,7 +41,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'ordenes_fabricacion' %}active{% endif %}" href="{{ url_for('ordenes_fabricacion') }}">
-                            <i class="fas fa-cogs"></i> Órdenes de Fabricación
+                            <i class="fas fa-industry"></i> Órdenes de Fabricación
                         </a>
                     </li>
                     {% if session.user_role == 'admin' %}
