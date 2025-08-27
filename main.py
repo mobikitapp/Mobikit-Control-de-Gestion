@@ -866,12 +866,14 @@ def proyecto_detalle(proyecto_id):
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Datos del proyecto con información del cliente
+    # Datos completos del proyecto con información del cliente y diseñador
     cursor.execute(
         '''
-        SELECT p.*, u.nombre as diseñador, c.nombre as cliente_nombre
+        SELECT p.*, u.nombre as diseñador, c.nombre as cliente_nombre,
+               supervisor.nombre as supervisor_nombre
         FROM proyectos p
         LEFT JOIN usuarios u ON p.diseñador_id = u.id
+        LEFT JOIN usuarios supervisor ON p.supervisor_id = supervisor.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE p.id = %s
     ''', (proyecto_id, ))
