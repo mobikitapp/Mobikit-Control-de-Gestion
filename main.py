@@ -2657,7 +2657,7 @@ def ordenes_fabricacion():
 def crear_orden_fabricacion():
     """Crear nueva orden de fabricación"""
     try:
-        proyecto_id = request.form['proyecto_id']
+        proyecto_id = request.form.get('orden_compra_id') or request.form.get('proyecto_id')
         tipo_orden = request.form['tipo_orden']
         fecha_entrega_estimada = request.form['fecha_entrega_estimada']
         cantidad_tableros = request.form['cantidad_tableros']
@@ -2717,6 +2717,81 @@ def crear_orden_fabricacion():
     except Exception as e:
         flash(f'Error al crear orden de fabricación: {str(e)}', 'error')
         return redirect(url_for('ordenes_fabricacion'))
+
+
+@app.route('/api/ordenes_compra_disponibles')
+@login_required
+def api_ordenes_compra_disponibles():
+    """API para obtener órdenes de compra y contratos disponibles para fabricación"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT p.id, p.codigo, p.nombre, p.adjudicacion_tipo, p.estado, 
+               p.fecha_entrega, p.monto_neto, p.descripcion,
+               c.nombre as cliente_nombre
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
+        WHERE p.estado NOT IN ('entregado', 'cancelado') 
+        AND p.archivado = FALSE
+        AND p.adjudicacion_tipo IN ('orden_compra', 'contrato')
+        GROUP BY p.id, p.codigo, p.nombre, p.adjudicacion_tipo, p.estado,
+                 p.fecha_entrega, p.monto_neto, p.descripcion, c.nombre
+        ORDER BY p.adjudicacion_tipo, p.fecha_entrega ASC
+    ''')
+
+    ordenes = []
+    for row in cursor.fetchall():
+        ordenes.append({
+            'id': row['id'],
+            'codigo': row['codigo'] or f'PROJ-{row["id"]}',
+            'nombre': row['nombre'],
+            'cliente_nombre': row['cliente_nombre'] or 'Sin cliente',
+            'adjudicacion_tipo': row['adjudicacion_tipo'],
+            'estado': row['estado'],
+            'fecha_entrega': row['fecha_entrega'].isoformat() if row['fecha_entrega'] else None,
+            'monto_neto': float(row['monto_neto']) if row['monto_neto'] else None,
+            'descripcion': row['descripcion']
+        })
+
+    conn.close()
+    return jsonify(ordenes)
+
+
+@app.route('/api/orden_compra_detalle/<int:orden_id>')
+@login_required
+def api_orden_compra_detalle(orden_id):
+    """API para obtener detalles de una orden de compra específica"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT p.id, p.codigo, p.nombre, p.adjudicacion_tipo, p.estado, 
+               p.fecha_entrega, p.monto_neto, p.descripcion,
+               c.nombre as cliente_nombre
+        FROM proyectos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE p.id = %s
+    ''')
+
+    orden = cursor.fetchone()
+    if not orden:
+        conn.close()
+        return jsonify({'error': 'Orden no encontrada'}), 404
+
+    conn.close()
+    return jsonify({
+        'id': orden['id'],
+        'codigo': orden['codigo'] or f'PROJ-{orden["id"]}',
+        'nombre': orden['nombre'],
+        'cliente_nombre': orden['cliente_nombre'] or 'Sin cliente',
+        'adjudicacion_tipo': orden['adjudicacion_tipo'],
+        'estado': orden['estado'],
+        'fecha_entrega': orden['fecha_entrega'].isoformat() if orden['fecha_entrega'] else None,
+        'monto_neto': float(orden['monto_neto']) if orden['monto_neto'] else None,
+        'descripcion': orden['descripcion']
+    })
 
 
 @app.route('/api/proyectos_disponibles_fabricacion')
