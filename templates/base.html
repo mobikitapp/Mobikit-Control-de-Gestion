@@ -45,6 +45,11 @@
                             <i class="fas fa-calendar-alt"></i> Planificación
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'calendario' %}active{% endif %}" href="{{ url_for('calendario') }}">
+                            <i class="fas fa-calendar"></i> Calendario
+                        </a>
+                    </li>
                     {% if session.user_role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'configuraciones' %}active{% endif %}" href="{{ url_for('configuraciones') }}">
