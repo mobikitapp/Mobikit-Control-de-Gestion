@@ -1,4 +1,3 @@
-
 <!-- Modal Nueva Orden de Compra/Contrato -->
 <div class="modal fade" id="nuevaOrdenModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
@@ -28,7 +27,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -175,7 +174,7 @@
                     <input type="hidden" id="categorias_selected" name="categorias_selected">
                     <input type="hidden" id="subcategorias_selected" name="subcategorias_selected">
                 </div>
-                
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary" onclick="recopilarDatos()">
@@ -202,32 +201,32 @@ function toggleTipoAdjudicacion() {
     const ordenCompraFields = document.getElementById('orden_compra_fields');
     const contratoFields = document.getElementById('contrato_fields');
     const submitText = document.getElementById('submit-text');
-    
+
     if (tipo === 'orden_compra') {
         ordenCompraFields.style.display = 'block';
         contratoFields.style.display = 'none';
         submitText.textContent = 'Crear Orden de Compra';
-        
+
         // Hacer campos de OC requeridos
         document.getElementById('fecha_entrega_oc').required = true;
-        
+
         // Remover requerido de campos de contrato
         document.querySelectorAll('.entrega-detalle, .entrega-fecha').forEach(el => el.required = false);
     } else if (tipo === 'contrato') {
         ordenCompraFields.style.display = 'none';
         contratoFields.style.display = 'block';
         submitText.textContent = 'Crear Contrato';
-        
+
         // Remover requerido de campos de OC
         document.getElementById('fecha_entrega_oc').required = false;
-        
+
         // Hacer campos de contrato requeridos
         document.querySelectorAll('.entrega-detalle, .entrega-fecha').forEach(el => el.required = true);
     } else {
         ordenCompraFields.style.display = 'none';
         contratoFields.style.display = 'none';
         submitText.textContent = 'Crear';
-        
+
         // Remover todos los requeridos
         document.getElementById('fecha_entrega_oc').required = false;
         document.querySelectorAll('.entrega-detalle, .entrega-fecha').forEach(el => el.required = false);
@@ -255,7 +254,7 @@ function agregarEntrega() {
             </div>
         </div>
     `;
-    
+
     container.appendChild(nuevaEntrega);
     actualizarBotonesEliminarEntregas();
 }
@@ -295,7 +294,7 @@ function cargarClientesDisponibles() {
             clientes = data;
             const clienteSelect = document.getElementById('cliente_id');
             clienteSelect.innerHTML = '<option value="">Seleccionar cliente...</option><option value="nuevo">+ Crear nuevo cliente</option>';
-            
+
             data.forEach(cliente => {
                 const option = document.createElement('option');
                 option.value = cliente.id;
@@ -311,7 +310,7 @@ function actualizarSelectoresCategorias() {
     selects.forEach(select => {
         const valorActual = select.value;
         select.innerHTML = '<option value="">Seleccionar categoría...</option>';
-        
+
         categorias.forEach(categoria => {
             const option = document.createElement('option');
             option.value = categoria.id;
@@ -329,7 +328,7 @@ function cargarSubcategorias(categoriaSelect) {
     const categoriaId = categoriaSelect.value;
 
     subcategoriaSelect.innerHTML = '<option value="">Seleccionar subcategoría...</option>';
-    
+
     if (!categoriaId) {
         subcategoriaSelect.disabled = true;
         subcategoriaSelect.innerHTML = '<option value="">Primero selecciona una categoría</option>';
@@ -379,7 +378,7 @@ function agregarCategoria() {
             </div>
         </div>
     `;
-    
+
     container.appendChild(nuevaCategoria);
     actualizarSelectoresCategorias();
     actualizarBotonesEliminar();
@@ -407,7 +406,7 @@ function cargarCliente() {
     const clienteId = document.getElementById('cliente_id').value;
     const nuevoClienteDiv = document.getElementById('nuevo_cliente_div');
     const proyectoSelect = document.getElementById('proyecto_existente_id');
-    
+
     if (clienteId === 'nuevo') {
         nuevoClienteDiv.style.display = 'block';
         proyectoSelect.innerHTML = '<option value="nuevo" selected>+ Crear nuevo proyecto</option>';
@@ -434,7 +433,7 @@ function cargarProyectosCliente(clienteId) {
         .then(data => {
             const proyectoSelect = document.getElementById('proyecto_existente_id');
             proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto...</option><option value="nuevo">+ Crear nuevo proyecto</option>';
-            
+
             data.forEach(proyecto => {
                 const option = document.createElement('option');
                 option.value = proyecto.id;
@@ -452,7 +451,7 @@ function cargarProyectosCliente(clienteId) {
 function cargarProyecto() {
     const proyectoId = document.getElementById('proyecto_existente_id').value;
     const nuevoProyectoDiv = document.getElementById('nuevo_proyecto_div');
-    
+
     if (proyectoId === 'nuevo') {
         nuevoProyectoDiv.style.display = 'block';
     } else {
@@ -463,15 +462,15 @@ function cargarProyecto() {
 function prepararEnvio() {
     const categoriaSelects = document.querySelectorAll('.categoria-select');
     const subcategoriaSelects = document.querySelectorAll('.subcategoria-select');
-    
+
     const categorias = [];
     const subcategorias = [];
-    
+
     categoriaSelects.forEach((select, index) => {
         categorias.push(select.value);
         subcategorias.push(subcategoriaSelects[index].value || '');
     });
-    
+
     document.getElementById('categorias_selected').value = JSON.stringify(categorias);
     document.getElementById('subcategorias_selected').value = JSON.stringify(subcategorias);
 }
@@ -480,22 +479,22 @@ function prepararEnvio() {
 function recopilarDatos() {
     const categoriaSelects = document.querySelectorAll('.categoria-select');
     const subcategoriaSelects = document.querySelectorAll('.subcategoria-select');
-    
+
     const categoriasSeleccionadas = [];
     const subcategoriasSeleccionadas = [];
-    
+
     categoriaSelects.forEach((select, index) => {
         if (select.value) {
             categoriasSeleccionadas.push(select.value);
             subcategoriasSeleccionadas.push(subcategoriaSelects[index] ? subcategoriaSelects[index].value || '' : '');
         }
     });
-    
+
     // Convertir a formato esperado por el backend
     const categoriasParaEnvio = categoriasSeleccionadas.map((cat, index) => {
         return cat + ',' + (subcategoriasSeleccionadas[index] || '');
     });
-    
+
     // Limpiar campos hidden existentes
     let categoriasSelected = document.getElementById('categorias_selected');
     if (!categoriasSelected) {
@@ -505,7 +504,7 @@ function recopilarDatos() {
         categoriasSelected.id = 'categorias_selected';
         document.querySelector('form').appendChild(categoriasSelected);
     }
-    
+
     let subcategoriasSelected = document.getElementById('subcategorias_selected');
     if (!subcategoriasSelected) {
         subcategoriasSelected = document.createElement('input');
@@ -514,7 +513,7 @@ function recopilarDatos() {
         subcategoriasSelected.id = 'subcategorias_selected';
         document.querySelector('form').appendChild(subcategoriasSelected);
     }
-    
+
     // Asignar valores
     categoriasSelected.value = JSON.stringify(categoriasSeleccionadas);
     subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas);
