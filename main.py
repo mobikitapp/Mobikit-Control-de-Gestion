@@ -2872,7 +2872,7 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
         if not orden:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        if orden['estado'] not in ['pendiente_fabricacion', 'aprobado_diseño']:
+        if orden['estado'] not in ['pendiente_aprobacion_diseño', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
 
         # Cambiar estado de la orden de fabricación a primera etapa
@@ -2925,7 +2925,7 @@ def api_iniciar_produccion(fabricacion_id):
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        if fab['estado'] not in ['pendiente_fabricacion', 'aprobado_diseño']:
+        if fab['estado'] not in ['pendiente_aprobacion_diseño', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
 
         # Cambiar a primera etapa de fabricación
@@ -3058,7 +3058,7 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('pendiente_aprobacion_diseno', 'aprobado_diseño')
+        WHERE of.estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño')
         ORDER BY of.fecha_entrega_estimada ASC
     ''')
     fabricacion_pendientes = cursor.fetchall()
@@ -3141,7 +3141,7 @@ def crear_orden_fabricacion():
                 cantidad_tableros, glosa, estado, observaciones
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
-              cantidad_tableros, glosa, 'pendiente_aprobacion_diseno', observaciones))
+              cantidad_tableros, glosa, 'pendiente_aprobacion_diseño', observaciones))
         orden_fabricacion_id = cursor.fetchone()['id']
 
         # Procesar categorías seleccionadas
@@ -3363,7 +3363,7 @@ def eliminar_orden_fabricacion(orden_id):
         codigo_orden, estado = orden['codigo_orden'], orden['estado']
 
         # Solo permitir eliminar órdenes pendientes
-        if estado not in ['pendiente_fabricacion', 'aprobado_diseño']:
+        if estado not in ['pendiente_aprobacion_diseño', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'No se puede eliminar una orden en proceso o terminada'})
 
         # Eliminar categorías de la orden
