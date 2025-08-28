@@ -333,3 +333,107 @@ INSERT INTO subcategorias_producto (categoria_id, nombre, descripcion) VALUES
 ((SELECT id FROM categorias_producto WHERE nombre = 'Closets'), 'Puertas', 'Puertas de closet'),
 ((SELECT id FROM categorias_producto WHERE nombre = 'Closets'), 'Interiores', 'Accesorios interiores de closet')
 ON CONFLICT (categoria_id, nombre) DO NOTHING;
+
+-- Tabla de permisos por rol
+CREATE TABLE IF NOT EXISTS permisos_rol (
+    id SERIAL PRIMARY KEY,
+    rol VARCHAR(20) NOT NULL CHECK (rol IN ('admin', 'general', 'vendedor', 'operación', 'embalaje', 'despacho')),
+    modulo VARCHAR(50) NOT NULL,
+    permiso VARCHAR(50) NOT NULL,
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(rol, modulo, permiso)
+);
+
+-- Insertar permisos por defecto
+INSERT INTO permisos_rol (rol, modulo, permiso) VALUES
+-- Admin - todos los permisos
+('admin', 'clientes', 'view'),
+('admin', 'clientes', 'create'),
+('admin', 'clientes', 'edit'),
+('admin', 'clientes', 'delete'),
+('admin', 'proyectos', 'view'),
+('admin', 'proyectos', 'create'),
+('admin', 'proyectos', 'edit'),
+('admin', 'proyectos', 'delete'),
+('admin', 'proyectos', 'archive'),
+('admin', 'ordenes_compra', 'view'),
+('admin', 'ordenes_compra', 'create'),
+('admin', 'ordenes_compra', 'edit'),
+('admin', 'ordenes_compra', 'delete'),
+('admin', 'ordenes_compra', 'approve'),
+('admin', 'ordenes_fabricacion', 'view'),
+('admin', 'ordenes_fabricacion', 'create'),
+('admin', 'ordenes_fabricacion', 'edit'),
+('admin', 'ordenes_fabricacion', 'process'),
+('admin', 'gestion_pedidos', 'view'),
+('admin', 'gestion_pedidos', 'edit'),
+('admin', 'despachos', 'view'),
+('admin', 'despachos', 'create'),
+('admin', 'despachos', 'edit'),
+('admin', 'despachos', 'process'),
+('admin', 'planificacion', 'view'),
+('admin', 'planificacion', 'edit'),
+('admin', 'reportes', 'view'),
+('admin', 'configuraciones', 'view'),
+('admin', 'configuraciones', 'edit'),
+
+-- General - casi todos los permisos
+('general', 'clientes', 'view'),
+('general', 'clientes', 'create'),
+('general', 'clientes', 'edit'),
+('general', 'proyectos', 'view'),
+('general', 'proyectos', 'create'),
+('general', 'proyectos', 'edit'),
+('general', 'proyectos', 'archive'),
+('general', 'ordenes_compra', 'view'),
+('general', 'ordenes_compra', 'create'),
+('general', 'ordenes_compra', 'edit'),
+('general', 'ordenes_compra', 'approve'),
+('general', 'ordenes_fabricacion', 'view'),
+('general', 'ordenes_fabricacion', 'create'),
+('general', 'ordenes_fabricacion', 'edit'),
+('general', 'ordenes_fabricacion', 'process'),
+('general', 'gestion_pedidos', 'view'),
+('general', 'gestion_pedidos', 'edit'),
+('general', 'despachos', 'view'),
+('general', 'despachos', 'create'),
+('general', 'despachos', 'edit'),
+('general', 'despachos', 'process'),
+('general', 'planificacion', 'view'),
+('general', 'planificacion', 'edit'),
+('general', 'reportes', 'view'),
+
+-- Vendedor - permisos limitados
+('vendedor', 'clientes', 'view'),
+('vendedor', 'proyectos', 'view'),
+('vendedor', 'proyectos', 'create'),
+('vendedor', 'proyectos', 'edit'),
+('vendedor', 'ordenes_compra', 'view'),
+('vendedor', 'ordenes_compra', 'create'),
+('vendedor', 'planificacion', 'view'),
+
+-- Operación - fabricación y órdenes
+('operación', 'ordenes_compra', 'view'),
+('operación', 'ordenes_fabricacion', 'view'),
+('operación', 'ordenes_fabricacion', 'create'),
+('operación', 'ordenes_fabricacion', 'edit'),
+('operación', 'ordenes_fabricacion', 'process'),
+('operación', 'gestion_pedidos', 'view'),
+
+-- Embalaje - visualización limitada
+('embalaje', 'ordenes_compra', 'view'),
+('embalaje', 'ordenes_fabricacion', 'view'),
+('embalaje', 'gestion_pedidos', 'view'),
+('embalaje', 'despachos', 'view'),
+
+-- Despacho - gestión de despachos
+('despacho', 'ordenes_compra', 'view'),
+('despacho', 'despachos', 'view'),
+('despacho', 'despachos', 'create'),
+('despacho', 'despachos', 'edit'),
+('despacho', 'despachos', 'process'),
+('despacho', 'gestion_pedidos', 'view')
+
+ON CONFLICT (rol, modulo, permiso) DO NOTHING;

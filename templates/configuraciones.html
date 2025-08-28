@@ -213,47 +213,104 @@
     <div class="tab-pane fade" id="permissions" role="tabpanel">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Gestión de Permisos</h5>
-                <small class="text-muted">Asigna permisos a los roles</small>
+                <h5 class="mb-0">Gestión de Permisos por Rol</h5>
+                <small class="text-muted">Configura los permisos específicos para cada rol</small>
             </div>
             <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Rol</th>
+                <!-- Tabs para cada rol -->
+                <ul class="nav nav-pills mb-3" id="rolesTab" role="tablist">
+                    {% for rol in ROLES %}
+                    {% if rol != 'admin' %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if loop.first %}active{% endif %}" 
+                                id="{{ rol }}-tab" 
+                                data-bs-toggle="pill" 
+                                data-bs-target="#{{ rol }}-permissions" 
+                                type="button" 
+                                role="tab"
+                                onclick="cargarPermisosRol('{{ rol }}')">
+                            {{ rol|title }}
+                        </button>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                </ul>
+
+                <!-- Contenido de permisos por rol -->
+                <div class="tab-content" id="rolesTabContent">
+                    {% for rol in ROLES %}
+                    {% if rol != 'admin' %}
+                    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                         id="{{ rol }}-permissions" 
+                         role="tabpanel">
+                        
+                        <form id="form-permisos-{{ rol }}" onsubmit="guardarPermisosRol('{{ rol }}', event)">
+                            <div class="row">
                                 {% for modulo in modulos %}
-                                <th>{{ modulo.nombre }}</th>
+                                <div class="col-md-6 mb-4">
+                                    <div class="card border-light">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-folder-open"></i> {{ modulo.nombre }}
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% set acciones = ['view', 'create', 'edit', 'delete', 'approve', 'process', 'archive'] %}
+                                            {% for accion in acciones %}
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       name="permiso_{{ modulo.id }}_{{ accion }}" 
+                                                       id="{{ rol }}_{{ modulo.id }}_{{ accion }}"
+                                                       data-rol="{{ rol }}"
+                                                       data-modulo="{{ modulo.id }}"
+                                                       data-accion="{{ accion }}">
+                                                <label class="form-check-label" for="{{ rol }}_{{ modulo.id }}_{{ accion }}">
+                                                    {{ accion|title }}
+                                                    {% if accion == 'view' %}
+                                                    <small class="text-muted">(Ver/Listar)</small>
+                                                    {% elif accion == 'create' %}
+                                                    <small class="text-muted">(Crear nuevo)</small>
+                                                    {% elif accion == 'edit' %}
+                                                    <small class="text-muted">(Modificar)</small>
+                                                    {% elif accion == 'delete' %}
+                                                    <small class="text-muted">(Eliminar)</small>
+                                                    {% elif accion == 'approve' %}
+                                                    <small class="text-muted">(Aprobar)</small>
+                                                    {% elif accion == 'process' %}
+                                                    <small class="text-muted">(Procesar)</small>
+                                                    {% elif accion == 'archive' %}
+                                                    <small class="text-muted">(Archivar)</small>
+                                                    {% endif %}
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
                                 {% endfor %}
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for rol in ROLES %}
-                            <tr>
-                                <td>{{ rol.capitalize() }}</td>
-                                {% for modulo in modulos %}
-                                <td>
-                                    <input type="checkbox" 
-                                           class="form-check-input" 
-                                           name="permisos_{{ rol }}_{{ modulo.id }}" 
-                                           value="1"
-                                           {% if rol == 'admin' %}checked disabled{% elif has_permission(rol, modulo.id + '.view') %}checked{% endif %}>
-                                </td>
-                                {% endfor %}
-                                <td>
-                                    {% if rol != 'admin' %}
-                                    <button class="btn btn-sm btn-primary" onclick="actualizarPermisos('{{ rol }}')">Guardar Cambios</button>
-                                    {% else %}
-                                    <span class="text-muted">Todos los permisos</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                            </div>
+                            
+                            <div class="text-center mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-save"></i> Guardar Permisos de {{ rol|title }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
                 </div>
-                {# Aquí puedes agregar lógica para crear o editar roles si es necesario #}
+
+                <!-- Información sobre el administrador -->
+                <div class="alert alert-info mt-4">
+                    <h6><i class="fas fa-info-circle"></i> Información sobre Permisos</h6>
+                    <ul class="mb-0">
+                        <li><strong>Administrador:</strong> Tiene todos los permisos automáticamente y no pueden ser modificados.</li>
+                        <li><strong>Permisos progresivos:</strong> Algunos permisos dependen de otros (ej: para editar necesitas poder ver).</li>
+                        <li><strong>Cambios inmediatos:</strong> Los cambios se aplican inmediatamente para nuevas sesiones.</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -427,9 +484,124 @@ function eliminarUsuario(id, username) {
     }
 }
 
+// Variables globales para permisos
+let permisosOriginales = {};
+
+function cargarPermisosRol(rol) {
+    console.log('Cargando permisos para rol:', rol);
+    
+    // Hacer petición para obtener permisos actuales del rol
+    fetch(`/api/permisos_rol/${rol}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                permisosOriginales[rol] = data.permisos;
+                aplicarPermisosAlFormulario(rol, data.permisos);
+            } else {
+                console.error('Error cargando permisos:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error en la petición:', error);
+        });
+}
+
+function aplicarPermisosAlFormulario(rol, permisos) {
+    // Limpiar todos los checkboxes del rol
+    const checkboxes = document.querySelectorAll(`#${rol}-permissions input[type="checkbox"]`);
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // Marcar los permisos activos
+    Object.keys(permisos).forEach(modulo => {
+        Object.keys(permisos[modulo]).forEach(accion => {
+            if (permisos[modulo][accion]) {
+                const checkbox = document.getElementById(`${rol}_${modulo}_${accion}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            }
+        });
+    });
+}
+
+function guardarPermisosRol(rol, event) {
+    event.preventDefault();
+    
+    const form = document.getElementById(`form-permisos-${rol}`);
+    const formData = new FormData(form);
+    formData.append('rol', rol);
+    
+    // Mostrar indicador de carga
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+    submitBtn.disabled = true;
+    
+    fetch('/actualizar_permisos_rol', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mostrar mensaje de éxito
+            mostrarAlerta('success', data.message);
+            
+            // Recargar permisos actualizados
+            cargarPermisosRol(rol);
+        } else {
+            mostrarAlerta('danger', data.message || 'Error al guardar permisos');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarAlerta('danger', 'Error de conexión al guardar permisos');
+    })
+    .finally(() => {
+        // Restaurar botón
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+function mostrarAlerta(tipo, mensaje) {
+    // Crear alerta temporal
+    const alertaHtml = `
+        <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+            ${mensaje}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // Insertar al inicio del tab content
+    const tabContent = document.querySelector('.tab-content');
+    tabContent.insertAdjacentHTML('afterbegin', alertaHtml);
+    
+    // Auto-eliminar después de 5 segundos
+    setTimeout(() => {
+        const alerta = tabContent.querySelector('.alert');
+        if (alerta) {
+            alerta.remove();
+        }
+    }, 5000);
+}
+
+// Cargar permisos del primer rol al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    const primerRol = document.querySelector('#rolesTab .nav-link.active');
+    if (primerRol) {
+        const rol = primerRol.textContent.trim().toLowerCase();
+        if (rol !== 'admin') {
+            cargarPermisosRol(rol);
+        }
+    }
+});
+
 function actualizarPermisos(rol) {
-    // TODO: Implementar actualización de permisos
-    alert('Funcionalidad de permisos en desarrollo');
+    // Esta función ya no se usa, pero la mantenemos por compatibilidad
+    console.log('Función deprecated, usar guardarPermisosRol en su lugar');
 }
 </script>
 {% endblock %}

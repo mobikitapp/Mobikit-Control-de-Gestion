@@ -15,10 +15,33 @@ from utils.permissions import permission_required, has_permission, ROLE_PERMISSI
 
 app = Flask(__name__)
 
+def has_permission_db(user_role, modulo, permiso):
+    """
+    Verifica si un rol tiene un permiso específico usando la base de datos
+    """
+    if user_role == 'admin':
+        return True
+    
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            SELECT COUNT(*) FROM permisos_rol 
+            WHERE rol = %s AND modulo = %s AND permiso = %s AND activo = TRUE
+        ''', (user_role, modulo, permiso))
+        result = cursor.fetchone()
+        return result['count'] > 0
+    except Exception as e:
+        print(f"Error verificando permisos: {e}")
+        return False
+    finally:
+        conn.close()
+
 # Make has_permission available in Jinja2 templates
 @app.context_processor
 def inject_permissions():
-    return dict(has_permission=has_permission)
+    return dict(has_permission=has_permission, has_permission_db=has_permission_db)
 app.secret_key = os.getenv('SECRET_KEY', 'mobikit_secret_key_2024')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -189,6 +212,95 @@ def init_db():
         """)
     except Exception as e:
         print(f"Error creating 'ordenes_compra' table: {e}")
+
+    # Crear tabla de permisos por rol si no existe
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS permisos_rol (
+                id SERIAL PRIMARY KEY,
+                rol VARCHAR(20) NOT NULL CHECK (rol IN ('admin', 'general', 'vendedor', 'operación', 'embalaje', 'despacho')),
+                modulo VARCHAR(50) NOT NULL,
+                permiso VARCHAR(50) NOT NULL,
+                activo BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(rol, modulo, permiso)
+            )
+        """)
+        
+        # Insertar permisos por defecto si la tabla está vacía
+        cursor.execute("SELECT COUNT(*) FROM permisos_rol")
+        if cursor.fetchone()['count'] == 0:
+            # Definir permisos por defecto
+            permisos_defecto = [
+                # General - casi todos los permisos
+                ('general', 'clientes', 'view'),
+                ('general', 'clientes', 'create'),
+                ('general', 'clientes', 'edit'),
+                ('general', 'proyectos', 'view'),
+                ('general', 'proyectos', 'create'),
+                ('general', 'proyectos', 'edit'),
+                ('general', 'proyectos', 'archive'),
+                ('general', 'ordenes_compra', 'view'),
+                ('general', 'ordenes_compra', 'create'),
+                ('general', 'ordenes_compra', 'edit'),
+                ('general', 'ordenes_compra', 'approve'),
+                ('general', 'ordenes_fabricacion', 'view'),
+                ('general', 'ordenes_fabricacion', 'create'),
+                ('general', 'ordenes_fabricacion', 'edit'),
+                ('general', 'ordenes_fabricacion', 'process'),
+                ('general', 'gestion_pedidos', 'view'),
+                ('general', 'gestion_pedidos', 'edit'),
+                ('general', 'despachos', 'view'),
+                ('general', 'despachos', 'create'),
+                ('general', 'despachos', 'edit'),
+                ('general', 'despachos', 'process'),
+                ('general', 'planificacion', 'view'),
+                ('general', 'planificacion', 'edit'),
+                ('general', 'reportes', 'view'),
+
+                # Vendedor - permisos limitados
+                ('vendedor', 'clientes', 'view'),
+                ('vendedor', 'proyectos', 'view'),
+                ('vendedor', 'proyectos', 'create'),
+                ('vendedor', 'proyectos', 'edit'),
+                ('vendedor', 'ordenes_compra', 'view'),
+                ('vendedor', 'ordenes_compra', 'create'),
+                ('vendedor', 'planificacion', 'view'),
+
+                # Operación - fabricación y órdenes
+                ('operación', 'ordenes_compra', 'view'),
+                ('operación', 'ordenes_fabricacion', 'view'),
+                ('operación', 'ordenes_fabricacion', 'create'),
+                ('operación', 'ordenes_fabricacion', 'edit'),
+                ('operación', 'ordenes_fabricacion', 'process'),
+                ('operación', 'gestion_pedidos', 'view'),
+
+                # Embalaje - visualización limitada
+                ('embalaje', 'ordenes_compra', 'view'),
+                ('embalaje', 'ordenes_fabricacion', 'view'),
+                ('embalaje', 'gestion_pedidos', 'view'),
+                ('embalaje', 'despachos', 'view'),
+
+                # Despacho - gestión de despachos
+                ('despacho', 'ordenes_compra', 'view'),
+                ('despacho', 'despachos', 'view'),
+                ('despacho', 'despachos', 'create'),
+                ('despacho', 'despachos', 'edit'),
+                ('despacho', 'despachos', 'process'),
+                ('despacho', 'gestion_pedidos', 'view')
+            ]
+            
+            for rol, modulo, permiso in permisos_defecto:
+                cursor.execute('''
+                    INSERT INTO permisos_rol (rol, modulo, permiso, activo)
+                    VALUES (%s, %s, %s, %s)
+                ''', (rol, modulo, permiso, True))
+        
+        print("Tabla de permisos inicializada correctamente")
+        
+    except Exception as e:
+        print(f"Error creating/initializing 'permisos_rol' table: {e}")
 
     # Actualizar restricción de estados de proyectos con sistema simplificado
     try:
@@ -4446,6 +4558,115 @@ def actualizar_configuracion():
         flash(f'Error al actualizar configuración: {str(e)}', 'error')
 
     return redirect(url_for('configuraciones'))
+
+
+@app.route('/api/permisos_rol/<rol>')
+@login_required
+@role_required(['admin'])
+def api_permisos_rol(rol):
+    """API para obtener permisos de un rol específico"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            SELECT modulo, permiso, activo
+            FROM permisos_rol
+            WHERE rol = %s
+            ORDER BY modulo, permiso
+        ''', (rol,))
+        
+        permisos = cursor.fetchall()
+        permisos_dict = {}
+        
+        for permiso in permisos:
+            modulo = permiso['modulo']
+            if modulo not in permisos_dict:
+                permisos_dict[modulo] = {}
+            permisos_dict[modulo][permiso['permiso']] = permiso['activo']
+        
+        return jsonify({'success': True, 'permisos': permisos_dict})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
+
+
+@app.route('/actualizar_permisos_rol', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def actualizar_permisos_rol():
+    """Actualizar permisos de un rol específico"""
+    try:
+        rol = request.form['rol']
+        
+        if rol == 'admin':
+            return jsonify({'success': False, 'message': 'No se pueden modificar los permisos del administrador'})
+        
+        # Obtener todos los permisos enviados desde el formulario
+        permisos_enviados = {}
+        for key, value in request.form.items():
+            if key.startswith('permiso_'):
+                # Formato: permiso_modulo_accion
+                parts = key.split('_', 2)
+                if len(parts) == 3:
+                    modulo = parts[1]
+                    accion = parts[2]
+                    if modulo not in permisos_enviados:
+                        permisos_enviados[modulo] = {}
+                    permisos_enviados[modulo][accion] = value == 'on'
+        
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        # Obtener todos los permisos existentes para el rol
+        cursor.execute('''
+            SELECT modulo, permiso FROM permisos_rol WHERE rol = %s
+        ''', (rol,))
+        permisos_existentes = cursor.fetchall()
+        
+        # Actualizar permisos existentes
+        for modulo, acciones in permisos_enviados.items():
+            for accion, activo in acciones.items():
+                cursor.execute('''
+                    INSERT INTO permisos_rol (rol, modulo, permiso, activo)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (rol, modulo, permiso)
+                    DO UPDATE SET activo = EXCLUDED.activo, updated_at = CURRENT_TIMESTAMP
+                ''', (rol, modulo, accion, activo))
+        
+        # Desactivar permisos que no fueron enviados
+        for permiso_existente in permisos_existentes:
+            modulo = permiso_existente['modulo']
+            accion = permiso_existente['permiso']
+            
+            if modulo not in permisos_enviados or accion not in permisos_enviados[modulo]:
+                cursor.execute('''
+                    UPDATE permisos_rol 
+                    SET activo = FALSE, updated_at = CURRENT_TIMESTAMP
+                    WHERE rol = %s AND modulo = %s AND permiso = %s
+                ''', (rol, modulo, accion))
+        
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('permisos_rol', %s, 'UPDATE', %s, %s)
+        ''', (0, session['user_id'],
+              json.dumps({
+                  'accion': 'actualizar_permisos_rol',
+                  'rol': rol,
+                  'permisos_actualizados': len(permisos_enviados),
+                  'actualizado_por': session['user_name']
+              })))
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Permisos del rol {rol} actualizados exitosamente'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al actualizar permisos: {str(e)}'})
+    finally:
+        conn.close()
 
 
 @app.route('/proyecto/<int:proyecto_id>/ordenes_compra')
