@@ -195,10 +195,29 @@ def init_db():
         # Primero eliminar la restricción existente
         cursor.execute("ALTER TABLE proyectos DROP CONSTRAINT IF EXISTS proyectos_estado_check")
         
+        # Verificar y mostrar estados existentes antes de la limpieza
+        cursor.execute("SELECT DISTINCT estado FROM proyectos")
+        estados_existentes = cursor.fetchall()
+        print(f"Estados encontrados antes de la limpieza: {[r['estado'] for r in estados_existentes]}")
+        
         # Migrar estados problemáticos a 'activo'
         cursor.execute("""
             UPDATE proyectos SET estado = 'activo' 
             WHERE estado NOT IN ('activo', 'entregado', 'cancelado')
+        """)
+        
+        # Eliminar proyectos con estados que no se pueden migrar (datos corruptos)
+        cursor.execute("""
+            DELETE FROM proyecto_categorias 
+            WHERE proyecto_id IN (
+                SELECT id FROM proyectos 
+                WHERE estado IS NULL OR estado = ''
+            )
+        """)
+        
+        cursor.execute("""
+            DELETE FROM proyectos 
+            WHERE estado IS NULL OR estado = ''
         """)
 
         # Crear nueva restricción con estados simplificados
@@ -206,6 +225,11 @@ def init_db():
             ALTER TABLE proyectos ADD CONSTRAINT proyectos_estado_check 
             CHECK (estado IN ('activo', 'entregado', 'cancelado'))
         """)
+        
+        # Verificar estados después de la limpieza
+        cursor.execute("SELECT DISTINCT estado FROM proyectos")
+        estados_finales = cursor.fetchall()
+        print(f"Estados después de la limpieza: {[r['estado'] for r in estados_finales]}")
         print("Estados de proyectos actualizados al sistema simplificado: activo, entregado, cancelado")
 
     except Exception as e:
@@ -2631,27 +2655,13 @@ def api_calendar_events():
         color = '#6c757d'  # gris por defecto
         textColor = '#fff'
 
-        # Estados de proyecto
-        if row['estado'] == 'diseño':
-            color = '#6f42c1'  # púrpura
-        elif row['estado'] == 'proyecto_simple':
-            color = '#17a2b8'  # info azul
-        elif row['estado'] == 'en_desarrollo':
-            color = '#17a2b8'  # info azul
-        elif row['estado'] == 'aprobado_produccion':
-            color = '#007bff'  # azul primary
-        elif row['estado'] == 'seccionado':
-            color = '#fd7e14'  # naranja
-        elif row['estado'] == 'enchapado':
-            color = '#e67e22'  # naranja más oscuro
-        elif row['estado'] == 'mecanizado':
-            color = '#d35400'  # naranja oscuro
-        elif row['estado'] == 'produccion_completa':
-            color = '#20c997'  # teal
-        elif row['estado'] == 'embalando':
-            color = '#28a745'  # verde
-        elif row['estado'] == 'listo_despacho':
-            color = '#6c757d'  # gris
+        # Estados simplificados de proyecto
+        if row['estado'] == 'activo':
+            color = '#007bff'  # azul primary - activo
+        elif row['estado'] == 'entregado':
+            color = '#28a745'  # verde - entregado
+        elif row['estado'] == 'cancelado':
+            color = '#dc3545'  # rojo - cancelado
 
         # Marcar como urgente si faltan pocos días
         urgente = False
