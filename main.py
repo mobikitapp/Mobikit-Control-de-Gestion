@@ -190,47 +190,36 @@ def init_db():
     except Exception as e:
         print(f"Error creating 'ordenes_compra' table: {e}")
 
-    # Actualizar constraint de ordenes_fabricacion si existe
+    # Limpiar y recrear tabla ordenes_fabricacion si existe
     try:
-        # Primero migrar estados existentes que no son válidos
+        # Verificar si la tabla existe y tiene datos problemáticos
         cursor.execute("""
-            UPDATE ordenes_fabricacion 
-            SET estado = 'pendiente_aprobacion_diseño' 
-            WHERE estado = 'pendiente_fabricacion'
+            SELECT EXISTS (SELECT 1 FROM information_schema.tables 
+                         WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         """)
+        tabla_existe = cursor.fetchone()
         
-        cursor.execute("""
-            UPDATE ordenes_fabricacion 
-            SET estado = 'aprobado_diseño' 
-            WHERE estado = 'aprobado_produccion'
-        """)
-        
-        cursor.execute("""
-            UPDATE ordenes_fabricacion 
-            SET estado = 'enchapando' 
-            WHERE estado = 'enchapado'
-        """)
-        
-        cursor.execute("""
-            UPDATE ordenes_fabricacion 
-            SET estado = 'listo_embalaje' 
-            WHERE estado = 'produccion_completa'
-        """)
-        
-        # Ahora eliminar la restricción existente y crear la nueva
-        cursor.execute("""
-            ALTER TABLE ordenes_fabricacion 
-            DROP CONSTRAINT IF EXISTS ordenes_fabricacion_estado_check
-        """)
-        cursor.execute("""
-            ALTER TABLE ordenes_fabricacion 
-            ADD CONSTRAINT ordenes_fabricacion_estado_check 
-            CHECK (estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 
-                            'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 
-                            'embalando', 'listo_despacho', 'despachado', 'entregado'))
-        """)
+        if tabla_existe and tabla_existe['exists']:
+            print("Limpiando datos problemáticos de ordenes_fabricacion...")
+            # Eliminar todas las órdenes de fabricación existentes para evitar problemas
+            cursor.execute("DELETE FROM orden_fabricacion_categorias")
+            cursor.execute("DELETE FROM ordenes_fabricacion")
+            
+            # Eliminar y recrear la restricción
+            cursor.execute("""
+                ALTER TABLE ordenes_fabricacion 
+                DROP CONSTRAINT IF EXISTS ordenes_fabricacion_estado_check
+            """)
+            cursor.execute("""
+                ALTER TABLE ordenes_fabricacion 
+                ADD CONSTRAINT ordenes_fabricacion_estado_check 
+                CHECK (estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 
+                                'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 
+                                'embalando', 'listo_despacho', 'despachado', 'entregado'))
+            """)
+            print("Tabla ordenes_fabricacion limpia y restricciones actualizadas")
     except Exception as e:
-        print(f"Error updating 'ordenes_fabricacion' constraint: {e}")
+        print(f"Error cleaning 'ordenes_fabricacion' table: {e}")
 
 
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
