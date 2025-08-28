@@ -713,11 +713,12 @@ function aprobarDiseno(ordenId) {
         })
         .then(data => {
             if (data.success) {
-                // Mostrar mensaje de éxito y recargar suavemente
+                // Mostrar mensaje de éxito sin recargar la página
                 showSuccessMessage(data.message);
+                // Actualizar solo el contenido después de un breve delay
                 setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                    refreshTabContent();
+                }, 800);
             } else {
                 alert('Error: ' + data.message);
                 button.innerHTML = originalText;
@@ -764,8 +765,8 @@ function enviarAProduccion(ordenId) {
             if (data.success) {
                 showSuccessMessage(data.message);
                 setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                    refreshTabContent();
+                }, 800);
             } else {
                 alert('Error: ' + data.message);
                 button.innerHTML = originalText;
@@ -810,8 +811,8 @@ function iniciarFabricacion(ordenId) {
             if (data.success) {
                 showSuccessMessage(data.message);
                 setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                    refreshTabContent();
+                }, 800);
             } else {
                 alert('Error: ' + data.message);
                 button.innerHTML = originalText;
@@ -856,8 +857,8 @@ function avanzarFabricacion(ordenId) {
             if (data.success) {
                 showSuccessMessage(data.message);
                 setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                    refreshTabContent();
+                }, 800);
             } else {
                 alert('Error: ' + data.message);
                 button.innerHTML = originalText;
@@ -902,8 +903,8 @@ function retrocederFabricacion(ordenId) {
             if (data.success) {
                 showSuccessMessage(data.message);
                 setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                    refreshTabContent();
+                }, 800);
             } else {
                 alert('Error: ' + data.message);
                 button.innerHTML = originalText;
@@ -951,6 +952,93 @@ function eliminarOrdenFabricacion(ordenId) {
 
 function verDetalleOrden(ordenId) {
     window.location.href = `/orden_fabricacion/${ordenId}`;
+}
+
+// Función para refrescar solo el contenido de las pestañas
+function refreshTabContent() {
+    // Crear overlay suave de transición
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        backdrop-filter: blur(1px);
+        transition: opacity 0.3s ease;
+    `;
+    
+    const loadingDiv = document.createElement('div');
+    loadingDiv.style.cssText = `
+        background: #007bff;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        text-align: center;
+    `;
+    
+    loadingDiv.innerHTML = `
+        <i class="fas fa-sync-alt fa-spin" style="margin-right: 10px;"></i>
+        Actualizando contenido...
+    `;
+    
+    overlay.appendChild(loadingDiv);
+    document.body.appendChild(overlay);
+    
+    // Obtener la pestaña activa actual
+    const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
+    const activeTabId = activeTab ? activeTab.id : 'pendientes-fab-tab';
+    
+    // Hacer fetch del contenido actualizado
+    fetch(window.location.pathname + '?' + Date.now())
+        .then(response => response.text())
+        .then(html => {
+            // Crear un elemento temporal para parsear el HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            
+            // Extraer las tablas de cada pestaña del nuevo contenido
+            const newContent = tempDiv.querySelector('#fabricacionTabContent');
+            if (newContent) {
+                // Reemplazar el contenido de las pestañas
+                const currentContent = document.querySelector('#fabricacionTabContent');
+                if (currentContent) {
+                    currentContent.innerHTML = newContent.innerHTML;
+                }
+                
+                // Restaurar la pestaña activa
+                setTimeout(() => {
+                    const tabToActivate = document.getElementById(activeTabId);
+                    if (tabToActivate && !tabToActivate.classList.contains('active')) {
+                        tabToActivate.click();
+                    }
+                    
+                    // Remover overlay suavemente
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        if (overlay.parentNode) {
+                            overlay.parentNode.removeChild(overlay);
+                        }
+                    }, 300);
+                }, 100);
+            } else {
+                throw new Error('No se pudo obtener el contenido actualizado');
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing content:', error);
+            // Si falla, hacer reload tradicional como fallback
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                window.location.reload();
+            }, 300);
+        });
 }
 </script>
 {% endblock %}
