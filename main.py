@@ -199,7 +199,7 @@ def init_db():
         """)
         tabla_existe = cursor.fetchone()
         
-        if tabla_existe and tabla_existe['exists']:
+        if tabla_existe and tabla_existe[0]:
             print("Limpiando datos problemáticos de ordenes_fabricacion...")
             # Eliminar todas las órdenes de fabricación existentes para evitar problemas
             cursor.execute("DELETE FROM orden_fabricacion_categorias")
@@ -3471,6 +3471,39 @@ def eliminar_orden_fabricacion(orden_id):
         cursor.execute('DELETE FROM orden_fabricacion_categorias WHERE orden_fabricacion_id = %s', (orden_id,))
 
         # Eliminar la orden
+        cursor.execute('DELETE FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Orden {codigo_orden} eliminada exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al eliminar orden: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/eliminar_orden_fabricacion_por_codigo/<codigo_orden>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def eliminar_orden_fabricacion_por_codigo(codigo_orden):
+    """Eliminar orden de fabricación por código"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe
+        cursor.execute('SELECT id, estado FROM ordenes_fabricacion WHERE codigo_orden = %s', (codigo_orden,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': f'Orden de fabricación {codigo_orden} no encontrada'})
+
+        orden_id, estado = orden['id'], orden['estado']
+
+        # Eliminar categorías de la orden
+        cursor.execute('DELETE FROM orden_fabricacion_categorias WHERE orden_fabricacion_id = %s', (orden_id,))
+
+        # Eliminar la orden (sin restricciones de estado para limpiar datos problemáticos)
         cursor.execute('DELETE FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
 
         conn.commit()
