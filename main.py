@@ -2588,22 +2588,37 @@ def api_calendar_events():
     ''')
 
     for row in cursor.fetchall():
-        # Colores según estado y urgencia
+        # Colores según estado específico de fabricación
         color = '#6c757d'  # gris por defecto
         textColor = '#fff'
 
+        # Etapas de desarrollo y diseño
         if row['estado'] == 'en_desarrollo':
             color = '#17a2b8'  # info azul
-        elif row['estado'] == 'aprobado_produccion':
+        elif row['estado'] == 'pendiente_aprobacion_diseño':
+            color = '#6f42c1'  # púrpura
+        elif row['estado'] == 'aprobado_diseño':
             color = '#007bff'  # azul primary
-        elif row['estado'] in ['seccionado', 'enchapado', 'mecanizado']:
+        elif row['estado'] == 'enviado_produccion':
+            color = '#0d6efd'  # azul más intenso
+        # Etapas de fabricación
+        elif row['estado'] == 'seccionado':
             color = '#fd7e14'  # naranja
+        elif row['estado'] == 'enchapando':
+            color = '#e67e22'  # naranja más oscuro
+        elif row['estado'] == 'mecanizado':
+            color = '#d35400'  # naranja oscuro
         elif row['estado'] == 'produccion_completa':
             color = '#20c997'  # teal
+        # Etapas de embalaje
+        elif row['estado'] == 'pendiente_embalaje':
+            color = '#198754'  # verde oscuro
         elif row['estado'] == 'embalando':
             color = '#28a745'  # verde
+        elif row['estado'] == 'embalaje_listo':
+            color = '#20c997'  # teal
         elif row['estado'] == 'listo_despacho':
-            color = '#dc3545'  # rojo
+            color = '#6c757d'  # gris
 
         # Marcar como urgente si faltan pocos días
         urgente = False

@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Calendario de Entregas - Mobikit{% endblock %}
@@ -11,12 +10,12 @@
         <label class="btn btn-outline-primary" for="showOrdenes">
             <i class="fas fa-file-invoice"></i> Órdenes de Compra
         </label>
-        
+
         <input type="checkbox" class="btn-check" id="showDespachos" checked>
         <label class="btn btn-outline-danger" for="showDespachos">
             <i class="fas fa-truck"></i> Despachos
         </label>
-        
+
         <input type="checkbox" class="btn-check" id="showUrgentes">
         <label class="btn btn-outline-warning" for="showUrgentes">
             <i class="fas fa-exclamation-triangle"></i> Solo Urgentes
@@ -32,19 +31,37 @@
                 <small><span class="badge" style="background-color: #17a2b8;">En Desarrollo</span></small>
             </div>
             <div class="col-md-2">
-                <small><span class="badge" style="background-color: #007bff;">Aprobado Prod.</span></small>
+                <small><span class="badge" style="background-color: #6f42c1;">Pend. Aprob. Diseño</span></small>
             </div>
             <div class="col-md-2">
-                <small><span class="badge" style="background-color: #fd7e14;">En Fabricación</span></small>
+                <small><span class="badge" style="background-color: #007bff;">Aprobado Diseño</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #0d6efd;">Enviado Producción</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #fd7e14;">Seccionado</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #e67e22;">Enchapando</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #d35400;">Mecanizado</span></small>
             </div>
             <div class="col-md-2">
                 <small><span class="badge" style="background-color: #20c997;">Prod. Completa</span></small>
             </div>
             <div class="col-md-2">
+                <small><span class="badge" style="background-color: #198754;">Pend. Embalaje</span></small>
+            </div>
+            <div class="col-md-2">
                 <small><span class="badge" style="background-color: #28a745;">Embalando</span></small>
             </div>
             <div class="col-md-2">
-                <small><span class="badge" style="background-color: #dc3545;">Listo/Urgente</span></small>
+                <small><span class="badge" style="background-color: #20c997;">Embalaje Listo</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #6c757d;">Listo Despacho</span></small>
             </div>
         </div>
     </div>
@@ -110,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');
     let calendar;
     let allEvents = [];
-    
+
     // Inicializar FullCalendar
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: window.innerWidth <= 768 ? 'listWeek' : 'dayGridMonth',
@@ -125,17 +142,17 @@ document.addEventListener('DOMContentLoaded', function() {
         selectable: true,
         dayMaxEvents: 3,
         eventMaxStack: 3,
-        
+
         // Cargar eventos
         events: function(info, successCallback, failureCallback) {
             loadCalendarEvents(successCallback, failureCallback);
         },
-        
+
         // Manejar clic en evento
         eventClick: function(info) {
             showEventDetails(info.event);
         },
-        
+
         // Configuración responsive
         windowResize: function() {
             if (window.innerWidth <= 768) {
@@ -144,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 calendar.changeView('dayGridMonth');
             }
         },
-        
+
         // Tooltip hover
         eventMouseEnter: function(info) {
             const props = info.event.extendedProps;
@@ -167,13 +184,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 pointer-events: none;
             `;
             document.body.appendChild(tooltip);
-            
+
             info.el.addEventListener('mousemove', function(e) {
                 tooltip.style.left = (e.pageX + 10) + 'px';
                 tooltip.style.top = (e.pageY - 10) + 'px';
             });
         },
-        
+
         eventMouseLeave: function(info) {
             const tooltip = document.querySelector('.calendar-tooltip');
             if (tooltip) {
@@ -181,9 +198,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-    
+
     calendar.render();
-    
+
     // Función para cargar eventos del calendario
     function loadCalendarEvents(successCallback, failureCallback) {
         fetch('/api/calendar_events')
@@ -198,38 +215,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 failureCallback(error);
             });
     }
-    
+
     // Filtrar eventos según los checkboxes
     function filterEvents(events) {
         const showOrdenes = document.getElementById('showOrdenes').checked;
         const showDespachos = document.getElementById('showDespachos').checked;
         const showUrgentes = document.getElementById('showUrgentes').checked;
-        
+
         return events.filter(event => {
             // Filtro por tipo
             if (event.type === 'orden_compra' && !showOrdenes) return false;
             if (event.type === 'despacho' && !showDespachos) return false;
-            
+
             // Filtro por urgencia
             if (showUrgentes && event.type === 'orden_compra') {
                 return event.extendedProps.urgente === true;
             }
-            
+
             return true;
         });
     }
-    
+
     // Mostrar detalles del evento
     function showEventDetails(event) {
         const props = event.extendedProps;
-        
+
         if (event.type === 'orden_compra') {
             showOrdenDetails(event, props);
         } else if (event.type === 'despacho') {
             showDespachoDetails(event, props);
         }
     }
-    
+
     // Mostrar detalles de orden de compra
     function showOrdenDetails(event, props) {
         const modal = new bootstrap.Modal(document.getElementById('ordenModal'));
@@ -237,31 +254,31 @@ document.addEventListener('DOMContentLoaded', function() {
         const modalBody = document.getElementById('ordenModalBody');
         const verProyectoBtn = document.getElementById('verProyectoBtn');
         const verOrdenesBtn = document.getElementById('verOrdenesBtn');
-        
+
         modalTitle.innerHTML = `<i class="fas fa-file-invoice"></i> ${props.codigo} - ${props.proyecto}`;
-        
+
         // Estado badge
         let estadoBadge = '';
         const estadoColors = {
             'en_desarrollo': 'info',
             'aprobado_produccion': 'primary', 
             'seccionado': 'warning',
-            'enchapado': 'warning',
+            'enchapando': 'warning',
             'mecanizado': 'warning',
             'produccion_completa': 'info',
             'embalando': 'success',
-            'listo_despacho': 'danger'
+            'listo_despacho': 'secondary'
         };
         const badgeColor = estadoColors[props.estado] || 'secondary';
         estadoBadge = `<span class="badge bg-${badgeColor}">${props.estado.replace('_', ' ').toUpperCase()}</span>`;
-        
+
         // Urgencia
         let urgenciaInfo = '';
         if (props.dias_restantes !== null) {
             const dias = Math.round(props.dias_restantes);
             let urgenciaClass = 'text-success';
             let urgenciaText = `${dias} días restantes`;
-            
+
             if (dias < 0) {
                 urgenciaClass = 'text-danger';
                 urgenciaText = `Vencido hace ${Math.abs(dias)} días`;
@@ -272,12 +289,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 urgenciaClass = 'text-warning';
                 urgenciaText = `URGENTE: ${dias} días restantes`;
             }
-            
+
             urgenciaInfo = `<div class="alert alert-light border-start border-4 ${urgenciaClass.replace('text-', 'border-')} mb-3">
                 <strong class="${urgenciaClass}"><i class="fas fa-clock"></i> ${urgenciaText}</strong>
             </div>`;
         }
-        
+
         modalBody.innerHTML = `
             ${urgenciaInfo}
             <div class="row">
@@ -309,28 +326,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p class="text-muted">${props.descripcion}</p>
             </div>` : ''}
         `;
-        
+
         // Configurar botones
         verProyectoBtn.onclick = () => {
             window.open(`/proyecto/${props.proyecto_id}`, '_blank');
         };
-        
+
         verOrdenesBtn.onclick = () => {
             window.open(`/ordenes_fabricacion`, '_blank');
         };
-        
+
         modal.show();
     }
-    
+
     // Mostrar detalles de despacho
     function showDespachoDetails(event, props) {
         const modal = new bootstrap.Modal(document.getElementById('despachoModal'));
         const modalTitle = document.getElementById('despachoModalTitle');
         const modalBody = document.getElementById('despachoModalBody');
         const editarBtn = document.getElementById('editarDespachoBtn');
-        
+
         modalTitle.innerHTML = `<i class="fas fa-truck"></i> ${props.codigo_despacho}`;
-        
+
         modalBody.innerHTML = `
             <div class="row">
                 <div class="col-12">
@@ -346,23 +363,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
-        
+
         editarBtn.onclick = () => {
             window.open(`/despacho/${props.despacho_id}`, '_blank');
         };
-        
+
         modal.show();
     }
-    
+
     // Event listeners para los filtros
     document.getElementById('showOrdenes').addEventListener('change', () => {
         calendar.refetchEvents();
     });
-    
+
     document.getElementById('showDespachos').addEventListener('change', () => {
         calendar.refetchEvents();
     });
-    
+
     document.getElementById('showUrgentes').addEventListener('change', () => {
         calendar.refetchEvents();
     });
@@ -399,11 +416,11 @@ document.addEventListener('DOMContentLoaded', function() {
     .modal-dialog {
         margin: 0.5rem;
     }
-    
+
     .fc-toolbar {
         flex-direction: column;
     }
-    
+
     .fc-toolbar-chunk {
         margin: 0.2em 0;
     }
