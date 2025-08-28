@@ -190,53 +190,42 @@ def init_db():
     except Exception as e:
         print(f"Error creating 'ordenes_compra' table: {e}")
 
-    # Limpiar y recrear tabla ordenes_fabricacion si existe
+    # Actualizar restricción de estados de proyectos con sistema simplificado
     try:
-        # Actualizar restricción de estados de proyectos
-        try:
-            cursor.execute("ALTER TABLE proyectos DROP CONSTRAINT IF EXISTS proyectos_estado_check")
-            cursor.execute("""
-                ALTER TABLE proyectos ADD CONSTRAINT proyectos_estado_check 
-                CHECK (estado IN ('activo', 'entregado', 'cancelado'))
-            """)
-            
-            # Migrar estados existentes al nuevo sistema simplificado
-            cursor.execute("""
-                UPDATE proyectos SET estado = 'activo' 
-                WHERE estado NOT IN ('entregado', 'cancelado')
-            """)
-            print("Estados de proyectos actualizados al nuevo sistema simplificado")
-        except Exception as e:
-            print(f"Error actualizando estados de proyectos: {e}")
-
-        # Verificar si la tabla existe y tiene datos problemáticos
+        # Migrar estados problemáticos primero
         cursor.execute("""
-            SELECT EXISTS (SELECT 1 FROM information_schema.tables 
-                         WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
+            UPDATE proyectos SET estado = 'activo' 
+            WHERE estado NOT IN ('activo', 'entregado', 'cancelado')
         """)
-        tabla_existe = cursor.fetchone()
 
-        if tabla_existe and tabla_existe[0]:
-            print("Limpiando datos problemáticos de ordenes_fabricacion...")
-            # Eliminar todas las órdenes de fabricación existentes para evitar problemas
-            cursor.execute("DELETE FROM orden_fabricacion_categorias")
-            cursor.execute("DELETE FROM ordenes_fabricacion")
+        # Eliminar y recrear restricción con estados simplificados
+        cursor.execute("ALTER TABLE proyectos DROP CONSTRAINT IF EXISTS proyectos_estado_check")
+        cursor.execute("""
+            ALTER TABLE proyectos ADD CONSTRAINT proyectos_estado_check 
+            CHECK (estado IN ('activo', 'entregado', 'cancelado'))
+        """)
+        print("Estados de proyectos actualizados al sistema simplificado: activo, entregado, cancelado")
 
-            # Eliminar y recrear la restricción
-            cursor.execute("""
-                ALTER TABLE ordenes_fabricacion 
-                DROP CONSTRAINT IF EXISTS ordenes_fabricacion_estado_check
-            """)
-            cursor.execute("""
-                ALTER TABLE ordenes_fabricacion 
-                ADD CONSTRAINT ordenes_fabricacion_estado_check 
-                CHECK (estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 
-                                'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 
-                                'embalando', 'embalaje_listo', 'listo_despacho', 'despachado', 'entregado'))
-            """)
-            print("Tabla ordenes_fabricacion limpia y restricciones actualizadas")
     except Exception as e:
-        print(f"Error cleaning 'ordenes_fabricacion' table: {e}")
+        print(f"Error actualizando estados de proyectos: {e}")
+
+    # Actualizar restricción de órdenes de fabricación
+    try:
+        cursor.execute("""
+            ALTER TABLE ordenes_fabricacion 
+            DROP CONSTRAINT IF EXISTS ordenes_fabricacion_estado_check
+        """)
+        cursor.execute("""
+            ALTER TABLE ordenes_fabricacion 
+            ADD CONSTRAINT ordenes_fabricacion_estado_check 
+            CHECK (estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 
+                            'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 
+                            'embalando', 'embalaje_listo', 'listo_despacho', 'despachado', 'entregado'))
+        """)
+        print("Restricciones de órdenes de fabricación actualizadas")
+
+    except Exception as e:
+        print(f"Error actualizando restricciones de órdenes de fabricación: {e}")
 
 
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
@@ -335,7 +324,7 @@ def create_basic_tables(cursor):
             cliente_id INTEGER NOT NULL,
             descripcion TEXT,
             adjudicacion_tipo TEXT DEFAULT 'orden_compra' CHECK (adjudicacion_tipo IN ('contrato', 'orden_compra')),
-            estado TEXT DEFAULT 'diseño',
+            estado TEXT DEFAULT 'activo',
             prioridad TEXT DEFAULT 'media',
             fecha_inicio DATE,
             fecha_entrega DATE,
@@ -1435,7 +1424,7 @@ def nueva_orden_compra():
                     codigo, nombre, cliente_id, descripcion, adjudicacion_tipo,
                     estado, prioridad, fecha_inicio, fecha_entrega,
                     monto_neto, monto_neto_provision, observaciones
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion,
                   'en_desarrollo', prioridad, datetime.now().date(),
                   fecha_entrega_general or fecha_entrega_oc or None,
@@ -3455,6 +3444,7 @@ def api_proyectos_disponibles_fabricacion():
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado NOT IN ('entregado', 'cancelado')
+        AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre
         ORDER BY p.nombre
     ''')
