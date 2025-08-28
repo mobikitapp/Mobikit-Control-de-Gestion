@@ -198,13 +198,13 @@ def init_db():
                          WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         """)
         tabla_existe = cursor.fetchone()
-        
+
         if tabla_existe and tabla_existe[0]:
             print("Limpiando datos problemáticos de ordenes_fabricacion...")
             # Eliminar todas las órdenes de fabricación existentes para evitar problemas
             cursor.execute("DELETE FROM orden_fabricacion_categorias")
             cursor.execute("DELETE FROM ordenes_fabricacion")
-            
+
             # Eliminar y recrear la restricción
             cursor.execute("""
                 ALTER TABLE ordenes_fabricacion 
@@ -2716,7 +2716,7 @@ def api_iniciar_proceso_orden(orden_id):
         cursor.execute('''
             UPDATE ordenes_fabricacion
             SET estado = %s, fecha_inicio = CURRENT_TIMESTAMP
-            WHERE proyecto_id = %s AND estado = 'pendiente_aprobacion_diseno'
+            WHERE proyecto_id = %s AND estado = 'pendiente_aprobacion_diseño'
         ''', ('aprobado_produccion', orden_id))
 
         conn.commit()
