@@ -1,19 +1,42 @@
-
 {% extends "base.html" %}
 
 {% block title %}Configuraciones - Mobikit{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-cog"></i> Configuraciones Generales</h2>
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-            <li class="breadcrumb-item">Configuraciones</li>
-            <li class="breadcrumb-item active" aria-current="page">Generales</li>
-        </ol>
-    </nav>
+    <div>
+        <h1><i class="fas fa-cog"></i> Configuraciones del Sistema</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Configuraciones</li>
+            </ol>
+        </nav>
+    </div>
 </div>
+
+<!-- Tabs de navegación -->
+<ul class="nav nav-tabs mb-4" id="configTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+            <i class="fas fa-sliders-h"></i> General
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">
+            <i class="fas fa-users"></i> Usuarios
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="permissions-tab" data-bs-toggle="tab" data-bs-target="#permissions" type="button" role="tab">
+            <i class="fas fa-shield-alt"></i> Permisos
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="configTabContent">
+    <!-- Tab General -->
+    <div class="tab-pane fade show active" id="general" role="tabpanel">
 
 <div class="card">
     <div class="card-header">
@@ -32,7 +55,7 @@
                 <div class="col-md-8">
                     <form method="POST" action="{{ url_for('actualizar_configuracion') }}" class="d-flex align-items-center gap-2">
                         <input type="hidden" name="clave" value="{{ config.clave }}">
-                        
+
                         {% if config.tipo == 'integer' %}
                         <div class="input-group">
                             <span class="input-group-text">$</span>
@@ -56,12 +79,12 @@
                                value="{{ config.valor }}" 
                                required>
                         {% endif %}
-                        
+
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Guardar
                         </button>
                     </form>
-                    
+
                     {% if config.clave == 'objetivo_mensual_provision' %}
                     <small class="text-muted mt-1 d-block">
                         Formato actual: ${{ "{:,.0f}".format(config.valor|int) }} pesos chilenos
@@ -105,5 +128,97 @@
             </div>
         </div>
     </div>
+</div>
+
+    </div>
+    <!-- Fin Tab General -->
+
+    <!-- Tab Usuarios -->
+    <div class="tab-pane fade" id="users" role="tabpanel">
+        <!-- Aquí irá la gestión de usuarios -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Gestión de Usuarios</h5>
+                <small class="text-muted">Administra los usuarios y sus roles</small>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Email</th>
+                                <th>Rol</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usuario in usuarios %}
+                            <tr>
+                                <td>{{ usuario.nombre }}</td>
+                                <td>{{ usuario.email }}</td>
+                                <td>{{ usuario.rol }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning edit-user-btn" data-bs-toggle="modal" data-bs-target="#editUserModal" data-user-id="{{ usuario.id }}">Editar</button>
+                                    <form method="POST" action="{{ url_for('eliminar_usuario', user_id=usuario.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de que quieres eliminar a este usuario?');">Eliminar</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <button class="btn btn-success mt-3" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class="fas fa-plus"></i> Añadir Usuario</button>
+            </div>
+        </div>
+    </div>
+    <!-- Fin Tab Usuarios -->
+
+    <!-- Tab Permisos -->
+    <div class="tab-pane fade" id="permissions" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Gestión de Permisos</h5>
+                <small class="text-muted">Asigna permisos a los roles</small>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Rol</th>
+                                {% for modulo in modulos %}
+                                <th>{{ modulo.nombre }}</th>
+                                {% endfor %}
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rol in ROLES %} {# Asumiendo que ROLES es una lista de roles disponibles #}
+                            <tr>
+                                <td>{{ rol.capitalize() }}</td>
+                                {% for modulo in modulos %}
+                                <td>
+                                    <input type="checkbox" 
+                                           class="form-check-input" 
+                                           name="permisos_{{ rol }}_{{ modulo.id }}" 
+                                           value="1"
+                                           {% if has_permission(rol, modulo.id) %}checked{% endif %}>
+                                </td>
+                                {% endfor %}
+                                <td>
+                                    <button class="btn btn-sm btn-primary">Guardar Cambios</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {# Aquí puedes agregar lógica para crear o editar roles si es necesario #}
+            </div>
+        </div>
+    </div>
+    <!-- Fin Tab Permisos -->
 </div>
 {% endblock %}
