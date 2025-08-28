@@ -409,6 +409,30 @@ let proyectosData = [];
 // Cargar órdenes de compra al abrir el modal
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, setting up modal listeners');
+    
+    // Restaurar pestaña activa después de recarga
+    const savedTab = localStorage.getItem('activeTab');
+    if (savedTab) {
+        const tabButton = document.getElementById(savedTab);
+        const targetPane = document.querySelector(tabButton?.getAttribute('data-bs-target'));
+        
+        if (tabButton && targetPane) {
+            // Remover clase active de todas las pestañas
+            document.querySelectorAll('#fabricacionTab .nav-link').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('#fabricacionTabContent .tab-pane').forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+            
+            // Activar la pestaña guardada
+            tabButton.classList.add('active');
+            targetPane.classList.add('show', 'active');
+            
+            // Limpiar el localStorage
+            localStorage.removeItem('activeTab');
+        }
+    }
 
     const modal = document.getElementById('nuevaOrdenFabricacionModal');
     if (modal) {
@@ -615,6 +639,12 @@ function resetCategorias() {
 
 function aprobarDiseno(ordenId) {
     if (confirm('¿Confirmas la aprobación del diseño de esta orden?')) {
+        // Guardar la pestaña activa antes de la recarga
+        const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
+        if (activeTab) {
+            localStorage.setItem('activeTab', activeTab.id);
+        }
+        
         fetch(`/api/aprobar_diseno_orden/${ordenId}`, {
             method: 'POST',
             headers: {
@@ -645,6 +675,12 @@ function aprobarDiseno(ordenId) {
 
 function enviarAProduccion(ordenId) {
     if (confirm('¿Confirmas enviar esta orden a producción?')) {
+        // Guardar la pestaña activa antes de la recarga
+        const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
+        if (activeTab) {
+            localStorage.setItem('activeTab', activeTab.id);
+        }
+        
         fetch(`/api/enviar_a_produccion/${ordenId}`, {
             method: 'POST',
             headers: {
@@ -675,6 +711,12 @@ function enviarAProduccion(ordenId) {
 
 function iniciarFabricacion(ordenId) {
     if (confirm('¿Confirmas iniciar la fabricación de esta orden (Seccionado)?')) {
+        // Guardar la pestaña activa antes de la recarga
+        const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
+        if (activeTab) {
+            localStorage.setItem('activeTab', activeTab.id);
+        }
+        
         fetch(`/api/iniciar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: {
@@ -705,6 +747,12 @@ function iniciarFabricacion(ordenId) {
 
 function avanzarFabricacion(ordenId) {
     if (confirm('¿Confirmas avanzar esta orden a la siguiente etapa?')) {
+        // Guardar la pestaña activa antes de la recarga
+        const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
+        if (activeTab) {
+            localStorage.setItem('activeTab', activeTab.id);
+        }
+        
         fetch(`/api/avanzar_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: {
@@ -735,6 +783,12 @@ function avanzarFabricacion(ordenId) {
 
 function retrocederFabricacion(ordenId) {
     if (confirm('¿Confirmas retroceder esta orden a la etapa anterior?')) {
+        // Guardar la pestaña activa antes de la recarga
+        const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
+        if (activeTab) {
+            localStorage.setItem('activeTab', activeTab.id);
+        }
+        
         fetch(`/api/retroceder_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: {
