@@ -10,6 +10,9 @@ from functools import wraps
 import uuid
 import sqlite3 # Keep this import for the ALTER TABLE fallback, although its functions are replaced.
 
+# Import permission functions
+from utils.permissions import permission_required, has_permission, ROLE_PERMISSIONS
+
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'mobikit_secret_key_2024')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -382,15 +385,15 @@ def check_repl_auth():
     user_id = request.headers.get('X-Replit-User-Id')
     user_name = request.headers.get('X-Replit-User-Name')
     user_roles = request.headers.get('X-Replit-User-Roles', '')
-    
+
     if user_id and user_name:
         # Check if user exists in our database
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
-        
+
         cursor.execute('SELECT id, rol, nombre FROM usuarios WHERE username = %s', (user_name,))
         user = cursor.fetchone()
-        
+
         if not user:
             # Create new user with vendedor role by default
             cursor.execute('''
@@ -398,17 +401,17 @@ def check_repl_auth():
                 VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, rol, nombre
             ''', (user_name, 'repl_auth', 'vendedor', user_name, f'{user_name}@replit.com', True))
             user = cursor.fetchone()
-        
+
         conn.commit()
         conn.close()
-        
+
         return {
             'user_id': user['id'],
             'user_role': user['rol'],
             'user_name': user['nombre'],
             'repl_user_id': user_id
         }
-    
+
     return None
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -422,7 +425,7 @@ def login():
         session['repl_user_id'] = repl_user['repl_user_id']
         flash(f'Bienvenido via Repl Auth, {repl_user["user_name"]}!', 'success')
         return redirect(url_for('dashboard'))
-    
+
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -1171,13 +1174,6 @@ def editar_proyecto():
             except ValueError:
                 pass
 
-        monto_provision_presupuestada = None
-        if request.form.get('monto_provision_presupuestada'):
-            try:
-                monto_provision_presupuestada = float(request.form['monto_provision_presupuestada'])
-            except ValueError:
-                pass
-
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
@@ -1398,7 +1394,7 @@ def nueva_orden_compra():
             try:
                 for i, categoria_id in enumerate(categorias_selected):
                     if categoria_id:  # Solo si hay categoría seleccionada
-                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategorias_selected[i] else None
+                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategories_selected[i] else None
                         cursor.execute('''
                             INSERT INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
                             VALUES (%s, %s, %s)
