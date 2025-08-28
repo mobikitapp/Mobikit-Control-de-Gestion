@@ -14,6 +14,11 @@ import sqlite3 # Keep this import for the ALTER TABLE fallback, although its fun
 from utils.permissions import permission_required, has_permission, ROLE_PERMISSIONS
 
 app = Flask(__name__)
+
+# Make has_permission available in Jinja2 templates
+@app.context_processor
+def inject_permissions():
+    return dict(has_permission=has_permission)
 app.secret_key = os.getenv('SECRET_KEY', 'mobikit_secret_key_2024')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -2511,117 +2516,143 @@ def marcar_recordatorio_enviado(recordatorio_id):
 @app.route('/calendario')
 @login_required
 def calendario():
-    """Vista de calendario interactivo"""
+    """Vista de calendario interactivo enfocado en órdenes de compra"""
     return render_template('calendario.html')
 
 
 @app.route('/api/calendar_events')
 @login_required
 def api_calendar_events():
-    """API para obtener eventos del calendario con focus en órdenes de compra"""
+    """API para obtener eventos del calendario enfocado en órdenes de compra"""
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
     events = []
 
-    # Obtener órdenes de compra con fechas de entrega
+    # Obtener órdenes de compra con fechas de entrega e información detallada
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, p.fecha_entrega, p.estado, p.prioridad,
-               c.nombre as cliente_nombre,
+               p.monto_neto, p.descripcion, p.fecha_estimada_inicio,
+               c.nombre as cliente_nombre, c.contacto_principal,
+               u.nombre as diseñador_nombre,
                CASE 
                    WHEN p.fecha_entrega IS NOT NULL THEN 
                        EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
                    ELSE NULL 
-               END AS dias_restantes
+               END AS dias_restantes,
+               COUNT(of.id) as ordenes_fabricacion_count,
+               STRING_AGG(DISTINCT cat.nombre, ', ') as categorias
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.fecha_entrega IS NOT NULL AND p.estado NOT IN ('entregado', 'terminado', 'cancelado')
+        LEFT JOIN usuarios u ON p.diseñador_id = u.id
+        LEFT JOIN ordenes_fabricacion of ON p.id = of.proyecto_id
+        LEFT JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
+        LEFT JOIN categorias_producto cat ON pc.categoria_id = cat.id
+        WHERE p.fecha_entrega IS NOT NULL 
+        AND p.estado NOT IN ('entregado', 'terminado', 'cancelado', 'completado')
+        AND p.archivado = FALSE
+        GROUP BY p.id, p.codigo, p.nombre, p.fecha_entrega, p.estado, p.prioridad,
+                 p.monto_neto, p.descripcion, p.fecha_estimada_inicio,
+                 c.nombre, c.contacto_principal, u.nombre
     ''')
 
     for row in cursor.fetchall():
-        # Colores según estado
+        # Colores según estado y urgencia
         color = '#6c757d'  # gris por defecto
+        textColor = '#fff'
+        
         if row['estado'] == 'en_desarrollo':
-            color = '#6c757d'
+            color = '#17a2b8'  # info azul
         elif row['estado'] == 'aprobado_produccion':
-            color = '#0d6efd'
+            color = '#007bff'  # azul primary
         elif row['estado'] in ['seccionado', 'enchapado', 'mecanizado']:
-            color = '#fd7e14'
+            color = '#fd7e14'  # naranja
         elif row['estado'] == 'produccion_completa':
-            color = '#20c997'
+            color = '#20c997'  # teal
         elif row['estado'] == 'embalando':
-            color = '#198754'
+            color = '#28a745'  # verde
         elif row['estado'] == 'listo_despacho':
-            color = '#dc3545'
+            color = '#dc3545'  # rojo
 
         # Marcar como urgente si faltan pocos días
+        urgente = False
         if row['dias_restantes'] is not None and row['dias_restantes'] <= 3:
             color = '#dc3545'  # rojo para urgente
+            urgente = True
+
+        # Título con información clave
+        titulo = f"{row['codigo']} - {row['cliente_nombre']}"
+        if row['dias_restantes'] is not None:
+            dias = int(row['dias_restantes'])
+            if dias < 0:
+                titulo += f" (Vencido {abs(dias)}d)"
+            elif dias == 0:
+                titulo += " (HOY)"
+            elif dias <= 7:
+                titulo += f" ({dias}d)"
 
         events.append({
             'id': f'orden_{row["id"]}',
-            'title': f'OC: {row["codigo"]} - {row["nombre"]}',
-            'start': row["fecha_entrega"].isoformat(), # Format date for FullCalendar
+            'title': titulo,
+            'start': row["fecha_entrega"].isoformat(),
             'type': 'orden_compra',
             'backgroundColor': color,
             'borderColor': color,
-            'proyecto': row["nombre"],
-            'cliente': row["cliente_nombre"],
-            'estado': row["estado"],
-            'prioridad': row["prioridad"],
-            'dias_restantes': row["dias_restantes"],
-            'codigo': row["codigo"]
+            'textColor': textColor,
+            'extendedProps': {
+                'proyecto_id': row["id"],
+                'proyecto': row["nombre"],
+                'cliente': row["cliente_nombre"],
+                'contacto_principal': row["contacto_principal"],
+                'diseñador': row["diseñador_nombre"],
+                'estado': row["estado"],
+                'prioridad': row["prioridad"],
+                'dias_restantes': row["dias_restantes"],
+                'codigo': row["codigo"],
+                'monto_neto': float(row["monto_neto"]) if row["monto_neto"] else None,
+                'descripcion': row["descripcion"],
+                'fecha_estimada_inicio': row["fecha_estimada_inicio"].isoformat() if row["fecha_estimada_inicio"] else None,
+                'ordenes_fabricacion_count': row["ordenes_fabricacion_count"],
+                'categorias': row["categorias"],
+                'urgente': urgente
+            }
         })
 
-    # Obtener despachos programados
+    # Obtener despachos programados con información detallada
     cursor.execute('''
         SELECT d.id, d.codigo_despacho, d.fecha_programada, d.estado,
+               d.transportista, d.conductor, d.direccion_entrega,
                p.nombre as proyecto_nombre, p.codigo as proyecto_codigo,
                c.nombre as cliente_nombre
         FROM despachos d
         LEFT JOIN proyectos p ON d.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE d.fecha_programada IS NOT NULL
+        AND d.estado IN ('programado', 'en_transito')
     ''')
 
     for row in cursor.fetchall():
+        color_despacho = '#e83e8c'  # rosa
+        if row['estado'] == 'en_transito':
+            color_despacho = '#fd7e14'  # naranja
+
         events.append({
             'id': f'despacho_{row["id"]}',
             'title': f'Despacho: {row["proyecto_codigo"] or row["codigo_despacho"]}',
-            'start': row["fecha_programada"].isoformat(), # Format date for FullCalendar
+            'start': row["fecha_programada"].isoformat(),
             'type': 'despacho',
-            'backgroundColor': '#e83e8c',
-            'borderColor': '#e83e8c',
-            'proyecto': row["proyecto_nombre"] or 'Proyecto Manual',
-            'cliente': row["cliente_nombre"] or 'Cliente Manual',
-            'estado': row["estado"],
-            'codigo_despacho': row["codigo_despacho"]
-        })
-
-    # Obtener recordatorios de producción
-    cursor.execute('''
-        SELECT r.id, r.titulo, r.fecha_recordatorio, r.mensaje, r.enviado,
-               u.nombre as usuario_nombre, a.nombre as area_nombre
-        FROM recordatorios r
-        LEFT JOIN usuarios u ON r.usuario_id = u.id
-        LEFT JOIN areas a ON r.area_id = a.id
-        WHERE r.activo = TRUE AND r.fecha_recordatorio IS NOT NULL
-        AND r.tipo IN ('proyecto', 'despacho', 'general')
-    ''')
-
-    for row in cursor.fetchall():
-        events.append({
-            'id': f'recordatorio_{row["id"]}',
-            'title': f'Recordatorio: {row["titulo"]}',
-            'start': row["fecha_recordatorio"].isoformat(), # Format date for FullCalendar
-            'type': 'recordatorio',
-            'backgroundColor': '#ffc107',
-            'borderColor': '#ffc107',
-            'textColor': '#000',
-            'usuario': row["usuario_nombre"],
-            'area': row["area_nombre"],
-            'mensaje': row["mensaje"],
-            'enviado': row["enviado"]
+            'backgroundColor': color_despacho,
+            'borderColor': color_despacho,
+            'extendedProps': {
+                'despacho_id': row["id"],
+                'proyecto': row["proyecto_nombre"] or 'Proyecto Manual',
+                'cliente': row["cliente_nombre"] or 'Cliente Manual',
+                'estado': row["estado"],
+                'codigo_despacho': row["codigo_despacho"],
+                'transportista': row["transportista"],
+                'conductor': row["conductor"],
+                'direccion_entrega': row["direccion_entrega"]
+            }
         })
 
     conn.close()

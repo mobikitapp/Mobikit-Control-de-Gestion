@@ -1,26 +1,52 @@
 
 {% extends "base.html" %}
 
-{% block title %}Calendario - Mobikit{% endblock %}
+{% block title %}Calendario de Entregas - Mobikit{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-calendar-alt"></i> Calendario de Eventos</h1>
+    <h1><i class="fas fa-calendar-alt"></i> Calendario de Entregas</h1>
     <div class="btn-group" role="group">
+        <input type="checkbox" class="btn-check" id="showOrdenes" checked>
+        <label class="btn btn-outline-primary" for="showOrdenes">
+            <i class="fas fa-file-invoice"></i> Órdenes de Compra
+        </label>
+        
         <input type="checkbox" class="btn-check" id="showDespachos" checked>
-        <label class="btn btn-outline-primary" for="showDespachos">
+        <label class="btn btn-outline-danger" for="showDespachos">
             <i class="fas fa-truck"></i> Despachos
         </label>
         
-        <input type="checkbox" class="btn-check" id="showTareas" checked>
-        <label class="btn btn-outline-success" for="showTareas">
-            <i class="fas fa-tasks"></i> Tareas
+        <input type="checkbox" class="btn-check" id="showUrgentes">
+        <label class="btn btn-outline-warning" for="showUrgentes">
+            <i class="fas fa-exclamation-triangle"></i> Solo Urgentes
         </label>
-        
-        <input type="checkbox" class="btn-check" id="showRecordatorios" checked>
-        <label class="btn btn-outline-warning" for="showRecordatorios">
-            <i class="fas fa-bell"></i> Recordatorios
-        </label>
+    </div>
+</div>
+
+<!-- Leyenda de colores -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row text-center">
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #17a2b8;">En Desarrollo</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #007bff;">Aprobado Prod.</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #fd7e14;">En Fabricación</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #20c997;">Prod. Completa</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #28a745;">Embalando</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #dc3545;">Listo/Urgente</span></small>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -30,21 +56,45 @@
     </div>
 </div>
 
-<!-- Modal para detalles del evento -->
-<div class="modal fade" id="eventModal" tabindex="-1">
-    <div class="modal-dialog">
+<!-- Modal para detalles de orden de compra -->
+<div class="modal fade" id="ordenModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="eventModalTitle">Detalle del Evento</h5>
+                <h5 class="modal-title" id="ordenModalTitle">Detalle de Orden de Compra</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="eventModalBody">
+            <div class="modal-body" id="ordenModalBody">
                 <!-- Contenido dinámico -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <button type="button" class="btn btn-primary" id="editEventBtn" style="display: none;">
-                    <i class="fas fa-edit"></i> Editar
+                <button type="button" class="btn btn-primary" id="verProyectoBtn">
+                    <i class="fas fa-eye"></i> Ver Proyecto
+                </button>
+                <button type="button" class="btn btn-success" id="verOrdenesBtn">
+                    <i class="fas fa-industry"></i> Ver Órdenes Fabricación
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalles de despacho -->
+<div class="modal fade" id="despachoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="despachoModalTitle">Detalle de Despacho</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="despachoModalBody">
+                <!-- Contenido dinámico -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="editarDespachoBtn">
+                    <i class="fas fa-edit"></i> Editar Despacho
                 </button>
             </div>
         </div>
@@ -59,34 +109,26 @@
 document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');
     let calendar;
+    let allEvents = [];
     
     // Inicializar FullCalendar
     calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
+        initialView: window.innerWidth <= 768 ? 'listWeek' : 'dayGridMonth',
         locale: 'es',
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            right: 'dayGridMonth,timeGridWeek,listWeek'
         },
         height: 'auto',
-        editable: true,
+        editable: false,
         selectable: true,
-        dayMaxEvents: true,
+        dayMaxEvents: 3,
+        eventMaxStack: 3,
         
         // Cargar eventos
         events: function(info, successCallback, failureCallback) {
             loadCalendarEvents(successCallback, failureCallback);
-        },
-        
-        // Manejar cambio de fecha por drag & drop
-        eventDrop: function(info) {
-            updateEventDate(info.event, info.event.start);
-        },
-        
-        // Manejar cambio de duración
-        eventResize: function(info) {
-            updateEventDate(info.event, info.event.start, info.event.end);
         },
         
         // Manejar clic en evento
@@ -94,22 +136,48 @@ document.addEventListener('DOMContentLoaded', function() {
             showEventDetails(info.event);
         },
         
-        // Configuración de colores por tipo
-        eventDidMount: function(info) {
-            const event = info.event;
-            const eventType = event.extendedProps.type;
+        // Configuración responsive
+        windowResize: function() {
+            if (window.innerWidth <= 768) {
+                calendar.changeView('listWeek');
+            } else {
+                calendar.changeView('dayGridMonth');
+            }
+        },
+        
+        // Tooltip hover
+        eventMouseEnter: function(info) {
+            const props = info.event.extendedProps;
+            const tooltip = document.createElement('div');
+            tooltip.className = 'calendar-tooltip';
+            tooltip.innerHTML = `
+                <strong>${info.event.title}</strong><br>
+                Cliente: ${props.cliente}<br>
+                Estado: ${props.estado}<br>
+                ${props.dias_restantes !== null ? `Días restantes: ${Math.round(props.dias_restantes)}` : ''}
+            `;
+            tooltip.style.cssText = `
+                position: absolute;
+                background: rgba(0,0,0,0.8);
+                color: white;
+                padding: 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                z-index: 1000;
+                pointer-events: none;
+            `;
+            document.body.appendChild(tooltip);
             
-            // Aplicar colores según el tipo
-            if (eventType === 'despacho') {
-                info.el.style.backgroundColor = '#dc3545';
-                info.el.style.borderColor = '#dc3545';
-            } else if (eventType === 'tarea') {
-                info.el.style.backgroundColor = '#28a745';
-                info.el.style.borderColor = '#28a745';
-            } else if (eventType === 'recordatorio') {
-                info.el.style.backgroundColor = '#ffc107';
-                info.el.style.borderColor = '#ffc107';
-                info.el.style.color = '#000';
+            info.el.addEventListener('mousemove', function(e) {
+                tooltip.style.left = (e.pageX + 10) + 'px';
+                tooltip.style.top = (e.pageY - 10) + 'px';
+            });
+        },
+        
+        eventMouseLeave: function(info) {
+            const tooltip = document.querySelector('.calendar-tooltip');
+            if (tooltip) {
+                tooltip.remove();
             }
         }
     });
@@ -121,7 +189,8 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/calendar_events')
             .then(response => response.json())
             .then(data => {
-                const filteredEvents = filterEventsByCheckboxes(data);
+                allEvents = data;
+                const filteredEvents = filterEvents(data);
                 successCallback(filteredEvents);
             })
             .catch(error => {
@@ -131,167 +200,213 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Filtrar eventos según los checkboxes
-    function filterEventsByCheckboxes(events) {
+    function filterEvents(events) {
+        const showOrdenes = document.getElementById('showOrdenes').checked;
         const showDespachos = document.getElementById('showDespachos').checked;
-        const showTareas = document.getElementById('showTareas').checked;
-        const showRecordatorios = document.getElementById('showRecordatorios').checked;
+        const showUrgentes = document.getElementById('showUrgentes').checked;
         
         return events.filter(event => {
+            // Filtro por tipo
+            if (event.type === 'orden_compra' && !showOrdenes) return false;
             if (event.type === 'despacho' && !showDespachos) return false;
-            if (event.type === 'tarea' && !showTareas) return false;
-            if (event.type === 'recordatorio' && !showRecordatorios) return false;
-            return true;
-        });
-    }
-    
-    // Actualizar fecha del evento
-    function updateEventDate(event, newStart, newEnd = null) {
-        const eventData = {
-            id: event.id,
-            type: event.extendedProps.type,
-            start: newStart.toISOString().split('T')[0],
-            end: newEnd ? newEnd.toISOString().split('T')[0] : null
-        };
-        
-        fetch('/api/update_event_date', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(eventData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert('Evento actualizado exitosamente', 'success');
-            } else {
-                showAlert('Error al actualizar evento: ' + data.message, 'error');
-                event.revert();
+            
+            // Filtro por urgencia
+            if (showUrgentes && event.type === 'orden_compra') {
+                return event.extendedProps.urgente === true;
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('Error de conexión al actualizar evento', 'error');
-            event.revert();
+            
+            return true;
         });
     }
     
     // Mostrar detalles del evento
     function showEventDetails(event) {
-        const modal = new bootstrap.Modal(document.getElementById('eventModal'));
-        const modalTitle = document.getElementById('eventModalTitle');
-        const modalBody = document.getElementById('eventModalBody');
-        const editBtn = document.getElementById('editEventBtn');
-        
-        modalTitle.textContent = event.title;
-        
-        // Construir contenido del modal según el tipo
-        let content = '';
         const props = event.extendedProps;
         
-        if (props.type === 'despacho') {
-            content = `
-                <div class="row">
-                    <div class="col-6"><strong>Tipo:</strong></div>
-                    <div class="col-6"><span class="badge bg-danger">Despacho</span></div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-6"><strong>Proyecto:</strong></div>
-                    <div class="col-6">${props.proyecto || 'N/A'}</div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-6"><strong>Cliente:</strong></div>
-                    <div class="col-6">${props.cliente || 'N/A'}</div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-6"><strong>Dirección:</strong></div>
-                    <div class="col-6">${props.direccion || 'N/A'}</div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-6"><strong>Estado:</strong></div>
-                    <div class="col-6"><span class="badge bg-info">${props.estado || 'N/A'}</span></div>
-                </div>
-            `;
-            editBtn.onclick = () => window.location.href = `/editar_despacho/${event.id}`;
-            editBtn.style.display = 'inline-block';
-        } else if (props.type === 'tarea') {
-            content = `
-                <div class="row">
-                    <div class="col-6"><strong>Tipo:</strong></div>
-                    <div class="col-6"><span class="badge bg-success">Tarea</span></div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-6"><strong>Proyecto:</strong></div>
-                    <div class="col-6">${props.proyecto || 'N/A'}</div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-6"><strong>Asignado a:</strong></div>
-                    <div class="col-6">${props.asignado || props.rol_asignado || 'N/A'}</div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-6"><strong>Estado:</strong></div>
-                    <div class="col-6"><span class="badge bg-info">${props.estado || 'N/A'}</span></div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-12"><strong>Descripción:</strong></div>
-                    <div class="col-12">${props.descripcion || 'Sin descripción'}</div>
-                </div>
-            `;
-            editBtn.onclick = () => window.location.href = `/tarea/${event.id}`;
-            editBtn.style.display = 'inline-block';
-        } else if (props.type === 'recordatorio') {
-            content = `
-                <div class="row">
-                    <div class="col-6"><strong>Tipo:</strong></div>
-                    <div class="col-6"><span class="badge bg-warning text-dark">Recordatorio</span></div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-6"><strong>Para:</strong></div>
-                    <div class="col-6">${props.usuario || props.area || 'N/A'}</div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-12"><strong>Mensaje:</strong></div>
-                    <div class="col-12">${props.mensaje || 'Sin mensaje'}</div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-6"><strong>Estado:</strong></div>
-                    <div class="col-6">
-                        <span class="badge ${props.enviado ? 'bg-success' : 'bg-secondary'}">
-                            ${props.enviado ? 'Enviado' : 'Pendiente'}
-                        </span>
-                    </div>
-                </div>
-            `;
-            editBtn.style.display = 'none';
+        if (event.type === 'orden_compra') {
+            showOrdenDetails(event, props);
+        } else if (event.type === 'despacho') {
+            showDespachoDetails(event, props);
+        }
+    }
+    
+    // Mostrar detalles de orden de compra
+    function showOrdenDetails(event, props) {
+        const modal = new bootstrap.Modal(document.getElementById('ordenModal'));
+        const modalTitle = document.getElementById('ordenModalTitle');
+        const modalBody = document.getElementById('ordenModalBody');
+        const verProyectoBtn = document.getElementById('verProyectoBtn');
+        const verOrdenesBtn = document.getElementById('verOrdenesBtn');
+        
+        modalTitle.innerHTML = `<i class="fas fa-file-invoice"></i> ${props.codigo} - ${props.proyecto}`;
+        
+        // Estado badge
+        let estadoBadge = '';
+        const estadoColors = {
+            'en_desarrollo': 'info',
+            'aprobado_produccion': 'primary', 
+            'seccionado': 'warning',
+            'enchapado': 'warning',
+            'mecanizado': 'warning',
+            'produccion_completa': 'info',
+            'embalando': 'success',
+            'listo_despacho': 'danger'
+        };
+        const badgeColor = estadoColors[props.estado] || 'secondary';
+        estadoBadge = `<span class="badge bg-${badgeColor}">${props.estado.replace('_', ' ').toUpperCase()}</span>`;
+        
+        // Urgencia
+        let urgenciaInfo = '';
+        if (props.dias_restantes !== null) {
+            const dias = Math.round(props.dias_restantes);
+            let urgenciaClass = 'text-success';
+            let urgenciaText = `${dias} días restantes`;
+            
+            if (dias < 0) {
+                urgenciaClass = 'text-danger';
+                urgenciaText = `Vencido hace ${Math.abs(dias)} días`;
+            } else if (dias === 0) {
+                urgenciaClass = 'text-danger';
+                urgenciaText = 'Entrega HOY';
+            } else if (dias <= 3) {
+                urgenciaClass = 'text-warning';
+                urgenciaText = `URGENTE: ${dias} días restantes`;
+            }
+            
+            urgenciaInfo = `<div class="alert alert-light border-start border-4 ${urgenciaClass.replace('text-', 'border-')} mb-3">
+                <strong class="${urgenciaClass}"><i class="fas fa-clock"></i> ${urgenciaText}</strong>
+            </div>`;
         }
         
-        modalBody.innerHTML = content;
+        modalBody.innerHTML = `
+            ${urgenciaInfo}
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="fas fa-info-circle text-primary"></i> Información General</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Código:</strong></td><td>${props.codigo}</td></tr>
+                        <tr><td><strong>Cliente:</strong></td><td>${props.cliente}</td></tr>
+                        <tr><td><strong>Estado:</strong></td><td>${estadoBadge}</td></tr>
+                        <tr><td><strong>Prioridad:</strong></td><td><span class="badge bg-${props.prioridad === 'alta' ? 'danger' : props.prioridad === 'media' ? 'warning' : 'secondary'}">${props.prioridad.toUpperCase()}</span></td></tr>
+                        ${props.contacto_principal ? `<tr><td><strong>Contacto:</strong></td><td>${props.contacto_principal}</td></tr>` : ''}
+                        ${props.diseñador ? `<tr><td><strong>Vendedor:</strong></td><td>${props.diseñador}</td></tr>` : ''}
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="fas fa-calendar text-success"></i> Fechas y Progreso</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Fecha Entrega:</strong></td><td>${new Date(event.start).toLocaleDateString('es-ES')}</td></tr>
+                        ${props.fecha_estimada_inicio ? `<tr><td><strong>Inicio Estimado:</strong></td><td>${new Date(props.fecha_estimada_inicio).toLocaleDateString('es-ES')}</td></tr>` : ''}
+                        ${props.monto_neto ? `<tr><td><strong>Monto:</strong></td><td>$${props.monto_neto.toLocaleString('es-CL')}</td></tr>` : ''}
+                        <tr><td><strong>Órdenes Fabric.:</strong></td><td><span class="badge bg-info">${props.ordenes_fabricacion_count}</span></td></tr>
+                        ${props.categorias ? `<tr><td><strong>Categorías:</strong></td><td><small>${props.categorias}</small></td></tr>` : ''}
+                    </table>
+                </div>
+            </div>
+            ${props.descripcion ? `
+            <div class="mt-3">
+                <h6><i class="fas fa-file-text text-info"></i> Descripción</h6>
+                <p class="text-muted">${props.descripcion}</p>
+            </div>` : ''}
+        `;
+        
+        // Configurar botones
+        verProyectoBtn.onclick = () => {
+            window.open(`/proyecto/${props.proyecto_id}`, '_blank');
+        };
+        
+        verOrdenesBtn.onclick = () => {
+            window.open(`/ordenes_fabricacion`, '_blank');
+        };
+        
         modal.show();
     }
     
-    // Función para mostrar alertas
-    function showAlert(message, type) {
-        const alertContainer = document.querySelector('.container');
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        alertContainer.insertBefore(alertDiv, alertContainer.firstChild);
+    // Mostrar detalles de despacho
+    function showDespachoDetails(event, props) {
+        const modal = new bootstrap.Modal(document.getElementById('despachoModal'));
+        const modalTitle = document.getElementById('despachoModalTitle');
+        const modalBody = document.getElementById('despachoModalBody');
+        const editarBtn = document.getElementById('editarDespachoBtn');
         
-        // Auto-hide después de 5 segundos
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        }, 5000);
+        modalTitle.innerHTML = `<i class="fas fa-truck"></i> ${props.codigo_despacho}`;
+        
+        modalBody.innerHTML = `
+            <div class="row">
+                <div class="col-12">
+                    <table class="table">
+                        <tr><td><strong>Proyecto:</strong></td><td>${props.proyecto}</td></tr>
+                        <tr><td><strong>Cliente:</strong></td><td>${props.cliente}</td></tr>
+                        <tr><td><strong>Estado:</strong></td><td><span class="badge bg-${props.estado === 'programado' ? 'secondary' : 'warning'}">${props.estado.toUpperCase()}</span></td></tr>
+                        <tr><td><strong>Fecha:</strong></td><td>${new Date(event.start).toLocaleDateString('es-ES')}</td></tr>
+                        ${props.transportista ? `<tr><td><strong>Transportista:</strong></td><td>${props.transportista}</td></tr>` : ''}
+                        ${props.conductor ? `<tr><td><strong>Conductor:</strong></td><td>${props.conductor}</td></tr>` : ''}
+                        ${props.direccion_entrega ? `<tr><td><strong>Dirección:</strong></td><td>${props.direccion_entrega}</td></tr>` : ''}
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        editarBtn.onclick = () => {
+            window.open(`/despacho/${props.despacho_id}`, '_blank');
+        };
+        
+        modal.show();
     }
     
-    // Event listeners para los checkboxes de filtro
-    document.getElementById('showDespachos').addEventListener('change', () => calendar.refetchEvents());
-    document.getElementById('showTareas').addEventListener('change', () => calendar.refetchEvents());
-    document.getElementById('showRecordatorios').addEventListener('change', () => calendar.refetchEvents());
+    // Event listeners para los filtros
+    document.getElementById('showOrdenes').addEventListener('change', () => {
+        calendar.refetchEvents();
+    });
+    
+    document.getElementById('showDespachos').addEventListener('change', () => {
+        calendar.refetchEvents();
+    });
+    
+    document.getElementById('showUrgentes').addEventListener('change', () => {
+        calendar.refetchEvents();
+    });
 });
 </script>
+
+<style>
+.calendar-tooltip {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    max-width: 200px;
+    line-height: 1.4;
+}
+
+.fc-event {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.fc-event:hover {
+    opacity: 0.8;
+    transform: scale(1.02);
+}
+
+.fc-daygrid-event {
+    font-size: 0.85em;
+    margin-bottom: 2px;
+}
+
+.fc-list-event:hover {
+    background-color: #f8f9fa;
+}
+
+@media (max-width: 768px) {
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .fc-toolbar {
+        flex-direction: column;
+    }
+    
+    .fc-toolbar-chunk {
+        margin: 0.2em 0;
+    }
+}
+</style>
 {% endblock %}
