@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email VARCHAR(150) UNIQUE,
     telefono VARCHAR(20),
     area_id INTEGER REFERENCES areas(id),
+    repl_user_id VARCHAR(100),
     activo BOOLEAN DEFAULT TRUE,
     ultimo_acceso TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

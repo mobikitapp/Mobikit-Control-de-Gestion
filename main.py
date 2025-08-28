@@ -147,6 +147,17 @@ def init_db():
     except Exception as e:
         print(f"Error adding 'monto_provision_presupuestada' column: {e}")
 
+    # Agregar columna repl_user_id si no existe
+    try:
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'usuarios' AND column_name = 'repl_user_id'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE usuarios ADD COLUMN repl_user_id VARCHAR(100)")
+    except Exception as e:
+        print(f"Error adding 'repl_user_id' column: {e}")
+
     # Crear tabla de órdenes de compra si no existe
     try:
         cursor.execute("""
@@ -329,7 +340,15 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            return redirect(url_for('login'))
+            # Try Repl Auth
+            repl_user = check_repl_auth()
+            if repl_user:
+                session['user_id'] = repl_user['user_id']
+                session['user_role'] = repl_user['user_role']
+                session['user_name'] = repl_user['user_name']
+                session['repl_user_id'] = repl_user['repl_user_id']
+            else:
+                return redirect(url_for('login'))
         return f(*args, **kwargs)
 
     return decorated_function
@@ -358,8 +377,52 @@ def index():
     return redirect(url_for('login'))
 
 
+def check_repl_auth():
+    """Check if user is authenticated via Repl Auth"""
+    user_id = request.headers.get('X-Replit-User-Id')
+    user_name = request.headers.get('X-Replit-User-Name')
+    user_roles = request.headers.get('X-Replit-User-Roles', '')
+    
+    if user_id and user_name:
+        # Check if user exists in our database
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT id, rol, nombre FROM usuarios WHERE username = %s', (user_name,))
+        user = cursor.fetchone()
+        
+        if not user:
+            # Create new user with vendedor role by default
+            cursor.execute('''
+                INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, rol, nombre
+            ''', (user_name, 'repl_auth', 'vendedor', user_name, f'{user_name}@replit.com', True))
+            user = cursor.fetchone()
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            'user_id': user['id'],
+            'user_role': user['rol'],
+            'user_name': user['nombre'],
+            'repl_user_id': user_id
+        }
+    
+    return None
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Check Repl Auth first
+    repl_user = check_repl_auth()
+    if repl_user:
+        session['user_id'] = repl_user['user_id']
+        session['user_role'] = repl_user['user_role']
+        session['user_name'] = repl_user['user_name']
+        session['repl_user_id'] = repl_user['repl_user_id']
+        flash(f'Bienvenido via Repl Auth, {repl_user["user_name"]}!', 'success')
+        return redirect(url_for('dashboard'))
+    
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
