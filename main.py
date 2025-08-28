@@ -1141,7 +1141,7 @@ def nuevo_proyecto():
               monto_neto_instalacion, monto_provision_presupuestada, margen_provision, 
               margen_instalacion, observaciones))
 
-        proyecto_id = cursor.lastrowid
+        proyecto_id = cursor.fetchone()['id']
 
         # Los proyectos creados aquí NO tienen categorías asignadas, por lo tanto no aparecerán
         # en "Órdenes de Compra". Solo se crean como proyectos simples sin flujo de producción automático.
@@ -2580,7 +2580,7 @@ def api_calendar_events():
         LEFT JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         LEFT JOIN categorias_producto cat ON pc.categoria_id = cat.id
         WHERE p.fecha_entrega IS NOT NULL 
-        AND p.estado NOT IN ('entregado', 'terminado', 'cancelado', 'completado')
+        AND p.estado NOT IN ('entregado', 'terminado', 'cancelado')
         AND p.archivado = FALSE
         AND pc.proyecto_id IS NOT NULL
         GROUP BY p.id, p.codigo, p.nombre, p.fecha_entrega, p.estado, p.prioridad,
@@ -2634,8 +2634,7 @@ def api_calendar_events():
 
         # Obtener órdenes de fabricación para este proyecto
         cursor.execute('''
-            SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
-                   of.cantidad_tableros, of.glosa
+            SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
             FROM ordenes_fabricacion of
             WHERE of.proyecto_id = %s
             ORDER BY of.created_at ASC
