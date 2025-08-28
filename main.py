@@ -190,6 +190,22 @@ def init_db():
     except Exception as e:
         print(f"Error creating 'ordenes_compra' table: {e}")
 
+    # Actualizar constraint de ordenes_fabricacion si existe
+    try:
+        cursor.execute("""
+            ALTER TABLE ordenes_fabricacion 
+            DROP CONSTRAINT IF EXISTS ordenes_fabricacion_estado_check
+        """)
+        cursor.execute("""
+            ALTER TABLE ordenes_fabricacion 
+            ADD CONSTRAINT ordenes_fabricacion_estado_check 
+            CHECK (estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 
+                            'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 
+                            'embalando', 'listo_despacho', 'despachado', 'entregado'))
+        """)
+    except Exception as e:
+        print(f"Error updating 'ordenes_fabricacion' constraint: {e}")
+
 
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
