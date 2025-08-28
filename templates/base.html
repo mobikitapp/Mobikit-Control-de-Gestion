@@ -13,17 +13,13 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
-                <img src="{{ url_for('static', filename='img/mobikit-logo.png') }}" alt="Mobikit Logo" style="height: 60px; width: auto; object-fit: contain; max-width: 200px;">
-            </a>
-
             {% if session.user_id %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
+                <ul class="navbar-nav mx-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('dashboard') }}">
                             <i class="fas fa-tachometer-alt"></i> Dashboard
