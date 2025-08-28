@@ -554,10 +554,10 @@ def clientes():
                     WHERE proyecto_id = %s
                 ''', (proyecto_dict['id'],))
                 total_ordenes = cursor.fetchone()['total_ordenes']
-                
+
                 presupuesto = float(proyecto_dict['monto_provision_presupuestada'])
                 progreso_ordenes = (float(total_ordenes) / presupuesto * 100) if presupuesto > 0 else 0
-                
+
                 proyecto_dict['total_ordenes'] = float(total_ordenes)
                 proyecto_dict['progreso_ordenes'] = progreso_ordenes
             else:
@@ -1247,14 +1247,14 @@ def nueva_orden_compra():
             cliente_id = cursor.fetchone()['id']
         elif not cliente_id:
             flash('Debe seleccionar un cliente o crear uno nuevo', 'error')
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('ordenes_compra'))
 
         # Verificar que el cliente existe
         cursor.execute('SELECT nombre FROM clientes WHERE id = %s AND activo = TRUE', (cliente_id,))
         cliente_info = cursor.fetchone()
         if not cliente_info:
             flash('Cliente no válido', 'error')
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('ordenes_compra'))
 
         cliente_nombre = cliente_info['nombre']
 
@@ -1361,7 +1361,7 @@ def nueva_orden_compra():
 
     except Exception as e:
         flash(f'Error al crear orden: {str(e)}', 'error')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('ordenes_compra'))
 
 
 @app.route('/eliminar_proyecto/<int:proyecto_id>', methods=['POST'])
@@ -3299,7 +3299,7 @@ def api_proyectos_cliente(cliente_id):
     return jsonify(proyectos)
 
 
-@app.route('/api/proyecto/<int:proyecto_id>')
+@app.route('/api/proyecto_detalle/<int:proyecto_id>')
 @login_required
 def api_proyecto_detalle(proyecto_id):
     """API para obtener detalles de un proyecto específico"""
@@ -3341,6 +3341,43 @@ def api_proyecto_detalle(proyecto_id):
 
     conn.close()
     return jsonify(proyecto_dict)
+
+
+@app.route('/api/proyecto/<int:proyecto_id>/documentos')
+@login_required
+def api_documentos_proyecto(proyecto_id):
+    """API para obtener documentos de un proyecto"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            SELECT dp.*, u.nombre as usuario_nombre
+            FROM documentos_proyecto dp
+            LEFT JOIN usuarios u ON dp.usuario_subida_id = u.id
+            WHERE dp.proyecto_id = %s
+            ORDER BY dp.created_at DESC
+        ''', (proyecto_id,))
+
+        documentos = []
+        for doc in cursor.fetchall():
+            documentos.append({
+                'id': doc['id'],
+                'nombre_original': doc['nombre_original'],
+                'ruta_archivo': doc['ruta_archivo'],
+                'tipo_archivo': doc['tipo_archivo'],
+                'tamaño': doc['tamaño'],
+                'descripcion': doc['descripcion'],
+                'usuario_nombre': doc['usuario_nombre'],
+                'created_at': doc['created_at'].isoformat() if doc['created_at'] else None
+            })
+
+        return jsonify({'success': True, 'documentos': documentos})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
 
 
 @app.route('/crear_orden_fabricacion_desde_oc', methods=['POST'])
@@ -3835,7 +3872,7 @@ def planificacion():
         'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'
     ]
     fecha_actual = datetime.now().date()
-    
+
     for i in range(12):
         if i == 0:
             mes_fecha = fecha_actual
@@ -3847,9 +3884,9 @@ def planificacion():
             else:
                 año = fecha_actual.year
                 mes = fecha_actual.month + i
-            
+
             mes_fecha = fecha_actual.replace(year=año, month=mes, day=1)
-        
+
         meses.append({
             'numero': mes_fecha.month,
             'año': mes_fecha.year,

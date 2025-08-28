@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}{{ proyecto.codigo }} - Mobikit{% endblock %}
@@ -80,7 +79,7 @@
                             {% endif %}
                         </div>
                     </div>
-                    
+
                     {% if proyecto.monto_provision_presupuestada and proyecto.monto_provision_presupuestada != 0 %}
                     <div class="row mt-3">
                         <div class="col-12">
@@ -90,7 +89,7 @@
                         </div>
                     </div>
                     {% endif %}
-                    
+
                     {% if proyecto.monto_neto_provision and proyecto.monto_neto_instalacion %}
                     <div class="mt-2">
                         <strong>Total Provisión + Instalación:</strong>
@@ -99,14 +98,14 @@
                     {% endif %}
                 </div>
                 {% endif %}
-                
+
                 {% if proyecto.descripcion %}
                 <div class="mt-3">
                     <strong>Descripción:</strong>
                     <p>{{ proyecto.descripcion }}</p>
                 </div>
                 {% endif %}
-                
+
                 {% if proyecto.observaciones %}
                 <div class="mt-2">
                     <strong>Observaciones:</strong>
@@ -144,7 +143,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
@@ -156,7 +155,7 @@
                         {{ proyecto.estado_proyecto|replace('_', ' ')|title if proyecto.estado_proyecto else 'Pendiente Presupuesto' }}
                     </span>
                 </div>
-                
+
                 {% if proyecto.fecha_entrega %}
                 <div class="mb-3">
                     <small class="text-muted">
@@ -217,13 +216,177 @@
     </div>
 </div>
 
-<style>
-.progress {
-    height: 20px;
+<!-- Documentos del Proyecto -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-folder-open"></i> Documentos del Proyecto
+                </h5>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalSubirDocumento">
+                    <i class="fas fa-upload"></i> Subir Documento
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="documentos-lista">
+                    <!-- Los documentos se cargarán aquí via JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Subir Documento -->
+<div class="modal fade" id="modalSubirDocumento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Subir Documento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('subir_documento_proyecto', proyecto_id=proyecto.id) }}" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="archivo" class="form-label">Seleccionar Archivo</label>
+                        <input type="file" class="form-control" id="archivo" name="archivo" required
+                               accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif">
+                        <small class="form-text text-muted">
+                            Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, JPEG, GIF (máx. 16MB)
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción (opcional)</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Subir Documento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Cargar documentos del proyecto
+document.addEventListener('DOMContentLoaded', function() {
+    cargarDocumentosProyecto();
+});
+
+function cargarDocumentosProyecto() {
+    fetch(`/api/proyecto/{{ proyecto.id }}/documentos`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                mostrarDocumentos(data.documentos);
+            } else {
+                document.getElementById('documentos-lista').innerHTML = 
+                    '<p class="text-muted">Error al cargar documentos</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('documentos-lista').innerHTML = 
+                '<p class="text-muted">No hay documentos disponibles</p>';
+        });
 }
-.progress-bar {
-    font-size: 12px;
-    line-height: 20px;
+
+function mostrarDocumentos(documentos) {
+    const contenedor = document.getElementById('documentos-lista');
+
+    if (documentos.length === 0) {
+        contenedor.innerHTML = '<p class="text-muted">No hay documentos subidos</p>';
+        return;
+    }
+
+    let html = '<div class="row">';
+
+    documentos.forEach(doc => {
+        const icono = obtenerIconoArchivo(doc.tipo_archivo, doc.nombre_original);
+        const fecha = new Date(doc.created_at).toLocaleDateString();
+
+        html += `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start">
+                            <div class="me-3">
+                                <i class="${icono} fa-2x text-primary"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="card-title">${doc.nombre_original}</h6>
+                                <p class="card-text small text-muted">
+                                    Subido el ${fecha}<br>
+                                    ${doc.descripcion || 'Sin descripción'}
+                                </p>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="/storage/${doc.ruta_archivo}" class="btn btn-outline-primary" target="_blank">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
+                                    <button class="btn btn-outline-danger" onclick="eliminarDocumento(${doc.id})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    contenedor.innerHTML = html;
 }
-</style>
+
+function obtenerIconoArchivo(tipo, nombre) {
+    const extension = nombre.split('.').pop().toLowerCase();
+
+    if (tipo === 'imagen' || ['png', 'jpg', 'jpeg', 'gif'].includes(extension)) {
+        return 'fas fa-image';
+    } else if (extension === 'pdf') {
+        return 'fas fa-file-pdf';
+    } else if (['doc', 'docx'].includes(extension)) {
+        return 'fas fa-file-word';
+    } else if (['xls', 'xlsx'].includes(extension)) {
+        return 'fas fa-file-excel';
+    } else {
+        return 'fas fa-file';
+    }
+}
+
+function eliminarDocumento(documentoId) {
+    if (confirm('¿Está seguro de que desea eliminar este documento?')) {
+        fetch(`/documento/${documentoId}/eliminar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                cargarDocumentosProyecto(); // Recargar lista
+                // Mostrar mensaje de éxito
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                alertDiv.innerHTML = `
+                    ${data.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al eliminar el documento');
+        });
+    }
+}
+</script>
+
 {% endblock %}
