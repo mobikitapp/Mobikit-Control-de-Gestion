@@ -1399,7 +1399,7 @@ def nueva_orden_compra():
             try:
                 for i, categoria_id in enumerate(categorias_selected):
                     if categoria_id:  # Solo si hay categoría seleccionada
-                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategories_selected[i] else None
+                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategorias_selected[i] else None
                         cursor.execute('''
                             INSERT INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
                             VALUES (%s, %s, %s)
