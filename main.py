@@ -192,6 +192,32 @@ def init_db():
 
     # Actualizar constraint de ordenes_fabricacion si existe
     try:
+        # Primero migrar estados existentes que no son válidos
+        cursor.execute("""
+            UPDATE ordenes_fabricacion 
+            SET estado = 'pendiente_aprobacion_diseño' 
+            WHERE estado = 'pendiente_fabricacion'
+        """)
+        
+        cursor.execute("""
+            UPDATE ordenes_fabricacion 
+            SET estado = 'aprobado_diseño' 
+            WHERE estado = 'aprobado_produccion'
+        """)
+        
+        cursor.execute("""
+            UPDATE ordenes_fabricacion 
+            SET estado = 'enchapando' 
+            WHERE estado = 'enchapado'
+        """)
+        
+        cursor.execute("""
+            UPDATE ordenes_fabricacion 
+            SET estado = 'listo_embalaje' 
+            WHERE estado = 'produccion_completa'
+        """)
+        
+        # Ahora eliminar la restricción existente y crear la nueva
         cursor.execute("""
             ALTER TABLE ordenes_fabricacion 
             DROP CONSTRAINT IF EXISTS ordenes_fabricacion_estado_check
