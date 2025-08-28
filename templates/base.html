@@ -50,18 +50,10 @@
                         </a>
                     </li>
                     {% if session.user_role == 'admin' %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="configuracionesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'configuraciones' %}active{% endif %}" href="{{ url_for('configuraciones') }}">
                             <i class="fas fa-cog"></i> Configuraciones
                         </a>
-                        <ul class="dropdown-menu" aria-labelledby="configuracionesDropdown">
-                            <li><a class="dropdown-item" href="{{ url_for('configuraciones') }}">
-                                <i class="fas fa-cog"></i> Configuraciones Generales
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('usuarios') }}">
-                                <i class="fas fa-users"></i> Gestión de Usuarios
-                            </a></li>
-                        </ul>
                     </li>
                     {% endif %}
                 </ul>
