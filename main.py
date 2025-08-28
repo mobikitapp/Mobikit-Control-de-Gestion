@@ -192,6 +192,23 @@ def init_db():
 
     # Limpiar y recrear tabla ordenes_fabricacion si existe
     try:
+        # Actualizar restricción de estados de proyectos
+        try:
+            cursor.execute("ALTER TABLE proyectos DROP CONSTRAINT IF EXISTS proyectos_estado_check")
+            cursor.execute("""
+                ALTER TABLE proyectos ADD CONSTRAINT proyectos_estado_check 
+                CHECK (estado IN ('activo', 'entregado', 'cancelado'))
+            """)
+            
+            # Migrar estados existentes al nuevo sistema simplificado
+            cursor.execute("""
+                UPDATE proyectos SET estado = 'activo' 
+                WHERE estado NOT IN ('entregado', 'cancelado')
+            """)
+            print("Estados de proyectos actualizados al nuevo sistema simplificado")
+        except Exception as e:
+            print(f"Error actualizando estados de proyectos: {e}")
+
         # Verificar si la tabla existe y tiene datos problemáticos
         cursor.execute("""
             SELECT EXISTS (SELECT 1 FROM information_schema.tables 
@@ -499,7 +516,7 @@ def dashboard():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Órdenes de compra pendientes (proyectos con categorías asignadas)
+    # Órdenes de compra activas (proyectos con categorías asignadas)
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.estado, p.prioridad,
@@ -511,7 +528,7 @@ def dashboard():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('en_desarrollo')
+        WHERE p.estado = 'activo'
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.estado, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
@@ -530,8 +547,8 @@ def dashboard():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
-        AND p.estado != 'entregado'
+        INNER JOIN ordenes_fabricacion of ON p.id = of.proyecto_id
+        WHERE p.estado = 'activo' AND of.estado NOT IN ('despachado', 'entregado')
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
@@ -577,7 +594,7 @@ def dashboard():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('entregado', 'terminado', 'completado')
+        WHERE p.estado = 'entregado'
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.prioridad, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
