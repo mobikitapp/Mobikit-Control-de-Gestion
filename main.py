@@ -1747,12 +1747,14 @@ def nuevo_usuario():
     username = request.form['username']
     password = request.form['password']
     nombre = request.form['nombre']
+    apellido = request.form.get('apellido', '').strip() or None
     rol = request.form['rol']
-    email = request.form['email']
+    email = request.form.get('email', '').strip() or None
+    area_id = request.form.get('area_id') or None
 
     if rol not in ROLES:
         flash('Rol inválido', 'error')
-        return redirect(url_for('usuarios'))
+        return redirect(request.referrer or url_for('configuraciones'))
 
     password_hash = generate_password_hash(password)
 
@@ -1762,17 +1764,95 @@ def nuevo_usuario():
     try:
         cursor.execute(
             '''
-            INSERT INTO usuarios (username, password_hash, nombre, rol, email)
-            VALUES (%s, %s, %s, %s, %s)
-        ''', (username, password_hash, nombre, rol, email))
+            INSERT INTO usuarios (username, password_hash, nombre, apellido, rol, email, area_id, activo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (username, password_hash, nombre, apellido, rol, email, area_id, True))
         conn.commit()
         flash('Usuario creado exitosamente', 'success')
     except psycopg2.errors.UniqueViolation:
         flash('El nombre de usuario o email ya existe', 'error')
+    except Exception as e:
+        flash(f'Error al crear usuario: {str(e)}', 'error')
     finally:
         conn.close()
 
-    return redirect(url_for('usuarios'))
+    return redirect(request.referrer or url_for('configuraciones'))
+
+
+@app.route('/editar_usuario/<int:user_id>', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def editar_usuario(user_id):
+    """Editar usuario existente"""
+    try:
+        nombre = request.form['nombre']
+        apellido = request.form.get('apellido', '').strip() or None
+        email = request.form.get('email', '').strip() or None
+        rol = request.form['rol']
+        area_id = request.form.get('area_id') or None
+        activo = request.form.get('activo') == 'true'
+
+        if rol not in ROLES:
+            flash('Rol inválido', 'error')
+            return redirect(url_for('configuraciones'))
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE usuarios SET
+                nombre = %s, apellido = %s, email = %s, rol = %s, 
+                area_id = %s, activo = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        ''', (nombre, apellido, email, rol, area_id, activo, user_id))
+
+        conn.commit()
+        conn.close()
+
+        flash('Usuario actualizado exitosamente', 'success')
+
+    except Exception as e:
+        flash(f'Error al actualizar usuario: {str(e)}', 'error')
+
+    return redirect(url_for('configuraciones'))
+
+
+@app.route('/eliminar_usuario/<int:user_id>', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def eliminar_usuario(user_id):
+    """Eliminar usuario (solo si no es el admin actual)"""
+    if user_id == session['user_id']:
+        flash('No puedes eliminarte a ti mismo', 'error')
+        return redirect(url_for('configuraciones'))
+
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar si el usuario tiene tareas asignadas
+        cursor.execute('SELECT COUNT(*) FROM tareas WHERE usuario_asignado_id = %s', (user_id,))
+        tareas_count = cursor.fetchone()['count']
+
+        if tareas_count > 0:
+            flash(f'No se puede eliminar el usuario porque tiene {tareas_count} tarea(s) asignada(s)', 'error')
+            return redirect(url_for('configuraciones'))
+
+        # Eliminar usuario
+        cursor.execute('DELETE FROM usuarios WHERE id = %s', (user_id,))
+
+        if cursor.rowcount > 0:
+            conn.commit()
+            flash('Usuario eliminado exitosamente', 'success')
+        else:
+            flash('Usuario no encontrado', 'error')
+
+    except Exception as e:
+        flash(f'Error al eliminar usuario: {str(e)}', 'error')
+    finally:
+        conn.close()
+
+    return redirect(url_for('configuraciones'))
 
 
 @app.route('/crear_despacho', methods=['POST'])
@@ -3995,8 +4075,43 @@ def configuraciones():
     ''')
     configuraciones_list = cursor.fetchall()
 
+    # Obtener todos los usuarios para la pestaña de usuarios
+    cursor.execute('''
+        SELECT id, username, nombre, apellido, email, rol, activo, created_at
+        FROM usuarios
+        ORDER BY nombre
+    ''')
+    usuarios_list = cursor.fetchall()
+
+    # Obtener áreas para asignar a usuarios
+    cursor.execute('''
+        SELECT id, nombre
+        FROM areas
+        WHERE activo = TRUE
+        ORDER BY nombre
+    ''')
+    areas_list = cursor.fetchall()
+
+    # Datos para el sistema de permisos
+    modulos = [
+        {'id': 'clientes', 'nombre': 'Clientes'},
+        {'id': 'proyectos', 'nombre': 'Proyectos'},
+        {'id': 'ordenes_compra', 'nombre': 'Órdenes de Compra'},
+        {'id': 'ordenes_fabricacion', 'nombre': 'Órdenes de Fabricación'},
+        {'id': 'gestion_pedidos', 'nombre': 'Gestión de Pedidos'},
+        {'id': 'despachos', 'nombre': 'Despachos'},
+        {'id': 'planificacion', 'nombre': 'Planificación'},
+        {'id': 'reportes', 'nombre': 'Reportes'},
+        {'id': 'configuraciones', 'nombre': 'Configuraciones'}
+    ]
+
     conn.close()
-    return render_template('configuraciones.html', configuraciones=configuraciones_list)
+    return render_template('configuraciones.html', 
+                         configuraciones=configuraciones_list,
+                         usuarios=usuarios_list,
+                         areas=areas_list,
+                         modulos=modulos,
+                         ROLES=ROLES)
 
 
 @app.route('/actualizar_configuracion', methods=['POST'])
