@@ -516,6 +516,31 @@ function recopilarDatos() {
 
     // Asignar valores
     categoriasSelected.value = JSON.stringify(categoriasSeleccionadas);
-    subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas);
+    subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas); categoriasSeleccionadas.map((cat, index) => {
+        return cat + ',' + (subcategoriasSeleccionadas[index] || '');
+    });
+
+    // Limpiar campos hidden existentes
+    let categoriasSelected = document.getElementById('categorias_selected');
+    if (!categoriasSelected) {
+        categoriasSelected = document.createElement('input');
+        categoriasSelected.type = 'hidden';
+        categoriasSelected.name = 'categorias_selected';
+        categoriasSelected.id = 'categorias_selected';
+        document.querySelector('form').appendChild(categoriasSelected);
+    }
+
+    let subcategoriasSelected = document.getElementById('subcategorias_selected');
+    if (!subcategoriasSelected) {
+        subcategoriasSelected = document.createElement('input');
+        subcategoriasSelected.type = 'hidden';
+        subcategoriasSelected.name = 'subcategorias_selected';
+        subcategoriasSelected.id = 'subcategorias_selected';
+        document.querySelector('form').appendChild(subcategoriasSelected);
+    }
+
+    // Asignar valores
+    categoriasSelected.value = JSON.stringify(categoriasSeleccionadas);
+    subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas);iasSeleccionadas);
 }
 </script>
