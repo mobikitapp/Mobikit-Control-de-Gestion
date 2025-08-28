@@ -214,7 +214,7 @@ def init_db():
                 ALTER TABLE ordenes_fabricacion 
                 ADD CONSTRAINT ordenes_fabricacion_estado_check 
                 CHECK (estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 
-                                'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 
+                                'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 
                                 'embalando', 'embalaje_listo', 'listo_despacho', 'despachado', 'entregado'))
             """)
             print("Tabla ordenes_fabricacion limpia y restricciones actualizadas")
@@ -2744,7 +2744,7 @@ def api_terminar_orden(orden_id):
         if cursor.fetchone()[0]:
             cursor.execute('''
                 SELECT COUNT(*) FROM ordenes_fabricacion
-                WHERE proyecto_id = %s AND estado NOT IN ('listo_embalaje', 'despachado', 'entregado')
+                WHERE proyecto_id = %s AND estado NOT IN ('listo_despacho', 'despachado', 'entregado')
             ''', (orden_id,))
             pendientes = cursor.fetchone()['count']
 
@@ -2999,7 +2999,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho', 'despachado']
+        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho', 'despachado']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -3007,7 +3007,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
                 nuevo_estado = estados_secuencia[indice_actual + 1]
 
                 # Si es la última etapa, marcar fecha de terminación
-                if nuevo_estado in ['listo_embalaje', 'listo_despacho']:
+                if nuevo_estado in ['listo_despacho']:
                     cursor.execute('''
                         UPDATE ordenes_fabricacion
                         SET estado = %s, fecha_entrega_real = CURRENT_TIMESTAMP
@@ -3051,7 +3051,7 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho']
+        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -3190,7 +3190,7 @@ def ordenes_fabricacion():
     ''')
     fabricacion_proceso = cursor.fetchall()
 
-    # Órdenes de fabricación en embalaje (listo_embalaje, embalando, embalaje_listo)
+    # Órdenes de fabricación en embalaje (pendiente_embalaje, embalando, embalaje_listo)
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
@@ -3199,10 +3199,10 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('listo_embalaje', 'embalando', 'embalaje_listo')
+        WHERE of.estado IN ('pendiente_embalaje', 'embalando', 'embalaje_listo')
         ORDER BY 
             CASE of.estado
-                WHEN 'listo_embalaje' THEN 1
+                WHEN 'pendiente_embalaje' THEN 1
                 WHEN 'embalando' THEN 2
                 WHEN 'embalaje_listo' THEN 3
                 ELSE 4

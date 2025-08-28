@@ -287,8 +287,8 @@
                                 <td><strong>{{ orden.codigo_orden }}</strong></td>
                                 <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
                                 <td>
-                                    {% if orden.estado == 'listo_embalaje' %}
-                                        <span class="badge bg-warning">Listo Embalaje</span>
+                                    {% if orden.estado == 'pendiente_embalaje' %}
+                                        <span class="badge bg-warning">Pendiente Embalaje</span>
                                     {% elif orden.estado == 'embalando' %}
                                         <span class="badge bg-info">Embalando</span>
                                     {% elif orden.estado == 'embalaje_listo' %}
