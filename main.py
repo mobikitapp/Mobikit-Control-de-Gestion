@@ -14,6 +14,11 @@ import sqlite3 # Keep this import for the ALTER TABLE fallback, although its fun
 from utils.permissions import permission_required, has_permission, ROLE_PERMISSIONS
 
 app = Flask(__name__)
+
+# Make has_permission available in Jinja2 templates
+@app.context_processor
+def inject_permissions():
+    return dict(has_permission=has_permission)
 app.secret_key = os.getenv('SECRET_KEY', 'mobikit_secret_key_2024')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
