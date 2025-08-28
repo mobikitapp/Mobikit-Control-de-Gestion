@@ -1,0 +1,125 @@
+
+"""
+Sistema de permisos granular para Mobikit
+"""
+
+# Definición de permisos específicos
+PERMISSIONS = {
+    # Gestión de usuarios
+    'users.view': ['admin'],
+    'users.create': ['admin'],
+    'users.edit': ['admin'],
+    'users.delete': ['admin'],
+    
+    # Clientes
+    'clients.view': ['admin', 'general', 'vendedor'],
+    'clients.create': ['admin', 'general'],
+    'clients.edit': ['admin', 'general'],
+    'clients.delete': ['admin'],
+    
+    # Proyectos
+    'projects.view': ['admin', 'general', 'vendedor'],
+    'projects.create': ['admin', 'general', 'vendedor'],
+    'projects.edit': ['admin', 'general', 'vendedor'],
+    'projects.delete': ['admin'],
+    'projects.archive': ['admin', 'general'],
+    
+    # Órdenes de compra
+    'orders.view': ['admin', 'general', 'vendedor', 'operación'],
+    'orders.create': ['admin', 'general', 'vendedor'],
+    'orders.edit': ['admin', 'general'],
+    'orders.delete': ['admin'],
+    'orders.approve': ['admin', 'general'],
+    
+    # Fabricación
+    'manufacturing.view': ['admin', 'general', 'operación'],
+    'manufacturing.create': ['admin', 'general', 'operación'],
+    'manufacturing.edit': ['admin', 'general', 'operación'],
+    'manufacturing.process': ['admin', 'general', 'operación'],
+    
+    # Despachos
+    'dispatch.view': ['admin', 'general', 'despacho'],
+    'dispatch.create': ['admin', 'general', 'despacho'],
+    'dispatch.edit': ['admin', 'general', 'despacho'],
+    'dispatch.process': ['admin', 'general', 'despacho'],
+    
+    # Reportes y configuraciones
+    'reports.view': ['admin', 'general'],
+    'config.view': ['admin'],
+    'config.edit': ['admin'],
+    
+    # Planificación
+    'planning.view': ['admin', 'general', 'vendedor'],
+    'planning.edit': ['admin', 'general'],
+}
+
+# Permisos por rol (resumen)
+ROLE_PERMISSIONS = {
+    'admin': 'all',  # Acceso completo
+    'general': [
+        'clients.view', 'clients.create', 'clients.edit',
+        'projects.view', 'projects.create', 'projects.edit', 'projects.archive',
+        'orders.view', 'orders.create', 'orders.edit', 'orders.approve',
+        'manufacturing.view', 'manufacturing.create', 'manufacturing.edit', 'manufacturing.process',
+        'dispatch.view', 'dispatch.create', 'dispatch.edit', 'dispatch.process',
+        'reports.view', 'planning.view', 'planning.edit'
+    ],
+    'vendedor': [
+        'clients.view', 'projects.view', 'projects.create', 'projects.edit',
+        'orders.view', 'orders.create', 'planning.view'
+    ],
+    'operación': [
+        'orders.view', 'manufacturing.view', 'manufacturing.create', 
+        'manufacturing.edit', 'manufacturing.process'
+    ],
+    'embalaje': [
+        'orders.view', 'manufacturing.view', 'dispatch.view'
+    ],
+    'despacho': [
+        'orders.view', 'dispatch.view', 'dispatch.create', 
+        'dispatch.edit', 'dispatch.process'
+    ]
+}
+
+def has_permission(user_role, permission):
+    """
+    Verifica si un rol tiene un permiso específico
+    """
+    if user_role == 'admin':
+        return True
+    
+    if permission in PERMISSIONS:
+        return user_role in PERMISSIONS[permission]
+    
+    return False
+
+def get_user_permissions(user_role):
+    """
+    Obtiene todos los permisos de un rol
+    """
+    if user_role == 'admin':
+        return list(PERMISSIONS.keys())
+    
+    return ROLE_PERMISSIONS.get(user_role, [])
+
+def permission_required(permission):
+    """
+    Decorador para verificar permisos específicos
+    """
+    def decorator(f):
+        from functools import wraps
+        from flask import session, flash, redirect, url_for
+        
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_role' not in session:
+                flash('Debes iniciar sesión', 'error')
+                return redirect(url_for('login'))
+            
+            if not has_permission(session['user_role'], permission):
+                flash('No tienes permisos para realizar esta acción', 'error')
+                return redirect(url_for('dashboard'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator

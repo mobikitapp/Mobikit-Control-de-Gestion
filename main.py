@@ -147,6 +147,17 @@ def init_db():
     except Exception as e:
         print(f"Error adding 'monto_provision_presupuestada' column: {e}")
 
+    # Agregar columna repl_user_id si no existe
+    try:
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'usuarios' AND column_name = 'repl_user_id'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE usuarios ADD COLUMN repl_user_id VARCHAR(100)")
+    except Exception as e:
+        print(f"Error adding 'repl_user_id' column: {e}")
+
     # Crear tabla de órdenes de compra si no existe
     try:
         cursor.execute("""
@@ -329,7 +340,15 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            return redirect(url_for('login'))
+            # Try Repl Auth
+            repl_user = check_repl_auth()
+            if repl_user:
+                session['user_id'] = repl_user['user_id']
+                session['user_role'] = repl_user['user_role']
+                session['user_name'] = repl_user['user_name']
+                session['repl_user_id'] = repl_user['repl_user_id']
+            else:
+                return redirect(url_for('login'))
         return f(*args, **kwargs)
 
     return decorated_function
@@ -358,8 +377,52 @@ def index():
     return redirect(url_for('login'))
 
 
+def check_repl_auth():
+    """Check if user is authenticated via Repl Auth"""
+    user_id = request.headers.get('X-Replit-User-Id')
+    user_name = request.headers.get('X-Replit-User-Name')
+    user_roles = request.headers.get('X-Replit-User-Roles', '')
+    
+    if user_id and user_name:
+        # Check if user exists in our database
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT id, rol, nombre FROM usuarios WHERE username = %s', (user_name,))
+        user = cursor.fetchone()
+        
+        if not user:
+            # Create new user with vendedor role by default
+            cursor.execute('''
+                INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, rol, nombre
+            ''', (user_name, 'repl_auth', 'vendedor', user_name, f'{user_name}@replit.com', True))
+            user = cursor.fetchone()
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            'user_id': user['id'],
+            'user_role': user['rol'],
+            'user_name': user['nombre'],
+            'repl_user_id': user_id
+        }
+    
+    return None
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Check Repl Auth first
+    repl_user = check_repl_auth()
+    if repl_user:
+        session['user_id'] = repl_user['user_id']
+        session['user_role'] = repl_user['user_role']
+        session['user_name'] = repl_user['user_name']
+        session['repl_user_id'] = repl_user['repl_user_id']
+        flash(f'Bienvenido via Repl Auth, {repl_user["user_name"]}!', 'success')
+        return redirect(url_for('dashboard'))
+    
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -554,10 +617,10 @@ def clientes():
                     WHERE proyecto_id = %s
                 ''', (proyecto_dict['id'],))
                 total_ordenes = cursor.fetchone()['total_ordenes']
-                
+
                 presupuesto = float(proyecto_dict['monto_provision_presupuestada'])
                 progreso_ordenes = (float(total_ordenes) / presupuesto * 100) if presupuesto > 0 else 0
-                
+
                 proyecto_dict['total_ordenes'] = float(total_ordenes)
                 proyecto_dict['progreso_ordenes'] = progreso_ordenes
             else:
@@ -1247,14 +1310,14 @@ def nueva_orden_compra():
             cliente_id = cursor.fetchone()['id']
         elif not cliente_id:
             flash('Debe seleccionar un cliente o crear uno nuevo', 'error')
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('ordenes_compra'))
 
         # Verificar que el cliente existe
         cursor.execute('SELECT nombre FROM clientes WHERE id = %s AND activo = TRUE', (cliente_id,))
         cliente_info = cursor.fetchone()
         if not cliente_info:
             flash('Cliente no válido', 'error')
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('ordenes_compra'))
 
         cliente_nombre = cliente_info['nombre']
 
@@ -1361,7 +1424,7 @@ def nueva_orden_compra():
 
     except Exception as e:
         flash(f'Error al crear orden: {str(e)}', 'error')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('ordenes_compra'))
 
 
 @app.route('/eliminar_proyecto/<int:proyecto_id>', methods=['POST'])
@@ -1684,12 +1747,14 @@ def nuevo_usuario():
     username = request.form['username']
     password = request.form['password']
     nombre = request.form['nombre']
+    apellido = request.form.get('apellido', '').strip() or None
     rol = request.form['rol']
-    email = request.form['email']
+    email = request.form.get('email', '').strip() or None
+    area_id = request.form.get('area_id') or None
 
     if rol not in ROLES:
         flash('Rol inválido', 'error')
-        return redirect(url_for('usuarios'))
+        return redirect(request.referrer or url_for('configuraciones'))
 
     password_hash = generate_password_hash(password)
 
@@ -1699,17 +1764,95 @@ def nuevo_usuario():
     try:
         cursor.execute(
             '''
-            INSERT INTO usuarios (username, password_hash, nombre, rol, email)
-            VALUES (%s, %s, %s, %s, %s)
-        ''', (username, password_hash, nombre, rol, email))
+            INSERT INTO usuarios (username, password_hash, nombre, apellido, rol, email, area_id, activo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (username, password_hash, nombre, apellido, rol, email, area_id, True))
         conn.commit()
         flash('Usuario creado exitosamente', 'success')
     except psycopg2.errors.UniqueViolation:
         flash('El nombre de usuario o email ya existe', 'error')
+    except Exception as e:
+        flash(f'Error al crear usuario: {str(e)}', 'error')
     finally:
         conn.close()
 
-    return redirect(url_for('usuarios'))
+    return redirect(request.referrer or url_for('configuraciones'))
+
+
+@app.route('/editar_usuario/<int:user_id>', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def editar_usuario(user_id):
+    """Editar usuario existente"""
+    try:
+        nombre = request.form['nombre']
+        apellido = request.form.get('apellido', '').strip() or None
+        email = request.form.get('email', '').strip() or None
+        rol = request.form['rol']
+        area_id = request.form.get('area_id') or None
+        activo = request.form.get('activo') == 'true'
+
+        if rol not in ROLES:
+            flash('Rol inválido', 'error')
+            return redirect(url_for('configuraciones'))
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE usuarios SET
+                nombre = %s, apellido = %s, email = %s, rol = %s, 
+                area_id = %s, activo = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        ''', (nombre, apellido, email, rol, area_id, activo, user_id))
+
+        conn.commit()
+        conn.close()
+
+        flash('Usuario actualizado exitosamente', 'success')
+
+    except Exception as e:
+        flash(f'Error al actualizar usuario: {str(e)}', 'error')
+
+    return redirect(url_for('configuraciones'))
+
+
+@app.route('/eliminar_usuario/<int:user_id>', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def eliminar_usuario(user_id):
+    """Eliminar usuario (solo si no es el admin actual)"""
+    if user_id == session['user_id']:
+        flash('No puedes eliminarte a ti mismo', 'error')
+        return redirect(url_for('configuraciones'))
+
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar si el usuario tiene tareas asignadas
+        cursor.execute('SELECT COUNT(*) FROM tareas WHERE usuario_asignado_id = %s', (user_id,))
+        tareas_count = cursor.fetchone()['count']
+
+        if tareas_count > 0:
+            flash(f'No se puede eliminar el usuario porque tiene {tareas_count} tarea(s) asignada(s)', 'error')
+            return redirect(url_for('configuraciones'))
+
+        # Eliminar usuario
+        cursor.execute('DELETE FROM usuarios WHERE id = %s', (user_id,))
+
+        if cursor.rowcount > 0:
+            conn.commit()
+            flash('Usuario eliminado exitosamente', 'success')
+        else:
+            flash('Usuario no encontrado', 'error')
+
+    except Exception as e:
+        flash(f'Error al eliminar usuario: {str(e)}', 'error')
+    finally:
+        conn.close()
+
+    return redirect(url_for('configuraciones'))
 
 
 @app.route('/crear_despacho', methods=['POST'])
@@ -3299,7 +3442,7 @@ def api_proyectos_cliente(cliente_id):
     return jsonify(proyectos)
 
 
-@app.route('/api/proyecto/<int:proyecto_id>')
+@app.route('/api/proyecto_detalle/<int:proyecto_id>')
 @login_required
 def api_proyecto_detalle(proyecto_id):
     """API para obtener detalles de un proyecto específico"""
@@ -3341,6 +3484,43 @@ def api_proyecto_detalle(proyecto_id):
 
     conn.close()
     return jsonify(proyecto_dict)
+
+
+@app.route('/api/proyecto/<int:proyecto_id>/documentos')
+@login_required
+def api_documentos_proyecto(proyecto_id):
+    """API para obtener documentos de un proyecto"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            SELECT dp.*, u.nombre as usuario_nombre
+            FROM documentos_proyecto dp
+            LEFT JOIN usuarios u ON dp.usuario_subida_id = u.id
+            WHERE dp.proyecto_id = %s
+            ORDER BY dp.created_at DESC
+        ''', (proyecto_id,))
+
+        documentos = []
+        for doc in cursor.fetchall():
+            documentos.append({
+                'id': doc['id'],
+                'nombre_original': doc['nombre_original'],
+                'ruta_archivo': doc['ruta_archivo'],
+                'tipo_archivo': doc['tipo_archivo'],
+                'tamaño': doc['tamaño'],
+                'descripcion': doc['descripcion'],
+                'usuario_nombre': doc['usuario_nombre'],
+                'created_at': doc['created_at'].isoformat() if doc['created_at'] else None
+            })
+
+        return jsonify({'success': True, 'documentos': documentos})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
 
 
 @app.route('/crear_orden_fabricacion_desde_oc', methods=['POST'])
@@ -3835,7 +4015,7 @@ def planificacion():
         'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'
     ]
     fecha_actual = datetime.now().date()
-    
+
     for i in range(12):
         if i == 0:
             mes_fecha = fecha_actual
@@ -3847,9 +4027,9 @@ def planificacion():
             else:
                 año = fecha_actual.year
                 mes = fecha_actual.month + i
-            
+
             mes_fecha = fecha_actual.replace(year=año, month=mes, day=1)
-        
+
         meses.append({
             'numero': mes_fecha.month,
             'año': mes_fecha.year,
@@ -3895,8 +4075,43 @@ def configuraciones():
     ''')
     configuraciones_list = cursor.fetchall()
 
+    # Obtener todos los usuarios para la pestaña de usuarios
+    cursor.execute('''
+        SELECT id, username, nombre, apellido, email, rol, activo, created_at
+        FROM usuarios
+        ORDER BY nombre
+    ''')
+    usuarios_list = cursor.fetchall()
+
+    # Obtener áreas para asignar a usuarios
+    cursor.execute('''
+        SELECT id, nombre
+        FROM areas
+        WHERE activo = TRUE
+        ORDER BY nombre
+    ''')
+    areas_list = cursor.fetchall()
+
+    # Datos para el sistema de permisos
+    modulos = [
+        {'id': 'clientes', 'nombre': 'Clientes'},
+        {'id': 'proyectos', 'nombre': 'Proyectos'},
+        {'id': 'ordenes_compra', 'nombre': 'Órdenes de Compra'},
+        {'id': 'ordenes_fabricacion', 'nombre': 'Órdenes de Fabricación'},
+        {'id': 'gestion_pedidos', 'nombre': 'Gestión de Pedidos'},
+        {'id': 'despachos', 'nombre': 'Despachos'},
+        {'id': 'planificacion', 'nombre': 'Planificación'},
+        {'id': 'reportes', 'nombre': 'Reportes'},
+        {'id': 'configuraciones', 'nombre': 'Configuraciones'}
+    ]
+
     conn.close()
-    return render_template('configuraciones.html', configuraciones=configuraciones_list)
+    return render_template('configuraciones.html', 
+                         configuraciones=configuraciones_list,
+                         usuarios=usuarios_list,
+                         areas=areas_list,
+                         modulos=modulos,
+                         ROLES=ROLES)
 
 
 @app.route('/actualizar_configuracion', methods=['POST'])

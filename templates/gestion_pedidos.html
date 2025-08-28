@@ -206,7 +206,7 @@
     </div>
 </div>
 
-{% if not pedidos_por_estado or not any(info.pedidos for info in pedidos_por_estado.values()) %}
+{% if not pedidos_por_estado or pedidos_por_estado|length == 0 %}
 <div class="card">
     <div class="card-body">
         <div class="text-center py-4">

@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email VARCHAR(150) UNIQUE,
     telefono VARCHAR(20),
     area_id INTEGER REFERENCES areas(id),
+    repl_user_id VARCHAR(100),
     activo BOOLEAN DEFAULT TRUE,
     ultimo_acceso TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -285,6 +286,19 @@ CREATE TABLE IF NOT EXISTS configuraciones (
     tipo VARCHAR(20) DEFAULT 'string' CHECK (tipo IN ('string', 'integer', 'boolean', 'json')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Documentos proyecto table
+CREATE TABLE IF NOT EXISTS documentos_proyecto (
+    id SERIAL PRIMARY KEY,
+    proyecto_id INTEGER NOT NULL REFERENCES proyectos(id) ON DELETE CASCADE,
+    nombre_original VARCHAR(255) NOT NULL,
+    ruta_archivo VARCHAR(500) NOT NULL,
+    tipo_archivo VARCHAR(50) NOT NULL,
+    tamaño INTEGER,
+    descripcion TEXT,
+    usuario_subida_id INTEGER REFERENCES usuarios(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Insert default monthly objective configuration
