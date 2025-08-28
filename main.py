@@ -215,7 +215,7 @@ def init_db():
                 ADD CONSTRAINT ordenes_fabricacion_estado_check 
                 CHECK (estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 
                                 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 
-                                'embalando', 'listo_despacho', 'despachado', 'entregado'))
+                                'embalando', 'embalaje_listo', 'listo_despacho', 'despachado', 'entregado'))
             """)
             print("Tabla ordenes_fabricacion limpia y restricciones actualizadas")
     except Exception as e:
@@ -2999,7 +2999,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 'embalando', 'listo_despacho']
+        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho', 'despachado']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -3051,7 +3051,7 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
+        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -3154,7 +3154,7 @@ def ordenes_fabricacion():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Órdenes de fabricación pendientes (pendiente aprobación y aprobado diseño)
+    # Órdenes de fabricación pendientes producción (pendiente aprobación y aprobado diseño)
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
@@ -3168,7 +3168,7 @@ def ordenes_fabricacion():
     ''')
     fabricacion_pendientes = cursor.fetchall()
 
-    # Órdenes de fabricación en proceso (desde enviado a producción hasta listo embalaje)
+    # Órdenes de fabricación en fabricación (enviado producción, seccionado, enchapando, mecanizado)
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
@@ -3177,21 +3177,20 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje')
+        WHERE of.estado IN ('enviado_produccion', 'seccionado', 'enchapando', 'mecanizado')
         ORDER BY 
             CASE of.estado
                 WHEN 'enviado_produccion' THEN 1
                 WHEN 'seccionado' THEN 2
                 WHEN 'enchapando' THEN 3
                 WHEN 'mecanizado' THEN 4
-                WHEN 'listo_embalaje' THEN 5
-                ELSE 6
+                ELSE 5
             END,
             of.fecha_entrega_estimada ASC NULLS LAST
     ''')
     fabricacion_proceso = cursor.fetchall()
 
-    # Órdenes de fabricación terminadas (embalando, listo despacho, despachado)
+    # Órdenes de fabricación en embalaje (listo_embalaje, embalando, embalaje_listo)
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
@@ -3200,16 +3199,43 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('embalando', 'listo_despacho', 'despachado', 'entregado')
+        WHERE of.estado IN ('listo_embalaje', 'embalando', 'embalaje_listo')
         ORDER BY 
             CASE of.estado
-                WHEN 'embalando' THEN 1
-                WHEN 'listo_despacho' THEN 2
-                WHEN 'despachado' THEN 3
-                WHEN 'entregado' THEN 4
-                ELSE 5
+                WHEN 'listo_embalaje' THEN 1
+                WHEN 'embalando' THEN 2
+                WHEN 'embalaje_listo' THEN 3
+                ELSE 4
             END,
-            of.fecha_entrega_real DESC NULLS LAST
+            of.fecha_entrega_estimada ASC NULLS LAST
+    ''')
+    fabricacion_embalaje = cursor.fetchall()
+
+    # Órdenes de fabricación en bodega (listo_despacho)
+    cursor.execute('''
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
+               of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
+               p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.estado IN ('listo_despacho')
+        ORDER BY of.fecha_entrega_estimada ASC NULLS LAST
+    ''')
+    fabricacion_bodega = cursor.fetchall()
+
+    # Órdenes de fabricación terminadas (despachado, entregado)
+    cursor.execute('''
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
+               of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
+               p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.estado IN ('despachado', 'entregado')
+        ORDER BY of.fecha_entrega_real DESC NULLS LAST
         LIMIT 50
     ''')
     fabricacion_terminadas = cursor.fetchall()
@@ -3219,6 +3245,8 @@ def ordenes_fabricacion():
     return render_template('ordenes_fabricacion.html',
                            fabricacion_pendientes=fabricacion_pendientes,
                            fabricacion_proceso=fabricacion_proceso,
+                           fabricacion_embalaje=fabricacion_embalaje,
+                           fabricacion_bodega=fabricacion_bodega,
                            fabricacion_terminadas=fabricacion_terminadas,
                            fecha_hoy=datetime.now().date())
 

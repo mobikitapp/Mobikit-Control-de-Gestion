@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Órdenes de Fabricación - Mobikit{% endblock %}
@@ -25,8 +26,18 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="proceso-fab-tab" data-bs-toggle="tab" data-bs-target="#proceso-fab" type="button" role="tab">
-            <i class="fas fa-industry text-primary"></i> En Proceso (<span id="count-proceso">{{ fabricacion_proceso|length }}</span>)
+        <button class="nav-link" id="fabricacion-tab" data-bs-toggle="tab" data-bs-target="#fabricacion" type="button" role="tab">
+            <i class="fas fa-cogs text-primary"></i> En Fabricación (<span id="count-fabricacion">{{ fabricacion_proceso|length }}</span>)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="embalaje-tab" data-bs-toggle="tab" data-bs-target="#embalaje" type="button" role="tab">
+            <i class="fas fa-box text-info"></i> En Embalaje (<span id="count-embalaje">{{ fabricacion_embalaje|length }}</span>)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="bodega-tab" data-bs-toggle="tab" data-bs-target="#bodega" type="button" role="tab">
+            <i class="fas fa-warehouse text-secondary"></i> En Bodega (<span id="count-bodega">{{ fabricacion_bodega|length }}</span>)
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -41,7 +52,7 @@
     <div class="tab-pane fade show active" id="pendientes-fab" role="tabpanel">
         <div class="card mt-3">
             <div class="card-header bg-warning">
-                <h5><i class="fas fa-pause-circle"></i> Órdenes Pendientes Aprobación</h5>
+                <h5><i class="fas fa-pause-circle"></i> Órdenes Pendientes Producción</h5>
             </div>
             <div class="card-body">
                 {% if fabricacion_pendientes %}
@@ -129,18 +140,18 @@
                 {% else %}
                 <div class="text-center py-4">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No hay órdenes de fabricación pendientes</p>
+                    <p class="text-muted">No hay órdenes pendientes de producción</p>
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Panel Órdenes en Proceso -->
-    <div class="tab-pane fade" id="proceso-fab" role="tabpanel">
+    <!-- Panel Órdenes en Fabricación -->
+    <div class="tab-pane fade" id="fabricacion" role="tabpanel">
         <div class="card mt-3">
             <div class="card-header bg-primary">
-                <h5><i class="fas fa-industry"></i> Órdenes en Proceso de Fabricación</h5>
+                <h5><i class="fas fa-cogs"></i> Órdenes en Fabricación</h5>
             </div>
             <div class="card-body">
                 {% if fabricacion_proceso %}
@@ -181,8 +192,6 @@
                                         <span class="badge bg-info">Enchapando</span>
                                     {% elif orden.estado == 'mecanizado' %}
                                         <span class="badge bg-primary">Mecanizado</span>
-                                    {% elif orden.estado == 'listo_embalaje' %}
-                                        <span class="badge bg-success">Listo Embalaje</span>
                                     {% else %}
                                         <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                     {% endif %}
@@ -234,7 +243,193 @@
                 {% else %}
                 <div class="text-center py-4">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No hay órdenes de fabricación en proceso</p>
+                    <p class="text-muted">No hay órdenes en fabricación</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Órdenes en Embalaje -->
+    <div class="tab-pane fade" id="embalaje" role="tabpanel">
+        <div class="card mt-3">
+            <div class="card-header bg-info">
+                <h5><i class="fas fa-box"></i> Órdenes en Embalaje</h5>
+            </div>
+            <div class="card-body">
+                {% if fabricacion_embalaje %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Proyecto</th>
+                                <th>OC/Contrato</th>
+                                <th>Código Orden</th>
+                                <th>Glosa</th>
+                                <th>Estado</th>
+                                <th>Fecha Entrega</th>
+                                <th>Días Restantes</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for orden in fabricacion_embalaje %}
+                            <tr>
+                                <td>
+                                    <div><strong>{{ orden.proyecto_codigo }}</strong></div>
+                                    <small>{{ orden.proyecto_nombre }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
+                                        {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
+                                    </span>
+                                </td>
+                                <td><strong>{{ orden.codigo_orden }}</strong></td>
+                                <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
+                                <td>
+                                    {% if orden.estado == 'listo_embalaje' %}
+                                        <span class="badge bg-warning">Listo Embalaje</span>
+                                    {% elif orden.estado == 'embalando' %}
+                                        <span class="badge bg-info">Embalando</span>
+                                    {% elif orden.estado == 'embalaje_listo' %}
+                                        <span class="badge bg-success">Embalaje Listo</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ orden.estado|title }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ orden.fecha_entrega_estimada }}</td>
+                                <td>
+                                    {% if orden.fecha_entrega_estimada %}
+                                        {% set fecha_entrega = orden.fecha_entrega_estimada %}
+                                        {% set dias_restantes = (fecha_entrega - fecha_hoy).days %}
+                                        {% if dias_restantes < 0 %}
+                                            <span class="badge bg-danger">{{ dias_restantes * -1 }} días atraso</span>
+                                        {% elif dias_restantes == 0 %}
+                                            <span class="badge bg-warning">Hoy</span>
+                                        {% elif dias_restantes <= 3 %}
+                                            <span class="badge bg-warning">{{ dias_restantes }} días</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ dias_restantes }} días</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm btn-outline-info" onclick="verDetalleOrden({{ orden.id }})" title="Ver Detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if session.user_role in ['admin', 'general', 'embalaje'] %}
+                                        <button class="btn btn-sm btn-primary" onclick="avanzarFabricacion({{ orden.id }})" title="Avanzar">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if session.user_role in ['admin', 'general'] %}
+                                        <button class="btn btn-sm btn-secondary" onclick="retrocederFabricacion({{ orden.id }})" title="Retroceder">
+                                            <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay órdenes en embalaje</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Órdenes en Bodega -->
+    <div class="tab-pane fade" id="bodega" role="tabpanel">
+        <div class="card mt-3">
+            <div class="card-header bg-secondary">
+                <h5><i class="fas fa-warehouse"></i> Órdenes en Bodega</h5>
+            </div>
+            <div class="card-body">
+                {% if fabricacion_bodega %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Proyecto</th>
+                                <th>OC/Contrato</th>
+                                <th>Código Orden</th>
+                                <th>Glosa</th>
+                                <th>Estado</th>
+                                <th>Fecha Entrega</th>
+                                <th>Días Restantes</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for orden in fabricacion_bodega %}
+                            <tr>
+                                <td>
+                                    <div><strong>{{ orden.proyecto_codigo }}</strong></div>
+                                    <small>{{ orden.proyecto_nombre }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if orden.adjudicacion_tipo == 'contrato' %}info{% else %}primary{% endif %}">
+                                        {% if orden.adjudicacion_tipo == 'contrato' %}CONTRATO{% else %}OC{% endif %}
+                                    </span>
+                                </td>
+                                <td><strong>{{ orden.codigo_orden }}</strong></td>
+                                <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
+                                <td>
+                                    <span class="badge bg-danger">Listo para Despacho</span>
+                                </td>
+                                <td>{{ orden.fecha_entrega_estimada }}</td>
+                                <td>
+                                    {% if orden.fecha_entrega_estimada %}
+                                        {% set fecha_entrega = orden.fecha_entrega_estimada %}
+                                        {% set dias_restantes = (fecha_entrega - fecha_hoy).days %}
+                                        {% if dias_restantes < 0 %}
+                                            <span class="badge bg-danger">{{ dias_restantes * -1 }} días atraso</span>
+                                        {% elif dias_restantes == 0 %}
+                                            <span class="badge bg-warning">Hoy</span>
+                                        {% elif dias_restantes <= 3 %}
+                                            <span class="badge bg-warning">{{ dias_restantes }} días</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ dias_restantes }} días</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm btn-outline-info" onclick="verDetalleOrden({{ orden.id }})" title="Ver Detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if session.user_role in ['admin', 'general', 'despacho'] %}
+                                        <button class="btn btn-sm btn-primary" onclick="avanzarFabricacion({{ orden.id }})" title="Despachar">
+                                            <i class="fas fa-truck"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if session.user_role in ['admin', 'general'] %}
+                                        <button class="btn btn-sm btn-secondary" onclick="retrocederFabricacion({{ orden.id }})" title="Retroceder">
+                                            <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay órdenes en bodega</p>
                 </div>
                 {% endif %}
             </div>
@@ -245,7 +440,7 @@
     <div class="tab-pane fade" id="terminadas-fab" role="tabpanel">
         <div class="card mt-3">
             <div class="card-header bg-success">
-                <h5><i class="fas fa-check-circle"></i> Órdenes de Fabricación Terminadas</h5>
+                <h5><i class="fas fa-check-circle"></i> Órdenes Terminadas</h5>
             </div>
             <div class="card-body">
                 {% if fabricacion_terminadas %}
@@ -278,12 +473,10 @@
                                 <td><strong>{{ orden.codigo_orden }}</strong></td>
                                 <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
                                 <td>
-                                    {% if orden.estado == 'embalando' %}
-                                        <span class="badge bg-warning">Embalando</span>
-                                    {% elif orden.estado == 'listo_despacho' %}
-                                        <span class="badge bg-danger">Listo Despacho</span>
-                                    {% elif orden.estado == 'despachado' %}
+                                    {% if orden.estado == 'despachado' %}
                                         <span class="badge bg-dark">Despachado</span>
+                                    {% elif orden.estado == 'entregado' %}
+                                        <span class="badge bg-success">Entregado</span>
                                     {% else %}
                                         <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                     {% endif %}
@@ -303,7 +496,7 @@
                 {% else %}
                 <div class="text-center py-4">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No hay órdenes de fabricación terminadas</p>
+                    <p class="text-muted">No hay órdenes terminadas</p>
                 </div>
                 {% endif %}
             </div>
@@ -437,12 +630,16 @@ function showSuccessMessage(message) {
 function updateTabCounters() {
     // Contar elementos en cada pestaña
     const pendientesCount = document.querySelectorAll('#pendientes-fab tbody tr').length;
-    const procesoCount = document.querySelectorAll('#proceso-fab tbody tr').length;
+    const fabricacionCount = document.querySelectorAll('#fabricacion tbody tr').length;
+    const embalajeCount = document.querySelectorAll('#embalaje tbody tr').length;
+    const bodegaCount = document.querySelectorAll('#bodega tbody tr').length;
     const terminadasCount = document.querySelectorAll('#terminadas-fab tbody tr').length;
 
     // Actualizar contadores
     document.getElementById('count-pendientes').textContent = pendientesCount;
-    document.getElementById('count-proceso').textContent = procesoCount;
+    document.getElementById('count-fabricacion').textContent = fabricacionCount;
+    document.getElementById('count-embalaje').textContent = embalajeCount;
+    document.getElementById('count-bodega').textContent = bodegaCount;
     document.getElementById('count-terminadas').textContent = terminadasCount;
 }
 
