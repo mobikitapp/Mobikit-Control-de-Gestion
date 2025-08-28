@@ -1,4 +1,5 @@
 
+
 <!-- Modal Nueva Orden de Compra/Contrato -->
 <div class="modal fade" id="nuevaOrdenModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
@@ -519,9 +520,28 @@ function recopilarDatos() {
             return false;
         }
 
-        // Asignar valores a campos ocultos
-        document.getElementById('categorias_selected').value = JSON.stringify(categoriasSeleccionadas);
-        document.getElementById('subcategorias_selected').value = JSON.stringify(subcategoriasSeleccionadas);
+        // Limpiar campos hidden existentes o crearlos si no existen
+        let categoriasSelected = document.getElementById('categorias_selected');
+        if (!categoriasSelected) {
+            categoriasSelected = document.createElement('input');
+            categoriasSelected.type = 'hidden';
+            categoriasSelected.name = 'categorias_selected';
+            categoriasSelected.id = 'categorias_selected';
+            document.querySelector('form').appendChild(categoriasSelected);
+        }
+
+        let subcategoriasSelected = document.getElementById('subcategorias_selected');
+        if (!subcategoriasSelected) {
+            subcategoriasSelected = document.createElement('input');
+            subcategoriasSelected.type = 'hidden';
+            subcategoriasSelected.name = 'subcategorias_selected';
+            subcategoriasSelected.id = 'subcategorias_selected';
+            document.querySelector('form').appendChild(subcategoriasSelected);
+        }
+
+        // Asignar valores
+        categoriasSelected.value = JSON.stringify(categoriasSeleccionadas);
+        subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas);
 
         console.log('Datos recopilados:', {
             categorias: categoriasSeleccionadas,
@@ -536,3 +556,4 @@ function recopilarDatos() {
     }
 }
 </script>
+
