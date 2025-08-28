@@ -74,9 +74,9 @@
                                 <td><strong>{{ orden.codigo_orden }}</strong></td>
                                 <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
                                 <td>
-                                    {% if orden.estado == 'pendiente_aprobacion_diseno' %}
+                                    {% if orden.estado == 'pendiente_aprobacion_diseño' %}
                                             <span class="badge bg-warning">Pendiente Aprobación Diseño</span>
-                                        {% elif orden.estado == 'aprobado_diseno' %}
+                                        {% elif orden.estado == 'aprobado_diseño' %}
                                             <span class="badge bg-info">Aprobado Diseño</span>
                                         {% elif orden.estado == 'enviado_produccion' %}
                                             <span class="badge bg-primary">Enviado Producción</span>
@@ -121,11 +121,11 @@
                                         <button class="btn btn-sm btn-outline-info" onclick="verDetalleOrden({{ orden.id }})" title="Ver Detalle">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        {% if orden.estado == 'pendiente_aprobacion_diseno' and session.user_role in ['admin', 'general', 'vendedor'] %}
+                                        {% if orden.estado == 'pendiente_aprobacion_diseño' and session.user_role in ['admin', 'general', 'vendedor'] %}
                                         <button class="btn btn-sm btn-success" onclick="aprobarDiseno({{ orden.id }})" title="Aprobar Diseño">
                                             <i class="fas fa-check"></i>
                                         </button>
-                                        {% elif orden.estado == 'aprobado_diseno' and session.user_role in ['admin', 'general', 'operación'] %}
+                                        {% elif orden.estado == 'aprobado_diseño' and session.user_role in ['admin', 'general', 'operación'] %}
                                         <button class="btn btn-sm btn-primary" onclick="enviarAProduccion({{ orden.id }})" title="Enviar a Producción">
                                             <i class="fas fa-arrow-right"></i>
                                         </button>

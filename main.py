@@ -2903,8 +2903,8 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
         if not orden:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        if orden['estado'] not in ['pendiente_aprobacion_diseño', 'aprobado_diseño']:
-            return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
+        if orden['estado'] not in ['enviado_produccion']:
+            return jsonify({'success': False, 'message': f'La orden no está lista para iniciar producción. Estado actual: {orden["estado"]}'})
 
         # Cambiar estado de la orden de fabricación a primera etapa
         cursor.execute('''
@@ -2920,19 +2920,23 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
             WHERE id = %s AND estado IN ('en_desarrollo', 'diseño')
         ''', ('aprobado_produccion', orden['proyecto_id'],))
 
-        # Registrar en auditoría
-        cursor.execute('''
-            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('ordenes_fabricacion', %s, 'UPDATE', %s, %s)
-        ''', (orden_fabricacion_id, session['user_id'],
-              json.dumps({
-                  'accion': 'iniciar_orden_fabricacion',
-                  'codigo_orden': orden['codigo_orden'],
-                  'iniciado_por': session['user_name']
-              })))
+        # Registrar en auditoría si la tabla existe
+        try:
+            cursor.execute('''
+                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+                VALUES ('ordenes_fabricacion', %s, 'UPDATE', %s, %s)
+            ''', (orden_fabricacion_id, session['user_id'],
+                  json.dumps({
+                      'accion': 'iniciar_orden_fabricacion',
+                      'codigo_orden': orden['codigo_orden'],
+                      'iniciado_por': session['user_name']
+                  })))
+        except Exception:
+            # Si falla la auditoría, continuar sin error
+            pass
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Orden de fabricación {orden["codigo_orden"]} iniciada. Orden de compra/contrato movida automáticamente a "En Proceso".'})
+        return jsonify({'success': True, 'message': f'Orden de fabricación {orden["codigo_orden"]} iniciada en seccionado.'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -2995,7 +2999,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
+        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 'embalando', 'listo_despacho']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -3003,7 +3007,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
                 nuevo_estado = estados_secuencia[indice_actual + 1]
 
                 # Si es la última etapa, marcar fecha de terminación
-                if nuevo_estado == 'listo_embalaje':
+                if nuevo_estado in ['listo_embalaje', 'listo_despacho']:
                     cursor.execute('''
                         UPDATE ordenes_fabricacion
                         SET estado = %s, fecha_entrega_real = CURRENT_TIMESTAMP
@@ -3019,7 +3023,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
                 return jsonify({'success': False, 'message': 'Ya está en la etapa final'})
 
         except ValueError:
-            return jsonify({'success': False, 'message': 'Estado actual no válido'})
+            return jsonify({'success': False, 'message': f'Estado actual no válido para avanzar: {estado_actual}'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3090,7 +3094,7 @@ def api_aprobar_diseno_orden(orden_id):
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
         if orden['estado'] != 'pendiente_aprobacion_diseño':
-            return jsonify({'success': False, 'message': 'La orden no está pendiente de aprobación de diseño'})
+            return jsonify({'success': False, 'message': f'La orden no está pendiente de aprobación de diseño. Estado actual: {orden["estado"]}'})
 
         # Cambiar estado a aprobado_diseño
         cursor.execute('''
