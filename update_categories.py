@@ -17,7 +17,10 @@ def update_categories():
     cursor = conn.cursor()
     
     try:
-        # Limpiar categorías y subcategorías existentes
+        # Limpiar referencias en proyecto_categorias primero
+        cursor.execute('DELETE FROM proyecto_categorias')
+        
+        # Luego limpiar categorías y subcategorías existentes
         cursor.execute('DELETE FROM subcategorias_producto')
         cursor.execute('DELETE FROM categorias_producto')
         
