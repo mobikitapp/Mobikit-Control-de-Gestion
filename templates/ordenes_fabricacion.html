@@ -21,17 +21,17 @@
 <ul class="nav nav-tabs" id="fabricacionTab" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link active" id="pendientes-fab-tab" data-bs-toggle="tab" data-bs-target="#pendientes-fab" type="button" role="tab">
-            <i class="fas fa-pause-circle text-warning"></i> Pendiente Producción ({{ fabricacion_pendientes|length }})
+            <i class="fas fa-pause-circle text-warning"></i> Pendiente Producción (<span id="count-pendientes">{{ fabricacion_pendientes|length }}</span>)
         </button>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="proceso-fab-tab" data-bs-toggle="tab" data-bs-target="#proceso-fab" type="button" role="tab">
-            <i class="fas fa-industry text-primary"></i> En Proceso ({{ fabricacion_proceso|length }})
+            <i class="fas fa-industry text-primary"></i> En Proceso (<span id="count-proceso">{{ fabricacion_proceso|length }}</span>)
         </button>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="terminadas-fab-tab" data-bs-toggle="tab" data-bs-target="#terminadas-fab" type="button" role="tab">
-            <i class="fas fa-check-circle text-success"></i> Terminadas ({{ fabricacion_terminadas|length }})
+            <i class="fas fa-check-circle text-success"></i> Terminadas (<span id="count-terminadas">{{ fabricacion_terminadas|length }}</span>)
         </button>
     </li>
 </ul>
@@ -75,28 +75,12 @@
                                 <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
                                 <td>
                                     {% if orden.estado == 'pendiente_aprobacion_diseño' %}
-                                            <span class="badge bg-warning">Pendiente Aprobación Diseño</span>
-                                        {% elif orden.estado == 'aprobado_diseño' %}
-                                            <span class="badge bg-info">Aprobado Diseño</span>
-                                        {% elif orden.estado == 'enviado_produccion' %}
-                                            <span class="badge bg-primary">Enviado Producción</span>
-                                        {% elif orden.estado == 'seccionado' %}
-                                            <span class="badge bg-secondary">Seccionado</span>
-                                        {% elif orden.estado == 'enchapando' %}
-                                            <span class="badge bg-info">Enchapando</span>
-                                        {% elif orden.estado == 'mecanizado' %}
-                                            <span class="badge bg-primary">Mecanizado</span>
-                                        {% elif orden.estado == 'listo_embalaje' %}
-                                            <span class="badge bg-success">Listo Embalaje</span>
-                                        {% elif orden.estado == 'embalando' %}
-                                            <span class="badge bg-warning">Embalando</span>
-                                        {% elif orden.estado == 'listo_despacho' %}
-                                            <span class="badge bg-danger">Listo Despacho</span>
-                                        {% elif orden.estado == 'despachado' %}
-                                            <span class="badge bg-dark">Despachado</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">{{ orden.estado|title }}</span>
-                                        {% endif %}
+                                        <span class="badge bg-warning">Pendiente Aprobación Diseño</span>
+                                    {% elif orden.estado == 'aprobado_diseño' %}
+                                        <span class="badge bg-info">Aprobado Diseño</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ orden.estado|title }}</span>
+                                    {% endif %}
                                 </td>
                                 <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
@@ -190,24 +174,18 @@
                                 <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
                                 <td>
                                     {% if orden.estado == 'enviado_produccion' %}
-                                            <span class="badge bg-primary">Enviado Producción</span>
-                                        {% elif orden.estado == 'seccionado' %}
-                                            <span class="badge bg-secondary">Seccionado</span>
-                                        {% elif orden.estado == 'enchapando' %}
-                                            <span class="badge bg-info">Enchapando</span>
-                                        {% elif orden.estado == 'mecanizado' %}
-                                            <span class="badge bg-primary">Mecanizado</span>
-                                        {% elif orden.estado == 'listo_embalaje' %}
-                                            <span class="badge bg-success">Listo Embalaje</span>
-                                        {% elif orden.estado == 'embalando' %}
-                                            <span class="badge bg-warning">Embalando</span>
-                                        {% elif orden.estado == 'listo_despacho' %}
-                                            <span class="badge bg-danger">Listo Despacho</span>
-                                        {% elif orden.estado == 'despachado' %}
-                                            <span class="badge bg-dark">Despachado</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">{{ orden.estado|title }}</span>
-                                        {% endif %}
+                                        <span class="badge bg-primary">Enviado Producción</span>
+                                    {% elif orden.estado == 'seccionado' %}
+                                        <span class="badge bg-secondary">Seccionado</span>
+                                    {% elif orden.estado == 'enchapando' %}
+                                        <span class="badge bg-info">Enchapando</span>
+                                    {% elif orden.estado == 'mecanizado' %}
+                                        <span class="badge bg-primary">Mecanizado</span>
+                                    {% elif orden.estado == 'listo_embalaje' %}
+                                        <span class="badge bg-success">Listo Embalaje</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ orden.estado|title }}</span>
+                                    {% endif %}
                                 </td>
                                 <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
@@ -300,11 +278,15 @@
                                 <td><strong>{{ orden.codigo_orden }}</strong></td>
                                 <td><strong>{{ orden.glosa or 'Sin glosa' }}</strong></td>
                                 <td>
-                                    {% if orden.estado == 'despachado' %}
-                                            <span class="badge bg-dark">Despachado</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">{{ orden.estado|title }}</span>
-                                        {% endif %}
+                                    {% if orden.estado == 'embalando' %}
+                                        <span class="badge bg-warning">Embalando</span>
+                                    {% elif orden.estado == 'listo_despacho' %}
+                                        <span class="badge bg-danger">Listo Despacho</span>
+                                    {% elif orden.estado == 'despachado' %}
+                                        <span class="badge bg-dark">Despachado</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ orden.estado|title }}</span>
+                                    {% endif %}
                                 </td>
                                 <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>{{ orden.fecha_entrega_real or 'N/A' }}</td>
@@ -408,7 +390,6 @@ let proyectosData = [];
 
 // Función para mostrar mensajes de éxito
 function showSuccessMessage(message) {
-    // Crear overlay de carga
     const overlay = document.createElement('div');
     overlay.style.cssText = `
         position: fixed;
@@ -423,7 +404,7 @@ function showSuccessMessage(message) {
         z-index: 9999;
         backdrop-filter: blur(2px);
     `;
-    
+
     const messageDiv = document.createElement('div');
     messageDiv.style.cssText = `
         background: #d4edda;
@@ -435,17 +416,16 @@ function showSuccessMessage(message) {
         text-align: center;
         max-width: 400px;
     `;
-    
+
     messageDiv.innerHTML = `
         <i class="fas fa-check-circle" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
         <strong>${message}</strong>
         <div style="margin-top: 10px; font-size: 0.9em;">Actualizando página...</div>
     `;
-    
+
     overlay.appendChild(messageDiv);
     document.body.appendChild(overlay);
-    
-    // Remover overlay después del timeout
+
     setTimeout(() => {
         if (overlay.parentNode) {
             overlay.parentNode.removeChild(overlay);
@@ -453,16 +433,29 @@ function showSuccessMessage(message) {
     }, 1500);
 }
 
+// Función para actualizar contadores
+function updateTabCounters() {
+    // Contar elementos en cada pestaña
+    const pendientesCount = document.querySelectorAll('#pendientes-fab tbody tr').length;
+    const procesoCount = document.querySelectorAll('#proceso-fab tbody tr').length;
+    const terminadasCount = document.querySelectorAll('#terminadas-fab tbody tr').length;
+
+    // Actualizar contadores
+    document.getElementById('count-pendientes').textContent = pendientesCount;
+    document.getElementById('count-proceso').textContent = procesoCount;
+    document.getElementById('count-terminadas').textContent = terminadasCount;
+}
+
 // Cargar órdenes de compra al abrir el modal
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, setting up modal listeners');
-    
+
     // Restaurar pestaña activa después de recarga
     const savedTab = localStorage.getItem('activeTab');
     if (savedTab) {
         const tabButton = document.getElementById(savedTab);
         const targetPane = document.querySelector(tabButton?.getAttribute('data-bs-target'));
-        
+
         if (tabButton && targetPane) {
             // Remover clase active de todas las pestañas
             document.querySelectorAll('#fabricacionTab .nav-link').forEach(tab => {
@@ -471,11 +464,11 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('#fabricacionTabContent .tab-pane').forEach(pane => {
                 pane.classList.remove('show', 'active');
             });
-            
+
             // Activar la pestaña guardada
             tabButton.classList.add('active');
             targetPane.classList.add('show', 'active');
-            
+
             // Limpiar el localStorage
             localStorage.removeItem('activeTab');
         }
@@ -491,16 +484,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Modal nuevaOrdenFabricacionModal not found');
     }
 
-    // Inicializar elementos de información
-    const ordenInfo = document.getElementById('orden_info');
-    const ordenDetails = document.getElementById('orden_details');
-    if (!ordenInfo) {
-        console.warn('orden_info element not found, creating placeholder');
-    }
-    if (!ordenDetails) {
-        console.warn('orden_details element not found, creating placeholder');
-    }
-
     // Event listener para cambio de orden de compra
     const ordenSelect = document.getElementById('orden_compra_id');
     if (ordenSelect) {
@@ -508,7 +491,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const ordenId = this.value;
             console.log('Order changed:', ordenId);
 
-            // Establecer el proyecto_id oculto
             const proyectoIdHidden = document.getElementById('proyecto_id');
             if (proyectoIdHidden) {
                 proyectoIdHidden.value = ordenId;
@@ -540,7 +522,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
 
-            // Permitir que el formulario se envíe normalmente
             return true;
         });
     } else {
@@ -555,7 +536,6 @@ function cargarOrdenesCompraDisponibles() {
         return;
     }
 
-    // Mostrar loading
     select.innerHTML = '<option value="">Cargando proyectos...</option>';
 
     fetch('/api/proyectos_disponibles_fabricacion')
@@ -598,10 +578,9 @@ function cargarDetallesOrden(proyectoId) {
     }
 
     if (proyectoId) {
-        // Buscar el proyecto en los datos cargados
         const select = document.getElementById('orden_compra_id');
         const selectedOption = select.querySelector(`option[value="${proyectoId}"]`);
-        
+
         ordenInfo.style.display = 'block';
         if (selectedOption) {
             ordenDetails.textContent = `Proyecto seleccionado: ${selectedOption.textContent}`;
@@ -617,7 +596,7 @@ function cargarDetallesOrden(proyectoId) {
 function resetOrdenInfo() {
     const ordenInfo = document.getElementById('orden_info');
     const ordenDetails = document.getElementById('orden_details');
-    
+
     if (ordenInfo) {
         ordenInfo.style.display = 'none';
     }
@@ -686,18 +665,16 @@ function resetCategorias() {
 
 function aprobarDiseno(ordenId) {
     if (confirm('¿Confirmas la aprobación del diseño de esta orden?')) {
-        // Mostrar indicador de carga
         const button = event.target;
         const originalText = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
         button.disabled = true;
-        
-        // Guardar la pestaña activa antes de la recarga
+
         const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
         if (activeTab) {
             localStorage.setItem('activeTab', activeTab.id);
         }
-        
+
         fetch(`/api/aprobar_diseno_orden/${ordenId}`, {
             method: 'POST',
             headers: {
@@ -713,11 +690,9 @@ function aprobarDiseno(ordenId) {
         })
         .then(data => {
             if (data.success) {
-                // Mostrar mensaje de éxito sin recargar la página
                 showSuccessMessage(data.message);
-                // Actualizar solo el contenido después de un breve delay
                 setTimeout(() => {
-                    refreshTabContent();
+                    location.reload();
                 }, 800);
             } else {
                 alert('Error: ' + data.message);
@@ -736,18 +711,16 @@ function aprobarDiseno(ordenId) {
 
 function enviarAProduccion(ordenId) {
     if (confirm('¿Confirmas enviar esta orden a producción?')) {
-        // Mostrar indicador de carga
         const button = event.target;
         const originalText = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
         button.disabled = true;
-        
-        // Guardar la pestaña activa antes de la recarga
+
         const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
         if (activeTab) {
             localStorage.setItem('activeTab', activeTab.id);
         }
-        
+
         fetch(`/api/enviar_a_produccion/${ordenId}`, {
             method: 'POST',
             headers: {
@@ -765,7 +738,7 @@ function enviarAProduccion(ordenId) {
             if (data.success) {
                 showSuccessMessage(data.message);
                 setTimeout(() => {
-                    refreshTabContent();
+                    location.reload();
                 }, 800);
             } else {
                 alert('Error: ' + data.message);
@@ -788,12 +761,12 @@ function iniciarFabricacion(ordenId) {
         const originalText = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
         button.disabled = true;
-        
+
         const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
         if (activeTab) {
             localStorage.setItem('activeTab', activeTab.id);
         }
-        
+
         fetch(`/api/iniciar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: {
@@ -811,7 +784,7 @@ function iniciarFabricacion(ordenId) {
             if (data.success) {
                 showSuccessMessage(data.message);
                 setTimeout(() => {
-                    refreshTabContent();
+                    location.reload();
                 }, 800);
             } else {
                 alert('Error: ' + data.message);
@@ -834,12 +807,12 @@ function avanzarFabricacion(ordenId) {
         const originalText = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
         button.disabled = true;
-        
+
         const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
         if (activeTab) {
             localStorage.setItem('activeTab', activeTab.id);
         }
-        
+
         fetch(`/api/avanzar_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: {
@@ -857,7 +830,7 @@ function avanzarFabricacion(ordenId) {
             if (data.success) {
                 showSuccessMessage(data.message);
                 setTimeout(() => {
-                    refreshTabContent();
+                    location.reload();
                 }, 800);
             } else {
                 alert('Error: ' + data.message);
@@ -880,12 +853,12 @@ function retrocederFabricacion(ordenId) {
         const originalText = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
         button.disabled = true;
-        
+
         const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
         if (activeTab) {
             localStorage.setItem('activeTab', activeTab.id);
         }
-        
+
         fetch(`/api/retroceder_etapa_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: {
@@ -903,7 +876,7 @@ function retrocederFabricacion(ordenId) {
             if (data.success) {
                 showSuccessMessage(data.message);
                 setTimeout(() => {
-                    refreshTabContent();
+                    location.reload();
                 }, 800);
             } else {
                 alert('Error: ' + data.message);
@@ -952,93 +925,6 @@ function eliminarOrdenFabricacion(ordenId) {
 
 function verDetalleOrden(ordenId) {
     window.location.href = `/orden_fabricacion/${ordenId}`;
-}
-
-// Función para refrescar solo el contenido de las pestañas
-function refreshTabContent() {
-    // Crear overlay suave de transición
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.8);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-        backdrop-filter: blur(1px);
-        transition: opacity 0.3s ease;
-    `;
-    
-    const loadingDiv = document.createElement('div');
-    loadingDiv.style.cssText = `
-        background: #007bff;
-        color: white;
-        padding: 15px 25px;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        text-align: center;
-    `;
-    
-    loadingDiv.innerHTML = `
-        <i class="fas fa-sync-alt fa-spin" style="margin-right: 10px;"></i>
-        Actualizando contenido...
-    `;
-    
-    overlay.appendChild(loadingDiv);
-    document.body.appendChild(overlay);
-    
-    // Obtener la pestaña activa actual
-    const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
-    const activeTabId = activeTab ? activeTab.id : 'pendientes-fab-tab';
-    
-    // Hacer fetch del contenido actualizado
-    fetch(window.location.pathname + '?' + Date.now())
-        .then(response => response.text())
-        .then(html => {
-            // Crear un elemento temporal para parsear el HTML
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            
-            // Extraer las tablas de cada pestaña del nuevo contenido
-            const newContent = tempDiv.querySelector('#fabricacionTabContent');
-            if (newContent) {
-                // Reemplazar el contenido de las pestañas
-                const currentContent = document.querySelector('#fabricacionTabContent');
-                if (currentContent) {
-                    currentContent.innerHTML = newContent.innerHTML;
-                }
-                
-                // Restaurar la pestaña activa
-                setTimeout(() => {
-                    const tabToActivate = document.getElementById(activeTabId);
-                    if (tabToActivate && !tabToActivate.classList.contains('active')) {
-                        tabToActivate.click();
-                    }
-                    
-                    // Remover overlay suavemente
-                    overlay.style.opacity = '0';
-                    setTimeout(() => {
-                        if (overlay.parentNode) {
-                            overlay.parentNode.removeChild(overlay);
-                        }
-                    }, 300);
-                }, 100);
-            } else {
-                throw new Error('No se pudo obtener el contenido actualizado');
-            }
-        })
-        .catch(error => {
-            console.error('Error refreshing content:', error);
-            // Si falla, hacer reload tradicional como fallback
-            overlay.style.opacity = '0';
-            setTimeout(() => {
-                window.location.reload();
-            }, 300);
-        });
 }
 </script>
 {% endblock %}

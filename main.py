@@ -3154,7 +3154,7 @@ def ordenes_fabricacion():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Órdenes de fabricación pendientes
+    # Órdenes de fabricación pendientes (pendiente aprobación y aprobado diseño)
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
@@ -3164,11 +3164,11 @@ def ordenes_fabricacion():
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE of.estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño')
-        ORDER BY of.fecha_entrega_estimada ASC
+        ORDER BY of.fecha_entrega_estimada ASC NULLS LAST
     ''')
     fabricacion_pendientes = cursor.fetchall()
 
-    # Órdenes de fabricación en proceso
+    # Órdenes de fabricación en proceso (desde enviado a producción hasta listo embalaje)
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
@@ -3178,11 +3178,20 @@ def ordenes_fabricacion():
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
         WHERE of.estado IN ('enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje')
-        ORDER BY of.fecha_entrega_estimada ASC
+        ORDER BY 
+            CASE of.estado
+                WHEN 'enviado_produccion' THEN 1
+                WHEN 'seccionado' THEN 2
+                WHEN 'enchapando' THEN 3
+                WHEN 'mecanizado' THEN 4
+                WHEN 'listo_embalaje' THEN 5
+                ELSE 6
+            END,
+            of.fecha_entrega_estimada ASC NULLS LAST
     ''')
     fabricacion_proceso = cursor.fetchall()
 
-    # Órdenes de fabricación terminadas
+    # Órdenes de fabricación terminadas (embalando, listo despacho, despachado)
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
@@ -3191,9 +3200,17 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('embalando', 'listo_despacho', 'despachado')
-        ORDER BY of.fecha_entrega_real DESC
-        LIMIT 20
+        WHERE of.estado IN ('embalando', 'listo_despacho', 'despachado', 'entregado')
+        ORDER BY 
+            CASE of.estado
+                WHEN 'embalando' THEN 1
+                WHEN 'listo_despacho' THEN 2
+                WHEN 'despachado' THEN 3
+                WHEN 'entregado' THEN 4
+                ELSE 5
+            END,
+            of.fecha_entrega_real DESC NULLS LAST
+        LIMIT 50
     ''')
     fabricacion_terminadas = cursor.fetchall()
 
