@@ -6,7 +6,7 @@
                 <h5 class="modal-title">Nueva Orden de Compra/Contrato</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('nueva_orden_compra') }}" method="POST">
+            <form action="{{ url_for('nueva_orden_compra') }}" method="POST" onsubmit="recopilarDatos()"
                 <div class="modal-body">
                     <!-- Tipo de Adjudicación -->
                     <div class="row">
@@ -177,7 +177,7 @@
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" onclick="recopilarDatos()">
+                    <button type="submit" class="btn btn-primary">
                         <span id="submit-text">Crear</span>
                     </button>
                 </div>
@@ -191,9 +191,15 @@ let categorias = [];
 let clientes = [];
 
 // Cargar datos al abrir el modal
-document.getElementById('nuevaOrdenModal').addEventListener('shown.bs.modal', function () {
-    cargarCategorias();
-    cargarClientesDisponibles();
+document.addEventListener('DOMContentLoaded', function() {
+    const modalElement = document.getElementById('nuevaOrdenModal');
+    if (modalElement) {
+        modalElement.addEventListener('shown.bs.modal', function () {
+            console.log('Modal opened, loading data...');
+            cargarCategorias();
+            cargarClientesDisponibles();
+        });
+    }
 });
 
 function toggleTipoAdjudicacion() {
@@ -278,21 +284,45 @@ function actualizarBotonesEliminarEntregas() {
 }
 
 function cargarCategorias() {
+    console.log('Loading categories...');
     fetch('/api/categorias')
-        .then(response => response.json())
+        .then(response => {
+            console.log('Categories response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Categories data received:', data);
             categorias = data;
             actualizarSelectoresCategorias();
+            console.log('Categories loaded successfully, total:', data.length);
         })
-        .catch(error => console.error('Error cargando categorías:', error));
+        .catch(error => {
+            console.error('Error cargando categorías:', error);
+        });
 }
 
 function cargarClientesDisponibles() {
+    console.log('Loading available clients...');
     fetch('/api/clientes_activos')
-        .then(response => response.json())
+        .then(response => {
+            console.log('Clients response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Clients data received:', data);
             clientes = data;
             const clienteSelect = document.getElementById('cliente_id');
+            if (!clienteSelect) {
+                console.error('Cliente select element not found');
+                return;
+            }
+            
             clienteSelect.innerHTML = '<option value="">Seleccionar cliente...</option><option value="nuevo">+ Crear nuevo cliente</option>';
 
             data.forEach(cliente => {
@@ -301,8 +331,15 @@ function cargarClientesDisponibles() {
                 option.textContent = cliente.nombre;
                 clienteSelect.appendChild(option);
             });
+            console.log('Clients loaded successfully, total:', data.length);
         })
-        .catch(error => console.error('Error cargando clientes:', error));
+        .catch(error => {
+            console.error('Error cargando clientes:', error);
+            const clienteSelect = document.getElementById('cliente_id');
+            if (clienteSelect) {
+                clienteSelect.innerHTML = '<option value="">Error cargando clientes</option>';
+            }
+        });
 }
 
 function actualizarSelectoresCategorias() {
@@ -490,11 +527,6 @@ function recopilarDatos() {
         }
     });
 
-    // Convertir a formato esperado por el backend
-    const categoriasParaEnvio = categoriasSeleccionadas.map((cat, index) => {
-        return cat + ',' + (subcategoriasSeleccionadas[index] || '');
-    });
-
     // Limpiar campos hidden existentes
     let categoriasSelected = document.getElementById('categorias_selected');
     if (!categoriasSelected) {
@@ -516,31 +548,6 @@ function recopilarDatos() {
 
     // Asignar valores
     categoriasSelected.value = JSON.stringify(categoriasSeleccionadas);
-    subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas); categoriasSeleccionadas.map((cat, index) => {
-        return cat + ',' + (subcategoriasSeleccionadas[index] || '');
-    });
-
-    // Limpiar campos hidden existentes
-    let categoriasSelected = document.getElementById('categorias_selected');
-    if (!categoriasSelected) {
-        categoriasSelected = document.createElement('input');
-        categoriasSelected.type = 'hidden';
-        categoriasSelected.name = 'categorias_selected';
-        categoriasSelected.id = 'categorias_selected';
-        document.querySelector('form').appendChild(categoriasSelected);
-    }
-
-    let subcategoriasSelected = document.getElementById('subcategorias_selected');
-    if (!subcategoriasSelected) {
-        subcategoriasSelected = document.createElement('input');
-        subcategoriasSelected.type = 'hidden';
-        subcategoriasSelected.name = 'subcategorias_selected';
-        subcategoriasSelected.id = 'subcategorias_selected';
-        document.querySelector('form').appendChild(subcategoriasSelected);
-    }
-
-    // Asignar valores
-    categoriasSelected.value = JSON.stringify(categoriasSeleccionadas);
-    subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas);iasSeleccionadas);
+    subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas);
 }
 </script>
