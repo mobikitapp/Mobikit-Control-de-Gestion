@@ -2964,7 +2964,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
+        estados_secuencia = ['enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -3016,7 +3016,7 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['pendiente_fabricacion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
+        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -3035,6 +3035,76 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
 
         except ValueError:
             return jsonify({'success': False, 'message': 'Estado actual no válido'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/aprobar_diseno_orden/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'vendedor'])
+def api_aprobar_diseno_orden(orden_id):
+    """Aprobar diseño de una orden de fabricación"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe y está pendiente de aprobación
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
+
+        if orden['estado'] != 'pendiente_aprobacion_diseño':
+            return jsonify({'success': False, 'message': 'La orden no está pendiente de aprobación de diseño'})
+
+        # Cambiar estado a aprobado_diseño
+        cursor.execute('''
+            UPDATE ordenes_fabricacion
+            SET estado = 'aprobado_diseño'
+            WHERE id = %s
+        ''', (orden_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Diseño aprobado para orden {orden["codigo_orden"]}'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/enviar_a_produccion/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'operación'])
+def api_enviar_a_produccion(orden_id):
+    """Enviar una orden de fabricación a producción"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe y está aprobada
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
+
+        if orden['estado'] != 'aprobado_diseño':
+            return jsonify({'success': False, 'message': 'La orden debe estar aprobada por diseño primero'})
+
+        # Cambiar estado a enviado_produccion
+        cursor.execute('''
+            UPDATE ordenes_fabricacion
+            SET estado = 'enviado_produccion'
+            WHERE id = %s
+        ''', (orden_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Orden {orden["codigo_orden"]} enviada a producción'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})

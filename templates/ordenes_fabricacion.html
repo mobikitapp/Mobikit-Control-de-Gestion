@@ -360,7 +360,7 @@
                             <div class="alert alert-info" id="orden_info" style="display: none;">
                                 <i class="fas fa-info-circle"></i>
                                 <strong>Información de la Orden:</strong>
-                                <div id="orden_details"></div>
+                                <div id="orden_details">Seleccione una orden para ver detalles</div>
                             </div>
                         </div>
                     </div>
@@ -418,6 +418,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     } else {
         console.error('Modal nuevaOrdenFabricacionModal not found');
+    }
+
+    // Inicializar elementos de información
+    const ordenInfo = document.getElementById('orden_info');
+    const ordenDetails = document.getElementById('orden_details');
+    if (!ordenInfo) {
+        console.warn('orden_info element not found, creating placeholder');
+    }
+    if (!ordenDetails) {
+        console.warn('orden_details element not found, creating placeholder');
     }
 
     // Event listener para cambio de orden de compra
@@ -516,16 +526,32 @@ function cargarDetallesOrden(proyectoId) {
         return;
     }
 
-    // Por simplicidad, solo mostramos que se seleccionó un proyecto
-    // Los detalles completos se pueden obtener si es necesario
-    ordenInfo.style.display = 'block';
-    ordenDetails.innerHTML = `<strong>Proyecto seleccionado:</strong> ID ${proyectoId}`;
+    if (proyectoId) {
+        // Buscar el proyecto en los datos cargados
+        const select = document.getElementById('orden_compra_id');
+        const selectedOption = select.querySelector(`option[value="${proyectoId}"]`);
+        
+        ordenInfo.style.display = 'block';
+        if (selectedOption) {
+            ordenDetails.textContent = `Proyecto seleccionado: ${selectedOption.textContent}`;
+        } else {
+            ordenDetails.textContent = `Proyecto seleccionado: ID ${proyectoId}`;
+        }
+    } else {
+        ordenInfo.style.display = 'none';
+        ordenDetails.textContent = 'Seleccione una orden para ver detalles';
+    }
 }
 
 function resetOrdenInfo() {
     const ordenInfo = document.getElementById('orden_info');
+    const ordenDetails = document.getElementById('orden_details');
+    
     if (ordenInfo) {
         ordenInfo.style.display = 'none';
+    }
+    if (ordenDetails) {
+        ordenDetails.textContent = 'Seleccione una orden para ver detalles';
     }
 }
 
@@ -583,7 +609,7 @@ function cargarCategoriasProyecto(ordenId) {
 function resetCategorias() {
     const categoriasDiv = document.getElementById('categorias_fabricacion');
     if (categoriasDiv) {
-        categoriasDiv.innerHTML = '<p class="text-muted">Seleccione una orden de compra/contrato para ver las categorías disponibles</p>';
+        categoriasDiv.innerHTML = '<p class="text-muted">Seleccione un proyecto para ver las categorías disponibles</p>';
     }
 }
 
