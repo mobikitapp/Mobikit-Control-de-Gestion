@@ -2560,7 +2560,7 @@ def api_calendar_events():
         # Colores según estado y urgencia
         color = '#6c757d'  # gris por defecto
         textColor = '#fff'
-        
+
         if row['estado'] == 'en_desarrollo':
             color = '#17a2b8'  # info azul
         elif row['estado'] == 'aprobado_produccion':
@@ -2685,7 +2685,7 @@ def api_iniciar_proceso_orden(orden_id):
         cursor.execute('''
             UPDATE ordenes_fabricacion
             SET estado = %s, fecha_inicio = CURRENT_TIMESTAMP
-            WHERE proyecto_id = %s AND estado = 'pendiente_fabricacion'
+            WHERE proyecto_id = %s AND estado = 'pendiente_aprobacion_diseno'
         ''', ('aprobado_produccion', orden_id))
 
         conn.commit()
@@ -2936,7 +2936,7 @@ def api_iniciar_produccion(fabricacion_id):
         ''', (fabricacion_id,))
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Producción iniciada para {fab["codigo_orden"]}'})
+        return jsonify({'success': True, 'message': 'Producción iniciada para {fab["codigo_orden"]}'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3058,7 +3058,7 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('pendiente_fabricacion', 'aprobado_diseño')
+        WHERE of.estado IN ('pendiente_aprobacion_diseno', 'aprobado_diseño')
         ORDER BY of.fecha_entrega_estimada ASC
     ''')
     fabricacion_pendientes = cursor.fetchall()
@@ -3141,7 +3141,7 @@ def crear_orden_fabricacion():
                 cantidad_tableros, glosa, estado, observaciones
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
-              cantidad_tableros, glosa, 'pendiente_fabricacion', observaciones))
+              cantidad_tableros, glosa, 'pendiente_aprobacion_diseno', observaciones))
         orden_fabricacion_id = cursor.fetchone()['id']
 
         # Procesar categorías seleccionadas
