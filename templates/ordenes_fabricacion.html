@@ -406,6 +406,53 @@
 // Variables globales
 let proyectosData = [];
 
+// Función para mostrar mensajes de éxito
+function showSuccessMessage(message) {
+    // Crear overlay de carga
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        backdrop-filter: blur(2px);
+    `;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = `
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+        padding: 20px 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        text-align: center;
+        max-width: 400px;
+    `;
+    
+    messageDiv.innerHTML = `
+        <i class="fas fa-check-circle" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
+        <strong>${message}</strong>
+        <div style="margin-top: 10px; font-size: 0.9em;">Actualizando página...</div>
+    `;
+    
+    overlay.appendChild(messageDiv);
+    document.body.appendChild(overlay);
+    
+    // Remover overlay después del timeout
+    setTimeout(() => {
+        if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+        }
+    }, 1500);
+}
+
 // Cargar órdenes de compra al abrir el modal
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, setting up modal listeners');
@@ -639,6 +686,12 @@ function resetCategorias() {
 
 function aprobarDiseno(ordenId) {
     if (confirm('¿Confirmas la aprobación del diseño de esta orden?')) {
+        // Mostrar indicador de carga
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        button.disabled = true;
+        
         // Guardar la pestaña activa antes de la recarga
         const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
         if (activeTab) {
@@ -660,21 +713,34 @@ function aprobarDiseno(ordenId) {
         })
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                // Mostrar mensaje de éxito y recargar suavemente
+                showSuccessMessage(data.message);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
                 alert('Error: ' + data.message);
+                button.innerHTML = originalText;
+                button.disabled = false;
             }
         })
         .catch(error => {
             console.error('Error:', error);
             alert('Error de conexión: ' + error.message);
+            button.innerHTML = originalText;
+            button.disabled = false;
         });
     }
 }
 
 function enviarAProduccion(ordenId) {
     if (confirm('¿Confirmas enviar esta orden a producción?')) {
+        // Mostrar indicador de carga
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        button.disabled = true;
+        
         // Guardar la pestaña activa antes de la recarga
         const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
         if (activeTab) {
@@ -696,22 +762,32 @@ function enviarAProduccion(ordenId) {
         })
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                showSuccessMessage(data.message);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
                 alert('Error: ' + data.message);
+                button.innerHTML = originalText;
+                button.disabled = false;
             }
         })
         .catch(error => {
             console.error('Error:', error);
             alert('Error de conexión: ' + error.message);
+            button.innerHTML = originalText;
+            button.disabled = false;
         });
     }
 }
 
 function iniciarFabricacion(ordenId) {
     if (confirm('¿Confirmas iniciar la fabricación de esta orden (Seccionado)?')) {
-        // Guardar la pestaña activa antes de la recarga
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        button.disabled = true;
+        
         const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
         if (activeTab) {
             localStorage.setItem('activeTab', activeTab.id);
@@ -732,22 +808,32 @@ function iniciarFabricacion(ordenId) {
         })
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                showSuccessMessage(data.message);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
                 alert('Error: ' + data.message);
+                button.innerHTML = originalText;
+                button.disabled = false;
             }
         })
         .catch(error => {
             console.error('Error:', error);
             alert('Error de conexión: ' + error.message);
+            button.innerHTML = originalText;
+            button.disabled = false;
         });
     }
 }
 
 function avanzarFabricacion(ordenId) {
     if (confirm('¿Confirmas avanzar esta orden a la siguiente etapa?')) {
-        // Guardar la pestaña activa antes de la recarga
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        button.disabled = true;
+        
         const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
         if (activeTab) {
             localStorage.setItem('activeTab', activeTab.id);
@@ -768,22 +854,32 @@ function avanzarFabricacion(ordenId) {
         })
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                showSuccessMessage(data.message);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
                 alert('Error: ' + data.message);
+                button.innerHTML = originalText;
+                button.disabled = false;
             }
         })
         .catch(error => {
             console.error('Error:', error);
             alert('Error de conexión: ' + error.message);
+            button.innerHTML = originalText;
+            button.disabled = false;
         });
     }
 }
 
 function retrocederFabricacion(ordenId) {
     if (confirm('¿Confirmas retroceder esta orden a la etapa anterior?')) {
-        // Guardar la pestaña activa antes de la recarga
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        button.disabled = true;
+        
         const activeTab = document.querySelector('#fabricacionTab .nav-link.active');
         if (activeTab) {
             localStorage.setItem('activeTab', activeTab.id);
@@ -804,15 +900,21 @@ function retrocederFabricacion(ordenId) {
         })
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                showSuccessMessage(data.message);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
                 alert('Error: ' + data.message);
+                button.innerHTML = originalText;
+                button.disabled = false;
             }
         })
         .catch(error => {
             console.error('Error:', error);
             alert('Error de conexión: ' + error.message);
+            button.innerHTML = originalText;
+            button.disabled = false;
         });
     }
 }

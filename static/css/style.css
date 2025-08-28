@@ -1,4 +1,3 @@
-
 /* Mobikit - Notion-inspired Design */
 
 :root {
@@ -16,7 +15,7 @@
     --mobikit-hover: #F5F5F5;
     --mobikit-text-light: #787774;
     --mobikit-sidebar: #F7F6F3;
-    
+
     /* Colores corporativos específicos */
     --mobikit-cocinas: #EF1A1F; /* Rojo para cocinas */
     --mobikit-closet: #626363; /* Gris para closets */
@@ -560,19 +559,19 @@ footer {
     .container-fluid {
         padding: 1rem;
     }
-    
+
     .card-body {
         padding: 1rem;
     }
-    
+
     .navbar {
         padding: 0.5rem 1rem;
     }
-    
+
     h1 {
         font-size: 2rem;
     }
-    
+
     h2 {
         font-size: 1.5rem;
     }
@@ -582,6 +581,91 @@ footer {
 .loading {
     opacity: 0.6;
     pointer-events: none;
+}
+
+/* Loading states */
+.btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(2px);
+}
+
+.loading-message {
+    background: white;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    text-align: center;
+    max-width: 400px;
+}
+
+/* Smooth transitions for page elements */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.tab-content {
+    opacity: 1;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.tab-content.loading {
+    opacity: 0.6;
+}
+
+/* Success message styles */
+.success-message {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    text-align: center;
+    max-width: 400px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .navbar-brand img {
+        height: 30px;
+    }
+
+    .card-columns {
+        column-count: 1;
+    }
+
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+
+    .loading-message {
+        margin: 0 20px;
+        padding: 15px 20px;
+    }
 }
 
 /* Custom scrollbar */
