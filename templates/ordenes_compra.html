@@ -17,32 +17,32 @@
     </div>
 </div>
 
-<!-- Pestañas de Estados -->
-<ul class="nav nav-tabs" id="ordenesTab" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="pendientes-tab" data-bs-toggle="tab" data-bs-target="#pendientes" type="button" role="tab">
-            <i class="fas fa-clock text-warning"></i> Pendientes ({{ ordenes_pendientes|length }})
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="proceso-tab" data-bs-toggle="tab" data-bs-target="#proceso" type="button" role="tab">
-            <i class="fas fa-industry"></i> En Proceso ({{ ordenes_proceso|length }})
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="terminadas-tab" data-bs-toggle="tab" data-bs-target="#terminadas" type="button" role="tab">
-            <i class="fas fa-check-circle text-success"></i> Terminadas ({{ ordenes_terminadas|length }})
-        </button>
-    </li>
-</ul>
+<!-- Pestañas de navegación -->
+        <ul class="nav nav-tabs" id="ordenesTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="activas-tab" data-bs-toggle="tab" data-bs-target="#activas" type="button" role="tab">
+                    <i class="fas fa-list"></i> Activas ({{ ordenes_pendientes|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="proceso-tab" data-bs-toggle="tab" data-bs-target="#proceso" type="button" role="tab">
+                    <i class="fas fa-cogs"></i> En Fabricación ({{ ordenes_proceso|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="entregadas-tab" data-bs-toggle="tab" data-bs-target="#entregadas" type="button" role="tab">
+                    <i class="fas fa-check-circle"></i> Entregadas ({{ ordenes_terminadas|length }})
+                </button>
+            </li>
+        </ul>
 
 <div class="tab-content" id="ordenesTabContent">
-    <!-- Panel Órdenes Pendientes -->
-    <div class="tab-pane fade show active" id="pendientes" role="tabpanel">
-        <div class="card mt-3">
-            <div class="card-header bg-warning text-dark">
-                <h5><i class="fas fa-clock"></i> Órdenes Pendientes de Iniciar Proceso</h5>
-            </div>
+    <!-- Órdenes Activas -->
+            <div class="tab-pane fade show active" id="activas" role="tabpanel">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-list"></i> Órdenes de Compra Activas</h6>
+                    </div>
             <div class="card-body">
                 {% if ordenes_pendientes %}
                 <div class="table-responsive">
@@ -232,12 +232,12 @@
         </div>
     </div>
 
-    <!-- Panel Órdenes Terminadas -->
-    <div class="tab-pane fade" id="terminadas" role="tabpanel">
-        <div class="card mt-3">
-            <div class="card-header bg-success text-white">
-                <h5><i class="fas fa-check-circle"></i> Órdenes Terminadas</h5>
-            </div>
+    <!-- Órdenes Entregadas -->
+            <div class="tab-pane fade" id="entregadas" role="tabpanel">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="fas fa-check-circle"></i> Órdenes de Compra Entregadas</h6>
+                    </div>
             <div class="card-body">
                 {% if ordenes_terminadas %}
                 <div class="table-responsive">

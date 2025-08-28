@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS proyectos (
     cliente_id INTEGER NOT NULL REFERENCES clientes(id),
     descripcion TEXT,
     adjudicacion_tipo VARCHAR(20) DEFAULT 'orden_compra' CHECK (adjudicacion_tipo IN ('contrato', 'orden_compra')),
-    estado VARCHAR(30) DEFAULT 'diseño' CHECK (estado IN ('diseño', 'proyecto_simple', 'en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa', 'embalando', 'listo_despacho', 'entregado', 'terminado', 'completado', 'cancelado')),
+    estado VARCHAR(30) DEFAULT 'activo' CHECK (estado IN ('activo', 'entregado', 'cancelado')),
     estado_proyecto VARCHAR(30) DEFAULT 'pendiente_presupuesto' CHECK (estado_proyecto IN ('pendiente_presupuesto', 'presupuestado', 'adjudicado')),
     prioridad VARCHAR(10) DEFAULT 'media' CHECK (prioridad IN ('alta', 'media', 'baja')),
     fecha_inicio DATE,
