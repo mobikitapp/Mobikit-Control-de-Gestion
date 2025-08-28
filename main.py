@@ -3724,7 +3724,7 @@ def crear_orden_fabricacion_desde_oc():
                 cantidad_tableros, glosa, estado, observaciones
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
-              cantidad_tableros, glosa, 'pendiente_fabricacion', observaciones))
+              cantidad_tableros, glosa, 'pendiente_aprobacion_diseño', observaciones))
         orden_fabricacion_id = cursor.fetchone()['id']
 
         # Procesar categorías seleccionadas y crear pedidos de seguimiento
