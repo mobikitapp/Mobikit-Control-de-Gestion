@@ -190,6 +190,37 @@ def init_db():
     except Exception as e:
         print(f"Error creating 'ordenes_compra' table: {e}")
 
+    # Limpiar y recrear tabla ordenes_fabricacion si existe
+    try:
+        # Verificar si la tabla existe y tiene datos problemáticos
+        cursor.execute("""
+            SELECT EXISTS (SELECT 1 FROM information_schema.tables 
+                         WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
+        """)
+        tabla_existe = cursor.fetchone()
+
+        if tabla_existe and tabla_existe[0]:
+            print("Limpiando datos problemáticos de ordenes_fabricacion...")
+            # Eliminar todas las órdenes de fabricación existentes para evitar problemas
+            cursor.execute("DELETE FROM orden_fabricacion_categorias")
+            cursor.execute("DELETE FROM ordenes_fabricacion")
+
+            # Eliminar y recrear la restricción
+            cursor.execute("""
+                ALTER TABLE ordenes_fabricacion 
+                DROP CONSTRAINT IF EXISTS ordenes_fabricacion_estado_check
+            """)
+            cursor.execute("""
+                ALTER TABLE ordenes_fabricacion 
+                ADD CONSTRAINT ordenes_fabricacion_estado_check 
+                CHECK (estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 
+                                'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 
+                                'embalando', 'embalaje_listo', 'listo_despacho', 'despachado', 'entregado'))
+            """)
+            print("Tabla ordenes_fabricacion limpia y restricciones actualizadas")
+    except Exception as e:
+        print(f"Error cleaning 'ordenes_fabricacion' table: {e}")
+
 
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
@@ -1399,7 +1430,7 @@ def nueva_orden_compra():
             try:
                 for i, categoria_id in enumerate(categorias_selected):
                     if categoria_id:  # Solo si hay categoría seleccionada
-                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategories_selected[i] else None
+                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategorias_selected[i] else None
                         cursor.execute('''
                             INSERT INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
                             VALUES (%s, %s, %s)
@@ -2551,28 +2582,38 @@ def api_calendar_events():
         WHERE p.fecha_entrega IS NOT NULL 
         AND p.estado NOT IN ('entregado', 'terminado', 'cancelado', 'completado')
         AND p.archivado = FALSE
+        AND pc.proyecto_id IS NOT NULL
         GROUP BY p.id, p.codigo, p.nombre, p.fecha_entrega, p.estado, p.prioridad,
                  p.monto_neto, p.descripcion, p.fecha_estimada_inicio,
                  c.nombre, c.contacto_principal, u.nombre
     ''')
 
     for row in cursor.fetchall():
-        # Colores según estado y urgencia
+        # Colores según estado del proyecto (no de fabricación individual)
         color = '#6c757d'  # gris por defecto
         textColor = '#fff'
-        
-        if row['estado'] == 'en_desarrollo':
+
+        # Estados de proyecto
+        if row['estado'] == 'diseño':
+            color = '#6f42c1'  # púrpura
+        elif row['estado'] == 'proyecto_simple':
+            color = '#17a2b8'  # info azul
+        elif row['estado'] == 'en_desarrollo':
             color = '#17a2b8'  # info azul
         elif row['estado'] == 'aprobado_produccion':
             color = '#007bff'  # azul primary
-        elif row['estado'] in ['seccionado', 'enchapado', 'mecanizado']:
+        elif row['estado'] == 'seccionado':
             color = '#fd7e14'  # naranja
+        elif row['estado'] == 'enchapado':
+            color = '#e67e22'  # naranja más oscuro
+        elif row['estado'] == 'mecanizado':
+            color = '#d35400'  # naranja oscuro
         elif row['estado'] == 'produccion_completa':
             color = '#20c997'  # teal
         elif row['estado'] == 'embalando':
             color = '#28a745'  # verde
         elif row['estado'] == 'listo_despacho':
-            color = '#dc3545'  # rojo
+            color = '#6c757d'  # gris
 
         # Marcar como urgente si faltan pocos días
         urgente = False
@@ -2590,6 +2631,26 @@ def api_calendar_events():
                 titulo += " (HOY)"
             elif dias <= 7:
                 titulo += f" ({dias}d)"
+
+        # Obtener órdenes de fabricación para este proyecto
+        cursor.execute('''
+            SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
+                   of.cantidad_tableros, of.glosa
+            FROM ordenes_fabricacion of
+            WHERE of.proyecto_id = %s
+            ORDER BY of.created_at ASC
+        ''', (row["id"],))
+        ordenes_fabricacion = []
+        for fab in cursor.fetchall():
+            ordenes_fabricacion.append({
+                'id': fab['id'],
+                'codigo_orden': fab['codigo_orden'],
+                'tipo_orden': fab['tipo_orden'],
+                'estado': fab['estado'],
+                'fecha_entrega_estimada': fab['fecha_entrega_estimada'].isoformat() if fab['fecha_entrega_estimada'] else None,
+                'cantidad_tableros': fab['cantidad_tableros'],
+                'glosa': fab['glosa']
+            })
 
         events.append({
             'id': f'orden_{row["id"]}',
@@ -2613,6 +2674,7 @@ def api_calendar_events():
                 'descripcion': row["descripcion"],
                 'fecha_estimada_inicio': row["fecha_estimada_inicio"].isoformat() if row["fecha_estimada_inicio"] else None,
                 'ordenes_fabricacion_count': row["ordenes_fabricacion_count"],
+                'ordenes_fabricacion': ordenes_fabricacion,
                 'categorias': row["categorias"],
                 'urgente': urgente
             }
@@ -2685,7 +2747,7 @@ def api_iniciar_proceso_orden(orden_id):
         cursor.execute('''
             UPDATE ordenes_fabricacion
             SET estado = %s, fecha_inicio = CURRENT_TIMESTAMP
-            WHERE proyecto_id = %s AND estado = 'pendiente_fabricacion'
+            WHERE proyecto_id = %s AND estado = 'pendiente_aprobacion_diseño'
         ''', ('aprobado_produccion', orden_id))
 
         conn.commit()
@@ -2713,7 +2775,7 @@ def api_terminar_orden(orden_id):
         if cursor.fetchone()[0]:
             cursor.execute('''
                 SELECT COUNT(*) FROM ordenes_fabricacion
-                WHERE proyecto_id = %s AND estado NOT IN ('listo_embalaje', 'despachado', 'entregado')
+                WHERE proyecto_id = %s AND estado NOT IN ('listo_despacho', 'despachado', 'entregado')
             ''', (orden_id,))
             pendientes = cursor.fetchone()['count']
 
@@ -2872,8 +2934,8 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
         if not orden:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        if orden['estado'] not in ['pendiente_fabricacion', 'aprobado_diseño']:
-            return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
+        if orden['estado'] not in ['enviado_produccion']:
+            return jsonify({'success': False, 'message': f'La orden no está lista para iniciar producción. Estado actual: {orden["estado"]}'})
 
         # Cambiar estado de la orden de fabricación a primera etapa
         cursor.execute('''
@@ -2889,19 +2951,23 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
             WHERE id = %s AND estado IN ('en_desarrollo', 'diseño')
         ''', ('aprobado_produccion', orden['proyecto_id'],))
 
-        # Registrar en auditoría
-        cursor.execute('''
-            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
-            VALUES ('ordenes_fabricacion', %s, 'UPDATE', %s, %s)
-        ''', (orden_fabricacion_id, session['user_id'],
-              json.dumps({
-                  'accion': 'iniciar_orden_fabricacion',
-                  'codigo_orden': orden['codigo_orden'],
-                  'iniciado_por': session['user_name']
-              })))
+        # Registrar en auditoría si la tabla existe
+        try:
+            cursor.execute('''
+                INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+                VALUES ('ordenes_fabricacion', %s, 'UPDATE', %s, %s)
+            ''', (orden_fabricacion_id, session['user_id'],
+                  json.dumps({
+                      'accion': 'iniciar_orden_fabricacion',
+                      'codigo_orden': orden['codigo_orden'],
+                      'iniciado_por': session['user_name']
+                  })))
+        except Exception:
+            # Si falla la auditoría, continuar sin error
+            pass
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Orden de fabricación {orden["codigo_orden"]} iniciada. Orden de compra/contrato movida automáticamente a "En Proceso".'})
+        return jsonify({'success': True, 'message': f'Orden de fabricación {orden["codigo_orden"]} iniciada en seccionado.'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -2925,7 +2991,7 @@ def api_iniciar_produccion(fabricacion_id):
         if not fab:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        if fab['estado'] not in ['pendiente_fabricacion', 'aprobado_diseño']:
+        if fab['estado'] not in ['pendiente_aprobacion_diseño', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'La orden no está pendiente de producción'})
 
         # Cambiar a primera etapa de fabricación
@@ -2936,7 +3002,7 @@ def api_iniciar_produccion(fabricacion_id):
         ''', (fabricacion_id,))
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Producción iniciada para {fab["codigo_orden"]}'})
+        return jsonify({'success': True, 'message': 'Producción iniciada para {fab["codigo_orden"]}'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -2964,7 +3030,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
+        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho', 'despachado']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -2972,7 +3038,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
                 nuevo_estado = estados_secuencia[indice_actual + 1]
 
                 # Si es la última etapa, marcar fecha de terminación
-                if nuevo_estado == 'listo_embalaje':
+                if nuevo_estado in ['listo_despacho']:
                     cursor.execute('''
                         UPDATE ordenes_fabricacion
                         SET estado = %s, fecha_entrega_real = CURRENT_TIMESTAMP
@@ -2988,7 +3054,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
                 return jsonify({'success': False, 'message': 'Ya está en la etapa final'})
 
         except ValueError:
-            return jsonify({'success': False, 'message': 'Estado actual no válido'})
+            return jsonify({'success': False, 'message': f'Estado actual no válido para avanzar: {estado_actual}'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3016,7 +3082,7 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['pendiente_fabricacion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje']
+        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -3042,6 +3108,76 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
         conn.close()
 
 
+@app.route('/api/aprobar_diseno_orden/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'vendedor'])
+def api_aprobar_diseno_orden(orden_id):
+    """Aprobar diseño de una orden de fabricación"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe y está pendiente de aprobación
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
+
+        if orden['estado'] != 'pendiente_aprobacion_diseño':
+            return jsonify({'success': False, 'message': f'La orden no está pendiente de aprobación de diseño. Estado actual: {orden["estado"]}'})
+
+        # Cambiar estado a aprobado_diseño
+        cursor.execute('''
+            UPDATE ordenes_fabricacion
+            SET estado = 'aprobado_diseño'
+            WHERE id = %s
+        ''', (orden_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Diseño aprobado para orden {orden["codigo_orden"]}'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/enviar_a_produccion/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'operación'])
+def api_enviar_a_produccion(orden_id):
+    """Enviar una orden de fabricación a producción"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe y está aprobada
+        cursor.execute('SELECT estado, codigo_orden FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
+
+        if orden['estado'] != 'aprobado_diseño':
+            return jsonify({'success': False, 'message': 'La orden debe estar aprobada por diseño primero'})
+
+        # Cambiar estado a enviado_produccion
+        cursor.execute('''
+            UPDATE ordenes_fabricacion
+            SET estado = 'enviado_produccion'
+            WHERE id = %s
+        ''', (orden_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Orden {orden["codigo_orden"]} enviada a producción'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
 @app.route('/ordenes_fabricacion')
 @login_required
 def ordenes_fabricacion():
@@ -3049,7 +3185,7 @@ def ordenes_fabricacion():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Órdenes de fabricación pendientes
+    # Órdenes de fabricación pendientes producción (pendiente aprobación y aprobado diseño)
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
@@ -3058,12 +3194,12 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('pendiente_fabricacion', 'aprobado_diseño')
-        ORDER BY of.fecha_entrega_estimada ASC
+        WHERE of.estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño')
+        ORDER BY of.fecha_entrega_estimada ASC NULLS LAST
     ''')
     fabricacion_pendientes = cursor.fetchall()
 
-    # Órdenes de fabricación en proceso
+    # Órdenes de fabricación en fabricación (enviado producción, seccionado, enchapando, mecanizado)
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
@@ -3072,12 +3208,20 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje')
-        ORDER BY of.fecha_entrega_estimada ASC
+        WHERE of.estado IN ('enviado_produccion', 'seccionado', 'enchapando', 'mecanizado')
+        ORDER BY 
+            CASE of.estado
+                WHEN 'enviado_produccion' THEN 1
+                WHEN 'seccionado' THEN 2
+                WHEN 'enchapando' THEN 3
+                WHEN 'mecanizado' THEN 4
+                ELSE 5
+            END,
+            of.fecha_entrega_estimada ASC NULLS LAST
     ''')
     fabricacion_proceso = cursor.fetchall()
 
-    # Órdenes de fabricación terminadas
+    # Órdenes de fabricación en embalaje (pendiente_embalaje, embalando, embalaje_listo)
     cursor.execute('''
         SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
                of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
@@ -3086,9 +3230,44 @@ def ordenes_fabricacion():
         FROM ordenes_fabricacion of
         JOIN proyectos p ON of.proyecto_id = p.id
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE of.estado IN ('embalando', 'listo_despacho', 'despachado')
-        ORDER BY of.fecha_entrega_real DESC
-        LIMIT 20
+        WHERE of.estado IN ('pendiente_embalaje', 'embalando', 'embalaje_listo')
+        ORDER BY 
+            CASE of.estado
+                WHEN 'pendiente_embalaje' THEN 1
+                WHEN 'embalando' THEN 2
+                WHEN 'embalaje_listo' THEN 3
+                ELSE 4
+            END,
+            of.fecha_entrega_estimada ASC NULLS LAST
+    ''')
+    fabricacion_embalaje = cursor.fetchall()
+
+    # Órdenes de fabricación en bodega (listo_despacho)
+    cursor.execute('''
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
+               of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
+               p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.estado IN ('listo_despacho')
+        ORDER BY of.fecha_entrega_estimada ASC NULLS LAST
+    ''')
+    fabricacion_bodega = cursor.fetchall()
+
+    # Órdenes de fabricación terminadas (despachado, entregado)
+    cursor.execute('''
+        SELECT of.id, of.codigo_orden, of.tipo_orden, of.fecha_entrega_estimada,
+               of.cantidad_tableros, of.glosa, of.estado, of.observaciones,
+               p.codigo as proyecto_codigo, p.nombre as proyecto_nombre,
+               p.adjudicacion_tipo, c.nombre as cliente_nombre, of.fecha_entrega_real
+        FROM ordenes_fabricacion of
+        JOIN proyectos p ON of.proyecto_id = p.id
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        WHERE of.estado IN ('despachado', 'entregado')
+        ORDER BY of.fecha_entrega_real DESC NULLS LAST
+        LIMIT 50
     ''')
     fabricacion_terminadas = cursor.fetchall()
 
@@ -3097,6 +3276,8 @@ def ordenes_fabricacion():
     return render_template('ordenes_fabricacion.html',
                            fabricacion_pendientes=fabricacion_pendientes,
                            fabricacion_proceso=fabricacion_proceso,
+                           fabricacion_embalaje=fabricacion_embalaje,
+                           fabricacion_bodega=fabricacion_bodega,
                            fabricacion_terminadas=fabricacion_terminadas,
                            fecha_hoy=datetime.now().date())
 
@@ -3141,7 +3322,7 @@ def crear_orden_fabricacion():
                 cantidad_tableros, glosa, estado, observaciones
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
-              cantidad_tableros, glosa, 'pendiente_fabricacion', observaciones))
+              cantidad_tableros, glosa, 'pendiente_aprobacion_diseño', observaciones))
         orden_fabricacion_id = cursor.fetchone()['id']
 
         # Procesar categorías seleccionadas
@@ -3363,13 +3544,46 @@ def eliminar_orden_fabricacion(orden_id):
         codigo_orden, estado = orden['codigo_orden'], orden['estado']
 
         # Solo permitir eliminar órdenes pendientes
-        if estado not in ['pendiente_fabricacion', 'aprobado_diseño']:
+        if estado not in ['pendiente_aprobacion_diseño', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'No se puede eliminar una orden en proceso o terminada'})
 
         # Eliminar categorías de la orden
         cursor.execute('DELETE FROM orden_fabricacion_categorias WHERE orden_fabricacion_id = %s', (orden_id,))
 
         # Eliminar la orden
+        cursor.execute('DELETE FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Orden {codigo_orden} eliminada exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al eliminar orden: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/eliminar_orden_fabricacion_por_codigo/<codigo_orden>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general'])
+def eliminar_orden_fabricacion_por_codigo(codigo_orden):
+    """Eliminar orden de fabricación por código"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe
+        cursor.execute('SELECT id, estado FROM ordenes_fabricacion WHERE codigo_orden = %s', (codigo_orden,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': f'Orden de fabricación {codigo_orden} no encontrada'})
+
+        orden_id, estado = orden['id'], orden['estado']
+
+        # Eliminar categorías de la orden
+        cursor.execute('DELETE FROM orden_fabricacion_categorias WHERE orden_fabricacion_id = %s', (orden_id,))
+
+        # Eliminar la orden (sin restricciones de estado para limpiar datos problemáticos)
         cursor.execute('DELETE FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
 
         conn.commit()
@@ -3590,7 +3804,7 @@ def crear_orden_fabricacion_desde_oc():
                 cantidad_tableros, glosa, estado, observaciones
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         ''', (codigo_orden, proyecto_id, tipo_orden, fecha_entrega_estimada,
-              cantidad_tableros, glosa, 'pendiente_fabricacion', observaciones))
+              cantidad_tableros, glosa, 'pendiente_aprobacion_diseño', observaciones))
         orden_fabricacion_id = cursor.fetchone()['id']
 
         # Procesar categorías seleccionadas y crear pedidos de seguimiento

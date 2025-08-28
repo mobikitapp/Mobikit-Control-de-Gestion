@@ -26,10 +26,12 @@
                             <span class="badge bg-info">{{ orden.tipo_orden.title() }}</span>
                         </p>
                         <p><strong>Estado Actual:</strong>
-                            {% if orden.estado == 'pendiente_fabricacion' %}
-                                <span class="badge bg-warning">Pendiente Fabricación</span>
-                            {% elif orden.estado == 'aprobado_produccion' %}
-                                <span class="badge bg-info">Aprobado Producción</span>
+                            {% if orden.estado == 'pendiente_aprobacion_diseno' %}
+                                <span class="badge bg-warning">Pendiente Aprobación Diseño</span>
+                            {% elif orden.estado == 'aprobado_diseno' %}
+                                <span class="badge bg-info">Aprobado Diseño</span>
+                            {% elif orden.estado == 'enviado_produccion' %}
+                                <span class="badge bg-primary">Enviado Producción</span>
                             {% elif orden.estado == 'seccionado' %}
                                 <span class="badge bg-secondary">Seccionado</span>
                             {% elif orden.estado == 'enchapando' %}
@@ -44,8 +46,6 @@
                                 <span class="badge bg-danger">Listo Despacho</span>
                             {% elif orden.estado == 'despachado' %}
                                 <span class="badge bg-dark">Despachado</span>
-                            {% elif orden.estado == 'entregado' %}
-                                <span class="badge bg-dark">Entregado</span>
                             {% else %}
                                 <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                             {% endif %}
@@ -144,25 +144,37 @@
                 <h5><i class="fas fa-cogs"></i> Acciones</h5>
             </div>
             <div class="card-body">
-                {% if orden.estado in ['pendiente_fabricacion', 'aprobado_diseño'] %}
+                {% if orden.estado == 'pendiente_aprobacion_diseno' and session.user_role in ['admin', 'general', 'vendedor'] %}
+                <button class="btn btn-success btn-sm mb-2 w-100" onclick="aprobarDiseno({{ orden.id }})">
+                    <i class="fas fa-check"></i> Aprobar Diseño
+                </button>
+                {% endif %}
+
+                {% if orden.estado == 'aprobado_diseno' and session.user_role in ['admin', 'general', 'operación'] %}
+                <button class="btn btn-primary btn-sm mb-2 w-100" onclick="enviarAProduccion({{ orden.id }})">
+                    <i class="fas fa-arrow-right"></i> Enviar a Producción
+                </button>
+                {% endif %}
+
+                {% if orden.estado == 'enviado_produccion' and session.user_role in ['admin', 'general', 'operación'] %}
                 <button class="btn btn-success btn-sm mb-2 w-100" onclick="iniciarFabricacion({{ orden.id }})">
                     <i class="fas fa-play"></i> Iniciar Fabricación
                 </button>
                 {% endif %}
 
-                {% if orden.estado in ['seccionado', 'enchapando', 'mecanizado'] %}
+                {% if orden.estado in ['seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 'embalando', 'listo_despacho'] and session.user_role in ['admin', 'general', 'operación'] %}
                 <button class="btn btn-primary btn-sm mb-2 w-100" onclick="avanzarFabricacion({{ orden.id }})">
                     <i class="fas fa-arrow-right"></i> Avanzar Etapa
                 </button>
                 {% endif %}
 
-                {% if session.user_role in ['admin', 'general'] and orden.estado not in ['pendiente_fabricacion'] %}
+                {% if session.user_role in ['admin', 'general'] and orden.estado not in ['pendiente_aprobacion_diseno'] %}
                 <button class="btn btn-secondary btn-sm mb-2 w-100" onclick="retrocederFabricacion({{ orden.id }})">
                     <i class="fas fa-arrow-left"></i> Retroceder Etapa
                 </button>
                 {% endif %}
 
-                {% if orden.estado in ['pendiente_fabricacion', 'aprobado_diseño'] %}
+                {% if orden.estado in ['pendiente_aprobacion_diseno', 'aprobado_diseno'] and session.user_role in ['admin', 'general'] %}
                 <button class="btn btn-danger btn-sm w-100" onclick="eliminarOrdenFabricacion({{ orden.id }})">
                     <i class="fas fa-trash"></i> Eliminar Orden
                 </button>
@@ -176,8 +188,68 @@
 
 {% block scripts %}
 <script>
+function aprobarDiseno(ordenId) {
+    if (confirm('¿Confirmas la aprobación del diseño de esta orden?')) {
+        fetch(`/api/aprobar_diseno_orden/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    }
+}
+
+function enviarAProduccion(ordenId) {
+    if (confirm('¿Confirmas enviar esta orden a producción?')) {
+        fetch(`/api/enviar_a_produccion/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    }
+}
+
 function iniciarFabricacion(ordenId) {
-    if (confirm('¿Confirmas iniciar la fabricación de esta orden?')) {
+    if (confirm('¿Confirmas iniciar la fabricación de esta orden (Seccionado)?')) {
         fetch(`/api/iniciar_orden_fabricacion/${ordenId}`, {
             method: 'POST',
             headers: {

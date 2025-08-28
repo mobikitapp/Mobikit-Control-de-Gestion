@@ -153,7 +153,7 @@ CREATE TABLE IF NOT EXISTS ordenes_fabricacion (
     codigo_orden VARCHAR(50) UNIQUE NOT NULL,
     proyecto_id INTEGER NOT NULL REFERENCES proyectos(id),
     tipo_orden VARCHAR(50) NOT NULL,
-    estado VARCHAR(30) DEFAULT 'pendiente_fabricacion' CHECK (estado IN ('pendiente_fabricacion', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'listo_embalaje', 'embalando', 'listo_despacho', 'despachado', 'entregado')),
+    estado VARCHAR(30) DEFAULT 'pendiente_aprobacion_diseño' CHECK (estado IN ('pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho', 'despachado', 'entregado')),
     fecha_entrega_estimada DATE,
     fecha_inicio TIMESTAMP,
     fecha_entrega_real TIMESTAMP,

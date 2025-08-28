@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Calendario de Entregas - Mobikit{% endblock %}
@@ -11,12 +10,12 @@
         <label class="btn btn-outline-primary" for="showOrdenes">
             <i class="fas fa-file-invoice"></i> Órdenes de Compra
         </label>
-        
+
         <input type="checkbox" class="btn-check" id="showDespachos" checked>
         <label class="btn btn-outline-danger" for="showDespachos">
             <i class="fas fa-truck"></i> Despachos
         </label>
-        
+
         <input type="checkbox" class="btn-check" id="showUrgentes">
         <label class="btn btn-outline-warning" for="showUrgentes">
             <i class="fas fa-exclamation-triangle"></i> Solo Urgentes
@@ -29,13 +28,22 @@
     <div class="card-body py-2">
         <div class="row text-center">
             <div class="col-md-2">
+                <small><span class="badge" style="background-color: #6f42c1;">Diseño</span></small>
+            </div>
+            <div class="col-md-2">
                 <small><span class="badge" style="background-color: #17a2b8;">En Desarrollo</span></small>
             </div>
             <div class="col-md-2">
-                <small><span class="badge" style="background-color: #007bff;">Aprobado Prod.</span></small>
+                <small><span class="badge" style="background-color: #007bff;">Aprobado Producción</span></small>
             </div>
             <div class="col-md-2">
-                <small><span class="badge" style="background-color: #fd7e14;">En Fabricación</span></small>
+                <small><span class="badge" style="background-color: #fd7e14;">Seccionado</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #e67e22;">Enchapado</span></small>
+            </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #d35400;">Mecanizado</span></small>
             </div>
             <div class="col-md-2">
                 <small><span class="badge" style="background-color: #20c997;">Prod. Completa</span></small>
@@ -44,8 +52,11 @@
                 <small><span class="badge" style="background-color: #28a745;">Embalando</span></small>
             </div>
             <div class="col-md-2">
-                <small><span class="badge" style="background-color: #dc3545;">Listo/Urgente</span></small>
+                <small><span class="badge" style="background-color: #6c757d;">Listo Despacho</span></small>
             </div>
+            <div class="col-md-2">
+                <small><span class="badge" style="background-color: #dc3545;">Urgente/Vencido</span></small>
+            </div></div>
         </div>
     </div>
 </div>
@@ -58,7 +69,7 @@
 
 <!-- Modal para detalles de orden de compra -->
 <div class="modal fade" id="ordenModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl"></div>
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="ordenModalTitle">Detalle de Orden de Compra</h5>
@@ -73,7 +84,10 @@
                     <i class="fas fa-eye"></i> Ver Proyecto
                 </button>
                 <button type="button" class="btn btn-success" id="verOrdenesBtn">
-                    <i class="fas fa-industry"></i> Ver Órdenes Fabricación
+                    <i class="fas fa-industry"></i> Gestión Fabricación
+                </button>
+                <button type="button" class="btn btn-info" id="verOrdenCompraBtn">
+                    <i class="fas fa-file-invoice"></i> Ver Orden Compra
                 </button>
             </div>
         </div>
@@ -110,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');
     let calendar;
     let allEvents = [];
-    
+
     // Inicializar FullCalendar
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: window.innerWidth <= 768 ? 'listWeek' : 'dayGridMonth',
@@ -125,17 +139,17 @@ document.addEventListener('DOMContentLoaded', function() {
         selectable: true,
         dayMaxEvents: 3,
         eventMaxStack: 3,
-        
+
         // Cargar eventos
         events: function(info, successCallback, failureCallback) {
             loadCalendarEvents(successCallback, failureCallback);
         },
-        
+
         // Manejar clic en evento
         eventClick: function(info) {
             showEventDetails(info.event);
         },
-        
+
         // Configuración responsive
         windowResize: function() {
             if (window.innerWidth <= 768) {
@@ -144,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 calendar.changeView('dayGridMonth');
             }
         },
-        
+
         // Tooltip hover
         eventMouseEnter: function(info) {
             const props = info.event.extendedProps;
@@ -167,13 +181,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 pointer-events: none;
             `;
             document.body.appendChild(tooltip);
-            
+
             info.el.addEventListener('mousemove', function(e) {
                 tooltip.style.left = (e.pageX + 10) + 'px';
                 tooltip.style.top = (e.pageY - 10) + 'px';
             });
         },
-        
+
         eventMouseLeave: function(info) {
             const tooltip = document.querySelector('.calendar-tooltip');
             if (tooltip) {
@@ -181,9 +195,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-    
+
     calendar.render();
-    
+
     // Función para cargar eventos del calendario
     function loadCalendarEvents(successCallback, failureCallback) {
         fetch('/api/calendar_events')
@@ -198,38 +212,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 failureCallback(error);
             });
     }
-    
+
     // Filtrar eventos según los checkboxes
     function filterEvents(events) {
         const showOrdenes = document.getElementById('showOrdenes').checked;
         const showDespachos = document.getElementById('showDespachos').checked;
         const showUrgentes = document.getElementById('showUrgentes').checked;
-        
+
         return events.filter(event => {
             // Filtro por tipo
             if (event.type === 'orden_compra' && !showOrdenes) return false;
             if (event.type === 'despacho' && !showDespachos) return false;
-            
+
             // Filtro por urgencia
             if (showUrgentes && event.type === 'orden_compra') {
                 return event.extendedProps.urgente === true;
             }
-            
+
             return true;
         });
     }
-    
+
     // Mostrar detalles del evento
     function showEventDetails(event) {
         const props = event.extendedProps;
-        
+
         if (event.type === 'orden_compra') {
             showOrdenDetails(event, props);
         } else if (event.type === 'despacho') {
             showDespachoDetails(event, props);
         }
     }
-    
+
     // Mostrar detalles de orden de compra
     function showOrdenDetails(event, props) {
         const modal = new bootstrap.Modal(document.getElementById('ordenModal'));
@@ -237,31 +251,31 @@ document.addEventListener('DOMContentLoaded', function() {
         const modalBody = document.getElementById('ordenModalBody');
         const verProyectoBtn = document.getElementById('verProyectoBtn');
         const verOrdenesBtn = document.getElementById('verOrdenesBtn');
-        
+
         modalTitle.innerHTML = `<i class="fas fa-file-invoice"></i> ${props.codigo} - ${props.proyecto}`;
-        
+
         // Estado badge
         let estadoBadge = '';
         const estadoColors = {
             'en_desarrollo': 'info',
             'aprobado_produccion': 'primary', 
             'seccionado': 'warning',
-            'enchapado': 'warning',
+            'enchapando': 'warning',
             'mecanizado': 'warning',
             'produccion_completa': 'info',
             'embalando': 'success',
-            'listo_despacho': 'danger'
+            'listo_despacho': 'secondary'
         };
         const badgeColor = estadoColors[props.estado] || 'secondary';
         estadoBadge = `<span class="badge bg-${badgeColor}">${props.estado.replace('_', ' ').toUpperCase()}</span>`;
-        
+
         // Urgencia
         let urgenciaInfo = '';
         if (props.dias_restantes !== null) {
             const dias = Math.round(props.dias_restantes);
             let urgenciaClass = 'text-success';
             let urgenciaText = `${dias} días restantes`;
-            
+
             if (dias < 0) {
                 urgenciaClass = 'text-danger';
                 urgenciaText = `Vencido hace ${Math.abs(dias)} días`;
@@ -272,12 +286,107 @@ document.addEventListener('DOMContentLoaded', function() {
                 urgenciaClass = 'text-warning';
                 urgenciaText = `URGENTE: ${dias} días restantes`;
             }
-            
+
             urgenciaInfo = `<div class="alert alert-light border-start border-4 ${urgenciaClass.replace('text-', 'border-')} mb-3">
                 <strong class="${urgenciaClass}"><i class="fas fa-clock"></i> ${urgenciaText}</strong>
             </div>`;
         }
-        
+
+        // Generar tabla de órdenes de fabricación
+        let fabricacionTabla = '';
+        if (props.ordenes_fabricacion && props.ordenes_fabricacion.length > 0) {
+            fabricacionTabla = `
+                <div class="mt-3">
+                    <h6><i class="fas fa-industry text-warning"></i> Órdenes de Fabricación (${props.ordenes_fabricacion.length})</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Tipo</th>
+                                    <th>Estado</th>
+                                    <th>Tableros</th>
+                                    <th>Entrega Est.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            props.ordenes_fabricacion.forEach(fab => {
+                // Mapear estados a colores
+                let estadoClass = 'secondary';
+                let estadoTexto = fab.estado.replace(/_/g, ' ').toUpperCase();
+                
+                switch(fab.estado) {
+                    case 'pendiente_aprobacion_diseño':
+                        estadoClass = 'warning';
+                        estadoTexto = 'PEND. APROB. DISEÑO';
+                        break;
+                    case 'aprobado_diseño':
+                        estadoClass = 'info';
+                        estadoTexto = 'APROBADO DISEÑO';
+                        break;
+                    case 'enviado_produccion':
+                        estadoClass = 'primary';
+                        estadoTexto = 'ENVIADO PRODUCCIÓN';
+                        break;
+                    case 'seccionado':
+                        estadoClass = 'warning';
+                        estadoTexto = 'SECCIONADO';
+                        break;
+                    case 'enchapando':
+                        estadoClass = 'warning';
+                        estadoTexto = 'ENCHAPANDO';
+                        break;
+                    case 'mecanizado':
+                        estadoClass = 'warning';
+                        estadoTexto = 'MECANIZADO';
+                        break;
+                    case 'pendiente_embalaje':
+                        estadoClass = 'info';
+                        estadoTexto = 'PEND. EMBALAJE';
+                        break;
+                    case 'embalando':
+                        estadoClass = 'success';
+                        estadoTexto = 'EMBALANDO';
+                        break;
+                    case 'embalaje_listo':
+                        estadoClass = 'success';
+                        estadoTexto = 'EMBALAJE LISTO';
+                        break;
+                    case 'listo_despacho':
+                        estadoClass = 'dark';
+                        estadoTexto = 'LISTO DESPACHO';
+                        break;
+                    case 'despachado':
+                        estadoClass = 'primary';
+                        estadoTexto = 'DESPACHADO';
+                        break;
+                    case 'entregado':
+                        estadoClass = 'success';
+                        estadoTexto = 'ENTREGADO';
+                        break;
+                }
+                
+                fabricacionTabla += `
+                    <tr>
+                        <td><strong>${fab.codigo_orden}</strong></td>
+                        <td>${fab.tipo_orden || '-'}</td>
+                        <td><span class="badge bg-${estadoClass}">${estadoTexto}</span></td>
+                        <td>${fab.cantidad_tableros || '-'}</td>
+                        <td>${fab.fecha_entrega_estimada ? new Date(fab.fecha_entrega_estimada).toLocaleDateString('es-ES') : '-'}</td>
+                    </tr>
+                `;
+            });
+            
+            fabricacionTabla += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
         modalBody.innerHTML = `
             ${urgenciaInfo}
             <div class="row">
@@ -303,34 +412,41 @@ document.addEventListener('DOMContentLoaded', function() {
                     </table>
                 </div>
             </div>
+            ${fabricacionTabla}
             ${props.descripcion ? `
             <div class="mt-3">
                 <h6><i class="fas fa-file-text text-info"></i> Descripción</h6>
                 <p class="text-muted">${props.descripcion}</p>
             </div>` : ''}
         `;
-        
+
         // Configurar botones
+        const verOrdenCompraBtn = document.getElementById('verOrdenCompraBtn');
+        
         verProyectoBtn.onclick = () => {
             window.open(`/proyecto/${props.proyecto_id}`, '_blank');
         };
-        
+
         verOrdenesBtn.onclick = () => {
             window.open(`/ordenes_fabricacion`, '_blank');
         };
-        
+
+        verOrdenCompraBtn.onclick = () => {
+            window.open(`/orden_compra/${props.proyecto_id}`, '_blank');
+        };
+
         modal.show();
     }
-    
+
     // Mostrar detalles de despacho
     function showDespachoDetails(event, props) {
         const modal = new bootstrap.Modal(document.getElementById('despachoModal'));
         const modalTitle = document.getElementById('despachoModalTitle');
         const modalBody = document.getElementById('despachoModalBody');
         const editarBtn = document.getElementById('editarDespachoBtn');
-        
+
         modalTitle.innerHTML = `<i class="fas fa-truck"></i> ${props.codigo_despacho}`;
-        
+
         modalBody.innerHTML = `
             <div class="row">
                 <div class="col-12">
@@ -346,23 +462,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
-        
+
         editarBtn.onclick = () => {
             window.open(`/despacho/${props.despacho_id}`, '_blank');
         };
-        
+
         modal.show();
     }
-    
+
     // Event listeners para los filtros
     document.getElementById('showOrdenes').addEventListener('change', () => {
         calendar.refetchEvents();
     });
-    
+
     document.getElementById('showDespachos').addEventListener('change', () => {
         calendar.refetchEvents();
     });
-    
+
     document.getElementById('showUrgentes').addEventListener('change', () => {
         calendar.refetchEvents();
     });
@@ -399,11 +515,11 @@ document.addEventListener('DOMContentLoaded', function() {
     .modal-dialog {
         margin: 0.5rem;
     }
-    
+
     .fc-toolbar {
         flex-direction: column;
     }
-    
+
     .fc-toolbar-chunk {
         margin: 0.2em 0;
     }

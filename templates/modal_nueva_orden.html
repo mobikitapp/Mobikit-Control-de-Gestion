@@ -1,3 +1,5 @@
+
+
 <!-- Modal Nueva Orden de Compra/Contrato -->
 <div class="modal fade" id="nuevaOrdenModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
@@ -6,7 +8,7 @@
                 <h5 class="modal-title">Nueva Orden de Compra/Contrato</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('nueva_orden_compra') }}" method="POST">
+            <form action="{{ url_for('nueva_orden_compra') }}" method="POST" onsubmit="return recopilarDatos()">
                 <div class="modal-body">
                     <!-- Tipo de Adjudicación -->
                     <div class="row">
@@ -105,11 +107,11 @@
                                     <div class="row">
                                         <div class="col-md-6">
                                             <label class="form-label">Detalle de Entrega</label>
-                                            <input type="text" class="form-control entrega-detalle" name="entrega_detalles[]" placeholder="Ej: Piso 1, Oficinas" required>
+                                            <input type="text" class="form-control entrega-detalle" name="detalle_entregas[]" placeholder="Ej: Piso 1, Oficinas" required>
                                         </div>
                                         <div class="col-md-5">
                                             <label class="form-label">Fecha de Entrega</label>
-                                            <input type="date" class="form-control entrega-fecha" name="entrega_fechas[]" required>
+                                            <input type="date" class="form-control entrega-fecha" name="fechas_entrega[]" required>
                                         </div>
                                         <div class="col-md-1 d-flex align-items-end">
                                             <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarEntrega(this)" style="display: none;">
@@ -177,7 +179,7 @@
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" onclick="recopilarDatos()">
+                    <button type="submit" class="btn btn-primary">
                         <span id="submit-text">Crear</span>
                     </button>
                 </div>
@@ -191,9 +193,15 @@ let categorias = [];
 let clientes = [];
 
 // Cargar datos al abrir el modal
-document.getElementById('nuevaOrdenModal').addEventListener('shown.bs.modal', function () {
-    cargarCategorias();
-    cargarClientesDisponibles();
+document.addEventListener('DOMContentLoaded', function() {
+    const modalElement = document.getElementById('nuevaOrdenModal');
+    if (modalElement) {
+        modalElement.addEventListener('shown.bs.modal', function () {
+            console.log('Modal opened, loading data...');
+            cargarCategorias();
+            cargarClientesDisponibles();
+        });
+    }
 });
 
 function toggleTipoAdjudicacion() {
@@ -241,11 +249,11 @@ function agregarEntrega() {
         <div class="row">
             <div class="col-md-6">
                 <label class="form-label">Detalle de Entrega</label>
-                <input type="text" class="form-control entrega-detalle" name="entrega_detalles[]" placeholder="Ej: Piso 2, Área común" required>
+                <input type="text" class="form-control entrega-detalle" name="detalle_entregas[]" placeholder="Ej: Piso 2, Área común" required>
             </div>
             <div class="col-md-5">
                 <label class="form-label">Fecha de Entrega</label>
-                <input type="date" class="form-control entrega-fecha" name="entrega_fechas[]" required>
+                <input type="date" class="form-control entrega-fecha" name="fechas_entrega[]" required>
             </div>
             <div class="col-md-1 d-flex align-items-end">
                 <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarEntrega(this)">
@@ -278,21 +286,45 @@ function actualizarBotonesEliminarEntregas() {
 }
 
 function cargarCategorias() {
+    console.log('Loading categories...');
     fetch('/api/categorias')
-        .then(response => response.json())
+        .then(response => {
+            console.log('Categories response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Categories data received:', data);
             categorias = data;
             actualizarSelectoresCategorias();
+            console.log('Categories loaded successfully, total:', data.length);
         })
-        .catch(error => console.error('Error cargando categorías:', error));
+        .catch(error => {
+            console.error('Error cargando categorías:', error);
+        });
 }
 
 function cargarClientesDisponibles() {
+    console.log('Loading available clients...');
     fetch('/api/clientes_activos')
-        .then(response => response.json())
+        .then(response => {
+            console.log('Clients response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Clients data received:', data);
             clientes = data;
             const clienteSelect = document.getElementById('cliente_id');
+            if (!clienteSelect) {
+                console.error('Cliente select element not found');
+                return;
+            }
+            
             clienteSelect.innerHTML = '<option value="">Seleccionar cliente...</option><option value="nuevo">+ Crear nuevo cliente</option>';
 
             data.forEach(cliente => {
@@ -301,8 +333,15 @@ function cargarClientesDisponibles() {
                 option.textContent = cliente.nombre;
                 clienteSelect.appendChild(option);
             });
+            console.log('Clients loaded successfully, total:', data.length);
         })
-        .catch(error => console.error('Error cargando clientes:', error));
+        .catch(error => {
+            console.error('Error cargando clientes:', error);
+            const clienteSelect = document.getElementById('cliente_id');
+            if (clienteSelect) {
+                clienteSelect.innerHTML = '<option value="">Error cargando clientes</option>';
+            }
+        });
 }
 
 function actualizarSelectoresCategorias() {
@@ -459,63 +498,46 @@ function cargarProyecto() {
     }
 }
 
-function prepararEnvio() {
-    const categoriaSelects = document.querySelectorAll('.categoria-select');
-    const subcategoriaSelects = document.querySelectorAll('.subcategoria-select');
-
-    const categorias = [];
-    const subcategorias = [];
-
-    categoriaSelects.forEach((select, index) => {
-        categorias.push(select.value);
-        subcategorias.push(subcategoriaSelects[index].value || '');
-    });
-
-    document.getElementById('categorias_selected').value = JSON.stringify(categorias);
-    document.getElementById('subcategorias_selected').value = JSON.stringify(subcategorias);
-}
-
 // Función para recopilar datos antes de enviar el formulario
 function recopilarDatos() {
-    const categoriaSelects = document.querySelectorAll('.categoria-select');
-    const subcategoriaSelects = document.querySelectorAll('.subcategoria-select');
+    try {
+        const categoriaSelects = document.querySelectorAll('.categoria-select');
+        const subcategoriaSelects = document.querySelectorAll('.subcategoria-select');
 
-    const categoriasSeleccionadas = [];
-    const subcategoriasSeleccionadas = [];
+        const categoriasSeleccionadas = [];
+        const subcategoriasSeleccionadas = [];
 
-    categoriaSelects.forEach((select, index) => {
-        if (select.value) {
-            categoriasSeleccionadas.push(select.value);
-            subcategoriasSeleccionadas.push(subcategoriaSelects[index] ? subcategoriaSelects[index].value || '' : '');
+        categoriaSelects.forEach((select, index) => {
+            if (select.value) {
+                categoriasSeleccionadas.push(select.value);
+                subcategoriasSeleccionadas.push(subcategoriaSelects[index] ? subcategoriaSelects[index].value || '' : '');
+            }
+        });
+
+        // Verificar que se haya seleccionado al menos una categoría
+        if (categoriasSeleccionadas.length === 0) {
+            alert('Debe seleccionar al menos una categoría');
+            return false;
         }
-    });
 
-    // Convertir a formato esperado por el backend
-    const categoriasParaEnvio = categoriasSeleccionadas.map((cat, index) => {
-        return cat + ',' + (subcategoriasSeleccionadas[index] || '');
-    });
+        // Obtener o crear campos hidden
+        let categoriasSelected = document.getElementById('categorias_selected');
+        let subcategoriasSelected = document.getElementById('subcategorias_selected');
 
-    // Limpiar campos hidden existentes
-    let categoriasSelected = document.getElementById('categorias_selected');
-    if (!categoriasSelected) {
-        categoriasSelected = document.createElement('input');
-        categoriasSelected.type = 'hidden';
-        categoriasSelected.name = 'categorias_selected';
-        categoriasSelected.id = 'categorias_selected';
-        document.querySelector('form').appendChild(categoriasSelected);
+        // Asignar valores
+        categoriasSelected.value = JSON.stringify(categoriasSeleccionadas);
+        subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas);
+
+        console.log('Datos recopilados:', {
+            categorias: categoriasSeleccionadas,
+            subcategorias: subcategoriasSeleccionadas
+        });
+
+        return true;
+    } catch (error) {
+        console.error('Error recopilando datos:', error);
+        alert('Error al procesar el formulario. Por favor, revise los datos e intente nuevamente.');
+        return false;
     }
-
-    let subcategoriasSelected = document.getElementById('subcategorias_selected');
-    if (!subcategoriasSelected) {
-        subcategoriasSelected = document.createElement('input');
-        subcategoriasSelected.type = 'hidden';
-        subcategoriasSelected.name = 'subcategorias_selected';
-        subcategoriasSelected.id = 'subcategorias_selected';
-        document.querySelector('form').appendChild(subcategoriasSelected);
-    }
-
-    // Asignar valores
-    categoriasSelected.value = JSON.stringify(categoriasSeleccionadas);
-    subcategoriasSelected.value = JSON.stringify(subcategoriasSeleccionadas);
 }
 </script>
