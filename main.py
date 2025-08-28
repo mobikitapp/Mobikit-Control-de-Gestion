@@ -854,14 +854,14 @@ def ordenes_compra():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('en_desarrollo') AND p.archivado = FALSE
+        WHERE p.estado = 'activo' AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.estado, p.prioridad, p.monto_neto
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_pendientes_raw = cursor.fetchall()
 
-    # Órdenes en Proceso - Solo proyectos que tienen categorías asignadas, no archivados
+    # Órdenes en Proceso - Solo proyectos activos que tienen órdenes de fabricación en proceso
     cursor.execute('''
         SELECT DISTINCT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.prioridad, p.monto_neto,
@@ -873,22 +873,23 @@ def ordenes_compra():
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa')
-        AND p.archivado = FALSE
+        INNER JOIN ordenes_fabricacion of ON p.id = of.proyecto_id
+        WHERE p.estado = 'activo' AND p.archivado = FALSE
+        AND of.estado NOT IN ('despachado', 'entregado')
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.prioridad, p.monto_neto
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     ordenes_proceso_raw = cursor.fetchall()
 
-    # Órdenes Terminadas - Solo proyectos que tienen categorías asignadas, no archivados
+    # Órdenes Terminadas - Solo proyectos entregados que tienen categorías asignadas, no archivados
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
-        WHERE p.estado IN ('entregado', 'terminado', 'completado') AND p.archivado = FALSE
+        WHERE p.estado = 'entregado' AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
                  p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
         ORDER BY p.fecha_entrega_real DESC
@@ -1158,7 +1159,7 @@ def nuevo_proyecto():
                                    margen_provision, margen_instalacion, observaciones)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
-        ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'proyecto_simple',
+        ''', (codigo_proyecto, nombre, cliente_id, descripcion, estado_proyecto, 'activo',
               fecha_estimada_inicio, request.form.get('fecha_inicio') or None, 
               request.form.get('fecha_entrega') or None, vendedor_id, monto_neto_provision,
               monto_neto_instalacion, monto_provision_presupuestada, margen_provision, 
@@ -1402,7 +1403,7 @@ def nueva_orden_compra():
 
             cursor.execute('''
                 UPDATE proyectos SET
-                    adjudicacion_tipo = %s, estado = 'en_desarrollo', prioridad = %s,
+                    adjudicacion_tipo = %s, estado = 'activo', prioridad = %s,
                     fecha_entrega = %s, observaciones = COALESCE(observaciones, '') || CHR(10) || %s
                 WHERE id = %s
             ''', (tipo_adjudicacion, prioridad,
@@ -1443,7 +1444,7 @@ def nueva_orden_compra():
                     monto_neto, monto_neto_provision, observaciones
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             ''', (codigo_proyecto, nombre_proyecto, cliente_id, descripcion, tipo_adjudicacion,
-                  'en_desarrollo', prioridad, datetime.now().date(),
+                  'activo', prioridad, datetime.now().date(),
                   fecha_entrega_general or fecha_entrega_oc or None,
                   monto_num, monto_provision_num, f"Número OC/Contrato: {numero_oc}"))
             proyecto_id = cursor.fetchone()['id']
@@ -1667,7 +1668,7 @@ def gestion_pedidos():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Obtener órdenes de compra en diferentes estados
+    # Obtener órdenes de compra activas (sistema simplificado)
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.estado, p.prioridad,
@@ -1675,30 +1676,44 @@ def gestion_pedidos():
                    WHEN p.fecha_entrega IS NOT NULL THEN 
                        EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
                    ELSE NULL 
-               END AS dias_restantes
+               END AS dias_restantes,
+               (SELECT STRING_AGG(of.estado, ', ') 
+                FROM ordenes_fabricacion of 
+                WHERE of.proyecto_id = p.id 
+                AND of.estado NOT IN ('despachado', 'entregado')) as estados_fabricacion
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE p.estado NOT IN ('entregado', 'terminado', 'cancelado') AND p.archivado = FALSE
+        INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
+        WHERE p.estado = 'activo' AND p.archivado = FALSE
+        GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
+                 p.descripcion, p.estado, p.prioridad
         ORDER BY p.fecha_entrega ASC, p.prioridad DESC
     ''')
     pedidos = cursor.fetchall()
 
-    # Agrupar por estado
+    # Agrupar por estado de fabricación (basado en órdenes de fabricación)
     pedidos_por_estado = {
-        'en_desarrollo': {'nombre': 'En Desarrollo', 'pedidos': [], 'rol_responsable': 'vendedor'},
-        'aprobado_produccion': {'nombre': 'Aprobado para Producción', 'pedidos': [], 'rol_responsable': 'operación'},
-        'seccionado': {'nombre': 'En Seccionado', 'pedidos': [], 'rol_responsable': 'operación'},
-        'enchapado': {'nombre': 'En Enchapado', 'pedidos': [], 'rol_responsable': 'operación'},
-        'mecanizado': {'nombre': 'En Mecanizado', 'pedidos': [], 'rol_responsable': 'operación'},
-        'produccion_completa': {'nombre': 'Producción Completa', 'pedidos': [], 'rol_responsable': 'embalaje'},
-        'embalando': {'nombre': 'En Embalaje', 'pedidos': [], 'rol_responsable': 'embalaje'},
+        'pendiente_aprobacion': {'nombre': 'Pendiente Aprobación', 'pedidos': [], 'rol_responsable': 'vendedor'},
+        'en_fabricacion': {'nombre': 'En Fabricación', 'pedidos': [], 'rol_responsable': 'operación'},
+        'en_embalaje': {'nombre': 'En Embalaje', 'pedidos': [], 'rol_responsable': 'embalaje'},
         'listo_despacho': {'nombre': 'Listo para Despacho', 'pedidos': [], 'rol_responsable': 'despacho'},
     }
 
     for pedido in pedidos:
-        estado = pedido['estado']  # estado field
-        if estado in pedidos_por_estado:
-            pedidos_por_estado[estado]['pedidos'].append(pedido)
+        estados_fab = pedido['estados_fabricacion'] or ''
+        
+        # Clasificar según estados de fabricación
+        if 'pendiente_aprobacion_diseño' in estados_fab or 'aprobado_diseño' in estados_fab:
+            pedidos_por_estado['pendiente_aprobacion']['pedidos'].append(pedido)
+        elif any(estado in estados_fab for estado in ['seccionado', 'enchapando', 'mecanizado']):
+            pedidos_por_estado['en_fabricacion']['pedidos'].append(pedido)
+        elif any(estado in estados_fab for estado in ['pendiente_embalaje', 'embalando', 'embalaje_listo']):
+            pedidos_por_estado['en_embalaje']['pedidos'].append(pedido)
+        elif 'listo_despacho' in estados_fab:
+            pedidos_por_estado['listo_despacho']['pedidos'].append(pedido)
+        else:
+            # Sin órdenes de fabricación - pendiente aprobación
+            pedidos_por_estado['pendiente_aprobacion']['pedidos'].append(pedido)
 
     conn.close()
     return render_template('gestion_pedidos.html', pedidos_por_estado=pedidos_por_estado)
