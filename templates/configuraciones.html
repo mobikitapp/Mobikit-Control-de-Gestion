@@ -229,7 +229,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for rol in ROLES %} {# Asumiendo que ROLES es una lista de roles disponibles #}
+                            {% for rol in ROLES %}
                             <tr>
                                 <td>{{ rol.capitalize() }}</td>
                                 {% for modulo in modulos %}
@@ -238,11 +238,15 @@
                                            class="form-check-input" 
                                            name="permisos_{{ rol }}_{{ modulo.id }}" 
                                            value="1"
-                                           {% if has_permission(rol, modulo.id) %}checked{% endif %}>
+                                           {% if rol == 'admin' %}checked disabled{% elif has_permission(rol, modulo.id + '.view') %}checked{% endif %}>
                                 </td>
                                 {% endfor %}
                                 <td>
-                                    <button class="btn btn-sm btn-primary">Guardar Cambios</button>
+                                    {% if rol != 'admin' %}
+                                    <button class="btn btn-sm btn-primary" onclick="actualizarPermisos('{{ rol }}')">Guardar Cambios</button>
+                                    {% else %}
+                                    <span class="text-muted">Todos los permisos</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -421,6 +425,11 @@ function eliminarUsuario(id, username) {
         document.body.appendChild(form);
         form.submit();
     }
+}
+
+function actualizarPermisos(rol) {
+    // TODO: Implementar actualización de permisos
+    alert('Funcionalidad de permisos en desarrollo');
 }
 </script>
 {% endblock %}
