@@ -2637,6 +2637,26 @@ def api_calendar_events():
             elif dias <= 7:
                 titulo += f" ({dias}d)"
 
+        # Obtener órdenes de fabricación para este proyecto
+        cursor.execute('''
+            SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
+                   of.cantidad_tableros, of.glosa
+            FROM ordenes_fabricacion of
+            WHERE of.proyecto_id = %s
+            ORDER BY of.created_at ASC
+        ''', (row["id"],))
+        ordenes_fabricacion = []
+        for fab in cursor.fetchall():
+            ordenes_fabricacion.append({
+                'id': fab['id'],
+                'codigo_orden': fab['codigo_orden'],
+                'tipo_orden': fab['tipo_orden'],
+                'estado': fab['estado'],
+                'fecha_entrega_estimada': fab['fecha_entrega_estimada'].isoformat() if fab['fecha_entrega_estimada'] else None,
+                'cantidad_tableros': fab['cantidad_tableros'],
+                'glosa': fab['glosa']
+            })
+
         events.append({
             'id': f'orden_{row["id"]}',
             'title': titulo,
@@ -2659,6 +2679,7 @@ def api_calendar_events():
                 'descripcion': row["descripcion"],
                 'fecha_estimada_inicio': row["fecha_estimada_inicio"].isoformat() if row["fecha_estimada_inicio"] else None,
                 'ordenes_fabricacion_count': row["ordenes_fabricacion_count"],
+                'ordenes_fabricacion': ordenes_fabricacion,
                 'categorias': row["categorias"],
                 'urgente': urgente
             }

@@ -75,7 +75,7 @@
 
 <!-- Modal para detalles de orden de compra -->
 <div class="modal fade" id="ordenModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl"></div>
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="ordenModalTitle">Detalle de Orden de Compra</h5>
@@ -90,7 +90,10 @@
                     <i class="fas fa-eye"></i> Ver Proyecto
                 </button>
                 <button type="button" class="btn btn-success" id="verOrdenesBtn">
-                    <i class="fas fa-industry"></i> Ver Órdenes Fabricación
+                    <i class="fas fa-industry"></i> Gestión Fabricación
+                </button>
+                <button type="button" class="btn btn-info" id="verOrdenCompraBtn">
+                    <i class="fas fa-file-invoice"></i> Ver Orden Compra
                 </button>
             </div>
         </div>
@@ -295,6 +298,101 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>`;
         }
 
+        // Generar tabla de órdenes de fabricación
+        let fabricacionTabla = '';
+        if (props.ordenes_fabricacion && props.ordenes_fabricacion.length > 0) {
+            fabricacionTabla = `
+                <div class="mt-3">
+                    <h6><i class="fas fa-industry text-warning"></i> Órdenes de Fabricación (${props.ordenes_fabricacion.length})</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Tipo</th>
+                                    <th>Estado</th>
+                                    <th>Tableros</th>
+                                    <th>Entrega Est.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            props.ordenes_fabricacion.forEach(fab => {
+                // Mapear estados a colores
+                let estadoClass = 'secondary';
+                let estadoTexto = fab.estado.replace(/_/g, ' ').toUpperCase();
+                
+                switch(fab.estado) {
+                    case 'pendiente_aprobacion_diseño':
+                        estadoClass = 'warning';
+                        estadoTexto = 'PEND. APROB. DISEÑO';
+                        break;
+                    case 'aprobado_diseño':
+                        estadoClass = 'info';
+                        estadoTexto = 'APROBADO DISEÑO';
+                        break;
+                    case 'enviado_produccion':
+                        estadoClass = 'primary';
+                        estadoTexto = 'ENVIADO PRODUCCIÓN';
+                        break;
+                    case 'seccionado':
+                        estadoClass = 'warning';
+                        estadoTexto = 'SECCIONADO';
+                        break;
+                    case 'enchapando':
+                        estadoClass = 'warning';
+                        estadoTexto = 'ENCHAPANDO';
+                        break;
+                    case 'mecanizado':
+                        estadoClass = 'warning';
+                        estadoTexto = 'MECANIZADO';
+                        break;
+                    case 'pendiente_embalaje':
+                        estadoClass = 'info';
+                        estadoTexto = 'PEND. EMBALAJE';
+                        break;
+                    case 'embalando':
+                        estadoClass = 'success';
+                        estadoTexto = 'EMBALANDO';
+                        break;
+                    case 'embalaje_listo':
+                        estadoClass = 'success';
+                        estadoTexto = 'EMBALAJE LISTO';
+                        break;
+                    case 'listo_despacho':
+                        estadoClass = 'dark';
+                        estadoTexto = 'LISTO DESPACHO';
+                        break;
+                    case 'despachado':
+                        estadoClass = 'primary';
+                        estadoTexto = 'DESPACHADO';
+                        break;
+                    case 'entregado':
+                        estadoClass = 'success';
+                        estadoTexto = 'ENTREGADO';
+                        break;
+                }
+                
+                fabricacionTabla += `
+                    <tr>
+                        <td><strong>${fab.codigo_orden}</strong></td>
+                        <td>${fab.tipo_orden || '-'}</td>
+                        <td><span class="badge bg-${estadoClass}">${estadoTexto}</span></td>
+                        <td>${fab.cantidad_tableros || '-'}</td>
+                        <td>${fab.fecha_entrega_estimada ? new Date(fab.fecha_entrega_estimada).toLocaleDateString('es-ES') : '-'}</td>
+                    </tr>
+                `;
+            });
+            
+            fabricacionTabla += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
         modalBody.innerHTML = `
             ${urgenciaInfo}
             <div class="row">
@@ -320,6 +418,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </table>
                 </div>
             </div>
+            ${fabricacionTabla}
             ${props.descripcion ? `
             <div class="mt-3">
                 <h6><i class="fas fa-file-text text-info"></i> Descripción</h6>
@@ -328,12 +427,18 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         // Configurar botones
+        const verOrdenCompraBtn = document.getElementById('verOrdenCompraBtn');
+        
         verProyectoBtn.onclick = () => {
             window.open(`/proyecto/${props.proyecto_id}`, '_blank');
         };
 
         verOrdenesBtn.onclick = () => {
             window.open(`/ordenes_fabricacion`, '_blank');
+        };
+
+        verOrdenCompraBtn.onclick = () => {
+            window.open(`/orden_compra/${props.proyecto_id}`, '_blank');
         };
 
         modal.show();
