@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Dashboard - Mobikit Control de Producción{% endblock %}
@@ -192,7 +191,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Próximas Entregas -->
     <div class="row mt-4">
         <div class="col-md-6">
@@ -271,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
     inicializarDashboard();
     cargarDatosOrdenesActualizados();
     inicializarCalendario();
-    
+
     // Actualizar datos cada 30 segundos
     setInterval(cargarDatosOrdenesActualizados, 30000);
 });
@@ -285,7 +284,7 @@ function inicializarDashboard() {
 function mostrarVistaPorAreas() {
     document.getElementById('contenido-areas').style.display = 'block';
     document.getElementById('contenido-calendario').style.display = 'none';
-    
+
     document.getElementById('vistaPorAreas').classList.add('btn-primary');
     document.getElementById('vistaPorAreas').classList.remove('btn-outline-secondary');
     document.getElementById('vistaCalendario').classList.add('btn-outline-secondary');
@@ -295,16 +294,16 @@ function mostrarVistaPorAreas() {
 function mostrarVistaCalendario() {
     document.getElementById('contenido-areas').style.display = 'none';
     document.getElementById('contenido-calendario').style.display = 'block';
-    
+
     document.getElementById('vistaCalendario').classList.add('btn-primary');
     document.getElementById('vistaCalendario').classList.remove('btn-outline-secondary');
     document.getElementById('vistaPorAreas').classList.add('btn-outline-secondary');
     document.getElementById('vistaPorAreas').classList.remove('btn-primary');
-    
+
     if (calendar) {
         calendar.render();
     }
-    
+
     cargarEntregasProximas();
 }
 
@@ -369,7 +368,7 @@ function procesarOrdenesPorAreasConDatos(fabricacionData, compraData) {
 function renderizarArea(area, ordenes) {
     const container = document.getElementById(`ordenes-${area}`);
     const badge = document.getElementById(`badge-${area}`);
-    
+
     if (!container || !badge) return;
 
     container.innerHTML = '';
@@ -396,21 +395,21 @@ function renderizarArea(area, ordenes) {
 function crearTarjetaOrden(orden, area) {
     const template = document.getElementById('orden-card-template');
     const card = template.content.cloneNode(true);
-    
+
     const cardElement = card.querySelector('.orden-card');
     cardElement.setAttribute('data-orden-id', orden.id);
-    
+
     // Datos básicos
     card.querySelector('.orden-codigo').textContent = orden.codigo;
     card.querySelector('.orden-nombre').textContent = orden.nombre;
     card.querySelector('.orden-cliente').textContent = orden.cliente_nombre;
     card.querySelector('.orden-fecha-entrega').textContent = orden.fecha_entrega || 'Sin fecha';
-    
+
     // Prioridad
     const prioridadBadge = card.querySelector('.orden-prioridad');
     prioridadBadge.textContent = orden.prioridad?.toUpperCase() || 'MEDIA';
     prioridadBadge.className = `badge ${getPrioridadClass(orden.prioridad)}`;
-    
+
     // Días restantes
     if (orden.dias_restantes !== undefined && orden.dias_restantes !== null) {
         const diasBadge = document.createElement('span');
@@ -425,7 +424,7 @@ function crearTarjetaOrden(orden, area) {
             card.querySelector('.card-header').appendChild(diasBadge);
         }
     }
-    
+
     // Órdenes de fabricación
     const fabricacionesContainer = card.querySelector('.orden-fabricaciones');
     if (orden.ordenes_fabricacion && orden.ordenes_fabricacion.length > 0) {
@@ -446,11 +445,11 @@ function crearTarjetaOrden(orden, area) {
             fabricacionesContainer.appendChild(fabElement);
         });
     }
-    
+
     // Acciones según área
     const accionesContainer = card.querySelector('.orden-acciones');
     accionesContainer.innerHTML = getAccionesPorArea(orden, area);
-    
+
     return cardElement;
 }
 
@@ -535,7 +534,7 @@ function actualizarEstadisticas() {
     };
 
     const todasLasOrdenes = [...ordenesData.pendientes, ...ordenesData.proceso];
-    
+
     todasLasOrdenes.forEach(orden => {
         if (!orden.ordenes_fabricacion || orden.ordenes_fabricacion.length === 0) {
             stats.diseño++;
@@ -606,7 +605,7 @@ function inicializarCalendario() {
 function cargarEntregasProximas() {
     const urgentesContainer = document.getElementById('entregas-urgentes');
     const proximasContainer = document.getElementById('proximas-entregas');
-    
+
     if (!urgentesContainer || !proximasContainer) return;
 
     const hoy = new Date();
@@ -617,7 +616,7 @@ function cargarEntregasProximas() {
         if (orden.fecha_entrega) {
             const fechaEntrega = new Date(orden.fecha_entrega);
             const diasRestantes = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
-            
+
             if (diasRestantes <= 7 && diasRestantes >= 0) {
                 urgentes.push({...orden, dias_restantes: diasRestantes});
             } else if (diasRestantes <= 30 && diasRestantes > 7) {
@@ -665,7 +664,10 @@ function aprobarOrden(ordenId) {
         .then(data => {
             if (data.success) {
                 showNotification(data.message, 'success');
-                cargarDatosOrdenesActualizados();
+                // Forzar actualización inmediata
+                setTimeout(() => {
+                    cargarDatosOrdenesActualizados();
+                }, 500);
             } else {
                 showNotification(data.message, 'error');
             }
@@ -690,7 +692,10 @@ function avanzarFabricacion(ordenId) {
         .then(data => {
             if (data.success) {
                 showNotification(data.message, 'success');
-                cargarDatosOrdenesActualizados();
+                // Forzar actualización inmediata
+                setTimeout(() => {
+                    cargarDatosOrdenesActualizados();
+                }, 500);
             } else {
                 showNotification(data.message, 'error');
             }
@@ -715,7 +720,10 @@ function avanzarEmbalaje(ordenId) {
         .then(data => {
             if (data.success) {
                 showNotification(data.message, 'success');
-                cargarDatosOrdenesActualizados();
+                // Forzar actualización inmediata
+                setTimeout(() => {
+                    cargarDatosOrdenesActualizados();
+                }, 500);
             } else {
                 showNotification(data.message, 'error');
             }
@@ -745,7 +753,10 @@ function programarDespacho(ordenId) {
                         window.location.href = data.redirect;
                     }, 1500);
                 } else {
-                    cargarDatosOrdenesActualizados();
+                    // Forzar actualización inmediata
+                    setTimeout(() => {
+                        cargarDatosOrdenesActualizados();
+                    }, 500);
                 }
             } else {
                 showNotification(data.message, 'error');
