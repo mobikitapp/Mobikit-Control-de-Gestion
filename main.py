@@ -1055,13 +1055,13 @@ def ordenes_compra():
     # Órdenes Terminadas - Solo proyectos entregados que tienen categorías asignadas, no archivados
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
-               p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
+               p.descripcion, p.prioridad, p.fecha_entrega_real
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado = 'entregado' AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
-                 p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
+                 p.descripcion, p.prioridad, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
     ''')
     ordenes_terminadas_raw = cursor.fetchall()
@@ -2775,7 +2775,7 @@ def api_ordenes_fabricacion_estado():
             WHERE p.estado = 'activo' AND p.archivado = FALSE
             ORDER BY of.created_at DESC
         ''')
-        
+
         fabricaciones = []
         for row in cursor.fetchall():
             fabricaciones.append({
@@ -2786,9 +2786,9 @@ def api_ordenes_fabricacion_estado():
                 'proyecto_codigo': row['proyecto_codigo'],
                 'proyecto_nombre': row['proyecto_nombre']
             })
-        
+
         return jsonify(fabricaciones)
-    
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
@@ -2819,7 +2819,7 @@ def api_ordenes_compra_estado():
                      c.nombre, p.prioridad
             ORDER BY p.fecha_entrega ASC NULLS LAST
         ''')
-        
+
         ordenes = []
         for row in cursor.fetchall():
             ordenes.append({
@@ -2832,9 +2832,9 @@ def api_ordenes_compra_estado():
                 'prioridad': row['prioridad'],
                 'dias_restantes': row['dias_restantes']
             })
-        
+
         return jsonify(ordenes)
-    
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
@@ -2910,8 +2910,7 @@ def api_calendar_events():
 
         # Obtener órdenes de fabricación para este proyecto
         cursor.execute('''
-            SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
-                   of.cantidad_tableros, of.glosa
+            SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
             FROM ordenes_fabricacion of
             WHERE of.proyecto_id = %s
             ORDER BY of.created_at ASC
@@ -3131,7 +3130,7 @@ def api_avanzar_fabricacion(orden_id):
             ORDER BY created_at ASC
             LIMIT 1
         ''', (orden_id,))
-        
+
         orden_fab = cursor.fetchone()
         if not orden_fab:
             return jsonify({'success': False, 'message': 'No hay órdenes de fabricación pendientes'})
@@ -3148,7 +3147,7 @@ def api_avanzar_fabricacion(orden_id):
             indice_actual = estados_secuencia.index(estado_actual)
             if indice_actual < len(estados_secuencia) - 1:
                 nuevo_estado = estados_secuencia[indice_actual + 1]
-                
+
                 cursor.execute('''
                     UPDATE ordenes_fabricacion
                     SET estado = %s
@@ -3184,7 +3183,7 @@ def api_avanzar_embalaje(orden_id):
             ORDER BY created_at ASC
             LIMIT 1
         ''', (orden_id,))
-        
+
         orden_fab = cursor.fetchone()
         if not orden_fab:
             return jsonify({'success': False, 'message': 'No hay órdenes en embalaje'})
@@ -3228,7 +3227,7 @@ def api_programar_despacho(orden_id):
             LEFT JOIN clientes c ON p.cliente_id = c.id
             WHERE p.id = %s
         ''', (orden_id,))
-        
+
         orden = cursor.fetchone()
         if not orden:
             return jsonify({'success': False, 'message': 'Orden no encontrada'})
@@ -3236,7 +3235,7 @@ def api_programar_despacho(orden_id):
         # Verificar si ya tiene despacho programado
         cursor.execute('SELECT id FROM despachos WHERE proyecto_id = %s', (orden_id,))
         despacho_existente = cursor.fetchone()
-        
+
         if despacho_existente:
             return jsonify({'success': False, 'message': 'Ya tiene despacho programado', 'redirect': f'/despacho/{despacho_existente["id"]}'})
 
@@ -3503,7 +3502,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho', 'despachado']
+        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -3527,7 +3526,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
                 return jsonify({'success': False, 'message': 'Ya está en la etapa final'})
 
         except ValueError:
-            return jsonify({'success': False, 'message': f'Estado actual no válido para avanzar: {estado_actual}'})
+            return jsonify({'success': False, 'message': 'Estado actual no válido para avanzar'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3573,7 +3572,7 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
                 return jsonify({'success': False, 'message': 'No se puede retroceder más'})
 
         except ValueError:
-            return jsonify({'success': False, 'message': 'Estado actual no válido'})
+            return jsonify({'success': False, 'message': 'Estado actual no válido para avanzar'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3598,7 +3597,7 @@ def api_aprobar_diseno_orden(orden_id):
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
         if orden['estado'] != 'pendiente_aprobacion_diseño':
-            return jsonify({'success': False, 'message': f'La orden no está pendiente de aprobación de diseño. Estado actual: {orden["estado"]}'})
+            return jsonify({'success': False, 'message': 'La orden no está pendiente de aprobación de diseño. Estado actual: {orden["estado"]}'})
 
         # Cambiar estado a aprobado_diseño
         cursor.execute('''
@@ -3608,7 +3607,7 @@ def api_aprobar_diseno_orden(orden_id):
         ''', (orden_id,))
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Diseño aprobado para orden {orden["codigo_orden"]}'})
+        return jsonify({'success': True, 'message': 'Diseño aprobado para orden {orden["codigo_orden"]}'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3643,7 +3642,7 @@ def api_enviar_a_produccion(orden_id):
         ''', (orden_id,))
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Orden {orden["codigo_orden"]} enviada a producción'})
+        return jsonify({'success': True, 'message': 'Orden {orden["codigo_orden"]} enviada a producción'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -4009,16 +4008,16 @@ def eliminar_orden_fabricacion(orden_id):
 
     try:
         # Verificar que la orden existe
-        cursor.execute('SELECT codigo_orden, estado FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
+        cursor.execute('SELECT codigo_orden, estado, proyecto_id FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
         orden = cursor.fetchone()
 
         if not orden:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        codigo_orden, estado = orden['codigo_orden'], orden['estado']
+        codigo_orden, estado_orden, proyecto_id = orden['codigo_orden'], orden['estado'], orden['proyecto_id']
 
         # Solo permitir eliminar órdenes pendientes
-        if estado not in ['pendiente_aprobacion_diseño', 'aprobado_diseño']:
+        if estado_orden not in ['pendiente_aprobacion_diseño', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'No se puede eliminar una orden en proceso o terminada'})
 
         # Eliminar categorías de la orden
