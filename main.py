@@ -649,7 +649,18 @@ def check_repl_auth():
     user_name = request.headers.get('X-Replit-User-Name')
     user_roles = request.headers.get('X-Replit-User-Roles', '')
 
+    # Lista blanca de usuarios autorizados (puedes agregar más usuarios aquí)
+    USUARIOS_AUTORIZADOS = [
+        # Agrega aquí los nombres de usuario de Replit que quieres autorizar
+        # Ejemplo: 'tu_usuario_replit', 'otro_usuario_autorizado'
+    ]
+
     if user_id and user_name:
+        # Verificar si el usuario está en la lista blanca
+        if USUARIOS_AUTORIZADOS and user_name not in USUARIOS_AUTORIZADOS:
+            print(f"Usuario no autorizado intentó acceder: {user_name}")
+            return None
+        
         # Check if user exists in our database
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
