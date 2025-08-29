@@ -1,4 +1,3 @@
-
 // Funcionalidades JavaScript para Mobikit
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -25,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.disabled = true;
                 const originalText = submitBtn.textContent;
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Procesando...';
-                
+
                 // Re-enable after 5 seconds as fallback
                 setTimeout(() => {
                     submitBtn.disabled = false;
@@ -64,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function(e) {
             const requiredFields = form.querySelectorAll('[required]');
             let valid = true;
-            
+
             requiredFields.forEach(field => {
                 if (!field.value.trim()) {
                     field.classList.add('is-invalid');
@@ -73,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     field.classList.remove('is-invalid');
                 }
             });
-            
+
             if (!valid) {
                 e.preventDefault();
                 alert('Por favor completa todos los campos requeridos');
@@ -97,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
             input.addEventListener('input', function() {
                 const searchTerm = this.value.toLowerCase();
                 const rows = targetTable.querySelectorAll('tbody tr');
-                
+
                 rows.forEach(row => {
                     const text = row.textContent.toLowerCase();
                     row.style.display = text.includes(searchTerm) ? '' : 'none';
@@ -207,3 +206,214 @@ window.MobikitApp = {
     hideLoading: hideLoading,
     makeRequest: makeRequest
 };
+
+// Dashboard Auto-refresh and Real-time Updates
+let dashboardRefreshInterval;
+const DASHBOARD_REFRESH_RATE = 30000; // 30 segundos
+
+function startDashboardAutoRefresh() {
+    if (window.location.pathname === '/dashboard') {
+        dashboardRefreshInterval = setInterval(refreshDashboardData, DASHBOARD_REFRESH_RATE);
+    }
+}
+
+function stopDashboardAutoRefresh() {
+    if (dashboardRefreshInterval) {
+        clearInterval(dashboardRefreshInterval);
+        dashboardRefreshInterval = null;
+    }
+}
+
+function refreshDashboardData() {
+    // Actualizar conteos de órdenes
+    fetch('/api/ordenes_compra_estado')
+        .then(response => response.json())
+        .then(data => {
+            updateDashboardCounts(data);
+        })
+        .catch(error => {
+            console.error('Error refreshing dashboard:', error);
+        });
+}
+
+function updateDashboardCounts(ordenes) {
+    const pendientesCount = ordenes.filter(o => o.estado === 'activo').length;
+    const procesoCount = ordenes.filter(o => o.estado === 'aprobado_produccion').length;
+    const terminadasCount = ordenes.filter(o => o.estado === 'entregado').length;
+
+    // Actualizar badges en el dashboard si existen
+    const badges = {
+        'pendientes-count': pendientesCount,
+        'proceso-count': procesoCount,
+        'terminadas-count': terminadasCount
+    };
+
+    Object.entries(badges).forEach(([id, count]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = count;
+        }
+    });
+}
+
+// Gestión de formularios mejorada
+document.addEventListener('DOMContentLoaded', function() {
+    const allForms = document.querySelectorAll('form');
+
+    allForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            // Prevenir doble envío
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn && !submitBtn.disabled) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = submitBtn.getAttribute('data-original-text') || 'Enviar';
+                }, 3000);
+            }
+        });
+    });
+
+    // Configurar tooltips
+    const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltips.forEach(tooltip => {
+        new bootstrap.Tooltip(tooltip);
+    });
+
+    // Auto-refresh para dashboard
+    startDashboardAutoRefresh();
+
+    // Detener refresh al cambiar de página
+    window.addEventListener('beforeunload', stopDashboardAutoRefresh);
+});
+
+// Validación de formularios en tiempo real
+function setupFormValidation() {
+    const validationForms = document.querySelectorAll('.needs-validation');
+
+    validationForms.forEach(form => {
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        });
+    });
+}
+
+// Utilidades de UI
+function showToast(message, type = 'info') {
+    // Crear toast dinámico si no existe contenedor
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
+    }
+
+    const toastHtml = `
+        <div class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">Sistema Mobikit</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body bg-${type} text-white">
+                ${message}
+            </div>
+        </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+    const newToast = toastContainer.lastElementChild;
+    const bsToast = new bootstrap.Toast(newToast);
+    bsToast.show();
+
+    // Auto-remove after hiding
+    newToast.addEventListener('hidden.bs.toast', () => {
+        newToast.remove();
+    });
+}
+
+// Gestión de estados de carga
+function showLoadingState(element, text = 'Cargando...') {
+    element.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${text}`;
+    element.disabled = true;
+}
+
+function hideLoadingState(element, originalText = 'Procesar') {
+    element.innerHTML = originalText;
+    element.disabled = false;
+}
+
+// Validaciones específicas
+function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+
+function validateRUT(rut) {
+    // Validación básica de RUT chileno (formato XX.XXX.XXX-X)
+    const re = /^\d{1,2}\.\d{3}\.\d{3}-[\dkK]$/;
+    return re.test(rut) || rut === '';
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0
+    }).format(amount);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-CL');
+}
+
+// Configurar eventos al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    setupFormValidation();
+
+    // Auto-dismiss alerts after 5 seconds
+    const alerts = document.querySelectorAll('.alert-dismissible');
+    alerts.forEach(alert => {
+        setTimeout(() => {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 5000);
+    });
+
+    // Setup date inputs with minimum date as today
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    const today = new Date().toISOString().split('T')[0];
+    dateInputs.forEach(input => {
+        if (!input.hasAttribute('data-allow-past')) {
+            input.min = today;
+        }
+    });
+});
+
+// Función global para manejar errores de fetch
+function handleFetchError(error, userMessage = 'Ha ocurrido un error') {
+    console.error('Fetch Error:', error);
+    showToast(userMessage, 'danger');
+}
+
+// Función global para manejar respuestas exitosas
+function handleFetchSuccess(data, successMessage = 'Operación exitosa') {
+    if (data.success) {
+        showToast(data.message || successMessage, 'success');
+        if (data.redirect) {
+            window.location.href = data.redirect;
+        } else {
+            location.reload();
+        }
+    } else {
+        showToast(data.message || 'Error en la operación', 'danger');
+    }
+}

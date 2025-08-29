@@ -157,7 +157,7 @@
                                                                     </button>
                                                                     {% endif %}
                                                                     {% if session.user_role in ['admin'] %}
-                                                                    <button class="btn btn-sm btn-outline-danger" onclick="eliminarProyecto({{ proyecto.id }})">
+                                                                    <button class="btn btn-sm btn-outline-danger" onclick="eliminarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}')">
                                                                         <i class="fas fa-trash"></i>
                                                                     </button>
                                                                     {% endif %}
@@ -631,8 +631,13 @@ function nuevoProyecto(clienteId, clienteNombre) {
 
 function editarProyecto(id, nombre, descripcion, estado, estado_proyecto, prioridad, diseñador_id, fecha_entrega, fecha_estimada_inicio, monto_neto, monto_neto_provision, monto_neto_instalacion, margen_provision, margen_instalacion, observaciones, monto_provision_presupuestada) {
     // Fetch project details to populate the modal
-    fetch(`/api/proyecto/${id}`)
-        .then(response => response.json())
+    fetch(`/api/proyecto_detalle/${id}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(proyecto => {
             document.getElementById('edit_proyecto_id').value = proyecto.id;
             document.getElementById('edit_proyecto_codigo').value = proyecto.codigo || '';
@@ -650,7 +655,6 @@ function editarProyecto(id, nombre, descripcion, estado, estado_proyecto, priori
             document.getElementById('edit_proyecto_margen_instalacion').value = proyecto.margen_instalacion || '';
             document.getElementById('edit_monto_provision_presupuestada').value = proyecto.monto_provision_presupuestada || '';
 
-
             // Set designer/vendor if exists
             if (proyecto.diseñador_id) {
                 document.getElementById('edit_proyecto_diseñador_id').value = proyecto.diseñador_id;
@@ -660,7 +664,7 @@ function editarProyecto(id, nombre, descripcion, estado, estado_proyecto, priori
         })
         .catch(error => {
             console.error('Error fetching project details:', error);
-            alert('No se pudieron cargar los detalles del proyecto.');
+            alert('No se pudieron cargar los detalles del proyecto: ' + error.message);
         });
 }
 

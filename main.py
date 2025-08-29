@@ -4187,9 +4187,13 @@ def api_proyecto_detalle(proyecto_id):
         'prioridad': proyecto.get('prioridad') or 'media',
         'fecha_entrega': proyecto['fecha_entrega'].isoformat() if proyecto.get('fecha_entrega') else '',
         'fecha_estimada_inicio': proyecto['fecha_estimada_inicio'].isoformat() if proyecto.get('fecha_estimada_inicio') else '',
+        'fecha_inicio': proyecto['fecha_inicio'].isoformat() if proyecto.get('fecha_inicio') else '',
         'monto_neto': float(proyecto['monto_neto']) if proyecto.get('monto_neto') else '',
         'monto_neto_provision': float(proyecto['monto_neto_provision']) if proyecto.get('monto_neto_provision') else '',
         'monto_neto_instalacion': float(proyecto['monto_neto_instalacion']) if proyecto.get('monto_neto_instalacion') else '',
+        'monto_provision_presupuestada': float(proyecto['monto_provision_presupuestada']) if proyecto.get('monto_provision_presupuestada') else '',
+        'margen_provision': float(proyecto['margen_provision']) if proyecto.get('margen_provision') else '',
+        'margen_instalacion': float(proyecto['margen_instalacion']) if proyecto.get('margen_instalacion') else '',
         'diseñador_id': proyecto['diseñador_id'],
         'diseñador_nombre': proyecto.get('diseñador_nombre') or '',
         'observaciones': proyecto.get('observaciones') or '',
@@ -4198,6 +4202,12 @@ def api_proyecto_detalle(proyecto_id):
 
     conn.close()
     return jsonify(proyecto_dict)
+
+@app.route('/api/proyecto/<int:proyecto_id>')
+@login_required
+def api_proyecto_get(proyecto_id):
+    """API alias para obtener detalles de un proyecto"""
+    return api_proyecto_detalle(proyecto_id)
 
 
 @app.route('/api/proyecto/<int:proyecto_id>/documentos')
@@ -4233,6 +4243,96 @@ def api_documentos_proyecto(proyecto_id):
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
+
+
+@app.route('/subir_documento_proyecto/<int:proyecto_id>', methods=['POST'])
+@login_required
+def subir_documento_proyecto(proyecto_id):
+    """Subir documento a un proyecto"""
+    try:
+        archivo = request.files.get('archivo')
+        descripcion = request.form.get('descripcion', '').strip() or None
+
+        if not archivo or archivo.filename == '':
+            flash('No se seleccionó ningún archivo', 'error')
+            return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+
+        if not allowed_file(archivo.filename):
+            flash('Tipo de archivo no permitido', 'error')
+            return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+
+        # Verificar que el proyecto existe
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT id FROM proyectos WHERE id = %s', (proyecto_id,))
+        if not cursor.fetchone():
+            flash('Proyecto no encontrado', 'error')
+            conn.close()
+            return redirect(url_for('clientes'))
+
+        # Guardar archivo
+        ruta_archivo = save_uploaded_file(archivo, 'proyectos')
+        if not ruta_archivo:
+            flash('Error al guardar el archivo', 'error')
+            conn.close()
+            return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+
+        # Obtener tipo de archivo
+        extension = archivo.filename.rsplit('.', 1)[1].lower()
+        tipo_archivo = 'imagen' if extension in ['png', 'jpg', 'jpeg', 'gif'] else 'documento'
+
+        # Guardar en base de datos
+        cursor.execute('''
+            INSERT INTO documentos_proyecto 
+            (proyecto_id, nombre_original, ruta_archivo, tipo_archivo, tamaño, descripcion, usuario_subida_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', (proyecto_id, archivo.filename, ruta_archivo, tipo_archivo, 
+              len(archivo.read()), descripcion, session['user_id']))
+
+        conn.commit()
+        conn.close()
+
+        flash('Documento subido exitosamente', 'success')
+        return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+
+    except Exception as e:
+        flash(f'Error al subir documento: {str(e)}', 'error')
+        return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+
+
+@app.route('/documento/<int:documento_id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_documento_proyecto(documento_id):
+    """Eliminar documento de un proyecto"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Obtener información del documento
+        cursor.execute('''
+            SELECT ruta_archivo, proyecto_id, nombre_original
+            FROM documentos_proyecto
+            WHERE id = %s
+        ''', (documento_id,))
+        
+        documento = cursor.fetchone()
+        if not documento:
+            return jsonify({'success': False, 'message': 'Documento no encontrado'})
+
+        # Eliminar archivo del sistema
+        delete_file(documento['ruta_archivo'])
+
+        # Eliminar registro de la base de datos
+        cursor.execute('DELETE FROM documentos_proyecto WHERE id = %s', (documento_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Documento {documento["nombre_original"]} eliminado exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al eliminar documento: {str(e)}'})
     finally:
         conn.close()
 
