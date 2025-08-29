@@ -81,15 +81,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Form validation
+    function setupFormValidation() {
+        const validationForms = document.querySelectorAll('.needs-validation');
+
+        validationForms.forEach(form => {
+            form.addEventListener('submit', function(event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            });
+        });
+    }
+
     // Initialize on DOM ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             initNavigationLinks();
             initConfirmDialogs();
+            setupFormValidation();
         });
     } else {
         initNavigationLinks();
         initConfirmDialogs();
+        setupFormValidation();
     }
 })();
 
@@ -102,7 +119,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const requiredFields = form.querySelectorAll('[required]');
                 let valid = true;
 
-                requiredFields.forEach(field => {
         if (!field.value.trim()) {
             field.classList.add('is-invalid');
             valid = false;

@@ -72,25 +72,48 @@ def allowed_file(filename):
 
 def save_uploaded_file(file, subfolder='despachos'):
     """Guarda un archivo subido usando Object Storage y retorna la ruta"""
-    if file and allowed_file(file.filename):
-        try:
-            # Usar Object Storage Manager para subir archivo
-            storage_path, error = storage_manager.upload_file(file, subfolder)
-            if error:
-                print(f"Error subiendo a Object Storage: {error}")
-                return None
-            return storage_path
-        except Exception as e:
-            print(f"Error en save_uploaded_file: {e}")
+    if not file or not file.filename:
+        print("Error: No se proporcionó archivo o nombre de archivo")
+        return None
+    
+    if not allowed_file(file.filename):
+        print(f"Error: Tipo de archivo no permitido: {file.filename}")
+        return None
+    
+    try:
+        # Resetear posición del archivo al inicio antes de subir
+        file.seek(0)
+        
+        # Usar Object Storage Manager para subir archivo
+        storage_path, error = storage_manager.upload_file(file, subfolder)
+        if error:
+            print(f"Error subiendo a Object Storage: {error}")
             # Fallback al sistema de archivos local
-            filename = secure_filename(file.filename)
-            unique_filename = f"{uuid.uuid4()}_{filename}"
-            upload_path = os.path.join(app.config['UPLOAD_FOLDER'], subfolder)
-            os.makedirs(upload_path, exist_ok=True)
-            file_path = os.path.join(upload_path, unique_filename)
-            file.save(file_path)
-            return f"uploads/{subfolder}/{unique_filename}"
-    return None
+            return _save_to_local_storage(file, subfolder)
+        
+        print(f"Archivo subido exitosamente a Object Storage: {storage_path}")
+        return storage_path
+        
+    except Exception as e:
+        print(f"Error en save_uploaded_file: {e}")
+        # Fallback al sistema de archivos local
+        return _save_to_local_storage(file, subfolder)
+
+def _save_to_local_storage(file, subfolder):
+    """Fallback: guardar archivo en sistema de archivos local"""
+    try:
+        file.seek(0)  # Resetear posición
+        filename = secure_filename(file.filename)
+        unique_filename = f"{uuid.uuid4()}_{filename}"
+        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], subfolder)
+        os.makedirs(upload_path, exist_ok=True)
+        file_path = os.path.join(upload_path, unique_filename)
+        file.save(file_path)
+        print(f"Archivo guardado localmente: uploads/{subfolder}/{unique_filename}")
+        return f"uploads/{subfolder}/{unique_filename}"
+    except Exception as e:
+        print(f"Error guardando archivo localmente: {e}")
+        return None
 
 def delete_file(file_path):
     """Elimina un archivo del Object Storage o sistema de archivos local"""
@@ -2891,17 +2914,71 @@ def api_ordenes_compra_estado():
 def serve_storage_file(filename):
     """Servir archivos desde Object Storage"""
     try:
-        # Intentar obtener URL del archivo desde Object Storage
-        url, error = storage_manager.get_file_url(filename)
-        if url and not error:
-            return redirect(url)
-        else:
-            print(f"Error obteniendo archivo de Object Storage: {error}")
-            # Fallback: servir desde static si existe
+        # Intentar obtener el archivo desde Object Storage
+        script = f"""
+        const {{ Client }} = require('@replit/object-storage');
+        const fs = require('fs');
+        
+        async function getFile() {{
+            try {{
+                const client = new Client();
+                const {{ ok, value, error }} = await client.downloadAsBytes('{filename}');
+                
+                if (ok) {{
+                    // Escribir archivo temporal
+                    const tempPath = '/tmp/storage_file_{uuid.uuid4().hex}';
+                    fs.writeFileSync(tempPath, value);
+                    console.log(JSON.stringify({{ success: true, path: tempPath }}));
+                }} else {{
+                    console.log(JSON.stringify({{ success: false, error: error?.message || 'File not found' }}));
+                }}
+            }} catch (e) {{
+                console.log(JSON.stringify({{ success: false, error: e.message }}));
+            }}
+        }}
+        
+        getFile();
+        """
+        
+        import subprocess
+        result = subprocess.run(['node', '-e', script], capture_output=True, text=True)
+        
+        if result.stdout:
+            response_data = json.loads(result.stdout)
+            if response_data.get('success'):
+                temp_path = response_data['path']
+                if os.path.exists(temp_path):
+                    # Determinar content type
+                    content_type = 'application/octet-stream'
+                    if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                        content_type = f'image/{filename.split(".")[-1].lower()}'
+                    elif filename.lower().endswith('.pdf'):
+                        content_type = 'application/pdf'
+                    
+                    with open(temp_path, 'rb') as f:
+                        file_data = f.read()
+                    
+                    # Limpiar archivo temporal
+                    os.remove(temp_path)
+                    
+                    from flask import Response
+                    return Response(file_data, content_type=content_type)
+        
+        # Fallback: servir desde static si existe
+        static_path = os.path.join('static', filename)
+        if os.path.exists(static_path):
             return app.send_static_file(filename)
+        else:
+            print(f"Archivo no encontrado: {filename}")
+            return "Archivo no encontrado", 404
+            
     except Exception as e:
         print(f"Error sirviendo archivo {filename}: {e}")
-        return "Archivo no encontrado", 404
+        # Fallback final: servir desde static
+        try:
+            return app.send_static_file(filename)
+        except:
+            return "Archivo no encontrado", 404
 
 @app.route('/api/calendar_events')
 @login_required
@@ -4328,12 +4405,10 @@ def subir_documento_proyecto(proyecto_id):
         descripcion = request.form.get('descripcion', '').strip() or None
 
         if not archivo or archivo.filename == '':
-            flash('No se seleccionó ningún archivo', 'error')
-            return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+            return jsonify({'success': False, 'message': 'No se seleccionó ningún archivo'})
 
         if not allowed_file(archivo.filename):
-            flash('Tipo de archivo no permitido', 'error')
-            return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+            return jsonify({'success': False, 'message': 'Tipo de archivo no permitido. Solo se permiten: PNG, JPG, PDF, DOC, DOCX, XLS, XLSX'})
 
         # Verificar que el proyecto existe
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
@@ -4341,43 +4416,59 @@ def subir_documento_proyecto(proyecto_id):
         
         cursor.execute('SELECT id FROM proyectos WHERE id = %s', (proyecto_id,))
         if not cursor.fetchone():
-            flash('Proyecto no encontrado', 'error')
             conn.close()
-            return redirect(url_for('clientes'))
+            return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
 
-        # Guardar archivo
+        # Obtener tamaño del archivo antes de procesarlo
+        archivo.seek(0, 2)  # Ir al final del archivo
+        tamaño_archivo = archivo.tell()
+        archivo.seek(0)  # Volver al inicio
+
+        # Verificar tamaño máximo (16MB)
+        if tamaño_archivo > 16 * 1024 * 1024:
+            conn.close()
+            return jsonify({'success': False, 'message': 'El archivo excede el tamaño máximo de 16MB'})
+
+        # Guardar archivo usando Object Storage
         ruta_archivo = save_uploaded_file(archivo, 'proyectos')
         if not ruta_archivo:
-            flash('Error al guardar el archivo', 'error')
             conn.close()
-            return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+            return jsonify({'success': False, 'message': 'Error al guardar el archivo en el storage'})
 
         # Obtener tipo de archivo
         extension = archivo.filename.rsplit('.', 1)[1].lower()
         tipo_archivo = 'imagen' if extension in ['png', 'jpg', 'jpeg', 'gif'] else 'documento'
-
-        # Obtener tamaño del archivo
-        archivo.seek(0, 2)  # Ir al final del archivo
-        tamaño_archivo = archivo.tell()
-        archivo.seek(0)  # Volver al inicio
 
         # Guardar en base de datos
         cursor.execute('''
             INSERT INTO documentos_proyecto 
             (proyecto_id, nombre_original, ruta_archivo, tipo_archivo, tamaño, descripcion, usuario_subida_id)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         ''', (proyecto_id, archivo.filename, ruta_archivo, tipo_archivo, 
               tamaño_archivo, descripcion, session['user_id']))
+
+        documento_id = cursor.fetchone()['id']
 
         conn.commit()
         conn.close()
 
-        flash('Documento subido exitosamente', 'success')
-        return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+        return jsonify({
+            'success': True, 
+            'message': 'Documento subido exitosamente',
+            'documento': {
+                'id': documento_id,
+                'nombre_original': archivo.filename,
+                'tipo_archivo': tipo_archivo,
+                'tamaño': tamaño_archivo,
+                'ruta_archivo': ruta_archivo
+            }
+        })
 
     except Exception as e:
-        flash(f'Error al subir documento: {str(e)}', 'error')
-        return redirect(url_for('proyecto_detalle', proyecto_id=proyecto_id))
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'success': False, 'message': f'Error al subir documento: {str(e)}'})
 
 
 @app.route('/documento/<int:documento_id>/eliminar', methods=['POST'])
