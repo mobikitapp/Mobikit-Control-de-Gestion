@@ -13,6 +13,7 @@ import sqlite3 # Keep this import for the ALTER TABLE fallback, although its fun
 
 # Import permission functions
 from utils.permissions import permission_required, has_permission, ROLE_PERMISSIONS
+from utils.storage import ObjectStorageManager
 
 app = Flask(__name__)
 
@@ -62,39 +63,53 @@ os.makedirs('static/css', exist_ok=True)
 os.makedirs('static/js', exist_ok=True)
 os.makedirs('templates', exist_ok=True)
 
+# Inicializar Object Storage Manager
+storage_manager = ObjectStorageManager()
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def save_uploaded_file(file, subfolder='despachos'):
-    """Guarda un archivo subido y retorna la ruta relativa"""
+    """Guarda un archivo subido usando Object Storage y retorna la ruta"""
     if file and allowed_file(file.filename):
-        # Crear nombre único para evitar conflictos
-        filename = secure_filename(file.filename)
-        unique_filename = f"{uuid.uuid4()}_{filename}"
-
-        # Crear directorio si no existe
-        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], subfolder)
-        os.makedirs(upload_path, exist_ok=True)
-
-        # Guardar archivo
-        file_path = os.path.join(upload_path, unique_filename)
-        file.save(file_path)
-
-        # Retornar ruta relativa para la base de datos
-        return f"uploads/{subfolder}/{unique_filename}"
+        try:
+            # Usar Object Storage Manager para subir archivo
+            storage_path, error = storage_manager.upload_file(file, subfolder)
+            if error:
+                print(f"Error subiendo a Object Storage: {error}")
+                return None
+            return storage_path
+        except Exception as e:
+            print(f"Error en save_uploaded_file: {e}")
+            # Fallback al sistema de archivos local
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4()}_{filename}"
+            upload_path = os.path.join(app.config['UPLOAD_FOLDER'], subfolder)
+            os.makedirs(upload_path, exist_ok=True)
+            file_path = os.path.join(upload_path, unique_filename)
+            file.save(file_path)
+            return f"uploads/{subfolder}/{unique_filename}"
     return None
 
 def delete_file(file_path):
-    """Elimina un archivo del sistema de archivos"""
+    """Elimina un archivo del Object Storage o sistema de archivos local"""
     if file_path:
-        full_path = os.path.join('static', file_path)
-        if os.path.exists(full_path):
-            try:
+        try:
+            # Intentar eliminar de Object Storage primero
+            if not file_path.startswith('uploads/'):
+                success, error = storage_manager.delete_file(file_path)
+                if success:
+                    return True
+                print(f"Error eliminando de Object Storage: {error}")
+            
+            # Fallback: eliminar del sistema de archivos local
+            full_path = os.path.join('static', file_path)
+            if os.path.exists(full_path):
                 os.remove(full_path)
                 return True
-            except Exception as e:
-                print(f"Error al eliminar archivo {full_path}: {e}")
+        except Exception as e:
+            print(f"Error al eliminar archivo {file_path}: {e}")
     return False
 
 def get_db_connection():
@@ -2860,6 +2875,23 @@ def api_ordenes_compra_estado():
         conn.close()
 
 
+@app.route('/storage/<path:filename>')
+@login_required
+def serve_storage_file(filename):
+    """Servir archivos desde Object Storage"""
+    try:
+        # Intentar obtener URL del archivo desde Object Storage
+        url, error = storage_manager.get_file_url(filename)
+        if url and not error:
+            return redirect(url)
+        else:
+            print(f"Error obteniendo archivo de Object Storage: {error}")
+            # Fallback: servir desde static si existe
+            return app.send_static_file(filename)
+    except Exception as e:
+        print(f"Error sirviendo archivo {filename}: {e}")
+        return "Archivo no encontrado", 404
+
 @app.route('/api/calendar_events')
 @login_required
 def api_calendar_events():
@@ -4313,13 +4345,18 @@ def subir_documento_proyecto(proyecto_id):
         extension = archivo.filename.rsplit('.', 1)[1].lower()
         tipo_archivo = 'imagen' if extension in ['png', 'jpg', 'jpeg', 'gif'] else 'documento'
 
+        # Obtener tamaño del archivo
+        archivo.seek(0, 2)  # Ir al final del archivo
+        tamaño_archivo = archivo.tell()
+        archivo.seek(0)  # Volver al inicio
+
         # Guardar en base de datos
         cursor.execute('''
             INSERT INTO documentos_proyecto 
             (proyecto_id, nombre_original, ruta_archivo, tipo_archivo, tamaño, descripcion, usuario_subida_id)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         ''', (proyecto_id, archivo.filename, ruta_archivo, tipo_archivo, 
-              len(archivo.read()), descripcion, session['user_id']))
+              tamaño_archivo, descripcion, session['user_id']))
 
         conn.commit()
         conn.close()

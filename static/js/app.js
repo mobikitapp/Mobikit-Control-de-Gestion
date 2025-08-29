@@ -103,28 +103,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 let valid = true;
 
                 requiredFields.forEach(field => {
-                    if (!field.value.trim()) {
-                        field.classList.add('is-invalid');
-                        valid = false;
-                    } else {
-                        field.classList.remove('is-invalid');
-                    }
-                });
-
-                if (!valid) {
-                    e.preventDefault();
-                    showAlert('Por favor complete todos los campos obligatorios', 'danger');
-                }
-            });
-        });
-    }
-
-            if (!valid) {
-                e.preventDefault();
-                alert('Por favor completa todos los campos requeridos');
-            }
-        });
+        if (!field.value.trim()) {
+            field.classList.add('is-invalid');
+            valid = false;
+        } else {
+            field.classList.remove('is-invalid');
+        }
     });
+
+    if (!valid) {
+        e.preventDefault();
+        showAlert('Por favor complete todos los campos obligatorios', 'danger');
+    }
+});
 
     // Auto-update timestamps
     const timestamps = document.querySelectorAll('[data-timestamp]');
