@@ -238,7 +238,7 @@ def init_db():
         # Insertar permisos por defecto si la tabla está vacía
         cursor.execute("SELECT COUNT(*) FROM permisos_rol")
         result = cursor.fetchone()
-        if result and result[0] == 0:
+        if result and result['count'] == 0:
             # Definir permisos por defecto
             permisos_defecto = [
                 # General - casi todos los permisos
@@ -416,7 +416,7 @@ def init_db():
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
     result = cursor.fetchone()
-    if result and result[0] == 0:
+    if result and result['count'] == 0:
         admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
         cursor.execute(
             '''
@@ -446,7 +446,7 @@ def init_db():
             # Verificar si el nombre de usuario ya existe
             cursor.execute('SELECT COUNT(*) FROM usuarios WHERE username = %s', (username_vendedor,))
             result = cursor.fetchone()
-            if result and result[0] == 0:
+            if result and result['count'] == 0:
                 # Usar una contraseña por defecto (o generar una más segura si es necesario)
                 password_hash_vendedor = generate_password_hash("mobikit123")
                 cursor.execute(
@@ -2146,7 +2146,7 @@ def crear_despacho():
         if cantidad_bultos:
             info_completa += f"\nCANTIDAD BULTOS: {cantidad_bultos}"
         if peso_estimado:
-            info_completa += f"\nPESO ESTIMADO: {peso_estimado} kg"
+            info_completa += f"\nPeso Estimado: {peso_estimado} kg"
         if contacto_entrega:
             info_completa += f"\nCONTACTO ENTREGA: {contacto_entrega}"
         if telefono_contacto:
@@ -3407,7 +3407,7 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
         if orden['estado'] not in ['enviado_produccion']:
-            return jsonify({'success': False, 'message': f'La orden no está lista para iniciar producción. Estado actual: {orden["estado"]}'})
+            return jsonify({'success': False, 'message': 'La orden no está lista para iniciar producción. Estado actual: {orden["estado"]}'})
 
         # Cambiar estado de la orden de fabricación a primera etapa
         cursor.execute('''
@@ -3439,7 +3439,7 @@ def api_iniciar_orden_fabricacion(orden_fabricacion_id):
             pass
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Orden de fabricación {orden["codigo_orden"]} iniciada en seccionado.'})
+        return jsonify({'success': True, 'message': 'Orden de fabricación {orden["codigo_orden"]} iniciada en seccionado.'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -4203,7 +4203,7 @@ def api_proyecto_detalle(proyecto_id):
 
         conn.close()
         return jsonify(proyecto_dict)
-        
+
     except psycopg2.Error as e:
         if 'conn' in locals():
             conn.close()
@@ -4276,7 +4276,7 @@ def subir_documento_proyecto(proyecto_id):
         # Verificar que el proyecto existe
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
-        
+
         cursor.execute('SELECT id FROM proyectos WHERE id = %s', (proyecto_id,))
         if not cursor.fetchone():
             flash('Proyecto no encontrado', 'error')
@@ -4327,7 +4327,7 @@ def eliminar_documento_proyecto(documento_id):
             FROM documentos_proyecto
             WHERE id = %s
         ''', (documento_id,))
-        
+
         documento = cursor.fetchone()
         if not documento:
             return jsonify({'success': False, 'message': 'Documento no encontrado'})
