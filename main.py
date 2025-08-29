@@ -1,3 +1,4 @@
+# Added database indexes to init_db for query optimization.
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -12,13 +13,37 @@ import sqlite3 # Keep this import for the ALTER TABLE fallback, although its fun
 
 # Import permission functions
 from utils.permissions import permission_required, has_permission, ROLE_PERMISSIONS
+from utils.storage import ObjectStorageManager
 
 app = Flask(__name__)
+
+def has_permission_db(user_role, modulo, permiso):
+    """
+    Verifica si un rol tiene un permiso específico usando la base de datos
+    """
+    if user_role == 'admin':
+        return True
+
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            SELECT COUNT(*) FROM permisos_rol 
+            WHERE rol = %s AND modulo = %s AND permiso = %s AND activo = TRUE
+        ''', (user_role, modulo, permiso))
+        result = cursor.fetchone()
+        return result['count'] > 0
+    except Exception as e:
+        print(f"Error verificando permisos: {e}")
+        return False
+    finally:
+        conn.close()
 
 # Make has_permission available in Jinja2 templates
 @app.context_processor
 def inject_permissions():
-    return dict(has_permission=has_permission)
+    return dict(has_permission=has_permission, has_permission_db=has_permission_db)
 app.secret_key = os.getenv('SECRET_KEY', 'mobikit_secret_key_2024')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -38,39 +63,76 @@ os.makedirs('static/css', exist_ok=True)
 os.makedirs('static/js', exist_ok=True)
 os.makedirs('templates', exist_ok=True)
 
+# Inicializar Object Storage Manager
+storage_manager = ObjectStorageManager()
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def save_uploaded_file(file, subfolder='despachos'):
-    """Guarda un archivo subido y retorna la ruta relativa"""
-    if file and allowed_file(file.filename):
-        # Crear nombre único para evitar conflictos
+    """Guarda un archivo subido usando Object Storage y retorna la ruta"""
+    if not file or not file.filename:
+        print("Error: No se proporcionó archivo o nombre de archivo")
+        return None
+    
+    if not allowed_file(file.filename):
+        print(f"Error: Tipo de archivo no permitido: {file.filename}")
+        return None
+    
+    try:
+        # Resetear posición del archivo al inicio antes de subir
+        file.seek(0)
+        
+        # Usar Object Storage Manager para subir archivo
+        storage_path, error = storage_manager.upload_file(file, subfolder)
+        if error:
+            print(f"Error subiendo a Object Storage: {error}")
+            # Fallback al sistema de archivos local
+            return _save_to_local_storage(file, subfolder)
+        
+        print(f"Archivo subido exitosamente a Object Storage: {storage_path}")
+        return storage_path
+        
+    except Exception as e:
+        print(f"Error en save_uploaded_file: {e}")
+        # Fallback al sistema de archivos local
+        return _save_to_local_storage(file, subfolder)
+
+def _save_to_local_storage(file, subfolder):
+    """Fallback: guardar archivo en sistema de archivos local"""
+    try:
+        file.seek(0)  # Resetear posición
         filename = secure_filename(file.filename)
         unique_filename = f"{uuid.uuid4()}_{filename}"
-
-        # Crear directorio si no existe
         upload_path = os.path.join(app.config['UPLOAD_FOLDER'], subfolder)
         os.makedirs(upload_path, exist_ok=True)
-
-        # Guardar archivo
         file_path = os.path.join(upload_path, unique_filename)
         file.save(file_path)
-
-        # Retornar ruta relativa para la base de datos
+        print(f"Archivo guardado localmente: uploads/{subfolder}/{unique_filename}")
         return f"uploads/{subfolder}/{unique_filename}"
-    return None
+    except Exception as e:
+        print(f"Error guardando archivo localmente: {e}")
+        return None
 
 def delete_file(file_path):
-    """Elimina un archivo del sistema de archivos"""
+    """Elimina un archivo del Object Storage o sistema de archivos local"""
     if file_path:
-        full_path = os.path.join('static', file_path)
-        if os.path.exists(full_path):
-            try:
+        try:
+            # Intentar eliminar de Object Storage primero
+            if not file_path.startswith('uploads/'):
+                success, error = storage_manager.delete_file(file_path)
+                if success:
+                    return True
+                print(f"Error eliminando de Object Storage: {error}")
+            
+            # Fallback: eliminar del sistema de archivos local
+            full_path = os.path.join('static', file_path)
+            if os.path.exists(full_path):
                 os.remove(full_path)
                 return True
-            except Exception as e:
-                print(f"Error al eliminar archivo {full_path}: {e}")
+        except Exception as e:
+            print(f"Error al eliminar archivo {file_path}: {e}")
     return False
 
 def get_db_connection():
@@ -92,7 +154,8 @@ def init_db():
             WHERE constraint_name = 'usuarios_rol_check' 
             AND check_clause LIKE '%vendedor%'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             # Drop existing constraint and recreate with vendedor
             cursor.execute("ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check")
             cursor.execute("""
@@ -118,7 +181,8 @@ def init_db():
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'proyectos' AND column_name = 'archivado'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             cursor.execute("ALTER TABLE proyectos ADD COLUMN archivado BOOLEAN DEFAULT FALSE")
     except Exception as e:
         print(f"Error adding 'archivado' column: {e}")
@@ -129,7 +193,8 @@ def init_db():
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'proyectos' AND column_name = 'margen_provision'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             cursor.execute("ALTER TABLE proyectos ADD COLUMN margen_provision DECIMAL(5,2)")
     except Exception as e:
         print(f"Error adding 'margen_provision' column: {e}")
@@ -139,7 +204,8 @@ def init_db():
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'proyectos' AND column_name = 'margen_instalacion'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             cursor.execute("ALTER TABLE proyectos ADD COLUMN margen_instalacion DECIMAL(5,2)")
     except Exception as e:
         print(f"Error adding 'margen_instalacion' column: {e}")
@@ -150,7 +216,8 @@ def init_db():
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'proyectos' AND column_name = 'monto_provision_presupuestada'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             cursor.execute("ALTER TABLE proyectos ADD COLUMN monto_provision_presupuestada DECIMAL(12,2)")
     except Exception as e:
         print(f"Error adding 'monto_provision_presupuestada' column: {e}")
@@ -161,7 +228,8 @@ def init_db():
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'usuarios' AND column_name = 'repl_user_id'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             cursor.execute("ALTER TABLE usuarios ADD COLUMN repl_user_id VARCHAR(100)")
     except Exception as e:
         print(f"Error adding 'repl_user_id' column: {e}")
@@ -190,22 +258,112 @@ def init_db():
     except Exception as e:
         print(f"Error creating 'ordenes_compra' table: {e}")
 
+    # Crear tabla de permisos por rol si no existe
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS permisos_rol (
+                id SERIAL PRIMARY KEY,
+                rol VARCHAR(20) NOT NULL CHECK (rol IN ('admin', 'general', 'vendedor', 'operación', 'embalaje', 'despacho')),
+                modulo VARCHAR(50) NOT NULL,
+                permiso VARCHAR(50) NOT NULL,
+                activo BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(rol, modulo, permiso)
+            )
+        """)
+
+        # Insertar permisos por defecto si la tabla está vacía
+        cursor.execute("SELECT COUNT(*) FROM permisos_rol")
+        result = cursor.fetchone()
+        if result and result[0] == 0:
+            # Definir permisos por defecto
+            permisos_defecto = [
+                # General - casi todos los permisos
+                ('general', 'clientes', 'view'),
+                ('general', 'clientes', 'create'),
+                ('general', 'clientes', 'edit'),
+                ('general', 'proyectos', 'view'),
+                ('general', 'proyectos', 'create'),
+                ('general', 'proyectos', 'edit'),
+                ('general', 'proyectos', 'archive'),
+                ('general', 'ordenes_compra', 'view'),
+                ('general', 'ordenes_compra', 'create'),
+                ('general', 'ordenes_compra', 'edit'),
+                ('general', 'ordenes_compra', 'approve'),
+                ('general', 'ordenes_fabricacion', 'view'),
+                ('general', 'ordenes_fabricacion', 'create'),
+                ('general', 'ordenes_fabricacion', 'edit'),
+                ('general', 'ordenes_fabricacion', 'process'),
+                ('general', 'gestion_pedidos', 'view'),
+                ('general', 'gestion_pedidos', 'edit'),
+                ('general', 'despachos', 'view'),
+                ('general', 'despachos', 'create'),
+                ('general', 'despachos', 'edit'),
+                ('general', 'despachos', 'process'),
+                ('general', 'planificacion', 'view'),
+                ('general', 'planificacion', 'edit'),
+                ('general', 'reportes', 'view'),
+
+                # Vendedor - permisos limitados
+                ('vendedor', 'clientes', 'view'),
+                ('vendedor', 'proyectos', 'view'),
+                ('vendedor', 'proyectos', 'create'),
+                ('vendedor', 'proyectos', 'edit'),
+                ('vendedor', 'ordenes_compra', 'view'),
+                ('vendedor', 'ordenes_compra', 'create'),
+                ('vendedor', 'planificacion', 'view'),
+
+                # Operación - fabricación y órdenes
+                ('operación', 'ordenes_compra', 'view'),
+                ('operación', 'ordenes_fabricacion', 'view'),
+                ('operación', 'ordenes_fabricacion', 'create'),
+                ('operación', 'ordenes_fabricacion', 'edit'),
+                ('operación', 'ordenes_fabricacion', 'process'),
+                ('operación', 'gestion_pedidos', 'view'),
+
+                # Embalaje - visualización limitada
+                ('embalaje', 'ordenes_compra', 'view'),
+                ('embalaje', 'ordenes_fabricacion', 'view'),
+                ('embalaje', 'gestion_pedidos', 'view'),
+                ('embalaje', 'despachos', 'view'),
+
+                # Despacho - gestión de despachos
+                ('despacho', 'ordenes_compra', 'view'),
+                ('despacho', 'despachos', 'view'),
+                ('despacho', 'despachos', 'create'),
+                ('despacho', 'despachos', 'edit'),
+                ('despacho', 'despachos', 'process'),
+                ('despacho', 'gestion_pedidos', 'view')
+            ]
+
+            for rol, modulo, permiso in permisos_defecto:
+                cursor.execute('''
+                    INSERT INTO permisos_rol (rol, modulo, permiso, activo)
+                    VALUES (%s, %s, %s, %s)
+                ''', (rol, modulo, permiso, True))
+
+        print("Tabla de permisos inicializada correctamente")
+
+    except Exception as e:
+        print(f"Error creating/initializing 'permisos_rol' table: {e}")
+
     # Actualizar restricción de estados de proyectos con sistema simplificado
     try:
         # Primero eliminar la restricción existente
         cursor.execute("ALTER TABLE proyectos DROP CONSTRAINT IF EXISTS proyectos_estado_check")
-        
+
         # Verificar y mostrar estados existentes antes de la limpieza
         cursor.execute("SELECT DISTINCT estado FROM proyectos")
         estados_existentes = cursor.fetchall()
-        print(f"Estados encontrados antes de la limpieza: {[r['estado'] for r in estados_existentes]}")
-        
+        print(f"Estados encontrados antes de la limpieza: {[r[0] for r in estados_existentes]}")
+
         # Migrar estados problemáticos a 'activo'
         cursor.execute("""
             UPDATE proyectos SET estado = 'activo' 
             WHERE estado NOT IN ('activo', 'entregado', 'cancelado')
         """)
-        
+
         # Eliminar proyectos con estados que no se pueden migrar (datos corruptos)
         cursor.execute("""
             DELETE FROM proyecto_categorias 
@@ -214,7 +372,7 @@ def init_db():
                 WHERE estado IS NULL OR estado = ''
             )
         """)
-        
+
         cursor.execute("""
             DELETE FROM proyectos 
             WHERE estado IS NULL OR estado = ''
@@ -225,11 +383,11 @@ def init_db():
             ALTER TABLE proyectos ADD CONSTRAINT proyectos_estado_check 
             CHECK (estado IN ('activo', 'entregado', 'cancelado'))
         """)
-        
+
         # Verificar estados después de la limpieza
         cursor.execute("SELECT DISTINCT estado FROM proyectos")
         estados_finales = cursor.fetchall()
-        print(f"Estados después de la limpieza: {[r['estado'] for r in estados_finales]}")
+        print(f"Estados después de la limpieza: {[r[0] for r in estados_finales]}")
         print("Estados de proyectos actualizados al sistema simplificado: activo, entregado, cancelado")
 
     except Exception as e:
@@ -244,9 +402,10 @@ def init_db():
             SELECT EXISTS (SELECT 1 FROM information_schema.tables 
                           WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         """)
-        table_exists = cursor.fetchone()
-        
-        if table_exists and table_exists['exists']:
+        result = cursor.fetchone()
+        table_exists = result[0] if result else False
+
+        if table_exists:
             cursor.execute("""
                 ALTER TABLE ordenes_fabricacion 
                 DROP CONSTRAINT IF EXISTS ordenes_fabricacion_estado_check
@@ -266,12 +425,36 @@ def init_db():
         pass
 
 
+    # Crear índices para optimizar consultas frecuentes
+    try:
+        # Índices para proyectos
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_proyectos_estado ON proyectos(estado)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_proyectos_fecha_entrega ON proyectos(fecha_entrega)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_proyectos_cliente_id ON proyectos(cliente_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_proyectos_archivado ON proyectos(archivado)')
+
+        # Índices para proyecto_categorias
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_proyecto_categorias_proyecto_id ON proyecto_categorias(proyecto_id)')
+
+        # Índices para ordenes_fabricacion
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ordenes_fabricacion_proyecto_id ON ordenes_fabricacion(proyecto_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ordenes_fabricacion_estado ON ordenes_fabricacion(estado)')
+
+        # Índices para clientes
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_clientes_activo ON clientes(activo)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_clientes_created_at ON clientes(created_at)')
+
+        print("Índices de optimización creados correctamente")
+    except Exception as e:
+        print(f"Error creando índices de optimización: {e}")
+
     # Commit las operaciones anteriores antes de continuar
     conn.commit()
-    
+
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
-    if cursor.fetchone()[0] == 0:
+    result = cursor.fetchone()
+    if result and result[0] == 0:
         admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
         cursor.execute(
             '''
@@ -300,7 +483,8 @@ def init_db():
             username_vendedor = nombre_vendedor.lower().replace(' ', '_')
             # Verificar si el nombre de usuario ya existe
             cursor.execute('SELECT COUNT(*) FROM usuarios WHERE username = %s', (username_vendedor,))
-            if cursor.fetchone()[0] == 0:
+            result = cursor.fetchone()
+            if result and result[0] == 0:
                 # Usar una contraseña por defecto (o generar una más segura si es necesario)
                 password_hash_vendedor = generate_password_hash("mobikit123")
                 cursor.execute(
@@ -455,6 +639,25 @@ def role_required(roles):
 
     return decorator
 
+def permission_required_db(modulo, permiso):
+    """
+    Decorador para verificar permisos específicos usando la base de datos
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_role' not in session:
+                flash('Debes iniciar sesión', 'error')
+                return redirect(url_for('login'))
+            
+            if not has_permission_db(session['user_role'], modulo, permiso):
+                flash('No tienes permisos para realizar esta acción', 'error')
+                return redirect(url_for('dashboard'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
 
 @app.route('/')
 def index():
@@ -464,38 +667,53 @@ def index():
 
 
 def check_repl_auth():
-    """Check if user is authenticated via Repl Auth"""
-    user_id = request.headers.get('X-Replit-User-Id')
-    user_name = request.headers.get('X-Replit-User-Name')
-    user_roles = request.headers.get('X-Replit-User-Roles', '')
-
-    if user_id and user_name:
-        # Check if user exists in our database
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT id, rol, nombre FROM usuarios WHERE username = %s', (user_name,))
-        user = cursor.fetchone()
-
-        if not user:
-            # Create new user with vendedor role by default
-            cursor.execute('''
-                INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
-                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, rol, nombre
-            ''', (user_name, 'repl_auth', 'vendedor', user_name, f'{user_name}@replit.com', True))
-            user = cursor.fetchone()
-
-        conn.commit()
-        conn.close()
-
-        return {
-            'user_id': user['id'],
-            'user_role': user['rol'],
-            'user_name': user['nombre'],
-            'repl_user_id': user_id
-        }
-
+    """Check if user is authenticated via Repl Auth - TEMPORALMENTE DESHABILITADO"""
+    # Replit Auth temporalmente deshabilitado
+    # Para reactivar, descomenta el código siguiente y comenta el return None
     return None
+    
+    # user_id = request.headers.get('X-Replit-User-Id')
+    # user_name = request.headers.get('X-Replit-User-Name')
+    # user_roles = request.headers.get('X-Replit-User-Roles', '')
+
+    # # Lista blanca de usuarios autorizados (puedes agregar más usuarios aquí)
+    # USUARIOS_AUTORIZADOS = [
+    #     # Agrega aquí los nombres de usuario de Replit que quieres autorizar
+    #     # Ejemplo: 'tu_usuario_replit', 'otro_usuario_autorizado'
+    # ]
+
+    # if user_id and user_name:
+    #     # Verificar si el usuario está en la lista blanca
+    #     if USUARIOS_AUTORIZADOS and user_name not in USUARIOS_AUTORIZADOS:
+    #         print(f"Usuario no autorizado intentó acceder: {user_name}")
+    #         return None
+    #     
+    #     # Check if user exists in our database
+    #     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    #     cursor = conn.cursor()
+
+    #     cursor.execute('SELECT id, rol, nombre FROM usuarios WHERE username = %s', (user_name,))
+    #     user = cursor.fetchone()
+
+    #     if not user:
+    #         # Create new user with vendedor role by default
+    #         cursor.execute('''
+    #             INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
+    #             VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, rol, nombre
+    #         ''', (user_name, 'repl_auth', 'vendedor', user_name, f'{user_name}@replit.com', True))
+    #         user = cursor.fetchone()
+
+    #     conn.commit()
+    #     conn.close()
+
+    #     return {
+    #         'user_id': user['id'],
+    #         'user_role': user['rol'],
+    #         'user_name': user['nombre'],
+    #         'repl_user_id': user_id
+    #     }
+
+    # return None
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -735,7 +953,7 @@ def clientes():
 
 @app.route('/nuevo_cliente', methods=['POST'])
 @login_required
-@role_required(['admin', 'general'])
+@permission_required_db('clientes', 'create')
 def nuevo_cliente():
     """Crear nuevo cliente"""
     try:
@@ -780,7 +998,7 @@ def nuevo_cliente():
 
 @app.route('/editar_cliente', methods=['POST'])
 @login_required
-@role_required(['admin', 'general'])
+@permission_required_db('clientes', 'edit')
 def editar_cliente():
     """Editar cliente existente"""
     try:
@@ -866,7 +1084,7 @@ def ordenes_compra():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Órdenes de compra pendientes (proyectos con categorías asignadas, no archivados)
+    # Órdenes de compra activas (proyectos con categorías asignadas, no archivados)
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.estado, p.prioridad, p.monto_neto,
@@ -909,13 +1127,13 @@ def ordenes_compra():
     # Órdenes Terminadas - Solo proyectos entregados que tienen categorías asignadas, no archivados
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
-               p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
+               p.descripcion, p.prioridad, p.fecha_entrega_real
         FROM proyectos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
         INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
         WHERE p.estado = 'entregado' AND p.archivado = FALSE
         GROUP BY p.id, p.codigo, p.nombre, c.nombre, p.fecha_entrega,
-                 p.descripcion, p.prioridad, p.fecha_entrega_real, p.monto_neto
+                 p.descripcion, p.prioridad, p.fecha_entrega_real
         ORDER BY p.fecha_entrega_real DESC
     ''')
     ordenes_terminadas_raw = cursor.fetchall()
@@ -1098,7 +1316,7 @@ def proyecto_detalle(proyecto_id):
 
 @app.route('/nuevo_proyecto', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'vendedor'])
+@permission_required_db('proyectos', 'create')
 def nuevo_proyecto():
     """Crear nuevo proyecto con nuevos campos de estado"""
     try:
@@ -1207,7 +1425,7 @@ def nuevo_proyecto():
 
 @app.route('/editar_proyecto', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'vendedor'])
+@permission_required_db('proyectos', 'edit')
 def editar_proyecto():
     """Editar proyecto existente"""
     try:
@@ -1725,7 +1943,7 @@ def gestion_pedidos():
 
     for pedido in pedidos:
         estados_fab = pedido['estados_fabricacion'] or ''
-        
+
         # Clasificar según estados de fabricación
         if 'pendiente_aprobacion_diseño' in estados_fab or 'aprobado_diseño' in estados_fab:
             pedidos_por_estado['pendiente_aprobacion']['pedidos'].append(pedido)
@@ -2613,6 +2831,159 @@ def calendario():
     return render_template('calendario.html')
 
 
+@app.route('/api/ordenes_fabricacion_estado')
+@login_required
+def api_ordenes_fabricacion_estado():
+    """API para obtener estado actualizado de órdenes de fabricación"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            SELECT of.id, of.codigo_orden, of.estado, of.proyecto_id,
+                   p.codigo as proyecto_codigo, p.nombre as proyecto_nombre
+            FROM ordenes_fabricacion of
+            JOIN proyectos p ON of.proyecto_id = p.id
+            WHERE p.estado = 'activo' AND p.archivado = FALSE
+            ORDER BY of.created_at DESC
+        ''')
+
+        fabricaciones = []
+        for row in cursor.fetchall():
+            fabricaciones.append({
+                'id': row['id'],
+                'codigo_orden': row['codigo_orden'],
+                'estado': row['estado'],
+                'proyecto_id': row['proyecto_id'],
+                'proyecto_codigo': row['proyecto_codigo'],
+                'proyecto_nombre': row['proyecto_nombre']
+            })
+
+        return jsonify(fabricaciones)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/ordenes_compra_estado')
+@login_required
+def api_ordenes_compra_estado():
+    """API para obtener estado actualizado de órdenes de compra"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            SELECT p.id, p.codigo, p.nombre, p.estado, p.fecha_entrega,
+                   c.nombre as cliente_nombre, p.prioridad,
+                   CASE 
+                       WHEN p.fecha_entrega IS NOT NULL THEN 
+                           EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                       ELSE NULL 
+                   END AS dias_restantes
+            FROM proyectos p
+            LEFT JOIN clientes c ON p.cliente_id = c.id
+            INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
+            WHERE p.estado = 'activo' AND p.archivado = FALSE
+            GROUP BY p.id, p.codigo, p.nombre, p.estado, p.fecha_entrega,
+                     c.nombre, p.prioridad
+            ORDER BY p.fecha_entrega ASC NULLS LAST
+        ''')
+
+        ordenes = []
+        for row in cursor.fetchall():
+            ordenes.append({
+                'id': row['id'],
+                'codigo': row['codigo'],
+                'nombre': row['nombre'],
+                'estado': row['estado'],
+                'fecha_entrega': row['fecha_entrega'].isoformat() if row['fecha_entrega'] else None,
+                'cliente_nombre': row['cliente_nombre'],
+                'prioridad': row['prioridad'],
+                'dias_restantes': row['dias_restantes']
+            })
+
+        return jsonify(ordenes)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/storage/<path:filename>')
+@login_required
+def serve_storage_file(filename):
+    """Servir archivos desde Object Storage"""
+    try:
+        # Intentar obtener el archivo desde Object Storage
+        script = f"""
+        const {{ Client }} = require('@replit/object-storage');
+        const fs = require('fs');
+        
+        async function getFile() {{
+            try {{
+                const client = new Client();
+                const {{ ok, value, error }} = await client.downloadAsBytes('{filename}');
+                
+                if (ok) {{
+                    // Escribir archivo temporal
+                    const tempPath = '/tmp/storage_file_{uuid.uuid4().hex}';
+                    fs.writeFileSync(tempPath, value);
+                    console.log(JSON.stringify({{ success: true, path: tempPath }}));
+                }} else {{
+                    console.log(JSON.stringify({{ success: false, error: error?.message || 'File not found' }}));
+                }}
+            }} catch (e) {{
+                console.log(JSON.stringify({{ success: false, error: e.message }}));
+            }}
+        }}
+        
+        getFile();
+        """
+        
+        import subprocess
+        result = subprocess.run(['node', '-e', script], capture_output=True, text=True)
+        
+        if result.stdout:
+            response_data = json.loads(result.stdout)
+            if response_data.get('success'):
+                temp_path = response_data['path']
+                if os.path.exists(temp_path):
+                    # Determinar content type
+                    content_type = 'application/octet-stream'
+                    if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                        content_type = f'image/{filename.split(".")[-1].lower()}'
+                    elif filename.lower().endswith('.pdf'):
+                        content_type = 'application/pdf'
+                    
+                    with open(temp_path, 'rb') as f:
+                        file_data = f.read()
+                    
+                    # Limpiar archivo temporal
+                    os.remove(temp_path)
+                    
+                    from flask import Response
+                    return Response(file_data, content_type=content_type)
+        
+        # Fallback: servir desde static si existe
+        static_path = os.path.join('static', filename)
+        if os.path.exists(static_path):
+            return app.send_static_file(filename)
+        else:
+            print(f"Archivo no encontrado: {filename}")
+            return "Archivo no encontrado", 404
+            
+    except Exception as e:
+        print(f"Error sirviendo archivo {filename}: {e}")
+        # Fallback final: servir desde static
+        try:
+            return app.send_static_file(filename)
+        except:
+            return "Archivo no encontrado", 404
+
 @app.route('/api/calendar_events')
 @login_required
 def api_calendar_events():
@@ -2695,8 +3066,8 @@ def api_calendar_events():
                 'tipo_orden': fab['tipo_orden'],
                 'estado': fab['estado'],
                 'fecha_entrega_estimada': fab['fecha_entrega_estimada'].isoformat() if fab['fecha_entrega_estimada'] else None,
-                'cantidad_tableros': fab['cantidad_tableros'],
-                'glosa': fab['glosa']
+                'cantidad_tableros': fab.get('cantidad_tableros'),
+                'glosa': fab.get('glosa')
             })
 
         events.append({
@@ -2819,12 +3190,14 @@ def api_terminar_orden(orden_id):
         cursor.execute('''
             SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone()[0]:
+        result = cursor.fetchone()
+        if result and result[0]:
             cursor.execute('''
                 SELECT COUNT(*) FROM ordenes_fabricacion
                 WHERE proyecto_id = %s AND estado NOT IN ('listo_despacho', 'despachado', 'entregado')
             ''', (orden_id,))
-            pendientes = cursor.fetchone()['count']
+            pendientes_result = cursor.fetchone()
+            pendientes = pendientes_result[0] if pendientes_result else 0
 
             if pendientes > 0:
                 return jsonify({'success': False, 'message': 'Hay órdenes de fabricación pendientes de terminar'})
@@ -2836,15 +3209,210 @@ def api_terminar_orden(orden_id):
                 WHERE proyecto_id = %s
             ''', (orden_id,))
 
-        # Marcar orden como terminada
+        # Marcar orden como entregada (estado simplificado)
         cursor.execute('''
             UPDATE proyectos
-            SET estado = 'terminado', fecha_entrega_real = CURRENT_TIMESTAMP
+            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP
             WHERE id = %s
         ''', (orden_id,))
 
         conn.commit()
-        return jsonify({'success': True, 'message': 'Orden marcada como terminada'})
+        return jsonify({'success': True, 'message': 'Orden marcada como entregada'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/aprobar_orden/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'vendedor'])
+def api_aprobar_orden(orden_id):
+    """Aprobar una orden de compra para fabricación"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe
+        cursor.execute('SELECT estado, codigo FROM proyectos WHERE id = %s', (orden_id,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden no encontrada'})
+
+        # Aprobar todas las órdenes de fabricación pendientes de aprobación
+        cursor.execute('''
+            UPDATE ordenes_fabricacion
+            SET estado = 'aprobado_diseño'
+            WHERE proyecto_id = %s AND estado = 'pendiente_aprobacion_diseño'
+        ''', (orden_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Orden {orden["codigo"]} aprobada para fabricación'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/avanzar_fabricacion/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'operación'])
+def api_avanzar_fabricacion(orden_id):
+    """Avanzar órdenes de fabricación de una orden de compra"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Obtener órdenes de fabricación de la orden de compra
+        cursor.execute('''
+            SELECT id, estado, codigo_orden FROM ordenes_fabricacion
+            WHERE proyecto_id = %s AND estado NOT IN ('listo_despacho', 'despachado', 'entregado')
+            ORDER BY created_at ASC
+            LIMIT 1
+        ''', (orden_id,))
+
+        orden_fab = cursor.fetchone()
+        if not orden_fab:
+            return jsonify({'success': False, 'message': 'No hay órdenes de fabricación pendientes'})
+
+        # Avanzar a la siguiente etapa
+        estados_secuencia = [
+            'pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 
+            'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 
+            'embalando', 'embalaje_listo', 'listo_despacho'
+        ]
+
+        estado_actual = orden_fab['estado']
+        if estado_actual in estados_secuencia:
+            indice_actual = estados_secuencia.index(estado_actual)
+            if indice_actual < len(estados_secuencia) - 1:
+                nuevo_estado = estados_secuencia[indice_actual + 1]
+
+                cursor.execute('''
+                    UPDATE ordenes_fabricacion
+                    SET estado = %s
+                    WHERE id = %s
+                ''', (nuevo_estado, orden_fab['id']))
+
+                conn.commit()
+                return jsonify({'success': True, 'message': f'{orden_fab["codigo_orden"]} avanzado a: {nuevo_estado.replace("_", " ").title()}'})
+            else:
+                return jsonify({'success': False, 'message': 'Ya está en la etapa final'})
+        else:
+            return jsonify({'success': False, 'message': 'Estado no válido para avanzar'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/avanzar_embalaje/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'embalaje'])
+def api_avanzar_embalaje(orden_id):
+    """Avanzar órdenes en embalaje"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Obtener órdenes de fabricación en embalaje
+        cursor.execute('''
+            SELECT id, estado, codigo_orden FROM ordenes_fabricacion
+            WHERE proyecto_id = %s AND estado IN ('pendiente_embalaje', 'embalando')
+            ORDER BY created_at ASC
+            LIMIT 1
+        ''', (orden_id,))
+
+        orden_fab = cursor.fetchone()
+        if not orden_fab:
+            return jsonify({'success': False, 'message': 'No hay órdenes en embalaje'})
+
+        # Avanzar en embalaje
+        if orden_fab['estado'] == 'pendiente_embalaje':
+            nuevo_estado = 'embalando'
+        elif orden_fab['estado'] == 'embalando':
+            nuevo_estado = 'embalaje_listo'
+        else:
+            return jsonify({'success': False, 'message': 'Estado no válido para embalaje'})
+
+        cursor.execute('''
+            UPDATE ordenes_fabricacion
+            SET estado = %s
+            WHERE id = %s
+        ''', (nuevo_estado, orden_fab['id']))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'{orden_fab["codigo_orden"]} avanzado a: {nuevo_estado.replace("_", " ").title()}'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/programar_despacho/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def api_programar_despacho(orden_id):
+    """Programar despacho para una orden de compra"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe y obtener información
+        cursor.execute('''
+            SELECT p.codigo, p.nombre, c.nombre as cliente_nombre
+            FROM proyectos p
+            LEFT JOIN clientes c ON p.cliente_id = c.id
+            WHERE p.id = %s
+        ''', (orden_id,))
+
+        orden = cursor.fetchone()
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden no encontrada'})
+
+        # Verificar si ya tiene despacho programado
+        cursor.execute('SELECT id FROM despachos WHERE proyecto_id = %s', (orden_id,))
+        despacho_existente = cursor.fetchone()
+
+        if despacho_existente:
+            return jsonify({'success': False, 'message': 'Ya tiene despacho programado', 'redirect': f'/despacho/{despacho_existente["id"]}'})
+
+        # Marcar órdenes de fabricación como listas para despacho
+        cursor.execute('''
+            UPDATE ordenes_fabricacion
+            SET estado = 'listo_despacho'
+            WHERE proyecto_id = %s AND estado = 'embalaje_listo'
+        ''', (orden_id,))
+
+        # Generar código de despacho
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)')
+        despacho_numero_result = cursor.fetchone()
+        despacho_numero = (despacho_numero_result[0] if despacho_numero_result else 0) + 1
+        codigo_despacho = f"DESP-{datetime.now().year}-{despacho_numero:04d}"
+
+        # Crear despacho
+        cursor.execute('''
+            INSERT INTO despachos (
+                proyecto_id, codigo_despacho, direccion_entrega,
+                fecha_programada, observaciones, estado
+            ) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+        ''', (orden_id, codigo_despacho, 'Por definir',
+              datetime.now().date() + timedelta(days=3),
+              f"Despacho para orden {orden['codigo']} - {orden['nombre']}", 'programado'))
+
+        despacho_id = cursor.fetchone()['id']
+
+        conn.commit()
+        return jsonify({
+            'success': True, 
+            'message': f'Despacho {codigo_despacho} programado exitosamente',
+            'redirect': f'/despacho/{despacho_id}'
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3077,7 +3645,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
         codigo_orden = fab['codigo_orden']
 
         # Definir secuencia de estados para órdenes de fabricación
-        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho', 'despachado']
+        estados_secuencia = ['pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 'embalando', 'embalaje_listo', 'listo_despacho']
 
         try:
             indice_actual = estados_secuencia.index(estado_actual)
@@ -3101,7 +3669,7 @@ def api_avanzar_etapa_fabricacion(fabricacion_id):
                 return jsonify({'success': False, 'message': 'Ya está en la etapa final'})
 
         except ValueError:
-            return jsonify({'success': False, 'message': f'Estado actual no válido para avanzar: {estado_actual}'})
+            return jsonify({'success': False, 'message': 'Estado actual no válido para avanzar'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3147,7 +3715,7 @@ def api_retroceder_etapa_fabricacion(fabricacion_id):
                 return jsonify({'success': False, 'message': 'No se puede retroceder más'})
 
         except ValueError:
-            return jsonify({'success': False, 'message': 'Estado actual no válido'})
+            return jsonify({'success': False, 'message': 'Estado actual no válido para avanzar'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3172,7 +3740,7 @@ def api_aprobar_diseno_orden(orden_id):
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
         if orden['estado'] != 'pendiente_aprobacion_diseño':
-            return jsonify({'success': False, 'message': f'La orden no está pendiente de aprobación de diseño. Estado actual: {orden["estado"]}'})
+            return jsonify({'success': False, 'message': 'La orden no está pendiente de aprobación de diseño. Estado actual: {orden["estado"]}'})
 
         # Cambiar estado a aprobado_diseño
         cursor.execute('''
@@ -3182,7 +3750,7 @@ def api_aprobar_diseno_orden(orden_id):
         ''', (orden_id,))
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Diseño aprobado para orden {orden["codigo_orden"]}'})
+        return jsonify({'success': True, 'message': 'Diseño aprobado para orden {orden["codigo_orden"]}'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3217,7 +3785,7 @@ def api_enviar_a_produccion(orden_id):
         ''', (orden_id,))
 
         conn.commit()
-        return jsonify({'success': True, 'message': f'Orden {orden["codigo_orden"]} enviada a producción'})
+        return jsonify({'success': True, 'message': 'Orden {orden["codigo_orden"]} enviada a producción'})
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -3583,16 +4151,16 @@ def eliminar_orden_fabricacion(orden_id):
 
     try:
         # Verificar que la orden existe
-        cursor.execute('SELECT codigo_orden, estado FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
+        cursor.execute('SELECT codigo_orden, estado, proyecto_id FROM ordenes_fabricacion WHERE id = %s', (orden_id,))
         orden = cursor.fetchone()
 
         if not orden:
             return jsonify({'success': False, 'message': 'Orden de fabricación no encontrada'})
 
-        codigo_orden, estado = orden['codigo_orden'], orden['estado']
+        codigo_orden, estado_orden, proyecto_id = orden['codigo_orden'], orden['estado'], orden['proyecto_id']
 
         # Solo permitir eliminar órdenes pendientes
-        if estado not in ['pendiente_aprobacion_diseño', 'aprobado_diseño']:
+        if estado_orden not in ['pendiente_aprobacion_diseño', 'aprobado_diseño']:
             return jsonify({'success': False, 'message': 'No se puede eliminar una orden en proceso o terminada'})
 
         # Eliminar categorías de la orden
@@ -3735,44 +4303,64 @@ def api_proyectos_cliente(cliente_id):
 @login_required
 def api_proyecto_detalle(proyecto_id):
     """API para obtener detalles de un proyecto específico"""
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-    cursor = conn.cursor()
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT p.*, u.nombre as diseñador_nombre
-        FROM proyectos p
-        LEFT JOIN usuarios u ON p.diseñador_id = u.id
-        WHERE p.id = %s
-    ''', (proyecto_id,))
+        cursor.execute('''
+            SELECT p.*, u.nombre as diseñador_nombre
+            FROM proyectos p
+            LEFT JOIN usuarios u ON p.diseñador_id = u.id
+            WHERE p.id = %s
+        ''', (proyecto_id,))
 
-    proyecto = cursor.fetchone()
+        proyecto = cursor.fetchone()
 
-    if not proyecto:
+        if not proyecto:
+            conn.close()
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+
+        # Convert to dict and handle None values
+        proyecto_dict = {
+            'id': proyecto['id'],
+            'codigo': proyecto['codigo'] or f'PROJ-{proyecto["id"]}',
+            'nombre': proyecto['nombre'],
+            'descripcion': proyecto['descripcion'] or '',
+            'estado': proyecto['estado'],
+            'estado_proyecto': proyecto.get('estado_proyecto') or 'pendiente_presupuesto',
+            'prioridad': proyecto.get('prioridad') or 'media',
+            'fecha_entrega': proyecto['fecha_entrega'].isoformat() if proyecto.get('fecha_entrega') else '',
+            'fecha_estimada_inicio': proyecto['fecha_estimada_inicio'].isoformat() if proyecto.get('fecha_estimada_inicio') else '',
+            'fecha_inicio': proyecto['fecha_inicio'].isoformat() if proyecto.get('fecha_inicio') else '',
+            'monto_neto': float(proyecto['monto_neto']) if proyecto.get('monto_neto') else '',
+            'monto_neto_provision': float(proyecto['monto_neto_provision']) if proyecto.get('monto_neto_provision') else '',
+            'monto_neto_instalacion': float(proyecto['monto_neto_instalacion']) if proyecto.get('monto_neto_instalacion') else '',
+            'monto_provision_presupuestada': float(proyecto['monto_provision_presupuestada']) if proyecto.get('monto_provision_presupuestada') else '',
+            'margen_provision': float(proyecto['margen_provision']) if proyecto.get('margen_provision') else '',
+            'margen_instalacion': float(proyecto['margen_instalacion']) if proyecto.get('margen_instalacion') else '',
+            'diseñador_id': proyecto['diseñador_id'],
+            'diseñador_nombre': proyecto.get('diseñador_nombre') or '',
+            'observaciones': proyecto.get('observaciones') or '',
+            'archivado': proyecto.get('archivado') or False
+        }
+
         conn.close()
-        return jsonify({'error': 'Proyecto no encontrado'}), 404
+        return jsonify(proyecto_dict)
+        
+    except psycopg2.Error as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': f'Error de base de datos: {str(e)}'}), 500
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': f'Error interno: {str(e)}'}), 500
 
-    # Convert to dict and handle None values
-    proyecto_dict = {
-        'id': proyecto['id'],
-        'codigo': proyecto['codigo'] or f'PROJ-{proyecto["id"]}',
-        'nombre': proyecto['nombre'],
-        'descripcion': proyecto['descripcion'] or '',
-        'estado': proyecto['estado'],
-        'estado_proyecto': proyecto.get('estado_proyecto') or 'pendiente_presupuesto',
-        'prioridad': proyecto.get('prioridad') or 'media',
-        'fecha_entrega': proyecto['fecha_entrega'].isoformat() if proyecto.get('fecha_entrega') else '',
-        'fecha_estimada_inicio': proyecto['fecha_estimada_inicio'].isoformat() if proyecto.get('fecha_estimada_inicio') else '',
-        'monto_neto': float(proyecto['monto_neto']) if proyecto.get('monto_neto') else '',
-        'monto_neto_provision': float(proyecto['monto_neto_provision']) if proyecto.get('monto_neto_provision') else '',
-        'monto_neto_instalacion': float(proyecto['monto_neto_instalacion']) if proyecto.get('monto_neto_instalacion') else '',
-        'diseñador_id': proyecto['diseñador_id'],
-        'diseñador_nombre': proyecto.get('diseñador_nombre') or '',
-        'observaciones': proyecto.get('observaciones') or '',
-        'archivado': proyecto.get('archivado') or False
-    }
-
-    conn.close()
-    return jsonify(proyecto_dict)
+@app.route('/api/proyecto/<int:proyecto_id>')
+@login_required
+def api_proyecto_get(proyecto_id):
+    """API alias para obtener detalles de un proyecto"""
+    return api_proyecto_detalle(proyecto_id)
 
 
 @app.route('/api/proyecto/<int:proyecto_id>/documentos')
@@ -3808,6 +4396,115 @@ def api_documentos_proyecto(proyecto_id):
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
+
+
+@app.route('/subir_documento_proyecto/<int:proyecto_id>', methods=['POST'])
+@login_required
+def subir_documento_proyecto(proyecto_id):
+    """Subir documento a un proyecto"""
+    try:
+        archivo = request.files.get('archivo')
+        descripcion = request.form.get('descripcion', '').strip() or None
+
+        if not archivo or archivo.filename == '':
+            return jsonify({'success': False, 'message': 'No se seleccionó ningún archivo'})
+
+        if not allowed_file(archivo.filename):
+            return jsonify({'success': False, 'message': 'Tipo de archivo no permitido. Solo se permiten: PNG, JPG, PDF, DOC, DOCX, XLS, XLSX'})
+
+        # Verificar que el proyecto existe
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT id FROM proyectos WHERE id = %s', (proyecto_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'message': 'Proyecto no encontrado'})
+
+        # Obtener tamaño del archivo antes de procesarlo
+        archivo.seek(0, 2)  # Ir al final del archivo
+        tamaño_archivo = archivo.tell()
+        archivo.seek(0)  # Volver al inicio
+
+        # Verificar tamaño máximo (16MB)
+        if tamaño_archivo > 16 * 1024 * 1024:
+            conn.close()
+            return jsonify({'success': False, 'message': 'El archivo excede el tamaño máximo de 16MB'})
+
+        # Guardar archivo usando Object Storage
+        ruta_archivo = save_uploaded_file(archivo, 'proyectos')
+        if not ruta_archivo:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Error al guardar el archivo en el storage'})
+
+        # Obtener tipo de archivo
+        extension = archivo.filename.rsplit('.', 1)[1].lower()
+        tipo_archivo = 'imagen' if extension in ['png', 'jpg', 'jpeg', 'gif'] else 'documento'
+
+        # Guardar en base de datos
+        cursor.execute('''
+            INSERT INTO documentos_proyecto 
+            (proyecto_id, nombre_original, ruta_archivo, tipo_archivo, tamaño, descripcion, usuario_subida_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        ''', (proyecto_id, archivo.filename, ruta_archivo, tipo_archivo, 
+              tamaño_archivo, descripcion, session['user_id']))
+
+        documento_id = cursor.fetchone()['id']
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True, 
+            'message': 'Documento subido exitosamente',
+            'documento': {
+                'id': documento_id,
+                'nombre_original': archivo.filename,
+                'tipo_archivo': tipo_archivo,
+                'tamaño': tamaño_archivo,
+                'ruta_archivo': ruta_archivo
+            }
+        })
+
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'success': False, 'message': f'Error al subir documento: {str(e)}'})
+
+
+@app.route('/documento/<int:documento_id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_documento_proyecto(documento_id):
+    """Eliminar documento de un proyecto"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Obtener información del documento
+        cursor.execute('''
+            SELECT ruta_archivo, proyecto_id, nombre_original
+            FROM documentos_proyecto
+            WHERE id = %s
+        ''', (documento_id,))
+        
+        documento = cursor.fetchone()
+        if not documento:
+            return jsonify({'success': False, 'message': 'Documento no encontrado'})
+
+        # Eliminar archivo del sistema
+        delete_file(documento['ruta_archivo'])
+
+        # Eliminar registro de la base de datos
+        cursor.execute('DELETE FROM documentos_proyecto WHERE id = %s', (documento_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Documento {documento["nombre_original"]} eliminado exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al eliminar documento: {str(e)}'})
     finally:
         conn.close()
 
@@ -4085,7 +4782,7 @@ def tareas_general():
                t.rol_asignado, t.tipo, t.etapa_fabricacion, t.created_at
         FROM tareas t
         JOIN proyectos p ON t.proyecto_id = p.id
-        LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
+        LEFT JOIN usuarios u ON t.usuario_asignado_id =        u.id
         ORDER BY
             t.rol_asignado,
             CASE t.estado
@@ -4448,6 +5145,115 @@ def actualizar_configuracion():
     return redirect(url_for('configuraciones'))
 
 
+@app.route('/api/permisos_rol/<rol>')
+@login_required
+@role_required(['admin'])
+def api_permisos_rol(rol):
+    """API para obtener permisos de un rol específico"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            SELECT modulo, permiso, activo
+            FROM permisos_rol
+            WHERE rol = %s
+            ORDER BY modulo, permiso
+        ''', (rol,))
+
+        permisos = cursor.fetchall()
+        permisos_dict = {}
+
+        for permiso in permisos:
+            modulo = permiso['modulo']
+            if modulo not in permisos_dict:
+                permisos_dict[modulo] = {}
+            permisos_dict[modulo][permiso['permiso']] = permiso['activo']
+
+        return jsonify({'success': True, 'permisos': permisos_dict})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
+
+
+@app.route('/actualizar_permisos_rol', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def actualizar_permisos_rol():
+    """Actualizar permisos de un rol específico"""
+    try:
+        rol = request.form['rol']
+
+        if rol == 'admin':
+            return jsonify({'success': False, 'message': 'No se pueden modificar los permisos del administrador'})
+
+        # Obtener todos los permisos enviados desde el formulario
+        permisos_enviados = {}
+        for key, value in request.form.items():
+            if key.startswith('permiso_'):
+                # Formato: permiso_modulo_accion
+                parts = key.split('_', 2)
+                if len(parts) == 3:
+                    modulo = parts[1]
+                    accion = parts[2]
+                    if modulo not in permisos_enviados:
+                        permisos_enviados[modulo] = {}
+                    permisos_enviados[modulo][accion] = value == 'on'
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
+        # Obtener todos los permisos existentes para el rol
+        cursor.execute('''
+            SELECT modulo, permiso FROM permisos_rol WHERE rol = %s
+        ''', (rol,))
+        permisos_existentes = cursor.fetchall()
+
+        # Actualizar permisos existentes
+        for modulo, acciones in permisos_enviados.items():
+            for accion, activo in acciones.items():
+                cursor.execute('''
+                    INSERT INTO permisos_rol (rol, modulo, permiso, activo)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (rol, modulo, permiso)
+                    DO UPDATE SET activo = EXCLUDED.activo, updated_at = CURRENT_TIMESTAMP
+                ''', (rol, modulo, accion, activo))
+
+        # Desactivar permisos que no fueron enviados
+        for permiso_existente in permisos_existentes:
+            modulo = permiso_existente['modulo']
+            accion = permiso_existente['permiso']
+
+            if modulo not in permisos_enviados or accion not in permisos_enviados[modulo]:
+                cursor.execute('''
+                    UPDATE permisos_rol 
+                    SET activo = FALSE, updated_at = CURRENT_TIMESTAMP
+                    WHERE rol = %s AND modulo = %s AND permiso = %s
+                ''', (rol, modulo, accion))
+
+        # Registrar en auditoría
+        cursor.execute('''
+            INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
+            VALUES ('permisos_rol', %s, 'UPDATE', %s, %s)
+        ''', (0, session['user_id'],
+              json.dumps({
+                  'accion': 'actualizar_permisos_rol',
+                  'rol': rol,
+                  'permisos_actualizados': len(permisos_enviados),
+                  'actualizado_por': session['user_name']
+              })))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Permisos del rol {rol} actualizados exitosamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al actualizar permisos: {str(e)}'})
+    finally:
+        conn.close()
+
+
 @app.route('/proyecto/<int:proyecto_id>/ordenes_compra')
 @login_required
 def proyecto_ordenes_compra(proyecto_id):
@@ -4657,5 +5463,21 @@ def reportes():
 
 
 if __name__ == '__main__':
-    init_db()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    try:
+        init_db()
+        print("Base de datos inicializada correctamente")
+        print("Iniciando servidor Flask...")
+        # Configuración optimizada para estabilidad en Replit
+        app.run(
+            host='0.0.0.0', 
+            port=5000, 
+            debug=False,  # Debug deshabilitado para estabilidad
+            threaded=True,
+            use_reloader=False,  # Sin recarga automática
+            processes=1  # Un solo proceso para evitar conflictos
+        )
+    except KeyboardInterrupt:
+        print("Aplicación detenida por el usuario")
+    except Exception as e:
+        print(f"Error iniciando la aplicación: {e}")
+        raise

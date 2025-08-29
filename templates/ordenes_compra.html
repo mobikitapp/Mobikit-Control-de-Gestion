@@ -592,6 +592,11 @@ function editarOrdenCompra(ordenId) {
 
 function eliminarOrdenCompra(ordenId) {
     if (confirm('¿Estás seguro de que deseas eliminar esta orden de compra?\n\nEsta acción eliminará:\n- El proyecto y todas sus tareas\n- Las órdenes de fabricación asociadas\n- Los despachos no entregados\n- Todos los datos relacionados\n\nNOTA: No se pueden eliminar proyectos con despachos completamente entregados.\n\nEsta acción NO se puede deshacer.')) {
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+        button.disabled = true;
+
         fetch(`/eliminar_proyecto/${ordenId}`, {
             method: 'POST',
             headers: { 
@@ -606,11 +611,15 @@ function eliminarOrdenCompra(ordenId) {
                 location.reload();
             } else {
                 alert('Error: ' + data.message);
+                button.innerHTML = originalText;
+                button.disabled = false;
             }
         })
         .catch(error => {
             console.error('Error:', error);
             alert('Error de conexión');
+            button.innerHTML = originalText;
+            button.disabled = false;
         });
     }
 }

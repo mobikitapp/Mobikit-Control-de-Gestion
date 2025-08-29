@@ -1,61 +1,173 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Mobikit Control de Órdenes{% endblock %}
+{% block title %}Dashboard - Mobikit Control de Producción{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-tachometer-alt"></i> Control de Órdenes de Compra</h1>
+    <h1><i class="fas fa-tachometer-alt"></i> Control de Producción Mobikit</h1>
     <div>
-        {% if session.user_role in ['admin', 'general', 'diseñador'] %}
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevaOrdenModal">
-            <i class="fas fa-plus"></i> Nueva Orden de Compra/Contrato
+        {% if session.user_role in ['admin', 'general', 'vendedor'] %}
+        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#nuevaOrdenModal">
+            <i class="fas fa-plus"></i> Nueva Orden
         </button>
         {% endif %}
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="vistaPorAreas" onclick="mostrarVistaPorAreas()">
+                <i class="fas fa-tasks"></i> Por Áreas
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="vistaCalendario" onclick="mostrarVistaCalendario()">
+                <i class="fas fa-calendar"></i> Calendario
+            </button>
+        </div>
     </div>
 </div>
 
-<!-- Estadísticas Principales -->
+<!-- Estadísticas Generales -->
 <div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card border-warning">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <h5 class="card-title text-warning">Órdenes Pendientes</h5>
-                        <h2 class="mb-0 text-dark">{{ ordenes_pendientes|length }}</h2>
-                    </div>
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-clock fa-2x text-warning"></i>
+    <div class="col-md-2">
+        <div class="card dashboard-stat-card border-primary">
+            <div class="card-body text-center">
+                <i class="fas fa-file-invoice fa-2x text-primary mb-2"></i>
+                <h4 class="text-primary mb-1" id="total-ordenes">{{ ordenes_pendientes|length + ordenes_proceso|length }}</h4>
+                <small class="text-muted">Órdenes Activas</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card dashboard-stat-card border-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-drafting-compass fa-2x text-warning mb-2"></i>
+                <h4 class="text-warning mb-1" id="diseño-count">0</h4>
+                <small class="text-muted">En Diseño</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card dashboard-stat-card border-info">
+            <div class="card-body text-center">
+                <i class="fas fa-cogs fa-2x text-info mb-2"></i>
+                <h4 class="text-info mb-1" id="fabricacion-count">0</h4>
+                <small class="text-muted">En Fabricación</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card dashboard-stat-card border-secondary">
+            <div class="card-body text-center">
+                <i class="fas fa-box fa-2x text-secondary mb-2"></i>
+                <h4 class="text-secondary mb-1" id="embalaje-count">0</h4>
+                <small class="text-muted">En Embalaje</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card dashboard-stat-card border-dark">
+            <div class="card-body text-center">
+                <i class="fas fa-truck fa-2x text-dark mb-2"></i>
+                <h4 class="text-dark mb-1" id="despacho-count">0</h4>
+                <small class="text-muted">Para Despacho</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card dashboard-stat-card border-success">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <h4 class="text-success mb-1" id="terminadas-count">{{ ordenes_terminadas|length }}</h4>
+                <small class="text-muted">Entregadas</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vista Por Áreas (Por defecto) -->
+<div id="contenido-areas" class="dashboard-content">
+    <!-- Diseño y Aprobación -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card dashboard-area-card">
+                <div class="card-header bg-warning d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-drafting-compass"></i> 
+                        Área de Diseño - Pendientes de Aprobación
+                        {% if session.user_role in ['admin', 'general', 'vendedor'] %}
+                        <span class="badge bg-light ms-2">Tu Área</span>
+                        {% endif %}
+                    </h5>
+                    <span class="badge bg-light" id="badge-diseño">0 órdenes</span>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <div id="ordenes-diseño" class="row">
+                        <!-- Se llenan dinámicamente -->
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card border-primary">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <h5 class="card-title text-primary">Órdenes en Proceso</h5>
-                        <h2 class="mb-0 text-dark">{{ ordenes_proceso|length }}</h2>
-                    </div>
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-cogs fa-2x text-primary"></i>
+
+    <!-- Producción y Fabricación -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card dashboard-area-card">
+                <div class="card-header bg-info d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs"></i> 
+                        Área de Producción - En Fabricación
+                        {% if session.user_role in ['admin', 'general', 'operación'] %}
+                        <span class="badge bg-light ms-2">Tu Área</span>
+                        {% endif %}
+                    </h5>
+                    <span class="badge bg-light" id="badge-fabricacion">0 órdenes</span>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <div id="ordenes-fabricacion" class="row">
+                        <!-- Se llenan dinámicamente -->
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card border-success">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <h5 class="card-title text-success">Órdenes Terminadas</h5>
-                        <h2 class="mb-0 text-dark">{{ ordenes_terminadas|length }}</h2>
+
+    <!-- Embalaje -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card dashboard-area-card">
+                <div class="card-header bg-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-box"></i> 
+                        Área de Embalaje
+                        {% if session.user_role in ['admin', 'general', 'embalaje'] %}
+                        <span class="badge bg-light ms-2">Tu Área</span>
+                        {% endif %}
+                    </h5>
+                    <span class="badge bg-light" id="badge-embalaje">0 órdenes</span>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <div id="ordenes-embalaje" class="row">
+                        <!-- Se llenan dinámicamente -->
                     </div>
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Despacho -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card dashboard-area-card">
+                <div class="card-header bg-dark d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-truck"></i> 
+                        Área de Despacho
+                        {% if session.user_role in ['admin', 'general', 'despacho'] %}
+                        <span class="badge bg-light ms-2">Tu Área</span>
+                        {% endif %}
+                    </h5>
+                    <span class="badge bg-light" id="badge-despacho">0 órdenes</span>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <div id="ordenes-despacho" class="row">
+                        <!-- Se llenan dinámicamente -->
                     </div>
                 </div>
             </div>
@@ -63,218 +175,652 @@
     </div>
 </div>
 
-<!-- Panel de Órdenes de Compra -->
-<div class="row">
-    <!-- Órdenes Pendientes -->
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header bg-warning text-white">
-                <h5><i class="fas fa-clock"></i> Órdenes Pendientes</h5>
-            </div>
-            <div class="card-body" style="max-height: 600px; overflow-y: auto;">
-                {% if ordenes_pendientes %}
-                    {% for orden in ordenes_pendientes %}
-                    <div class="card mb-3 border-warning">
-                        <div class="card-body">
-                            <h6 class="card-title">
-                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="text-decoration-none">
-                                    {{ orden.codigo }}
-                                </a>
-                            </h6>
-                            <p class="card-text small">
-                                <strong>Cliente:</strong> {{ orden.cliente_nombre }}<br>
-                                <strong>Proyecto:</strong> {{ orden.nombre }}<br>
-                                <strong>Fecha Entrega:</strong> {{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}
-                            </p>
-                            {% if orden.descripcion %}
-                            <p class="card-text">
-                                <small class="text-muted">{{ orden.descripcion[:60] }}{% if orden.descripcion|length > 60 %}...{% endif %}</small>
-                            </p>
-                            {% endif %}
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="badge bg-{% if orden.prioridad == 'alta' %}danger{% elif orden.prioridad == 'media' %}warning{% else %}secondary{% endif %}">
-                                            {{ orden.prioridad|title }}
-                                        </span>
-                                <button class="btn btn-sm btn-outline-primary" onclick="iniciarProceso({{ orden.id }})">
-                                    <i class="fas fa-play"></i> Iniciar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                <div class="text-center py-3">
-                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
-                    <p class="text-muted">No hay órdenes pendientes</p>
+<!-- Vista Calendario (Oculta por defecto) -->
+<div id="contenido-calendario" class="dashboard-content" style="display: none;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar"></i> Calendario de Entregas y Producción
+                    </h5>
                 </div>
-                {% endif %}
+                <div class="card-body">
+                    <div id="calendar"></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Órdenes en Proceso -->
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5><i class="fas fa-cogs"></i> Órdenes en Proceso</h5>
-            </div>
-            <div class="card-body" style="max-height: 600px; overflow-y: auto;">
-                {% if ordenes_proceso %}
-                    {% for orden in ordenes_proceso %}
-                    <div class="card mb-3 border-primary">
-                        <div class="card-body">
-                            <h6 class="card-title">
-                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="text-decoration-none">
-                                    {{ orden.codigo }}
-                                </a>
-                            </h6>
-                            <p class="card-text small">
-                                <strong>Cliente:</strong> {{ orden.cliente_nombre }}<br>
-                                <strong>Proyecto:</strong> {{ orden.nombre }}<br>
-                                <strong>Fecha Entrega:</strong> {{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}
-                            </p>
-
-                            <!-- Órdenes de Fabricación Asociadas -->
-                            {% if orden.ordenes_fabricacion %}
-                            <div class="mt-2">
-                                <h6 class="small"><i class="fas fa-cog"></i> Órdenes de Fabricación:</h6>
-                                {% for fab in orden.ordenes_fabricacion %}
-                                <div class="border rounded p-2 mb-1 bg-light">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="small"><strong>{{ fab.codigo_pedido }}</strong></span>
-                                        <span class="badge bg-{% if fab.estado == 'en_desarrollo' %}secondary{% elif fab.estado == 'seccionado' %}warning{% elif fab.estado == 'enchapado' %}info{% elif fab.estado == 'mecanizado' %}primary{% elif fab.estado == 'produccion_completa' %}success{% endif %}">
-                                            {{ fab.estado|replace('_', ' ')|title }}
-                                        </span>
-                                    </div>
-                                    <div class="small text-muted">{{ fab.nombre }}</div>
-                                    <!-- Barra de progreso -->
-                                    {% set estados_progreso = ['en_desarrollo', 'aprobado_produccion', 'seccionado', 'enchapado', 'mecanizado', 'produccion_completa'] %}
-                                    {% set indice_actual = estados_progreso.index(fab.estado) if fab.estado in estados_progreso else 0 %}
-                                    {% set porcentaje = ((indice_actual + 1) / estados_progreso|length * 100)|int %}
-                                    <div class="progress mt-1" style="height: 5px;">
-                                        <div class="progress-bar" role="progressbar" style="width: {{ porcentaje }}%"
-                                             aria-valuenow="{{ porcentaje }}" aria-valuemin="0" aria-valuemax="100"></div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-
-                            <div class="d-flex justify-content-between align-items-center mt-2">
-                                <span class="badge bg-{% if orden.prioridad == 'alta' %}danger{% elif orden.prioridad == 'media' %}warning{% else %}secondary{% endif %}">
-                                            {{ orden.prioridad|title }}
-                                        </span>
-                                <button class="btn btn-sm btn-outline-success" onclick="terminarOrden({{ orden.id }})">
-                                    <i class="fas fa-check"></i> Terminar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                <div class="text-center py-3">
-                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
-                    <p class="text-muted">No hay órdenes en proceso</p>
+    <!-- Próximas Entregas -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Entregas Urgentes (7 días)</h6>
                 </div>
-                {% endif %}
+                <div class="card-body">
+                    <div id="entregas-urgentes">
+                        <!-- Se llenan dinámicamente -->
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-
-    <!-- Órdenes Terminadas -->
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h5><i class="fas fa-check-circle"></i> Órdenes Terminadas</h5>
-            </div>
-            <div class="card-body" style="max-height: 600px; overflow-y: auto;">
-                {% if ordenes_terminadas %}
-                    {% for orden in ordenes_terminadas %}
-                    <div class="card mb-3 border-success">
-                        <div class="card-body">
-                            <h6 class="card-title">
-                                <a href="{{ url_for('orden_compra_detalle', orden_id=orden.id) }}" class="text-decoration-none">
-                                    {{ orden.codigo }}
-                                </a>
-                            </h6>
-                            <p class="card-text small">
-                                <strong>Cliente:</strong> {{ orden.cliente_nombre }}<br>
-                                <strong>Proyecto:</strong> {{ orden.nombre }}<br>
-                                <strong>Fecha Entrega:</strong> {{ orden.fecha_entrega if orden.fecha_entrega else 'Sin fecha' }}
-                            </p>
-                            {% if orden.descripcion %}
-                            <p class="card-text">
-                                <small class="text-muted">{{ orden.descripcion[:60] }}{% if orden.descripcion|length > 60 %}...{% endif %}</small>
-                            </p>
-                            {% endif %}
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="badge bg-success">Completada</span>
-                                <small class="text-muted">
-                                    <i class="fas fa-check"></i> Terminada
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                <div class="text-center py-3">
-                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
-                    <p class="text-muted">No hay órdenes terminadas</p>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h6 class="mb-0"><i class="fas fa-clock"></i> Próximas Entregas (30 días)</h6>
                 </div>
-                {% endif %}
+                <div class="card-body">
+                    <div id="proximas-entregas">
+                        <!-- Se llenan dinámicamente -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Plantilla para Tarjeta de Orden -->
+<template id="orden-card-template">
+    <div class="col-md-6 col-lg-4 mb-3">
+        <div class="card orden-card" data-orden-id="">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 orden-codigo"></h6>
+                <span class="badge orden-prioridad"></span>
+            </div>
+            <div class="card-body">
+                <h6 class="orden-nombre"></h6>
+                <p class="small mb-2">
+                    <strong>Cliente:</strong> <span class="orden-cliente"></span><br>
+                    <strong>Entrega:</strong> <span class="orden-fecha-entrega"></span>
+                </p>
+                <div class="orden-fabricaciones mb-2">
+                    <!-- Órdenes de fabricación dinámicas -->
+                </div>
+                <div class="orden-acciones d-flex justify-content-between">
+                    <!-- Botones dinámicos según área -->
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
 
 <!-- Modal incluido desde archivo separado -->
 {% include 'modal_nueva_orden.html' %}
+
+<!-- FullCalendar CSS -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
 {% endblock %}
 
 {% block scripts %}
+<!-- FullCalendar JS -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/locales/es.global.min.js'></script>
+
 <script>
-function iniciarProceso(ordenId) {
-    if (confirm('¿Confirmas iniciar el proceso de fabricación para esta orden?')) {
-        fetch(`/api/iniciar_proceso_orden/${ordenId}`, {
+let calendar;
+let ordenesData = {
+    pendientes: {{ ordenes_pendientes|tojson }},
+    proceso: {{ ordenes_proceso|tojson }},
+    terminadas: {{ ordenes_terminadas|tojson }}
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    inicializarDashboard();
+    cargarDatosOrdenesActualizados();
+    inicializarCalendario();
+
+    // Actualizar datos cada 30 segundos
+    setInterval(cargarDatosOrdenesActualizados, 30000);
+});
+
+function inicializarDashboard() {
+    mostrarVistaPorAreas();
+    procesarOrdenesPorAreas();
+    actualizarEstadisticas();
+}
+
+function mostrarVistaPorAreas() {
+    document.getElementById('contenido-areas').style.display = 'block';
+    document.getElementById('contenido-calendario').style.display = 'none';
+
+    document.getElementById('vistaPorAreas').classList.add('btn-primary');
+    document.getElementById('vistaPorAreas').classList.remove('btn-outline-secondary');
+    document.getElementById('vistaCalendario').classList.add('btn-outline-secondary');
+    document.getElementById('vistaCalendario').classList.remove('btn-primary');
+}
+
+function mostrarVistaCalendario() {
+    document.getElementById('contenido-areas').style.display = 'none';
+    document.getElementById('contenido-calendario').style.display = 'block';
+
+    document.getElementById('vistaCalendario').classList.add('btn-primary');
+    document.getElementById('vistaCalendario').classList.remove('btn-outline-secondary');
+    document.getElementById('vistaPorAreas').classList.add('btn-outline-secondary');
+    document.getElementById('vistaPorAreas').classList.remove('btn-primary');
+
+    if (calendar) {
+        calendar.render();
+    }
+
+    cargarEntregasProximas();
+}
+
+function cargarDatosOrdenesActualizados() {
+    // Cargar datos actualizados desde el servidor
+    Promise.all([
+        fetch('/api/ordenes_fabricacion_estado').then(r => r.json()).catch(() => []),
+        fetch('/api/ordenes_compra_estado').then(r => r.json()).catch(() => [])
+    ]).then(([fabricacionData, compraData]) => {
+        if (fabricacionData && compraData) {
+            procesarOrdenesPorAreasConDatos(fabricacionData, compraData);
+            actualizarEstadisticas();
+        }
+    }).catch(error => {
+        console.error('Error cargando datos actualizados:', error);
+    });
+}
+
+function procesarOrdenesPorAreas() {
+    // Procesar con datos iniciales
+    procesarOrdenesPorAreasConDatos([], []);
+}
+
+function procesarOrdenesPorAreasConDatos(fabricacionData, compraData) {
+    const areas = {
+        diseño: [],
+        fabricacion: [],
+        embalaje: [],
+        despacho: []
+    };
+
+    // Combinar datos de órdenes pendientes y en proceso
+    const todasLasOrdenes = [...ordenesData.pendientes, ...ordenesData.proceso];
+
+    todasLasOrdenes.forEach(orden => {
+        // Determinar área según el estado de las órdenes de fabricación
+        if (!orden.ordenes_fabricacion || orden.ordenes_fabricacion.length === 0) {
+            areas.diseño.push(orden);
+        } else {
+            const ultimaFabricacion = orden.ordenes_fabricacion[orden.ordenes_fabricacion.length - 1];
+            const estado = ultimaFabricacion.estado;
+
+            if (['pendiente_aprobacion_diseño', 'aprobado_diseño'].includes(estado)) {
+                areas.diseño.push(orden);
+            } else if (['enviado_produccion', 'seccionado', 'enchapando', 'mecanizado'].includes(estado)) {
+                areas.fabricacion.push(orden);
+            } else if (['pendiente_embalaje', 'embalando', 'embalaje_listo'].includes(estado)) {
+                areas.embalaje.push(orden);
+            } else if (['listo_despacho'].includes(estado)) {
+                areas.despacho.push(orden);
+            }
+        }
+    });
+
+    // Renderizar en cada área
+    renderizarArea('diseño', areas.diseño);
+    renderizarArea('fabricacion', areas.fabricacion);
+    renderizarArea('embalaje', areas.embalaje);
+    renderizarArea('despacho', areas.despacho);
+}
+
+function renderizarArea(area, ordenes) {
+    const container = document.getElementById(`ordenes-${area}`);
+    const badge = document.getElementById(`badge-${area}`);
+
+    if (!container || !badge) return;
+
+    container.innerHTML = '';
+    badge.textContent = `${ordenes.length} orden${ordenes.length !== 1 ? 'es' : ''}`;
+
+    if (ordenes.length === 0) {
+        container.innerHTML = `
+            <div class="col-12">
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No hay órdenes en esta área</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    ordenes.forEach(orden => {
+        const card = crearTarjetaOrden(orden, area);
+        container.appendChild(card);
+    });
+}
+
+function crearTarjetaOrden(orden, area) {
+    const template = document.getElementById('orden-card-template');
+    const card = template.content.cloneNode(true);
+
+    const cardElement = card.querySelector('.orden-card');
+    cardElement.setAttribute('data-orden-id', orden.id);
+
+    // Datos básicos
+    card.querySelector('.orden-codigo').textContent = orden.codigo;
+    card.querySelector('.orden-nombre').textContent = orden.nombre;
+    card.querySelector('.orden-cliente').textContent = orden.cliente_nombre;
+    card.querySelector('.orden-fecha-entrega').textContent = orden.fecha_entrega || 'Sin fecha';
+
+    // Prioridad
+    const prioridadBadge = card.querySelector('.orden-prioridad');
+    prioridadBadge.textContent = orden.prioridad?.toUpperCase() || 'MEDIA';
+    prioridadBadge.className = `badge ${getPrioridadClass(orden.prioridad)}`;
+
+    // Días restantes
+    if (orden.dias_restantes !== undefined && orden.dias_restantes !== null) {
+        const diasBadge = document.createElement('span');
+        if (orden.dias_restantes < 0) {
+            diasBadge.className = 'badge bg-danger ms-1';
+            diasBadge.textContent = `${Math.abs(orden.dias_restantes)}d atraso`;
+        } else if (orden.dias_restantes <= 3) {
+            diasBadge.className = 'badge bg-warning ms-1';
+            diasBadge.textContent = `${orden.dias_restantes}d`;
+        }
+        if (diasBadge.textContent) {
+            card.querySelector('.card-header').appendChild(diasBadge);
+        }
+    }
+
+    // Órdenes de fabricación
+    const fabricacionesContainer = card.querySelector('.orden-fabricaciones');
+    if (orden.ordenes_fabricacion && orden.ordenes_fabricacion.length > 0) {
+        orden.ordenes_fabricacion.forEach(fab => {
+            const fabElement = document.createElement('div');
+            fabElement.className = 'border rounded p-1 mb-1 bg-light';
+            fabElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <small><strong>${fab.codigo_pedido}</strong></small>
+                    <span class="badge ${getEstadoFabricacionClass(fab.estado)} badge-sm">
+                        ${fab.estado.replace(/_/g, ' ').toUpperCase()}
+                    </span>
+                </div>
+                <div class="progress mt-1" style="height: 4px;">
+                    <div class="progress-bar" style="width: ${getProgresoPorEstado(fab.estado)}%"></div>
+                </div>
+            `;
+            fabricacionesContainer.appendChild(fabElement);
+        });
+    }
+
+    // Acciones según área
+    const accionesContainer = card.querySelector('.orden-acciones');
+    accionesContainer.innerHTML = getAccionesPorArea(orden, area);
+
+    return cardElement;
+}
+
+function getAccionesPorArea(orden, area) {
+    const userRole = '{{ session.user_role }}';
+    let acciones = `
+        <a href="/orden_compra_detalle/${orden.id}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-eye"></i> Ver
+        </a>
+    `;
+
+    if (area === 'diseño' && ['admin', 'general', 'vendedor'].includes(userRole)) {
+        acciones += `
+            <button class="btn btn-sm btn-success" onclick="aprobarOrden(${orden.id})">
+                <i class="fas fa-check"></i> Aprobar
+            </button>
+        `;
+    } else if (area === 'fabricacion' && ['admin', 'general', 'operación'].includes(userRole)) {
+        acciones += `
+            <button class="btn btn-sm btn-primary" onclick="avanzarFabricacion(${orden.id})">
+                <i class="fas fa-arrow-right"></i> Avanzar
+            </button>
+        `;
+    } else if (area === 'embalaje' && ['admin', 'general', 'embalaje'].includes(userRole)) {
+        acciones += `
+            <button class="btn btn-sm btn-secondary" onclick="avanzarEmbalaje(${orden.id})">
+                <i class="fas fa-box"></i> Embalar
+            </button>
+        `;
+    } else if (area === 'despacho' && ['admin', 'general', 'despacho'].includes(userRole)) {
+        acciones += `
+            <button class="btn btn-sm btn-dark" onclick="programarDespacho(${orden.id})">
+                <i class="fas fa-truck"></i> Despachar
+            </button>
+        `;
+    }
+
+    return acciones;
+}
+
+function getPrioridadClass(prioridad) {
+    switch(prioridad) {
+        case 'alta': return 'bg-danger';
+        case 'media': return 'bg-warning';
+        case 'baja': return 'bg-info';
+        default: return 'bg-secondary';
+    }
+}
+
+function getEstadoFabricacionClass(estado) {
+    const estadoClasses = {
+        'pendiente_aprobacion_diseño': 'bg-warning',
+        'aprobado_diseño': 'bg-info',
+        'enviado_produccion': 'bg-primary',
+        'seccionado': 'bg-secondary',
+        'enchapando': 'bg-info',
+        'mecanizado': 'bg-primary',
+        'pendiente_embalaje': 'bg-warning',
+        'embalando': 'bg-info',
+        'embalaje_listo': 'bg-success',
+        'listo_despacho': 'bg-dark'
+    };
+    return estadoClasses[estado] || 'bg-secondary';
+}
+
+function getProgresoPorEstado(estado) {
+    const estados = [
+        'pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion',
+        'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje',
+        'embalando', 'embalaje_listo', 'listo_despacho'
+    ];
+    const indice = estados.indexOf(estado);
+    return indice >= 0 ? ((indice + 1) / estados.length * 100) : 0;
+}
+
+function actualizarEstadisticas() {
+    const stats = {
+        diseño: 0,
+        fabricacion: 0,
+        embalaje: 0,
+        despacho: 0
+    };
+
+    const todasLasOrdenes = [...ordenesData.pendientes, ...ordenesData.proceso];
+
+    todasLasOrdenes.forEach(orden => {
+        if (!orden.ordenes_fabricacion || orden.ordenes_fabricacion.length === 0) {
+            stats.diseño++;
+        } else {
+            const ultimaFabricacion = orden.ordenes_fabricacion[orden.ordenes_fabricacion.length - 1];
+            const estado = ultimaFabricacion.estado;
+
+            if (['pendiente_aprobacion_diseño', 'aprobado_diseño'].includes(estado)) {
+                stats.diseño++;
+            } else if (['enviado_produccion', 'seccionado', 'enchapando', 'mecanizado'].includes(estado)) {
+                stats.fabricacion++;
+            } else if (['pendiente_embalaje', 'embalando', 'embalaje_listo'].includes(estado)) {
+                stats.embalaje++;
+            } else if (['listo_despacho'].includes(estado)) {
+                stats.despacho++;
+            }
+        }
+    });
+
+    // Actualizar contadores
+    document.getElementById('diseño-count').textContent = stats.diseño;
+    document.getElementById('fabricacion-count').textContent = stats.fabricacion;
+    document.getElementById('embalaje-count').textContent = stats.embalaje;
+    document.getElementById('despacho-count').textContent = stats.despacho;
+}
+
+function inicializarCalendario() {
+    const calendarEl = document.getElementById('calendar');
+    if (!calendarEl) return;
+
+    calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,listWeek'
+        },
+        height: 600,
+        events: function(fetchInfo, successCallback, failureCallback) {
+            fetch('/api/calendar_events')
+                .then(response => response.json())
+                .then(data => successCallback(data))
+                .catch(error => {
+                    console.error('Error cargando eventos del calendario:', error);
+                    failureCallback(error);
+                });
+        },
+        eventClick: function(info) {
+            const event = info.event;
+            if (event.extendedProps.proyecto_id) {
+                window.location.href = `/orden_compra_detalle/${event.extendedProps.proyecto_id}`;
+            } else if (event.extendedProps.despacho_id) {
+                window.location.href = `/despacho/${event.extendedProps.despacho_id}`;
+            }
+        },
+        eventDidMount: function(info) {
+            // Agregar tooltip con información adicional
+            info.el.setAttribute('title', 
+                `${info.event.title}\n` +
+                `Cliente: ${info.event.extendedProps.cliente || 'N/A'}\n` +
+                `Estado: ${info.event.extendedProps.estado || 'N/A'}`
+            );
+        }
+    });
+}
+
+function cargarEntregasProximas() {
+    const urgentesContainer = document.getElementById('entregas-urgentes');
+    const proximasContainer = document.getElementById('proximas-entregas');
+
+    if (!urgentesContainer || !proximasContainer) return;
+
+    const hoy = new Date();
+    const urgentes = [];
+    const proximas = [];
+
+    [...ordenesData.pendientes, ...ordenesData.proceso].forEach(orden => {
+        if (orden.fecha_entrega) {
+            const fechaEntrega = new Date(orden.fecha_entrega);
+            const diasRestantes = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
+
+            if (diasRestantes <= 7 && diasRestantes >= 0) {
+                urgentes.push({...orden, dias_restantes: diasRestantes});
+            } else if (diasRestantes <= 30 && diasRestantes > 7) {
+                proximas.push({...orden, dias_restantes: diasRestantes});
+            }
+        }
+    });
+
+    // Renderizar entregas urgentes
+    urgentesContainer.innerHTML = urgentes.length > 0 ? 
+        urgentes.map(orden => `
+            <div class="border-start border-danger border-3 ps-2 mb-2">
+                <div class="d-flex justify-content-between">
+                    <strong>${orden.codigo}</strong>
+                    <span class="badge bg-danger">${orden.dias_restantes}d</span>
+                </div>
+                <small class="text-muted">${orden.cliente_nombre}</small>
+            </div>
+        `).join('') : '<p class="text-muted">No hay entregas urgentes</p>';
+
+    // Renderizar próximas entregas
+    proximasContainer.innerHTML = proximas.length > 0 ?
+        proximas.slice(0, 10).map(orden => `
+            <div class="border-start border-warning border-3 ps-2 mb-2">
+                <div class="d-flex justify-content-between">
+                    <strong>${orden.codigo}</strong>
+                    <span class="badge bg-warning">${orden.dias_restantes}d</span>
+                </div>
+                <small class="text-muted">${orden.cliente_nombre}</small>
+            </div>
+        `).join('') : '<p class="text-muted">No hay próximas entregas</p>';
+}
+
+// Funciones de acción
+function aprobarOrden(ordenId) {
+    if (confirm('¿Aprobar esta orden para fabricación?')) {
+        fetch(`/api/aprobar_orden/${ordenId}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                showNotification(data.message, 'success');
+                // Forzar actualización inmediata
+                setTimeout(() => {
+                    cargarDatosOrdenesActualizados();
+                }, 500);
             } else {
-                alert('Error: ' + data.message);
+                showNotification(data.message, 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error de conexión');
+            showNotification('Error al aprobar orden', 'error');
+        });
+    }
+}
+
+function avanzarFabricacion(ordenId) {
+    if (confirm('¿Avanzar esta orden a la siguiente etapa de fabricación?')) {
+        fetch(`/api/avanzar_fabricacion/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                // Forzar actualización inmediata
+                setTimeout(() => {
+                    cargarDatosOrdenesActualizados();
+                }, 500);
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error al avanzar fabricación', 'error');
+        });
+    }
+}
+
+function avanzarEmbalaje(ordenId) {
+    if (confirm('¿Avanzar esta orden en embalaje?')) {
+        fetch(`/api/avanzar_embalaje/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                // Forzar actualización inmediata
+                setTimeout(() => {
+                    cargarDatosOrdenesActualizados();
+                }, 500);
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error al avanzar embalaje', 'error');
+        });
+    }
+}
+
+function programarDespacho(ordenId) {
+    if (confirm('¿Programar despacho para esta orden?')) {
+        fetch(`/api/programar_despacho/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                if (data.redirect) {
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1500);
+                } else {
+                    // Forzar actualización inmediata
+                    setTimeout(() => {
+                        cargarDatosOrdenesActualizados();
+                    }, 500);
+                }
+            } else {
+                showNotification(data.message, 'error');
+                if (data.redirect) {
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1500);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error al programar despacho', 'error');
         });
     }
 }
 
 function terminarOrden(ordenId) {
-    if (confirm('¿Confirmas marcar esta orden como terminada?')) {
+    if (confirm('¿Marcar esta orden como entregada? Esta acción no se puede deshacer.')) {
         fetch(`/api/terminar_orden/${ordenId}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                showNotification(data.message, 'success');
+                cargarDatosOrdenesActualizados();
             } else {
-                alert('Error: ' + data.message);
+                showNotification(data.message, 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error de conexión');
+            showNotification('Error al terminar orden', 'error');
         });
     }
+}
+
+function showNotification(message, type = 'info') {
+    // Crear elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.zIndex = '9999';
+    notification.style.minWidth = '300px';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
 }
 </script>
 {% endblock %}
