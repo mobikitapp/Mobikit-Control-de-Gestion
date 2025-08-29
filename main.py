@@ -5303,13 +5303,16 @@ def reportes():
 if __name__ == '__main__':
     try:
         init_db()
-        # Configuración más estable para preview
+        print("Base de datos inicializada correctamente")
+        print("Iniciando servidor Flask...")
+        # Configuración optimizada para estabilidad en Replit
         app.run(
             host='0.0.0.0', 
             port=5000, 
-            debug=False,  # Deshabilitar debug en preview para mayor estabilidad
+            debug=False,  # Debug deshabilitado para estabilidad
             threaded=True,
-            use_reloader=False  # Evitar reinicio automático que causa inestabilidad
+            use_reloader=False,  # Sin recarga automática
+            processes=1  # Un solo proceso para evitar conflictos
         )
     except KeyboardInterrupt:
         print("Aplicación detenida por el usuario")

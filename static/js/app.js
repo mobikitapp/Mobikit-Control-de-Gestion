@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Envolver en función autoejecutable para evitar conflictos globales
 (function() {
     'use strict';
-    
+
     // Evitar múltiple inicialización
     if (window.mobikitAppInitialized) {
         return;
@@ -96,8 +96,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form validation (evitar redeclaración)
     if (!window.mobikitFormsInitialized) {
         window.mobikitFormsInitialized = true;
-        const forms = document.querySelectorAll('form[data-validate]');
-        forms.forEach(form => {
+        const formsWithValidation = document.querySelectorAll('form[data-validate]');
+        formsWithValidation.forEach(form => {
             form.addEventListener('submit', function(e) {
                 const requiredFields = form.querySelectorAll('[required]');
                 let valid = true;
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         field.classList.remove('is-invalid');
                     }
                 });
-                
+
                 if (!valid) {
                     e.preventDefault();
                     showAlert('Por favor complete todos los campos obligatorios', 'danger');
@@ -415,6 +415,7 @@ function formatCurrency(amount) {
     }).format(amount);
 }
 
+// Original formatDate function was duplicated and now is correctly placed as utility
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);

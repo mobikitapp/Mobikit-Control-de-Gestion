@@ -15,7 +15,7 @@ run = ["python3", "main.py"]
 deploymentTarget = "cloudrun"
 
 [workflows]
-runButton = "Run Mobikit"
+runButton = "Run Mobikit Stable"
 
 [[workflows.workflow]]
 name = "Run Mobikit"
@@ -25,6 +25,15 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python main.py"
+
+[[workflows.workflow]]
+name = "Run Mobikit Stable"
+author = 45176243
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python -u main.py"
 
 [[ports]]
 localPort = 5000
