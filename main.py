@@ -238,7 +238,7 @@ def init_db():
         # Insertar permisos por defecto si la tabla está vacía
         cursor.execute("SELECT COUNT(*) FROM permisos_rol")
         result = cursor.fetchone()
-        if result and result['count'] == 0:
+        if result and result[0] == 0:
             # Definir permisos por defecto
             permisos_defecto = [
                 # General - casi todos los permisos
@@ -410,13 +410,10 @@ def init_db():
     except Exception as e:
         print(f"Error creando índices de optimización: {e}")
 
-    # Commit las operaciones anteriores antes de continuar
-    conn.commit()
-
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
     result = cursor.fetchone()
-    if result and result['count'] == 0:
+    if result and result[0] == 0:
         admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
         cursor.execute(
             '''
@@ -446,7 +443,7 @@ def init_db():
             # Verificar si el nombre de usuario ya existe
             cursor.execute('SELECT COUNT(*) FROM usuarios WHERE username = %s', (username_vendedor,))
             result = cursor.fetchone()
-            if result and result['count'] == 0:
+            if result and result[0] == 0:
                 # Usar una contraseña por defecto (o generar una más segura si es necesario)
                 password_hash_vendedor = generate_password_hash("mobikit123")
                 cursor.execute(
@@ -458,9 +455,18 @@ def init_db():
             else:
                 print(f"Advertencia: El nombre de usuario '{username_vendedor}' ya existe para el vendedor '{nombre_vendedor}'. No se creó cuenta.")
 
-
-    conn.commit()
-    conn.close()
+    except Exception as e:
+        print(f"Error en init_db: {e}")
+        conn.rollback()
+    finally:
+        try:
+            conn.commit()
+        except:
+            pass
+        try:
+            conn.close()
+        except:
+            pass
 
 
 def create_basic_tables(cursor):
@@ -549,7 +555,7 @@ def create_basic_tables(cursor):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (proyecto_id) REFERENCES proyectos (id),
-            FOREIGN FOREIGN KEY (usuario_asignado_id) REFERENCES usuarios (id)
+            FOREIGN KEY (usuario_asignado_id) REFERENCES usuarios (id)
         )
     ''')
 

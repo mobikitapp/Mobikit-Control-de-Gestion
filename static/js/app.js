@@ -335,7 +335,69 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('beforeunload', stopDashboardAutoRefresh);
 });
 
-// Validación de formularios en tiempo real
+// Validación de formularios
+const validationForms = document.querySelectorAll('.needs-validation');
+
+validationForms.forEach(function(form) {
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+});
+
+// Auto-hide alerts after 5 seconds
+setTimeout(() => {
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+        if (!alert.classList.contains('alert-danger')) {
+            alert.style.transition = 'opacity 0.5s';
+            alert.style.opacity = '0';
+            setTimeout(() => alert.remove(), 500);
+        }
+    });
+}, 5000);
+
+// Form validation and AJAX helpers
+const ajaxForms = document.querySelectorAll('form[data-ajax="true"]');
+
+ajaxForms.forEach(form => {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const url = form.action;
+        const method = form.method || 'POST';
+
+        fetch(url, {
+            method: method,
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                if (data.redirect) {
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1500);
+                } else {
+                    location.reload();
+                }
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('error', 'Error al procesar la solicitud');
+        });
+    });
+});
+
+// Setup form validation
 function setupFormValidation() {
     const validationForms = document.querySelectorAll('.needs-validation');
 
