@@ -2749,6 +2749,88 @@ def calendario():
     return render_template('calendario.html')
 
 
+@app.route('/api/ordenes_fabricacion_estado')
+@login_required
+def api_ordenes_fabricacion_estado():
+    """API para obtener estado actualizado de órdenes de fabricación"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            SELECT of.id, of.codigo_orden, of.estado, of.proyecto_id,
+                   p.codigo as proyecto_codigo, p.nombre as proyecto_nombre
+            FROM ordenes_fabricacion of
+            JOIN proyectos p ON of.proyecto_id = p.id
+            WHERE p.estado = 'activo' AND p.archivado = FALSE
+            ORDER BY of.created_at DESC
+        ''')
+        
+        fabricaciones = []
+        for row in cursor.fetchall():
+            fabricaciones.append({
+                'id': row['id'],
+                'codigo_orden': row['codigo_orden'],
+                'estado': row['estado'],
+                'proyecto_id': row['proyecto_id'],
+                'proyecto_codigo': row['proyecto_codigo'],
+                'proyecto_nombre': row['proyecto_nombre']
+            })
+        
+        return jsonify(fabricaciones)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/ordenes_compra_estado')
+@login_required
+def api_ordenes_compra_estado():
+    """API para obtener estado actualizado de órdenes de compra"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            SELECT p.id, p.codigo, p.nombre, p.estado, p.fecha_entrega,
+                   c.nombre as cliente_nombre, p.prioridad,
+                   CASE 
+                       WHEN p.fecha_entrega IS NOT NULL THEN 
+                           EXTRACT(EPOCH FROM (p.fecha_entrega::timestamp - CURRENT_DATE::timestamp)) / 86400 
+                       ELSE NULL 
+                   END AS dias_restantes
+            FROM proyectos p
+            LEFT JOIN clientes c ON p.cliente_id = c.id
+            INNER JOIN proyecto_categorias pc ON p.id = pc.proyecto_id
+            WHERE p.estado = 'activo' AND p.archivado = FALSE
+            GROUP BY p.id, p.codigo, p.nombre, p.estado, p.fecha_entrega,
+                     c.nombre, p.prioridad
+            ORDER BY p.fecha_entrega ASC NULLS LAST
+        ''')
+        
+        ordenes = []
+        for row in cursor.fetchall():
+            ordenes.append({
+                'id': row['id'],
+                'codigo': row['codigo'],
+                'nombre': row['nombre'],
+                'estado': row['estado'],
+                'fecha_entrega': row['fecha_entrega'].isoformat() if row['fecha_entrega'] else None,
+                'cliente_nombre': row['cliente_nombre'],
+                'prioridad': row['prioridad'],
+                'dias_restantes': row['dias_restantes']
+            })
+        
+        return jsonify(ordenes)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
 @app.route('/api/calendar_events')
 @login_required
 def api_calendar_events():

@@ -395,6 +395,108 @@ h4, h5, h6 {
     margin-bottom: 0;
 }
 
+/* Nuevos estilos para dashboard por áreas */
+.dashboard-stat-card {
+    transition: all 0.3s ease;
+    min-height: 120px;
+}
+
+.dashboard-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.dashboard-content {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.orden-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+}
+
+.orden-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.orden-card[data-prioridad="alta"] {
+    border-left-color: var(--bs-danger);
+}
+
+.orden-card[data-prioridad="media"] {
+    border-left-color: var(--bs-warning);
+}
+
+.orden-card[data-prioridad="baja"] {
+    border-left-color: var(--bs-info);
+}
+
+/* Estilos para badges pequeños */
+.badge-sm {
+    font-size: 0.65em;
+    padding: 0.2em 0.4em;
+}
+
+/* Estilos para progreso */
+.progress {
+    background-color: rgba(0,0,0,0.1);
+}
+
+/* Estilos específicos por área */
+.card-header.bg-warning {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+}
+
+.card-header.bg-info {
+    background: linear-gradient(135deg, #3b82f6, #60a5fa) !important;
+}
+
+.card-header.bg-secondary {
+    background: linear-gradient(135deg, #6b7280, #9ca3af) !important;
+}
+
+.card-header.bg-dark {
+    background: linear-gradient(135deg, #374151, #4b5563) !important;
+}
+
+/* Calendario */
+.fc {
+    background: white;
+    border-radius: 8px;
+}
+
+.fc-event {
+    border-radius: 4px;
+    border: none !important;
+    padding: 2px 4px;
+}
+
+.fc-event-title {
+    font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dashboard-stat-card {
+        min-height: 100px;
+    }
+    
+    .orden-card {
+        margin-bottom: 1rem;
+    }
+    
+    #calendar {
+        font-size: 0.9em;
+    }
+}: 0;
+}
+
 /* Alerts - Notion Style */
 .alert {
     border: none;
