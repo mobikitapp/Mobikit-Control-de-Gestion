@@ -1514,29 +1514,47 @@ def editar_orden_compra():
         proyecto_id = request.form['proyecto_id']
         nombre = request.form['nombre']
         descripcion = request.form.get('descripcion', '').strip() or None
+        estado = request.form.get('estado', 'activo')
         prioridad = request.form.get('prioridad', 'media')
+        adjudicacion_tipo = request.form.get('adjudicacion_tipo', 'orden_compra')
+        fecha_inicio = request.form.get('fecha_inicio') or None
         fecha_entrega = request.form.get('fecha_entrega') or None
-        monto_neto = request.form.get('monto_neto')
         observaciones = request.form.get('observaciones', '').strip() or None
 
-        # Convertir monto a float si se proporciona
-        if monto_neto:
-            try:
-                monto_neto = float(monto_neto)
-            except ValueError:
-                monto_neto = None
+        # Convertir campos numéricos
+        def convertir_decimal(valor):
+            if valor and valor.strip():
+                try:
+                    return float(valor)
+                except ValueError:
+                    return None
+            return None
+
+        monto_neto = convertir_decimal(request.form.get('monto_neto'))
+        costo_real = convertir_decimal(request.form.get('costo_real'))
+        monto_neto_provision = convertir_decimal(request.form.get('monto_neto_provision'))
+        monto_neto_instalacion = convertir_decimal(request.form.get('monto_neto_instalacion'))
+        monto_provision_presupuestada = convertir_decimal(request.form.get('monto_provision_presupuestada'))
+        margen_provision = convertir_decimal(request.form.get('margen_provision'))
+        margen_instalacion = convertir_decimal(request.form.get('margen_instalacion'))
 
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
 
-        # Actualizar orden de compra
+        # Actualizar orden de compra con todos los campos
         cursor.execute('''
             UPDATE proyectos SET
-                nombre = %s, descripcion = %s, prioridad = %s,
-                fecha_entrega = %s, monto_neto = %s, observaciones = %s,
+                nombre = %s, descripcion = %s, estado = %s, prioridad = %s,
+                adjudicacion_tipo = %s, fecha_inicio = %s, fecha_entrega = %s,
+                monto_neto = %s, costo_real = %s, monto_neto_provision = %s,
+                monto_neto_instalacion = %s, monto_provision_presupuestada = %s,
+                margen_provision = %s, margen_instalacion = %s, observaciones = %s,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
-        ''', (nombre, descripcion, prioridad, fecha_entrega, monto_neto, observaciones, proyecto_id))
+        ''', (nombre, descripcion, estado, prioridad, adjudicacion_tipo, fecha_inicio, fecha_entrega,
+              monto_neto, costo_real, monto_neto_provision, monto_neto_instalacion, 
+              monto_provision_presupuestada, margen_provision, margen_instalacion, 
+              observaciones, proyecto_id))
 
         # Registrar en auditoría
         cursor.execute('''
@@ -1546,6 +1564,7 @@ def editar_orden_compra():
               json.dumps({
                   'accion': 'editar_orden_compra',
                   'nombre': nombre,
+                  'estado': estado,
                   'editado_por': session['user_name']
               })))
 

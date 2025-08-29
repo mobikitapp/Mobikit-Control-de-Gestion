@@ -425,16 +425,25 @@ function editarOrden(ordenId) {
         codigo: '{{ orden.codigo or "" }}',
         nombre: '{{ orden.nombre or "" }}',
         descripcion: '{{ orden.descripcion or "" }}',
+        estado: '{{ orden.estado or "activo" }}',
         prioridad: '{{ orden.prioridad or "media" }}',
+        adjudicacion_tipo: '{{ orden.adjudicacion_tipo or "orden_compra" }}',
+        fecha_inicio: '{{ orden.fecha_inicio or "" }}',
         fecha_entrega: '{{ orden.fecha_entrega or "" }}',
         monto_neto: {{ orden.monto_neto or 'null' }},
+        costo_real: {{ orden.costo_real or 'null' }},
+        monto_neto_provision: {{ orden.monto_neto_provision or 'null' }},
+        monto_neto_instalacion: {{ orden.monto_neto_instalacion or 'null' }},
+        monto_provision_presupuestada: {{ orden.monto_provision_presupuestada or 'null' }},
+        margen_provision: {{ orden.margen_provision or 'null' }},
+        margen_instalacion: {{ orden.margen_instalacion or 'null' }},
         observaciones: '{{ orden.observaciones or "" }}'
     };
 
     // Crear y mostrar modal de edición
     const modalHtml = `
         <div class="modal fade" id="editarOrdenModal" tabindex="-1">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Editar Orden de Compra</h5>
@@ -443,18 +452,35 @@ function editarOrden(ordenId) {
                     <form action="/editar_orden_compra" method="POST">
                         <input type="hidden" name="proyecto_id" value="${orden.id}">
                         <div class="modal-body">
-                            <div class="mb-3">
-                                <label class="form-label">Código de Orden</label>
-                                <input type="text" class="form-control" value="${orden.codigo}" readonly>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Código de Orden</label>
+                                        <input type="text" class="form-control" value="${orden.codigo}" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Estado del Proyecto</label>
+                                        <select class="form-select" name="estado">
+                                            <option value="activo" ${orden.estado === 'activo' ? 'selected' : ''}>Activo</option>
+                                            <option value="entregado" ${orden.estado === 'entregado' ? 'selected' : ''}>Entregado</option>
+                                            <option value="cancelado" ${orden.estado === 'cancelado' ? 'selected' : ''}>Cancelado</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
+                            
                             <div class="mb-3">
                                 <label class="form-label">Nombre del Proyecto *</label>
                                 <input type="text" class="form-control" name="nombre" value="${orden.nombre}" required>
                             </div>
+                            
                             <div class="mb-3">
                                 <label class="form-label">Descripción</label>
                                 <textarea class="form-control" name="descripcion" rows="3">${orden.descripcion}</textarea>
                             </div>
+                            
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
@@ -468,18 +494,86 @@ function editarOrden(ordenId) {
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
+                                        <label class="form-label">Tipo de Adjudicación</label>
+                                        <select class="form-select" name="adjudicacion_tipo">
+                                            <option value="orden_compra" ${orden.adjudicacion_tipo === 'orden_compra' ? 'selected' : ''}>Orden de Compra</option>
+                                            <option value="contrato" ${orden.adjudicacion_tipo === 'contrato' ? 'selected' : ''}>Contrato</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Fecha de Inicio</label>
+                                        <input type="date" class="form-control" name="fecha_inicio" value="${orden.fecha_inicio}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
                                         <label class="form-label">Fecha de Entrega</label>
                                         <input type="date" class="form-control" name="fecha_entrega" value="${orden.fecha_entrega}">
                                     </div>
                                 </div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Monto Neto</label>
-                                <input type="number" class="form-control" name="monto_neto" step="0.01" value="${orden.monto_neto || ''}">
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Monto Neto Total</label>
+                                        <input type="number" class="form-control" name="monto_neto" step="0.01" value="${orden.monto_neto || ''}" placeholder="0.00">
+                                        <div class="form-text">Monto total del proyecto</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Costo Real</label>
+                                        <input type="number" class="form-control" name="costo_real" step="0.01" value="${orden.costo_real || ''}" placeholder="0.00">
+                                        <div class="form-text">Costo real incurrido</div>
+                                    </div>
+                                </div>
                             </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Monto Provisión</label>
+                                        <input type="number" class="form-control" name="monto_neto_provision" step="0.01" value="${orden.monto_neto_provision || ''}" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Monto Instalación</label>
+                                        <input type="number" class="form-control" name="monto_neto_instalacion" step="0.01" value="${orden.monto_neto_instalacion || ''}" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Provisión Presupuestada</label>
+                                        <input type="number" class="form-control" name="monto_provision_presupuestada" step="0.01" value="${orden.monto_provision_presupuestada || ''}" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Margen Provisión (%)</label>
+                                        <input type="number" class="form-control" name="margen_provision" step="0.01" value="${orden.margen_provision || ''}" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Margen Instalación (%)</label>
+                                        <input type="number" class="form-control" name="margen_instalacion" step="0.01" value="${orden.margen_instalacion || ''}" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div class="mb-3">
                                 <label class="form-label">Observaciones</label>
-                                <textarea class="form-control" name="observaciones" rows="3">${orden.observaciones}</textarea>
+                                <textarea class="form-control" name="observaciones" rows="4">${orden.observaciones}</textarea>
                             </div>
                         </div>
                         <div class="modal-footer">
