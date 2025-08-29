@@ -34,44 +34,90 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Intercept navigation links
-    const navLinks = document.querySelectorAll('.nav-link, .btn[href], a[href]:not([target="_blank"])');
-    navLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            const href = this.getAttribute('href');
-            if (href && href !== '#' && !href.startsWith('javascript:') && !href.startsWith('mailto:')) {
-                e.preventDefault();
-                navigateWithLoader(href);
+    // Envolver en función autoejecutable para evitar conflictos globales
+(function() {
+    'use strict';
+    
+    // Evitar múltiple inicialización
+    if (window.mobikitAppInitialized) {
+        return;
+    }
+    window.mobikitAppInitialized = true;
+
+    // Navigation interceptors
+    function initNavigationLinks() {
+        const navLinks = document.querySelectorAll('.nav-link, .btn[href], a[href]:not([target="_blank"])');
+        navLinks.forEach(link => {
+            if (!link.dataset.listenerAdded) {
+                link.dataset.listenerAdded = 'true';
+                link.addEventListener('click', function(e) {
+                    const href = this.getAttribute('href');
+                    if (href && href !== '#' && !href.startsWith('javascript:') && !href.startsWith('mailto:')) {
+                        e.preventDefault();
+                        if (typeof navigateWithLoader === 'function') {
+                            navigateWithLoader(href);
+                        } else {
+                            window.location.href = href;
+                        }
+                    }
+                });
             }
         });
-    });
+    }
 
     // Confirm dialogs for dangerous actions
-    const dangerousButtons = document.querySelectorAll('[data-confirm]');
-    dangerousButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            const message = this.getAttribute('data-confirm');
-            if (!confirm(message)) {
-                e.preventDefault();
+    function initConfirmDialogs() {
+        const dangerousButtons = document.querySelectorAll('[data-confirm]');
+        dangerousButtons.forEach(button => {
+            if (!button.dataset.listenerAdded) {
+                button.dataset.listenerAdded = 'true';
+                button.addEventListener('click', function(e) {
+                    const message = this.getAttribute('data-confirm');
+                    if (!confirm(message)) {
+                        e.preventDefault();
+                    }
+                });
             }
         });
-    });
+    }
 
-    // Form validation
-    const forms = document.querySelectorAll('form[data-validate]');
-    forms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const requiredFields = form.querySelectorAll('[required]');
-            let valid = true;
+    // Initialize on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            initNavigationLinks();
+            initConfirmDialogs();
+        });
+    } else {
+        initNavigationLinks();
+        initConfirmDialogs();
+    }
+})();
 
-            requiredFields.forEach(field => {
-                if (!field.value.trim()) {
-                    field.classList.add('is-invalid');
-                    valid = false;
-                } else {
-                    field.classList.remove('is-invalid');
+    // Form validation (evitar redeclaración)
+    if (!window.mobikitFormsInitialized) {
+        window.mobikitFormsInitialized = true;
+        const forms = document.querySelectorAll('form[data-validate]');
+        forms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const requiredFields = form.querySelectorAll('[required]');
+                let valid = true;
+
+                requiredFields.forEach(field => {
+                    if (!field.value.trim()) {
+                        field.classList.add('is-invalid');
+                        valid = false;
+                    } else {
+                        field.classList.remove('is-invalid');
+                    }
+                });
+                
+                if (!valid) {
+                    e.preventDefault();
+                    showAlert('Por favor complete todos los campos obligatorios', 'danger');
                 }
             });
+        });
+    }
 
             if (!valid) {
                 e.preventDefault();

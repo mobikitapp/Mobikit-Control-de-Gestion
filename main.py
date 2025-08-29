@@ -1624,7 +1624,7 @@ def nueva_orden_compra():
             try:
                 for i, categoria_id in enumerate(categorias_selected):
                     if categoria_id:  # Solo si hay categoría seleccionada
-                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategories_selected[i] else None
+                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategorias_selected[i] else None
                         cursor.execute('''
                             INSERT INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
                             VALUES (%s, %s, %s)
@@ -4160,21 +4160,22 @@ def api_proyectos_cliente(cliente_id):
 @login_required
 def api_proyecto_detalle(proyecto_id):
     """API para obtener detalles de un proyecto específico"""
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-    cursor = conn.cursor()
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT p.*, u.nombre as diseñador_nombre
-        FROM proyectos p
-        LEFT JOIN usuarios u ON p.diseñador_id = u.id
-        WHERE p.id = %s
-    ''', (proyecto_id,))
+        cursor.execute('''
+            SELECT p.*, u.nombre as diseñador_nombre
+            FROM proyectos p
+            LEFT JOIN usuarios u ON p.diseñador_id = u.id
+            WHERE p.id = %s
+        ''', (proyecto_id,))
 
-    proyecto = cursor.fetchone()
+        proyecto = cursor.fetchone()
 
-    if not proyecto:
-        conn.close()
-        return jsonify({'error': 'Proyecto no encontrado'}), 404
+        if not proyecto:
+            conn.close()
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
 
     # Convert to dict and handle None values
     proyecto_dict = {
@@ -4201,7 +4202,16 @@ def api_proyecto_detalle(proyecto_id):
     }
 
     conn.close()
-    return jsonify(proyecto_dict)
+        return jsonify(proyecto_dict)
+        
+    except psycopg2.Error as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': f'Error de base de datos: {str(e)}'}), 500
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': f'Error interno: {str(e)}'}), 500
 
 @app.route('/api/proyecto/<int:proyecto_id>')
 @login_required
@@ -5291,5 +5301,18 @@ def reportes():
 
 
 if __name__ == '__main__':
-    init_db()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    try:
+        init_db()
+        # Configuración más estable para preview
+        app.run(
+            host='0.0.0.0', 
+            port=5000, 
+            debug=False,  # Deshabilitar debug en preview para mayor estabilidad
+            threaded=True,
+            use_reloader=False  # Evitar reinicio automático que causa inestabilidad
+        )
+    except KeyboardInterrupt:
+        print("Aplicación detenida por el usuario")
+    except Exception as e:
+        print(f"Error iniciando la aplicación: {e}")
+        raise
