@@ -26,7 +26,7 @@
 <!-- Estadísticas Generales -->
 <div class="row mb-4">
     <div class="col-md-2">
-        <div class="card border-primary dashboard-stat-card">
+        <div class="card dashboard-stat-card border-primary">
             <div class="card-body text-center">
                 <i class="fas fa-file-invoice fa-2x text-primary mb-2"></i>
                 <h4 class="text-primary mb-1" id="total-ordenes">{{ ordenes_pendientes|length + ordenes_proceso|length }}</h4>
@@ -35,7 +35,7 @@
         </div>
     </div>
     <div class="col-md-2">
-        <div class="card border-warning dashboard-stat-card">
+        <div class="card dashboard-stat-card border-warning">
             <div class="card-body text-center">
                 <i class="fas fa-drafting-compass fa-2x text-warning mb-2"></i>
                 <h4 class="text-warning mb-1" id="diseño-count">0</h4>
@@ -44,7 +44,7 @@
         </div>
     </div>
     <div class="col-md-2">
-        <div class="card border-info dashboard-stat-card">
+        <div class="card dashboard-stat-card border-info">
             <div class="card-body text-center">
                 <i class="fas fa-cogs fa-2x text-info mb-2"></i>
                 <h4 class="text-info mb-1" id="fabricacion-count">0</h4>
@@ -53,7 +53,7 @@
         </div>
     </div>
     <div class="col-md-2">
-        <div class="card border-secondary dashboard-stat-card">
+        <div class="card dashboard-stat-card border-secondary">
             <div class="card-body text-center">
                 <i class="fas fa-box fa-2x text-secondary mb-2"></i>
                 <h4 class="text-secondary mb-1" id="embalaje-count">0</h4>
@@ -62,7 +62,7 @@
         </div>
     </div>
     <div class="col-md-2">
-        <div class="card border-dark dashboard-stat-card">
+        <div class="card dashboard-stat-card border-dark">
             <div class="card-body text-center">
                 <i class="fas fa-truck fa-2x text-dark mb-2"></i>
                 <h4 class="text-dark mb-1" id="despacho-count">0</h4>
@@ -71,7 +71,7 @@
         </div>
     </div>
     <div class="col-md-2">
-        <div class="card border-success dashboard-stat-card">
+        <div class="card dashboard-stat-card border-success">
             <div class="card-body text-center">
                 <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
                 <h4 class="text-success mb-1" id="terminadas-count">{{ ordenes_terminadas|length }}</h4>
@@ -86,16 +86,16 @@
     <!-- Diseño y Aprobación -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+            <div class="card dashboard-area-card">
+                <div class="card-header bg-warning d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-drafting-compass"></i> 
                         Área de Diseño - Pendientes de Aprobación
                         {% if session.user_role in ['admin', 'general', 'vendedor'] %}
-                        <span class="badge bg-light text-dark ms-2">Tu Área</span>
+                        <span class="badge bg-light ms-2">Tu Área</span>
                         {% endif %}
                     </h5>
-                    <span class="badge bg-light text-dark" id="badge-diseño">0 órdenes</span>
+                    <span class="badge bg-light" id="badge-diseño">0 órdenes</span>
                 </div>
                 <div class="card-body" style="max-height: 400px; overflow-y: auto;">
                     <div id="ordenes-diseño" class="row">
@@ -109,16 +109,16 @@
     <!-- Producción y Fabricación -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <div class="card dashboard-area-card">
+                <div class="card-header bg-info d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-cogs"></i> 
                         Área de Producción - En Fabricación
                         {% if session.user_role in ['admin', 'general', 'operación'] %}
-                        <span class="badge bg-light text-dark ms-2">Tu Área</span>
+                        <span class="badge bg-light ms-2">Tu Área</span>
                         {% endif %}
                     </h5>
-                    <span class="badge bg-light text-dark" id="badge-fabricacion">0 órdenes</span>
+                    <span class="badge bg-light" id="badge-fabricacion">0 órdenes</span>
                 </div>
                 <div class="card-body" style="max-height: 400px; overflow-y: auto;">
                     <div id="ordenes-fabricacion" class="row">
@@ -132,16 +132,16 @@
     <!-- Embalaje -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+            <div class="card dashboard-area-card">
+                <div class="card-header bg-secondary d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-box"></i> 
                         Área de Embalaje
                         {% if session.user_role in ['admin', 'general', 'embalaje'] %}
-                        <span class="badge bg-light text-dark ms-2">Tu Área</span>
+                        <span class="badge bg-light ms-2">Tu Área</span>
                         {% endif %}
                     </h5>
-                    <span class="badge bg-light text-dark" id="badge-embalaje">0 órdenes</span>
+                    <span class="badge bg-light" id="badge-embalaje">0 órdenes</span>
                 </div>
                 <div class="card-body" style="max-height: 400px; overflow-y: auto;">
                     <div id="ordenes-embalaje" class="row">
@@ -155,16 +155,16 @@
     <!-- Despacho -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <div class="card dashboard-area-card">
+                <div class="card-header bg-dark d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-truck"></i> 
                         Área de Despacho
                         {% if session.user_role in ['admin', 'general', 'despacho'] %}
-                        <span class="badge bg-light text-dark ms-2">Tu Área</span>
+                        <span class="badge bg-light ms-2">Tu Área</span>
                         {% endif %}
                     </h5>
-                    <span class="badge bg-light text-dark" id="badge-despacho">0 órdenes</span>
+                    <span class="badge bg-light" id="badge-despacho">0 órdenes</span>
                 </div>
                 <div class="card-body" style="max-height: 400px; overflow-y: auto;">
                     <div id="ordenes-despacho" class="row">

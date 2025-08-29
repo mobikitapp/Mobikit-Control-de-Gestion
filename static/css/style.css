@@ -180,37 +180,50 @@ h4, h5, h6 {
 
 .card-header.bg-warning {
     background-color: var(--mobikit-white) !important;
-    border-bottom: 2px solid var(--mobikit-warning);
+    border: 2px solid var(--mobikit-warning);
+    border-bottom: 3px solid var(--mobikit-warning);
     color: var(--mobikit-warning) !important;
 }
 
 .card-header.bg-primary {
     background-color: var(--mobikit-white) !important;
-    border-bottom: 2px solid var(--mobikit-red);
+    border: 2px solid var(--mobikit-red);
+    border-bottom: 3px solid var(--mobikit-red);
     color: var(--mobikit-red) !important;
 }
 
 .card-header.bg-success {
     background-color: var(--mobikit-white) !important;
-    border-bottom: 2px solid var(--mobikit-success);
+    border: 2px solid var(--mobikit-success);
+    border-bottom: 3px solid var(--mobikit-success);
     color: var(--mobikit-success) !important;
 }
 
 .card-header.bg-info {
     background-color: var(--mobikit-white) !important;
-    border-bottom: 2px solid var(--mobikit-info);
+    border: 2px solid var(--mobikit-info);
+    border-bottom: 3px solid var(--mobikit-info);
     color: var(--mobikit-info) !important;
 }
 
 .card-header.bg-danger {
     background-color: var(--mobikit-white) !important;
-    border-bottom: 2px solid var(--mobikit-danger);
+    border: 2px solid var(--mobikit-danger);
+    border-bottom: 3px solid var(--mobikit-danger);
     color: var(--mobikit-danger) !important;
 }
 
 .card-header.bg-dark {
     background-color: var(--mobikit-white) !important;
-    border-bottom: 2px solid var(--mobikit-gray);
+    border: 2px solid var(--mobikit-gray);
+    border-bottom: 3px solid var(--mobikit-gray);
+    color: var(--mobikit-gray) !important;
+}
+
+.card-header.bg-secondary {
+    background-color: var(--mobikit-white) !important;
+    border: 2px solid var(--mobikit-gray);
+    border-bottom: 3px solid var(--mobikit-gray);
     color: var(--mobikit-gray) !important;
 }
 
@@ -323,22 +336,48 @@ h4, h5, h6 {
     background-color: var(--mobikit-hover);
 }
 
-/* Badges - Notion Tags Style */
+/* Badges - Estilo con bordes y fondo blanco */
 .badge {
     font-weight: 500;
     padding: 0.35rem 0.75rem;
     border-radius: 20px;
     font-size: 0.75rem;
     letter-spacing: 0.025em;
-    color: var(--mobikit-white) !important;
+    background-color: var(--mobikit-white) !important;
+    border: 1px solid;
 }
 
-.badge.bg-primary { background-color: var(--mobikit-red) !important; }
-.badge.bg-secondary { background-color: var(--mobikit-info) !important; }
-.badge.bg-success { background-color: var(--mobikit-success) !important; }
-.badge.bg-warning { background-color: var(--mobikit-warning) !important; }
-.badge.bg-info { background-color: var(--mobikit-info) !important; }
-.badge.bg-danger { background-color: var(--mobikit-danger) !important; }
+.badge.bg-primary { 
+    border-color: var(--mobikit-red);
+    color: var(--mobikit-red) !important; 
+}
+.badge.bg-secondary { 
+    border-color: var(--mobikit-gray);
+    color: var(--mobikit-gray) !important; 
+}
+.badge.bg-success { 
+    border-color: var(--mobikit-success);
+    color: var(--mobikit-success) !important; 
+}
+.badge.bg-warning { 
+    border-color: var(--mobikit-warning);
+    color: var(--mobikit-warning) !important; 
+}
+.badge.bg-info { 
+    border-color: var(--mobikit-info);
+    color: var(--mobikit-info) !important; 
+}
+.badge.bg-danger { 
+    border-color: var(--mobikit-danger);
+    color: var(--mobikit-danger) !important; 
+}
+
+/* Badges especiales para dashboard que necesitan fondo de color para legibilidad */
+.badge.bg-light {
+    background-color: var(--mobikit-hover) !important;
+    border-color: var(--mobikit-border);
+    color: var(--mobikit-gray) !important;
+}
 
 /* Role-specific badges */
 .badge.bg-admin { background-color: var(--mobikit-red) !important; }
@@ -362,36 +401,38 @@ h4, h5, h6 {
 
 /* Dashboard Cards */
 .dashboard-card {
-    background: linear-gradient(135deg, var(--mobikit-red), #F87171);
-    color: var(--mobikit-white);
-    border: none;
-    border-radius: 12px;
+    background: var(--mobikit-white);
+    color: var(--mobikit-red);
+    border: 2px solid var(--mobikit-red);
+    border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .dashboard-card.bg-warning {
-    background: linear-gradient(135deg, #F59E0B, #FCD34D);
+    color: var(--mobikit-warning);
+    border-color: var(--mobikit-warning);
 }
 
 .dashboard-card.bg-success {
-    background: linear-gradient(135deg, #22C55E, #4ADE80);
+    color: var(--mobikit-success);
+    border-color: var(--mobikit-success);
 }
 
 .dashboard-card.bg-info {
-    background: linear-gradient(135deg, #3b6af7, #60A5FA);
+    color: var(--mobikit-info);
+    border-color: var(--mobikit-info);
 }
 
 .dashboard-card h3 {
     font-size: 2.5rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
-    color: var(--mobikit-white);
 }
 
 .dashboard-card p {
     font-weight: 500;
-    opacity: 0.9;
     margin-bottom: 0;
 }
 
@@ -399,6 +440,32 @@ h4, h5, h6 {
 .dashboard-stat-card {
     transition: all 0.3s ease;
     min-height: 120px;
+    background: var(--mobikit-white) !important;
+    border: 2px solid var(--mobikit-border);
+}
+
+.dashboard-stat-card.border-primary {
+    border-color: var(--mobikit-red) !important;
+}
+
+.dashboard-stat-card.border-warning {
+    border-color: var(--mobikit-warning) !important;
+}
+
+.dashboard-stat-card.border-info {
+    border-color: var(--mobikit-info) !important;
+}
+
+.dashboard-stat-card.border-secondary {
+    border-color: var(--mobikit-gray) !important;
+}
+
+.dashboard-stat-card.border-dark {
+    border-color: var(--mobikit-dark-gray) !important;
+}
+
+.dashboard-stat-card.border-success {
+    border-color: var(--mobikit-success) !important;
 }
 
 .dashboard-stat-card:hover {
@@ -448,21 +515,31 @@ h4, h5, h6 {
     background-color: rgba(0,0,0,0.1);
 }
 
-/* Estilos específicos por área */
-.card-header.bg-warning {
-    background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+/* Estilos específicos por área - Solo bordes y fuentes de color */
+.dashboard-area-card .card-header {
+    background-color: var(--mobikit-white) !important;
+    border: 2px solid;
+    border-bottom: 3px solid;
 }
 
-.card-header.bg-info {
-    background: linear-gradient(135deg, #3b82f6, #60a5fa) !important;
+.dashboard-area-card .card-header.bg-warning {
+    border-color: var(--mobikit-warning);
+    color: var(--mobikit-warning) !important;
 }
 
-.card-header.bg-secondary {
-    background: linear-gradient(135deg, #6b7280, #9ca3af) !important;
+.dashboard-area-card .card-header.bg-info {
+    border-color: var(--mobikit-info);
+    color: var(--mobikit-info) !important;
 }
 
-.card-header.bg-dark {
-    background: linear-gradient(135deg, #374151, #4b5563) !important;
+.dashboard-area-card .card-header.bg-secondary {
+    border-color: var(--mobikit-gray);
+    color: var(--mobikit-gray) !important;
+}
+
+.dashboard-area-card .card-header.bg-dark {
+    border-color: var(--mobikit-dark-gray);
+    color: var(--mobikit-dark-gray) !important;
 }
 
 /* Calendario */
