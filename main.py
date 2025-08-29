@@ -4177,31 +4177,31 @@ def api_proyecto_detalle(proyecto_id):
             conn.close()
             return jsonify({'error': 'Proyecto no encontrado'}), 404
 
-    # Convert to dict and handle None values
-    proyecto_dict = {
-        'id': proyecto['id'],
-        'codigo': proyecto['codigo'] or f'PROJ-{proyecto["id"]}',
-        'nombre': proyecto['nombre'],
-        'descripcion': proyecto['descripcion'] or '',
-        'estado': proyecto['estado'],
-        'estado_proyecto': proyecto.get('estado_proyecto') or 'pendiente_presupuesto',
-        'prioridad': proyecto.get('prioridad') or 'media',
-        'fecha_entrega': proyecto['fecha_entrega'].isoformat() if proyecto.get('fecha_entrega') else '',
-        'fecha_estimada_inicio': proyecto['fecha_estimada_inicio'].isoformat() if proyecto.get('fecha_estimada_inicio') else '',
-        'fecha_inicio': proyecto['fecha_inicio'].isoformat() if proyecto.get('fecha_inicio') else '',
-        'monto_neto': float(proyecto['monto_neto']) if proyecto.get('monto_neto') else '',
-        'monto_neto_provision': float(proyecto['monto_neto_provision']) if proyecto.get('monto_neto_provision') else '',
-        'monto_neto_instalacion': float(proyecto['monto_neto_instalacion']) if proyecto.get('monto_neto_instalacion') else '',
-        'monto_provision_presupuestada': float(proyecto['monto_provision_presupuestada']) if proyecto.get('monto_provision_presupuestada') else '',
-        'margen_provision': float(proyecto['margen_provision']) if proyecto.get('margen_provision') else '',
-        'margen_instalacion': float(proyecto['margen_instalacion']) if proyecto.get('margen_instalacion') else '',
-        'diseñador_id': proyecto['diseñador_id'],
-        'diseñador_nombre': proyecto.get('diseñador_nombre') or '',
-        'observaciones': proyecto.get('observaciones') or '',
-        'archivado': proyecto.get('archivado') or False
-    }
+        # Convert to dict and handle None values
+        proyecto_dict = {
+            'id': proyecto['id'],
+            'codigo': proyecto['codigo'] or f'PROJ-{proyecto["id"]}',
+            'nombre': proyecto['nombre'],
+            'descripcion': proyecto['descripcion'] or '',
+            'estado': proyecto['estado'],
+            'estado_proyecto': proyecto.get('estado_proyecto') or 'pendiente_presupuesto',
+            'prioridad': proyecto.get('prioridad') or 'media',
+            'fecha_entrega': proyecto['fecha_entrega'].isoformat() if proyecto.get('fecha_entrega') else '',
+            'fecha_estimada_inicio': proyecto['fecha_estimada_inicio'].isoformat() if proyecto.get('fecha_estimada_inicio') else '',
+            'fecha_inicio': proyecto['fecha_inicio'].isoformat() if proyecto.get('fecha_inicio') else '',
+            'monto_neto': float(proyecto['monto_neto']) if proyecto.get('monto_neto') else '',
+            'monto_neto_provision': float(proyecto['monto_neto_provision']) if proyecto.get('monto_neto_provision') else '',
+            'monto_neto_instalacion': float(proyecto['monto_neto_instalacion']) if proyecto.get('monto_neto_instalacion') else '',
+            'monto_provision_presupuestada': float(proyecto['monto_provision_presupuestada']) if proyecto.get('monto_provision_presupuestada') else '',
+            'margen_provision': float(proyecto['margen_provision']) if proyecto.get('margen_provision') else '',
+            'margen_instalacion': float(proyecto['margen_instalacion']) if proyecto.get('margen_instalacion') else '',
+            'diseñador_id': proyecto['diseñador_id'],
+            'diseñador_nombre': proyecto.get('diseñador_nombre') or '',
+            'observaciones': proyecto.get('observaciones') or '',
+            'archivado': proyecto.get('archivado') or False
+        }
 
-    conn.close()
+        conn.close()
         return jsonify(proyecto_dict)
         
     except psycopg2.Error as e:
