@@ -1,3 +1,4 @@
+# Added database indexes to init_db for query optimization.
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -21,10 +22,10 @@ def has_permission_db(user_role, modulo, permiso):
     """
     if user_role == 'admin':
         return True
-    
+
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute('''
             SELECT COUNT(*) FROM permisos_rol 
@@ -227,7 +228,7 @@ def init_db():
                 UNIQUE(rol, modulo, permiso)
             )
         """)
-        
+
         # Insertar permisos por defecto si la tabla está vacía
         cursor.execute("SELECT COUNT(*) FROM permisos_rol")
         if cursor.fetchone()['count'] == 0:
@@ -290,15 +291,15 @@ def init_db():
                 ('despacho', 'despachos', 'process'),
                 ('despacho', 'gestion_pedidos', 'view')
             ]
-            
+
             for rol, modulo, permiso in permisos_defecto:
                 cursor.execute('''
                     INSERT INTO permisos_rol (rol, modulo, permiso, activo)
                     VALUES (%s, %s, %s, %s)
                 ''', (rol, modulo, permiso, True))
-        
+
         print("Tabla de permisos inicializada correctamente")
-        
+
     except Exception as e:
         print(f"Error creating/initializing 'permisos_rol' table: {e}")
 
@@ -306,18 +307,18 @@ def init_db():
     try:
         # Primero eliminar la restricción existente
         cursor.execute("ALTER TABLE proyectos DROP CONSTRAINT IF EXISTS proyectos_estado_check")
-        
+
         # Verificar y mostrar estados existentes antes de la limpieza
         cursor.execute("SELECT DISTINCT estado FROM proyectos")
         estados_existentes = cursor.fetchall()
         print(f"Estados encontrados antes de la limpieza: {[r['estado'] for r in estados_existentes]}")
-        
+
         # Migrar estados problemáticos a 'activo'
         cursor.execute("""
             UPDATE proyectos SET estado = 'activo' 
             WHERE estado NOT IN ('activo', 'entregado', 'cancelado')
         """)
-        
+
         # Eliminar proyectos con estados que no se pueden migrar (datos corruptos)
         cursor.execute("""
             DELETE FROM proyecto_categorias 
@@ -326,7 +327,7 @@ def init_db():
                 WHERE estado IS NULL OR estado = ''
             )
         """)
-        
+
         cursor.execute("""
             DELETE FROM proyectos 
             WHERE estado IS NULL OR estado = ''
@@ -337,7 +338,7 @@ def init_db():
             ALTER TABLE proyectos ADD CONSTRAINT proyectos_estado_check 
             CHECK (estado IN ('activo', 'entregado', 'cancelado'))
         """)
-        
+
         # Verificar estados después de la limpieza
         cursor.execute("SELECT DISTINCT estado FROM proyectos")
         estados_finales = cursor.fetchall()
@@ -357,7 +358,7 @@ def init_db():
                           WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         """)
         table_exists = cursor.fetchone()
-        
+
         if table_exists and table_exists['exists']:
             cursor.execute("""
                 ALTER TABLE ordenes_fabricacion 
@@ -378,9 +379,32 @@ def init_db():
         pass
 
 
+    # Crear índices para optimizar consultas frecuentes
+    try:
+        # Índices para proyectos
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_proyectos_estado ON proyectos(estado)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_proyectos_fecha_entrega ON proyectos(fecha_entrega)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_proyectos_cliente_id ON proyectos(cliente_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_proyectos_archivado ON proyectos(archivado)')
+
+        # Índices para proyecto_categorias
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_proyecto_categorias_proyecto_id ON proyecto_categorias(proyecto_id)')
+
+        # Índices para ordenes_fabricacion
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ordenes_fabricacion_proyecto_id ON ordenes_fabricacion(proyecto_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ordenes_fabricacion_estado ON ordenes_fabricacion(estado)')
+
+        # Índices para clientes
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_clientes_activo ON clientes(activo)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_clientes_created_at ON clientes(created_at)')
+
+        print("Índices de optimización creados correctamente")
+    except Exception as e:
+        print(f"Error creando índices de optimización: {e}")
+
     # Commit las operaciones anteriores antes de continuar
     conn.commit()
-    
+
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
     if cursor.fetchone()[0] == 0:
@@ -978,7 +1002,7 @@ def ordenes_compra():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
 
-    # Órdenes de compra pendientes (proyectos con categorías asignadas, no archivados)
+    # Órdenes de compra activas (proyectos con categorías asignadas, no archivados)
     cursor.execute('''
         SELECT p.id, p.codigo, p.nombre, c.nombre as cliente_nombre, p.fecha_entrega,
                p.descripcion, p.estado, p.prioridad, p.monto_neto,
@@ -1590,7 +1614,7 @@ def nueva_orden_compra():
             try:
                 for i, categoria_id in enumerate(categorias_selected):
                     if categoria_id:  # Solo si hay categoría seleccionada
-                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategorias_selected[i] else None
+                        subcategoria_id = subcategorias_selected[i] if i < len(subcategorias_selected) and subcategories_selected[i] else None
                         cursor.execute('''
                             INSERT INTO proyecto_categorias (proyecto_id, categoria_id, subcategoria_id)
                             VALUES (%s, %s, %s)
@@ -1837,7 +1861,7 @@ def gestion_pedidos():
 
     for pedido in pedidos:
         estados_fab = pedido['estados_fabricacion'] or ''
-        
+
         # Clasificar según estados de fabricación
         if 'pendiente_aprobacion_diseño' in estados_fab or 'aprobado_diseño' in estados_fab:
             pedidos_por_estado['pendiente_aprobacion']['pedidos'].append(pedido)
@@ -4197,7 +4221,7 @@ def tareas_general():
                t.rol_asignado, t.tipo, t.etapa_fabricacion, t.created_at
         FROM tareas t
         JOIN proyectos p ON t.proyecto_id = p.id
-        LEFT JOIN usuarios u ON t.usuario_asignado_id = u.id
+        LEFT JOIN usuarios u ON t.usuario_asignado_id =        u.id
         ORDER BY
             t.rol_asignado,
             CASE t.estado
@@ -4567,7 +4591,7 @@ def api_permisos_rol(rol):
     """API para obtener permisos de un rol específico"""
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute('''
             SELECT modulo, permiso, activo
@@ -4575,18 +4599,18 @@ def api_permisos_rol(rol):
             WHERE rol = %s
             ORDER BY modulo, permiso
         ''', (rol,))
-        
+
         permisos = cursor.fetchall()
         permisos_dict = {}
-        
+
         for permiso in permisos:
             modulo = permiso['modulo']
             if modulo not in permisos_dict:
                 permisos_dict[modulo] = {}
             permisos_dict[modulo][permiso['permiso']] = permiso['activo']
-        
+
         return jsonify({'success': True, 'permisos': permisos_dict})
-    
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
     finally:
@@ -4600,10 +4624,10 @@ def actualizar_permisos_rol():
     """Actualizar permisos de un rol específico"""
     try:
         rol = request.form['rol']
-        
+
         if rol == 'admin':
             return jsonify({'success': False, 'message': 'No se pueden modificar los permisos del administrador'})
-        
+
         # Obtener todos los permisos enviados desde el formulario
         permisos_enviados = {}
         for key, value in request.form.items():
@@ -4616,16 +4640,16 @@ def actualizar_permisos_rol():
                     if modulo not in permisos_enviados:
                         permisos_enviados[modulo] = {}
                     permisos_enviados[modulo][accion] = value == 'on'
-        
+
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
-        
+
         # Obtener todos los permisos existentes para el rol
         cursor.execute('''
             SELECT modulo, permiso FROM permisos_rol WHERE rol = %s
         ''', (rol,))
         permisos_existentes = cursor.fetchall()
-        
+
         # Actualizar permisos existentes
         for modulo, acciones in permisos_enviados.items():
             for accion, activo in acciones.items():
@@ -4635,19 +4659,19 @@ def actualizar_permisos_rol():
                     ON CONFLICT (rol, modulo, permiso)
                     DO UPDATE SET activo = EXCLUDED.activo, updated_at = CURRENT_TIMESTAMP
                 ''', (rol, modulo, accion, activo))
-        
+
         # Desactivar permisos que no fueron enviados
         for permiso_existente in permisos_existentes:
             modulo = permiso_existente['modulo']
             accion = permiso_existente['permiso']
-            
+
             if modulo not in permisos_enviados or accion not in permisos_enviados[modulo]:
                 cursor.execute('''
                     UPDATE permisos_rol 
                     SET activo = FALSE, updated_at = CURRENT_TIMESTAMP
                     WHERE rol = %s AND modulo = %s AND permiso = %s
                 ''', (rol, modulo, accion))
-        
+
         # Registrar en auditoría
         cursor.execute('''
             INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, valores_nuevos)
@@ -4659,10 +4683,10 @@ def actualizar_permisos_rol():
                   'permisos_actualizados': len(permisos_enviados),
                   'actualizado_por': session['user_name']
               })))
-        
+
         conn.commit()
         return jsonify({'success': True, 'message': f'Permisos del rol {rol} actualizados exitosamente'})
-    
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al actualizar permisos: {str(e)}'})
     finally:

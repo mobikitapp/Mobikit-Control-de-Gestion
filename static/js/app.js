@@ -16,6 +16,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     });
 
+    // Intercept form submissions to show loading
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn && !submitBtn.disabled) {
+                submitBtn.disabled = true;
+                const originalText = submitBtn.textContent;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Procesando...';
+                
+                // Re-enable after 5 seconds as fallback
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }, 5000);
+            }
+        });
+    });
+
+    // Intercept navigation links
+    const navLinks = document.querySelectorAll('.nav-link, .btn[href], a[href]:not([target="_blank"])');
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            const href = this.getAttribute('href');
+            if (href && href !== '#' && !href.startsWith('javascript:') && !href.startsWith('mailto:')) {
+                e.preventDefault();
+                navigateWithLoader(href);
+            }
+        });
+    });
+
     // Confirm dialogs for dangerous actions
     const dangerousButtons = document.querySelectorAll('[data-confirm]');
     dangerousButtons.forEach(button => {
@@ -105,6 +136,38 @@ function formatDate(date) {
         minute: '2-digit'
     };
     return date.toLocaleDateString('es-ES', options);
+}
+
+// Loading and UX improvements
+function showPageLoader(message = 'Cargando...') {
+    const loader = document.createElement('div');
+    loader.id = 'page-loader';
+    loader.innerHTML = `
+        <div class="loading-overlay">
+            <div class="loading-message">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div>${message}</div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loader);
+}
+
+function hidePageLoader() {
+    const loader = document.getElementById('page-loader');
+    if (loader) {
+        loader.remove();
+    }
+}
+
+// Optimized navigation with loading
+function navigateWithLoader(url, message = 'Cargando página...') {
+    showPageLoader(message);
+    setTimeout(() => {
+        window.location.href = url;
+    }, 100);
 }
 
 function showLoading(element) {
