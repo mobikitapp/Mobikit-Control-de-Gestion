@@ -667,49 +667,53 @@ def index():
 
 
 def check_repl_auth():
-    """Check if user is authenticated via Repl Auth"""
-    user_id = request.headers.get('X-Replit-User-Id')
-    user_name = request.headers.get('X-Replit-User-Name')
-    user_roles = request.headers.get('X-Replit-User-Roles', '')
-
-    # Lista blanca de usuarios autorizados (puedes agregar más usuarios aquí)
-    USUARIOS_AUTORIZADOS = [
-        # Agrega aquí los nombres de usuario de Replit que quieres autorizar
-        # Ejemplo: 'tu_usuario_replit', 'otro_usuario_autorizado'
-    ]
-
-    if user_id and user_name:
-        # Verificar si el usuario está en la lista blanca
-        if USUARIOS_AUTORIZADOS and user_name not in USUARIOS_AUTORIZADOS:
-            print(f"Usuario no autorizado intentó acceder: {user_name}")
-            return None
-        
-        # Check if user exists in our database
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT id, rol, nombre FROM usuarios WHERE username = %s', (user_name,))
-        user = cursor.fetchone()
-
-        if not user:
-            # Create new user with vendedor role by default
-            cursor.execute('''
-                INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
-                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, rol, nombre
-            ''', (user_name, 'repl_auth', 'vendedor', user_name, f'{user_name}@replit.com', True))
-            user = cursor.fetchone()
-
-        conn.commit()
-        conn.close()
-
-        return {
-            'user_id': user['id'],
-            'user_role': user['rol'],
-            'user_name': user['nombre'],
-            'repl_user_id': user_id
-        }
-
+    """Check if user is authenticated via Repl Auth - TEMPORALMENTE DESHABILITADO"""
+    # Replit Auth temporalmente deshabilitado
+    # Para reactivar, descomenta el código siguiente y comenta el return None
     return None
+    
+    # user_id = request.headers.get('X-Replit-User-Id')
+    # user_name = request.headers.get('X-Replit-User-Name')
+    # user_roles = request.headers.get('X-Replit-User-Roles', '')
+
+    # # Lista blanca de usuarios autorizados (puedes agregar más usuarios aquí)
+    # USUARIOS_AUTORIZADOS = [
+    #     # Agrega aquí los nombres de usuario de Replit que quieres autorizar
+    #     # Ejemplo: 'tu_usuario_replit', 'otro_usuario_autorizado'
+    # ]
+
+    # if user_id and user_name:
+    #     # Verificar si el usuario está en la lista blanca
+    #     if USUARIOS_AUTORIZADOS and user_name not in USUARIOS_AUTORIZADOS:
+    #         print(f"Usuario no autorizado intentó acceder: {user_name}")
+    #         return None
+    #     
+    #     # Check if user exists in our database
+    #     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    #     cursor = conn.cursor()
+
+    #     cursor.execute('SELECT id, rol, nombre FROM usuarios WHERE username = %s', (user_name,))
+    #     user = cursor.fetchone()
+
+    #     if not user:
+    #         # Create new user with vendedor role by default
+    #         cursor.execute('''
+    #             INSERT INTO usuarios (username, password_hash, rol, nombre, email, activo)
+    #             VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, rol, nombre
+    #         ''', (user_name, 'repl_auth', 'vendedor', user_name, f'{user_name}@replit.com', True))
+    #         user = cursor.fetchone()
+
+    #     conn.commit()
+    #     conn.close()
+
+    #     return {
+    #         'user_id': user['id'],
+    #         'user_role': user['rol'],
+    #         'user_name': user['nombre'],
+    #         'repl_user_id': user_id
+    #     }
+
+    # return None
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
