@@ -654,29 +654,162 @@ function cargarEntregasProximas() {
 // Funciones de acción
 function aprobarOrden(ordenId) {
     if (confirm('¿Aprobar esta orden para fabricación?')) {
-        // Implementar lógica de aprobación
-        console.log('Aprobar orden:', ordenId);
+        fetch(`/api/aprobar_orden/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                cargarDatosOrdenesActualizados();
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error al aprobar orden', 'error');
+        });
     }
 }
 
 function avanzarFabricacion(ordenId) {
-    if (confirm('¿Avanzar esta orden a la siguiente etapa?')) {
-        // Implementar lógica de avance
-        console.log('Avanzar fabricación:', ordenId);
+    if (confirm('¿Avanzar esta orden a la siguiente etapa de fabricación?')) {
+        fetch(`/api/avanzar_fabricacion/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                cargarDatosOrdenesActualizados();
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error al avanzar fabricación', 'error');
+        });
     }
 }
 
 function avanzarEmbalaje(ordenId) {
     if (confirm('¿Avanzar esta orden en embalaje?')) {
-        // Implementar lógica de embalaje
-        console.log('Avanzar embalaje:', ordenId);
+        fetch(`/api/avanzar_embalaje/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                cargarDatosOrdenesActualizados();
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error al avanzar embalaje', 'error');
+        });
     }
 }
 
 function programarDespacho(ordenId) {
     if (confirm('¿Programar despacho para esta orden?')) {
-        window.location.href = `/despachos?orden_id=${ordenId}`;
+        fetch(`/api/programar_despacho/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                if (data.redirect) {
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1500);
+                } else {
+                    cargarDatosOrdenesActualizados();
+                }
+            } else {
+                showNotification(data.message, 'error');
+                if (data.redirect) {
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1500);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error al programar despacho', 'error');
+        });
     }
+}
+
+function terminarOrden(ordenId) {
+    if (confirm('¿Marcar esta orden como entregada? Esta acción no se puede deshacer.')) {
+        fetch(`/api/terminar_orden/${ordenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                cargarDatosOrdenesActualizados();
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error al terminar orden', 'error');
+        });
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Crear elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.zIndex = '9999';
+    notification.style.minWidth = '300px';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
 }
 </script>
 {% endblock %}

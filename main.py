@@ -116,7 +116,8 @@ def init_db():
             WHERE constraint_name = 'usuarios_rol_check' 
             AND check_clause LIKE '%vendedor%'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             # Drop existing constraint and recreate with vendedor
             cursor.execute("ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check")
             cursor.execute("""
@@ -142,7 +143,8 @@ def init_db():
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'proyectos' AND column_name = 'archivado'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             cursor.execute("ALTER TABLE proyectos ADD COLUMN archivado BOOLEAN DEFAULT FALSE")
     except Exception as e:
         print(f"Error adding 'archivado' column: {e}")
@@ -153,7 +155,8 @@ def init_db():
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'proyectos' AND column_name = 'margen_provision'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             cursor.execute("ALTER TABLE proyectos ADD COLUMN margen_provision DECIMAL(5,2)")
     except Exception as e:
         print(f"Error adding 'margen_provision' column: {e}")
@@ -163,7 +166,8 @@ def init_db():
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'proyectos' AND column_name = 'margen_instalacion'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             cursor.execute("ALTER TABLE proyectos ADD COLUMN margen_instalacion DECIMAL(5,2)")
     except Exception as e:
         print(f"Error adding 'margen_instalacion' column: {e}")
@@ -174,7 +178,8 @@ def init_db():
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'proyectos' AND column_name = 'monto_provision_presupuestada'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             cursor.execute("ALTER TABLE proyectos ADD COLUMN monto_provision_presupuestada DECIMAL(12,2)")
     except Exception as e:
         print(f"Error adding 'monto_provision_presupuestada' column: {e}")
@@ -185,7 +190,8 @@ def init_db():
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'usuarios' AND column_name = 'repl_user_id'
         """)
-        if not cursor.fetchone():
+        result = cursor.fetchone()
+        if not result:
             cursor.execute("ALTER TABLE usuarios ADD COLUMN repl_user_id VARCHAR(100)")
     except Exception as e:
         print(f"Error adding 'repl_user_id' column: {e}")
@@ -231,7 +237,8 @@ def init_db():
 
         # Insertar permisos por defecto si la tabla está vacía
         cursor.execute("SELECT COUNT(*) FROM permisos_rol")
-        if cursor.fetchone()['count'] == 0:
+        result = cursor.fetchone()
+        if result and result[0] == 0:
             # Definir permisos por defecto
             permisos_defecto = [
                 # General - casi todos los permisos
@@ -311,7 +318,7 @@ def init_db():
         # Verificar y mostrar estados existentes antes de la limpieza
         cursor.execute("SELECT DISTINCT estado FROM proyectos")
         estados_existentes = cursor.fetchall()
-        print(f"Estados encontrados antes de la limpieza: {[r['estado'] for r in estados_existentes]}")
+        print(f"Estados encontrados antes de la limpieza: {[r[0] for r in estados_existentes]}")
 
         # Migrar estados problemáticos a 'activo'
         cursor.execute("""
@@ -342,7 +349,7 @@ def init_db():
         # Verificar estados después de la limpieza
         cursor.execute("SELECT DISTINCT estado FROM proyectos")
         estados_finales = cursor.fetchall()
-        print(f"Estados después de la limpieza: {[r['estado'] for r in estados_finales]}")
+        print(f"Estados después de la limpieza: {[r[0] for r in estados_finales]}")
         print("Estados de proyectos actualizados al sistema simplificado: activo, entregado, cancelado")
 
     except Exception as e:
@@ -357,9 +364,10 @@ def init_db():
             SELECT EXISTS (SELECT 1 FROM information_schema.tables 
                           WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         """)
-        table_exists = cursor.fetchone()
+        result = cursor.fetchone()
+        table_exists = result[0] if result else False
 
-        if table_exists and table_exists['exists']:
+        if table_exists:
             cursor.execute("""
                 ALTER TABLE ordenes_fabricacion 
                 DROP CONSTRAINT IF EXISTS ordenes_fabricacion_estado_check
@@ -407,7 +415,8 @@ def init_db():
 
     # Crear usuario admin por defecto si no existe, o actualizar contraseña si existe
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = %s', ('admin',))
-    if cursor.fetchone()[0] == 0:
+    result = cursor.fetchone()
+    if result and result[0] == 0:
         admin_password = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
         cursor.execute(
             '''
@@ -436,7 +445,8 @@ def init_db():
             username_vendedor = nombre_vendedor.lower().replace(' ', '_')
             # Verificar si el nombre de usuario ya existe
             cursor.execute('SELECT COUNT(*) FROM usuarios WHERE username = %s', (username_vendedor,))
-            if cursor.fetchone()[0] == 0:
+            result = cursor.fetchone()
+            if result and result[0] == 0:
                 # Usar una contraseña por defecto (o generar una más segura si es necesario)
                 password_hash_vendedor = generate_password_hash("mobikit123")
                 cursor.execute(
@@ -2900,7 +2910,8 @@ def api_calendar_events():
 
         # Obtener órdenes de fabricación para este proyecto
         cursor.execute('''
-            SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada
+            SELECT of.id, of.codigo_orden, of.tipo_orden, of.estado, of.fecha_entrega_estimada,
+                   of.cantidad_tableros, of.glosa
             FROM ordenes_fabricacion of
             WHERE of.proyecto_id = %s
             ORDER BY of.created_at ASC
@@ -2913,8 +2924,8 @@ def api_calendar_events():
                 'tipo_orden': fab['tipo_orden'],
                 'estado': fab['estado'],
                 'fecha_entrega_estimada': fab['fecha_entrega_estimada'].isoformat() if fab['fecha_entrega_estimada'] else None,
-                'cantidad_tableros': fab['cantidad_tableros'],
-                'glosa': fab['glosa']
+                'cantidad_tableros': fab.get('cantidad_tableros'),
+                'glosa': fab.get('glosa')
             })
 
         events.append({
@@ -3037,12 +3048,14 @@ def api_terminar_orden(orden_id):
         cursor.execute('''
             SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ordenes_fabricacion')
         ''')
-        if cursor.fetchone()[0]:
+        result = cursor.fetchone()
+        if result and result[0]:
             cursor.execute('''
                 SELECT COUNT(*) FROM ordenes_fabricacion
                 WHERE proyecto_id = %s AND estado NOT IN ('listo_despacho', 'despachado', 'entregado')
             ''', (orden_id,))
-            pendientes = cursor.fetchone()['count']
+            pendientes_result = cursor.fetchone()
+            pendientes = pendientes_result[0] if pendientes_result else 0
 
             if pendientes > 0:
                 return jsonify({'success': False, 'message': 'Hay órdenes de fabricación pendientes de terminar'})
@@ -3054,15 +3067,210 @@ def api_terminar_orden(orden_id):
                 WHERE proyecto_id = %s
             ''', (orden_id,))
 
-        # Marcar orden como terminada
+        # Marcar orden como entregada (estado simplificado)
         cursor.execute('''
             UPDATE proyectos
-            SET estado = 'terminado', fecha_entrega_real = CURRENT_TIMESTAMP
+            SET estado = 'entregado', fecha_entrega_real = CURRENT_TIMESTAMP
             WHERE id = %s
         ''', (orden_id,))
 
         conn.commit()
-        return jsonify({'success': True, 'message': 'Orden marcada como terminada'})
+        return jsonify({'success': True, 'message': 'Orden marcada como entregada'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/aprobar_orden/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'vendedor'])
+def api_aprobar_orden(orden_id):
+    """Aprobar una orden de compra para fabricación"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe
+        cursor.execute('SELECT estado, codigo FROM proyectos WHERE id = %s', (orden_id,))
+        orden = cursor.fetchone()
+
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden no encontrada'})
+
+        # Aprobar todas las órdenes de fabricación pendientes de aprobación
+        cursor.execute('''
+            UPDATE ordenes_fabricacion
+            SET estado = 'aprobado_diseño'
+            WHERE proyecto_id = %s AND estado = 'pendiente_aprobacion_diseño'
+        ''', (orden_id,))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Orden {orden["codigo"]} aprobada para fabricación'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/avanzar_fabricacion/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'operación'])
+def api_avanzar_fabricacion(orden_id):
+    """Avanzar órdenes de fabricación de una orden de compra"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Obtener órdenes de fabricación de la orden de compra
+        cursor.execute('''
+            SELECT id, estado, codigo_orden FROM ordenes_fabricacion
+            WHERE proyecto_id = %s AND estado NOT IN ('listo_despacho', 'despachado', 'entregado')
+            ORDER BY created_at ASC
+            LIMIT 1
+        ''', (orden_id,))
+        
+        orden_fab = cursor.fetchone()
+        if not orden_fab:
+            return jsonify({'success': False, 'message': 'No hay órdenes de fabricación pendientes'})
+
+        # Avanzar a la siguiente etapa
+        estados_secuencia = [
+            'pendiente_aprobacion_diseño', 'aprobado_diseño', 'enviado_produccion', 
+            'seccionado', 'enchapando', 'mecanizado', 'pendiente_embalaje', 
+            'embalando', 'embalaje_listo', 'listo_despacho'
+        ]
+
+        estado_actual = orden_fab['estado']
+        if estado_actual in estados_secuencia:
+            indice_actual = estados_secuencia.index(estado_actual)
+            if indice_actual < len(estados_secuencia) - 1:
+                nuevo_estado = estados_secuencia[indice_actual + 1]
+                
+                cursor.execute('''
+                    UPDATE ordenes_fabricacion
+                    SET estado = %s
+                    WHERE id = %s
+                ''', (nuevo_estado, orden_fab['id']))
+
+                conn.commit()
+                return jsonify({'success': True, 'message': f'{orden_fab["codigo_orden"]} avanzado a: {nuevo_estado.replace("_", " ").title()}'})
+            else:
+                return jsonify({'success': False, 'message': 'Ya está en la etapa final'})
+        else:
+            return jsonify({'success': False, 'message': 'Estado no válido para avanzar'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/avanzar_embalaje/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'embalaje'])
+def api_avanzar_embalaje(orden_id):
+    """Avanzar órdenes en embalaje"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Obtener órdenes de fabricación en embalaje
+        cursor.execute('''
+            SELECT id, estado, codigo_orden FROM ordenes_fabricacion
+            WHERE proyecto_id = %s AND estado IN ('pendiente_embalaje', 'embalando')
+            ORDER BY created_at ASC
+            LIMIT 1
+        ''', (orden_id,))
+        
+        orden_fab = cursor.fetchone()
+        if not orden_fab:
+            return jsonify({'success': False, 'message': 'No hay órdenes en embalaje'})
+
+        # Avanzar en embalaje
+        if orden_fab['estado'] == 'pendiente_embalaje':
+            nuevo_estado = 'embalando'
+        elif orden_fab['estado'] == 'embalando':
+            nuevo_estado = 'embalaje_listo'
+        else:
+            return jsonify({'success': False, 'message': 'Estado no válido para embalaje'})
+
+        cursor.execute('''
+            UPDATE ordenes_fabricacion
+            SET estado = %s
+            WHERE id = %s
+        ''', (nuevo_estado, orden_fab['id']))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': f'{orden_fab["codigo_orden"]} avanzado a: {nuevo_estado.replace("_", " ").title()}'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+
+@app.route('/api/programar_despacho/<int:orden_id>', methods=['POST'])
+@login_required
+@role_required(['admin', 'general', 'despacho'])
+def api_programar_despacho(orden_id):
+    """Programar despacho para una orden de compra"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+
+    try:
+        # Verificar que la orden existe y obtener información
+        cursor.execute('''
+            SELECT p.codigo, p.nombre, c.nombre as cliente_nombre
+            FROM proyectos p
+            LEFT JOIN clientes c ON p.cliente_id = c.id
+            WHERE p.id = %s
+        ''', (orden_id,))
+        
+        orden = cursor.fetchone()
+        if not orden:
+            return jsonify({'success': False, 'message': 'Orden no encontrada'})
+
+        # Verificar si ya tiene despacho programado
+        cursor.execute('SELECT id FROM despachos WHERE proyecto_id = %s', (orden_id,))
+        despacho_existente = cursor.fetchone()
+        
+        if despacho_existente:
+            return jsonify({'success': False, 'message': 'Ya tiene despacho programado', 'redirect': f'/despacho/{despacho_existente["id"]}'})
+
+        # Marcar órdenes de fabricación como listas para despacho
+        cursor.execute('''
+            UPDATE ordenes_fabricacion
+            SET estado = 'listo_despacho'
+            WHERE proyecto_id = %s AND estado = 'embalaje_listo'
+        ''', (orden_id,))
+
+        # Generar código de despacho
+        cursor.execute('SELECT COUNT(*) FROM despachos WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)')
+        despacho_numero_result = cursor.fetchone()
+        despacho_numero = (despacho_numero_result[0] if despacho_numero_result else 0) + 1
+        codigo_despacho = f"DESP-{datetime.now().year}-{despacho_numero:04d}"
+
+        # Crear despacho
+        cursor.execute('''
+            INSERT INTO despachos (
+                proyecto_id, codigo_despacho, direccion_entrega,
+                fecha_programada, observaciones, estado
+            ) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+        ''', (orden_id, codigo_despacho, 'Por definir',
+              datetime.now().date() + timedelta(days=3),
+              f"Despacho para orden {orden['codigo']} - {orden['nombre']}", 'programado'))
+
+        despacho_id = cursor.fetchone()['id']
+
+        conn.commit()
+        return jsonify({
+            'success': True, 
+            'message': f'Despacho {codigo_despacho} programado exitosamente',
+            'redirect': f'/despacho/{despacho_id}'
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
