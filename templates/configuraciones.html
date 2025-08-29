@@ -199,7 +199,7 @@
                 </div>
                 {% else %}
                 <div class="text-center py-4">
-                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <i class="fas users fa-3x text-muted mb-3"></i>
                     <h5>No hay usuarios registrados</h5>
                     <p class="text-muted">Crea el primer usuario usando el botón "Nuevo Usuario"</p>
                 </div>
@@ -243,7 +243,7 @@
                     <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
                          id="{{ rol }}-permissions" 
                          role="tabpanel">
-                        
+
                         <form id="form-permisos-{{ rol }}" onsubmit="guardarPermisosRol('{{ rol }}', event)">
                             <div class="row">
                                 {% for modulo in modulos %}
@@ -255,45 +255,43 @@
                                             </h6>
                                         </div>
                                         <div class="card-body">
-                                            {% set acciones = ['view', 'create', 'edit', 'delete', 'approve', 'process', 'archive'] %}
-                                            {% for accion in acciones %}
-                                            <div class="form-check mb-2">
-                                                <input class="form-check-input" 
-                                                       type="checkbox" 
-                                                       name="permiso_{{ modulo.id }}_{{ accion }}" 
-                                                       id="{{ rol }}_{{ modulo.id }}_{{ accion }}"
-                                                       data-rol="{{ rol }}"
-                                                       data-modulo="{{ modulo.id }}"
-                                                       data-accion="{{ accion }}">
-                                                <label class="form-check-label" for="{{ rol }}_{{ modulo.id }}_{{ accion }}">
-                                                    {{ accion|title }}
-                                                    {% if accion == 'view' %}
-                                                    <small class="text-muted">(Ver/Listar)</small>
-                                                    {% elif accion == 'create' %}
-                                                    <small class="text-muted">(Crear nuevo)</small>
-                                                    {% elif accion == 'edit' %}
-                                                    <small class="text-muted">(Modificar)</small>
-                                                    {% elif accion == 'delete' %}
-                                                    <small class="text-muted">(Eliminar)</small>
-                                                    {% elif accion == 'approve' %}
-                                                    <small class="text-muted">(Aprobar)</small>
-                                                    {% elif accion == 'process' %}
-                                                    <small class="text-muted">(Procesar)</small>
-                                                    {% elif accion == 'archive' %}
-                                                    <small class="text-muted">(Archivar)</small>
-                                                    {% endif %}
-                                                </label>
-                                            </div>
+                                            {% for accion in ['view', 'create', 'edit', 'delete', 'approve', 'process', 'archive'] %}
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           name="permiso_{{ modulo.id }}_{{ accion }}" 
+                                                           id="{{ rol }}_{{ modulo.id }}_{{ accion }}"
+                                                           data-rol="{{ rol }}"
+                                                           data-modulo="{{ modulo.id }}"
+                                                           data-accion="{{ accion }}">
+                                                    <label class="form-check-label" for="{{ rol }}_{{ modulo.id }}_{{ accion }}">
+                                                        {{ accion|title }}
+                                                        {% if accion == 'view' %}
+                                                        <small class="text-muted">(Ver/Listar)</small>
+                                                        {% elif accion == 'create' %}
+                                                        <small class="text-muted">(Crear nuevo)</small>
+                                                        {% elif accion == 'edit' %}
+                                                        <small class="text-muted">(Modificar)</small>
+                                                        {% elif accion == 'delete' %}
+                                                        <small class="text-muted">(Eliminar)</small>
+                                                        {% elif accion == 'approve' %}
+                                                        <small class="text-muted">(Aprobar)</small>
+                                                        {% elif accion == 'process' %}
+                                                        <small class="text-muted">(Procesar)</small>
+                                                        {% elif accion == 'archive' %}
+                                                        <small class="text-muted">(Archivar)</small>
+                                                        {% endif %}
+                                                    </label>
+                                                </div>
                                             {% endfor %}
                                         </div>
                                     </div>
                                 </div>
                                 {% endfor %}
                             </div>
-                            
-                            <div class="text-center mt-4">
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="fas fa-save"></i> Guardar Permisos de {{ rol|title }}
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Guardar Permisos
                                 </button>
                             </div>
                         </form>
@@ -468,7 +466,7 @@ function editarUsuario(id, username, nombre, apellido, email, rol, activo) {
     document.getElementById('edit_email').value = email;
     document.getElementById('edit_rol').value = rol;
     document.getElementById('edit_activo').checked = activo;
-    
+
     // Actualizar la acción del formulario
     document.getElementById('editUserForm').action = '/editar_usuario/' + id;
 }
@@ -489,7 +487,7 @@ let permisosOriginales = {};
 
 function cargarPermisosRol(rol) {
     console.log('Cargando permisos para rol:', rol);
-    
+
     // Hacer petición para obtener permisos actuales del rol
     fetch(`/api/permisos_rol/${rol}`)
         .then(response => response.json())
@@ -512,7 +510,7 @@ function aplicarPermisosAlFormulario(rol, permisos) {
     checkboxes.forEach(checkbox => {
         checkbox.checked = false;
     });
-    
+
     // Marcar los permisos activos
     Object.keys(permisos).forEach(modulo => {
         Object.keys(permisos[modulo]).forEach(accion => {
@@ -528,17 +526,17 @@ function aplicarPermisosAlFormulario(rol, permisos) {
 
 function guardarPermisosRol(rol, event) {
     event.preventDefault();
-    
+
     const form = document.getElementById(`form-permisos-${rol}`);
     const formData = new FormData(form);
     formData.append('rol', rol);
-    
+
     // Mostrar indicador de carga
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
     submitBtn.disabled = true;
-    
+
     fetch('/actualizar_permisos_rol', {
         method: 'POST',
         body: formData
@@ -548,7 +546,7 @@ function guardarPermisosRol(rol, event) {
         if (data.success) {
             // Mostrar mensaje de éxito
             mostrarAlerta('success', data.message);
-            
+
             // Recargar permisos actualizados
             cargarPermisosRol(rol);
         } else {
@@ -574,11 +572,11 @@ function mostrarAlerta(tipo, mensaje) {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     `;
-    
+
     // Insertar al inicio del tab content
     const tabContent = document.querySelector('.tab-content');
     tabContent.insertAdjacentHTML('afterbegin', alertaHtml);
-    
+
     // Auto-eliminar después de 5 segundos
     setTimeout(() => {
         const alerta = tabContent.querySelector('.alert');

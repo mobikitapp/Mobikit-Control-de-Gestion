@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-users"></i> Clientes y Proyectos</h1>
-    {% if session.user_role in ['admin', 'general'] %}
+    {% if has_permission_db(session.user_role, 'clientes', 'create') %}
     <div class="d-flex gap-2">
         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#nuevoProyectoModal">
             <i class="fas fa-project-diagram"></i> Nuevo Proyecto
@@ -54,17 +54,16 @@
                     </div>
                 </div>
                 <div class="d-flex gap-2">
-                    {% if session.user_role in ['admin', 'general', 'diseñador'] %}
+                    {% if has_permission_db(session.user_role, 'proyectos', 'create') %}
                     <button type="button" class="btn btn-sm btn-outline-success"
                             onclick="nuevoProyecto({{ cliente.id }}, '{{ cliente.nombre }}')" title="Nuevo proyecto">
                         <i class="fas fa-plus"></i>
                     </button>
                     {% endif %}
-                    {% if session.user_role in ['admin', 'general'] %}
-                    <button type="button" class="btn btn-sm btn-outline-primary"
-                            onclick="editarCliente({{ cliente.id }}, '{{ cliente.nombre }}', '{{ cliente.rut or '' }}', '{{ cliente.email or '' }}', '{{ cliente.telefono or '' }}', '{{ cliente.direccion or '' }}', '{{ cliente.ciudad or '' }}', '{{ cliente.region or '' }}', '{{ cliente.contacto_principal or '' }}', '{{ cliente.observaciones or '' }}')"
-                            title="Editar cliente">
-                        <i class="fas fa-edit"></i>
+                    {% if has_permission_db(session.user_role, 'clientes', 'edit') %}
+                    <button type="button" class="btn btn-sm btn-outline-primary me-1"
+                            onclick="editarCliente({{ cliente.id }}, '{{ cliente.nombre }}', '{{ cliente.rut or '' }}', '{{ cliente.email or '' }}', '{{ cliente.telefono or '' }}', '{{ cliente.direccion or '' }}', '{{ cliente.ciudad or '' }}', '{{ cliente.region or '' }}', '{{ cliente.contacto_principal or '' }}', '{{ cliente.observaciones or '' }}')">
+                        <i class="fas fa-edit"></i> Editar
                     </button>
                     {% endif %}
                 </div>
@@ -151,12 +150,12 @@
                                                                         <i class="fas fa-file-invoice-dollar"></i> OC
                                                                     </a>
                                                                     {% endif %}
-                                                                    {% if session.user_role in ['admin', 'general', 'vendedor'] %}
+                                                                    {% if has_permission_db(session.user_role, 'proyectos', 'edit') %}
                                                                     <button class="btn btn-sm btn-outline-warning" onclick="editarProyecto({{ proyecto.id }}, '{{ proyecto.nombre }}', '{{ proyecto.descripcion or '' }}', '{{ proyecto.estado }}', '{{ proyecto.estado_proyecto }}', '{{ proyecto.prioridad }}', '{{ proyecto.diseñador_id or '' }}', '{{ proyecto.fecha_entrega or '' }}', '{{ proyecto.fecha_estimada_inicio or '' }}', '{{ proyecto.monto_neto or '' }}', '{{ proyecto.monto_neto_provision or '' }}', '{{ proyecto.monto_neto_instalacion or '' }}', '{{ proyecto.margen_provision or '' }}', '{{ proyecto.margen_instalacion or '' }}', '{{ proyecto.observaciones or '' }}', '{{ proyecto.monto_provision_presupuestada or '' }}')">
                                                                         <i class="fas fa-edit"></i>
                                                                     </button>
                                                                     {% endif %}
-                                                                    {% if session.user_role in ['admin'] %}
+                                                                    {% if has_permission_db(session.user_role, 'proyectos', 'delete') %}
                                                                     <button class="btn btn-sm btn-outline-danger" onclick="eliminarProyecto({{ proyecto.id }}, '{{ proyecto.codigo }}', '{{ proyecto.nombre }}')">
                                                                         <i class="fas fa-trash"></i>
                                                                     </button>
@@ -172,7 +171,7 @@
                 <div class="text-center py-3">
                     <i class="fas fa-project-diagram fa-2x text-muted mb-2"></i>
                     <p class="text-muted mb-2">No hay proyectos para este cliente</p>
-                    {% if session.user_role in ['admin', 'general', 'diseñador'] %}
+                    {% if has_permission_db(session.user_role, 'proyectos', 'create') %}
                     <button type="button" class="btn btn-sm btn-primary"
                             onclick="nuevoProyecto({{ cliente.id }}, '{{ cliente.nombre }}')">
                         <i class="fas fa-plus"></i> Crear primer proyecto
@@ -190,7 +189,7 @@
         <i class="fas fa-users fa-3x text-muted mb-3"></i>
         <h5>No hay clientes registrados</h5>
         <p class="text-muted">Agrega tu primer cliente para comenzar a gestionar proyectos.</p>
-        {% if session.user_role in ['admin', 'general'] %}
+        {% if has_permission_db(session.user_role, 'clientes', 'create') %}
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoClienteModal">
             <i class="fas fa-plus"></i> Agregar Cliente
         </button>

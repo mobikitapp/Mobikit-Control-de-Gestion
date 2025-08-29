@@ -464,3 +464,55 @@ function handleFetchSuccess(data, successMessage = 'Operación exitosa') {
         showToast(data.message || 'Error en la operación', 'danger');
     }
 }
+
+// Función para cargar permisos de un rol específico
+function cargarPermisosRol(rol) {
+    fetch(`/api/permisos_rol/${rol}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Limpiar todos los checkboxes del rol
+                const checkboxes = document.querySelectorAll(`input[data-rol="${rol}"]`);
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+
+                // Marcar los permisos activos
+                Object.entries(data.permisos).forEach(([modulo, permisos]) => {
+                    Object.entries(permisos).forEach(([accion, activo]) => {
+                        const checkbox = document.getElementById(`${rol}_${modulo}_${accion}`);
+                        if (checkbox) {
+                            checkbox.checked = activo;
+                        }
+                    });
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando permisos:', error);
+        });
+}
+
+// Función para guardar permisos de rol
+function guardarPermisosRol(rol) {
+    const form = document.getElementById(`form-permisos-${rol}`);
+    const formData = new FormData(form);
+    formData.append('rol', rol);
+
+    fetch('/actualizar_permisos_rol', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            mostrarAlerta('success', data.message);
+        } else {
+            mostrarAlerta('error', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error guardando permisos:', error);
+        mostrarAlerta('error', 'Error al guardar permisos');
+    });
+}

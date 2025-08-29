@@ -601,6 +601,25 @@ def role_required(roles):
 
     return decorator
 
+def permission_required_db(modulo, permiso):
+    """
+    Decorador para verificar permisos específicos usando la base de datos
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_role' not in session:
+                flash('Debes iniciar sesión', 'error')
+                return redirect(url_for('login'))
+            
+            if not has_permission_db(session['user_role'], modulo, permiso):
+                flash('No tienes permisos para realizar esta acción', 'error')
+                return redirect(url_for('dashboard'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
 
 @app.route('/')
 def index():
@@ -881,7 +900,7 @@ def clientes():
 
 @app.route('/nuevo_cliente', methods=['POST'])
 @login_required
-@role_required(['admin', 'general'])
+@permission_required_db('clientes', 'create')
 def nuevo_cliente():
     """Crear nuevo cliente"""
     try:
@@ -926,7 +945,7 @@ def nuevo_cliente():
 
 @app.route('/editar_cliente', methods=['POST'])
 @login_required
-@role_required(['admin', 'general'])
+@permission_required_db('clientes', 'edit')
 def editar_cliente():
     """Editar cliente existente"""
     try:
@@ -1244,7 +1263,7 @@ def proyecto_detalle(proyecto_id):
 
 @app.route('/nuevo_proyecto', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'vendedor'])
+@permission_required_db('proyectos', 'create')
 def nuevo_proyecto():
     """Crear nuevo proyecto con nuevos campos de estado"""
     try:
@@ -1353,7 +1372,7 @@ def nuevo_proyecto():
 
 @app.route('/editar_proyecto', methods=['POST'])
 @login_required
-@role_required(['admin', 'general', 'vendedor'])
+@permission_required_db('proyectos', 'edit')
 def editar_proyecto():
     """Editar proyecto existente"""
     try:
