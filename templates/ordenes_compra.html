@@ -510,7 +510,7 @@ function editarOrdenCompra(ordenId) {
         // Crear y mostrar modal de edición
         const modalHtml = `
             <div class="modal fade" id="editarOrdenModal" tabindex="-1">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-xl">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title">Editar Orden de Compra</h5>
@@ -519,19 +519,72 @@ function editarOrdenCompra(ordenId) {
                         <form action="/editar_orden_compra" method="POST">
                             <input type="hidden" name="proyecto_id" value="${orden.id}">
                             <div class="modal-body">
-                                <div class="mb-3">
-                                    <label class="form-label">Código de Orden</label>
-                                    <input type="text" class="form-control" value="${orden.codigo}" readonly>
+                                <!-- Tipo de Adjudicación y Número -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Tipo *</label>
+                                            <select class="form-select" name="adjudicacion_tipo" required>
+                                                <option value="orden_compra" ${orden.adjudicacion_tipo === 'orden_compra' ? 'selected' : ''}>Orden de Compra</option>
+                                                <option value="contrato" ${orden.adjudicacion_tipo === 'contrato' ? 'selected' : ''}>Contrato</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Número *</label>
+                                            <input type="text" class="form-control" name="codigo" value="${orden.codigo}" required placeholder="Ej: OC-2024-001 o CONT-2024-001">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Nombre del Proyecto *</label>
-                                    <input type="text" class="form-control" name="nombre" value="${orden.nombre}" required>
+
+                                <!-- Cliente y Proyecto -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Cliente *</label>
+                                            <select class="form-select" name="cliente_id" id="edit_cliente_id" required onchange="cargarClienteEdicion()">
+                                                <option value="">Seleccionar cliente...</option>
+                                                <option value="nuevo">+ Crear nuevo cliente</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3" id="edit_nuevo_cliente_div" style="display: none;">
+                                            <label class="form-label">Nombre del Nuevo Cliente</label>
+                                            <input type="text" class="form-control" name="nuevo_cliente_nombre">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Proyecto *</label>
+                                            <select class="form-select" name="proyecto_existente_id" id="edit_proyecto_existente_id" onchange="cargarProyectoEdicion()">
+                                                <option value="">Seleccionar proyecto...</option>
+                                                <option value="nuevo">+ Crear nuevo proyecto</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3" id="edit_nuevo_proyecto_div" style="display: none;">
+                                            <label class="form-label">Nombre del Nuevo Proyecto</label>
+                                            <input type="text" class="form-control" name="nombre_proyecto" value="${orden.nombre}">
+                                        </div>
+                                    </div>
                                 </div>
+
                                 <div class="mb-3">
                                     <label class="form-label">Descripción</label>
                                     <textarea class="form-control" name="descripcion" rows="3">${orden.descripcion || ''}</textarea>
                                 </div>
+                                
+                                <!-- Estado y Prioridad -->
                                 <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Estado del Proyecto</label>
+                                            <select class="form-select" name="estado">
+                                                <option value="activo" ${orden.estado === 'activo' ? 'selected' : ''}>Activo</option>
+                                                <option value="entregado" ${orden.estado === 'entregado' ? 'selected' : ''}>Entregado</option>
+                                                <option value="cancelado" ${orden.estado === 'cancelado' ? 'selected' : ''}>Cancelado</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Prioridad</label>
@@ -539,7 +592,18 @@ function editarOrdenCompra(ordenId) {
                                                 <option value="baja" ${orden.prioridad === 'baja' ? 'selected' : ''}>Baja</option>
                                                 <option value="media" ${orden.prioridad === 'media' ? 'selected' : ''}>Media</option>
                                                 <option value="alta" ${orden.prioridad === 'alta' ? 'selected' : ''}>Alta</option>
+                                                <option value="urgente" ${orden.prioridad === 'urgente' ? 'selected' : ''}>Urgente</option>
                                             </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Fechas -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Fecha de Inicio</label>
+                                            <input type="date" class="form-control" name="fecha_inicio" value="${orden.fecha_inicio || ''}">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -549,18 +613,104 @@ function editarOrdenCompra(ordenId) {
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Selección de Categorías y Subcategorías -->
                                 <div class="mb-3">
-                                    <label class="form-label">Monto Neto</label>
-                                    <input type="number" class="form-control" name="monto_neto" step="0.01" value="${orden.monto_neto || ''}">
+                                    <label class="form-label">Categorías y Subcategorías *</label>
+                                    <div id="edit-categorias-container">
+                                        <div class="categoria-item mb-3 p-3 border rounded">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Categoría</label>
+                                                    <select class="form-select categoria-select" name="categoria_ids[]" onchange="cargarSubcategoriasEdicion(this)" required>
+                                                        <option value="">Seleccionar categoría...</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <label class="form-label">Subcategoría</label>
+                                                    <select class="form-select subcategoria-select" name="subcategoria_ids[]" disabled>
+                                                        <option value="">Primero selecciona una categoría</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-1 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarCategoriaEdicion(this)" style="display: none;">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarCategoriaEdicion()">
+                                        <i class="fas fa-plus"></i> Agregar Otra Categoría
+                                    </button>
                                 </div>
+                                
+                                <!-- Montos detallados -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Monto Neto Total</label>
+                                            <input type="number" class="form-control" name="monto_neto" step="0.01" value="${orden.monto_neto || ''}" placeholder="0.00">
+                                            <div class="form-text">Monto total del proyecto</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Costo Real</label>
+                                            <input type="number" class="form-control" name="costo_real" step="0.01" value="${orden.costo_real || ''}" placeholder="0.00">
+                                            <div class="form-text">Costo real incurrido</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Monto Provisión</label>
+                                            <input type="number" class="form-control" name="monto_neto_provision" step="0.01" value="${orden.monto_neto_provision || ''}" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Monto Instalación</label>
+                                            <input type="number" class="form-control" name="monto_neto_instalacion" step="0.01" value="${orden.monto_neto_instalacion || ''}" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Provisión Presupuestada</label>
+                                            <input type="number" class="form-control" name="monto_provision_presupuestada" step="0.01" value="${orden.monto_provision_presupuestada || ''}" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Margen Provisión (%)</label>
+                                            <input type="number" class="form-control" name="margen_provision" step="0.01" value="${orden.margen_provision || ''}" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Margen Instalación (%)</label>
+                                            <input type="number" class="form-control" name="margen_instalacion" step="0.01" value="${orden.margen_instalacion || ''}" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <div class="mb-3">
                                     <label class="form-label">Observaciones</label>
-                                    <textarea class="form-control" name="observaciones" rows="3">${orden.observaciones || ''}</textarea>
+                                    <textarea class="form-control" name="observaciones" rows="4">${orden.observaciones || ''}</textarea>
                                 </div>
+
+                                <!-- Campos ocultos para categorías -->
+                                <input type="hidden" id="edit_categorias_selected" name="categorias_selected">
+                                <input type="hidden" id="edit_subcategorias_selected" name="subcategorias_selected">
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn btn-primary" onclick="return recopilarDatosEdicion()">
                                     <i class="fas fa-save"></i> Guardar Cambios
                                 </button>
                             </div>
@@ -579,6 +729,9 @@ function editarOrdenCompra(ordenId) {
         // Agregar modal al DOM
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // Cargar datos del formulario
+        cargarDatosEdicion(orden);
+
         // Mostrar modal
         const modal = new bootstrap.Modal(document.getElementById('editarOrdenModal'));
         modal.show();
@@ -587,6 +740,306 @@ function editarOrdenCompra(ordenId) {
         document.getElementById('editarOrdenModal').addEventListener('hidden.bs.modal', function() {
             this.remove();
         });
+    }
+}
+
+function cargarDatosEdicion(orden) {
+    // Cargar clientes
+    fetch('/api/clientes_activos')
+        .then(response => response.json())
+        .then(clientes => {
+            const clienteSelect = document.getElementById('edit_cliente_id');
+            clienteSelect.innerHTML = '<option value="">Seleccionar cliente...</option><option value="nuevo">+ Crear nuevo cliente</option>';
+            
+            clientes.forEach(cliente => {
+                const option = document.createElement('option');
+                option.value = cliente.id;
+                option.textContent = cliente.nombre;
+                if (cliente.nombre === orden.cliente_nombre) {
+                    option.selected = true;
+                }
+                clienteSelect.appendChild(option);
+            });
+
+            // Cargar proyectos del cliente seleccionado
+            const clienteSeleccionado = clientes.find(c => c.nombre === orden.cliente_nombre);
+            if (clienteSeleccionado) {
+                cargarProyectosClienteEdicion(clienteSeleccionado.id, orden.id);
+            }
+        });
+
+    // Cargar categorías
+    fetch('/api/categorias')
+        .then(response => response.json())
+        .then(categorias => {
+            // Cargar categorías actuales del proyecto
+            fetch(`/api/categorias_proyecto/${orden.id}`)
+                .then(response => response.json())
+                .then(categoriasProyecto => {
+                    const container = document.getElementById('edit-categorias-container');
+                    container.innerHTML = '';
+
+                    if (categoriasProyecto.length > 0) {
+                        categoriasProyecto.forEach((catProyecto, index) => {
+                            const categoriaDiv = document.createElement('div');
+                            categoriaDiv.className = 'categoria-item mb-3 p-3 border rounded';
+                            categoriaDiv.innerHTML = `
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Categoría</label>
+                                        <select class="form-select categoria-select" name="categoria_ids[]" onchange="cargarSubcategoriasEdicion(this)" required>
+                                            <option value="">Seleccionar categoría...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Subcategoría</label>
+                                        <select class="form-select subcategoria-select" name="subcategoria_ids[]">
+                                            <option value="">Seleccionar subcategoría...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-1 d-flex align-items-end">
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarCategoriaEdicion(this)" ${index === 0 && categoriasProyecto.length === 1 ? 'style="display: none;"' : ''}>
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                            container.appendChild(categoriaDiv);
+
+                            // Llenar opciones de categoría
+                            const categoriaSelect = categoriaDiv.querySelector('.categoria-select');
+                            categorias.forEach(categoria => {
+                                const option = document.createElement('option');
+                                option.value = categoria.id;
+                                option.textContent = categoria.nombre;
+                                if (categoria.id === catProyecto.categoria_id) {
+                                    option.selected = true;
+                                }
+                                categoriaSelect.appendChild(option);
+                            });
+
+                            // Cargar subcategorías si hay una categoría seleccionada
+                            if (catProyecto.categoria_id) {
+                                cargarSubcategoriasEdicion(categoriaSelect, catProyecto.subcategoria_id);
+                            }
+                        });
+                    } else {
+                        // Si no hay categorías, crear una vacía
+                        const categoriaDiv = document.createElement('div');
+                        categoriaDiv.className = 'categoria-item mb-3 p-3 border rounded';
+                        categoriaDiv.innerHTML = `
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Categoría</label>
+                                    <select class="form-select categoria-select" name="categoria_ids[]" onchange="cargarSubcategoriasEdicion(this)" required>
+                                        <option value="">Seleccionar categoría...</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Subcategoría</label>
+                                    <select class="form-select subcategoria-select" name="subcategoria_ids[]" disabled>
+                                        <option value="">Primero selecciona una categoría</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarCategoriaEdicion(this)" style="display: none;">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(categoriaDiv);
+
+                        // Llenar opciones de categoría
+                        const categoriaSelect = categoriaDiv.querySelector('.categoria-select');
+                        categorias.forEach(categoria => {
+                            const option = document.createElement('option');
+                            option.value = categoria.id;
+                            option.textContent = categoria.nombre;
+                            categoriaSelect.appendChild(option);
+                        });
+                    }
+                    
+                    actualizarBotonesEliminarEdicion();
+                });
+        });
+}
+
+function cargarProyectosClienteEdicion(clienteId, proyectoActualId) {
+    fetch(`/api/proyectos_cliente/${clienteId}`)
+        .then(response => response.json())
+        .then(proyectos => {
+            const proyectoSelect = document.getElementById('edit_proyecto_existente_id');
+            proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto...</option><option value="nuevo">+ Crear nuevo proyecto</option>';
+
+            proyectos.forEach(proyecto => {
+                const option = document.createElement('option');
+                option.value = proyecto.id;
+                option.textContent = `${proyecto.codigo} - ${proyecto.nombre}`;
+                if (proyecto.id === proyectoActualId) {
+                    option.selected = true;
+                }
+                proyectoSelect.appendChild(option);
+            });
+        });
+}
+
+function cargarClienteEdicion() {
+    const clienteId = document.getElementById('edit_cliente_id').value;
+    const nuevoClienteDiv = document.getElementById('edit_nuevo_cliente_div');
+    const proyectoSelect = document.getElementById('edit_proyecto_existente_id');
+
+    if (clienteId === 'nuevo') {
+        nuevoClienteDiv.style.display = 'block';
+        proyectoSelect.innerHTML = '<option value="nuevo" selected>+ Crear nuevo proyecto</option>';
+        document.getElementById('edit_nuevo_proyecto_div').style.display = 'block';
+    } else {
+        nuevoClienteDiv.style.display = 'none';
+        if (clienteId) {
+            cargarProyectosClienteEdicion(clienteId);
+        } else {
+            proyectoSelect.innerHTML = '<option value="">Primero selecciona un cliente</option>';
+            document.getElementById('edit_nuevo_proyecto_div').style.display = 'none';
+        }
+    }
+}
+
+function cargarProyectoEdicion() {
+    const proyectoId = document.getElementById('edit_proyecto_existente_id').value;
+    const nuevoProyectoDiv = document.getElementById('edit_nuevo_proyecto_div');
+
+    if (proyectoId === 'nuevo') {
+        nuevoProyectoDiv.style.display = 'block';
+    } else {
+        nuevoProyectoDiv.style.display = 'none';
+    }
+}
+
+function cargarSubcategoriasEdicion(categoriaSelect, subcategoriaSeleccionada = null) {
+    const subcategoriaSelect = categoriaSelect.closest('.categoria-item').querySelector('.subcategoria-select');
+    const categoriaId = categoriaSelect.value;
+
+    subcategoriaSelect.innerHTML = '<option value="">Seleccionar subcategoría...</option>';
+
+    if (!categoriaId) {
+        subcategoriaSelect.disabled = true;
+        subcategoriaSelect.innerHTML = '<option value="">Primero selecciona una categoría</option>';
+        return;
+    }
+
+    subcategoriaSelect.disabled = false;
+
+    fetch(`/api/subcategorias/${categoriaId}`)
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(subcategoria => {
+                const option = document.createElement('option');
+                option.value = subcategoria.id;
+                option.textContent = subcategoria.nombre;
+                if (subcategoriaSeleccionada && subcategoria.id === subcategoriaSeleccionada) {
+                    option.selected = true;
+                }
+                subcategoriaSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error cargando subcategorías:', error);
+            subcategoriaSelect.innerHTML = '<option value="">Error cargando subcategorías</option>';
+        });
+}
+
+function agregarCategoriaEdicion() {
+    const container = document.getElementById('edit-categorias-container');
+    const nuevaCategoria = document.createElement('div');
+    nuevaCategoria.className = 'categoria-item mb-3 p-3 border rounded';
+    nuevaCategoria.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <label class="form-label">Categoría</label>
+                <select class="form-select categoria-select" name="categoria_ids[]" onchange="cargarSubcategoriasEdicion(this)" required>
+                    <option value="">Seleccionar categoría...</option>
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Subcategoría</label>
+                <select class="form-select subcategoria-select" name="subcategoria_ids[]" disabled>
+                    <option value="">Primero selecciona una categoría</option>
+                </select>
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarCategoriaEdicion(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.appendChild(nuevaCategoria);
+
+    // Cargar categorías en el nuevo select
+    fetch('/api/categorias')
+        .then(response => response.json())
+        .then(categorias => {
+            const categoriaSelect = nuevaCategoria.querySelector('.categoria-select');
+            categorias.forEach(categoria => {
+                const option = document.createElement('option');
+                option.value = categoria.id;
+                option.textContent = categoria.nombre;
+                categoriaSelect.appendChild(option);
+            });
+        });
+
+    actualizarBotonesEliminarEdicion();
+}
+
+function eliminarCategoriaEdicion(boton) {
+    const categoriaItem = boton.closest('.categoria-item');
+    categoriaItem.remove();
+    actualizarBotonesEliminarEdicion();
+}
+
+function actualizarBotonesEliminarEdicion() {
+    const items = document.querySelectorAll('#edit-categorias-container .categoria-item');
+    items.forEach((item, index) => {
+        const boton = item.querySelector('.btn-outline-danger');
+        if (items.length > 1) {
+            boton.style.display = 'block';
+        } else {
+            boton.style.display = 'none';
+        }
+    });
+}
+
+function recopilarDatosEdicion() {
+    try {
+        const categoriaSelects = document.querySelectorAll('#edit-categorias-container .categoria-select');
+        const subcategoriaSelects = document.querySelectorAll('#edit-categorias-container .subcategoria-select');
+
+        const categoriasSeleccionadas = [];
+        const subcategoriasSeleccionadas = [];
+
+        categoriaSelects.forEach((select, index) => {
+            if (select.value) {
+                categoriasSeleccionadas.push(select.value);
+                subcategoriasSeleccionadas.push(subcategoriaSelects[index] ? subcategoriaSelects[index].value || '' : '');
+            }
+        });
+
+        // Verificar que se haya seleccionado al menos una categoría
+        if (categoriasSeleccionadas.length === 0) {
+            alert('Debe seleccionar al menos una categoría');
+            return false;
+        }
+
+        // Asignar valores a campos ocultos
+        document.getElementById('edit_categorias_selected').value = JSON.stringify(categoriasSeleccionadas);
+        document.getElementById('edit_subcategorias_selected').value = JSON.stringify(subcategoriasSeleccionadas);
+
+        return true;
+    } catch (error) {
+        console.error('Error recopilando datos de edición:', error);
+        alert('Error al procesar el formulario. Por favor, revise los datos e intente nuevamente.');
+        return false;
     }
 }
 

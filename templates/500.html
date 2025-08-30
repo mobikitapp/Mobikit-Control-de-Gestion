@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Error del Servidor - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 text-center">
+            <div class="py-5">
+                <i data-feather="alert-triangle" class="text-danger mb-4" style="width: 120px; height: 120px;"></i>
+                <h1 class="display-4 fw-bold mb-3">500</h1>
+                <h2 class="h4 mb-3">Error Interno del Servidor</h2>
+                <p class="text-muted mb-4">
+                    Ha ocurrido un error inesperado en el servidor.
+                    Nuestro equipo ha sido notificado y está trabajando para solucionarlo.
+                </p>
+                <div class="d-flex gap-3 justify-content-center">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i data-feather="home" class="me-2"></i>
+                        Ir al Dashboard
+                    </a>
+                    <button onclick="window.location.reload()" class="btn btn-outline-secondary">
+                        <i data-feather="refresh-cw" class="me-2"></i>
+                        Recargar Página
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

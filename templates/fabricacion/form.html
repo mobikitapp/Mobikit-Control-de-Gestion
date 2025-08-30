@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="{{ 'plus-circle' if not of else 'tool' }}" class="me-2"></i>
+                    {{ title }}
+                </h1>
+                <a href="{{ url_for('fabricacion.index') }}" class="btn btn-outline-secondary">
+                    <i data-feather="arrow-left" class="me-2"></i>
+                    Volver a Órdenes
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <form method="POST" action="{{ url_for('fabricacion.crear') if not of else url_for('fabricacion.actualizar', of_id=of.id) }}" novalidate>
+        <div class="row g-4">
+            <!-- Main Information -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            Información de la Orden
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <!-- Cliente y Proyecto -->
+                            <div class="col-md-6">
+                                <label for="cliente_id" class="form-label">Cliente</label>
+                                <select class="form-select" id="cliente_id" onchange="updateProyectos(); updateContratos();">
+                                    <option value="">Seleccionar cliente</option>
+                                    {% for cliente in clientes %}
+                                    <option value="{{ cliente.id }}" 
+                                            {% if (of and of.proyecto.cliente_id == cliente.id) or (request.args.get('cliente_id') and request.args.get('cliente_id')|int == cliente.id) %}selected{% endif %}>
+                                        {{ cliente.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="proyecto_id" class="form-label">
+                                    Proyecto <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateContratos()" required>
+                                    <option value="">Seleccionar proyecto</option>
+                                    {% if of %}
+                                    <option value="{{ of.proyecto_id }}" selected>{{ of.proyecto.nombre }}</option>
+                                    {% endif %}
+                                </select>
+                                <div class="invalid-feedback">
+                                    Por favor selecciona un proyecto.
+                                </div>
+                            </div>
+                            
+                            <!-- Contrato (opcional) -->
+                            <div class="col-md-6">
+                                <label for="contrato_id" class="form-label">Contrato (Opcional)</label>
+                                <select class="form-select" id="contrato_id" name="contrato_id">
+                                    <option value="">Sin contrato asociado</option>
+                                    {% if of and of.contrato %}
+                                    <option value="{{ of.contrato_id }}" selected>{{ of.contrato.numero_oc }}</option>
+                                    {% endif %}
+                                </select>
+                            </div>
+                            
+                            <!-- Código OF -->
+                            <div class="col-md-6">
+                                <label for="codigo" class="form-label">
+                                    Código OF <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="codigo" name="codigo" 
+                                       value="{{ of.codigo if of else '' }}" required>
+                                <div class="invalid-feedback">
+                                    Por favor ingresa el código de la OF.
+                                </div>
+                            </div>
+                            
+                            <!-- Estado -->
+                            <div class="col-md-6">
+                                <label for="estado" class="form-label">Estado</label>
+                                <select class="form-select" id="estado" name="estado">
+                                    <option value="planificada" {% if not of or of.estado.value == 'planificada' %}selected{% endif %}>Planificada</option>
+                                    <option value="en_produccion" {% if of and of.estado.value == 'en_produccion' %}selected{% endif %}>En Producción</option>
+                                    <option value="qa" {% if of and of.estado.value == 'qa' %}selected{% endif %}>QA</option>
+                                    <option value="terminada" {% if of and of.estado.value == 'terminada' %}selected{% endif %}>Terminada</option>
+                                    <option value="entregada" {% if of and of.estado.value == 'entregada' %}selected{% endif %}>Entregada</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Responsable -->
+                            <div class="col-md-6">
+                                <label for="responsable" class="form-label">Responsable</label>
+                                <input type="text" class="form-control" id="responsable" name="responsable" 
+                                       value="{{ of.responsable if of else current_user.id }}" 
+                                       placeholder="ID del usuario responsable">
+                                <div class="form-text">
+                                    Actualmente: {{ current_user.nombre_completo }}
+                                </div>
+                            </div>
+                            
+                            <!-- Fecha Planificada -->
+                            <div class="col-md-6">
+                                <label for="fecha_planificada" class="form-label">Fecha Planificada</label>
+                                <input type="date" class="form-control" id="fecha_planificada" name="fecha_planificada" 
+                                       value="{{ of.fecha_planificada.strftime('%Y-%m-%d') if of and of.fecha_planificada else '' }}">
+                            </div>
+                            
+                            <!-- Descripción -->
+                            <div class="col-12">
+                                <label for="descripcion" class="form-label">Descripción</label>
+                                <textarea class="form-control" id="descripcion" name="descripcion" rows="3" 
+                                          placeholder="Descripción de los trabajos a realizar">{{ of.descripcion if of else '' }}</textarea>
+                            </div>
+                            
+                            <!-- Notas -->
+                            <div class="col-12">
+                                <label for="notas" class="form-label">Notas</label>
+                                <textarea class="form-control" id="notas" name="notas" rows="3" 
+                                          placeholder="Notas adicionales">{{ of.notas if of else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Items Section -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Items de la Orden</h5>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="addItem()">
+                            <i data-feather="plus" class="me-1"></i>
+                            Agregar Item
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="items-container">
+                            {% if of and of.items %}
+                                {% for item in of.items %}
+                                <div class="item-row mb-3 border rounded p-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <small class="fw-medium">Item {{ loop.index }}</small>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)">
+                                            <i data-feather="trash-2"></i>
+                                        </button>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   name="items[{{ loop.index0 }}][sku_codigo]" 
+                                                   value="{{ item.sku_codigo }}"
+                                                   placeholder="SKU/Código" required>
+                                        </div>
+                                        <div class="col-12">
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   name="items[{{ loop.index0 }}][descripcion]" 
+                                                   value="{{ item.descripcion }}"
+                                                   placeholder="Descripción" required>
+                                        </div>
+                                        <div class="col-8">
+                                            <input type="number" class="form-control form-control-sm" 
+                                                   name="items[{{ loop.index0 }}][cantidad]" 
+                                                   value="{{ item.cantidad }}"
+                                                   placeholder="Cantidad" min="0" step="0.001" required>
+                                        </div>
+                                        <div class="col-4">
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   name="items[{{ loop.index0 }}][unidad]" 
+                                                   value="{{ item.unidad }}"
+                                                   placeholder="UN">
+                                        </div>
+                                        <div class="col-12">
+                                            <textarea class="form-control form-control-sm" 
+                                                      name="items[{{ loop.index0 }}][notas]" 
+                                                      rows="2" placeholder="Notas del item">{{ item.notas or '' }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="text-center" id="no-items" {% if of and of.items %}style="display: none;"{% endif %}>
+                            <i data-feather="package" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                            <p class="text-muted">No hay items agregados</p>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addItem()">
+                                <i data-feather="plus" class="me-1"></i>
+                                Agregar Primer Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i data-feather="save" class="me-2"></i>
+                                {{ 'Crear Orden' if not of else 'Actualizar Orden' }}
+                            </button>
+                            <a href="{{ url_for('fabricacion.index') }}" class="btn btn-outline-secondary">
+                                <i data-feather="x" class="me-2"></i>
+                                Cancelar
+                            </a>
+                            {% if of and current_user.rol.value == 'admin' %}
+                            <button type="button" class="btn btn-outline-danger ms-auto" 
+                                    data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                <i data-feather="trash-2" class="me-2"></i>
+                                Eliminar
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Hidden input for item count -->
+        <input type="hidden" id="item_count" name="item_count" value="{{ of.items|length if of and of.items else 0 }}">
+    </form>
+</div>
+
+<!-- Delete Modal -->
+{% if of and current_user.rol.value == 'admin' %}
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar la OF <strong>{{ of.codigo }}</strong>?</p>
+                <p class="text-warning">
+                    <i data-feather="alert-triangle" class="me-1"></i>
+                    Esta acción no se puede deshacer y eliminará todos los datos asociados.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form method="POST" action="{{ url_for('fabricacion.eliminar', of_id=of.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i data-feather="trash-2" class="me-2"></i>
+                        Eliminar Orden
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+let itemCount = {{ of.items|length if of and of.items else 0 }};
+
+async function updateProyectos() {
+    const clienteSelect = document.getElementById('cliente_id');
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const clienteId = clienteSelect.value;
+    
+    // Clear current options (except selected one)
+    const selectedProyecto = proyectoSelect.value;
+    proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto</option>';
+    
+    if (clienteId) {
+        try {
+            const response = await fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
+            if (response.ok) {
+                const proyectos = await response.json();
+                proyectos.forEach(proyecto => {
+                    const option = document.createElement('option');
+                    option.value = proyecto.id;
+                    option.textContent = proyecto.nombre;
+                    if (proyecto.id == selectedProyecto) {
+                        option.selected = true;
+                    }
+                    proyectoSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading proyectos:', error);
+        }
+    }
+}
+
+async function updateContratos() {
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const contratoSelect = document.getElementById('contrato_id');
+    const proyectoId = proyectoSelect.value;
+    
+    // Clear current options (except selected one)
+    const selectedContrato = contratoSelect.value;
+    contratoSelect.innerHTML = '<option value="">Sin contrato asociado</option>';
+    
+    if (proyectoId) {
+        // This would need an API endpoint for contracts by project
+        // For now, we'll keep it simple
+        console.log('Would load contracts for proyecto:', proyectoId);
+    }
+}
+
+function addItem() {
+    const container = document.getElementById('items-container');
+    const noItemsDiv = document.getElementById('no-items');
+    
+    const itemHtml = `
+        <div class="item-row mb-3 border rounded p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="fw-medium">Item ${itemCount + 1}</small>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)">
+                    <i data-feather="trash-2"></i>
+                </button>
+            </div>
+            <div class="row g-2">
+                <div class="col-12">
+                    <input type="text" class="form-control form-control-sm" 
+                           name="items[${itemCount}][sku_codigo]" 
+                           placeholder="SKU/Código" required>
+                </div>
+                <div class="col-12">
+                    <input type="text" class="form-control form-control-sm" 
+                           name="items[${itemCount}][descripcion]" 
+                           placeholder="Descripción" required>
+                </div>
+                <div class="col-8">
+                    <input type="number" class="form-control form-control-sm" 
+                           name="items[${itemCount}][cantidad]" 
+                           placeholder="Cantidad" min="0" step="0.001" required>
+                </div>
+                <div class="col-4">
+                    <input type="text" class="form-control form-control-sm" 
+                           name="items[${itemCount}][unidad]" 
+                           placeholder="UN" value="UN">
+                </div>
+                <div class="col-12">
+                    <textarea class="form-control form-control-sm" 
+                              name="items[${itemCount}][notas]" 
+                              rows="2" placeholder="Notas del item"></textarea>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', itemHtml);
+    itemCount++;
+    document.getElementById('item_count').value = itemCount;
+    
+    // Hide no-items message
+    noItemsDiv.style.display = 'none';
+    
+    // Re-initialize feather icons
+    feather.replace();
+}
+
+function removeItem(button) {
+    const itemRow = button.closest('.item-row');
+    itemRow.remove();
+    
+    // Update item count
+    itemCount--;
+    document.getElementById('item_count').value = itemCount;
+    
+    // Show no-items message if no items left
+    const container = document.getElementById('items-container');
+    if (container.children.length === 0) {
+        document.getElementById('no-items').style.display = 'block';
+    }
+    
+    // Re-number items
+    const items = container.querySelectorAll('.item-row');
+    items.forEach((item, index) => {
+        const itemNumber = item.querySelector('small');
+        itemNumber.textContent = `Item ${index + 1}`;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('form');
+    const clienteSelect = document.getElementById('cliente_id');
+    
+    // Initialize proyectos if cliente is pre-selected
+    if (clienteSelect.value) {
+        updateProyectos();
+    }
+    
+    // Form submission validation
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Reset previous validation
+        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        
+        // Validate required fields
+        const requiredFields = ['proyecto_id', 'codigo'];
+        requiredFields.forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            }
+        });
+        
+        // Validate at least one item
+        const itemRows = document.querySelectorAll('.item-row');
+        if (itemRows.length === 0) {
+            alert('Debe agregar al menos un item a la orden de fabricación.');
+            isValid = false;
+        }
+        
+        // Validate each item
+        itemRows.forEach(row => {
+            const skuInput = row.querySelector('input[name*="sku_codigo"]');
+            const descripcionInput = row.querySelector('input[name*="descripcion"]');
+            const cantidadInput = row.querySelector('input[name*="cantidad"]');
+            
+            if (!skuInput.value.trim()) {
+                skuInput.classList.add('is-invalid');
+                isValid = false;
+            }
+            
+            if (!descripcionInput.value.trim()) {
+                descripcionInput.classList.add('is-invalid');
+                isValid = false;
+            }
+            
+            if (!cantidadInput.value || parseFloat(cantidadInput.value) <= 0) {
+                cantidadInput.classList.add('is-invalid');
+                isValid = false;
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        form.classList.add('was-validated');
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="user{{ '-plus' if not cliente else '' }}" class="me-2"></i>
+                    {{ title }}
+                </h1>
+                <a href="{{ url_for('clientes.index') }}" class="btn btn-outline-secondary">
+                    <i data-feather="arrow-left" class="me-2"></i>
+                    Volver a Clientes
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        Información del Cliente
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('clientes.crear') if not cliente else url_for('clientes.actualizar', cliente_id=cliente.id) }}" novalidate>
+                        <div class="row g-3">
+                            <!-- Nombre -->
+                            <div class="col-md-6">
+                                <label for="nombre" class="form-label">
+                                    Nombre <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" 
+                                       value="{{ cliente.nombre if cliente else '' }}" required>
+                                <div class="invalid-feedback">
+                                    Por favor ingresa el nombre del cliente.
+                                </div>
+                            </div>
+                            
+                            <!-- RUT -->
+                            <div class="col-md-6">
+                                <label for="rut" class="form-label">
+                                    RUT <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="rut" name="rut" 
+                                       value="{{ cliente.rut if cliente else '' }}" 
+                                       placeholder="12.345.678-9" required>
+                                <div class="invalid-feedback">
+                                    Por favor ingresa un RUT válido.
+                                </div>
+                            </div>
+                            
+                            <!-- Contacto Principal -->
+                            <div class="col-md-6">
+                                <label for="contacto_principal" class="form-label">Contacto Principal</label>
+                                <input type="text" class="form-control" id="contacto_principal" name="contacto_principal" 
+                                       value="{{ cliente.contacto_principal if cliente else '' }}" 
+                                       placeholder="Nombre del contacto">
+                            </div>
+                            
+                            <!-- Email Contacto -->
+                            <div class="col-md-6">
+                                <label for="email_contacto" class="form-label">Email de Contacto</label>
+                                <input type="email" class="form-control" id="email_contacto" name="email_contacto" 
+                                       value="{{ cliente.email_contacto if cliente else '' }}" 
+                                       placeholder="contacto@empresa.com">
+                                <div class="invalid-feedback">
+                                    Por favor ingresa un email válido.
+                                </div>
+                            </div>
+                            
+                            <!-- Teléfono -->
+                            <div class="col-md-6">
+                                <label for="telefono_contacto" class="form-label">Teléfono de Contacto</label>
+                                <input type="tel" class="form-control" id="telefono_contacto" name="telefono_contacto" 
+                                       value="{{ cliente.telefono_contacto if cliente else '' }}" 
+                                       placeholder="+56 9 1234 5678">
+                            </div>
+                            
+                            <!-- Estado -->
+                            <div class="col-md-6">
+                                <label for="activo" class="form-label">Estado</label>
+                                <select class="form-select" id="activo" name="activo">
+                                    <option value="true" {% if not cliente or cliente.activo %}selected{% endif %}>Activo</option>
+                                    <option value="false" {% if cliente and not cliente.activo %}selected{% endif %}>Inactivo</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Dirección -->
+                            <div class="col-12">
+                                <label for="direccion" class="form-label">Dirección</label>
+                                <textarea class="form-control" id="direccion" name="direccion" rows="3" 
+                                          placeholder="Dirección completa del cliente">{{ cliente.direccion if cliente else '' }}</textarea>
+                            </div>
+                            
+                            <!-- Condiciones Comerciales -->
+                            <div class="col-12">
+                                <label for="condiciones_comerciales" class="form-label">Condiciones Comerciales</label>
+                                <textarea class="form-control" id="condiciones_comerciales" name="condiciones_comerciales" rows="4" 
+                                          placeholder="Condiciones comerciales, términos de pago, descuentos, etc.">{{ cliente.condiciones_comerciales if cliente else '' }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i data-feather="save" class="me-2"></i>
+                                        {{ 'Crear Cliente' if not cliente else 'Actualizar Cliente' }}
+                                    </button>
+                                    <a href="{{ url_for('clientes.index') }}" class="btn btn-outline-secondary">
+                                        <i data-feather="x" class="me-2"></i>
+                                        Cancelar
+                                    </a>
+                                    {% if cliente and current_user.rol.value == 'admin' %}
+                                    <button type="button" class="btn btn-outline-danger ms-auto" 
+                                            data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                        <i data-feather="trash-2" class="me-2"></i>
+                                        Eliminar
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+{% if cliente and current_user.rol.value == 'admin' %}
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar el cliente <strong>{{ cliente.nombre }}</strong>?</p>
+                <p class="text-warning">
+                    <i data-feather="alert-triangle" class="me-1"></i>
+                    Esta acción marcará el cliente como inactivo.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form method="POST" action="{{ url_for('clientes.eliminar', cliente_id=cliente.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i data-feather="trash-2" class="me-2"></i>
+                        Eliminar Cliente
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('form');
+    const rutInput = document.getElementById('rut');
+    const emailInput = document.getElementById('email_contacto');
+    
+    // RUT formatting and validation
+    rutInput.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 1) {
+            value = value.replace(/^(\d{1,8})(\d{1})$/, '$1-$2');
+            value = value.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+        }
+        e.target.value = value;
+    });
+    
+    // Form submission validation
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Reset previous validation
+        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        
+        // Validate required fields
+        const requiredFields = ['nombre', 'rut'];
+        requiredFields.forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            }
+        });
+        
+        // Validate email if provided
+        if (emailInput.value.trim() && !emailInput.value.includes('@')) {
+            emailInput.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        // Validate RUT format
+        const rutValue = rutInput.value.replace(/\D/g, '');
+        if (rutValue.length < 8) {
+            rutInput.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        form.classList.add('was-validated');
+    });
+});
+</script>
+{% endblock %}

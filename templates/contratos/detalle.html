@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}{{ contrato.numero_oc }} - Contratos - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="file-text" class="me-2"></i>
+                    Contrato {{ contrato.numero_oc }}
+                    <span class="badge bg-{{ 'success' if contrato.estado.value == 'vigente' else 'warning' if contrato.estado.value == 'borrador' else 'info' if contrato.estado.value == 'cerrado' else 'danger' }} ms-2">
+                        {{ contrato.estado.value|title }}
+                    </span>
+                </h1>
+                <div class="d-flex gap-2">
+                    {% if current_user.rol.value in ['admin', 'ventas'] %}
+                    <div class="dropdown">
+                        <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i data-feather="refresh-cw" class="me-2"></i>
+                            Cambiar Estado
+                        </button>
+                        <ul class="dropdown-menu">
+                            {% if contrato.estado.value == 'borrador' %}
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('vigente')">Marcar como Vigente</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('anulado')">Anular</a></li>
+                            {% elif contrato.estado.value == 'vigente' %}
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('cerrado')">Cerrar</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('anulado')">Anular</a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    <a href="{{ url_for('contratos.editar', contrato_id=contrato.id) }}" class="btn btn-primary">
+                        <i data-feather="edit" class="me-2"></i>
+                        Editar
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('contratos.index') }}" class="btn btn-outline-secondary">
+                        <i data-feather="arrow-left" class="me-2"></i>
+                        Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        <!-- Contract Information -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="info" class="me-2"></i>
+                        Información del Contrato
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Proyecto</label>
+                            <div class="form-control-plaintext">
+                                <a href="{{ url_for('proyectos.detalle', proyecto_id=contrato.proyecto.id) }}" class="text-decoration-none">
+                                    {{ contrato.proyecto.nombre }}
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Cliente</label>
+                            <div class="form-control-plaintext">
+                                <a href="{{ url_for('clientes.detalle', cliente_id=contrato.proyecto.cliente.id) }}" class="text-decoration-none">
+                                    {{ contrato.proyecto.cliente.nombre }}
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Estado</label>
+                            <div class="form-control-plaintext">
+                                <span class="badge bg-{{ 'success' if contrato.estado.value == 'vigente' else 'warning' if contrato.estado.value == 'borrador' else 'info' if contrato.estado.value == 'cerrado' else 'danger' }}">
+                                    {{ contrato.estado.value|title }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        {% if contrato.monto_total %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Monto Total</label>
+                            <div class="form-control-plaintext">
+                                <span class="fw-bold fs-5">{{ contrato.moneda }} {{ "{:,.0f}".format(contrato.monto_total) }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if contrato.fecha_emision %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Fecha de Emisión</label>
+                            <div class="form-control-plaintext">
+                                {{ contrato.fecha_emision.strftime('%d/%m/%Y') }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if contrato.fecha_vencimiento %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Fecha de Vencimiento</label>
+                            <div class="form-control-plaintext">
+                                {{ contrato.fecha_vencimiento.strftime('%d/%m/%Y') }}
+                                {% if contrato.fecha_vencimiento < moment().date() and contrato.estado.value == 'vigente' %}
+                                <span class="badge bg-danger ms-2">Vencido</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Fecha de Creación</label>
+                            <div class="form-control-plaintext">
+                                {{ contrato.created_at.strftime('%d/%m/%Y %H:%M') }}
+                            </div>
+                        </div>
+                        
+                        {% if contrato.condiciones_pago %}
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Condiciones de Pago</label>
+                            <div class="form-control-plaintext">
+                                <pre class="mb-0">{{ contrato.condiciones_pago }}</pre>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if contrato.notas %}
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Notas</label>
+                            <div class="form-control-plaintext">
+                                <pre class="mb-0">{{ contrato.notas }}</pre>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="zap" class="me-2"></i>
+                        Acciones Rápidas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                        <a href="{{ url_for('fabricacion.nueva') }}?proyecto_id={{ contrato.proyecto_id }}&contrato_id={{ contrato.id }}" class="btn btn-outline-info">
+                            <i data-feather="plus-circle" class="me-2"></i>
+                            Nueva Orden de Fabricación
+                        </a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('fabricacion.index') }}?contrato_id={{ contrato.id }}" class="btn btn-outline-secondary">
+                            <i data-feather="tool" class="me-2"></i>
+                            Ver Órdenes de Fabricación
+                        </a>
+                        
+                        <a href="{{ url_for('proyectos.detalle', proyecto_id=contrato.proyecto_id) }}" class="btn btn-outline-primary">
+                            <i data-feather="folder" class="me-2"></i>
+                            Ver Proyecto
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Attachments Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="paperclip" class="me-2"></i>
+                        Archivos Adjuntos ({{ contrato.adjuntos|length }})
+                    </h5>
+                    {% if current_user.rol.value in ['admin', 'ventas'] %}
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                        <i data-feather="upload" class="me-2"></i>
+                        Subir Archivo
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if contrato.adjuntos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Archivo</th>
+                                    <th>Tipo</th>
+                                    <th>Tamaño</th>
+                                    <th>Fecha</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for adjunto in contrato.adjuntos %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i data-feather="{{ 'file-text' if 'pdf' in adjunto.mime_type else 'image' }}" class="me-2 text-muted"></i>
+                                            <span>{{ adjunto.filename }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ adjunto.tipo.value|title }}</span>
+                                    </td>
+                                    <td>{{ (adjunto.size_bytes / 1024 / 1024)|round(2) }} MB</td>
+                                    <td>{{ adjunto.created_at.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="#" class="btn btn-outline-primary" title="Descargar">
+                                                <i data-feather="download"></i>
+                                            </a>
+                                            {% if current_user.rol.value in ['admin', 'ventas'] %}
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    onclick="deleteAttachment({{ adjunto.id }})" title="Eliminar">
+                                                <i data-feather="trash-2"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i data-feather="paperclip" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted">No hay archivos adjuntos</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+{% if current_user.rol.value in ['admin', 'ventas'] %}
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Subir Archivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('contratos.subir_adjunto', contrato_id=contrato.id) }}" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="archivo" class="form-label">Archivo</label>
+                        <input type="file" class="form-control" id="archivo" name="archivo" required 
+                               accept=".pdf,.jpg,.jpeg,.png">
+                        <div class="form-text">Máximo 25MB. Formatos: PDF, JPG, PNG</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tipo" class="form-label">Tipo de Archivo</label>
+                        <select class="form-select" id="tipo" name="tipo">
+                            <option value="contrato">Contrato</option>
+                            <option value="plano">Plano</option>
+                            <option value="especificacion">Especificación</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="upload" class="me-2"></i>
+                        Subir Archivo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Status Change Form (Hidden) -->
+<form id="statusForm" method="POST" action="{{ url_for('contratos.cambiar_estado', contrato_id=contrato.id) }}" style="display: none;">
+    <input type="hidden" id="nuevo_estado" name="nuevo_estado">
+</form>
+
+<!-- Delete Attachment Form (Hidden) -->
+<form id="deleteAttachmentForm" method="POST" style="display: none;">
+    
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script>
+function changeStatus(newStatus) {
+    if (confirm('¿Estás seguro de que deseas cambiar el estado del contrato?')) {
+        document.getElementById('nuevo_estado').value = newStatus;
+        document.getElementById('statusForm').submit();
+    }
+}
+
+function deleteAttachment(attachmentId) {
+    if (confirm('¿Estás seguro de que deseas eliminar este archivo?')) {
+        const form = document.getElementById('deleteAttachmentForm');
+        form.action = `{{ url_for('contratos.eliminar_adjunto', adjunto_id=0) }}`.replace('0', attachmentId);
+        form.submit();
+    }
+}
+
+// Auto-hide alerts after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
+    });
+});
+</script>
+{% endblock %}

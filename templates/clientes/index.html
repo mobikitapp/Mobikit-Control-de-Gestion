@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="users" class="me-2"></i>
+                    Clientes
+                </h1>
+                {% if current_user.rol.value in ['admin', 'ventas'] %}
+                <a href="{{ url_for('clientes.nuevo') }}" class="btn btn-primary">
+                    <i data-feather="user-plus" class="me-2"></i>
+                    Nuevo Cliente
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i data-feather="filter" class="me-2"></i>
+                Filtros
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="nombre" class="form-label">Nombre</label>
+                    <input type="text" class="form-control" id="nombre" name="nombre" 
+                           value="{{ filters.nombre or '' }}" placeholder="Buscar por nombre">
+                </div>
+                <div class="col-md-3">
+                    <label for="rut" class="form-label">RUT</label>
+                    <input type="text" class="form-control" id="rut" name="rut" 
+                           value="{{ filters.rut or '' }}" placeholder="Buscar por RUT">
+                </div>
+                <div class="col-md-3">
+                    <label for="contacto" class="form-label">Contacto</label>
+                    <input type="text" class="form-control" id="contacto" name="contacto" 
+                           value="{{ filters.contacto or '' }}" placeholder="Nombre o email">
+                </div>
+                <div class="col-md-3">
+                    <label for="activo" class="form-label">Estado</label>
+                    <select class="form-select" id="activo" name="activo">
+                        <option value="">Todos</option>
+                        <option value="true" {% if filters.activo == True %}selected{% endif %}>Activos</option>
+                        <option value="false" {% if filters.activo == False %}selected{% endif %}>Inactivos</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="search" class="me-2"></i>
+                        Buscar
+                    </button>
+                    <a href="{{ url_for('clientes.index') }}" class="btn btn-outline-secondary">
+                        <i data-feather="x" class="me-2"></i>
+                        Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Results -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                Resultados ({{ total_count }} cliente{{ 's' if total_count != 1 else '' }})
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+                <small class="text-muted">
+                    Página {{ filters.page }} de {{ total_pages }}
+                </small>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if clientes %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Nombre</th>
+                            <th>RUT</th>
+                            <th>Contacto Principal</th>
+                            <th>Email</th>
+                            <th>Estado</th>
+                            <th>Creado</th>
+                            <th width="150">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes %}
+                        <tr>
+                            <td>
+                                <div class="fw-medium">{{ cliente.nombre }}</div>
+                            </td>
+                            <td>
+                                <code>{{ cliente.rut }}</code>
+                            </td>
+                            <td>{{ cliente.contacto_principal or '-' }}</td>
+                            <td>
+                                {% if cliente.email_contacto %}
+                                <a href="mailto:{{ cliente.email_contacto }}" class="text-decoration-none">
+                                    {{ cliente.email_contacto }}
+                                </a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if cliente.activo else 'secondary' }}">
+                                    {{ 'Activo' if cliente.activo else 'Inactivo' }}
+                                </span>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ cliente.created_at.strftime('%d/%m/%Y') }}
+                                </small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('clientes.detalle', cliente_id=cliente.id) }}" 
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i data-feather="eye"></i>
+                                    </a>
+                                    {% if current_user.rol.value in ['admin', 'ventas'] %}
+                                    <a href="{{ url_for('clientes.editar', cliente_id=cliente.id) }}" 
+                                       class="btn btn-outline-secondary" title="Editar">
+                                        <i data-feather="edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i data-feather="users" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
+                <h5 class="text-muted">No se encontraron clientes</h5>
+                <p class="text-muted">Ajusta los filtros de búsqueda o agrega un nuevo cliente.</p>
+                {% if current_user.rol.value in ['admin', 'ventas'] %}
+                <a href="{{ url_for('clientes.nuevo') }}" class="btn btn-primary">
+                    <i data-feather="user-plus" class="me-2"></i>
+                    Crear Primer Cliente
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if total_pages > 1 %}
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('clientes.index', page=filters.page-1, **request.args) }}">
+                            <i data-feather="chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, total_pages + 1) %}
+                        {% if page_num == filters.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > total_pages - 3 or (page_num >= filters.page - 1 and page_num <= filters.page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('clientes.index', page=page_num, **request.args) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% elif page_num == 4 or page_num == total_pages - 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('clientes.index', page=filters.page+1, **request.args) }}">
+                            <i data-feather="chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

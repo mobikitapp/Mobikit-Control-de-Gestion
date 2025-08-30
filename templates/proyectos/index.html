@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Proyectos - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="folder" class="me-2"></i>
+                    Proyectos
+                </h1>
+                {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
+                <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-primary">
+                    <i data-feather="folder-plus" class="me-2"></i>
+                    Nuevo Proyecto
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i data-feather="filter" class="me-2"></i>
+                Filtros
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="cliente_id" class="form-label">Cliente</label>
+                    <select class="form-select" id="cliente_id" name="cliente_id">
+                        <option value="">Todos los clientes</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {% if filters.cliente_id == cliente.id %}selected{% endif %}>
+                            {{ cliente.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="nombre" class="form-label">Nombre</label>
+                    <input type="text" class="form-control" id="nombre" name="nombre" 
+                           value="{{ filters.nombre or '' }}" placeholder="Buscar por nombre">
+                </div>
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado</label>
+                    <select class="form-select" id="estado" name="estado">
+                        <option value="">Todos los estados</option>
+                        <option value="planificacion" {% if filters.estado == 'planificacion' %}selected{% endif %}>Planificación</option>
+                        <option value="en_desarrollo" {% if filters.estado == 'en_desarrollo' %}selected{% endif %}>En Desarrollo</option>
+                        <option value="pausado" {% if filters.estado == 'pausado' %}selected{% endif %}>Pausado</option>
+                        <option value="completado" {% if filters.estado == 'completado' %}selected{% endif %}>Completado</option>
+                        <option value="cancelado" {% if filters.estado == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="responsable" class="form-label">Responsable</label>
+                    <input type="text" class="form-control" id="responsable" name="responsable" 
+                           value="{{ filters.responsable or '' }}" placeholder="ID del responsable">
+                </div>
+                <div class="col-md-6">
+                    <label for="fecha_inicio_desde" class="form-label">Fecha Inicio Desde</label>
+                    <input type="date" class="form-control" id="fecha_inicio_desde" name="fecha_inicio_desde" 
+                           value="{{ filters.fecha_inicio_desde or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label for="fecha_inicio_hasta" class="form-label">Fecha Inicio Hasta</label>
+                    <input type="date" class="form-control" id="fecha_inicio_hasta" name="fecha_inicio_hasta" 
+                           value="{{ filters.fecha_inicio_hasta or '' }}">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="search" class="me-2"></i>
+                        Buscar
+                    </button>
+                    <a href="{{ url_for('proyectos.index') }}" class="btn btn-outline-secondary">
+                        <i data-feather="x" class="me-2"></i>
+                        Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Results -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                Resultados ({{ total_count }} proyecto{{ 's' if total_count != 1 else '' }})
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+                <small class="text-muted">
+                    Página {{ filters.page }} de {{ total_pages }}
+                </small>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if proyectos %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Cliente</th>
+                            <th>Estado</th>
+                            <th>Responsable</th>
+                            <th>Fecha Inicio</th>
+                            <th>Fecha Fin Est.</th>
+                            <th width="150">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for proyecto in proyectos %}
+                        <tr>
+                            <td>
+                                <div class="fw-medium">{{ proyecto.nombre }}</div>
+                                {% if proyecto.descripcion %}
+                                <small class="text-muted">{{ proyecto.descripcion[:50] }}{% if proyecto.descripcion|length > 50 %}...{% endif %}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('clientes.detalle', cliente_id=proyecto.cliente.id) }}" class="text-decoration-none">
+                                    {{ proyecto.cliente.nombre }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if proyecto.estado.value == 'completado' else 'primary' if proyecto.estado.value == 'en_desarrollo' else 'warning' if proyecto.estado.value == 'planificacion' else 'danger' if proyecto.estado.value == 'cancelado' else 'secondary' }}">
+                                    {{ proyecto.estado.value|title }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if proyecto.responsable_user %}
+                                    {{ proyecto.responsable_user.nombre_completo }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if proyecto.fecha_inicio %}
+                                    {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if proyecto.fecha_fin_estimada %}
+                                    {{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" 
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i data-feather="eye"></i>
+                                    </a>
+                                    {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
+                                    <a href="{{ url_for('proyectos.editar', proyecto_id=proyecto.id) }}" 
+                                       class="btn btn-outline-secondary" title="Editar">
+                                        <i data-feather="edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i data-feather="folder" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
+                <h5 class="text-muted">No se encontraron proyectos</h5>
+                <p class="text-muted">Ajusta los filtros de búsqueda o agrega un nuevo proyecto.</p>
+                {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
+                <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-primary">
+                    <i data-feather="folder-plus" class="me-2"></i>
+                    Crear Primer Proyecto
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if total_pages > 1 %}
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('proyectos.index', page=filters.page-1, **request.args) }}">
+                            <i data-feather="chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, total_pages + 1) %}
+                        {% if page_num == filters.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > total_pages - 3 or (page_num >= filters.page - 1 and page_num <= filters.page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('proyectos.index', page=page_num, **request.args) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% elif page_num == 4 or page_num == total_pages - 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('proyectos.index', page=filters.page+1, **request.args) }}">
+                            <i data-feather="chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
