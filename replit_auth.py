@@ -21,6 +21,14 @@ from models import OAuth, User
 
 login_manager = LoginManager(app)
 
+# Global configuration
+try:
+    REPL_ID = os.environ['REPL_ID']
+except KeyError:
+    raise SystemExit("the REPL_ID environment variable must be set")
+
+ISSUER_URL = os.environ.get('ISSUER_URL', "https://replit.com/oidc")
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -63,32 +71,26 @@ class UserSessionStorage(BaseStorage):
 
 
 def make_replit_blueprint():
-    try:
-        repl_id = os.environ['REPL_ID']
-    except KeyError:
-        raise SystemExit("the REPL_ID environment variable must be set")
-
-    issuer_url = os.environ.get('ISSUER_URL', "https://replit.com/oidc")
 
     replit_bp = OAuth2ConsumerBlueprint(
         "replit_auth",
         __name__,
-        client_id=repl_id,
+        client_id=REPL_ID,
         client_secret=None,
-        base_url=issuer_url,
+        base_url=ISSUER_URL,
         authorization_url_params={
             "prompt": "login consent",
         },
-        token_url=issuer_url + "/token",
+        token_url=ISSUER_URL + "/token",
         token_url_params={
             "auth": (),
             "include_client_id": True,
         },
-        auto_refresh_url=issuer_url + "/token",
+        auto_refresh_url=ISSUER_URL + "/token",
         auto_refresh_kwargs={
-            "client_id": repl_id,
+            "client_id": REPL_ID,
         },
-        authorization_url=issuer_url + "/auth",
+        authorization_url=ISSUER_URL + "/auth",
         use_pkce=True,
         code_challenge_method="S256",
         scope=["openid", "profile", "email", "offline_access"],
@@ -108,10 +110,10 @@ def make_replit_blueprint():
         del replit_bp.token
         logout_user()
 
-        end_session_endpoint = issuer_url + "/session/end"
+        end_session_endpoint = ISSUER_URL + "/session/end"
         encoded_params = urlencode({
             "client_id":
-            repl_id,
+            REPL_ID,
             "post_logout_redirect_uri":
             request.url_root,
         })
@@ -164,10 +166,10 @@ def require_login(f):
 
         expires_in = replit.token.get('expires_in', 0)
         if expires_in < 0:
-            refresh_token_url = issuer_url + "/token"
+            refresh_token_url = ISSUER_URL + "/token"
             try:
                 token = replit.refresh_token(token_url=refresh_token_url,
-                                             client_id=os.environ['REPL_ID'])
+                                             client_id=REPL_ID)
             except InvalidGrantError:
                 # If the refresh token is invalid, the users needs to re-login.
                 session["next_url"] = get_next_navigation_url(request)
