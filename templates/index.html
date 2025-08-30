@@ -70,7 +70,7 @@
                 <h1 class="h2">Dashboard</h1>
                 <div class="text-muted">
                     <i data-feather="calendar" class="me-1"></i>
-                    {{ moment().format('dddd, MMMM Do YYYY') }}
+                    <span id="current-date"></span>
                 </div>
             </div>
         </div>
@@ -288,9 +288,20 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/es.js"></script>
 <script>
-    moment.locale('es');
+    // Set current date without moment.js
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            dateElement.textContent = now.toLocaleDateString('es-ES', options);
+        }
+    });
 </script>
 {% endblock %}
