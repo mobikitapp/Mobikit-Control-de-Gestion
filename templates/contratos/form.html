@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="file-{{ 'plus' if not contrato else 'text' }}" class="me-2"></i>
+                    {{ title }}
+                </h1>
+                <a href="{{ url_for('contratos.index') }}" class="btn btn-outline-secondary">
+                    <i data-feather="arrow-left" class="me-2"></i>
+                    Volver a Contratos
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        Información del Contrato
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('contratos.crear') if not contrato else url_for('contratos.actualizar', contrato_id=contrato.id) }}" enctype="multipart/form-data" novalidate>
+                        <div class="row g-3">
+                            <!-- Cliente y Proyecto -->
+                            <div class="col-md-6">
+                                <label for="cliente_id" class="form-label">Cliente</label>
+                                <select class="form-select" id="cliente_id" onchange="updateProyectos()">
+                                    <option value="">Seleccionar cliente</option>
+                                    {% for cliente in clientes %}
+                                    <option value="{{ cliente.id }}" 
+                                            {% if (contrato and contrato.proyecto.cliente_id == cliente.id) or (request.args.get('cliente_id') and request.args.get('cliente_id')|int == cliente.id) %}selected{% endif %}>
+                                        {{ cliente.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="proyecto_id" class="form-label">
+                                    Proyecto <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id" required>
+                                    <option value="">Seleccionar proyecto</option>
+                                    {% if contrato %}
+                                    <option value="{{ contrato.proyecto_id }}" selected>{{ contrato.proyecto.nombre }}</option>
+                                    {% endif %}
+                                </select>
+                                <div class="invalid-feedback">
+                                    Por favor selecciona un proyecto.
+                                </div>
+                            </div>
+                            
+                            <!-- Número OC -->
+                            <div class="col-md-6">
+                                <label for="numero_oc" class="form-label">
+                                    Número de OC <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="numero_oc" name="numero_oc" 
+                                       value="{{ contrato.numero_oc if contrato else '' }}" required>
+                                <div class="invalid-feedback">
+                                    Por favor ingresa el número de OC.
+                                </div>
+                            </div>
+                            
+                            <!-- Estado -->
+                            <div class="col-md-6">
+                                <label for="estado" class="form-label">Estado</label>
+                                <select class="form-select" id="estado" name="estado">
+                                    <option value="borrador" {% if not contrato or contrato.estado.value == 'borrador' %}selected{% endif %}>Borrador</option>
+                                    <option value="vigente" {% if contrato and contrato.estado.value == 'vigente' %}selected{% endif %}>Vigente</option>
+                                    <option value="cerrado" {% if contrato and contrato.estado.value == 'cerrado' %}selected{% endif %}>Cerrado</option>
+                                    <option value="anulado" {% if contrato and contrato.estado.value == 'anulado' %}selected{% endif %}>Anulado</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Monto Total -->
+                            <div class="col-md-6">
+                                <label for="monto_total" class="form-label">Monto Total</label>
+                                <div class="input-group">
+                                    <select class="form-select" id="moneda" name="moneda" style="max-width: 100px;">
+                                        <option value="CLP" {% if not contrato or contrato.moneda == 'CLP' %}selected{% endif %}>CLP</option>
+                                        <option value="USD" {% if contrato and contrato.moneda == 'USD' %}selected{% endif %}>USD</option>
+                                        <option value="EUR" {% if contrato and contrato.moneda == 'EUR' %}selected{% endif %}>EUR</option>
+                                    </select>
+                                    <input type="number" class="form-control" id="monto_total" name="monto_total" 
+                                           value="{{ contrato.monto_total if contrato else '' }}" min="0" step="0.01">
+                                </div>
+                            </div>
+                            
+                            <!-- Fecha Emisión -->
+                            <div class="col-md-6">
+                                <label for="fecha_emision" class="form-label">Fecha de Emisión</label>
+                                <input type="date" class="form-control" id="fecha_emision" name="fecha_emision" 
+                                       value="{{ contrato.fecha_emision.strftime('%Y-%m-%d') if contrato and contrato.fecha_emision else '' }}">
+                            </div>
+                            
+                            <!-- Fecha Vencimiento -->
+                            <div class="col-md-6">
+                                <label for="fecha_vencimiento" class="form-label">Fecha de Vencimiento</label>
+                                <input type="date" class="form-control" id="fecha_vencimiento" name="fecha_vencimiento" 
+                                       value="{{ contrato.fecha_vencimiento.strftime('%Y-%m-%d') if contrato and contrato.fecha_vencimiento else '' }}">
+                            </div>
+                            
+                            <!-- Condiciones de Pago -->
+                            <div class="col-12">
+                                <label for="condiciones_pago" class="form-label">Condiciones de Pago</label>
+                                <textarea class="form-control" id="condiciones_pago" name="condiciones_pago" rows="3" 
+                                          placeholder="Términos y condiciones de pago">{{ contrato.condiciones_pago if contrato else '' }}</textarea>
+                            </div>
+                            
+                            <!-- Notas -->
+                            <div class="col-12">
+                                <label for="notas" class="form-label">Notas</label>
+                                <textarea class="form-control" id="notas" name="notas" rows="3" 
+                                          placeholder="Notas adicionales del contrato">{{ contrato.notas if contrato else '' }}</textarea>
+                            </div>
+                            
+                            {% if not contrato %}
+                            <!-- File Upload for new contracts -->
+                            <div class="col-12">
+                                <label for="archivos" class="form-label">Archivos del Contrato</label>
+                                <input type="file" class="form-control" id="archivos" name="archivos" multiple 
+                                       accept=".pdf,.jpg,.jpeg,.png">
+                                <div class="form-text">
+                                    Formatos permitidos: PDF, JPG, PNG. Máximo 25MB por archivo.
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i data-feather="save" class="me-2"></i>
+                                        {{ 'Crear Contrato' if not contrato else 'Actualizar Contrato' }}
+                                    </button>
+                                    <a href="{{ url_for('contratos.index') }}" class="btn btn-outline-secondary">
+                                        <i data-feather="x" class="me-2"></i>
+                                        Cancelar
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function updateProyectos() {
+    const clienteSelect = document.getElementById('cliente_id');
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const clienteId = clienteSelect.value;
+    
+    // Clear current options (except the default and selected one)
+    const selectedProyecto = proyectoSelect.value;
+    proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto</option>';
+    
+    if (clienteId) {
+        try {
+            const response = await fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
+            if (response.ok) {
+                const proyectos = await response.json();
+                proyectos.forEach(proyecto => {
+                    const option = document.createElement('option');
+                    option.value = proyecto.id;
+                    option.textContent = proyecto.nombre;
+                    if (proyecto.id == selectedProyecto) {
+                        option.selected = true;
+                    }
+                    proyectoSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading proyectos:', error);
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('form');
+    const fechaEmisionInput = document.getElementById('fecha_emision');
+    const fechaVencimientoInput = document.getElementById('fecha_vencimiento');
+    
+    // Date validation
+    function validateDates() {
+        const fechaEmision = fechaEmisionInput.value;
+        const fechaVencimiento = fechaVencimientoInput.value;
+        
+        fechaVencimientoInput.classList.remove('is-invalid');
+        
+        let valid = true;
+        
+        if (fechaEmision && fechaVencimiento && fechaVencimiento < fechaEmision) {
+            fechaVencimientoInput.classList.add('is-invalid');
+            valid = false;
+        }
+        
+        return valid;
+    }
+    
+    // Date validation on change
+    [fechaEmisionInput, fechaVencimientoInput].forEach(input => {
+        input.addEventListener('change', validateDates);
+    });
+    
+    // Initialize proyectos if cliente is pre-selected
+    const clienteSelect = document.getElementById('cliente_id');
+    if (clienteSelect.value) {
+        updateProyectos();
+    }
+    
+    // Form submission validation
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Reset previous validation
+        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        
+        // Validate required fields
+        const requiredFields = ['proyecto_id', 'numero_oc'];
+        requiredFields.forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            }
+        });
+        
+        // Validate dates
+        if (!validateDates()) {
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        form.classList.add('was-validated');
+    });
+});
+</script>
+{% endblock %}

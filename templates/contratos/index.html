@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Contratos - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="file-text" class="me-2"></i>
+                    Contratos
+                </h1>
+                {% if current_user.rol.value in ['admin', 'ventas'] %}
+                <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-primary">
+                    <i data-feather="file-plus" class="me-2"></i>
+                    Nuevo Contrato
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i data-feather="filter" class="me-2"></i>
+                Filtros
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="proyecto_cliente" class="form-label">Cliente</label>
+                    <select class="form-select" id="proyecto_cliente" onchange="updateProyectos()">
+                        <option value="">Todos los clientes</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="proyecto_id" class="form-label">Proyecto</label>
+                    <select class="form-select" id="proyecto_id" name="proyecto_id">
+                        <option value="">Todos los proyectos</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="numero_oc" class="form-label">Número OC</label>
+                    <input type="text" class="form-control" id="numero_oc" name="numero_oc" 
+                           value="{{ filters.numero_oc or '' }}" placeholder="Buscar por número">
+                </div>
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado</label>
+                    <select class="form-select" id="estado" name="estado">
+                        <option value="">Todos los estados</option>
+                        <option value="borrador" {% if filters.estado == 'borrador' %}selected{% endif %}>Borrador</option>
+                        <option value="vigente" {% if filters.estado == 'vigente' %}selected{% endif %}>Vigente</option>
+                        <option value="cerrado" {% if filters.estado == 'cerrado' %}selected{% endif %}>Cerrado</option>
+                        <option value="anulado" {% if filters.estado == 'anulado' %}selected{% endif %}>Anulado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="moneda" class="form-label">Moneda</label>
+                    <select class="form-select" id="moneda" name="moneda">
+                        <option value="">Todas las monedas</option>
+                        <option value="CLP" {% if filters.moneda == 'CLP' %}selected{% endif %}>CLP</option>
+                        <option value="USD" {% if filters.moneda == 'USD' %}selected{% endif %}>USD</option>
+                        <option value="EUR" {% if filters.moneda == 'EUR' %}selected{% endif %}>EUR</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_emision_desde" class="form-label">Fecha Emisión Desde</label>
+                    <input type="date" class="form-control" id="fecha_emision_desde" name="fecha_emision_desde" 
+                           value="{{ filters.fecha_emision_desde or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_emision_hasta" class="form-label">Fecha Emisión Hasta</label>
+                    <input type="date" class="form-control" id="fecha_emision_hasta" name="fecha_emision_hasta" 
+                           value="{{ filters.fecha_emision_hasta or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <!-- Empty column for alignment -->
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="search" class="me-2"></i>
+                        Buscar
+                    </button>
+                    <a href="{{ url_for('contratos.index') }}" class="btn btn-outline-secondary">
+                        <i data-feather="x" class="me-2"></i>
+                        Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Results -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                Resultados ({{ total_count }} contrato{{ 's' if total_count != 1 else '' }})
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+                <small class="text-muted">
+                    Página {{ filters.page }} de {{ total_pages }}
+                </small>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if contratos %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Número OC</th>
+                            <th>Proyecto</th>
+                            <th>Cliente</th>
+                            <th>Estado</th>
+                            <th>Monto</th>
+                            <th>Fecha Emisión</th>
+                            <th>Adjuntos</th>
+                            <th width="150">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contrato in contratos %}
+                        <tr>
+                            <td>
+                                <div class="fw-medium">{{ contrato.numero_oc }}</div>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('proyectos.detalle', proyecto_id=contrato.proyecto.id) }}" class="text-decoration-none">
+                                    {{ contrato.proyecto.nombre }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('clientes.detalle', cliente_id=contrato.proyecto.cliente.id) }}" class="text-decoration-none">
+                                    {{ contrato.proyecto.cliente.nombre }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if contrato.estado.value == 'vigente' else 'warning' if contrato.estado.value == 'borrador' else 'info' if contrato.estado.value == 'cerrado' else 'danger' }}">
+                                    {{ contrato.estado.value|title }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if contrato.monto_total %}
+                                    <div class="fw-medium">{{ contrato.moneda }} {{ "{:,.0f}".format(contrato.monto_total) }}</div>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if contrato.fecha_emision %}
+                                    {{ contrato.fecha_emision.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if contrato.adjuntos %}
+                                    <span class="badge bg-info">{{ contrato.adjuntos|length }}</span>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i data-feather="eye"></i>
+                                    </a>
+                                    {% if current_user.rol.value in ['admin', 'ventas'] %}
+                                    <a href="{{ url_for('contratos.editar', contrato_id=contrato.id) }}" 
+                                       class="btn btn-outline-secondary" title="Editar">
+                                        <i data-feather="edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i data-feather="file-text" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
+                <h5 class="text-muted">No se encontraron contratos</h5>
+                <p class="text-muted">Ajusta los filtros de búsqueda o agrega un nuevo contrato.</p>
+                {% if current_user.rol.value in ['admin', 'ventas'] %}
+                <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-primary">
+                    <i data-feather="file-plus" class="me-2"></i>
+                    Crear Primer Contrato
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if total_pages > 1 %}
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('contratos.index', page=filters.page-1, **request.args) }}">
+                            <i data-feather="chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, total_pages + 1) %}
+                        {% if page_num == filters.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > total_pages - 3 or (page_num >= filters.page - 1 and page_num <= filters.page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('contratos.index', page=page_num, **request.args) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% elif page_num == 4 or page_num == total_pages - 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('contratos.index', page=filters.page+1, **request.args) }}">
+                            <i data-feather="chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function updateProyectos() {
+    const clienteSelect = document.getElementById('proyecto_cliente');
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const clienteId = clienteSelect.value;
+    
+    // Clear current options
+    proyectoSelect.innerHTML = '<option value="">Todos los proyectos</option>';
+    
+    if (clienteId) {
+        try {
+            const response = await fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
+            if (response.ok) {
+                const proyectos = await response.json();
+                proyectos.forEach(proyecto => {
+                    const option = document.createElement('option');
+                    option.value = proyecto.id;
+                    option.textContent = proyecto.nombre;
+                    proyectoSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading proyectos:', error);
+        }
+    }
+}
+
+// Initialize on page load if there's a selected proyecto
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const proyectoId = urlParams.get('proyecto_id');
+    
+    if (proyectoId) {
+        // Find and select the corresponding cliente
+        fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', 'all'))
+            .then(response => response.json())
+            .then(proyectos => {
+                const proyecto = proyectos.find(p => p.id == proyectoId);
+                if (proyecto) {
+                    document.getElementById('proyecto_cliente').value = proyecto.cliente_id;
+                    updateProyectos().then(() => {
+                        document.getElementById('proyecto_id').value = proyectoId;
+                    });
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    }
+});
+</script>
+{% endblock %}

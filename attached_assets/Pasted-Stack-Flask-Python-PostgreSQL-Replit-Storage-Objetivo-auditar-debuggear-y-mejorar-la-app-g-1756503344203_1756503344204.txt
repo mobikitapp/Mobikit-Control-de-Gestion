@@ -1,0 +1,249 @@
+Stack: Flask (Python) + PostgreSQL + Replit Storage
+Objetivo: auditar, debuggear y mejorar la app, garantizando consistencia entre formularios, endpoints, modelos y funciones, y dejando el proyecto listo para operar internamente como plataforma centralizada y en línea para todas las áreas.
+
+0) Contexto funcional (lo que la app debe soportar)
+
+Clientes: ficha maestra, contactos, condiciones comerciales.
+
+Proyectos (por cliente): datos generales, fechas, responsables, estado.
+
+Órdenes de Compra / Contratos de clientes (OC/Contratos): vínculo con proyecto, montos, hitos, anexos (PDF/imagenes), estados (borrador | vigente | cerrado | anulado).
+
+Órdenes de Fabricación (OF): generadas desde proyecto/OC; estados: planificada → en_producción → QA → terminada → entregada; tracking por fechas, responsables y materiales.
+
+Despachos: planning, documentos de entrega (guías, actas), evidencia (fotos), estado (programado | en_transporte | entregado | observado).
+
+Adjuntos (Replit Storage): contratos, planos, especificaciones, evidencias QA/despacho.
+
+Búsqueda/filtrado: por cliente, proyecto, fechas, estado y texto libre.
+
+Auditoría y permisos: bitácora de cambios; roles (admin, operaciones, ventas, producción, logística).
+
+1) Modo de trabajo
+
+Detecta stack leyendo pyproject.toml/requirements.txt, replit.nix, Dockerfile.
+
+Crea rama chore/auditoria-debug-<fecha>.
+
+Explica decisiones en PRs/commits.
+
+Evita cambios destructivos; si son necesarios, justifica y propone alternativa.
+
+Activa linters/formatters/typing y corrige findings.
+
+2) Plan de acción (ejecútalo en orden)
+
+Mapa del sistema → docs/arquitectura.md: Blueprints, modelos, dependencias, middlewares, puntos de entrada (factory), flujos críticos (alta de OC → OF → Despacho).
+
+Setup & run (README): venv, instalación, variables .env, inicialización DB, migraciones, cómo correr app y tests.
+
+Dependencias: versiones, vulnerabilidades, deprecadas; propone upgrades seguros y limpia no usadas.
+
+Calidad: configura Ruff (lint), Black (formato), mypy (tipado razonable).
+
+DB & migraciones: SQLAlchemy + Alembic/Flask-Migrate; FK, constraints, índices en claves de filtrado; transacciones en operaciones críticas.
+
+Storage (Replit Storage): crea StorageAdapter con:
+
+put_file(stream, path, content_type) -> key
+
+get_url(key, expires_s=...) -> url
+
+delete_file(key)
+
+Estructura de paths:
+
+clientes/{cliente_id}/proyectos/{proyecto_id}/contratos/{oc_id}/docs/{uuid}.pdf
+
+.../of/{of_id}/qa/{timestamp}.jpg
+
+.../despachos/{despacho_id}/evidencias/{uuid}.jpg
+
+Valida tamaño/MIME, manejo de streaming a tmp, reintentos y borrado consistente.
+
+Consistencia Formularios ↔ Endpoints ↔ Modelos:
+
+Esquemas Pydantic v2 para requests/responses compartidos.
+
+Validaciones alineadas UI/backend; errores estructurados (error.code, error.message, error.fields).
+
+Convenciones de nombres (snake_case en Python; rutas REST predecibles).
+
+Debugging de flujos clave (prioriza):
+
+Alta/edición de Cliente y Proyecto.
+
+Alta/edición de OC/Contrato + subida/gestión de anexos.
+
+Creación y cambio de estado de OF (workflow completo).
+
+Despachos: programación, documentos y evidencias; transición de estados.
+
+Reportes/exports si existen (CSV/PDF).
+
+Refactor seguro:
+
+Elimina código muerto/duplicado.
+
+Separa capas: blueprints/ (UI/API), services/ (negocio), repositories/ (DB), adapters/ (storage), schemas/ (Pydantic).
+
+Pruebas:
+
+pytest + pytest-flask: unitarias (services/schemas), integración (repos+DB temporal), E2E (FlaskClient).
+
+Fixtures realistas y datos mínimamente coherentes.
+
+Cobertura mínima 70% (objetivo 85%).
+
+Observabilidad:
+
+Logging estructurado (ideal JSON).
+
+errorhandler central; códigos HTTP correctos.
+
+Métricas simples de performance por endpoint crítico.
+
+Docs & handoff:
+
+Actualiza README.md, .env.example, CHANGELOG.md, docs/auditoria.md.
+
+Lista issues P0/P1/P2 con pasos para reproducir y capturas.
+
+3) Estructura sugerida
+app/
+  __init__.py
+  config.py
+  blueprints/
+    clientes.py
+    proyectos.py
+    contratos.py       # OC/Contratos
+    fabricacion.py     # OF
+    despachos.py
+  services/
+    clientes_service.py
+    proyectos_service.py
+    contratos_service.py
+    fabricacion_service.py
+    despachos_service.py
+    storage_service.py
+  repositories/
+    models.py
+    clientes_repo.py
+    proyectos_repo.py
+    contratos_repo.py
+    fabricacion_repo.py
+    despachos_repo.py
+  adapters/
+    storage_adapter.py
+  schemas/
+    clientes.py
+    proyectos.py
+    contratos.py
+    fabricacion.py
+    despachos.py
+  templates/           # si hay Jinja2
+  static/
+migrations/
+tests/
+  unit/
+  integration/
+  e2e/
+docs/
+  arquitectura.md
+  auditoria.md
+
+4) Modelo de datos (lineamientos mínimos)
+
+clientes (id, nombre, rut/identificador, condiciones, contacto_principal, created_at)
+
+proyectos (id, cliente_id FK, nombre, estado, fechas, responsable, notas)
+
+contratos (id, proyecto_id FK, numero_oc, monto_total, moneda, estado, fechas_hitos, notas)
+
+contrato_adjuntos (id, contrato_id FK, storage_key, filename, mime, size)
+
+ordenes_fabricacion (id, proyecto_id FK, contrato_id FK NULLABLE, codigo, estado, fecha_plan, fecha_inicio, fecha_qc, fecha_fin, responsable)
+
+of_items (id, of_id FK, sku/codigo, descripcion, cantidad, unidad)
+
+despachos (id, proyecto_id FK, of_id FK NULLABLE, fecha_prog, fecha_envio, fecha_entrega, estado, destino, contacto, observacion)
+
+despacho_adjuntos (id, despacho_id FK, storage_key, tipo [guia|acta|foto], filename)
+
+audit_log (id, entidad, entidad_id, accion, actor, payload, created_at)
+
+Índices: por cliente_id, proyecto_id, estado, fecha_*, y campos de búsqueda comunes.
+
+5) Checklist de consistencia (aplícalo y corrige)
+
+ Formularios = Pydantic Schemas = Modelos SQLAlchemy (nombres/tipos/requeridos/default).
+
+ Estados válidos y transiciones controladas (OF y Despachos); reglas de negocio en services/.
+
+ Transacciones en crear/editar contratos, OF y despachos (consistencia entre tablas/adjuntos).
+
+ Uploads con límites (MB), MIME permitido, URLs firmadas si aplica, delete consistente.
+
+ Filtros por cliente/proyecto/estado/fecha eficientes (índices).
+
+ Auditoría: toda alta/edición/estado genera entrada en audit_log.
+
+ Permisos por rol; ocultar acciones sin permiso.
+
+ Errores estructurados y mensajes coherentes UI/backend.
+
+ Fechas/locale coherentes para America/Santiago.
+
+6) Dependencias y config esperadas
+
+App: flask, sqlalchemy, psycopg[binary], alembic/flask-migrate, pydantic>=2, python-dotenv, werkzeug, Pillow
+
+Calidad: ruff, black, mypy
+
+Tests: pytest, pytest-flask, factory-boy
+
+Storage: SDK de Replit Storage (o adapter propio si ya existe).
+
+.env.example:
+
+FLASK_ENV, SECRET_KEY
+
+DATABASE_URL
+
+STORAGE_BASE_URL / STORAGE_BUCKET / credenciales/token
+
+MAX_UPLOAD_MB=25
+
+ALLOWED_MIME=application/pdf,image/jpeg,image/png
+
+Scripts (en pyproject.toml o Makefile):
+
+fmt, lint, type, test
+
+db:upgrade, db:revision --autogenerate
+
+7) Pruebas imprescindibles (deben quedar en verde)
+
+CRUD Cliente y Proyecto con filtros.
+
+Contrato: alta + anexos (PDF), edición de montos/hitos, cierre/anulación (con auditoría).
+
+OF: creación desde proyecto/contrato, transición de estados (planificada→…→terminada), manejo de items; bloqueo de transiciones inválidas.
+
+Despacho: programación→en_transporte→entregado, adjuntos (guía, acta, fotos), reintentos de upload.
+
+Búsquedas combinadas (cliente+proyecto+estado+fecha).
+
+Integración DB: FK válidas; transacciones; rollback en fallos de upload.
+
+8) Definition of Done
+
+App levanta sin errores, flujos críticos operativos, tests verdes.
+
+0 warnings de linter; formato aplicado.
+
+Esquemas Pydantic = Formularios = Modelos.
+
+Dependencias saneadas, sin vulnerabilidades altas.
+
+Documentación completa y reproducible.

@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}{{ despacho.numero_despacho }} - Despachos - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="truck" class="me-2"></i>
+                    Despacho {{ despacho.numero_despacho }}
+                    <span class="badge bg-{{ 'warning' if despacho.estado.value == 'programado' else 'info' if despacho.estado.value == 'en_transporte' else 'success' if despacho.estado.value == 'entregado' else 'danger' }} ms-2">
+                        {{ despacho.estado.value|title|replace('_', ' ') }}
+                    </span>
+                </h1>
+                <div class="d-flex gap-2">
+                    {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                    <div class="dropdown">
+                        <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i data-feather="refresh-cw" class="me-2"></i>
+                            Cambiar Estado
+                        </button>
+                        <ul class="dropdown-menu">
+                            {% if despacho.estado.value == 'programado' %}
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('en_transporte')">Marcar En Transporte</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('observado')">Marcar Observado</a></li>
+                            {% elif despacho.estado.value == 'en_transporte' %}
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('entregado')">Marcar como Entregado</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('observado')">Marcar Observado</a></li>
+                            {% elif despacho.estado.value == 'observado' %}
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('programado')">Volver a Programado</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('en_transporte')">Marcar En Transporte</a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    <a href="{{ url_for('despachos.editar', despacho_id=despacho.id) }}" class="btn btn-primary">
+                        <i data-feather="edit" class="me-2"></i>
+                        Editar
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('despachos.index') }}" class="btn btn-outline-secondary">
+                        <i data-feather="arrow-left" class="me-2"></i>
+                        Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        <!-- Shipment Information -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="info" class="me-2"></i>
+                        Información del Despacho
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Proyecto</label>
+                            <div class="form-control-plaintext">
+                                <a href="{{ url_for('proyectos.detalle', proyecto_id=despacho.proyecto.id) }}" class="text-decoration-none">
+                                    {{ despacho.proyecto.nombre }}
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Cliente</label>
+                            <div class="form-control-plaintext">
+                                <a href="{{ url_for('clientes.detalle', cliente_id=despacho.proyecto.cliente.id) }}" class="text-decoration-none">
+                                    {{ despacho.proyecto.cliente.nombre }}
+                                </a>
+                            </div>
+                        </div>
+                        
+                        {% if despacho.orden_fabricacion %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Orden de Fabricación</label>
+                            <div class="form-control-plaintext">
+                                <a href="{{ url_for('fabricacion.detalle', of_id=despacho.orden_fabricacion.id) }}" class="text-decoration-none">
+                                    {{ despacho.orden_fabricacion.codigo }}
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Estado</label>
+                            <div class="form-control-plaintext">
+                                <span class="badge bg-{{ 'warning' if despacho.estado.value == 'programado' else 'info' if despacho.estado.value == 'en_transporte' else 'success' if despacho.estado.value == 'entregado' else 'danger' }}">
+                                    {{ despacho.estado.value|title|replace('_', ' ') }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        {% if despacho.responsable_user %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Responsable</label>
+                            <div class="form-control-plaintext">{{ despacho.responsable_user.nombre_completo }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Fecha de Creación</label>
+                            <div class="form-control-plaintext">
+                                {{ despacho.created_at.strftime('%d/%m/%Y %H:%M') }}
+                            </div>
+                        </div>
+                        
+                        {% if despacho.fecha_programada %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Fecha Programada</label>
+                            <div class="form-control-plaintext">
+                                {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
+                                {% if despacho.fecha_programada < moment().date() and despacho.estado.value == 'programado' %}
+                                <span class="badge bg-danger ms-2">Atrasado</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if despacho.fecha_envio %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Fecha de Envío</label>
+                            <div class="form-control-plaintext">
+                                {{ despacho.fecha_envio.strftime('%d/%m/%Y %H:%M') }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if despacho.fecha_entrega %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Fecha de Entrega</label>
+                            <div class="form-control-plaintext">
+                                {{ despacho.fecha_entrega.strftime('%d/%m/%Y %H:%M') }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Destino</label>
+                            <div class="form-control-plaintext">
+                                <pre class="mb-0">{{ despacho.destino }}</pre>
+                            </div>
+                        </div>
+                        
+                        {% if despacho.contacto_destino %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Contacto en Destino</label>
+                            <div class="form-control-plaintext">{{ despacho.contacto_destino }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if despacho.telefono_contacto %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Teléfono de Contacto</label>
+                            <div class="form-control-plaintext">
+                                <a href="tel:{{ despacho.telefono_contacto }}" class="text-decoration-none">
+                                    {{ despacho.telefono_contacto }}
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if despacho.observaciones %}
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Observaciones</label>
+                            <div class="form-control-plaintext">
+                                <pre class="mb-0">{{ despacho.observaciones }}</pre>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tracking Timeline -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="clock" class="me-2"></i>
+                        Seguimiento del Despacho
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item {{ 'active' if despacho.estado.value in ['programado', 'en_transporte', 'entregado'] else '' }}">
+                            <div class="timeline-marker bg-warning"></div>
+                            <div class="timeline-content">
+                                <h6>Programado</h6>
+                                <small class="text-muted">{{ despacho.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item {{ 'active' if despacho.estado.value in ['en_transporte', 'entregado'] else '' }}">
+                            <div class="timeline-marker bg-info"></div>
+                            <div class="timeline-content">
+                                <h6>En Transporte</h6>
+                                {% if despacho.fecha_envio %}
+                                <small class="text-muted">{{ despacho.fecha_envio.strftime('%d/%m/%Y %H:%M') }}</small>
+                                {% else %}
+                                <small class="text-muted">Pendiente</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item {{ 'active' if despacho.estado.value == 'entregado' else '' }}">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <h6>Entregado</h6>
+                                {% if despacho.fecha_entrega %}
+                                <small class="text-muted">{{ despacho.fecha_entrega.strftime('%d/%m/%Y %H:%M') }}</small>
+                                {% else %}
+                                <small class="text-muted">Pendiente</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if despacho.estado.value == 'observado' %}
+                        <div class="timeline-item active">
+                            <div class="timeline-marker bg-danger"></div>
+                            <div class="timeline-content">
+                                <h6>Observado</h6>
+                                <small class="text-muted">{{ despacho.updated_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="zap" class="me-2"></i>
+                        Acciones Rápidas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('proyectos.detalle', proyecto_id=despacho.proyecto_id) }}" class="btn btn-outline-info">
+                            <i data-feather="folder" class="me-2"></i>
+                            Ver Proyecto
+                        </a>
+                        
+                        {% if despacho.orden_fabricacion %}
+                        <a href="{{ url_for('fabricacion.detalle', of_id=despacho.orden_fabricacion.id) }}" class="btn btn-outline-primary">
+                            <i data-feather="tool" class="me-2"></i>
+                            Ver Orden de Fabricación
+                        </a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('despachos.index') }}?proyecto_id={{ despacho.proyecto_id }}" class="btn btn-outline-secondary">
+                            <i data-feather="truck" class="me-2"></i>
+                            Otros Despachos del Proyecto
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Attachments Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="paperclip" class="me-2"></i>
+                        Archivos Adjuntos ({{ despacho.adjuntos|length }})
+                    </h5>
+                    {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                        <i data-feather="upload" class="me-2"></i>
+                        Subir Archivo
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if despacho.adjuntos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Archivo</th>
+                                    <th>Tipo</th>
+                                    <th>Tamaño</th>
+                                    <th>Fecha</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for adjunto in despacho.adjuntos %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i data-feather="{{ 'file-text' if 'pdf' in adjunto.mime_type else 'image' }}" class="me-2 text-muted"></i>
+                                            <span>{{ adjunto.filename }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'warning' if adjunto.tipo.value == 'guia' else 'info' if adjunto.tipo.value == 'acta' else 'secondary' }}">
+                                            {{ adjunto.tipo.value|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ (adjunto.size_bytes / 1024 / 1024)|round(2) }} MB</td>
+                                    <td>{{ adjunto.created_at.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="#" class="btn btn-outline-primary" title="Descargar">
+                                                <i data-feather="download"></i>
+                                            </a>
+                                            {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    onclick="deleteAttachment({{ adjunto.id }})" title="Eliminar">
+                                                <i data-feather="trash-2"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i data-feather="paperclip" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted">No hay archivos adjuntos</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+{% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Subir Archivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('despachos.subir_adjunto', despacho_id=despacho.id) }}" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="archivo" class="form-label">Archivo</label>
+                        <input type="file" class="form-control" id="archivo" name="archivo" required 
+                               accept=".pdf,.jpg,.jpeg,.png">
+                        <div class="form-text">Máximo 25MB. Formatos: PDF, JPG, PNG</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tipo" class="form-label">Tipo de Archivo</label>
+                        <select class="form-select" id="tipo" name="tipo">
+                            <option value="guia">Guía de Despacho</option>
+                            <option value="acta">Acta de Entrega</option>
+                            <option value="foto">Fotografía</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="upload" class="me-2"></i>
+                        Subir Archivo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Status Change Modal -->
+{% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambiar Estado del Despacho</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('despachos.cambiar_estado', despacho_id=despacho.id) }}">
+                <div class="modal-body">
+                    <input type="hidden" id="nuevo_estado" name="nuevo_estado">
+                    <div class="mb-3">
+                        <label for="observaciones_estado" class="form-label">Observaciones del cambio de estado (opcional)</label>
+                        <textarea class="form-control" id="observaciones_estado" name="observaciones" rows="3" 
+                                  placeholder="Agregar comentarios sobre el cambio de estado"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="refresh-cw" class="me-2"></i>
+                        Cambiar Estado
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Delete Attachment Form (Hidden) -->
+<form id="deleteAttachmentForm" method="POST" style="display: none;">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script>
+function changeStatus(newStatus) {
+    document.getElementById('nuevo_estado').value = newStatus;
+    const modal = new bootstrap.Modal(document.getElementById('statusModal'));
+    modal.show();
+}
+
+function deleteAttachment(attachmentId) {
+    if (confirm('¿Estás seguro de que deseas eliminar este archivo?')) {
+        const form = document.getElementById('deleteAttachmentForm');
+        form.action = `{{ url_for('despachos.eliminar_adjunto', adjunto_id=0) }}`.replace('0', attachmentId);
+        form.submit();
+    }
+}
+
+// Timeline styles
+document.addEventListener('DOMContentLoaded', function() {
+    // Add custom timeline styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--bs-border-color);
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .timeline-marker {
+            position: absolute;
+            left: -23px;
+            top: 5px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid var(--bs-body-bg);
+        }
+        
+        .timeline-item.active .timeline-marker {
+            box-shadow: 0 0 0 3px var(--bs-border-color);
+        }
+        
+        .timeline-content h6 {
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .timeline-content small {
+            font-size: 0.8rem;
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
+{% endblock %}

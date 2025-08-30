@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+{% if show_login %}
+<!-- Landing page for logged out users -->
+<div class="min-vh-100 d-flex align-items-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <div class="mb-5">
+                    <i data-feather="settings" class="display-1 text-primary mb-4"></i>
+                    <h1 class="display-4 fw-bold mb-4">Sistema de Manufactura</h1>
+                    <p class="lead mb-4">
+                        Plataforma centralizada para la gestión integral de clientes, proyectos, 
+                        contratos, órdenes de fabricación y despachos.
+                    </p>
+                    <a href="{{ url_for('replit_auth.login') }}" class="btn btn-primary btn-lg px-5">
+                        <i data-feather="log-in" class="me-2"></i>
+                        Iniciar Sesión
+                    </a>
+                </div>
+                
+                <div class="row g-4 mt-5">
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i data-feather="users" class="text-info mb-3" style="width: 48px; height: 48px;"></i>
+                                <h5>Gestión de Clientes</h5>
+                                <p class="text-muted small">
+                                    Administra la información de clientes, contactos y condiciones comerciales.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i data-feather="tool" class="text-warning mb-3" style="width: 48px; height: 48px;"></i>
+                                <h5>Control de Producción</h5>
+                                <p class="text-muted small">
+                                    Seguimiento completo de órdenes de fabricación desde planificación hasta entrega.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i data-feather="truck" class="text-success mb-3" style="width: 48px; height: 48px;"></i>
+                                <h5>Logística y Despachos</h5>
+                                <p class="text-muted small">
+                                    Gestión de despachos, documentación y evidencias de entrega.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Dashboard for authenticated users -->
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">Dashboard</h1>
+                <div class="text-muted">
+                    <i data-feather="calendar" class="me-1"></i>
+                    {{ moment().format('dddd, MMMM Do YYYY') }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i data-feather="users" class="text-primary" style="width: 32px; height: 32px;"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-bold fs-4">{{ stats.total_clientes or 0 }}</div>
+                            <div class="text-muted small">Clientes Activos</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i data-feather="folder" class="text-info" style="width: 32px; height: 32px;"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-bold fs-4">{{ stats.proyectos_activos or 0 }}</div>
+                            <div class="text-muted small">Proyectos Activos</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i data-feather="file-text" class="text-warning" style="width: 32px; height: 32px;"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-bold fs-4">{{ stats.contratos_vigentes or 0 }}</div>
+                            <div class="text-muted small">Contratos Vigentes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i data-feather="tool" class="text-success" style="width: 32px; height: 32px;"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-bold fs-4">{{ stats.of_en_produccion or 0 }}</div>
+                            <div class="text-muted small">OFs en Producción</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity and Pending Tasks -->
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="clock" class="me-2"></i>
+                        Proyectos Recientes
+                    </h5>
+                    <a href="{{ url_for('proyectos.index') }}" class="btn btn-sm btn-outline-secondary">
+                        Ver Todos
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_projects %}
+                        {% for proyecto in recent_projects %}
+                        <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-{{ 'success' if proyecto.estado.value == 'completado' else 'primary' if proyecto.estado.value == 'en_desarrollo' else 'secondary' }}">
+                                    {{ proyecto.estado.value|title }}
+                                </span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <div class="fw-medium">
+                                    <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" class="text-decoration-none">
+                                        {{ proyecto.nombre }}
+                                    </a>
+                                </div>
+                                <div class="text-muted small">{{ proyecto.cliente.nombre }}</div>
+                            </div>
+                            <div class="flex-shrink-0 text-muted small">
+                                {{ proyecto.created_at.strftime('%d/%m') }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i data-feather="folder" class="mb-2" style="width: 48px; height: 48px;"></i>
+                        <p>No hay proyectos recientes</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="alert-circle" class="me-2"></i>
+                        Mis Tareas Pendientes
+                    </h5>
+                    <a href="{{ url_for('fabricacion.index') }}" class="btn btn-sm btn-outline-secondary">
+                        Ver Todas
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if pending_ofs %}
+                        {% for of in pending_ofs %}
+                        <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-{{ 'warning' if of.estado.value == 'planificada' else 'info' if of.estado.value == 'en_produccion' else 'primary' }}">
+                                    {{ of.estado.value|title }}
+                                </span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <div class="fw-medium">
+                                    <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" class="text-decoration-none">
+                                        {{ of.codigo }}
+                                    </a>
+                                </div>
+                                <div class="text-muted small">{{ of.proyecto.nombre }}</div>
+                            </div>
+                            <div class="flex-shrink-0 text-muted small">
+                                {% if of.fecha_planificada %}
+                                    {{ of.fecha_planificada.strftime('%d/%m') }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i data-feather="check-circle" class="mb-2" style="width: 48px; height: 48px;"></i>
+                        <p>No tienes tareas pendientes</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="zap" class="me-2"></i>
+                        Acciones Rápidas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
+                        <div class="col-md-3">
+                            <a href="{{ url_for('clientes.nuevo') }}" class="btn btn-outline-primary w-100">
+                                <i data-feather="user-plus" class="me-2"></i>
+                                Nuevo Cliente
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-outline-info w-100">
+                                <i data-feather="folder-plus" class="me-2"></i>
+                                Nuevo Proyecto
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if current_user.rol.value in ['admin', 'ventas'] %}
+                        <div class="col-md-3">
+                            <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-outline-warning w-100">
+                                <i data-feather="file-plus" class="me-2"></i>
+                                Nuevo Contrato
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                        <div class="col-md-3">
+                            <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-outline-success w-100">
+                                <i data-feather="plus-circle" class="me-2"></i>
+                                Nueva OF
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/es.js"></script>
+<script>
+    moment.locale('es');
+</script>
+{% endblock %}

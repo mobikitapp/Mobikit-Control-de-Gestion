@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}Órdenes de Fabricación - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="tool" class="me-2"></i>
+                    Órdenes de Fabricación
+                </h1>
+                {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-primary">
+                    <i data-feather="plus-circle" class="me-2"></i>
+                    Nueva Orden
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i data-feather="filter" class="me-2"></i>
+                Filtros
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="cliente_filtro" class="form-label">Cliente</label>
+                    <select class="form-select" id="cliente_filtro" onchange="updateProyectosFilter()">
+                        <option value="">Todos los clientes</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="proyecto_id" class="form-label">Proyecto</label>
+                    <select class="form-select" id="proyecto_id" name="proyecto_id">
+                        <option value="">Todos los proyectos</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="codigo" class="form-label">Código OF</label>
+                    <input type="text" class="form-control" id="codigo" name="codigo" 
+                           value="{{ filters.codigo or '' }}" placeholder="Buscar por código">
+                </div>
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado</label>
+                    <select class="form-select" id="estado" name="estado">
+                        <option value="">Todos los estados</option>
+                        <option value="planificada" {% if filters.estado == 'planificada' %}selected{% endif %}>Planificada</option>
+                        <option value="en_produccion" {% if filters.estado == 'en_produccion' %}selected{% endif %}>En Producción</option>
+                        <option value="qa" {% if filters.estado == 'qa' %}selected{% endif %}>QA</option>
+                        <option value="terminada" {% if filters.estado == 'terminada' %}selected{% endif %}>Terminada</option>
+                        <option value="entregada" {% if filters.estado == 'entregada' %}selected{% endif %}>Entregada</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="responsable" class="form-label">Responsable</label>
+                    <input type="text" class="form-control" id="responsable" name="responsable" 
+                           value="{{ filters.responsable or '' }}" placeholder="ID del responsable">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_planificada_desde" class="form-label">Fecha Planificada Desde</label>
+                    <input type="date" class="form-control" id="fecha_planificada_desde" name="fecha_planificada_desde" 
+                           value="{{ filters.fecha_planificada_desde or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_planificada_hasta" class="form-label">Fecha Planificada Hasta</label>
+                    <input type="date" class="form-control" id="fecha_planificada_hasta" name="fecha_planificada_hasta" 
+                           value="{{ filters.fecha_planificada_hasta or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <!-- Empty column for alignment -->
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="search" class="me-2"></i>
+                        Buscar
+                    </button>
+                    <a href="{{ url_for('fabricacion.index') }}" class="btn btn-outline-secondary">
+                        <i data-feather="x" class="me-2"></i>
+                        Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Results -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                Resultados ({{ total_count }} orden{{ 'es' if total_count != 1 else '' }})
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+                <small class="text-muted">
+                    Página {{ filters.page }} de {{ total_pages }}
+                </small>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if ofs %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Código</th>
+                            <th>Proyecto</th>
+                            <th>Cliente</th>
+                            <th>Estado</th>
+                            <th>Fecha Planificada</th>
+                            <th>Responsable</th>
+                            <th>Items</th>
+                            <th width="150">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for of in ofs %}
+                        <tr>
+                            <td>
+                                <div class="fw-medium">{{ of.codigo }}</div>
+                                {% if of.descripcion %}
+                                <small class="text-muted">{{ of.descripcion[:50] }}{% if of.descripcion|length > 50 %}...{% endif %}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('proyectos.detalle', proyecto_id=of.proyecto.id) }}" class="text-decoration-none">
+                                    {{ of.proyecto.nombre }}
+                                </a>
+                                {% if of.contrato %}
+                                <br><small class="text-muted">OC: {{ of.contrato.numero_oc }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('clientes.detalle', cliente_id=of.proyecto.cliente.id) }}" class="text-decoration-none">
+                                    {{ of.proyecto.cliente.nombre }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'warning' if of.estado.value == 'planificada' else 'info' if of.estado.value == 'en_produccion' else 'primary' if of.estado.value == 'qa' else 'success' if of.estado.value == 'terminada' else 'secondary' }}">
+                                    {{ of.estado.value|title|replace('_', ' ') }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if of.fecha_planificada %}
+                                    {{ of.fecha_planificada.strftime('%d/%m/%Y') }}
+                                    {% if of.fecha_planificada < moment().date() and of.estado.value == 'planificada' %}
+                                    <br><span class="badge bg-danger">Atrasada</span>
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if of.responsable_user %}
+                                    {{ of.responsable_user.nombre_completo }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ of.items|length }} items</span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" 
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i data-feather="eye"></i>
+                                    </a>
+                                    {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                    <a href="{{ url_for('fabricacion.editar', of_id=of.id) }}" 
+                                       class="btn btn-outline-secondary" title="Editar">
+                                        <i data-feather="edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i data-feather="tool" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
+                <h5 class="text-muted">No se encontraron órdenes de fabricación</h5>
+                <p class="text-muted">Ajusta los filtros de búsqueda o agrega una nueva orden.</p>
+                {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-primary">
+                    <i data-feather="plus-circle" class="me-2"></i>
+                    Crear Primera Orden
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if total_pages > 1 %}
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('fabricacion.index', page=filters.page-1, **request.args) }}">
+                            <i data-feather="chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, total_pages + 1) %}
+                        {% if page_num == filters.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > total_pages - 3 or (page_num >= filters.page - 1 and page_num <= filters.page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('fabricacion.index', page=page_num, **request.args) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% elif page_num == 4 or page_num == total_pages - 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('fabricacion.index', page=filters.page+1, **request.args) }}">
+                            <i data-feather="chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script>
+async function updateProyectosFilter() {
+    const clienteSelect = document.getElementById('cliente_filtro');
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const clienteId = clienteSelect.value;
+    
+    // Clear current options
+    proyectoSelect.innerHTML = '<option value="">Todos los proyectos</option>';
+    
+    if (clienteId) {
+        try {
+            const response = await fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
+            if (response.ok) {
+                const proyectos = await response.json();
+                proyectos.forEach(proyecto => {
+                    const option = document.createElement('option');
+                    option.value = proyecto.id;
+                    option.textContent = proyecto.nombre;
+                    proyectoSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading proyectos:', error);
+        }
+    }
+}
+
+// Initialize on page load if there's a selected proyecto
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const proyectoId = urlParams.get('proyecto_id');
+    
+    if (proyectoId) {
+        // This would need a more complex implementation to find the client
+        // For now, just set the proyecto if it's in the URL
+        const proyectoSelect = document.getElementById('proyecto_id');
+        const option = document.createElement('option');
+        option.value = proyectoId;
+        option.selected = true;
+        proyectoSelect.appendChild(option);
+    }
+});
+</script>
+{% endblock %}

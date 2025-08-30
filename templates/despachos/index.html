@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}Despachos - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="truck" class="me-2"></i>
+                    Despachos
+                </h1>
+                {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                <a href="{{ url_for('despachos.nuevo') }}" class="btn btn-primary">
+                    <i data-feather="plus-circle" class="me-2"></i>
+                    Nuevo Despacho
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i data-feather="filter" class="me-2"></i>
+                Filtros
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="cliente_filtro" class="form-label">Cliente</label>
+                    <select class="form-select" id="cliente_filtro" onchange="updateProyectosFilter()">
+                        <option value="">Todos los clientes</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="proyecto_id" class="form-label">Proyecto</label>
+                    <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateOFsFilter()">
+                        <option value="">Todos los proyectos</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="of_id" class="form-label">Orden de Fabricación</label>
+                    <select class="form-select" id="of_id" name="of_id">
+                        <option value="">Todas las OF</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="numero_despacho" class="form-label">Número Despacho</label>
+                    <input type="text" class="form-control" id="numero_despacho" name="numero_despacho" 
+                           value="{{ filters.numero_despacho or '' }}" placeholder="Buscar por número">
+                </div>
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado</label>
+                    <select class="form-select" id="estado" name="estado">
+                        <option value="">Todos los estados</option>
+                        <option value="programado" {% if filters.estado == 'programado' %}selected{% endif %}>Programado</option>
+                        <option value="en_transporte" {% if filters.estado == 'en_transporte' %}selected{% endif %}>En Transporte</option>
+                        <option value="entregado" {% if filters.estado == 'entregado' %}selected{% endif %}>Entregado</option>
+                        <option value="observado" {% if filters.estado == 'observado' %}selected{% endif %}>Observado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="responsable" class="form-label">Responsable</label>
+                    <input type="text" class="form-control" id="responsable" name="responsable" 
+                           value="{{ filters.responsable or '' }}" placeholder="ID del responsable">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_programada_desde" class="form-label">Fecha Programada Desde</label>
+                    <input type="date" class="form-control" id="fecha_programada_desde" name="fecha_programada_desde" 
+                           value="{{ filters.fecha_programada_desde or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_programada_hasta" class="form-label">Fecha Programada Hasta</label>
+                    <input type="date" class="form-control" id="fecha_programada_hasta" name="fecha_programada_hasta" 
+                           value="{{ filters.fecha_programada_hasta or '' }}">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="search" class="me-2"></i>
+                        Buscar
+                    </button>
+                    <a href="{{ url_for('despachos.index') }}" class="btn btn-outline-secondary">
+                        <i data-feather="x" class="me-2"></i>
+                        Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Results -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                Resultados ({{ total_count }} despacho{{ 's' if total_count != 1 else '' }})
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+                <small class="text-muted">
+                    Página {{ filters.page }} de {{ total_pages }}
+                </small>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if despachos %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Número</th>
+                            <th>Proyecto</th>
+                            <th>Cliente</th>
+                            <th>Estado</th>
+                            <th>Fecha Programada</th>
+                            <th>Destino</th>
+                            <th>Responsable</th>
+                            <th>Adjuntos</th>
+                            <th width="150">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for despacho in despachos %}
+                        <tr>
+                            <td>
+                                <div class="fw-medium">{{ despacho.numero_despacho }}</div>
+                                {% if despacho.orden_fabricacion %}
+                                <small class="text-muted">OF: {{ despacho.orden_fabricacion.codigo }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('proyectos.detalle', proyecto_id=despacho.proyecto.id) }}" class="text-decoration-none">
+                                    {{ despacho.proyecto.nombre }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('clientes.detalle', cliente_id=despacho.proyecto.cliente.id) }}" class="text-decoration-none">
+                                    {{ despacho.proyecto.cliente.nombre }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'warning' if despacho.estado.value == 'programado' else 'info' if despacho.estado.value == 'en_transporte' else 'success' if despacho.estado.value == 'entregado' else 'danger' }}">
+                                    {{ despacho.estado.value|title|replace('_', ' ') }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if despacho.fecha_programada %}
+                                    {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
+                                    {% if despacho.fecha_programada < moment().date() and despacho.estado.value == 'programado' %}
+                                    <br><span class="badge bg-danger">Atrasado</span>
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 150px;" title="{{ despacho.destino }}">
+                                    {{ despacho.destino }}
+                                </div>
+                                {% if despacho.contacto_destino %}
+                                <small class="text-muted">{{ despacho.contacto_destino }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if despacho.responsable_user %}
+                                    {{ despacho.responsable_user.nombre_completo }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if despacho.adjuntos %}
+                                    <span class="badge bg-info">{{ despacho.adjuntos|length }}</span>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" 
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i data-feather="eye"></i>
+                                    </a>
+                                    {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                                    <a href="{{ url_for('despachos.editar', despacho_id=despacho.id) }}" 
+                                       class="btn btn-outline-secondary" title="Editar">
+                                        <i data-feather="edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i data-feather="truck" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
+                <h5 class="text-muted">No se encontraron despachos</h5>
+                <p class="text-muted">Ajusta los filtros de búsqueda o agrega un nuevo despacho.</p>
+                {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                <a href="{{ url_for('despachos.nuevo') }}" class="btn btn-primary">
+                    <i data-feather="plus-circle" class="me-2"></i>
+                    Crear Primer Despacho
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if total_pages > 1 %}
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('despachos.index', page=filters.page-1, **request.args) }}">
+                            <i data-feather="chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, total_pages + 1) %}
+                        {% if page_num == filters.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > total_pages - 3 or (page_num >= filters.page - 1 and page_num <= filters.page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('despachos.index', page=page_num, **request.args) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% elif page_num == 4 or page_num == total_pages - 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('despachos.index', page=filters.page+1, **request.args) }}">
+                            <i data-feather="chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script>
+async function updateProyectosFilter() {
+    const clienteSelect = document.getElementById('cliente_filtro');
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const ofSelect = document.getElementById('of_id');
+    const clienteId = clienteSelect.value;
+    
+    // Clear current options
+    proyectoSelect.innerHTML = '<option value="">Todos los proyectos</option>';
+    ofSelect.innerHTML = '<option value="">Todas las OF</option>';
+    
+    if (clienteId) {
+        try {
+            const response = await fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
+            if (response.ok) {
+                const proyectos = await response.json();
+                proyectos.forEach(proyecto => {
+                    const option = document.createElement('option');
+                    option.value = proyecto.id;
+                    option.textContent = proyecto.nombre;
+                    proyectoSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading proyectos:', error);
+        }
+    }
+}
+
+async function updateOFsFilter() {
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const ofSelect = document.getElementById('of_id');
+    const proyectoId = proyectoSelect.value;
+    
+    // Clear current options
+    ofSelect.innerHTML = '<option value="">Todas las OF</option>';
+    
+    if (proyectoId) {
+        try {
+            const response = await fetch(`{{ url_for('fabricacion.api_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId));
+            if (response.ok) {
+                const ofs = await response.json();
+                ofs.forEach(of => {
+                    const option = document.createElement('option');
+                    option.value = of.id;
+                    option.textContent = of.codigo;
+                    ofSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading OFs:', error);
+        }
+    }
+}
+
+// Initialize on page load if there are selected values
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const proyectoId = urlParams.get('proyecto_id');
+    const ofId = urlParams.get('of_id');
+    
+    if (proyectoId || ofId) {
+        // This would need a more complex implementation to find and set the filters
+        console.log('Initialize filters for proyecto:', proyectoId, 'of:', ofId);
+    }
+});
+</script>
+{% endblock %}
