@@ -58,6 +58,12 @@ class RolUsuario(Enum):
     PRODUCCION = "produccion"
     LOGISTICA = "logistica"
 
+class EstadoComercial(Enum):
+    PENDIENTE_PRESUPUESTO = "pendiente_presupuesto"
+    PRESUPUESTADO = "presupuestado"
+    ADJUDICADO = "adjudicado"
+    TERMINADO = "terminado"
+
 # Enums para el sistema de áreas
 class TipoArea(Enum):
     PENDIENTES_FABRICACION = "pendientes_fabricacion"
@@ -171,6 +177,17 @@ class Proyecto(db.Model):
     responsable = db.Column(db.String, db.ForeignKey('users.id'))
     notas = db.Column(db.Text)
     
+    # Campos comerciales
+    vendedor_id = db.Column(db.String, db.ForeignKey('users.id'))
+    estado_comercial = db.Column(db.Enum(EstadoComercial), default=EstadoComercial.PENDIENTE_PRESUPUESTO)
+    valor_presupuestado_provision = db.Column(db.Numeric(15, 2))
+    margen_venta_provision = db.Column(db.Numeric(5, 2))  # Porcentaje
+    valor_instalacion = db.Column(db.Numeric(15, 2))
+    margen_venta_instalacion = db.Column(db.Numeric(5, 2))  # Porcentaje
+    fecha_presupuesto = db.Column(db.Date)
+    fecha_adjudicacion = db.Column(db.Date)
+    notas_comerciales = db.Column(db.Text)
+    
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
@@ -180,7 +197,9 @@ class Proyecto(db.Model):
     ordenes_fabricacion = db.relationship('OrdenFabricacion', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     despachos = db.relationship('Despacho', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     responsable_user = db.relationship('User', foreign_keys=[responsable])
+    vendedor_user = db.relationship('User', foreign_keys=[vendedor_id])
     creator = db.relationship('User', foreign_keys=[created_by])
+    tareas_comerciales = db.relationship('TareaComercial', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     
     # Indexes
     __table_args__ = (
@@ -541,3 +560,64 @@ class ContratoEntrega(db.Model):
 
     def __repr__(self):
         return f'<ContratoEntrega {self.contrato.numero_oc}:{self.orden_entrega}>'
+
+
+# Modelos para área comercial
+
+class TareaComercial(db.Model):
+    __tablename__ = 'tareas_comerciales'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
+    vendedor_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
+    titulo = db.Column(db.String(200), nullable=False)
+    descripcion = db.Column(db.Text)
+    completada = db.Column(db.Boolean, default=False, nullable=False)
+    fecha_limite = db.Column(db.Date)
+    fecha_completada = db.Column(db.DateTime)
+    notas = db.Column(db.Text)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    vendedor = db.relationship('User', foreign_keys=[vendedor_id])
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_tarea_proyecto', 'proyecto_id'),
+        Index('idx_tarea_vendedor', 'vendedor_id'),
+        Index('idx_tarea_estado', 'completada'),
+    )
+
+    def __repr__(self):
+        return f'<TareaComercial {self.titulo}>'
+
+
+class ObjetivoMensual(db.Model):
+    __tablename__ = 'objetivos_mensuales'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    año = db.Column(db.Integer, nullable=False)
+    mes = db.Column(db.Integer, nullable=False)  # 1-12
+    objetivo_provision = db.Column(db.Numeric(15, 2))
+    objetivo_instalacion = db.Column(db.Numeric(15, 2))
+    notas = db.Column(db.Text)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint('año', 'mes', name='uq_objetivo_año_mes'),
+        Index('idx_objetivo_periodo', 'año', 'mes'),
+    )
+
+    def __repr__(self):
+        return f'<ObjetivoMensual {self.año}-{self.mes:02d}>'

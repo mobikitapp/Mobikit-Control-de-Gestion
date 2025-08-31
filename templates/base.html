@@ -91,6 +91,23 @@
                     </li>
                     {% endif %}
                     
+                    {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i data-feather="trending-up" class="me-1"></i>
+                            Comercial
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.centro_vendedores') }}">Centro de Vendedores</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.lista_vendedores') }}">Vendedores</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.tareas_comerciales') }}">Tareas Comerciales</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.planificacion_comercial') }}">Planificación</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.objetivos_mensuales') }}">Objetivos</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                    
                     {% if current_user.rol.value in ['admin', 'operaciones', 'produccion', 'logistica'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">

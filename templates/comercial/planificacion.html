@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% set title = "Planificación Comercial" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-gantt text-success"></i>
+                        Planificación Comercial {{ año }}
+                    </h4>
+                    <p class="mb-0 text-muted">Matriz mensual de proyectos presupuestados y adjudicados</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Filtros</h6>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Año</label>
+                            <select class="form-select" name="año" onchange="this.form.submit()">
+                                {% for y in range(2024, 2030) %}
+                                <option value="{{ y }}" {% if año == y %}selected{% endif %}>{{ y }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Cliente</label>
+                            <select class="form-select" name="cliente_id">
+                                <option value="">Todos los clientes</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" 
+                                        {% if filtros.cliente_id == cliente.id %}selected{% endif %}>
+                                    {{ cliente.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Estados</label>
+                            <select class="form-select" name="estados">
+                                <option value="todos" {% if filtros.estado_filter == 'todos' %}selected{% endif %}>Todos</option>
+                                <option value="presupuestado" {% if filtros.estado_filter == 'presupuestado' %}selected{% endif %}>Solo Presupuestado</option>
+                                <option value="adjudicado" {% if filtros.estado_filter == 'adjudicado' %}selected{% endif %}>Solo Adjudicado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            <a href="{{ url_for('comercial.planificacion_comercial', año=año) }}" class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-times"></i> Limpiar
+                            </a>
+                            <a href="{{ url_for('comercial.objetivos_mensuales', año=año) }}" class="btn btn-outline-warning">
+                                <i class="fas fa-bullseye"></i> Objetivos
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Planning Matrix -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Matriz de Planificación Mensual</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Mes</th>
+                                    <th>Proyectos</th>
+                                    <th>Provisión</th>
+                                    <th>Instalación</th>
+                                    <th>Margen Prom.</th>
+                                    <th>Objetivo</th>
+                                    <th>% Objetivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set total_provision = 0 %}
+                                {% set total_instalacion = 0 %}
+                                {% set total_proyectos = 0 %}
+                                {% for mes in range(1, 13) %}
+                                {% set mes_data = matriz[mes] %}
+                                {% set total_provision = total_provision + mes_data.valor_provision %}
+                                {% set total_instalacion = total_instalacion + mes_data.valor_instalacion %}
+                                {% set total_proyectos = total_proyectos + mes_data.proyectos|length %}
+                                {% set objetivo_mes = objetivos.get(mes) %}
+                                {% set objetivo_provision = objetivo_mes.objetivo_provision if objetivo_mes else 0 %}
+                                {% set porcentaje_objetivo = (mes_data.valor_provision / objetivo_provision * 100) if objetivo_provision else 0 %}
+                                
+                                <tr class="{% if porcentaje_objetivo >= 100 %}table-success{% elif porcentaje_objetivo >= 80 %}table-warning{% elif objetivo_provision and porcentaje_objetivo < 50 %}table-danger{% endif %}">
+                                    <td>
+                                        <strong>{{ mes_data.mes_nombre[:3] }}</strong>
+                                        <br><small class="text-muted">{{ año }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ mes_data.proyectos|length }}</span>
+                                        {% if mes_data.proyectos|length > 0 %}
+                                        <br>
+                                        {% for proyecto_mes in mes_data.proyectos[:2] %}
+                                        <small class="text-muted d-block">{{ proyecto_mes.proyecto.nombre[:20] }}{% if proyecto_mes.proyecto.nombre|length > 20 %}...{% endif %}</small>
+                                        {% endfor %}
+                                        {% if mes_data.proyectos|length > 2 %}
+                                        <small class="text-muted">+{{ mes_data.proyectos|length - 2 }} más</small>
+                                        {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>${{ "{:,.0f}".format(mes_data.valor_provision) }}</strong>
+                                    </td>
+                                    <td>
+                                        <strong>${{ "{:,.0f}".format(mes_data.valor_instalacion) }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if mes_data.margen_promedio_provision %}
+                                        <span class="badge bg-success">{{ "{:.1f}".format(mes_data.margen_promedio_provision) }}%</span>
+                                        {% else %}
+                                        <small class="text-muted">N/A</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if objetivo_provision %}
+                                        <small class="text-muted">${{ "{:,.0f}".format(objetivo_provision) }}</small>
+                                        {% else %}
+                                        <small class="text-muted">No definido</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if objetivo_provision %}
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar {% if porcentaje_objetivo >= 100 %}bg-success{% elif porcentaje_objetivo >= 80 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                 style="width: {{ min(porcentaje_objetivo, 100) }}%">
+                                                {{ "{:.0f}".format(porcentaje_objetivo) }}%
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <small class="text-muted">-</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                
+                                <!-- Totals Row -->
+                                <tr class="table-info">
+                                    <td><strong>TOTAL</strong></td>
+                                    <td><span class="badge bg-primary">{{ total_proyectos }}</span></td>
+                                    <td><strong>${{ "{:,.0f}".format(total_provision) }}</strong></td>
+                                    <td><strong>${{ "{:,.0f}".format(total_instalacion) }}</strong></td>
+                                    <td>
+                                        {% set total_margen = 0 %}
+                                        {% set meses_con_margen = 0 %}
+                                        {% for mes in range(1, 13) %}
+                                        {% if matriz[mes].margen_promedio_provision %}
+                                        {% set total_margen = total_margen + matriz[mes].margen_promedio_provision %}
+                                        {% set meses_con_margen = meses_con_margen + 1 %}
+                                        {% endif %}
+                                        {% endfor %}
+                                        {% if meses_con_margen > 0 %}
+                                        <span class="badge bg-success">{{ "{:.1f}".format(total_margen / meses_con_margen) }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set objetivo_total = 0 %}
+                                        {% for mes in range(1, 13) %}
+                                        {% set objetivo_mes = objetivos.get(mes) %}
+                                        {% if objetivo_mes and objetivo_mes.objetivo_provision %}
+                                        {% set objetivo_total = objetivo_total + objetivo_mes.objetivo_provision %}
+                                        {% endif %}
+                                        {% endfor %}
+                                        {% if objetivo_total > 0 %}
+                                        <strong>${{ "{:,.0f}".format(objetivo_total) }}</strong>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if objetivo_total > 0 %}
+                                        <strong>{{ "{:.0f}".format(total_provision / objetivo_total * 100) }}%</strong>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ total_proyectos }}</h4>
+                    <small>Total Proyectos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4>${{ "{:,.0f}".format(total_provision / 1000000) }}M</h4>
+                    <small>Total Provisión</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>${{ "{:,.0f}".format(total_instalacion / 1000000) }}M</h4>
+                    <small>Total Instalación</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.1f}".format((total_provision + total_instalacion) / 1000000) }}M</h4>
+                    <small>Total General</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('comercial.centro_vendedores') }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-chart-line"></i> Centro de Vendedores
+                    </a>
+                    <a href="{{ url_for('comercial.objetivos_mensuales', año=año) }}" class="btn btn-outline-warning me-2">
+                        <i class="fas fa-bullseye"></i> Gestionar Objetivos
+                    </a>
+                    <button class="btn btn-outline-info" onclick="window.print()">
+                        <i class="fas fa-print"></i> Imprimir Matriz
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .card-header, .navbar { display: none !important; }
+    .table { font-size: 0.8rem; }
+}
+</style>
+{% endblock %}
