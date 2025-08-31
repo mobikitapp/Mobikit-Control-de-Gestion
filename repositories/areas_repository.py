@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app import db
 from models import (
@@ -200,7 +200,7 @@ class OrdenAreaProgresoRepository:
         
         # Get overdue orders (más de X días sin cambios)
         overdue_days = 7
-        overdue_date = datetime.now() - datetime.timedelta(days=overdue_days)
+        overdue_date = datetime.now() - timedelta(days=overdue_days)
         
         overdue_count = (db.session.query(OrdenAreaProgreso)
                         .filter(OrdenAreaProgreso.es_actual == True)

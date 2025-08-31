@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% set title = "Objetivos Mensuales" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-bullseye text-warning"></i>
+                        Objetivos Mensuales {{ año }}
+                    </h4>
+                    <p class="mb-0 text-muted">Definir y gestionar objetivos comerciales por mes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Year Selector -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="d-flex align-items-center">
+                        <label class="form-label me-2 mb-0">Año:</label>
+                        <select class="form-select me-2" name="año" style="width: auto;" onchange="this.form.submit()">
+                            {% for y in range(2024, 2030) %}
+                            <option value="{{ y }}" {% if año == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                        <a href="{{ url_for('comercial.planificacion_comercial', año=año) }}" class="btn btn-outline-info">
+                            <i class="fas fa-chart-gantt"></i> Ver Planificación
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Objectives Form -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Gestionar Objetivos</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('comercial.actualizar_objetivos') }}">
+                        <input type="hidden" name="año" value="{{ año }}">
+                        
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Mes</th>
+                                        <th>Objetivo Provisión ($)</th>
+                                        <th>Objetivo Instalación ($)</th>
+                                        <th>Total Mensual ($)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mes, mes_nombre in meses %}
+                                    {% set objetivo = objetivos.get(mes) %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ mes_nombre }}</strong>
+                                            <br><small class="text-muted">{{ año }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       name="objetivo_provision_{{ mes }}"
+                                                       value="{{ objetivo.objetivo_provision if objetivo and objetivo.objetivo_provision else '' }}"
+                                                       placeholder="0"
+                                                       step="0.01"
+                                                       min="0">
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       name="objetivo_instalacion_{{ mes }}"
+                                                       value="{{ objetivo.objetivo_instalacion if objetivo and objetivo.objetivo_instalacion else '' }}"
+                                                       placeholder="0"
+                                                       step="0.01"
+                                                       min="0">
+                                            </div>
+                                        </td>
+                                        <td class="table-light">
+                                            {% set total_objetivo = 0 %}
+                                            {% if objetivo %}
+                                            {% set total_objetivo = (objetivo.objetivo_provision or 0) + (objetivo.objetivo_instalacion or 0) %}
+                                            {% endif %}
+                                            <strong id="total_{{ mes }}">${{ "{:,.0f}".format(total_objetivo) if total_objetivo > 0 else '0' }}</strong>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-info">
+                                    <tr>
+                                        <td><strong>TOTALES</strong></td>
+                                        <td>
+                                            {% set total_provision = 0 %}
+                                            {% for mes, mes_nombre in meses %}
+                                            {% set objetivo = objetivos.get(mes) %}
+                                            {% if objetivo and objetivo.objetivo_provision %}
+                                            {% set total_provision = total_provision + objetivo.objetivo_provision %}
+                                            {% endif %}
+                                            {% endfor %}
+                                            <strong>${{ "{:,.0f}".format(total_provision) }}</strong>
+                                        </td>
+                                        <td>
+                                            {% set total_instalacion = 0 %}
+                                            {% for mes, mes_nombre in meses %}
+                                            {% set objetivo = objetivos.get(mes) %}
+                                            {% if objetivo and objetivo.objetivo_instalacion %}
+                                            {% set total_instalacion = total_instalacion + objetivo.objetivo_instalacion %}
+                                            {% endif %}
+                                            {% endfor %}
+                                            <strong>${{ "{:,.0f}".format(total_instalacion) }}</strong>
+                                        </td>
+                                        <td>
+                                            <strong>${{ "{:,.0f}".format(total_provision + total_instalacion) }}</strong>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save"></i> Guardar Objetivos
+                            </button>
+                            <a href="{{ url_for('comercial.planificacion_comercial', año=año) }}" class="btn btn-outline-primary btn-lg ms-2">
+                                <i class="fas fa-chart-gantt"></i> Ver Planificación
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Tips -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="text-muted"><i class="fas fa-lightbulb"></i> Consejos:</h6>
+                    <ul class="text-muted mb-0">
+                        <li>Los objetivos mensuales se usan para calcular el porcentaje de cumplimiento en la planificación comercial</li>
+                        <li>Pueden definirse objetivos solo para provisión, solo para instalación, o para ambos</li>
+                        <li>Los objetivos se distribuyen automáticamente entre los proyectos presupuestados y adjudicados</li>
+                        <li>Use la planificación comercial para ver el avance real versus los objetivos definidos</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Calculate totals automatically when values change
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('input[type="number"]');
+    
+    inputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const mes = this.name.split('_').pop();
+            const provisionInput = document.querySelector(`input[name="objetivo_provision_${mes}"]`);
+            const instalacionInput = document.querySelector(`input[name="objetivo_instalacion_${mes}"]`);
+            const totalCell = document.getElementById(`total_${mes}`);
+            
+            const provision = parseFloat(provisionInput.value) || 0;
+            const instalacion = parseFloat(instalacionInput.value) || 0;
+            const total = provision + instalacion;
+            
+            totalCell.textContent = '$' + total.toLocaleString();
+        });
+    });
+});
+</script>
+{% endblock %}
