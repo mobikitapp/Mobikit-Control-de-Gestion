@@ -10,7 +10,7 @@
                 <h1 class="h2">
                     <i data-feather="file-text" class="me-2"></i>
                     Contrato {{ contrato.numero_oc }}
-                    <span class="badge bg-{{ 'success' if contrato.estado.value == 'vigente' else 'warning' if contrato.estado.value == 'borrador' else 'info' if contrato.estado.value == 'cerrado' else 'danger' }} ms-2">
+                    <span class="badge bg-{{ 'success' if contrato.estado.value == 'VIGENTE' else 'warning' if contrato.estado.value == 'BORRADOR' else 'info' if contrato.estado.value == 'CERRADO' else 'danger' }} ms-2">
                         {{ contrato.estado.value|title }}
                     </span>
                 </h1>
@@ -22,12 +22,12 @@
                             Cambiar Estado
                         </button>
                         <ul class="dropdown-menu">
-                            {% if contrato.estado.value == 'borrador' %}
-                            <li><a class="dropdown-item" href="#" onclick="changeStatus('vigente')">Marcar como Vigente</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="changeStatus('anulado')">Anular</a></li>
-                            {% elif contrato.estado.value == 'vigente' %}
-                            <li><a class="dropdown-item" href="#" onclick="changeStatus('cerrado')">Cerrar</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="changeStatus('anulado')">Anular</a></li>
+                            {% if contrato.estado.value == 'BORRADOR' %}
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('VIGENTE')">Marcar como Vigente</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('ANULADO')">Anular</a></li>
+                            {% elif contrato.estado.value == 'VIGENTE' %}
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('CERRADO')">Cerrar</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="changeStatus('ANULADO')">Anular</a></li>
                             {% endif %}
                         </ul>
                     </div>
@@ -87,7 +87,7 @@
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Estado</label>
                             <div class="form-control-plaintext">
-                                <span class="badge bg-{{ 'success' if contrato.estado.value == 'vigente' else 'warning' if contrato.estado.value == 'borrador' else 'info' if contrato.estado.value == 'cerrado' else 'danger' }}">
+                                <span class="badge bg-{{ 'success' if contrato.estado.value == 'VIGENTE' else 'warning' if contrato.estado.value == 'BORRADOR' else 'info' if contrato.estado.value == 'CERRADO' else 'danger' }}">
                                     {{ contrato.estado.value|title }}
                                 </span>
                             </div>
@@ -116,7 +116,7 @@
                             <label class="form-label fw-medium">Fecha de Vencimiento</label>
                             <div class="form-control-plaintext">
                                 {{ contrato.fecha_vencimiento.strftime('%d/%m/%Y') }}
-                                {% if contrato.fecha_vencimiento < moment().date() and contrato.estado.value == 'vigente' %}
+                                {% if contrato.fecha_vencimiento < moment().date() and contrato.estado.value == 'VIGENTE' %}
                                 <span class="badge bg-danger ms-2">Vencido</span>
                                 {% endif %}
                             </div>

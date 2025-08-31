@@ -127,10 +127,10 @@ class ClientesRepository:
         stats = {
             'total_proyectos': len(cliente.proyectos),
             'proyectos_activos': ProyectosRepository.count_by_cliente_and_status(
-                cliente_id, ['planificacion', 'en_desarrollo']
+                cliente_id, ['PLANIFICACION', 'EN_DESARROLLO']
             ),
             'contratos_vigentes': ContratosRepository.count_by_cliente_and_status(
-                cliente_id, 'vigente'
+                cliente_id, 'VIGENTE'
             )
         }
         

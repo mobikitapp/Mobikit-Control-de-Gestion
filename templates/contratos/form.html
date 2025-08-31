@@ -89,10 +89,10 @@
                             <div class="col-md-6">
                                 <label for="estado" class="form-label">Estado</label>
                                 <select class="form-select" id="estado" name="estado">
-                                    <option value="borrador" {% if not contrato or contrato.estado.value == 'borrador' %}selected{% endif %}>Borrador</option>
-                                    <option value="vigente" {% if contrato and contrato.estado.value == 'vigente' %}selected{% endif %}>Vigente</option>
-                                    <option value="cerrado" {% if contrato and contrato.estado.value == 'cerrado' %}selected{% endif %}>Cerrado</option>
-                                    <option value="anulado" {% if contrato and contrato.estado.value == 'anulado' %}selected{% endif %}>Anulado</option>
+                                    <option value="BORRADOR" {% if not contrato or contrato.estado.value == 'BORRADOR' %}selected{% endif %}>Borrador</option>
+                                    <option value="VIGENTE" {% if contrato and contrato.estado.value == 'VIGENTE' %}selected{% endif %}>Vigente</option>
+                                    <option value="CERRADO" {% if contrato and contrato.estado.value == 'CERRADO' %}selected{% endif %}>Cerrado</option>
+                                    <option value="ANULADO" {% if contrato and contrato.estado.value == 'ANULADO' %}selected{% endif %}>Anulado</option>
                                 </select>
                             </div>
                             
