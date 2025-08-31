@@ -30,6 +30,9 @@ def process_form_data(form_data, is_update=False):
                 processed[key] = None
         elif key in ['cliente_id']:
             processed[key] = int(value) if value else None
+        elif key == 'estado':
+            # Estado values are already in uppercase from form
+            processed[key] = value if value else None
         elif key in ['monto_provision_presupuestado', 'margen_venta_provision', 
                      'monto_instalacion_presupuestado', 'margen_venta_instalacion']:
             processed[key] = Decimal(str(value)) if value else None
@@ -45,6 +48,9 @@ def process_form_data(form_data, is_update=False):
                 processed[key] = [int(v) for v in value if v]
             else:
                 processed[key] = [int(value)] if value else []
+        elif key == 'estado_comercial':
+            # Estado comercial default value
+            processed[key] = value if value else 'PENDIENTE_PRESUPUESTO'
         else:
             processed[key] = value
     

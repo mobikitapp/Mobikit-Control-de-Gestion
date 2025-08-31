@@ -68,11 +68,11 @@
                             <div class="col-md-6">
                                 <label for="estado" class="form-label">Estado</label>
                                 <select class="form-select" id="estado" name="estado">
-                                    <option value="planificacion" {% if not proyecto or proyecto.estado.value == 'planificacion' %}selected{% endif %}>Planificación</option>
-                                    <option value="en_desarrollo" {% if proyecto and proyecto.estado.value == 'en_desarrollo' %}selected{% endif %}>En Desarrollo</option>
-                                    <option value="pausado" {% if proyecto and proyecto.estado.value == 'pausado' %}selected{% endif %}>Pausado</option>
-                                    <option value="completado" {% if proyecto and proyecto.estado.value == 'completado' %}selected{% endif %}>Completado</option>
-                                    <option value="cancelado" {% if proyecto and proyecto.estado.value == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                                    <option value="PLANIFICACION" {% if not proyecto or proyecto.estado.value == 'PLANIFICACION' %}selected{% endif %}>Planificación</option>
+                                    <option value="EN_DESARROLLO" {% if proyecto and proyecto.estado.value == 'EN_DESARROLLO' %}selected{% endif %}>En Desarrollo</option>
+                                    <option value="PAUSADO" {% if proyecto and proyecto.estado.value == 'PAUSADO' %}selected{% endif %}>Pausado</option>
+                                    <option value="COMPLETADO" {% if proyecto and proyecto.estado.value == 'COMPLETADO' %}selected{% endif %}>Completado</option>
+                                    <option value="CANCELADO" {% if proyecto and proyecto.estado.value == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
                                 </select>
                             </div>
 
@@ -431,14 +431,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Auto-fill fecha_fin_real when status is completado
+    // Estado change handler (fecha_fin_real removed from form)
     const estadoSelect = document.getElementById('estado');
-    const fechaFinRealInput = document.getElementById('fecha_fin_real'); // Assuming this field exists in some context
-    if (estadoSelect && fechaFinRealInput) {
+    if (estadoSelect) {
         estadoSelect.addEventListener('change', function() {
-            if (this.value === 'completado' && !fechaFinRealInput.value) {
-                fechaFinRealInput.value = new Date().toISOString().split('T')[0];
-            }
+            // Estado change logic if needed in the future
+            console.log('Estado changed to:', this.value);
         });
     }
 
