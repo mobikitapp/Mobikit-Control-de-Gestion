@@ -105,27 +105,17 @@
                             </div>
                             
                             <!-- Fecha Inicio -->
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="fecha_inicio" class="form-label">Fecha de Inicio</label>
                                 <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" 
                                        value="{{ proyecto.fecha_inicio.strftime('%Y-%m-%d') if proyecto and proyecto.fecha_inicio else '' }}">
                             </div>
                             
                             <!-- Fecha Fin Estimada -->
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="fecha_fin_estimada" class="form-label">Fecha Fin Estimada</label>
                                 <input type="date" class="form-control" id="fecha_fin_estimada" name="fecha_fin_estimada" 
                                        value="{{ proyecto.fecha_fin_estimada.strftime('%Y-%m-%d') if proyecto and proyecto.fecha_fin_estimada else '' }}">
-                            </div>
-                            
-                            <!-- Fecha Fin Real -->
-                            <div class="col-md-4">
-                                <label for="fecha_fin_real" class="form-label">Fecha Fin Real</label>
-                                <input type="date" class="form-control" id="fecha_fin_real" name="fecha_fin_real" 
-                                       value="{{ proyecto.fecha_fin_real.strftime('%Y-%m-%d') if proyecto and proyecto.fecha_fin_real else '' }}">
-                                <div class="form-text">
-                                    Solo para proyectos completados
-                                </div>
                             </div>
                             
                             <!-- Descripción -->
