@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% set title = "Capacidad de Producción" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-area text-primary"></i>
+                        Análisis de Capacidad de Producción {{ año }}
+                    </h4>
+                    <p class="mb-0 text-muted">Análisis de carga de trabajo por {{ vista }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Año</label>
+                            <select class="form-select" name="año">
+                                {% for y in range(2024, 2030) %}
+                                <option value="{{ y }}" {% if año == y %}selected{% endif %}>{{ y }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Vista</label>
+                            <select class="form-select" name="vista">
+                                <option value="mensual" {% if vista == 'mensual' %}selected{% endif %}>Mensual</option>
+                                <option value="semanal" {% if vista == 'semanal' %}selected{% endif %}>Semanal</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter"></i> Aplicar
+                            </button>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end justify-content-end">
+                            <a href="{{ url_for('planificacion_operacional.matriz_operacional') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver a Matriz
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ resumen.total_tableros_año or 0 }}</h4>
+                    <small>Tableros Anuales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.0f}".format(resumen.total_horas_año or 0) }}</h4>
+                    <small>Horas Estimadas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.0f}".format(resumen.promedio_capacidad_porcentaje or 0) }}%</h4>
+                    <small>Capacidad Promedio</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h4>{{ resumen.meses_sobrecargados or 0 }}</h4>
+                    <small>Meses Sobrecargados</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Capacity Chart -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Gráfico de Capacidad {{ vista|title }}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    {% if vista == 'mensual' %}
+                                    <th>Mes</th>
+                                    {% else %}
+                                    <th>Semana</th>
+                                    {% endif %}
+                                    <th>Proyectos Activos</th>
+                                    <th>Tableros Requeridos</th>
+                                    <th>Horas Estimadas</th>
+                                    <th>Capacidad %</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for periodo, data in capacidad.items() %}
+                                {% set clase_capacidad = 'table-success' if data.capacidad_porcentaje < 70 else 'table-warning' if data.capacidad_porcentaje < 90 else 'table-danger' %}
+                                <tr class="{{ clase_capacidad }}">
+                                    <td>
+                                        {% if vista == 'mensual' %}
+                                        <strong>{{ calendar.month_name[data.mes][:3] if data.mes else periodo }}</strong>
+                                        {% else %}
+                                        <strong>Sem {{ data.semana if data.semana else periodo }}</strong>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-info">{{ data.proyectos_activos or 0 }}</span></td>
+                                    <td><strong>{{ data.tableros_requeridos or 0 }}</strong></td>
+                                    <td>{{ "{:.0f}".format(data.horas_estimadas or 0) }}</td>
+                                    <td>
+                                        <div class="progress" style="width: 100px;">
+                                            <div class="progress-bar {% if data.capacidad_porcentaje < 70 %}bg-success{% elif data.capacidad_porcentaje < 90 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                 style="width: {{ min(data.capacidad_porcentaje, 100) }}%">
+                                            </div>
+                                        </div>
+                                        {{ "{:.0f}".format(data.capacidad_porcentaje or 0) }}%
+                                    </td>
+                                    <td>
+                                        {% if data.capacidad_porcentaje < 70 %}
+                                        <span class="badge bg-success">Óptimo</span>
+                                        {% elif data.capacidad_porcentaje < 90 %}
+                                        <span class="badge bg-warning">Alto</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Sobrecargado</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Projects List -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Proyectos Adjudicados ({{ proyectos_adjudicados|length }})</h6>
+                </div>
+                <div class="card-body">
+                    {% if proyectos_adjudicados %}
+                    <div class="row">
+                        {% for proyecto in proyectos_adjudicados %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card border-left-primary">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ proyecto.nombre }}</h6>
+                                    <p class="card-text">
+                                        <small class="text-muted">{{ proyecto.cliente.nombre }}</small><br>
+                                        <strong>Provisión:</strong> ${{ "{:,.0f}".format(proyecto.valor_presupuestado_provision or 0) }}
+                                    </p>
+                                    <small class="text-muted">
+                                        {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') if proyecto.fecha_inicio else 'Sin fecha' }} - 
+                                        {{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') if proyecto.fecha_fin_estimada else 'Sin fecha' }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-info-circle fa-3x mb-3"></i>
+                        <h5>No hay proyectos adjudicados para el período seleccionado</h5>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-left-primary {
+    border-left: 4px solid #007bff !important;
+}
+</style>
+{% endblock %}

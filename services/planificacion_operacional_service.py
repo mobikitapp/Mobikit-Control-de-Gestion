@@ -95,7 +95,7 @@ class PlanificacionOperacionalService:
         # Get manufacturing orders
         ordenes_fabricacion = (db.session.query(OrdenFabricacion)
                              .filter_by(proyecto_id=proyecto_id)
-                             .order_by(OrdenFabricacion.numero_orden)
+                             .order_by(OrdenFabricacion.codigo)
                              .all())
         
         return {
