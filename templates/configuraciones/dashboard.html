@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% set title = "Configuraciones del Sistema" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-cogs text-primary"></i>
+                        Configuraciones del Sistema
+                    </h4>
+                    <p class="mb-0 text-muted">Administración de usuarios, roles y configuraciones</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h3>{{ total_usuarios }}</h3>
+                            <small>Total Usuarios</small>
+                        </div>
+                        <i class="fas fa-users fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-primary-dark">
+                    <small>{{ "{:.1f}".format(porcentaje_activos) }}% activos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h3>{{ usuarios_activos }}</h3>
+                            <small>Usuarios Activos</small>
+                        </div>
+                        <i class="fas fa-user-check fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-success-dark">
+                    <small>{{ usuarios_inactivos }} inactivos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h3>{{ usuarios_recientes }}</h3>
+                            <small>Usuarios Nuevos</small>
+                        </div>
+                        <i class="fas fa-user-plus fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-info-dark">
+                    <small>Este mes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h3>{{ roles_disponibles|length }}</h3>
+                            <small>Roles del Sistema</small>
+                        </div>
+                        <i class="fas fa-user-tag fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-warning-dark">
+                    <small>Configurados</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Acciones Rápidas</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('configuraciones.usuarios') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-users mb-2"></i><br>
+                                <strong>Gestionar Usuarios</strong><br>
+                                <small class="text-muted">{{ total_usuarios }} usuarios</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('configuraciones.nuevo_usuario') }}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-user-plus mb-2"></i><br>
+                                <strong>Nuevo Usuario</strong><br>
+                                <small class="text-muted">Agregar usuario</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('configuraciones.roles') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-user-tag mb-2"></i><br>
+                                <strong>Roles y Permisos</strong><br>
+                                <small class="text-muted">{{ roles_disponibles|length }} roles</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('configuraciones.configuracion_sistema') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-cog mb-2"></i><br>
+                                <strong>Config. Sistema</strong><br>
+                                <small class="text-muted">Configuraciones</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users by Role Chart -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Distribución de Usuarios por Rol</h6>
+                </div>
+                <div class="card-body">
+                    {% if usuarios_por_rol %}
+                    <div class="row">
+                        {% for rol, cantidad in usuarios_por_rol.items() %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card border-left-primary">
+                                <div class="card-body py-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            <i class="fas fa-user-tag text-primary"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">{{ rol.title() }}</h6>
+                                            <strong class="text-primary">{{ cantidad }} usuarios</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                        <h5>No hay datos de roles disponibles</h5>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Status -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Estado del Sistema</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small>Usuarios Activos</small>
+                            <small>{{ "{:.1f}".format(porcentaje_activos) }}%</small>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: {{ porcentaje_activos }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-success">
+                            <i class="fas fa-check-circle"></i> Sistema Operativo
+                        </h6>
+                        <small class="text-muted">Todos los servicios funcionando correctamente</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-info">
+                            <i class="fas fa-database"></i> Base de Datos
+                        </h6>
+                        <small class="text-muted">Conexión estable y respaldos automáticos</small>
+                    </div>
+                    
+                    <div>
+                        <h6 class="text-primary">
+                            <i class="fas fa-shield-alt"></i> Seguridad
+                        </h6>
+                        <small class="text-muted">Autenticación activa y permisos configurados</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity (placeholder) -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Actividad Reciente</h6>
+                    <small class="text-muted">Últimas 10 acciones</small>
+                </div>
+                <div class="card-body">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-history fa-3x mb-3"></i>
+                        <h6>Log de actividad próximamente</h6>
+                        <p class="mb-0">Pronto podrás ver el historial de cambios y acciones de usuarios</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card-footer.bg-primary-dark { background-color: rgba(0,123,255,0.8) !important; }
+.card-footer.bg-success-dark { background-color: rgba(40,167,69,0.8) !important; }
+.card-footer.bg-info-dark { background-color: rgba(23,162,184,0.8) !important; }
+.card-footer.bg-warning-dark { background-color: rgba(255,193,7,0.8) !important; }
+.border-left-primary { border-left: 4px solid #007bff !important; }
+.opacity-75 { opacity: 0.75; }
+</style>
+{% endblock %}

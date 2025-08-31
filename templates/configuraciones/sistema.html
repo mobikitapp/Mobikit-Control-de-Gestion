@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% set title = "Configuración del Sistema" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-cog text-primary"></i>
+                        Configuración del Sistema
+                    </h4>
+                    <p class="mb-0 text-muted">Configuraciones generales y estado del sistema</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('configuraciones.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Información del Sistema</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <td><strong>Versión:</strong></td>
+                                <td>{{ version_sistema }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Última Actualización:</strong></td>
+                                <td>{{ fecha_actualizacion.strftime('%d/%m/%Y %H:%M') }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Total de Usuarios:</strong></td>
+                                <td>{{ stats.total_usuarios }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Usuarios Activos:</strong></td>
+                                <td>{{ stats.usuarios_activos }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Roles Configurados:</strong></td>
+                                <td>{{ stats.roles_disponibles|length }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Settings -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Configuraciones Actuales</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <td><strong>Tiempo de Sesión:</strong></td>
+                                <td>{{ configuraciones.sesion_timeout }} días</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Máx. Intentos de Login:</strong></td>
+                                <td>{{ configuraciones.max_intentos_login }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Backup Automático:</strong></td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if configuraciones.backup_automatico else 'warning' }}">
+                                        {{ 'Habilitado' if configuraciones.backup_automatico else 'Deshabilitado' }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Notificaciones Email:</strong></td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if configuraciones.notificaciones_email else 'warning' }}">
+                                        {{ 'Habilitadas' if configuraciones.notificaciones_email else 'Deshabilitadas' }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Estado de los Servicios</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <div class="text-center">
+                                <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" 
+                                     style="width: 60px; height: 60px;">
+                                    <i class="fas fa-database fa-2x"></i>
+                                </div>
+                                <h6>Base de Datos</h6>
+                                <span class="badge bg-success">Operativo</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="text-center">
+                                <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" 
+                                     style="width: 60px; height: 60px;">
+                                    <i class="fas fa-shield-alt fa-2x"></i>
+                                </div>
+                                <h6>Autenticación</h6>
+                                <span class="badge bg-success">Operativo</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="text-center">
+                                <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" 
+                                     style="width: 60px; height: 60px;">
+                                    <i class="fas fa-cloud fa-2x"></i>
+                                </div>
+                                <h6>Almacenamiento</h6>
+                                <span class="badge bg-success">Operativo</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="text-center">
+                                <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" 
+                                     style="width: 60px; height: 60px;">
+                                    <i class="fas fa-server fa-2x"></i>
+                                </div>
+                                <h6>Servidor Web</h6>
+                                <span class="badge bg-success">Operativo</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Actividad Reciente del Sistema</h6>
+                    <small class="text-muted">Últimas 10 acciones</small>
+                </div>
+                <div class="card-body">
+                    {% if actividad_reciente %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Acción</th>
+                                    <th>Usuario</th>
+                                    <th>Detalles</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for actividad in actividad_reciente %}
+                                <tr>
+                                    <td>
+                                        <small>{{ actividad.fecha.strftime('%d/%m/%Y %H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if 'creado' in actividad.accion else 'info' }}">
+                                            {{ actividad.accion }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ actividad.usuario }}</strong>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ actividad.detalles }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-history fa-3x mb-3"></i>
+                        <h6>No hay actividad reciente</h6>
+                        <p class="mb-0">La actividad del sistema aparecerá aquí una vez que se registren cambios</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Warning Modal for Critical Actions -->
+<div class="modal fade" id="systemWarningModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    Acción de Sistema Crítica
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <h6>⚠️ Advertencia</h6>
+                    <p>Las configuraciones del sistema afectan a todos los usuarios. 
+                       Los cambios pueden requerir reiniciar el sistema.</p>
+                </div>
+                <p>¿Estás seguro de que deseas continuar con esta acción?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" id="confirmSystemAction">
+                    Continuar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}
