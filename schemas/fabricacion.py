@@ -5,13 +5,13 @@ from decimal import Decimal
 from enum import Enum
 
 class EstadoOFEnum(str, Enum):
-    PLANIFICADA = "planificada"
-    ENVIADO_PRODUCCION = "enviado_produccion"
-    SECCIONANDO = "seccionando"
-    EN_PRODUCCION = "en_produccion"
-    QA = "qa"
-    TERMINADA = "terminada"
-    ENTREGADA = "entregada"
+    PLANIFICADA = "PLANIFICADA"
+    ENVIADO_PRODUCCION = "ENVIADO_PRODUCCION"
+    SECCIONANDO = "SECCIONANDO"
+    EN_PRODUCCION = "EN_PRODUCCION"
+    QA = "QA"
+    TERMINADA = "TERMINADA"
+    ENTREGADA = "ENTREGADA"
 
 class OrdenFabricacionItemBase(BaseModel):
     sku_codigo: str = Field(..., min_length=1, max_length=50, description="SKU o código del item")

@@ -9,10 +9,10 @@ class TipoDocumentoEnum(str, Enum):
     ORDEN_COMPRA = "orden_compra"
 
 class EstadoContratoEnum(str, Enum):
-    BORRADOR = "borrador"
-    VIGENTE = "vigente"
-    CERRADO = "cerrado"
-    ANULADO = "anulado"
+    BORRADOR = "BORRADOR"
+    VIGENTE = "VIGENTE"
+    CERRADO = "CERRADO"
+    ANULADO = "ANULADO"
 
 class TipoAdjuntoEnum(str, Enum):
     CONTRATO = "contrato"

@@ -49,10 +49,10 @@ def index():
     # Get dashboard statistics
     stats = {
         'total_clientes': ClientesRepository.count_active(),
-        'proyectos_activos': ProyectosRepository.count_by_status(['planificacion', 'en_desarrollo']),
-        'contratos_vigentes': ContratosRepository.count_by_status('vigente'),
-        'of_en_produccion': FabricacionRepository.count_by_status(['en_produccion', 'qa']),
-        'despachos_pendientes': DespachosRepository.count_by_status(['programado', 'en_transporte'])
+        'proyectos_activos': ProyectosRepository.count_by_status(['PLANIFICACION', 'EN_DESARROLLO']),
+        'contratos_vigentes': ContratosRepository.count_by_status('VIGENTE'),
+        'of_en_produccion': FabricacionRepository.count_by_status(['EN_PRODUCCION', 'QA']),
+        'despachos_pendientes': DespachosRepository.count_by_status(['PROGRAMADO', 'EN_TRANSPORTE'])
     }
     
     # Get recent activity

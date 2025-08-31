@@ -28,25 +28,25 @@ class TipoDocumento(Enum):
     ORDEN_COMPRA = "orden_compra"
 
 class EstadoContrato(Enum):
-    BORRADOR = "borrador"
-    VIGENTE = "vigente"
-    CERRADO = "cerrado"
-    ANULADO = "anulado"
+    BORRADOR = "BORRADOR"
+    VIGENTE = "VIGENTE"
+    CERRADO = "CERRADO"
+    ANULADO = "ANULADO"
 
 class EstadoOF(Enum):
-    PLANIFICADA = "planificada"
-    ENVIADO_PRODUCCION = "enviado_produccion"
-    SECCIONANDO = "seccionando"
-    EN_PRODUCCION = "en_produccion"
-    QA = "qa"
-    TERMINADA = "terminada"
-    ENTREGADA = "entregada"
+    PLANIFICADA = "PLANIFICADA"
+    ENVIADO_PRODUCCION = "ENVIADO_PRODUCCION"
+    SECCIONANDO = "SECCIONANDO"
+    EN_PRODUCCION = "EN_PRODUCCION"
+    QA = "QA"
+    TERMINADA = "TERMINADA"
+    ENTREGADA = "ENTREGADA"
 
 class EstadoDespacho(Enum):
-    PROGRAMADO = "programado"
-    EN_TRANSPORTE = "en_transporte"
-    ENTREGADO = "entregado"
-    OBSERVADO = "observado"
+    PROGRAMADO = "PROGRAMADO"
+    EN_TRANSPORTE = "EN_TRANSPORTE"
+    ENTREGADO = "ENTREGADO"
+    OBSERVADO = "OBSERVADO"
 
 class TipoAdjunto(Enum):
     CONTRATO = "contrato"

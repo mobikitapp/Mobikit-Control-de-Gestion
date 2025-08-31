@@ -4,10 +4,10 @@ from datetime import datetime, date
 from enum import Enum
 
 class EstadoDespachoEnum(str, Enum):
-    PROGRAMADO = "programado"
-    EN_TRANSPORTE = "en_transporte"
-    ENTREGADO = "entregado"
-    OBSERVADO = "observado"
+    PROGRAMADO = "PROGRAMADO"
+    EN_TRANSPORTE = "EN_TRANSPORTE"
+    ENTREGADO = "ENTREGADO"
+    OBSERVADO = "OBSERVADO"
 
 class TipoAdjuntoDespachoEnum(str, Enum):
     GUIA = "guia"
