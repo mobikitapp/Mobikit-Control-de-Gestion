@@ -58,6 +58,36 @@ class RolUsuario(Enum):
     PRODUCCION = "produccion"
     LOGISTICA = "logistica"
 
+# Enums para el sistema de áreas
+class TipoArea(Enum):
+    PENDIENTES_FABRICACION = "pendientes_fabricacion"
+    FABRICA = "fabrica"
+    EMBALAJE = "embalaje"
+    BODEGA = "bodega"
+    DESPACHO = "despacho"
+
+class EstadoPendientesFabricacion(Enum):
+    PENDIENTE_APROBACION_DISENO = "pendiente_aprobacion_diseño"
+    APROBADO = "aprobado"
+
+class EstadoFabrica(Enum):
+    ENVIADO_A_FABRICACION = "enviado_a_fabricacion"
+    SECCIONANDO = "seccionando"
+    ENCHAPANDO = "enchapando"
+    MECANIZANDO = "mecanizando"
+    FABRICACION_COMPLETA = "fabricacion_completa"
+
+class EstadoEmbalaje(Enum):
+    PENDIENTE_DE_EMBALAR = "pendiente_de_embalar"
+    EMBALANDO = "embalando"
+    EMBALAJE_LISTO = "embalaje_listo"
+
+class EstadoBodega(Enum):
+    LISTO_PARA_DESPACHO = "listo_para_despacho"
+
+class EstadoDespachoArea(Enum):
+    DESPACHADO = "despachado"
+
 # (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -375,3 +405,139 @@ class AuditLog(db.Model):
 
     def __repr__(self):
         return f'<AuditLog {self.entidad}:{self.entidad_id} {self.accion}>'
+
+# Sistema de Áreas de Producción
+class Area(db.Model):
+    __tablename__ = 'areas'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    tipo = db.Column(db.Enum(TipoArea), nullable=False, unique=True)
+    nombre = db.Column(db.String(100), nullable=False)
+    descripcion = db.Column(db.Text)
+    orden_secuencia = db.Column(db.Integer, nullable=False)
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    color_hex = db.Column(db.String(7), default='#6c757d')  # Color para UI
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    
+    # Relationships
+    estados = db.relationship('AreaEstado', backref='area', lazy=True, cascade='all, delete-orphan')
+    progresos = db.relationship('OrdenAreaProgreso', backref='area', lazy=True)
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_area_tipo', 'tipo'),
+        Index('idx_area_orden', 'orden_secuencia'),
+        Index('idx_area_activo', 'activo'),
+    )
+
+    def __repr__(self):
+        return f'<Area {self.nombre}>'
+
+class AreaEstado(db.Model):
+    __tablename__ = 'area_estados'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    area_id = db.Column(db.Integer, db.ForeignKey('areas.id'), nullable=False)
+    codigo = db.Column(db.String(50), nullable=False)  # código técnico del estado
+    nombre = db.Column(db.String(100), nullable=False)  # nombre para mostrar
+    descripcion = db.Column(db.Text)
+    orden_en_area = db.Column(db.Integer, nullable=False)
+    es_inicial = db.Column(db.Boolean, default=False, nullable=False)  # Estado por defecto al llegar al área
+    es_final = db.Column(db.Boolean, default=False, nullable=False)    # Estado de salida del área
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    color_hex = db.Column(db.String(7), default='#6c757d')
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    
+    # Relationships
+    progresos = db.relationship('OrdenAreaProgreso', backref='estado', lazy=True)
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_area_estado_area', 'area_id'),
+        Index('idx_area_estado_codigo', 'area_id', 'codigo'),
+        Index('idx_area_estado_orden', 'area_id', 'orden_en_area'),
+        Index('idx_area_estado_inicial', 'area_id', 'es_inicial'),
+        Index('idx_area_estado_final', 'area_id', 'es_final'),
+    )
+
+    def __repr__(self):
+        return f'<AreaEstado {self.area.nombre}:{self.nombre}>'
+
+class OrdenAreaProgreso(db.Model):
+    __tablename__ = 'orden_area_progreso'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    orden_fabricacion_id = db.Column(db.Integer, db.ForeignKey('ordenes_fabricacion.id'), nullable=False)
+    area_id = db.Column(db.Integer, db.ForeignKey('areas.id'), nullable=False)
+    estado_id = db.Column(db.Integer, db.ForeignKey('area_estados.id'), nullable=False)
+    
+    # Timestamps
+    fecha_ingreso_area = db.Column(db.DateTime, nullable=False)  # Cuándo llegó a esta área
+    fecha_cambio_estado = db.Column(db.DateTime, nullable=False) # Cuándo cambió al estado actual
+    
+    # Asignación y seguimiento
+    responsable_area = db.Column(db.String, db.ForeignKey('users.id'))  # Usuario responsable en esta área
+    tiempo_estimado_horas = db.Column(db.Numeric(10, 2))  # Tiempo estimado para completar en esta área
+    notas_area = db.Column(db.Text)  # Observaciones específicas del área
+    
+    # Control de flujo
+    es_actual = db.Column(db.Boolean, default=True, nullable=False)  # Si es el progreso activo (para historial)
+    archivado = db.Column(db.Boolean, default=False, nullable=False)  # Para despachos archivados
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    orden_fabricacion = db.relationship('OrdenFabricacion', backref='area_progresos')
+    responsable_user = db.relationship('User', foreign_keys=[responsable_area])
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_progreso_orden', 'orden_fabricacion_id'),
+        Index('idx_progreso_area', 'area_id'),
+        Index('idx_progreso_estado', 'estado_id'),
+        Index('idx_progreso_actual', 'orden_fabricacion_id', 'es_actual'),
+        Index('idx_progreso_responsable', 'responsable_area'),
+        Index('idx_progreso_archivado', 'archivado'),
+        Index('idx_progreso_fechas', 'fecha_ingreso_area', 'fecha_cambio_estado'),
+    )
+
+    def __repr__(self):
+        return f'<OrdenAreaProgreso OF:{self.orden_fabricacion_id} {self.area.nombre}:{self.estado.nombre}>'
+
+class ContratoEntrega(db.Model):
+    __tablename__ = 'contrato_entregas'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=False)
+    fecha_entrega = db.Column(db.Date, nullable=False)
+    glosa_entrega = db.Column(db.String(500), nullable=False)  # Descripción de qué se entrega
+    monto_parcial = db.Column(db.Numeric(15, 2))  # Monto de esta entrega parcial
+    orden_entrega = db.Column(db.Integer, nullable=False)  # Orden secuencial de entrega
+    completada = db.Column(db.Boolean, default=False, nullable=False)
+    fecha_completada = db.Column(db.DateTime)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    contrato = db.relationship('Contrato', backref='entregas')
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_entrega_contrato', 'contrato_id'),
+        Index('idx_entrega_fecha', 'fecha_entrega'),
+        Index('idx_entrega_orden', 'contrato_id', 'orden_entrega'),
+        Index('idx_entrega_completada', 'completada'),
+    )
+
+    def __repr__(self):
+        return f'<ContratoEntrega {self.contrato.numero_oc}:{self.orden_entrega}>'

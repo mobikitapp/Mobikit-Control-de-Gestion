@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% set title = "Dashboard de Áreas" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Dashboard Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Total Órdenes Activas</h6>
+                            <h3 class="mb-0">{{ stats.total_active }}</h3>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-tasks fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Vencidas</h6>
+                            <h3 class="mb-0">{{ stats.overdue_count }}</h3>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">Distribución por Área</h6>
+                    <div class="row">
+                        {% for area_stat in stats.area_counts %}
+                        <div class="col-auto">
+                            <span class="badge" style="background-color: {{ area_stat.color }}; color: white;">
+                                {{ area_stat.nombre }}: {{ area_stat.count }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Areas Cards -->
+    <div class="row">
+        {% for area_data in areas %}
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center" 
+                     style="background-color: {{ area_data.area.color_hex }}20; border-left: 4px solid {{ area_data.area.color_hex }};">
+                    <h5 class="mb-0">
+                        <span class="badge" style="background-color: {{ area_data.area.color_hex }}; color: white;">
+                            {{ area_data.area.orden_secuencia }}
+                        </span>
+                        {{ area_data.area.nombre }}
+                    </h5>
+                    <small class="text-muted">{{ area_data.total_count }} órdenes</small>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">{{ area_data.area.descripcion }}</p>
+                    
+                    {% if area_data.estados %}
+                    <div class="row">
+                        {% for estado_data in area_data.estados %}
+                        <div class="col-md-6 mb-2">
+                            <div class="border rounded p-2" 
+                                 style="border-color: {{ estado_data.estado.color_hex }}!important;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small class="fw-bold">{{ estado_data.estado.nombre }}</small>
+                                        {% if estado_data.estado.es_inicial %}
+                                        <span class="badge badge-sm bg-success">Inicial</span>
+                                        {% endif %}
+                                        {% if estado_data.estado.es_final %}
+                                        <span class="badge badge-sm bg-info">Final</span>
+                                        {% endif %}
+                                    </div>
+                                    <span class="badge" style="background-color: {{ estado_data.estado.color_hex }}; color: white;">
+                                        {{ estado_data.count }}
+                                    </span>
+                                </div>
+                                
+                                {% if estado_data.orders %}
+                                <div class="mt-2">
+                                    {% for order in estado_data.orders[:3] %}
+                                    <div class="small text-muted d-flex justify-content-between">
+                                        <span>{{ order.codigo }}</span>
+                                        <span>{{ order.cliente_nombre[:20] }}{% if order.cliente_nombre|length > 20 %}...{% endif %}</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% if estado_data.orders|length > 3 %}
+                                    <div class="small text-muted">Y {{ estado_data.orders|length - 3 }} más...</div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('areas.area_detail', area_id=area_data.area.id) }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye"></i> Ver Detalles
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Acciones Rápidas</h6>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('areas.mis_pendientes') }}" 
+                       class="btn btn-outline-primary me-2">
+                        <i class="fas fa-user-clock"></i> Mis Órdenes Pendientes
+                    </a>
+                    <a href="{{ url_for('fabricacion.index') }}" 
+                       class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-industry"></i> Ir a Fabricación
+                    </a>
+                    <button class="btn btn-outline-info" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshDashboard() {
+    // Show loading indicator
+    const refreshBtn = document.querySelector('button[onclick="refreshDashboard()"]');
+    const originalHtml = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '<i class="fas fa-spin fa-spinner"></i> Actualizando...';
+    refreshBtn.disabled = true;
+    
+    // Refresh page after a short delay
+    setTimeout(() => {
+        window.location.reload();
+    }, 500);
+}
+
+// Auto-refresh every 5 minutes
+setInterval(() => {
+    window.location.reload();
+}, 300000);
+</script>
+{% endblock %}
