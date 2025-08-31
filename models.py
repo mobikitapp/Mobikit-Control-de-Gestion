@@ -67,10 +67,6 @@ class EstadoComercial(Enum):
 # Enums para eventos de calendario
 class TipoEvento(Enum):
     ENTREGA = "entrega"
-    REUNION = "reunion"
-    SEGUIMIENTO = "seguimiento"
-    HITO = "hito"
-    RECORDATORIO = "recordatorio"
 
 class EstadoEvento(Enum):
     PENDIENTE = "pendiente"
