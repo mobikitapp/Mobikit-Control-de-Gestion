@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+{% set title = "Contratos con Entregas Comprometidas" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-file-contract text-primary"></i>
+                        Contratos con Entregas Comprometidas
+                    </h4>
+                    <p class="mb-0 text-muted">Seguimiento de fechas de entrega de órdenes de compra y contratos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-chart-bar"></i> Dashboard
+                    </a>
+                    <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar"></i> Calendario
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>{{ contratos|length if contratos else 0 }}</h3>
+                    <p class="mb-0">Contratos con Fechas de Entrega</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3>{{ entregas_proximas|length if entregas_proximas else 0 }}</h3>
+                    <p class="mb-0">Entregas Próximas (30 días)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h3>{{ entregas_vencidas|length if entregas_vencidas else 0 }}</h3>
+                    <p class="mb-0">Entregas Vencidas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entregas Vencidas (Priority Section) -->
+    {% if entregas_vencidas %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        ⚠️ Entregas Vencidas - Acción Urgente Requerida
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-file-contract"></i> Orden de Compra</th>
+                                    <th><i class="fas fa-project-diagram"></i> Proyecto</th>
+                                    <th><i class="fas fa-calendar"></i> Fecha Comprometida</th>
+                                    <th><i class="fas fa-clock"></i> Días Vencida</th>
+                                    <th><i class="fas fa-dollar-sign"></i> Monto</th>
+                                    <th><i class="fas fa-cogs"></i> Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entrega in entregas_vencidas %}
+                                <tr class="table-danger">
+                                    <td>
+                                        <strong>{{ entrega.contrato.numero_oc if entrega.contrato else 'N/A' }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if entrega.proyecto %}
+                                            <a href="{{ url_for('proyectos.detalle', proyecto_id=entrega.proyecto_id) }}" 
+                                               class="text-decoration-none">
+                                                {{ entrega.proyecto.nombre }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Sin proyecto</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-danger fw-bold">
+                                            {{ entrega.fecha_evento.strftime('%d/%m/%Y') }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% set dias_vencida = (moment().date() - entrega.fecha_evento).days %}
+                                        <span class="badge bg-danger">
+                                            {{ (entrega.fecha_evento - moment().date()).days * -1 }} días
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if entrega.contrato and entrega.contrato.monto_total %}
+                                            {{ "{:,.0f}".format(entrega.contrato.monto_total) }} {{ entrega.contrato.moneda }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('calendario.detalle_evento', evento_id=entrega.id) }}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if entrega.contrato %}
+                                            <a href="{{ url_for('contratos.detalle', contrato_id=entrega.contrato.id) }}" 
+                                               class="btn btn-outline-info btn-sm">
+                                                <i class="fas fa-file-contract"></i>
+                                            </a>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-outline-success btn-sm" 
+                                                    onclick="completarEntrega('{{ entrega.id }}')">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Entregas Próximas -->
+    {% if entregas_proximas %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-truck text-warning"></i>
+                        Entregas Próximas (30 días)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-file-contract"></i> Orden de Compra</th>
+                                    <th><i class="fas fa-project-diagram"></i> Proyecto</th>
+                                    <th><i class="fas fa-calendar"></i> Fecha Comprometida</th>
+                                    <th><i class="fas fa-hourglass-half"></i> Días Restantes</th>
+                                    <th><i class="fas fa-dollar-sign"></i> Monto</th>
+                                    <th><i class="fas fa-flag"></i> Prioridad</th>
+                                    <th><i class="fas fa-cogs"></i> Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entrega in entregas_proximas %}
+                                {% set dias_restantes = (entrega.fecha_evento - moment().date()).days %}
+                                <tr class="{{ 'table-warning' if dias_restantes <= 3 else 'table-light' if dias_restantes <= 7 else '' }}">
+                                    <td>
+                                        <strong>{{ entrega.contrato.numero_oc if entrega.contrato else 'N/A' }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if entrega.proyecto %}
+                                            <a href="{{ url_for('proyectos.detalle', proyecto_id=entrega.proyecto_id) }}" 
+                                               class="text-decoration-none">
+                                                {{ entrega.proyecto.nombre }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Sin proyecto</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="{{ 'text-danger fw-bold' if dias_restantes <= 3 else 'text-warning fw-bold' if dias_restantes <= 7 else '' }}">
+                                            {{ entrega.fecha_evento.strftime('%d/%m/%Y') }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if dias_restantes <= 3 else 'warning' if dias_restantes <= 7 else 'info' }}">
+                                            {{ dias_restantes }} días
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if entrega.contrato and entrega.contrato.monto_total %}
+                                            {{ "{:,.0f}".format(entrega.contrato.monto_total) }} {{ entrega.contrato.moneda }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if entrega.prioridad.value == 'alta' else 'warning' if entrega.prioridad.value == 'media' else 'secondary' }}">
+                                            {{ entrega.prioridad.value.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('calendario.detalle_evento', evento_id=entrega.id) }}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if entrega.contrato %}
+                                            <a href="{{ url_for('contratos.detalle', contrato_id=entrega.contrato.id) }}" 
+                                               class="btn btn-outline-info btn-sm">
+                                                <i class="fas fa-file-contract"></i>
+                                            </a>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-outline-success btn-sm" 
+                                                    onclick="completarEntrega('{{ entrega.id }}')">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Todos los Contratos con Entregas -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list text-info"></i>
+                        Todos los Contratos con Fechas de Entrega
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if contratos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-file-contract"></i> Orden de Compra</th>
+                                    <th><i class="fas fa-project-diagram"></i> Proyecto</th>
+                                    <th><i class="fas fa-user"></i> Cliente</th>
+                                    <th><i class="fas fa-calendar"></i> Fecha Comprometida</th>
+                                    <th><i class="fas fa-dollar-sign"></i> Monto</th>
+                                    <th><i class="fas fa-info-circle"></i> Estado</th>
+                                    <th><i class="fas fa-cogs"></i> Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contrato in contratos %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ contrato.numero_oc }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if contrato.proyecto %}
+                                            <a href="{{ url_for('proyectos.detalle', proyecto_id=contrato.proyecto.id) }}" 
+                                               class="text-decoration-none">
+                                                {{ contrato.proyecto.nombre }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Sin proyecto</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if contrato.proyecto and contrato.proyecto.cliente %}
+                                            {{ contrato.proyecto.cliente.nombre }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if contrato.fecha_entrega_comprometida %}
+                                            {{ contrato.fecha_entrega_comprometida.strftime('%d/%m/%Y') }}
+                                        {% else %}
+                                            <span class="text-muted">Sin fecha</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if contrato.monto_total %}
+                                            {{ "{:,.0f}".format(contrato.monto_total) }} {{ contrato.moneda }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if contrato.estado.value == 'vigente' else 'warning' if contrato.estado.value == 'borrador' else 'secondary' }}">
+                                            {{ contrato.estado.value.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if contrato.proyecto %}
+                                            <a href="{{ url_for('proyectos.detalle', proyecto_id=contrato.proyecto.id) }}" 
+                                               class="btn btn-outline-success btn-sm">
+                                                <i class="fas fa-project-diagram"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-file-contract fa-3x text-muted mb-3"></i>
+                        <h6>No hay contratos con fechas de entrega</h6>
+                        <p class="text-muted">Los contratos con fechas de entrega comprometidas aparecerán aquí.</p>
+                        <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Crear Contrato
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function completarEntrega(eventoId) {
+    if (confirm('¿Marcar esta entrega como completada?')) {
+        fetch(`/calendario/evento/${eventoId}/completar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json ? response.json() : response.text())
+        .then(data => {
+            if (data.success !== false) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'No se pudo completar la entrega'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            location.reload(); // Reload anyway, form might have worked
+        });
+    }
+}
+
+// Helper function to calculate days difference
+function moment() {
+    return {
+        date: function() {
+            return new Date();
+        }
+    };
+}
+</script>
+
+<style>
+.table-responsive {
+    overflow-x: auto;
+}
+
+.btn-group .btn {
+    margin-right: 2px;
+}
+
+.badge {
+    font-size: 0.8em;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    background-color: #f8f9fa;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.table-danger td {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.table-warning td {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.table-light td {
+    background-color: rgba(248, 249, 250, 0.5);
+}
+</style>
+{% endblock %}
