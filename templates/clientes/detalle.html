@@ -227,8 +227,8 @@
                                         </a>
                                     </td>
                                     <td>
-                                        <span class="badge bg-{{ 'success' if proyecto.estado.value == 'completado' else 'primary' if proyecto.estado.value == 'en_desarrollo' else 'secondary' }}">
-                                            {{ proyecto.estado.value|title }}
+                                        <span class="badge bg-{{ 'success' if proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'secondary' }}">
+                                            {{ proyecto.estado_comercial.value.replace('_', ' ')|title }}
                                         </span>
                                     </td>
                                     <td>

@@ -8,7 +8,7 @@ import calendar
 from app import db
 from models import (
     Proyecto, Cliente, User, TareaComercial, ObjetivoMensual,
-    EstadoComercial, EstadoProyecto, RolUsuario
+    EstadoComercial, RolUsuario
 )
 
 

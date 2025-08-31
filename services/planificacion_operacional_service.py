@@ -9,7 +9,7 @@ import json
 from app import db
 from models import (
     Proyecto, Cliente, User, OrdenFabricacion,
-    EstadoComercial, EstadoProyecto, RolUsuario
+    EstadoComercial, RolUsuario
 )
 
 

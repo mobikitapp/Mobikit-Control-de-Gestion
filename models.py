@@ -16,12 +16,6 @@ def local_now():
     return datetime.now(TIMEZONE)
 
 # Enums for status fields
-class EstadoProyecto(Enum):
-    PLANIFICACION = "PLANIFICACION"
-    EN_DESARROLLO = "EN_DESARROLLO"
-    PAUSADO = "PAUSADO"
-    COMPLETADO = "COMPLETADO"
-    CANCELADO = "CANCELADO"
 
 class TipoDocumento(Enum):
     CONTRATO = "contrato"
@@ -68,6 +62,7 @@ class EstadoComercial(Enum):
     PENDIENTE_PRESUPUESTO = "PENDIENTE_PRESUPUESTO"
     PRESUPUESTADO = "PRESUPUESTADO"
     ADJUDICADO = "ADJUDICADO"
+    EN_DESARROLLO = "EN_DESARROLLO"
     TERMINADO = "TERMINADO"
 
 # Enums para eventos de calendario
@@ -211,7 +206,6 @@ class Proyecto(db.Model):
     cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=False)
     nombre = db.Column(db.String(200), nullable=False)
     descripcion = db.Column(db.Text)
-    estado = db.Column(db.Enum(EstadoProyecto), default=EstadoProyecto.PLANIFICACION, nullable=False)
     fecha_inicio = db.Column(db.Date)
     fecha_fin_estimada = db.Column(db.Date)
     fecha_fin_real = db.Column(db.Date)
@@ -247,7 +241,7 @@ class Proyecto(db.Model):
     # Indexes
     __table_args__ = (
         Index('idx_proyecto_cliente', 'cliente_id'),
-        Index('idx_proyecto_estado', 'estado'),
+        Index('idx_proyecto_estado_comercial', 'estado_comercial'),
         Index('idx_proyecto_responsable', 'responsable'),
         Index('idx_proyecto_fechas', 'fecha_inicio', 'fecha_fin_estimada'),
     )

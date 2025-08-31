@@ -161,8 +161,8 @@
                         {% for proyecto in recent_projects %}
                         <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
                             <div class="flex-shrink-0">
-                                <span class="badge bg-{{ 'success' if proyecto.estado.value == 'completado' else 'primary' if proyecto.estado.value == 'en_desarrollo' else 'secondary' }}">
-                                    {{ proyecto.estado.value|title }}
+                                <span class="badge bg-{{ 'success' if proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'secondary' }}">
+                                    {{ proyecto.estado_comercial.value.replace('_', ' ')|title }}
                                 </span>
                             </div>
                             <div class="flex-grow-1 ms-3">

@@ -64,15 +64,15 @@
                                 </div>
                             </div>
 
-                            <!-- Estado -->
+                            <!-- Estado Comercial -->
                             <div class="col-md-6">
-                                <label for="estado" class="form-label">Estado</label>
-                                <select class="form-select" id="estado" name="estado">
-                                    <option value="PLANIFICACION" {% if not proyecto or proyecto.estado.value == 'PLANIFICACION' %}selected{% endif %}>Planificación</option>
-                                    <option value="EN_DESARROLLO" {% if proyecto and proyecto.estado.value == 'EN_DESARROLLO' %}selected{% endif %}>En Desarrollo</option>
-                                    <option value="PAUSADO" {% if proyecto and proyecto.estado.value == 'PAUSADO' %}selected{% endif %}>Pausado</option>
-                                    <option value="COMPLETADO" {% if proyecto and proyecto.estado.value == 'COMPLETADO' %}selected{% endif %}>Completado</option>
-                                    <option value="CANCELADO" {% if proyecto and proyecto.estado.value == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                                <label for="estado_comercial" class="form-label">Estado Comercial</label>
+                                <select class="form-select" id="estado_comercial" name="estado_comercial">
+                                    <option value="PENDIENTE_PRESUPUESTO" {% if not proyecto or proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' %}selected{% endif %}>Pendiente Presupuesto</option>
+                                    <option value="PRESUPUESTADO" {% if proyecto and proyecto.estado_comercial.value == 'PRESUPUESTADO' %}selected{% endif %}>Presupuestado</option>
+                                    <option value="ADJUDICADO" {% if proyecto and proyecto.estado_comercial.value == 'ADJUDICADO' %}selected{% endif %}>Adjudicado</option>
+                                    <option value="EN_DESARROLLO" {% if proyecto and proyecto.estado_comercial.value == 'EN_DESARROLLO' %}selected{% endif %}>En Desarrollo</option>
+                                    <option value="TERMINADO" {% if proyecto and proyecto.estado_comercial.value == 'TERMINADO' %}selected{% endif %}>Terminado</option>
                                 </select>
                             </div>
 
