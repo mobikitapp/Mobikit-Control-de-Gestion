@@ -227,8 +227,8 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if proyecto.valor_presupuestado_provision %}
-                                        <strong>${{ "{:,.0f}".format(proyecto.valor_presupuestado_provision) }}</strong>
+                                        {% if proyecto.monto_provision_presupuestado %}
+                                        <strong>${{ "{:,.0f}".format(proyecto.monto_provision_presupuestado) }}</strong>
                                         {% if proyecto.margen_venta_provision %}
                                         <br><small class="text-success">{{ "{:.1f}".format(proyecto.margen_venta_provision) }}% margen</small>
                                         {% endif %}
@@ -237,8 +237,8 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if proyecto.valor_instalacion %}
-                                        <strong>${{ "{:,.0f}".format(proyecto.valor_instalacion) }}</strong>
+                                        {% if proyecto.monto_instalacion_presupuestado %}
+                                        <strong>${{ "{:,.0f}".format(proyecto.monto_instalacion_presupuestado) }}</strong>
                                         {% if proyecto.margen_venta_instalacion %}
                                         <br><small class="text-success">{{ "{:.1f}".format(proyecto.margen_venta_instalacion) }}% margen</small>
                                         {% endif %}

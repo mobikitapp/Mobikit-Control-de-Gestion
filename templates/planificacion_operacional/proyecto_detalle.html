@@ -32,8 +32,8 @@
                                     {{ proyecto.estado_comercial.value.title() }}
                                 </span>
                             </p>
-                            <p><strong>Valor Provisión:</strong> ${{ "{:,.0f}".format(proyecto.valor_presupuestado_provision or 0) }}</p>
-                            <p><strong>Valor Instalación:</strong> ${{ "{:,.0f}".format(proyecto.valor_presupuestado_instalacion or 0) }}</p>
+                            <p><strong>Valor Provisión:</strong> ${{ "{:,.0f}".format(proyecto.monto_provision_presupuestado or 0) }}</p>
+                            <p><strong>Valor Instalación:</strong> ${{ "{:,.0f}".format(proyecto.monto_instalacion_presupuestado or 0) }}</p>
                         </div>
                         <div class="col-md-6">
                             <p><strong>Fecha Inicio:</strong> {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') if proyecto.fecha_inicio else 'No definida' }}</p>

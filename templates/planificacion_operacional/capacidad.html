@@ -172,7 +172,7 @@
                                     <h6 class="card-title">{{ proyecto.nombre }}</h6>
                                     <p class="card-text">
                                         <small class="text-muted">{{ proyecto.cliente.nombre }}</small><br>
-                                        <strong>Provisión:</strong> ${{ "{:,.0f}".format(proyecto.valor_presupuestado_provision or 0) }}
+                                        <strong>Provisión:</strong> ${{ "{:,.0f}".format(proyecto.monto_provision_presupuestado or 0) }}
                                     </p>
                                     <small class="text-muted">
                                         {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') if proyecto.fecha_inicio else 'Sin fecha' }} - 
