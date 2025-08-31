@@ -22,8 +22,8 @@
                     <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-primary me-2">
                         <i class="fas fa-calendar-alt"></i> Ver Calendario
                     </a>
-                    <a href="{{ url_for('calendario.nuevo_evento') }}" class="btn btn-success">
-                        <i class="fas fa-plus"></i> Nuevo Evento
+                    <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Nuevo Contrato
                     </a>
                 </div>
             </div>
@@ -237,39 +237,69 @@
         </div>
     </div>
 
-    <!-- Events by Type Chart -->
+    <!-- Contratos con Entregas Pendientes -->
     <div class="row">
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h6 class="mb-0">Distribución de Eventos por Tipo</h6>
+                    <h6 class="mb-0">
+                        <i class="fas fa-file-contract text-info"></i>
+                        Contratos con Entregas Pendientes
+                    </h6>
                 </div>
                 <div class="card-body">
-                    {% if eventos_por_tipo %}
-                    <div class="row">
-                        {% for tipo, cantidad in eventos_por_tipo.items() %}
-                        <div class="col-md-6 col-lg-4 mb-3">
-                            <div class="card border-left-{{ 'primary' if tipo == 'entrega' else 'info' if tipo == 'reunion' else 'warning' if tipo == 'seguimiento' else 'success' }}">
-                                <div class="card-body py-3">
-                                    <div class="d-flex align-items-center">
-                                        <div class="me-3">
-                                            <i class="fas fa-{{ 'truck' if tipo == 'entrega' else 'users' if tipo == 'reunion' else 'eye' if tipo == 'seguimiento' else 'flag' if tipo == 'hito' else 'bell' }} text-{{ 'primary' if tipo == 'entrega' else 'info' if tipo == 'reunion' else 'warning' if tipo == 'seguimiento' else 'success' }}"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="mb-0">{{ tipo.title() }}</h6>
-                                            <strong class="text-{{ 'primary' if tipo == 'entrega' else 'info' if tipo == 'reunion' else 'warning' if tipo == 'seguimiento' else 'success' }}">{{ cantidad }} eventos</strong>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
+                    {% if contratos_con_entregas %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Orden de Compra</th>
+                                    <th>Proyecto</th>
+                                    <th>Fecha Entrega</th>
+                                    <th>Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contrato in contratos_con_entregas[:5] %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                           class="text-decoration-none">
+                                            {{ contrato.numero_oc }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if contrato.proyecto %}
+                                        <small>{{ contrato.proyecto.nombre }}</small>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if contrato.fecha_entrega_comprometida %}
+                                        <small>{{ contrato.fecha_entrega_comprometida.strftime('%d/%m/%Y') }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if contrato.monto_total %}
+                                        <small>{{ "{:,.0f}".format(contrato.monto_total) }} {{ contrato.moneda }}</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('calendario.contratos_con_entregas') }}" class="btn btn-outline-info btn-sm">
+                            Ver todos los contratos
+                        </a>
                     </div>
                     {% else %}
                     <div class="text-center text-muted py-4">
-                        <i class="fas fa-chart-pie fa-3x mb-3"></i>
-                        <h6>No hay datos de eventos</h6>
-                        <p class="mb-0">Crea algunos eventos para ver las estadísticas</p>
+                        <i class="fas fa-file-contract fa-3x mb-3"></i>
+                        <h6>No hay contratos con entregas</h6>
+                        <p class="mb-0">Los contratos con fechas de entrega aparecerán aquí</p>
                     </div>
                     {% endif %}
                 </div>
@@ -284,14 +314,14 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{{ url_for('calendario.nuevo_evento') }}" class="btn btn-success">
-                            <i class="fas fa-plus"></i> Nuevo Evento
+                        <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Nuevo Contrato
                         </a>
                         <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-list"></i> Todos los Eventos
+                            <i class="fas fa-truck"></i> Todas las Entregas
                         </a>
                         <a href="{{ url_for('calendario.lista_eventos', estado='pendiente') }}" class="btn btn-outline-warning">
-                            <i class="fas fa-clock"></i> Eventos Pendientes
+                            <i class="fas fa-clock"></i> Entregas Pendientes
                         </a>
                         <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-info">
                             <i class="fas fa-calendar-alt"></i> Vista Mensual

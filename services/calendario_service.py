@@ -340,9 +340,11 @@ class CalendarioService:
     # Private helper methods
     
     def _build_eventos_query(self, usuario_id: str, rol_usuario: RolUsuario):
-        """Build base query for events with user access control"""
+        """Build base query for delivery events only with user access control"""
         
-        query = db.session.query(EventoEntrega).join(Proyecto, EventoEntrega.proyecto_id == Proyecto.id, isouter=True)
+        query = (db.session.query(EventoEntrega)
+                .filter(EventoEntrega.tipo_evento == TipoEvento.ENTREGA)
+                .join(Proyecto, EventoEntrega.proyecto_id == Proyecto.id, isouter=True))
         
         if rol_usuario == RolUsuario.ADMIN:
             # Admin can see all events
