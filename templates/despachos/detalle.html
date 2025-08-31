@@ -133,14 +133,6 @@
                         </div>
                         {% endif %}
                         
-                        {% if despacho.fecha_entrega %}
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Fecha de Entrega</label>
-                            <div class="form-control-plaintext">
-                                {{ despacho.fecha_entrega.strftime('%d/%m/%Y %H:%M') }}
-                            </div>
-                        </div>
-                        {% endif %}
                         
                         <div class="col-12">
                             <label class="form-label fw-medium">Destino</label>
@@ -215,8 +207,8 @@
                             <div class="timeline-marker bg-success"></div>
                             <div class="timeline-content">
                                 <h6>Entregado</h6>
-                                {% if despacho.fecha_entrega %}
-                                <small class="text-muted">{{ despacho.fecha_entrega.strftime('%d/%m/%Y %H:%M') }}</small>
+                                {% if despacho.estado.value == 'entregado' %}
+                                <small class="text-muted">{{ despacho.updated_at.strftime('%d/%m/%Y %H:%M') }}</small>
                                 {% else %}
                                 <small class="text-muted">Pendiente</small>
                                 {% endif %}
