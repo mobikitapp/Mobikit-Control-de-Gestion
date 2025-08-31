@@ -178,13 +178,10 @@
                                                 </div>
                                                 <div class="col-md-4">
                                                     <label for="cantidad_hitos" class="form-label">Cantidad de Hitos</label>
-                                                    <select class="form-select" id="cantidad_hitos" name="cantidad_hitos">
-                                                        <option value="1">1 hito</option>
-                                                        <option value="2" selected>2 hitos</option>
-                                                        <option value="3">3 hitos</option>
-                                                        <option value="4">4 hitos</option>
-                                                        <option value="5">5 hitos</option>
-                                                    </select>
+                                                    <input type="number" class="form-control" id="cantidad_hitos" name="cantidad_hitos" 
+                                                           value="2" min="1" max="50" 
+                                                           placeholder="Número de hitos">
+                                                    <div class="form-text">Mínimo 1, sin límite máximo</div>
                                                 </div>
                                                 <div class="col-12">
                                                     <label for="plan_descripcion" class="form-label">Descripción</label>
@@ -307,10 +304,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
+        cantidadHitosSelect.addEventListener('input', generateHitos);
         cantidadHitosSelect.addEventListener('change', generateHitos);
         
         function generateHitos() {
             const cantidad = parseInt(cantidadHitosSelect.value);
+            if (cantidad < 1 || cantidad > 100) {
+                hitosContainer.innerHTML = '<div class="alert alert-warning">Por favor ingresa un número entre 1 y 100 hitos</div>';
+                return;
+            }
+            
             hitosContainer.innerHTML = '';
             
             for (let i = 1; i <= cantidad; i++) {
