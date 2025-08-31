@@ -137,10 +137,34 @@
                     </li>
                     {% endif %}
                     
-                    {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                    {% if current_user.rol.value == 'admin' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="settings" class="me-1"></i>
+                            Configuraciones
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.dashboard') }}">
+                                <i data-feather="grid" class="me-2"></i> Dashboard
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.usuarios') }}">
+                                <i data-feather="users" class="me-2"></i> Usuarios
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.roles') }}">
+                                <i data-feather="shield" class="me-2"></i> Roles y Permisos
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.configuracion_sistema') }}">
+                                <i data-feather="tool" class="me-2"></i> Sistema
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                    
+                    {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i data-feather="calendar" class="me-1"></i>
                             Planificación Operacional
                         </a>
                         <ul class="dropdown-menu">
@@ -161,7 +185,7 @@
                             {% else %}
                             <i data-feather="user" class="me-1"></i>
                             {% endif %}
-                            {{ current_user.nombre_completo }}
+                            {{ (current_user.first_name or '') + ' ' + (current_user.last_name or '') }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><h6 class="dropdown-header">{{ current_user.rol.value|title }}</h6></li>

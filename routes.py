@@ -10,6 +10,7 @@ from blueprints.despachos import despachos_bp
 from blueprints.areas import areas_bp
 from blueprints.comercial import comercial_bp
 from blueprints.planificacion_operacional import planificacion_operacional_bp
+from blueprints.configuraciones import configuraciones_bp
 
 # Register auth blueprint
 app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
@@ -23,6 +24,7 @@ app.register_blueprint(despachos_bp, url_prefix="/despachos")
 app.register_blueprint(areas_bp, url_prefix="/areas")
 app.register_blueprint(comercial_bp, url_prefix="/comercial")
 app.register_blueprint(planificacion_operacional_bp, url_prefix="/planificacion-operacional")
+app.register_blueprint(configuraciones_bp, url_prefix="/configuraciones")
 
 # Make session permanent
 @app.before_request

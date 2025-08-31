@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% set title = "Nuevo Usuario" if accion == 'crear' else "Editar Usuario" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-{{ 'user-plus' if accion == 'crear' else 'user-edit' }} text-primary"></i>
+                        {{ "Crear Nuevo Usuario" if accion == "crear" else "Editar Usuario" }}
+                    </h4>
+                    {% if usuario %}
+                    <p class="mb-0 text-muted">Editando: {{ usuario.first_name }} {{ usuario.last_name or '' }}</p>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="nombre" 
+                                       value="{{ usuario.first_name if usuario else '' }}" 
+                                       required maxlength="100">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Apellido</label>
+                                <input type="text" class="form-control" name="apellido" 
+                                       value="{{ usuario.last_name if usuario else '' }}" 
+                                       maxlength="100">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Email <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" name="email" 
+                                       value="{{ usuario.email if usuario else '' }}" 
+                                       required maxlength="255">
+                                <div class="form-text">Este email será usado para iniciar sesión</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" name="telefono" 
+                                       value="{{ usuario.telefono if usuario and hasattr(usuario, 'telefono') else '' }}" 
+                                       maxlength="20">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Rol del Sistema <span class="text-danger">*</span></label>
+                                <select class="form-select" name="rol" required>
+                                    <option value="">Seleccionar rol</option>
+                                    {% for rol in roles %}
+                                    <option value="{{ rol.value }}" 
+                                            {% if usuario and usuario.rol.value == rol.value %}selected{% endif %}>
+                                        {{ rol.label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Define qué módulos puede acceder el usuario</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Estado</label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" name="activo" 
+                                           id="activo" {% if not usuario or usuario.activo %}checked{% endif %}>
+                                    <label class="form-check-label" for="activo">
+                                        Usuario Activo
+                                    </label>
+                                </div>
+                                <div class="form-text">Los usuarios inactivos no pueden iniciar sesión</div>
+                            </div>
+                        </div>
+
+                        <!-- Role Information -->
+                        <div class="row mb-4" id="roleInfo" style="display: none;">
+                            <div class="col-md-12">
+                                <div class="alert alert-info">
+                                    <h6 class="mb-2">Información del Rol</h6>
+                                    <p class="mb-0" id="roleDescription">Selecciona un rol para ver sus permisos</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if accion == 'crear' %}
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-key"></i> Contraseña Temporal</h6>
+                            <p class="mb-0">Se generará automáticamente una contraseña temporal que deberás compartir con el usuario de forma segura.</p>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('configuraciones.usuarios') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-{{ 'success' if accion == 'crear' else 'primary' }}">
+                                <i class="fas fa-{{ 'save' if accion == 'crear' else 'edit' }}"></i>
+                                {{ "Crear Usuario" if accion == "crear" else "Actualizar Usuario" }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Role descriptions
+const roleDescriptions = {
+    'admin': 'Acceso completo al sistema, gestión de usuarios y configuraciones',
+    'operaciones': 'Gestión de operaciones, proyectos, contratos y planificación',
+    'ventas': 'Gestión comercial, clientes y seguimiento de ventas',
+    'produccion': 'Gestión de fabricación y control de producción',
+    'logistica': 'Gestión de despachos y logística de entrega'
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const rolSelect = document.querySelector('select[name="rol"]');
+    const roleInfo = document.getElementById('roleInfo');
+    const roleDescription = document.getElementById('roleDescription');
+    
+    rolSelect.addEventListener('change', function() {
+        const selectedRole = this.value;
+        if (selectedRole && roleDescriptions[selectedRole]) {
+            roleDescription.textContent = roleDescriptions[selectedRole];
+            roleInfo.style.display = 'block';
+        } else {
+            roleInfo.style.display = 'none';
+        }
+    });
+    
+    // Trigger on page load if role is selected
+    if (rolSelect.value) {
+        rolSelect.dispatchEvent(new Event('change'));
+    }
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const nombre = document.querySelector('input[name="nombre"]').value.trim();
+    const email = document.querySelector('input[name="email"]').value.trim();
+    const rol = document.querySelector('select[name="rol"]').value;
+    
+    if (!nombre || !email || !rol) {
+        e.preventDefault();
+        alert('Por favor completa todos los campos obligatorios');
+        return false;
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        e.preventDefault();
+        alert('Por favor ingresa un email válido');
+        return false;
+    }
+});
+</script>
+{% endblock %}

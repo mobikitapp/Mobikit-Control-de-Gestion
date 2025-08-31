@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% set title = "Matriz de Permisos" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-shield-alt text-primary"></i>
+                        Matriz de Permisos del Sistema
+                    </h4>
+                    <p class="mb-0 text-muted">Vista detallada de permisos por rol y módulo</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('configuraciones.roles') }}" class="btn btn-info">
+                        <i class="fas fa-user-tag"></i> Ver Roles
+                    </a>
+                    <a href="{{ url_for('configuraciones.dashboard') }}" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Permissions Legend -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Leyenda de Permisos</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-eye text-success me-2"></i>
+                                <strong>Leer:</strong> <small class="text-muted ms-1">Ver información</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-plus text-primary me-2"></i>
+                                <strong>Crear:</strong> <small class="text-muted ms-1">Agregar nuevos registros</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-edit text-warning me-2"></i>
+                                <strong>Editar:</strong> <small class="text-muted ms-1">Modificar existentes</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-trash text-danger me-2"></i>
+                                <strong>Eliminar:</strong> <small class="text-muted ms-1">Borrar registros</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Permissions Matrix -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Matriz de Permisos por Rol y Módulo</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th rowspan="2" class="align-middle text-center" style="min-width: 150px;">
+                                        <i class="fas fa-layer-group"></i> Módulo
+                                    </th>
+                                    {% for rol in roles %}
+                                    <th colspan="4" class="text-center">
+                                        <i class="fas fa-user-tag"></i>
+                                        {{ rol.value.title() }}
+                                    </th>
+                                    {% endfor %}
+                                </tr>
+                                <tr>
+                                    {% for rol in roles %}
+                                    <th class="text-center" style="width: 50px;">
+                                        <i class="fas fa-eye text-success" title="Leer"></i>
+                                    </th>
+                                    <th class="text-center" style="width: 50px;">
+                                        <i class="fas fa-plus text-primary" title="Crear"></i>
+                                    </th>
+                                    <th class="text-center" style="width: 50px;">
+                                        <i class="fas fa-edit text-warning" title="Editar"></i>
+                                    </th>
+                                    <th class="text-center" style="width: 50px;">
+                                        <i class="fas fa-trash text-danger" title="Eliminar"></i>
+                                    </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for modulo in modulos %}
+                                <tr>
+                                    <td class="fw-bold bg-light">
+                                        <i class="fas fa-{{ 
+                                            'users' if modulo == 'clientes' else
+                                            'project-diagram' if modulo == 'proyectos' else
+                                            'file-contract' if modulo == 'contratos' else
+                                            'industry' if modulo == 'fabricacion' else
+                                            'shipping-fast' if modulo == 'despachos' else
+                                            'chart-area' if modulo == 'areas' else
+                                            'handshake' if modulo == 'comercial' else
+                                            'calendar-alt' if modulo == 'planificacion_operacional' else
+                                            'cogs' if modulo == 'configuraciones' else
+                                            'cube'
+                                        }} me-2"></i>
+                                        {{ modulo.title().replace('_', ' ') }}
+                                    </td>
+                                    {% for rol in roles %}
+                                    {% set permisos_rol = matriz[rol.value][modulo] %}
+                                    
+                                    <!-- Leer -->
+                                    <td class="text-center">
+                                        {% if permisos_rol.leer %}
+                                        <i class="fas fa-check-circle text-success" title="Permitido"></i>
+                                        {% else %}
+                                        <i class="fas fa-times-circle text-muted" title="No permitido"></i>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <!-- Crear -->
+                                    <td class="text-center">
+                                        {% if permisos_rol.crear %}
+                                        <i class="fas fa-check-circle text-success" title="Permitido"></i>
+                                        {% else %}
+                                        <i class="fas fa-times-circle text-muted" title="No permitido"></i>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <!-- Editar -->
+                                    <td class="text-center">
+                                        {% if permisos_rol.editar %}
+                                        <i class="fas fa-check-circle text-success" title="Permitido"></i>
+                                        {% else %}
+                                        <i class="fas fa-times-circle text-muted" title="No permitido"></i>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <!-- Eliminar -->
+                                    <td class="text-center">
+                                        {% if permisos_rol.eliminar %}
+                                        <i class="fas fa-check-circle text-success" title="Permitido"></i>
+                                        {% else %}
+                                        <i class="fas fa-times-circle text-muted" title="No permitido"></i>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary by Role -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Resumen de Permisos por Rol</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for rol in roles %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card border-{{ 'danger' if rol.value == 'admin' else 'primary' if rol.value == 'operaciones' else 'success' if rol.value == 'ventas' else 'warning' if rol.value == 'produccion' else 'info' }}">
+                                <div class="card-header bg-{{ 'danger' if rol.value == 'admin' else 'primary' if rol.value == 'operaciones' else 'success' if rol.value == 'ventas' else 'warning' if rol.value == 'produccion' else 'info' }} text-white text-center">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-user-tag"></i>
+                                        {{ rol.value.title() }}
+                                    </h6>
+                                </div>
+                                <div class="card-body p-2">
+                                    {% set total_permisos = 0 %}
+                                    {% for modulo in modulos %}
+                                        {% set permisos_rol = matriz[rol.value][modulo] %}
+                                        {% if permisos_rol.leer %}
+                                            {% set total_permisos = total_permisos + 1 %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    <div class="text-center">
+                                        <h4 class="text-primary">{{ total_permisos }}/{{ modulos|length }}</h4>
+                                        <small class="text-muted">Módulos con acceso</small>
+                                    </div>
+                                    
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar" style="width: {{ (total_permisos / modulos|length * 100) | round }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.table th, .table td {
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+.table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.border-danger { border-color: #dc3545 !important; }
+.border-primary { border-color: #0d6efd !important; }
+.border-success { border-color: #198754 !important; }
+.border-warning { border-color: #ffc107 !important; }
+.border-info { border-color: #0dcaf0 !important; }
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+    
+    .table th, .table td {
+        padding: 0.25rem;
+    }
+}
+</style>
+
+<script>
+// Add hover effect to matrix cells
+document.addEventListener('DOMContentLoaded', function() {
+    const matrixCells = document.querySelectorAll('tbody td');
+    
+    matrixCells.forEach(cell => {
+        cell.addEventListener('mouseenter', function() {
+            if (this.cellIndex > 0) { // Skip module name column
+                this.style.backgroundColor = '#f8f9fa';
+            }
+        });
+        
+        cell.addEventListener('mouseleave', function() {
+            if (this.cellIndex > 0) {
+                this.style.backgroundColor = '';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
