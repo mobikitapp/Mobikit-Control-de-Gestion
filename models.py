@@ -115,6 +115,26 @@ class EstadoBodega(Enum):
 class EstadoDespachoArea(Enum):
     DESPACHADO = "despachado"
 
+# Enums para categorización de muebles
+class CategoriaMueble(Enum):
+    COCINA = "cocina"
+    CLOSET = "closet"
+    BANO = "bano"
+
+class SubcategoriaCocina(Enum):
+    BASES = "bases"
+    MURALES = "murales"
+    KITS = "kits"
+    CUBIERTAS = "cubiertas"
+
+class SubcategoriaCloset(Enum):
+    INTERIORES = "interiores"
+    PIERNAS = "piernas"
+    PUERTAS = "puertas"
+
+# Baño no tiene subcategorías
+
+
 # (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -201,9 +221,9 @@ class Proyecto(db.Model):
     # Campos comerciales
     vendedor_id = db.Column(db.String, db.ForeignKey('users.id'))
     estado_comercial = db.Column(db.Enum(EstadoComercial), default=EstadoComercial.PENDIENTE_PRESUPUESTO)
-    valor_presupuestado_provision = db.Column(db.Numeric(15, 2))
+    monto_provision_presupuestado = db.Column(db.Numeric(15, 2))
     margen_venta_provision = db.Column(db.Numeric(5, 2))  # Porcentaje
-    valor_instalacion = db.Column(db.Numeric(15, 2))
+    monto_instalacion_presupuestado = db.Column(db.Numeric(15, 2))
     margen_venta_instalacion = db.Column(db.Numeric(5, 2))  # Porcentaje
     fecha_presupuesto = db.Column(db.Date)
     fecha_adjudicacion = db.Column(db.Date)
@@ -234,6 +254,65 @@ class Proyecto(db.Model):
 
     def __repr__(self):
         return f'<Proyecto {self.nombre}>'
+
+# Tablas de asociación para relaciones many-to-many
+proyecto_categorias = db.Table('proyecto_categorias',
+    db.Column('proyecto_id', db.Integer, db.ForeignKey('proyectos.id'), primary_key=True),
+    db.Column('categoria_id', db.Integer, db.ForeignKey('categorias_mueble.id'), primary_key=True)
+)
+
+contrato_categorias = db.Table('contrato_categorias',
+    db.Column('contrato_id', db.Integer, db.ForeignKey('contratos.id'), primary_key=True),
+    db.Column('categoria_id', db.Integer, db.ForeignKey('categorias_mueble.id'), primary_key=True)
+)
+
+class CategoriaMuebleModel(db.Model):
+    __tablename__ = 'categorias_mueble'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.Enum(CategoriaMueble), nullable=False, unique=True)
+    descripcion = db.Column(db.String(200))
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    
+    # Relationships
+    subcategorias = db.relationship('SubcategoriaMuebleModel', backref='categoria', lazy=True, cascade='all, delete-orphan')
+    proyectos = db.relationship('Proyecto', secondary=proyecto_categorias, backref='categorias_mueble')
+    contratos = db.relationship('Contrato', secondary=contrato_categorias, backref='categorias_mueble')
+    
+    def __repr__(self):
+        return f'<CategoriaMueble {self.nombre.value}>'
+
+class SubcategoriaMuebleModel(db.Model):
+    __tablename__ = 'subcategorias_mueble'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    categoria_id = db.Column(db.Integer, db.ForeignKey('categorias_mueble.id'), nullable=False)
+    nombre_cocina = db.Column(db.Enum(SubcategoriaCocina), nullable=True)  # Solo para cocina
+    nombre_closet = db.Column(db.Enum(SubcategoriaCloset), nullable=True)  # Solo para closet
+    descripcion = db.Column(db.String(200))
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    
+    # Índices
+    __table_args__ = (
+        Index('idx_subcategoria_categoria', 'categoria_id'),
+    )
+    
+    def __repr__(self):
+        nombre = self.nombre_cocina.value if self.nombre_cocina else (self.nombre_closet.value if self.nombre_closet else 'Sin nombre')
+        return f'<SubcategoriaMueble {nombre}>'
+    
+    @property
+    def nombre_display(self):
+        if self.nombre_cocina:
+            return self.nombre_cocina.value
+        elif self.nombre_closet:
+            return self.nombre_closet.value
+        return 'Sin nombre'
+
 
 class Contrato(db.Model):
     __tablename__ = 'contratos'

@@ -76,11 +76,31 @@
                             <!-- Responsable -->
                             <div class="col-md-6">
                                 <label for="responsable" class="form-label">Responsable</label>
-                                <input type="text" class="form-control" id="responsable" name="responsable" 
-                                       value="{{ proyecto.responsable if proyecto else current_user.id }}" 
-                                       placeholder="ID del usuario responsable">
-                                <div class="form-text">
-                                    Actualmente: {{ current_user.nombre_completo }}
+                                <select class="form-select" id="responsable" name="responsable">
+                                    <option value="">Seleccionar responsable</option>
+                                    {% for usuario in usuarios %}
+                                    <option value="{{ usuario.id }}" 
+                                            {% if (proyecto and proyecto.responsable == usuario.id) or (not proyecto and usuario.id == current_user.id) %}selected{% endif %}>
+                                        {{ usuario.nombre_completo }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <!-- Vendedor -->
+                            <div class="col-md-6">
+                                <label for="vendedor_id" class="form-label">Vendedor <span class="text-danger">*</span></label>
+                                <select class="form-select" id="vendedor_id" name="vendedor_id" required>
+                                    <option value="">Seleccionar vendedor</option>
+                                    {% for vendedor in vendedores %}
+                                    <option value="{{ vendedor.id }}" 
+                                            {% if proyecto and proyecto.vendedor_id == vendedor.id %}selected{% endif %}>
+                                        {{ vendedor.nombre_completo }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="invalid-feedback">
+                                    Por favor selecciona un vendedor.
                                 </div>
                             </div>
                             
@@ -113,6 +133,104 @@
                                 <label for="descripcion" class="form-label">Descripción</label>
                                 <textarea class="form-control" id="descripcion" name="descripcion" rows="4" 
                                           placeholder="Descripción detallada del proyecto">{{ proyecto.descripcion if proyecto else '' }}</textarea>
+                            </div>
+                            
+                            <!-- Categorías de Muebles -->
+                            <div class="col-12">
+                                <label class="form-label">Categorías de Muebles <span class="text-danger">*</span></label>
+                                <div class="row g-2">
+                                    {% for categoria in categorias %}
+                                    <div class="col-md-4">
+                                        <div class="card border-2 categoria-card" data-categoria="{{ categoria.id }}">
+                                            <div class="card-body p-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input categoria-checkbox" type="checkbox" 
+                                                           id="categoria_{{ categoria.id }}" name="categoria_ids" 
+                                                           value="{{ categoria.id }}"
+                                                           {% if proyecto and categoria.id in proyecto.categoria_ids %}checked{% endif %}>
+                                                    <label class="form-check-label fw-bold" for="categoria_{{ categoria.id }}">
+                                                        {{ categoria.nombre.value|title }}
+                                                    </label>
+                                                </div>
+                                                
+                                                <!-- Subcategorías -->
+                                                {% if categoria.subcategorias %}
+                                                <div class="subcategorias mt-2 ms-3" style="display: none;">
+                                                    {% for subcategoria in categoria.subcategorias %}
+                                                    <div class="form-check form-check-sm">
+                                                        <input class="form-check-input subcategoria-checkbox" type="checkbox" 
+                                                               id="subcategoria_{{ subcategoria.id }}" 
+                                                               name="subcategoria_ids" value="{{ subcategoria.id }}"
+                                                               {% if proyecto and subcategoria.id in proyecto.subcategoria_ids %}checked{% endif %}>
+                                                        <label class="form-check-label text-muted" for="subcategoria_{{ subcategoria.id }}">
+                                                            {{ subcategoria.nombre_display|title }}
+                                                        </label>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="invalid-feedback">
+                                    Por favor selecciona al menos una categoría.
+                                </div>
+                            </div>
+                            
+                            <!-- Información Comercial -->
+                            <div class="col-12">
+                                <h6 class="border-bottom pb-2 mb-3">Información Comercial</h6>
+                            </div>
+                            
+                            <!-- Monto Provisión -->
+                            <div class="col-md-6">
+                                <label for="monto_provision_presupuestado" class="form-label">Monto Provisión Presupuestado</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="monto_provision_presupuestado" 
+                                           name="monto_provision_presupuestado" min="0" step="1000"
+                                           value="{{ proyecto.monto_provision_presupuestado if proyecto else '' }}" 
+                                           placeholder="0">
+                                </div>
+                            </div>
+                            
+                            <!-- Margen Provisión -->
+                            <div class="col-md-6">
+                                <label for="margen_venta_provision" class="form-label">Margen Venta Provisión (%)</label>
+                                <input type="number" class="form-control" id="margen_venta_provision" 
+                                       name="margen_venta_provision" min="0" max="100" step="0.1"
+                                       value="{{ proyecto.margen_venta_provision if proyecto else '' }}" 
+                                       placeholder="25.0">
+                            </div>
+                            
+                            <!-- Monto Instalación -->
+                            <div class="col-md-6">
+                                <label for="monto_instalacion_presupuestado" class="form-label">Monto Instalación Presupuestado</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="monto_instalacion_presupuestado" 
+                                           name="monto_instalacion_presupuestado" min="0" step="1000"
+                                           value="{{ proyecto.monto_instalacion_presupuestado if proyecto else '' }}" 
+                                           placeholder="0">
+                                </div>
+                            </div>
+                            
+                            <!-- Margen Instalación -->
+                            <div class="col-md-6">
+                                <label for="margen_venta_instalacion" class="form-label">Margen Venta Instalación (%)</label>
+                                <input type="number" class="form-control" id="margen_venta_instalacion" 
+                                       name="margen_venta_instalacion" min="0" max="100" step="0.1"
+                                       value="{{ proyecto.margen_venta_instalacion if proyecto else '' }}" 
+                                       placeholder="30.0">
+                            </div>
+                            
+                            <!-- Notas Comerciales -->
+                            <div class="col-12">
+                                <label for="notas_comerciales" class="form-label">Notas Comerciales</label>
+                                <textarea class="form-control" id="notas_comerciales" name="notas_comerciales" rows="2" 
+                                          placeholder="Observaciones comerciales, condiciones especiales, etc.">{{ proyecto.notas_comerciales if proyecto else '' }}</textarea>
                             </div>
                             
                             <!-- Notas -->
@@ -231,6 +349,97 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('change', validateDates);
     });
     
+    // Manejar selección de categorías
+    const categoriaCheckboxes = document.querySelectorAll('.categoria-checkbox');
+    
+    categoriaCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const categoriaId = this.value;
+            const card = this.closest('.categoria-card');
+            const subcategorias = card.querySelector('.subcategorias');
+            
+            if (this.checked) {
+                card.classList.add('border-primary');
+                if (subcategorias) {
+                    subcategorias.style.display = 'block';
+                }
+            } else {
+                card.classList.remove('border-primary');
+                if (subcategorias) {
+                    subcategorias.style.display = 'none';
+                    // Desmarcar todas las subcategorías
+                    subcategorias.querySelectorAll('.subcategoria-checkbox').forEach(sub => {
+                        sub.checked = false;
+                    });
+                }
+            }
+        });
+        
+        // Inicializar estado al cargar
+        if (checkbox.checked) {
+            const card = checkbox.closest('.categoria-card');
+            const subcategorias = card.querySelector('.subcategorias');
+            card.classList.add('border-primary');
+            if (subcategorias) {
+                subcategorias.style.display = 'block';
+            }
+        }
+    });
+    
+    // Calcular totales comerciales
+    const montoProvision = document.getElementById('monto_provision_presupuestado');
+    const margenProvision = document.getElementById('margen_venta_provision');
+    const montoInstalacion = document.getElementById('monto_instalacion_presupuestado');
+    const margenInstalacion = document.getElementById('margen_venta_instalacion');
+    
+    function updateTotals() {
+        if (!montoProvision || !margenProvision || !montoInstalacion || !margenInstalacion) return;
+        
+        const provision = parseFloat(montoProvision.value) || 0;
+        const margenProv = parseFloat(margenProvision.value) || 0;
+        const instalacion = parseFloat(montoInstalacion.value) || 0;
+        const margenInst = parseFloat(margenInstalacion.value) || 0;
+        
+        const totalProvision = provision * (1 + margenProv / 100);
+        const totalInstalacion = instalacion * (1 + margenInst / 100);
+        const total = totalProvision + totalInstalacion;
+        
+        // Mostrar totales si hay algún valor
+        if (provision > 0 || instalacion > 0) {
+            let infoHtml = '<div class="alert alert-info mt-2"><small>';
+            if (provision > 0) {
+                infoHtml += `<div>Venta Provisión: $${totalProvision.toLocaleString('es-CL')}</div>`;
+            }
+            if (instalacion > 0) {
+                infoHtml += `<div>Venta Instalación: $${totalInstalacion.toLocaleString('es-CL')}</div>`;
+            }
+            infoHtml += `<div class="fw-bold">Total Estimado: $${total.toLocaleString('es-CL')}</div>`;
+            infoHtml += '</small></div>';
+            
+            // Remover alert anterior
+            const oldAlert = document.querySelector('.totales-alert');
+            if (oldAlert) oldAlert.remove();
+            
+            // Añadir nuevo alert
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'totales-alert';
+            alertDiv.innerHTML = infoHtml;
+            const notasComerciales = document.querySelector('#notas_comerciales');
+            if (notasComerciales) {
+                notasComerciales.closest('.col-12').after(alertDiv);
+            }
+        }
+    }
+    
+    if (montoProvision && margenProvision && montoInstalacion && margenInstalacion) {
+        [montoProvision, margenProvision, montoInstalacion, margenInstalacion].forEach(input => {
+            input.addEventListener('input', updateTotals);
+        });
+        
+        // Calcular inicial
+        updateTotals();
+    }
+    
     // Form submission validation
     form.addEventListener('submit', function(e) {
         let isValid = true;
@@ -239,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
         
         // Validate required fields
-        const requiredFields = ['cliente_id', 'nombre'];
+        const requiredFields = ['cliente_id', 'nombre', 'vendedor_id'];
         requiredFields.forEach(fieldName => {
             const field = document.getElementById(fieldName);
             if (!field.value.trim()) {
@@ -247,6 +456,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 isValid = false;
             }
         });
+        
+        // Validate categories
+        const checkedCategorias = document.querySelectorAll('.categoria-checkbox:checked');
+        if (checkedCategorias.length === 0) {
+            isValid = false;
+            const categoriaContainer = document.querySelector('[data-categoria]');
+            if (categoriaContainer) {
+                const feedback = categoriaContainer.closest('.col-12').querySelector('.invalid-feedback');
+                feedback.style.display = 'block';
+                categoriaContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
         
         // Validate dates
         if (!validateDates()) {
@@ -259,6 +480,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         form.classList.add('was-validated');
+    });
+    
+    // Ocultar mensaje de error cuando se selecciona una categoría
+    categoriaCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const checkedCategorias = document.querySelectorAll('.categoria-checkbox:checked');
+            if (checkedCategorias.length > 0) {
+                const categoriaContainer = this.closest('.col-12');
+                const feedback = categoriaContainer.querySelector('.invalid-feedback');
+                if (feedback) {
+                    feedback.style.display = 'none';
+                }
+            }
+        });
     });
 });
 </script>

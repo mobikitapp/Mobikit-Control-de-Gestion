@@ -7,6 +7,7 @@ from models import RolUsuario
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
 from schemas.proyectos import ProyectoCreate, ProyectoUpdate, ProyectoSearchFilters
+from models import CategoriaMuebleModel, User
 import logging
 
 logger = logging.getLogger(__name__)
@@ -72,9 +73,16 @@ def nuevo():
     """Formulario para nuevo proyecto"""
     try:
         clientes = clientes_service.get_active_clientes()
+        categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
+        usuarios = User.query.filter_by(activo=True).all()
+        vendedores = User.query.filter_by(activo=True).all()  # Filtrar por rol si necesario
+        
         return render_template('proyectos/form.html', 
                              proyecto=None, 
                              clientes=clientes,
+                             categorias=categorias,
+                             usuarios=usuarios,
+                             vendedores=vendedores,
                              title="Nuevo Proyecto")
     except Exception as e:
         logger.error(f"Error cargando formulario nuevo proyecto: {str(e)}")
@@ -142,9 +150,16 @@ def editar(proyecto_id):
             return redirect(url_for('proyectos.index'))
         
         clientes = clientes_service.get_active_clientes()
+        categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
+        usuarios = User.query.filter_by(activo=True).all()
+        vendedores = User.query.filter_by(activo=True).all()  # Filtrar por rol si necesario
+        
         return render_template('proyectos/form.html', 
                              proyecto=proyecto,
                              clientes=clientes,
+                             categorias=categorias,
+                             usuarios=usuarios,
+                             vendedores=vendedores,
                              title=f"Editar Proyecto - {proyecto.nombre}")
                              
     except Exception as e:
