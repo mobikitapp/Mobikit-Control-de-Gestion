@@ -64,6 +64,25 @@ class EstadoComercial(Enum):
     ADJUDICADO = "adjudicado"
     TERMINADO = "terminado"
 
+# Enums para eventos de calendario
+class TipoEvento(Enum):
+    ENTREGA = "entrega"
+    REUNION = "reunion"
+    SEGUIMIENTO = "seguimiento"
+    HITO = "hito"
+    RECORDATORIO = "recordatorio"
+
+class EstadoEvento(Enum):
+    PENDIENTE = "pendiente"
+    COMPLETADO = "completado"
+    CANCELADO = "cancelado"
+
+class PrioridadEvento(Enum):
+    BAJA = "baja"
+    MEDIA = "media"
+    ALTA = "alta"
+    CRITICA = "critica"
+
 # Enums para el sistema de áreas
 class TipoArea(Enum):
     PENDIENTES_FABRICACION = "pendientes_fabricacion"
@@ -187,6 +206,7 @@ class Proyecto(db.Model):
     fecha_presupuesto = db.Column(db.Date)
     fecha_adjudicacion = db.Column(db.Date)
     notas_comerciales = db.Column(db.Text)
+    activo = db.Column(db.Boolean, default=True, nullable=False)
     
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
@@ -196,6 +216,7 @@ class Proyecto(db.Model):
     contratos = db.relationship('Contrato', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     ordenes_fabricacion = db.relationship('OrdenFabricacion', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     despachos = db.relationship('Despacho', backref='proyecto', lazy=True, cascade='all, delete-orphan')
+    eventos_entrega = db.relationship('EventoEntrega', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     responsable_user = db.relationship('User', foreign_keys=[responsable])
     vendedor_user = db.relationship('User', foreign_keys=[vendedor_id])
     creator = db.relationship('User', foreign_keys=[created_by])
@@ -621,3 +642,56 @@ class ObjetivoMensual(db.Model):
 
     def __repr__(self):
         return f'<ObjetivoMensual {self.año}-{self.mes:02d}>'
+
+
+# Modelos para calendario de eventos
+
+class EventoEntrega(db.Model):
+    __tablename__ = 'eventos_entrega'
+    
+    id = db.Column(db.String, primary_key=True)
+    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'))
+    titulo = db.Column(db.String(200), nullable=False)
+    descripcion = db.Column(db.Text)
+    fecha_evento = db.Column(db.Date, nullable=False)
+    hora_evento = db.Column(db.Time)
+    tipo_evento = db.Column(db.Enum(TipoEvento), nullable=False)
+    estado = db.Column(db.Enum(EstadoEvento), default=EstadoEvento.PENDIENTE, nullable=False)
+    prioridad = db.Column(db.Enum(PrioridadEvento), default=PrioridadEvento.MEDIA, nullable=False)
+    
+    # Recordatorio
+    recordatorio_dias = db.Column(db.Integer, default=1)  # Días antes del evento para recordatorio
+    recordatorio_enviado = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # Seguimiento
+    fecha_completado = db.Column(db.DateTime)
+    completado_por = db.Column(db.String, db.ForeignKey('users.id'))
+    notas = db.Column(db.Text)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    completado_por_user = db.relationship('User', foreign_keys=[completado_por])
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_evento_proyecto', 'proyecto_id'),
+        Index('idx_evento_fecha', 'fecha_evento'),
+        Index('idx_evento_estado', 'estado'),
+        Index('idx_evento_tipo', 'tipo_evento'),
+        Index('idx_evento_recordatorio', 'fecha_evento', 'recordatorio_dias', 'recordatorio_enviado'),
+    )
+
+    def __repr__(self):
+        return f'<EventoEntrega {self.titulo}>'
+    
+    @property 
+    def fecha_recordatorio(self):
+        """Fecha en que debe enviarse el recordatorio"""
+        if self.recordatorio_dias and self.fecha_evento:
+            from datetime import timedelta
+            return self.fecha_evento - timedelta(days=self.recordatorio_dias)
+        return None

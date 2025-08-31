@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+{% set title = "Lista de Eventos" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-list text-primary"></i>
+                        Lista de Eventos de Entrega
+                    </h4>
+                    <p class="mb-0 text-muted">{{ total_eventos }} eventos encontrados</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('calendario.nuevo_evento') }}" class="btn btn-success me-2">
+                        <i class="fas fa-plus"></i> Nuevo Evento
+                    </a>
+                    <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar-alt"></i> Ver Calendario
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Filtros</h6>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                            <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" 
+                                   value="{{ filtros.fecha_inicio.isoformat() if filtros.fecha_inicio else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                            <input type="date" class="form-control" id="fecha_fin" name="fecha_fin"
+                                   value="{{ filtros.fecha_fin.isoformat() if filtros.fecha_fin else '' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="estado" class="form-label">Estado</label>
+                            <select class="form-select" id="estado" name="estado">
+                                <option value="">Todos</option>
+                                {% for estado_enum in estados_disponibles %}
+                                <option value="{{ estado_enum.value }}" 
+                                        {% if filtros.estado == estado_enum.value %}selected{% endif %}>
+                                    {{ estado_enum.value.title() }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="tipo_evento" class="form-label">Tipo</label>
+                            <select class="form-select" id="tipo_evento" name="tipo">
+                                <option value="">Todos</option>
+                                {% for tipo_enum in tipos_disponibles %}
+                                <option value="{{ tipo_enum.value }}"
+                                        {% if filtros.tipo_evento == tipo_enum.value %}selected{% endif %}>
+                                    {{ tipo_enum.value.title() }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex">
+                                <button type="submit" class="btn btn-primary me-2">
+                                    <i class="fas fa-search"></i> Buscar
+                                </button>
+                                <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events List -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body p-0">
+                    {% if eventos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Evento</th>
+                                    <th>Proyecto</th>
+                                    <th>Tipo</th>
+                                    <th>Estado</th>
+                                    <th>Prioridad</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for evento in eventos %}
+                                <tr class="{% if evento.estado.value == 'completado' %}table-success{% elif evento.prioridad.value == 'critica' %}table-danger{% elif evento.prioridad.value == 'alta' %}table-warning{% endif %}">
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <strong>{{ evento.fecha_evento.strftime('%d/%m/%Y') }}</strong>
+                                            {% if evento.hora_evento %}
+                                            <small class="text-muted">{{ evento.hora_evento.strftime('%H:%M') }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ evento.titulo }}</strong>
+                                            {% if evento.descripcion %}
+                                            <br><small class="text-muted">{{ evento.descripcion[:50] }}{% if evento.descripcion|length > 50 %}...{% endif %}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if evento.proyecto %}
+                                        <a href="{{ url_for('proyectos.detalle', proyecto_id=evento.proyecto.id) }}" class="text-decoration-none">
+                                            {{ evento.proyecto.nombre }}
+                                        </a>
+                                        <br><small class="text-muted">{{ evento.proyecto.cliente.nombre }}</small>
+                                        {% else %}
+                                        <span class="text-muted">Sin proyecto</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'primary' if evento.tipo_evento.value == 'entrega' else 'info' if evento.tipo_evento.value == 'reunion' else 'warning' if evento.tipo_evento.value == 'seguimiento' else 'success' if evento.tipo_evento.value == 'hito' else 'secondary' }}">
+                                            <i class="fas fa-{{ 'truck' if evento.tipo_evento.value == 'entrega' else 'users' if evento.tipo_evento.value == 'reunion' else 'eye' if evento.tipo_evento.value == 'seguimiento' else 'flag' if evento.tipo_evento.value == 'hito' else 'bell' }}"></i>
+                                            {{ evento.tipo_evento.value.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'warning' if evento.estado.value == 'pendiente' else 'success' if evento.estado.value == 'completado' else 'danger' }}">
+                                            {{ evento.estado.value.title() }}
+                                        </span>
+                                        {% if evento.estado.value == 'completado' and evento.fecha_completado %}
+                                        <br><small class="text-muted">{{ evento.fecha_completado.strftime('%d/%m %H:%M') }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'secondary' if evento.prioridad.value == 'baja' else 'primary' if evento.prioridad.value == 'media' else 'warning' if evento.prioridad.value == 'alta' else 'danger' }}">
+                                            {{ evento.prioridad.value.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('calendario.detalle_evento', evento_id=evento.id) }}" 
+                                               class="btn btn-outline-primary btn-sm" data-bs-toggle="tooltip" title="Ver detalle">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            
+                                            {% if current_user.rol.value in ['admin', 'operaciones', 'ventas'] %}
+                                            <a href="{{ url_for('calendario.editar_evento', evento_id=evento.id) }}" 
+                                               class="btn btn-outline-warning btn-sm" data-bs-toggle="tooltip" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% endif %}
+                                            
+                                            {% if evento.estado.value == 'pendiente' and current_user.rol.value in ['admin', 'operaciones', 'ventas', 'logistica'] %}
+                                            <button type="button" class="btn btn-outline-success btn-sm" 
+                                                    onclick="completarEvento('{{ evento.id }}')" 
+                                                    data-bs-toggle="tooltip" title="Marcar completado">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <h5>No se encontraron eventos</h5>
+                        <p class="text-muted">No hay eventos que coincidan con los filtros seleccionados</p>
+                        <a href="{{ url_for('calendario.nuevo_evento') }}" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Crear Primer Evento
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    {% if eventos %}
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ total_eventos }}</h4>
+                    <small>Total Eventos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h4>{{ eventos|selectattr('estado.value', 'equalto', 'pendiente')|list|length }}</h4>
+                    <small>Pendientes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4>{{ eventos|selectattr('estado.value', 'equalto', 'completado')|list|length }}</h4>
+                    <small>Completados</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h4>{{ eventos|selectattr('prioridad.value', 'equalto', 'critica')|list|length }}</h4>
+                    <small>Prioridad Crítica</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Acciones Rápidas</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('calendario.lista_eventos', estado='pendiente') }}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-clock"></i><br>
+                                <strong>Solo Pendientes</strong>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('calendario.lista_eventos', tipo='entrega') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-truck"></i><br>
+                                <strong>Solo Entregas</strong>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-chart-bar"></i><br>
+                                <strong>Dashboard</strong>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-calendar-alt"></i><br>
+                                <strong>Vista Mensual</strong>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+// Complete event function
+function completarEvento(eventoId) {
+    if (confirm('¿Marcar este evento como completado?')) {
+        fetch(`/calendario/evento/${eventoId}/completar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json ? response.json() : response.text())
+        .then(data => {
+            if (data.success !== false) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'No se pudo completar el evento'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            location.reload(); // Reload anyway, form might have worked
+        });
+    }
+}
+</script>
+{% endblock %}

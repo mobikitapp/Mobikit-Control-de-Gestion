@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% set title = "Dashboard del Calendario" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-bar text-primary"></i>
+                        Dashboard del Calendario
+                    </h4>
+                    <p class="mb-0 text-muted">Resumen de eventos y seguimiento de entregas - {{ mes_actual }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-calendar-alt"></i> Ver Calendario
+                    </a>
+                    <a href="{{ url_for('calendario.nuevo_evento') }}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Nuevo Evento
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h3>{{ stats.eventos_mes }}</h3>
+                            <small>Eventos Este Mes</small>
+                        </div>
+                        <i class="fas fa-calendar-day fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-primary-dark">
+                    <small>{{ stats.eventos_pendientes }} pendientes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h3>{{ stats.eventos_pendientes }}</h3>
+                            <small>Pendientes</small>
+                        </div>
+                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-warning-dark">
+                    <small>{{ stats.eventos_proximos }} próximos 7 días</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h3>{{ stats.eventos_completados }}</h3>
+                            <small>Completados</small>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-success-dark">
+                    <small>Este mes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h3>{{ stats.eventos_vencidos }}</h3>
+                            <small>Vencidos</small>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-danger-dark">
+                    <small>Requieren atención</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Events & Overdue Events -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calendar-week text-info"></i>
+                        Próximos Eventos (7 días)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if eventos_proximos %}
+                    {% for evento in eventos_proximos %}
+                    <div class="d-flex align-items-center mb-3 p-2 border rounded">
+                        <div class="me-3">
+                            <div class="bg-{{ 'primary' if evento.tipo_evento.value == 'entrega' else 'info' if evento.tipo_evento.value == 'reunion' else 'warning' }} text-white rounded-circle d-flex align-items-center justify-content-center" 
+                                 style="width: 40px; height: 40px;">
+                                <i class="fas fa-{{ 'truck' if evento.tipo_evento.value == 'entrega' else 'users' if evento.tipo_evento.value == 'reunion' else 'eye' }}"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ evento.titulo }}</h6>
+                            <small class="text-muted">
+                                {{ evento.fecha_evento.strftime('%d/%m/%Y') }}
+                                {% if evento.hora_evento %}
+                                - {{ evento.hora_evento.strftime('%H:%M') }}
+                                {% endif %}
+                                {% if evento.proyecto %}
+                                - {{ evento.proyecto.nombre }}
+                                {% endif %}
+                            </small>
+                            <div class="mt-1">
+                                <span class="badge bg-{{ 'warning' if evento.estado.value == 'pendiente' else 'success' }}">
+                                    {{ evento.estado.value.title() }}
+                                </span>
+                                {% if evento.prioridad.value in ['alta', 'critica'] %}
+                                <span class="badge bg-danger">{{ evento.prioridad.value.title() }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="ms-3">
+                            <a href="{{ url_for('calendario.detalle_evento', evento_id=evento.id) }}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <div class="text-center">
+                        <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-info btn-sm">
+                            Ver todos los eventos
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-calendar-check fa-3x mb-3"></i>
+                        <h6>No hay eventos próximos</h6>
+                        <p class="mb-0">No tienes eventos programados para los próximos 7 días</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-exclamation-triangle text-danger"></i>
+                        Eventos Vencidos
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if eventos_vencidos %}
+                    {% for evento in eventos_vencidos %}
+                    <div class="d-flex align-items-center mb-3 p-2 border rounded bg-light">
+                        <div class="me-3">
+                            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" 
+                                 style="width: 40px; height: 40px;">
+                                <i class="fas fa-exclamation"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1 text-danger">{{ evento.titulo }}</h6>
+                            <small class="text-muted">
+                                {{ evento.fecha_evento.strftime('%d/%m/%Y') }}
+                                {% if evento.hora_evento %}
+                                - {{ evento.hora_evento.strftime('%H:%M') }}
+                                {% endif %}
+                                {% if evento.proyecto %}
+                                - {{ evento.proyecto.nombre }}
+                                {% endif %}
+                            </small>
+                            <div class="mt-1">
+                                <span class="badge bg-danger">Vencido</span>
+                                <span class="badge bg-warning">{{ evento.prioridad.value.title() }}</span>
+                            </div>
+                        </div>
+                        <div class="ms-3">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('calendario.detalle_evento', evento_id=evento.id) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-success btn-sm" 
+                                        onclick="completarEvento('{{ evento.id }}')">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <div class="text-center">
+                        <a href="{{ url_for('calendario.lista_eventos', estado='pendiente') }}" class="btn btn-outline-danger btn-sm">
+                            Ver eventos pendientes
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-thumbs-up fa-3x mb-3"></i>
+                        <h6>¡Excelente!</h6>
+                        <p class="mb-0">No tienes eventos vencidos</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events by Type Chart -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Distribución de Eventos por Tipo</h6>
+                </div>
+                <div class="card-body">
+                    {% if eventos_por_tipo %}
+                    <div class="row">
+                        {% for tipo, cantidad in eventos_por_tipo.items() %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card border-left-{{ 'primary' if tipo == 'entrega' else 'info' if tipo == 'reunion' else 'warning' if tipo == 'seguimiento' else 'success' }}">
+                                <div class="card-body py-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            <i class="fas fa-{{ 'truck' if tipo == 'entrega' else 'users' if tipo == 'reunion' else 'eye' if tipo == 'seguimiento' else 'flag' if tipo == 'hito' else 'bell' }} text-{{ 'primary' if tipo == 'entrega' else 'info' if tipo == 'reunion' else 'warning' if tipo == 'seguimiento' else 'success' }}"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">{{ tipo.title() }}</h6>
+                                            <strong class="text-{{ 'primary' if tipo == 'entrega' else 'info' if tipo == 'reunion' else 'warning' if tipo == 'seguimiento' else 'success' }}">{{ cantidad }} eventos</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-chart-pie fa-3x mb-3"></i>
+                        <h6>No hay datos de eventos</h6>
+                        <p class="mb-0">Crea algunos eventos para ver las estadísticas</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Acciones Rápidas</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('calendario.nuevo_evento') }}" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Nuevo Evento
+                        </a>
+                        <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-list"></i> Todos los Eventos
+                        </a>
+                        <a href="{{ url_for('calendario.lista_eventos', estado='pendiente') }}" class="btn btn-outline-warning">
+                            <i class="fas fa-clock"></i> Eventos Pendientes
+                        </a>
+                        <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-info">
+                            <i class="fas fa-calendar-alt"></i> Vista Mensual
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function completarEvento(eventoId) {
+    if (confirm('¿Marcar este evento como completado?')) {
+        fetch(`/calendario/evento/${eventoId}/completar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json ? response.json() : response.text())
+        .then(data => {
+            if (data.success !== false) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'No se pudo completar el evento'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            location.reload(); // Reload anyway, form might have worked
+        });
+    }
+}
+
+// Auto-refresh dashboard every 5 minutes
+setTimeout(function() {
+    location.reload();
+}, 300000);
+</script>
+
+<style>
+.border-left-primary { border-left: 4px solid #007bff !important; }
+.border-left-info { border-left: 4px solid #17a2b8 !important; }
+.border-left-warning { border-left: 4px solid #ffc107 !important; }
+.border-left-success { border-left: 4px solid #28a745 !important; }
+
+.card-footer.bg-primary-dark { background-color: rgba(0,123,255,0.8) !important; }
+.card-footer.bg-success-dark { background-color: rgba(40,167,69,0.8) !important; }
+.card-footer.bg-warning-dark { background-color: rgba(255,193,7,0.8) !important; }
+.card-footer.bg-danger-dark { background-color: rgba(220,53,69,0.8) !important; }
+
+.opacity-75 { opacity: 0.75; }
+</style>
+{% endblock %}
