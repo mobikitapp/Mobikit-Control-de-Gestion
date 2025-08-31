@@ -82,7 +82,7 @@ def nuevo():
         return render_template('contratos/form.html', 
                              contrato=None, 
                              clientes=clientes,
-                             title="Nuevo Contrato")
+                             title="Nuevo Contrato / OC")
     except Exception as e:
         logger.error(f"Error cargando formulario nuevo contrato: {str(e)}")
         flash('Error al cargar formulario', 'error')
@@ -163,7 +163,7 @@ def crear():
         return render_template('contratos/form.html', 
                              contrato=None, 
                              clientes=clientes,
-                             title="Nuevo Contrato")
+                             title="Nuevo Contrato / OC")
     except Exception as e:
         logger.error(f"Error creando contrato: {str(e)}")
         flash('Error al crear contrato', 'error')
@@ -171,7 +171,7 @@ def crear():
         return render_template('contratos/form.html', 
                              contrato=None, 
                              clientes=clientes,
-                             title="Nuevo Contrato")
+                             title="Nuevo Contrato / OC")
 
 @contratos_bp.route('/<int:contrato_id>')
 @require_login
@@ -204,7 +204,7 @@ def editar(contrato_id):
         return render_template('contratos/form.html', 
                              contrato=contrato,
                              clientes=clientes,
-                             title=f"Editar Contrato - {contrato.numero_oc}")
+                             title=f"Editar Contrato / OC - {contrato.numero_oc}")
                              
     except Exception as e:
         logger.error(f"Error obteniendo contrato para editar {contrato_id}: {str(e)}")
@@ -237,7 +237,7 @@ def actualizar(contrato_id):
         return render_template('contratos/form.html', 
                              contrato=contrato,
                              clientes=clientes,
-                             title=f"Editar Contrato - {contrato.numero_oc}")
+                             title=f"Editar Contrato / OC - {contrato.numero_oc}")
     except Exception as e:
         logger.error(f"Error actualizando contrato {contrato_id}: {str(e)}")
         flash('Error al actualizar contrato', 'error')
