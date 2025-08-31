@@ -24,13 +24,13 @@ const ManufacturingApp = {
     bindGlobalEvents() {
         // Auto-hide flash messages
         this.autoHideAlerts();
-        
+
         // Handle logout confirmation
         this.setupLogoutConfirmation();
-        
+
         // Initialize tooltips and popovers
         this.initializeBootstrapComponents();
-        
+
         // Handle navigation active states
         this.updateNavigationActiveStates();
     },
@@ -39,10 +39,10 @@ const ManufacturingApp = {
     initializeComponents() {
         // Initialize date inputs with current date where appropriate
         this.initializeDateInputs();
-        
+
         // Setup search functionality
         this.setupSearchComponents();
-        
+
         // Initialize dynamic form components
         this.setupDynamicForms();
     },
@@ -91,12 +91,12 @@ const ManufacturingApp = {
     updateNavigationActiveStates() {
         const currentPath = window.location.pathname;
         const navLinks = document.querySelectorAll('.navbar-nav .nav-link, .dropdown-item');
-        
+
         navLinks.forEach(link => {
             const href = link.getAttribute('href');
             if (href && currentPath.includes(href) && href !== '/') {
                 link.classList.add('active');
-                
+
                 // If it's a dropdown item, also mark the parent dropdown as active
                 const dropdown = link.closest('.dropdown');
                 if (dropdown) {
@@ -113,7 +113,7 @@ const ManufacturingApp = {
     initializeDateInputs() {
         const dateInputs = document.querySelectorAll('input[type="date"]');
         const today = new Date().toISOString().split('T')[0];
-        
+
         dateInputs.forEach(input => {
             // Set min date for future dates
             if (input.name.includes('fin') || input.name.includes('vencimiento') || 
@@ -126,13 +126,13 @@ const ManufacturingApp = {
     // Setup form validation
     setupFormValidation() {
         const forms = document.querySelectorAll('form[novalidate]');
-        
+
         forms.forEach(form => {
             form.addEventListener('submit', (event) => {
                 if (!form.checkValidity()) {
                     event.preventDefault();
                     event.stopPropagation();
-                    
+
                     // Focus on first invalid field
                     const firstInvalid = form.querySelector(':invalid');
                     if (firstInvalid) {
@@ -147,7 +147,7 @@ const ManufacturingApp = {
     // Setup search components with debounced input
     setupSearchComponents() {
         const searchInputs = document.querySelectorAll('input[type="search"], .search-input');
-        
+
         searchInputs.forEach(input => {
             let timeout;
             input.addEventListener('input', (e) => {
@@ -163,7 +163,7 @@ const ManufacturingApp = {
     handleSearch(input) {
         const searchTerm = input.value.toLowerCase();
         const searchTarget = input.getAttribute('data-search-target');
-        
+
         if (searchTarget) {
             const targetElements = document.querySelectorAll(searchTarget);
             targetElements.forEach(element => {
@@ -178,7 +178,7 @@ const ManufacturingApp = {
     setupDynamicForms() {
         // Handle cascade selects (cliente -> proyecto -> contrato/OF)
         this.setupCascadeSelects();
-        
+
         // Handle dynamic item addition/removal
         this.setupDynamicItems();
     },
@@ -206,27 +206,27 @@ const ManufacturingApp = {
     addDynamicItem(button) {
         const container = button.closest('.dynamic-container');
         if (!container) return;
-        
+
         const template = container.querySelector('.item-template');
         if (!template) return;
-        
+
         const newItem = template.cloneNode(true);
         newItem.classList.remove('item-template');
         newItem.style.display = 'block';
-        
+
         // Update input names with new index
         const items = container.querySelectorAll('.dynamic-item:not(.item-template)');
         const newIndex = items.length;
-        
+
         newItem.querySelectorAll('input, select, textarea').forEach(input => {
             const name = input.name;
             if (name) {
                 input.name = name.replace(/\[\d+\]/, `[${newIndex}]`);
             }
         });
-        
+
         container.appendChild(newItem);
-        
+
         // Re-initialize Feather icons
         if (typeof feather !== 'undefined') {
             feather.replace();
@@ -257,16 +257,16 @@ const ManufacturingApp = {
     showNotification(message, type = 'info', timeout = null) {
         const container = document.getElementById('notification-container');
         if (!container) return;
-        
+
         const notification = document.createElement('div');
         notification.className = `alert alert-${type} alert-dismissible fade show`;
         notification.innerHTML = `
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
-        
+
         container.appendChild(notification);
-        
+
         // Auto-hide after timeout
         const hideTimeout = timeout || this.config.notificationTimeout;
         setTimeout(() => {
@@ -293,7 +293,7 @@ const ManufacturingApp = {
             const options = format === 'short' 
                 ? { year: 'numeric', month: '2-digit', day: '2-digit' }
                 : { year: 'numeric', month: 'long', day: 'numeric' };
-            
+
             return new Intl.DateTimeFormat('es-CL', options).format(new Date(date));
         },
 
@@ -301,23 +301,23 @@ const ManufacturingApp = {
         validateRUT(rut) {
             const cleanRUT = rut.replace(/\D/g, '');
             if (cleanRUT.length < 8) return false;
-            
+
             const rutDigits = cleanRUT.slice(0, -1);
             const verifierDigit = cleanRUT.slice(-1);
-            
+
             let sum = 0;
             let multiplier = 2;
-            
+
             for (let i = rutDigits.length - 1; i >= 0; i--) {
                 sum += parseInt(rutDigits[i]) * multiplier;
                 multiplier = multiplier === 7 ? 2 : multiplier + 1;
             }
-            
+
             const remainder = sum % 11;
             const calculatedVerifier = remainder === 0 ? '0' : 
                                      remainder === 1 ? 'K' : 
                                      (11 - remainder).toString();
-            
+
             return verifierDigit.toUpperCase() === calculatedVerifier;
         },
 
@@ -325,10 +325,10 @@ const ManufacturingApp = {
         formatRUT(rut) {
             const cleanRUT = rut.replace(/\D/g, '');
             if (cleanRUT.length < 2) return cleanRUT;
-            
+
             const body = cleanRUT.slice(0, -1);
             const verifier = cleanRUT.slice(-1);
-            
+
             return body.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.') + '-' + verifier;
         },
 
@@ -349,7 +349,7 @@ const ManufacturingApp = {
                 ${text}
             `;
             element.disabled = true;
-            
+
             return () => {
                 element.innerHTML = originalContent;
                 element.disabled = false;
@@ -368,16 +368,16 @@ const API = {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         };
-        
+
         const mergedOptions = { ...defaultOptions, ...options };
-        
+
         try {
             const response = await fetch(url, mergedOptions);
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
             return data;
         } catch (error) {
@@ -404,16 +404,181 @@ const API = {
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     ManufacturingApp.init();
+
+    // Inicializar selectores en cascada
+    console.log('Cascade selects initialized');
+
+    // Selector de cliente -> proyecto en despachos
+    const clienteSelect = document.getElementById('cliente_id');
+    const proyectoSelect = document.getElementById('proyecto_id');
+
+    if (clienteSelect && proyectoSelect) {
+        clienteSelect.addEventListener('change', function() {
+            const clienteId = this.value;
+            proyectoSelect.innerHTML = '<option value="">Cargando...</option>';
+
+            if (clienteId) {
+                fetch(`/proyectos/api/by-cliente/${clienteId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        proyectoSelect.innerHTML = '<option value="">Seleccione un proyecto...</option>';
+                        data.forEach(proyecto => {
+                            proyectoSelect.innerHTML += `<option value="${proyecto.id}">${proyecto.nombre}</option>`;
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error cargando proyectos:', error);
+                        proyectoSelect.innerHTML = '<option value="">Error cargando proyectos</option>';
+                    });
+            } else {
+                proyectoSelect.innerHTML = '<option value="">Seleccione un proyecto...</option>';
+            }
+        });
+    }
+
+    // Manejar cambios en selectores de categoría
+    const categoriaSelect = document.getElementById('categoria');
+    const subcategoriaSelect = document.getElementById('subcategoria');
+
+    if (categoriaSelect && subcategoriaSelect) {
+        categoriaSelect.addEventListener('change', function() {
+            const categoriaId = this.value;
+            subcategoriaSelect.innerHTML = '<option value="">Cargando...</option>';
+
+            if (categoriaId) {
+                fetch(`/api/subcategorias/${categoriaId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        subcategoriaSelect.innerHTML = '<option value="">Seleccione subcategoría...</option>';
+                        data.forEach(sub => {
+                            subcategoriaSelect.innerHTML += `<option value="${sub.id}">${sub.nombre}</option>`;
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error cargando subcategorías:', error);
+                        subcategoriaSelect.innerHTML = '<option value="">Error cargando datos</option>';
+                    });
+            } else {
+                subcategoriaSelect.innerHTML = '<option value="">Seleccione subcategoría...</option>';
+            }
+        });
+    }
+
+    // Validación de formularios con mejor manejo de errores
+    const forms = document.querySelectorAll('form[data-validate]');
+    forms.forEach(form => {
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const requiredFields = form.querySelectorAll('[required]');
+                let hasErrors = false;
+
+                requiredFields.forEach(field => {
+                    if (!field.value.trim()) {
+                        field.classList.add('is-invalid');
+                        hasErrors = true;
+                    } else {
+                        field.classList.remove('is-invalid');
+                    }
+                });
+
+                if (hasErrors) {
+                    e.preventDefault();
+                    showAlert('Por favor complete todos los campos obligatorios', 'error');
+                }
+            });
+        }
+    });
 });
 
-// Global error handler
-window.addEventListener('error', (event) => {
-    console.error('Global error:', event.error);
-    ManufacturingApp.showNotification(
-        'Ha ocurrido un error inesperado. Por favor, recarga la página.', 
-        'danger'
-    );
+// Función para mostrar/ocultar secciones del formulario
+function toggleSection(sectionId, show) {
+    const section = document.getElementById(sectionId);
+    if (section) {
+        section.style.display = show ? 'block' : 'none';
+    }
+}
+
+// Función para mostrar alertas
+function showAlert(message, type = 'info') {
+    // Crear elemento de alerta si no existe
+    let alertContainer = document.getElementById('alert-container');
+    if (!alertContainer) {
+        alertContainer = document.createElement('div');
+        alertContainer.id = 'alert-container';
+        alertContainer.style.position = 'fixed';
+        alertContainer.style.top = '20px';
+        alertContainer.style.right = '20px';
+        alertContainer.style.zIndex = '9999';
+        document.body.appendChild(alertContainer);
+    }
+
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    alertContainer.appendChild(alertDiv);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Manejar errores globales de JavaScript con mejor logging
+window.addEventListener('error', function(event) {
+    console.log('Global error:', {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno
+    });
+
+    // Solo mostrar alerta al usuario en desarrollo
+    if (window.location.hostname === 'localhost' || window.location.hostname.includes('replit')) {
+        showAlert('Se produjo un error en la aplicación. Revise la consola para más detalles.', 'warning');
+    }
 });
+
+// Función para confirmar eliminación
+function confirmarEliminacion(mensaje) {
+    return confirm(mensaje || '¿Está seguro de que desea eliminar este elemento?');
+}
+
+// Función para formatear números como moneda
+function formatearMoneda(numero) {
+    return new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP'
+    }).format(numero);
+}
+
+// Función para validar RUT chileno
+function validarRUT(rut) {
+    if (!/^[0-9]+[-|‐]{1}[0-9kK]{1}$/.test(rut)) {
+        return false;
+    }
+
+    const tmp = rut.split('-');
+    const digv = tmp[1];
+    const rut_num = tmp[0];
+
+    if (digv == 'K') digv = 'k';
+
+    return (dv(rut_num) == digv);
+}
+
+function dv(T) {
+    let M = 0, S = 1;
+    for (; T; T = Math.floor(T / 10)) {
+        S = (S + T % 10 * (9 - M++ % 6)) % 11;
+    }
+    return S ? S - 1 : 'k';
+}
 
 // Export for use in other scripts
 window.ManufacturingApp = ManufacturingApp;
