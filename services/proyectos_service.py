@@ -38,6 +38,9 @@ class ProyectosService:
             # Create proyecto
             proyecto = self.repo.create(proyecto_data, created_by)
             
+            # Create automatic vendor task if vendor is assigned
+            self._crear_tarea_vendedor_automatica(proyecto, created_by)
+            
             # Commit transaction
             db.session.commit()
             
@@ -56,6 +59,32 @@ class ProyectosService:
             db.session.rollback()
             logger.error(f"Error creando proyecto: {str(e)}")
             raise
+    
+    def _crear_tarea_vendedor_automatica(self, proyecto, created_by: str):
+        """Create automatic vendor task when project is created"""
+        if not proyecto.vendedor_id:
+            return
+        
+        # Import here to avoid circular imports
+        from models import TareaComercial
+        
+        # Check if task already exists
+        existing = (db.session.query(TareaComercial)
+                   .filter_by(proyecto_id=proyecto.id, 
+                             titulo="Completar información de presupuesto")
+                   .filter_by(completada=False)
+                   .first())
+        
+        if not existing:
+            tarea = TareaComercial()
+            tarea.proyecto_id = proyecto.id
+            tarea.vendedor_id = proyecto.vendedor_id
+            tarea.titulo = "Completar información de presupuesto"
+            tarea.descripcion = "Completar monto de provisión presupuestado, margen de venta provisión, monto de instalación presupuestado y margen de venta instalación para el proyecto"
+            tarea.created_by = created_by
+            tarea.completada = False
+            db.session.add(tarea)
+            logger.info(f"Tarea automática creada para vendedor {proyecto.vendedor_id} en proyecto {proyecto.id}")
     
     def get_proyecto_by_id(self, proyecto_id: int) -> Optional[Proyecto]:
         """Get proyecto by ID with related data"""

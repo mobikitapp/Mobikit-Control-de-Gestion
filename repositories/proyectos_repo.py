@@ -155,15 +155,15 @@ class ProyectosRepository:
         stats = {
             'total_contratos': len(proyecto.contratos),
             'contratos_vigentes': ContratosRepository.count_by_proyecto_and_status(
-                proyecto_id, 'vigente'
+                proyecto_id, 'VIGENTE'
             ),
             'total_ofs': len(proyecto.ordenes_fabricacion),
             'ofs_en_produccion': FabricacionRepository.count_by_proyecto_and_status(
-                proyecto_id, ['en_produccion', 'qa']
+                proyecto_id, ['EN_PRODUCCION', 'QA']
             ),
             'total_despachos': len(proyecto.despachos),
             'despachos_pendientes': DespachosRepository.count_by_proyecto_and_status(
-                proyecto_id, ['programado', 'en_transporte']
+                proyecto_id, ['PROGRAMADO', 'EN_TRANSPORTE']
             )
         }
         

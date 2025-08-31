@@ -63,10 +63,10 @@
                     <label for="estado" class="form-label">Estado</label>
                     <select class="form-select" id="estado" name="estado">
                         <option value="">Todos los estados</option>
-                        <option value="borrador" {% if filters.estado == 'borrador' %}selected{% endif %}>Borrador</option>
-                        <option value="vigente" {% if filters.estado == 'vigente' %}selected{% endif %}>Vigente</option>
-                        <option value="cerrado" {% if filters.estado == 'cerrado' %}selected{% endif %}>Cerrado</option>
-                        <option value="anulado" {% if filters.estado == 'anulado' %}selected{% endif %}>Anulado</option>
+                        <option value="BORRADOR" {% if filters.estado == 'BORRADOR' %}selected{% endif %}>Borrador</option>
+                        <option value="VIGENTE" {% if filters.estado == 'VIGENTE' %}selected{% endif %}>Vigente</option>
+                        <option value="CERRADO" {% if filters.estado == 'CERRADO' %}selected{% endif %}>Cerrado</option>
+                        <option value="ANULADO" {% if filters.estado == 'ANULADO' %}selected{% endif %}>Anulado</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -156,7 +156,7 @@
                                 </a>
                             </td>
                             <td>
-                                <span class="badge bg-{{ 'success' if contrato.estado.value == 'vigente' else 'warning' if contrato.estado.value == 'borrador' else 'info' if contrato.estado.value == 'cerrado' else 'danger' }}">
+                                <span class="badge bg-{{ 'success' if contrato.estado.value == 'VIGENTE' else 'warning' if contrato.estado.value == 'BORRADOR' else 'info' if contrato.estado.value == 'CERRADO' else 'danger' }}">
                                     {{ contrato.estado.value|title }}
                                 </span>
                             </td>

@@ -291,7 +291,7 @@
                                                 </a>
                                             </td>
                                             <td>
-                                                <span class="badge bg-{{ 'success' if contrato.estado.value == 'vigente' else 'warning' if contrato.estado.value == 'borrador' else 'secondary' }}">
+                                                <span class="badge bg-{{ 'success' if contrato.estado.value == 'VIGENTE' else 'warning' if contrato.estado.value == 'BORRADOR' else 'secondary' }}">
                                                     {{ contrato.estado.value|title }}
                                                 </span>
                                             </td>
