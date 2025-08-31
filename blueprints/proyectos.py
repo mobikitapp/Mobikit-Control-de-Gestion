@@ -9,12 +9,46 @@ from services.clientes_service import ClientesService
 from schemas.proyectos import ProyectoCreate, ProyectoUpdate, ProyectoSearchFilters
 from models import CategoriaMuebleModel, User
 import logging
+from datetime import datetime
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
 proyectos_bp = Blueprint('proyectos', __name__)
 proyectos_service = ProyectosService()
 clientes_service = ClientesService()
+
+def process_form_data(form_data, is_update=False):
+    """Process form data for Pydantic validation"""
+    processed = {}
+    
+    for key, value in form_data.items():
+        if value == '' or value is None:
+            if is_update:
+                continue  # Skip empty values in updates
+            else:
+                processed[key] = None
+        elif key in ['cliente_id']:
+            processed[key] = int(value) if value else None
+        elif key in ['monto_provision_presupuestado', 'margen_venta_provision', 
+                     'monto_instalacion_presupuestado', 'margen_venta_instalacion']:
+            processed[key] = Decimal(str(value)) if value else None
+        elif key in ['fecha_inicio', 'fecha_fin_estimada', 'fecha_fin_real', 
+                     'fecha_presupuesto', 'fecha_adjudicacion']:
+            try:
+                processed[key] = datetime.strptime(value, '%Y-%m-%d').date() if value else None
+            except ValueError:
+                processed[key] = None
+        elif key == 'categoria_ids':
+            # Handle multiple category IDs if they come as list
+            if isinstance(value, list):
+                processed[key] = [int(v) for v in value if v]
+            else:
+                processed[key] = [int(value)] if value else []
+        else:
+            processed[key] = value
+    
+    return processed
 
 @proyectos_bp.route('/')
 @require_login
@@ -94,8 +128,9 @@ def nuevo():
 def crear():
     """Crear nuevo proyecto"""
     try:
-        # Validate form data
-        proyecto_data = ProyectoCreate(**request.form.to_dict())
+        # Process and validate form data
+        form_data = process_form_data(request.form.to_dict())
+        proyecto_data = ProyectoCreate(**form_data)
         
         # Create proyecto
         proyecto = proyectos_service.create_proyecto(proyecto_data.dict(), current_user.id)
@@ -107,17 +142,29 @@ def crear():
         for error in e.errors():
             flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
         clientes = clientes_service.get_active_clientes()
+        categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
+        usuarios = User.query.filter_by(activo=True).all()
+        vendedores = User.query.filter_by(activo=True).all()
         return render_template('proyectos/form.html', 
                              proyecto=None, 
                              clientes=clientes,
+                             categorias=categorias,
+                             usuarios=usuarios,
+                             vendedores=vendedores,
                              title="Nuevo Proyecto")
     except Exception as e:
         logger.error(f"Error creando proyecto: {str(e)}")
         flash('Error al crear proyecto', 'error')
         clientes = clientes_service.get_active_clientes()
+        categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
+        usuarios = User.query.filter_by(activo=True).all()
+        vendedores = User.query.filter_by(activo=True).all()
         return render_template('proyectos/form.html', 
                              proyecto=None, 
                              clientes=clientes,
+                             categorias=categorias,
+                             usuarios=usuarios,
+                             vendedores=vendedores,
                              title="Nuevo Proyecto")
 
 @proyectos_bp.route('/<int:proyecto_id>')
@@ -177,8 +224,9 @@ def actualizar(proyecto_id):
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('proyectos.index'))
         
-        # Validate form data
-        update_data = ProyectoUpdate(**request.form.to_dict())
+        # Process and validate form data
+        form_data = process_form_data(request.form.to_dict(), is_update=True)
+        update_data = ProyectoUpdate(**form_data)
         
         # Update proyecto
         proyecto_actualizado = proyectos_service.update_proyecto(proyecto_id, update_data.dict(exclude_unset=True))
@@ -190,10 +238,16 @@ def actualizar(proyecto_id):
         for error in e.errors():
             flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
         clientes = clientes_service.get_active_clientes()
+        categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
+        usuarios = User.query.filter_by(activo=True).all()
+        vendedores = User.query.filter_by(activo=True).all()
         return render_template('proyectos/form.html', 
                              proyecto=proyecto,
                              clientes=clientes,
-                             title=f"Editar Proyecto - {proyecto.nombre}")
+                             categorias=categorias,
+                             usuarios=usuarios,
+                             vendedores=vendedores,
+                             title=f"Editar Proyecto - {proyecto.nombre}" if proyecto else "Editar Proyecto")
     except Exception as e:
         logger.error(f"Error actualizando proyecto {proyecto_id}: {str(e)}")
         flash('Error al actualizar proyecto', 'error')
