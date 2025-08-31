@@ -62,4 +62,4 @@ externalPort = 80
 defaultBucketID = "replit-objstore-18a58625-bff7-44cb-bbf9-e8b65ac6622c"
 
 [agent]
-integrations = ["python_log_in_with_replit==1.0.0", "python_database==1.0.0", "styling_replit==1.0.0"]
+integrations = ["styling_replit==1.0.0", "python_database==1.0.0", "python_log_in_with_replit==1.0.0"]
