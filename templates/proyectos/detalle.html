@@ -10,8 +10,8 @@
                 <h1 class="h2">
                     <i data-feather="folder" class="me-2"></i>
                     {{ proyecto.nombre }}
-                    <span class="badge bg-{{ 'success' if proyecto.estado.value == 'completado' else 'primary' if proyecto.estado.value == 'en_desarrollo' else 'warning' if proyecto.estado.value == 'planificacion' else 'danger' if proyecto.estado.value == 'cancelado' else 'secondary' }} ms-2">
-                        {{ proyecto.estado.value|title }}
+                    <span class="badge bg-{{ 'success' if proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' if proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if proyecto.estado_comercial.value == 'PRESUPUESTADO' else 'secondary' }} ms-2">
+                        {{ proyecto.estado_comercial.value.replace('_', ' ')|title }}
                     </span>
                 </h1>
                 <div class="d-flex gap-2">
@@ -54,8 +54,8 @@
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Estado</label>
                             <div class="form-control-plaintext">
-                                <span class="badge bg-{{ 'success' if proyecto.estado.value == 'completado' else 'primary' if proyecto.estado.value == 'en_desarrollo' else 'warning' if proyecto.estado.value == 'planificacion' else 'danger' if proyecto.estado.value == 'cancelado' else 'secondary' }}">
-                                    {{ proyecto.estado.value|title }}
+                                <span class="badge bg-{{ 'success' if proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' if proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if proyecto.estado_comercial.value == 'PRESUPUESTADO' else 'secondary' }}">
+                                    {{ proyecto.estado_comercial.value.replace('_', ' ')|title }}
                                 </span>
                             </div>
                         </div>

@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload
 from app import db
-from models import Proyecto, Cliente, User, EstadoProyecto
+from models import Proyecto, Cliente, User
 from schemas.proyectos import ProyectoSearchFilters
 
 class ProyectosRepository:
@@ -105,19 +105,21 @@ class ProyectosRepository:
     
     @staticmethod
     def count_by_status(status_list: List[str]) -> int:
-        """Count proyectos by status"""
-        status_enums = [EstadoProyecto(status) for status in status_list]
+        """Count proyectos by commercial status"""
+        from models import EstadoComercial
+        status_enums = [EstadoComercial(status) for status in status_list]
         return (db.session.query(Proyecto)
-                .filter(Proyecto.estado.in_(status_enums))
+                .filter(Proyecto.estado_comercial.in_(status_enums))
                 .count())
     
     @staticmethod
     def count_by_cliente_and_status(cliente_id: int, status_list: List[str]) -> int:
-        """Count proyectos by cliente and status"""
-        status_enums = [EstadoProyecto(status) for status in status_list]
+        """Count proyectos by cliente and commercial status"""
+        from models import EstadoComercial
+        status_enums = [EstadoComercial(status) for status in status_list]
         return (db.session.query(Proyecto)
                 .filter(Proyecto.cliente_id == cliente_id)
-                .filter(Proyecto.estado.in_(status_enums))
+                .filter(Proyecto.estado_comercial.in_(status_enums))
                 .count())
     
     @staticmethod

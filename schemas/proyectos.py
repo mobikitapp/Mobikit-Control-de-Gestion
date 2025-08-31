@@ -4,24 +4,18 @@ from datetime import datetime, date
 from enum import Enum
 from decimal import Decimal
 
-class EstadoProyectoEnum(str, Enum):
-    PLANIFICACION = "PLANIFICACION"
-    EN_DESARROLLO = "EN_DESARROLLO"
-    PAUSADO = "PAUSADO"
-    COMPLETADO = "COMPLETADO"
-    CANCELADO = "CANCELADO"
 
 class EstadoComercialEnum(str, Enum):
     PENDIENTE_PRESUPUESTO = "PENDIENTE_PRESUPUESTO"
     PRESUPUESTADO = "PRESUPUESTADO"
     ADJUDICADO = "ADJUDICADO"
+    EN_DESARROLLO = "EN_DESARROLLO"
     TERMINADO = "TERMINADO"
 
 class ProyectoBase(BaseModel):
     cliente_id: int = Field(..., description="ID del cliente")
     nombre: str = Field(..., min_length=1, max_length=200, description="Nombre del proyecto")
     descripcion: Optional[str] = Field(None, description="Descripción del proyecto")
-    estado: EstadoProyectoEnum = Field(EstadoProyectoEnum.PLANIFICACION, description="Estado del proyecto")
     fecha_inicio: Optional[date] = Field(None, description="Fecha de inicio")
     fecha_fin_estimada: Optional[date] = Field(None, description="Fecha de fin estimada")
     fecha_fin_real: Optional[date] = Field(None, description="Fecha de fin real")
@@ -59,7 +53,6 @@ class ProyectoUpdate(BaseModel):
     cliente_id: Optional[int] = None
     nombre: Optional[str] = Field(None, min_length=1, max_length=200)
     descripcion: Optional[str] = None
-    estado: Optional[EstadoProyectoEnum] = None
     fecha_inicio: Optional[date] = None
     fecha_fin_estimada: Optional[date] = None
     fecha_fin_real: Optional[date] = None
@@ -94,7 +87,6 @@ class ProyectoResponse(ProyectoBase):
 class ProyectoSearchFilters(BaseModel):
     cliente_id: Optional[int] = Field(None, description="Filtrar por cliente")
     nombre: Optional[str] = Field(None, description="Buscar por nombre")
-    estado: Optional[EstadoProyectoEnum] = Field(None, description="Filtrar por estado")
     responsable: Optional[str] = Field(None, description="Filtrar por responsable")
     fecha_inicio_desde: Optional[date] = Field(None, description="Fecha de inicio desde")
     fecha_inicio_hasta: Optional[date] = Field(None, description="Fecha de inicio hasta")

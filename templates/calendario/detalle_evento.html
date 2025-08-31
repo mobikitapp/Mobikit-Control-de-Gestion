@@ -120,8 +120,8 @@
                                         <p class="mb-1 text-muted">Cliente: {{ evento.proyecto.cliente.nombre }}</p>
                                         <small class="text-muted">
                                             Estado: 
-                                            <span class="badge bg-{{ 'warning' if evento.proyecto.estado.value == 'planificacion' else 'info' if evento.proyecto.estado.value == 'en_desarrollo' else 'success' if evento.proyecto.estado.value == 'completado' else 'secondary' }}">
-                                                {{ evento.proyecto.estado.value.replace('_', ' ').title() }}
+                                            <span class="badge bg-{{ 'warning' if evento.proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if evento.proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'success' if evento.proyecto.estado_comercial.value == 'TERMINADO' else 'secondary' }}">
+                                                {{ evento.proyecto.estado_comercial.value.replace('_', ' ').title() }}
                                             </span>
                                         </small>
                                     </div>

@@ -22,8 +22,8 @@
                         <strong>Código:</strong> {{ proyecto.codigo }}<br>
                         <strong>Cliente:</strong> {{ proyecto.cliente_nombre if proyecto.cliente_nombre else 'Sin cliente' }}<br>
                         <strong>Estado:</strong> 
-                        <span class="badge bg-{{ 'primary' if proyecto.estado == 'en_desarrollo' else 'info' if proyecto.estado == 'aprobado_produccion' else 'success' if proyecto.estado == 'entregado' else 'warning' }}">
-                            {{ proyecto.estado|replace('_', ' ')|title if proyecto.estado else 'Sin estado' }}
+                        <span class="badge bg-{{ 'primary' if proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'info' if proyecto.estado_comercial.value == 'ADJUDICADO' else 'success' if proyecto.estado_comercial.value == 'TERMINADO' else 'warning' }}">
+                            {{ proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto.estado_comercial else 'Sin estado' }}
                         </span><br>
                         <strong>Estado Proyecto:</strong>
                         <span class="badge bg-{{ 'warning' if proyecto.estado_proyecto == 'pendiente_presupuesto' else 'info' if proyecto.estado_proyecto == 'presupuestado' else 'success' }}">
@@ -175,18 +175,16 @@
                 {% endif %}
 
                 <div class="progress mb-3">
-                    {% if proyecto.estado == 'entregado' or proyecto.estado == 'terminado' or proyecto.estado == 'completado' %}
+                    {% if proyecto.estado_comercial.value == 'TERMINADO' %}
                         <div class="progress-bar bg-success" role="progressbar" style="width: 100%">Completado</div>
-                    {% elif proyecto.estado == 'listo_despacho' %}
-                        <div class="progress-bar bg-info" role="progressbar" style="width: 90%">90%</div>
-                    {% elif proyecto.estado in ['produccion_completa', 'embalando'] %}
-                        <div class="progress-bar bg-warning" role="progressbar" style="width: 75%">75%</div>
-                    {% elif proyecto.estado in ['seccionado', 'enchapado', 'mecanizado'] %}
-                        <div class="progress-bar" role="progressbar" style="width: 50%">50%</div>
-                    {% elif proyecto.estado == 'aprobado_produccion' %}
-                        <div class="progress-bar" role="progressbar" style="width: 25%">25%</div>
+                    {% elif proyecto.estado_comercial.value == 'EN_DESARROLLO' %}
+                        <div class="progress-bar bg-info" role="progressbar" style="width: 75%">En Desarrollo</div>
+                    {% elif proyecto.estado_comercial.value == 'ADJUDICADO' %}
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: 50%">Adjudicado</div>
+                    {% elif proyecto.estado_comercial.value == 'PRESUPUESTADO' %}
+                        <div class="progress-bar" role="progressbar" style="width: 25%">Presupuestado</div>
                     {% else %}
-                        <div class="progress-bar bg-secondary" role="progressbar" style="width: 10%">10%</div>
+                        <div class="progress-bar bg-secondary" role="progressbar" style="width: 10%">Pendiente Presupuesto</div>
                     {% endif %}
                 </div>
 
