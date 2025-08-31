@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% set title = "Historial - " + orden.codigo %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-history text-info"></i>
+                        Historial de Áreas
+                    </h4>
+                    <p class="mb-0 text-muted">Seguimiento completo de la orden {{ orden.codigo }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Info -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Información de la Orden</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p><strong>Código:</strong> {{ orden.codigo }}</p>
+                            <p><strong>Proyecto:</strong> {{ orden.proyecto.nombre }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Cliente:</strong> {{ orden.proyecto.cliente.nombre }}</p>
+                            <p><strong>Estado OF:</strong> 
+                                <span class="badge bg-secondary">{{ orden.estado.value }}</span>
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            {% if orden.fecha_planificada %}
+                            <p><strong>Fecha Planificada:</strong> {{ orden.fecha_planificada.strftime('%d/%m/%Y') }}</p>
+                            {% endif %}
+                            {% if orden.responsable_user %}
+                            <p><strong>Responsable OF:</strong> {{ orden.responsable_user.nombre_completo }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if orden.descripcion %}
+                    <p><strong>Descripción:</strong> {{ orden.descripcion }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if history %}
+    <!-- History Timeline -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Historial de Movimientos</h6>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for item in history %}
+                        <div class="timeline-item {% if item.es_actual %}active{% endif %} {% if item.archivado %}archived{% endif %}">
+                            <div class="timeline-marker" style="background-color: {{ item.area.color_hex }};">
+                                {% if item.es_actual %}
+                                <i class="fas fa-clock text-white"></i>
+                                {% elif item.archivado %}
+                                <i class="fas fa-archive text-white"></i>
+                                {% else %}
+                                <i class="fas fa-check text-white"></i>
+                                {% endif %}
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h6 class="timeline-title">
+                                        <span class="badge" style="background-color: {{ item.area.color_hex }}; color: white;">
+                                            {{ item.area.nombre }}
+                                        </span>
+                                        <span class="badge ms-2" style="background-color: {{ item.estado.color_hex }}; color: white;">
+                                            {{ item.estado.nombre }}
+                                        </span>
+                                        {% if item.es_actual %}
+                                        <span class="badge bg-success ms-2">ACTUAL</span>
+                                        {% endif %}
+                                        {% if item.archivado %}
+                                        <span class="badge bg-secondary ms-2">ARCHIVADO</span>
+                                        {% endif %}
+                                    </h6>
+                                    <small class="text-muted">
+                                        Ingreso: {{ item.fecha_ingreso_area.strftime('%d/%m/%Y %H:%M') }}
+                                        {% if item.fecha_cambio_estado != item.fecha_ingreso_area %}
+                                        | Último cambio: {{ item.fecha_cambio_estado.strftime('%d/%m/%Y %H:%M') }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                
+                                <div class="timeline-body">
+                                    <div class="row">
+                                        {% if item.responsable_nombre %}
+                                        <div class="col-md-6">
+                                            <small><strong>Responsable:</strong> {{ item.responsable_nombre }}</small>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if item.tiempo_estimado_horas %}
+                                        <div class="col-md-6">
+                                            <small><strong>Tiempo Estimado:</strong> {{ item.tiempo_estimado_horas }}h</small>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if item.created_by_nombre %}
+                                        <div class="col-md-12">
+                                            <small class="text-muted"><strong>Creado por:</strong> {{ item.created_by_nombre }}</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if item.notas_area %}
+                                    <div class="mt-2">
+                                        <small><strong>Notas:</strong></small>
+                                        <div class="p-2 bg-light rounded">
+                                            <small>{{ item.notas_area|nl2br }}</small>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-history fa-4x text-muted mb-4"></i>
+                    <h4>Sin Historial</h4>
+                    <p class="text-muted">Esta orden aún no ha ingresado al sistema de áreas.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('areas.dashboard') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                    <a href="{{ url_for('fabricacion.detalle', of_id=orden.id) }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-eye"></i> Ver Orden Completa
+                    </a>
+                    {% if history and history[0].es_actual %}
+                    <a href="{{ url_for('areas.cambiar_estado_form', orden_id=orden.id) }}" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> Cambiar Estado
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding: 0;
+    list-style: none;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 60px;
+}
+
+.timeline-item:before {
+    content: '';
+    position: absolute;
+    left: 25px;
+    top: 0;
+    bottom: -30px;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item:last-child:before {
+    display: none;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 10px;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.timeline-content {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 5px;
+    padding: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.timeline-item.active .timeline-content {
+    border-color: #007bff;
+    border-width: 2px;
+}
+
+.timeline-item.archived .timeline-content {
+    background-color: #f8f9fa;
+    opacity: 0.8;
+}
+
+.timeline-title {
+    margin: 0 0 5px 0;
+}
+</style>
+{% endblock %}

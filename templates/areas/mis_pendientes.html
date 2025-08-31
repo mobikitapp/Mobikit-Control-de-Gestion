@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% set title = "Mis Órdenes Pendientes" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-clock text-primary"></i>
+                        Mis Órdenes Pendientes
+                    </h4>
+                    <p class="mb-0 text-muted">Órdenes asignadas a mí en diferentes áreas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if orders %}
+    <!-- Orders Table -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>OF</th>
+                                    <th>Proyecto</th>
+                                    <th>Cliente</th>
+                                    <th>Área</th>
+                                    <th>Estado</th>
+                                    <th>Último Cambio</th>
+                                    <th>Días</th>
+                                    <th>Tiempo Est.</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in orders %}
+                                <tr class="{% if order.dias_sin_cambio > 7 %}table-warning{% elif order.dias_sin_cambio > 14 %}table-danger{% endif %}">
+                                    <td>
+                                        <strong>{{ order.orden_fabricacion.codigo }}</strong>
+                                        {% if order.orden_fabricacion.descripcion %}
+                                        <br><small class="text-muted">{{ order.orden_fabricacion.descripcion[:30] }}{% if order.orden_fabricacion.descripcion|length > 30 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ order.orden_fabricacion.proyecto_nombre }}</td>
+                                    <td>{{ order.orden_fabricacion.cliente_nombre }}</td>
+                                    <td>
+                                        <span class="badge" style="background-color: {{ order.area.color_hex }}; color: white;">
+                                            {{ order.area.nombre }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge" style="background-color: {{ order.estado.color_hex }}; color: white;">
+                                            {{ order.estado.nombre }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small>{{ order.fecha_cambio_estado.strftime('%d/%m/%Y %H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if order.dias_sin_cambio > 14 %}bg-danger{% elif order.dias_sin_cambio > 7 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                            {{ order.dias_sin_cambio }}d
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if order.tiempo_estimado_horas %}
+                                        <small>{{ order.tiempo_estimado_horas }}h</small>
+                                        {% else %}
+                                        <small class="text-muted">No definido</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('areas.cambiar_estado_form', orden_id=order.orden_fabricacion.id) }}" 
+                                               class="btn btn-outline-primary btn-sm" title="Cambiar Estado">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{{ url_for('areas.orden_history', orden_id=order.orden_fabricacion.id) }}" 
+                                               class="btn btn-outline-info btn-sm" title="Ver Historial">
+                                                <i class="fas fa-history"></i>
+                                            </a>
+                                            <a href="{{ url_for('fabricacion.detalle', of_id=order.orden_fabricacion.id) }}" 
+                                               class="btn btn-outline-secondary btn-sm" title="Ver OF">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ orders|length }}</h4>
+                    <small>Total Pendientes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4>{{ orders|selectattr("dias_sin_cambio", ">", 7)|list|length }}</h4>
+                    <small>Atrasadas (+7 días)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h4>{{ orders|selectattr("dias_sin_cambio", ">", 14)|list|length }}</h4>
+                    <small>Críticas (+14 días)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ orders|selectattr("tiempo_estimado_horas")|list|map(attribute='tiempo_estimado_horas')|sum|int or 0 }}</h4>
+                    <small>Horas Estimadas</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- Empty State -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-check-circle fa-4x text-success mb-4"></i>
+                    <h3>¡Excelente!</h3>
+                    <p class="text-muted">No tienes órdenes pendientes asignadas en este momento.</p>
+                    <a href="{{ url_for('areas.dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-tachometer-alt"></i> Ir al Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('areas.dashboard') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard de Áreas
+                    </a>
+                    <a href="{{ url_for('fabricacion.index') }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-industry"></i> Órdenes de Fabricación
+                    </a>
+                    <button class="btn btn-outline-info" onclick="window.location.reload()">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh every 3 minutes
+setInterval(() => {
+    window.location.reload();
+}, 180000);
+</script>
+{% endblock %}

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% set title = "Área: " + area.nombre %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Area Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header" style="background-color: {{ area.color_hex }}20; border-left: 4px solid {{ area.color_hex }};">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1">
+                                <span class="badge" style="background-color: {{ area.color_hex }}; color: white;">
+                                    {{ area.orden_secuencia }}
+                                </span>
+                                {{ area.nombre }}
+                            </h4>
+                            <p class="mb-0 text-muted">{{ area.descripcion }}</p>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="mb-0">{{ total_orders }}</h5>
+                            <small class="text-muted">órdenes activas</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- States and Orders -->
+    <div class="row">
+        {% for state_data in states_data %}
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center"
+                     style="background-color: {{ state_data.estado.color_hex }}20; border-left: 4px solid {{ state_data.estado.color_hex }};">
+                    <div>
+                        <h6 class="mb-0">{{ state_data.estado.nombre }}</h6>
+                        <small class="text-muted">{{ state_data.estado.descripcion }}</small>
+                        {% if state_data.estado.es_inicial %}
+                        <span class="badge bg-success ms-2">Inicial</span>
+                        {% endif %}
+                        {% if state_data.estado.es_final %}
+                        <span class="badge bg-info ms-2">Final</span>
+                        {% endif %}
+                    </div>
+                    <span class="badge" style="background-color: {{ state_data.estado.color_hex }}; color: white;">
+                        {{ state_data.count }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    {% if state_data.orders %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Proyecto</th>
+                                    <th>Cliente</th>
+                                    <th>Responsable</th>
+                                    <th>Ingreso</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in state_data.orders %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ order.codigo }}</strong>
+                                        {% if order.tiempo_estimado_horas %}
+                                        <br><small class="text-muted">{{ order.tiempo_estimado_horas }}h est.</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ order.proyecto_nombre[:25] }}{% if order.proyecto_nombre|length > 25 %}...{% endif %}</td>
+                                    <td>{{ order.cliente_nombre[:20] }}{% if order.cliente_nombre|length > 20 %}...{% endif %}</td>
+                                    <td>
+                                        {% if order.responsable_nombre %}
+                                        <small>{{ order.responsable_nombre[:15] }}{% if order.responsable_nombre|length > 15 %}...{% endif %}</small>
+                                        {% else %}
+                                        <small class="text-muted">Sin asignar</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ order.fecha_ingreso_area.strftime('%d/%m %H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('areas.cambiar_estado_form', orden_id=order.id) }}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{{ url_for('areas.orden_history', orden_id=order.id) }}" 
+                                               class="btn btn-outline-info btn-sm">
+                                                <i class="fas fa-history"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+                        <p>No hay órdenes en este estado</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('areas.dashboard') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                    </a>
+                    <button class="btn btn-outline-info" onclick="window.location.reload()">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh every 2 minutes
+setInterval(() => {
+    window.location.reload();
+}, 120000);
+</script>
+{% endblock %}
