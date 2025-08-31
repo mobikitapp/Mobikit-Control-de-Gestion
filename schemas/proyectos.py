@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field, validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 from enum import Enum
+from decimal import Decimal
 
 class EstadoProyectoEnum(str, Enum):
     PLANIFICACION = "planificacion"
@@ -9,6 +10,12 @@ class EstadoProyectoEnum(str, Enum):
     PAUSADO = "pausado"
     COMPLETADO = "completado"
     CANCELADO = "cancelado"
+
+class EstadoComercialEnum(str, Enum):
+    PENDIENTE_PRESUPUESTO = "pendiente_presupuesto"
+    PRESUPUESTADO = "presupuestado"
+    ADJUDICADO = "adjudicado"
+    TERMINADO = "terminado"
 
 class ProyectoBase(BaseModel):
     cliente_id: int = Field(..., description="ID del cliente")
@@ -20,6 +27,16 @@ class ProyectoBase(BaseModel):
     fecha_fin_real: Optional[date] = Field(None, description="Fecha de fin real")
     responsable: Optional[str] = Field(None, description="ID del usuario responsable")
     notas: Optional[str] = Field(None, description="Notas adicionales")
+    
+    # Campos comerciales
+    vendedor_id: Optional[str] = Field(None, description="ID del vendedor")
+    monto_provision_presupuestado: Optional[Decimal] = Field(None, description="Monto de provisión presupuestado")
+    margen_venta_provision: Optional[Decimal] = Field(None, description="Margen de venta provisión (%)")
+    monto_instalacion_presupuestado: Optional[Decimal] = Field(None, description="Monto de instalación presupuestado")
+    margen_venta_instalacion: Optional[Decimal] = Field(None, description="Margen de venta instalación (%)")
+    fecha_presupuesto: Optional[date] = Field(None, description="Fecha del presupuesto")
+    fecha_adjudicacion: Optional[date] = Field(None, description="Fecha de adjudicación")
+    notas_comerciales: Optional[str] = Field(None, description="Notas comerciales")
 
     @validator('fecha_fin_estimada')
     def validate_fecha_fin_estimada(cls, v, values):
@@ -48,6 +65,16 @@ class ProyectoUpdate(BaseModel):
     fecha_fin_real: Optional[date] = None
     responsable: Optional[str] = None
     notas: Optional[str] = None
+    
+    # Campos comerciales
+    vendedor_id: Optional[str] = None
+    monto_provision_presupuestado: Optional[Decimal] = None
+    margen_venta_provision: Optional[Decimal] = None
+    monto_instalacion_presupuestado: Optional[Decimal] = None
+    margen_venta_instalacion: Optional[Decimal] = None
+    fecha_presupuesto: Optional[date] = None
+    fecha_adjudicacion: Optional[date] = None
+    notas_comerciales: Optional[str] = None
 
 class ProyectoResponse(ProyectoBase):
     id: int
@@ -56,6 +83,10 @@ class ProyectoResponse(ProyectoBase):
     created_by: Optional[str]
     cliente_nombre: Optional[str] = None
     responsable_nombre: Optional[str] = None
+    vendedor_nombre: Optional[str] = None
+    estado_comercial: Optional[EstadoComercialEnum] = None
+    categorias_mueble: List[dict] = Field(default_factory=list, description="Categorías de muebles asociadas")
+    tiene_datos_comerciales: bool = Field(False, description="Indica si tiene datos comerciales completos")
 
     class Config:
         from_attributes = True
@@ -67,5 +98,8 @@ class ProyectoSearchFilters(BaseModel):
     responsable: Optional[str] = Field(None, description="Filtrar por responsable")
     fecha_inicio_desde: Optional[date] = Field(None, description="Fecha de inicio desde")
     fecha_inicio_hasta: Optional[date] = Field(None, description="Fecha de inicio hasta")
+    vendedor_id: Optional[str] = Field(None, description="Filtrar por vendedor")
+    estado_comercial: Optional[EstadoComercialEnum] = Field(None, description="Filtrar por estado comercial")
+    categoria_id: Optional[int] = Field(None, description="Filtrar por categoría")
     page: int = Field(1, ge=1, description="Número de página")
     per_page: int = Field(20, ge=1, le=100, description="Elementos por página")
