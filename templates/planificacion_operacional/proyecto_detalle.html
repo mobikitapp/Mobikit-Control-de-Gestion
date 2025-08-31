@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% set title = "Detalle Operacional - " + proyecto.nombre %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-project-diagram text-primary"></i>
+                        Detalle Operacional: {{ proyecto.nombre }}
+                    </h4>
+                    <p class="mb-0 text-muted">{{ proyecto.cliente.nombre }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Summary -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Información del Proyecto</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Estado Comercial:</strong> 
+                                <span class="badge bg-{{ 'success' if proyecto.estado_comercial.value == 'adjudicado' else 'warning' }}">
+                                    {{ proyecto.estado_comercial.value.title() }}
+                                </span>
+                            </p>
+                            <p><strong>Valor Provisión:</strong> ${{ "{:,.0f}".format(proyecto.valor_presupuestado_provision or 0) }}</p>
+                            <p><strong>Valor Instalación:</strong> ${{ "{:,.0f}".format(proyecto.valor_presupuestado_instalacion or 0) }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Fecha Inicio:</strong> {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') if proyecto.fecha_inicio else 'No definida' }}</p>
+                            <p><strong>Fecha Fin Estimada:</strong> {{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') if proyecto.fecha_fin_estimada else 'No definida' }}</p>
+                            <p><strong>Vendedor:</strong> {{ proyecto.vendedor.nombre_completo if proyecto.vendedor else 'No asignado' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h6 class="mb-0">Acciones</h6>
+                </div>
+                <div class="card-body text-center">
+                    <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" class="btn btn-outline-primary btn-sm mb-2">
+                        <i class="fas fa-eye"></i> Ver Proyecto Completo
+                    </a>
+                    <br>
+                    <a href="{{ url_for('planificacion_operacional.matriz_operacional') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left"></i> Volver a Matriz
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Board Calculations by Material -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Cálculo de Tableros por Material</h6>
+                </div>
+                <div class="card-body">
+                    {% if tableros_por_material %}
+                    <div class="row">
+                        {% for material, resultado in tableros_por_material.items() %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-{{ 'primary' if material == 'melamina' else 'info' if material == 'mdf' else 'success' }}">
+                                <div class="card-header bg-{{ 'primary' if material == 'melamina' else 'info' if material == 'mdf' else 'success' }} text-white">
+                                    <h6 class="mb-0">{{ material.title() }}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <h4 class="text-{{ 'primary' if material == 'melamina' else 'info' if material == 'mdf' else 'success' }}">
+                                        {{ resultado.tableros_aproximados }} tableros
+                                    </h4>
+                                    <hr>
+                                    <p><strong>Factor:</strong> ${{ "{:,}".format(resultado.factor_usado) }}/m²</p>
+                                    <p><strong>Área total:</strong> {{ "{:.1f}".format(resultado.area_total_m2) }} m²</p>
+                                    <p><strong>Con desperdicio:</strong> {{ "{:.1f}".format(resultado.area_con_desperdicio) }} m²</p>
+                                    <small class="text-muted">{{ resultado.detalles.descripcion_material }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-info-circle fa-2x mb-3"></i>
+                        <p>No se puede calcular tableros sin monto de provisión definido</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manufacturing Orders -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Órdenes de Fabricación ({{ ordenes_fabricacion|length }})</h6>
+                </div>
+                <div class="card-body">
+                    {% if ordenes_fabricacion %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descripción</th>
+                                    <th>Estado</th>
+                                    <th>Fecha Planificada</th>
+                                    <th>Responsable</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for of in ordenes_fabricacion %}
+                                <tr>
+                                    <td><strong>{{ of.codigo }}</strong></td>
+                                    <td>{{ of.descripcion[:50] }}{% if of.descripcion|length > 50 %}...{% endif %}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'warning' if of.estado.value == 'planificada' else 'primary' if of.estado.value == 'en_produccion' else 'info' if of.estado.value == 'qa' else 'success' }}">
+                                            {{ of.estado.value.replace('_', ' ').title() }}
+                                        </span>
+                                    </td>
+                                    <td>{{ of.fecha_planificada.strftime('%d/%m/%Y') if of.fecha_planificada else '-' }}</td>
+                                    <td>{{ of.responsable_usuario.nombre_completo if of.responsable_usuario else 'No asignado' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-tools fa-2x mb-3"></i>
+                        <p>No hay órdenes de fabricación creadas para este proyecto</p>
+                        <a href="{{ url_for('fabricacion.nueva', proyecto_id=proyecto.id) }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Crear Primera Orden
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Material Comparison Chart (placeholder) -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Comparación de Materiales</h6>
+                </div>
+                <div class="card-body">
+                    {% if tableros_por_material %}
+                    <div class="row text-center">
+                        {% for material, resultado in tableros_por_material.items() %}
+                        <div class="col-md-4">
+                            <h6 class="text-{{ 'primary' if material == 'melamina' else 'info' if material == 'mdf' else 'success' }}">
+                                {{ material.title() }}
+                            </h6>
+                            <div class="progress mb-2" style="height: 30px;">
+                                {% set max_tableros = tableros_por_material.values() | map(attribute='tableros_aproximados') | max %}
+                                <div class="progress-bar bg-{{ 'primary' if material == 'melamina' else 'info' if material == 'mdf' else 'success' }}" 
+                                     style="width: {{ (resultado.tableros_aproximados / max_tableros * 100) if max_tableros > 0 else 0 }}%">
+                                    {{ resultado.tableros_aproximados }}
+                                </div>
+                            </div>
+                            <small class="text-muted">${{ "{:,}".format(resultado.factor_usado) }}/m²</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-12 text-center">
+                            <small class="text-muted">
+                                * Los cálculos incluyen {{ "{:.0f}".format((factor_info[tableros_por_material.keys()|first].factor_desperdicio - 1) * 100) }}% de desperdicio y área estándar de {{ factor_info[tableros_por_material.keys()|first].area_tablero }}m² por tablero
+                            </small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <p>Defina el monto de provisión para ver la comparación de materiales</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
