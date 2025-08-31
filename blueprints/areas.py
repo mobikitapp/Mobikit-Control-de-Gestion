@@ -37,7 +37,7 @@ def dashboard():
     except Exception as e:
         logger.error(f"Error en dashboard de áreas: {str(e)}")
         flash('Error cargando el dashboard de áreas', 'error')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('index'))
 
 
 @areas_bp.route('/area/<int:area_id>')
