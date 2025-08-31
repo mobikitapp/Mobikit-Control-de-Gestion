@@ -139,8 +139,24 @@ def crear():
         return redirect(url_for('proyectos.detalle', proyecto_id=proyecto.id))
         
     except ValidationError as e:
+        error_messages = []
         for error in e.errors():
-            flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
+            field_name = error['loc'][0] if error['loc'] else 'campo'
+            # Traducir nombres de campos al español
+            field_translations = {
+                'cliente_id': 'Cliente',
+                'nombre': 'Nombre del proyecto',
+                'fecha_inicio': 'Fecha de inicio',
+                'fecha_fin_estimada': 'Fecha de fin estimada',
+                'monto_provision_presupuestado': 'Monto de provisión',
+                'monto_instalacion_presupuestado': 'Monto de instalación'
+            }
+            field_display = field_translations.get(field_name, field_name)
+            error_messages.append(f"{field_display}: {error['msg']}")
+        
+        for msg in error_messages:
+            flash(msg, 'error')
+            
         clientes = clientes_service.get_active_clientes()
         categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
         usuarios = User.query.filter_by(activo=True).all()
@@ -154,7 +170,7 @@ def crear():
                              title="Nuevo Proyecto")
     except Exception as e:
         logger.error(f"Error creando proyecto: {str(e)}")
-        flash('Error al crear proyecto', 'error')
+        flash(f'Error inesperado al crear proyecto: {str(e)}', 'error')
         clientes = clientes_service.get_active_clientes()
         categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
         usuarios = User.query.filter_by(activo=True).all()

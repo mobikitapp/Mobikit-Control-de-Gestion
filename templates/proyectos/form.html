@@ -18,7 +18,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <div class="card">
@@ -28,7 +28,10 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('proyectos.crear') if not proyecto else url_for('proyectos.actualizar', proyecto_id=proyecto.id) }}" novalidate>
+                    <!-- Alert container for form errors -->
+                    <div id="form-alerts"></div>
+
+                    <form method="POST" action="{{ url_for('proyectos.crear') if not proyecto else url_for('proyectos.actualizar', proyecto_id=proyecto.id) }}" data-validate="true" novalidate>
                         <div class="row g-3">
                             <!-- Cliente -->
                             <div class="col-md-6">
@@ -48,7 +51,7 @@
                                     Por favor selecciona un cliente.
                                 </div>
                             </div>
-                            
+
                             <!-- Nombre -->
                             <div class="col-md-6">
                                 <label for="nombre" class="form-label">
@@ -60,7 +63,7 @@
                                     Por favor ingresa el nombre del proyecto.
                                 </div>
                             </div>
-                            
+
                             <!-- Estado -->
                             <div class="col-md-6">
                                 <label for="estado" class="form-label">Estado</label>
@@ -72,7 +75,7 @@
                                     <option value="cancelado" {% if proyecto and proyecto.estado.value == 'cancelado' %}selected{% endif %}>Cancelado</option>
                                 </select>
                             </div>
-                            
+
                             <!-- Responsable -->
                             <div class="col-md-6">
                                 <label for="responsable" class="form-label">Responsable</label>
@@ -86,7 +89,7 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            
+
                             <!-- Vendedor -->
                             <div class="col-md-6">
                                 <label for="vendedor_id" class="form-label">Vendedor <span class="text-danger">*</span></label>
@@ -103,28 +106,28 @@
                                     Por favor selecciona un vendedor.
                                 </div>
                             </div>
-                            
+
                             <!-- Fecha Inicio -->
                             <div class="col-md-6">
                                 <label for="fecha_inicio" class="form-label">Fecha de Inicio</label>
                                 <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" 
                                        value="{{ proyecto.fecha_inicio.strftime('%Y-%m-%d') if proyecto and proyecto.fecha_inicio else '' }}">
                             </div>
-                            
+
                             <!-- Fecha Fin Estimada -->
                             <div class="col-md-6">
                                 <label for="fecha_fin_estimada" class="form-label">Fecha Fin Estimada</label>
                                 <input type="date" class="form-control" id="fecha_fin_estimada" name="fecha_fin_estimada" 
                                        value="{{ proyecto.fecha_fin_estimada.strftime('%Y-%m-%d') if proyecto and proyecto.fecha_fin_estimada else '' }}">
                             </div>
-                            
+
                             <!-- Descripción -->
                             <div class="col-12">
                                 <label for="descripcion" class="form-label">Descripción</label>
                                 <textarea class="form-control" id="descripcion" name="descripcion" rows="4" 
                                           placeholder="Descripción detallada del proyecto">{{ proyecto.descripcion if proyecto else '' }}</textarea>
                             </div>
-                            
+
                             <!-- Categorías de Muebles -->
                             <div class="col-12">
                                 <label class="form-label">Categorías de Muebles <span class="text-danger">*</span></label>
@@ -142,7 +145,7 @@
                                                         {{ categoria.nombre.value|title }}
                                                     </label>
                                                 </div>
-                                                
+
                                                 <!-- Subcategorías -->
                                                 {% if categoria.subcategorias %}
                                                 <div class="subcategorias mt-2 ms-3" style="display: none;">
@@ -168,12 +171,12 @@
                                     Por favor selecciona al menos una categoría.
                                 </div>
                             </div>
-                            
+
                             <!-- Información Comercial -->
                             <div class="col-12">
                                 <h6 class="border-bottom pb-2 mb-3">Información Comercial</h6>
                             </div>
-                            
+
                             <!-- Monto Provisión -->
                             <div class="col-md-6">
                                 <label for="monto_provision_presupuestado" class="form-label">Monto Provisión Presupuestado</label>
@@ -185,7 +188,7 @@
                                            placeholder="0">
                                 </div>
                             </div>
-                            
+
                             <!-- Margen Provisión -->
                             <div class="col-md-6">
                                 <label for="margen_venta_provision" class="form-label">Margen Venta Provisión (%)</label>
@@ -194,7 +197,7 @@
                                        value="{{ proyecto.margen_venta_provision if proyecto else '' }}" 
                                        placeholder="25.0">
                             </div>
-                            
+
                             <!-- Monto Instalación -->
                             <div class="col-md-6">
                                 <label for="monto_instalacion_presupuestado" class="form-label">Monto Instalación Presupuestado</label>
@@ -206,7 +209,7 @@
                                            placeholder="0">
                                 </div>
                             </div>
-                            
+
                             <!-- Margen Instalación -->
                             <div class="col-md-6">
                                 <label for="margen_venta_instalacion" class="form-label">Margen Venta Instalación (%)</label>
@@ -215,14 +218,14 @@
                                        value="{{ proyecto.margen_venta_instalacion if proyecto else '' }}" 
                                        placeholder="30.0">
                             </div>
-                            
+
                             <!-- Notas Comerciales -->
                             <div class="col-12">
                                 <label for="notas_comerciales" class="form-label">Notas Comerciales</label>
                                 <textarea class="form-control" id="notas_comerciales" name="notas_comerciales" rows="2" 
                                           placeholder="Observaciones comerciales, condiciones especiales, etc.">{{ proyecto.notas_comerciales if proyecto else '' }}</textarea>
                             </div>
-                            
+
                             <!-- Notas -->
                             <div class="col-12">
                                 <label for="notas" class="form-label">Notas</label>
@@ -230,9 +233,9 @@
                                           placeholder="Notas adicionales sobre el proyecto">{{ proyecto.notas if proyecto else '' }}</textarea>
                             </div>
                         </div>
-                        
+
                         <hr class="my-4">
-                        
+
                         <div class="row">
                             <div class="col-12">
                                 <div class="d-flex gap-2">
@@ -296,104 +299,167 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Form validation
-    const form = document.querySelector('form');
-    const fechaInicioInput = document.getElementById('fecha_inicio');
-    const fechaFinEstimadaInput = document.getElementById('fecha_fin_estimada');
-    const fechaFinRealInput = document.getElementById('fecha_fin_real');
-    const estadoSelect = document.getElementById('estado');
-    
-    // Date validation
-    function validateDates() {
-        const fechaInicio = fechaInicioInput.value;
-        const fechaFinEstimada = fechaFinEstimadaInput.value;
-        const fechaFinReal = fechaFinRealInput.value;
-        
-        // Clear previous validation
-        fechaFinEstimadaInput.classList.remove('is-invalid');
-        fechaFinRealInput.classList.remove('is-invalid');
-        
-        let valid = true;
-        
-        if (fechaInicio && fechaFinEstimada && fechaFinEstimada < fechaInicio) {
-            fechaFinEstimadaInput.classList.add('is-invalid');
-            valid = false;
+    const form = document.querySelector('form[data-validate]');
+    if (!form) return;
+
+    // Manejar envío del formulario
+    form.addEventListener('submit', function(e) {
+        // Limpiar errores previos
+        const errorElements = form.querySelectorAll('.is-invalid');
+        errorElements.forEach(el => el.classList.remove('is-invalid'));
+
+        const alertContainer = document.getElementById('form-alerts');
+        if (alertContainer) {
+            alertContainer.innerHTML = '';
         }
-        
-        if (fechaInicio && fechaFinReal && fechaFinReal < fechaInicio) {
-            fechaFinRealInput.classList.add('is-invalid');
-            valid = false;
+
+        // Validar campos requeridos
+        let hasErrors = false;
+        const requiredFields = form.querySelectorAll('[required]');
+
+        requiredFields.forEach(field => {
+            if (!field.value || field.value.trim() === '') {
+                field.classList.add('is-invalid');
+                hasErrors = true;
+            }
+        });
+
+        // Validar fechas
+        const fechaInicio = form.querySelector('input[name="fecha_inicio"]');
+        const fechaFinEstimada = form.querySelector('input[name="fecha_fin_estimada"]');
+
+        if (fechaInicio && fechaFinEstimada && fechaInicio.value && fechaFinEstimada.value) {
+            if (new Date(fechaFinEstimada.value) < new Date(fechaInicio.value)) {
+                fechaFinEstimada.classList.add('is-invalid');
+                hasErrors = true;
+                showFormError('La fecha de fin estimada debe ser posterior a la fecha de inicio');
+            }
         }
-        
-        return valid;
+
+        // Validar montos (deben ser positivos si se especifican)
+        const montoFields = form.querySelectorAll('input[type="number"]');
+        montoFields.forEach(field => {
+            if (field.value && parseFloat(field.value) < 0) {
+                field.classList.add('is-invalid');
+                hasErrors = true;
+                showFormError('Los montos deben ser valores positivos');
+            }
+        });
+
+        // Validar categorías seleccionadas
+        const checkedCategorias = document.querySelectorAll('.categoria-checkbox:checked');
+        const categoriaFeedback = document.querySelector('.categoria-checkbox').closest('.col-12').querySelector('.invalid-feedback');
+        if (checkedCategorias.length === 0) {
+            if (categoriaFeedback) {
+                categoriaFeedback.style.display = 'block';
+            }
+            hasErrors = true;
+        } else {
+            if (categoriaFeedback) {
+                categoriaFeedback.style.display = 'none';
+            }
+        }
+
+        if (hasErrors) {
+            e.preventDefault();
+            showFormError('Por favor corrija los errores en el formulario');
+            // Scroll to first error
+            const firstError = form.querySelector('.is-invalid');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
+        }
+    });
+
+    // Función para mostrar errores en el formulario
+    function showFormError(message) {
+        const alertContainer = document.getElementById('form-alerts');
+        if (!alertContainer) return;
+
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        alertContainer.appendChild(alertDiv);
     }
-    
-    // Auto-fill fecha_fin_real when status is completado
-    estadoSelect.addEventListener('change', function() {
-        if (this.value === 'completado' && !fechaFinRealInput.value) {
-            fechaFinRealInput.value = new Date().toISOString().split('T')[0];
-        }
-    });
-    
-    // Date validation on change
-    [fechaInicioInput, fechaFinEstimadaInput, fechaFinRealInput].forEach(input => {
-        input.addEventListener('change', validateDates);
-    });
-    
-    // Manejar selección de categorías
-    const categoriaCheckboxes = document.querySelectorAll('.categoria-checkbox');
-    
-    categoriaCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const categoriaId = this.value;
-            const card = this.closest('.categoria-card');
-            const subcategorias = card.querySelector('.subcategorias');
-            
-            if (this.checked) {
-                card.classList.add('border-primary');
-                if (subcategorias) {
-                    subcategorias.style.display = 'block';
-                }
-            } else {
-                card.classList.remove('border-primary');
-                if (subcategorias) {
-                    subcategorias.style.display = 'none';
-                    // Desmarcar todas las subcategorías
-                    subcategorias.querySelectorAll('.subcategoria-checkbox').forEach(sub => {
-                        sub.checked = false;
-                    });
+
+    // Limpiar errores cuando el usuario comience a escribir
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        input.addEventListener('input', function() {
+            if (this.classList.contains('is-invalid')) {
+                this.classList.remove('is-invalid');
+            }
+            // También limpiar el feedback de categoría si se edita
+            if (this.classList.contains('categoria-checkbox')) {
+                const checkedCategorias = document.querySelectorAll('.categoria-checkbox:checked');
+                const categoriaFeedback = this.closest('.col-12').querySelector('.invalid-feedback');
+                if (checkedCategorias.length > 0 && categoriaFeedback) {
+                    categoriaFeedback.style.display = 'none';
                 }
             }
         });
-        
-        // Inicializar estado al cargar
+    });
+
+    // Inicializar estado de categorías y subcategorías
+    const categoriaCheckboxes = document.querySelectorAll('.categoria-checkbox');
+    categoriaCheckboxes.forEach(checkbox => {
+        const card = checkbox.closest('.categoria-card');
+        const subcategoriasContainer = card.querySelector('.subcategorias');
+
         if (checkbox.checked) {
-            const card = checkbox.closest('.categoria-card');
-            const subcategorias = card.querySelector('.subcategorias');
             card.classList.add('border-primary');
-            if (subcategorias) {
-                subcategorias.style.display = 'block';
+            if (subcategoriasContainer) {
+                subcategoriasContainer.style.display = 'block';
             }
         }
+
+        checkbox.addEventListener('change', function() {
+            card.classList.toggle('border-primary', this.checked);
+            if (subcategoriasContainer) {
+                subcategoriasContainer.style.display = this.checked ? 'block' : 'none';
+                // Desmarcar subcategorías si la categoría principal se desmarca
+                if (!this.checked) {
+                    subcategoriasContainer.querySelectorAll('.subcategoria-checkbox').forEach(sub => sub.checked = false);
+                }
+            }
+        });
     });
-    
-    // Calcular totales comerciales
+
+    // Auto-fill fecha_fin_real when status is completado
+    const estadoSelect = document.getElementById('estado');
+    const fechaFinRealInput = document.getElementById('fecha_fin_real'); // Assuming this field exists in some context
+    if (estadoSelect && fechaFinRealInput) {
+        estadoSelect.addEventListener('change', function() {
+            if (this.value === 'completado' && !fechaFinRealInput.value) {
+                fechaFinRealInput.value = new Date().toISOString().split('T')[0];
+            }
+        });
+    }
+
+    // Recalcular totales comerciales al cambiar los campos numéricos
     const montoProvision = document.getElementById('monto_provision_presupuestado');
     const margenProvision = document.getElementById('margen_venta_provision');
     const montoInstalacion = document.getElementById('monto_instalacion_presupuestado');
     const margenInstalacion = document.getElementById('margen_venta_instalacion');
-    
+
     function updateTotals() {
         if (!montoProvision || !margenProvision || !montoInstalacion || !margenInstalacion) return;
-        
+
         const provision = parseFloat(montoProvision.value) || 0;
         const margenProv = parseFloat(margenProvision.value) || 0;
         const instalacion = parseFloat(montoInstalacion.value) || 0;
         const margenInst = parseFloat(margenInstalacion.value) || 0;
-        
+
         const totalProvision = provision * (1 + margenProv / 100);
         const totalInstalacion = instalacion * (1 + margenInst / 100);
         const total = totalProvision + totalInstalacion;
-        
+
         // Mostrar totales si hay algún valor
         if (provision > 0 || instalacion > 0) {
             let infoHtml = '<div class="alert alert-info mt-2"><small>';
@@ -405,11 +471,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             infoHtml += `<div class="fw-bold">Total Estimado: $${total.toLocaleString('es-CL')}</div>`;
             infoHtml += '</small></div>';
-            
+
             // Remover alert anterior
             const oldAlert = document.querySelector('.totales-alert');
             if (oldAlert) oldAlert.remove();
-            
+
             // Añadir nuevo alert
             const alertDiv = document.createElement('div');
             alertDiv.className = 'totales-alert';
@@ -418,73 +484,20 @@ document.addEventListener('DOMContentLoaded', function() {
             if (notasComerciales) {
                 notasComerciales.closest('.col-12').after(alertDiv);
             }
+        } else {
+            // Remover alert si no hay valores
+            const oldAlert = document.querySelector('.totales-alert');
+            if (oldAlert) oldAlert.remove();
         }
     }
-    
+
     if (montoProvision && margenProvision && montoInstalacion && margenInstalacion) {
         [montoProvision, margenProvision, montoInstalacion, margenInstalacion].forEach(input => {
             input.addEventListener('input', updateTotals);
         });
-        
         // Calcular inicial
         updateTotals();
     }
-    
-    // Form submission validation
-    form.addEventListener('submit', function(e) {
-        let isValid = true;
-        
-        // Reset previous validation
-        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-        
-        // Validate required fields
-        const requiredFields = ['cliente_id', 'nombre', 'vendedor_id'];
-        requiredFields.forEach(fieldName => {
-            const field = document.getElementById(fieldName);
-            if (!field.value.trim()) {
-                field.classList.add('is-invalid');
-                isValid = false;
-            }
-        });
-        
-        // Validate categories
-        const checkedCategorias = document.querySelectorAll('.categoria-checkbox:checked');
-        if (checkedCategorias.length === 0) {
-            isValid = false;
-            const categoriaContainer = document.querySelector('[data-categoria]');
-            if (categoriaContainer) {
-                const feedback = categoriaContainer.closest('.col-12').querySelector('.invalid-feedback');
-                feedback.style.display = 'block';
-                categoriaContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-        
-        // Validate dates
-        if (!validateDates()) {
-            isValid = false;
-        }
-        
-        if (!isValid) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        
-        form.classList.add('was-validated');
-    });
-    
-    // Ocultar mensaje de error cuando se selecciona una categoría
-    categoriaCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const checkedCategorias = document.querySelectorAll('.categoria-checkbox:checked');
-            if (checkedCategorias.length > 0) {
-                const categoriaContainer = this.closest('.col-12');
-                const feedback = categoriaContainer.querySelector('.invalid-feedback');
-                if (feedback) {
-                    feedback.style.display = 'none';
-                }
-            }
-        });
-    });
 });
 </script>
 {% endblock %}
