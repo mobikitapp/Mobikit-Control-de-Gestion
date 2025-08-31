@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% set title = "Detalle del Evento - " + evento.titulo %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">
+                                <i class="fas fa-{{ 'truck' if evento.tipo_evento.value == 'entrega' else 'users' if evento.tipo_evento.value == 'reunion' else 'eye' if evento.tipo_evento.value == 'seguimiento' else 'flag' if evento.tipo_evento.value == 'hito' else 'bell' }} text-primary"></i>
+                                {{ evento.titulo }}
+                            </h4>
+                            <p class="mb-0 text-muted">
+                                {{ evento.tipo_evento.value.title() }} - 
+                                {{ evento.fecha_evento.strftime('%d/%m/%Y') }}
+                                {% if evento.hora_evento %}
+                                {{ evento.hora_evento.strftime('%H:%M') }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-calendar-alt"></i> Ver Calendario
+                            </a>
+                            <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-list"></i> Lista Eventos
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    {% if current_user.rol.value in ['admin', 'operaciones', 'ventas'] %}
+                    <a href="{{ url_for('calendario.editar_evento', evento_id=evento.id) }}" class="btn btn-warning me-2">
+                        <i class="fas fa-edit"></i> Editar
+                    </a>
+                    {% endif %}
+                    
+                    {% if evento.estado.value == 'pendiente' and current_user.rol.value in ['admin', 'operaciones', 'ventas', 'logistica'] %}
+                    <form method="POST" action="{{ url_for('calendario.completar_evento', evento_id=evento.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-success" onclick="return confirm('¿Marcar este evento como completado?')">
+                            <i class="fas fa-check"></i> Completar
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Status and Details -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Detalles del Evento</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Fecha y Hora -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Fecha y Hora</label>
+                            <div class="p-2 bg-light rounded">
+                                <i class="fas fa-calendar-day text-primary me-2"></i>
+                                <strong>{{ evento.fecha_evento.strftime('%A, %d de %B de %Y') }}</strong>
+                                {% if evento.hora_evento %}
+                                <br><i class="fas fa-clock text-muted ms-3"></i>
+                                {{ evento.hora_evento.strftime('%H:%M') }}
+                                {% else %}
+                                <br><small class="text-muted ms-3">Todo el día</small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Estado y Prioridad -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Estado y Prioridad</label>
+                            <div class="p-2 bg-light rounded">
+                                <span class="badge bg-{{ 'warning' if evento.estado.value == 'pendiente' else 'success' if evento.estado.value == 'completado' else 'danger' }} me-2">
+                                    {{ evento.estado.value.title() }}
+                                </span>
+                                <span class="badge bg-{{ 'secondary' if evento.prioridad.value == 'baja' else 'primary' if evento.prioridad.value == 'media' else 'warning' if evento.prioridad.value == 'alta' else 'danger' }}">
+                                    {{ evento.prioridad.value.title() }}
+                                </span>
+                                
+                                {% if evento.estado.value == 'completado' and evento.fecha_completado %}
+                                <br><small class="text-muted mt-1">
+                                    <i class="fas fa-check-circle text-success me-1"></i>
+                                    Completado el {{ evento.fecha_completado.strftime('%d/%m/%Y %H:%M') }}
+                                    {% if evento.completado_por_user %}
+                                    por {{ evento.completado_por_user.nombre_completo }}
+                                    {% endif %}
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Proyecto Asociado -->
+                        {% if evento.proyecto %}
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Proyecto Asociado</label>
+                            <div class="p-3 bg-light rounded">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <i class="fas fa-folder fa-2x text-info"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">
+                                            <a href="{{ url_for('proyectos.detalle', proyecto_id=evento.proyecto.id) }}" class="text-decoration-none">
+                                                {{ evento.proyecto.nombre }}
+                                            </a>
+                                        </h6>
+                                        <p class="mb-1 text-muted">Cliente: {{ evento.proyecto.cliente.nombre }}</p>
+                                        <small class="text-muted">
+                                            Estado: 
+                                            <span class="badge bg-{{ 'warning' if evento.proyecto.estado.value == 'planificacion' else 'info' if evento.proyecto.estado.value == 'en_desarrollo' else 'success' if evento.proyecto.estado.value == 'completado' else 'secondary' }}">
+                                                {{ evento.proyecto.estado.value.replace('_', ' ').title() }}
+                                            </span>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Descripción -->
+                        {% if evento.descripcion %}
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Descripción</label>
+                            <div class="p-3 bg-light rounded">
+                                {{ evento.descripcion|nl2br }}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Notas -->
+                        {% if evento.notas %}
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Notas</label>
+                            <div class="p-3 bg-light rounded">
+                                {{ evento.notas|nl2br }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Info -->
+        <div class="col-md-4">
+            <!-- Recordatorio -->
+            {% if evento.recordatorio_dias and evento.recordatorio_dias > 0 %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bell text-warning"></i> Recordatorio
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-calendar-minus fa-2x text-warning"></i>
+                        </div>
+                        <div>
+                            <strong>{{ evento.recordatorio_dias }} día{{ 's' if evento.recordatorio_dias != 1 else '' }} antes</strong>
+                            {% if evento.fecha_recordatorio %}
+                            <br><small class="text-muted">
+                                Fecha: {{ evento.fecha_recordatorio.strftime('%d/%m/%Y') }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if current_user.rol.value in ['admin', 'operaciones', 'ventas'] %}
+                    <hr>
+                    <button type="button" class="btn btn-outline-warning btn-sm w-100" onclick="toggleRecordatorio('{{ evento.id }}')">
+                        <i class="fas fa-bell-slash"></i> 
+                        {% if evento.recordatorio_enviado %}Reactivar{% else %}Desactivar{% endif %} Recordatorio
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Event Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Información del Evento
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-sm-4">
+                            <strong>ID:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            <code>{{ evento.id }}</code>
+                        </div>
+                        
+                        <div class="col-sm-4">
+                            <strong>Tipo:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            <span class="badge bg-{{ 'primary' if evento.tipo_evento.value == 'entrega' else 'info' if evento.tipo_evento.value == 'reunion' else 'warning' if evento.tipo_evento.value == 'seguimiento' else 'success' if evento.tipo_evento.value == 'hito' else 'secondary' }}">
+                                {{ evento.tipo_evento.value.title() }}
+                            </span>
+                        </div>
+                        
+                        <div class="col-sm-4">
+                            <strong>Creado:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            <small>{{ evento.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                        </div>
+                        
+                        {% if evento.updated_at and evento.updated_at != evento.created_at %}
+                        <div class="col-sm-4">
+                            <strong>Modificado:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            <small>{{ evento.updated_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                        </div>
+                        {% endif %}
+                        
+                        {% if evento.creator %}
+                        <div class="col-sm-4">
+                            <strong>Creado por:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            <small>{{ evento.creator.nombre_completo }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Events -->
+            {% if evento.proyecto %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-link"></i> Eventos Relacionados
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">Otros eventos del mismo proyecto:</p>
+                    <!-- This would require a query in the service -->
+                    <a href="{{ url_for('calendario.lista_eventos', proyecto_id=evento.proyecto.id) }}" class="btn btn-outline-info btn-sm w-100">
+                        <i class="fas fa-search"></i> Ver Eventos del Proyecto
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Acciones Rápidas</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('calendario.vista_mensual', year=evento.fecha_evento.year, month=evento.fecha_evento.month) }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-calendar-alt"></i><br>
+                                <strong>Ver en Calendario</strong><br>
+                                <small class="text-muted">{{ evento.fecha_evento.strftime('%B %Y') }}</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-list"></i><br>
+                                <strong>Todos los Eventos</strong><br>
+                                <small class="text-muted">Lista completa</small>
+                            </a>
+                        </div>
+                        {% if evento.proyecto %}
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('proyectos.detalle', proyecto_id=evento.proyecto.id) }}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-folder"></i><br>
+                                <strong>Ver Proyecto</strong><br>
+                                <small class="text-muted">{{ evento.proyecto.nombre[:20] }}{% if evento.proyecto.nombre|length > 20 %}...{% endif %}</small>
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-chart-bar"></i><br>
+                                <strong>Dashboard</strong><br>
+                                <small class="text-muted">Estadísticas</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleRecordatorio(eventoId) {
+    if (confirm('¿Modificar el recordatorio de este evento?')) {
+        fetch(`/calendario/api/evento/${eventoId}/toggle-recordatorio`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al modificar recordatorio');
+        });
+    }
+}
+
+// Auto-refresh every 5 minutes if event is pending
+{% if evento.estado.value == 'pendiente' %}
+setTimeout(function() {
+    location.reload();
+}, 300000);
+{% endif %}
+</script>
+
+<style>
+.nl2br {
+    white-space: pre-wrap;
+}
+</style>
+{% endblock %}

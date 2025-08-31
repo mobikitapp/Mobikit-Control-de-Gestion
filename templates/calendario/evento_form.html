@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% set title = accion.title() + " Evento" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">
+                                <i class="fas fa-{% if accion == 'crear' %}plus{% else %}edit{% endif %} text-primary"></i>
+                                {{ accion.title() }} Evento de Entrega
+                            </h4>
+                            <p class="mb-0 text-muted">Complete los datos del evento</p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver al Calendario
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Datos del Evento</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <!-- Título -->
+                            <div class="col-md-12">
+                                <label for="titulo" class="form-label">Título <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="titulo" name="titulo" 
+                                       value="{{ evento.titulo if evento else '' }}" required maxlength="200"
+                                       placeholder="Ej: Entrega productos Cliente ABC">
+                            </div>
+
+                            <!-- Proyecto -->
+                            <div class="col-md-6">
+                                <label for="proyecto_id" class="form-label">Proyecto</label>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id">
+                                    <option value="">Sin proyecto específico</option>
+                                    {% for proyecto in proyectos %}
+                                    <option value="{{ proyecto.id }}" 
+                                            {% if evento and evento.proyecto_id == proyecto.id %}selected{% endif %}>
+                                        {{ proyecto.nombre }} - {{ proyecto.cliente.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Tipo de Evento -->
+                            <div class="col-md-6">
+                                <label for="tipo_evento" class="form-label">Tipo de Evento <span class="text-danger">*</span></label>
+                                <select class="form-select" id="tipo_evento" name="tipo_evento" required>
+                                    <option value="entrega" {% if evento and evento.tipo_evento.value == 'entrega' %}selected{% endif %}>
+                                        🚚 Entrega
+                                    </option>
+                                    <option value="reunion" {% if evento and evento.tipo_evento.value == 'reunion' %}selected{% endif %}>
+                                        👥 Reunión
+                                    </option>
+                                    <option value="seguimiento" {% if evento and evento.tipo_evento.value == 'seguimiento' %}selected{% endif %}>
+                                        👁️ Seguimiento
+                                    </option>
+                                    <option value="hito" {% if evento and evento.tipo_evento.value == 'hito' %}selected{% endif %}>
+                                        🏁 Hito
+                                    </option>
+                                    <option value="recordatorio" {% if evento and evento.tipo_evento.value == 'recordatorio' %}selected{% endif %}>
+                                        🔔 Recordatorio
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Fecha del Evento -->
+                            <div class="col-md-6">
+                                <label for="fecha_evento" class="form-label">Fecha del Evento <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="fecha_evento" name="fecha_evento" 
+                                       value="{{ evento.fecha_evento.isoformat() if evento else '' }}" required>
+                            </div>
+
+                            <!-- Hora del Evento -->
+                            <div class="col-md-6">
+                                <label for="hora_evento" class="form-label">Hora del Evento</label>
+                                <input type="time" class="form-control" id="hora_evento" name="hora_evento"
+                                       value="{{ evento.hora_evento.strftime('%H:%M') if evento and evento.hora_evento else '' }}">
+                                <div class="form-text">Opcional - deje vacío si es todo el día</div>
+                            </div>
+
+                            <!-- Prioridad -->
+                            <div class="col-md-6">
+                                <label for="prioridad" class="form-label">Prioridad</label>
+                                <select class="form-select" id="prioridad" name="prioridad">
+                                    <option value="baja" {% if evento and evento.prioridad.value == 'baja' %}selected{% endif %}>
+                                        🟢 Baja
+                                    </option>
+                                    <option value="media" {% if not evento or evento.prioridad.value == 'media' %}selected{% endif %}>
+                                        🟡 Media
+                                    </option>
+                                    <option value="alta" {% if evento and evento.prioridad.value == 'alta' %}selected{% endif %}>
+                                        🟠 Alta
+                                    </option>
+                                    <option value="critica" {% if evento and evento.prioridad.value == 'critica' %}selected{% endif %}>
+                                        🔴 Crítica
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Recordatorio -->
+                            <div class="col-md-6">
+                                <label for="recordatorio_dias" class="form-label">Recordatorio</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="recordatorio_dias" 
+                                           name="recordatorio_dias" min="0" max="30"
+                                           value="{{ evento.recordatorio_dias if evento else 1 }}"
+                                           placeholder="1">
+                                    <span class="input-group-text">días antes</span>
+                                </div>
+                                <div class="form-text">0 = sin recordatorio</div>
+                            </div>
+
+                            <!-- Descripción -->
+                            <div class="col-md-12">
+                                <label for="descripcion" class="form-label">Descripción</label>
+                                <textarea class="form-control" id="descripcion" name="descripcion" rows="3"
+                                          placeholder="Descripción detallada del evento...">{{ evento.descripcion if evento else '' }}</textarea>
+                            </div>
+
+                            <!-- Notas -->
+                            <div class="col-md-12">
+                                <label for="notas" class="form-label">Notas</label>
+                                <textarea class="form-control" id="notas" name="notas" rows="3"
+                                          placeholder="Notas adicionales, comentarios internos...">{{ evento.notas if evento else '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Submit buttons -->
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i> {{ accion.title() }} Evento
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar with help -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Ayuda
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <h6>Tipos de Eventos:</h6>
+                    <ul class="list-unstyled mb-3">
+                        <li><strong>🚚 Entrega:</strong> Entrega de productos al cliente</li>
+                        <li><strong>👥 Reunión:</strong> Reuniones de seguimiento</li>
+                        <li><strong>👁️ Seguimiento:</strong> Revisiones de progreso</li>
+                        <li><strong>🏁 Hito:</strong> Puntos clave del proyecto</li>
+                        <li><strong>🔔 Recordatorio:</strong> Recordatorios generales</li>
+                    </ul>
+
+                    <h6>Niveles de Prioridad:</h6>
+                    <ul class="list-unstyled mb-3">
+                        <li><strong>🟢 Baja:</strong> Eventos rutinarios</li>
+                        <li><strong>🟡 Media:</strong> Eventos importantes</li>
+                        <li><strong>🟠 Alta:</strong> Eventos urgentes</li>
+                        <li><strong>🔴 Crítica:</strong> Eventos críticos</li>
+                    </ul>
+
+                    <h6>Recordatorios:</h6>
+                    <p class="small text-muted">
+                        Configure cuántos días antes del evento desea recibir un recordatorio. 
+                        El sistema puede enviar notificaciones automáticas.
+                    </p>
+                </div>
+            </div>
+
+            {% if evento %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history"></i> Información del Evento
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-sm-4">
+                            <strong>ID:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            <code>{{ evento.id }}</code>
+                        </div>
+                        
+                        <div class="col-sm-4">
+                            <strong>Creado:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            <small>{{ evento.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                        </div>
+                        
+                        {% if evento.updated_at and evento.updated_at != evento.created_at %}
+                        <div class="col-sm-4">
+                            <strong>Modificado:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            <small>{{ evento.updated_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                        </div>
+                        {% endif %}
+                        
+                        {% if evento.creator %}
+                        <div class="col-sm-4">
+                            <strong>Creado por:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            <small>{{ evento.creator.nombre_completo }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-populate title based on project and type
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const tipoSelect = document.getElementById('tipo_evento');
+    const tituloInput = document.getElementById('titulo');
+    
+    function updateTitle() {
+        // Only auto-update if title is empty or looks auto-generated
+        const currentTitle = tituloInput.value.trim();
+        if (currentTitle && !currentTitle.includes('Entrega') && !currentTitle.includes('Reunión')) {
+            return; // Don't overwrite custom titles
+        }
+        
+        const proyectoText = proyectoSelect.options[proyectoSelect.selectedIndex].text;
+        const tipoText = tipoSelect.options[tipoSelect.selectedIndex].text;
+        
+        if (proyectoSelect.value && tipoSelect.value) {
+            const clienteName = proyectoText.split(' - ')[1];
+            const tipoName = tipoText.replace(/^.+ /, ''); // Remove emoji
+            tituloInput.value = `${tipoName} - ${clienteName}`;
+        }
+    }
+    
+    proyectoSelect.addEventListener('change', updateTitle);
+    tipoSelect.addEventListener('change', updateTitle);
+    
+    // Set minimum date to today
+    const fechaInput = document.getElementById('fecha_evento');
+    const today = new Date().toISOString().split('T')[0];
+    fechaInput.setAttribute('min', today);
+    
+    // If creating new event and no date set, default to today
+    {% if accion == 'crear' and not evento %}
+    if (!fechaInput.value) {
+        fechaInput.value = today;
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}
