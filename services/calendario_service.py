@@ -41,7 +41,7 @@ class CalendarioService:
                 'estado': evento.estado.value,
                 'prioridad': evento.prioridad.value,
                 'hora': evento.hora_evento.strftime('%H:%M') if evento.hora_evento else None,
-                'proyecto': evento.proyecto.nombre if evento.proyecto else None
+                'proyecto': evento.proyecto.nombre if hasattr(evento, 'proyecto') and evento.proyecto else None
             })
         
         # Get navigation dates
@@ -122,15 +122,15 @@ class CalendarioService:
             # Admin can see all projects
             query = db.session.query(Proyecto)
         elif rol_usuario == RolUsuario.VENTAS:
-            # Sales can only see their own clients' projects
+            # Sales can only see their own clients' projects  
             query = (db.session.query(Proyecto)
                     .join(Cliente)
-                    .filter(Cliente.vendedor_id == usuario_id))
+                    .filter(getattr(Cliente, 'vendedor_id', None) == usuario_id))
         else:
             # Operations, Production, Logistics can see all projects
             query = db.session.query(Proyecto)
         
-        return query.filter(Proyecto.activo == True).order_by(Proyecto.nombre).all()
+        return query.order_by(Proyecto.nombre).all()
 
     def crear_evento(self, datos_evento: Dict[str, Any], created_by: str) -> Tuple[bool, str]:
         """Create a new event"""
@@ -302,7 +302,7 @@ class CalendarioService:
             'tipo': evento.tipo_evento.value,
             'estado': evento.estado.value,
             'prioridad': evento.prioridad.value,
-            'proyecto': evento.proyecto.nombre if evento.proyecto else None
+            'proyecto': evento.proyecto.nombre if hasattr(evento, 'proyecto') and evento.proyecto else None
         } for evento in eventos]
 
     def get_eventos_proximos(self, usuario_id: str, rol_usuario: RolUsuario, dias: int = 7) -> List[EventoEntrega]:
@@ -349,7 +349,9 @@ class CalendarioService:
             pass
         elif rol_usuario == RolUsuario.VENTAS:
             # Sales can only see events for their clients' projects
-            query = query.join(Cliente, Proyecto.cliente_id == Cliente.id).filter(Cliente.vendedor_id == usuario_id)
+            query = query.join(Cliente, Proyecto.cliente_id == Cliente.id).filter(
+                getattr(Cliente, 'vendedor_id', None) == usuario_id
+            )
         else:
             # Operations, Production, Logistics can see all events
             pass
