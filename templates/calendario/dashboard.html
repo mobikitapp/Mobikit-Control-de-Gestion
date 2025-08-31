@@ -9,10 +9,10 @@
             <div class="card">
                 <div class="card-header">
                     <h4 class="mb-0">
-                        <i class="fas fa-chart-bar text-primary"></i>
-                        Dashboard del Calendario
+                        <i class="fas fa-truck text-primary"></i>
+                        Seguimiento de Entregas
                     </h4>
-                    <p class="mb-0 text-muted">Resumen de eventos y seguimiento de entregas - {{ mes_actual }}</p>
+                    <p class="mb-0 text-muted">Fechas de entrega comprometidas de contratos y órdenes de compra - {{ mes_actual }}</p>
                 </div>
             </div>
         </div>
@@ -37,14 +37,14 @@
                 <div class="card-body text-center">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h3>{{ stats.eventos_mes }}</h3>
-                            <small>Eventos Este Mes</small>
+                            <h3>{{ contratos_con_entregas|length if contratos_con_entregas else 0 }}</h3>
+                            <small>Contratos con Entregas</small>
                         </div>
-                        <i class="fas fa-calendar-day fa-2x opacity-75"></i>
+                        <i class="fas fa-file-contract fa-2x opacity-75"></i>
                     </div>
                 </div>
                 <div class="card-footer bg-primary-dark">
-                    <small>{{ stats.eventos_pendientes }} pendientes</small>
+                    <small>Fechas comprometidas</small>
                 </div>
             </div>
         </div>
@@ -53,14 +53,14 @@
                 <div class="card-body text-center">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h3>{{ stats.eventos_pendientes }}</h3>
-                            <small>Pendientes</small>
+                            <h3>{{ entregas_proximas|length if entregas_proximas else 0 }}</h3>
+                            <small>Entregas Próximas</small>
                         </div>
-                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                        <i class="fas fa-truck fa-2x opacity-75"></i>
                     </div>
                 </div>
                 <div class="card-footer bg-warning-dark">
-                    <small>{{ stats.eventos_proximos }} próximos 7 días</small>
+                    <small>Próximos 7 días</small>
                 </div>
             </div>
         </div>
@@ -85,14 +85,14 @@
                 <div class="card-body text-center">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h3>{{ stats.eventos_vencidos }}</h3>
-                            <small>Vencidos</small>
+                            <h3>{{ entregas_vencidas|length if entregas_vencidas else 0 }}</h3>
+                            <small>Entregas Vencidas</small>
                         </div>
                         <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
                     </div>
                 </div>
                 <div class="card-footer bg-danger-dark">
-                    <small>Requieren atención</small>
+                    <small>Requieren atención urgente</small>
                 </div>
             </div>
         </div>
@@ -104,38 +104,42 @@
             <div class="card">
                 <div class="card-header">
                     <h6 class="mb-0">
-                        <i class="fas fa-calendar-week text-info"></i>
-                        Próximos Eventos (7 días)
+                        <i class="fas fa-truck text-info"></i>
+                        Entregas Próximas (7 días)
                     </h6>
                 </div>
                 <div class="card-body">
-                    {% if eventos_proximos %}
-                    {% for evento in eventos_proximos %}
+                    {% if entregas_proximas %}
+                    {% for evento in entregas_proximas %}
                     <div class="d-flex align-items-center mb-3 p-2 border rounded">
                         <div class="me-3">
-                            <div class="bg-{{ 'primary' if evento.tipo_evento.value == 'entrega' else 'info' if evento.tipo_evento.value == 'reunion' else 'warning' }} text-white rounded-circle d-flex align-items-center justify-content-center" 
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
                                  style="width: 40px; height: 40px;">
-                                <i class="fas fa-{{ 'truck' if evento.tipo_evento.value == 'entrega' else 'users' if evento.tipo_evento.value == 'reunion' else 'eye' }}"></i>
+                                <i class="fas fa-truck"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1">
                             <h6 class="mb-1">{{ evento.titulo }}</h6>
                             <small class="text-muted">
+                                <i class="fas fa-calendar"></i>
                                 {{ evento.fecha_evento.strftime('%d/%m/%Y') }}
-                                {% if evento.hora_evento %}
-                                - {{ evento.hora_evento.strftime('%H:%M') }}
+                                {% if evento.contrato %}
+                                <br><i class="fas fa-file-contract text-info"></i>
+                                OC: {{ evento.contrato.numero_oc }}
                                 {% endif %}
                                 {% if evento.proyecto %}
-                                - {{ evento.proyecto.nombre }}
+                                <br><i class="fas fa-project-diagram text-success"></i>
+                                {{ evento.proyecto.nombre }}
                                 {% endif %}
                             </small>
                             <div class="mt-1">
-                                <span class="badge bg-{{ 'warning' if evento.estado.value == 'pendiente' else 'success' }}">
-                                    {{ evento.estado.value.title() }}
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-shipping-fast"></i>
+                                    Entrega
                                 </span>
-                                {% if evento.prioridad.value in ['alta', 'critica'] %}
-                                <span class="badge bg-danger">{{ evento.prioridad.value.title() }}</span>
-                                {% endif %}
+                                <span class="badge bg-warning">
+                                    Pendiente
+                                </span>
                             </div>
                         </div>
                         <div class="ms-3">
@@ -148,14 +152,14 @@
                     {% endfor %}
                     <div class="text-center">
                         <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-info btn-sm">
-                            Ver todos los eventos
+                            Ver todas las entregas
                         </a>
                     </div>
                     {% else %}
                     <div class="text-center text-muted py-4">
-                        <i class="fas fa-calendar-check fa-3x mb-3"></i>
-                        <h6>No hay eventos próximos</h6>
-                        <p class="mb-0">No tienes eventos programados para los próximos 7 días</p>
+                        <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                        <h6>No hay entregas próximas</h6>
+                        <p class="mb-0">No tienes entregas programadas para los próximos 7 días</p>
                     </div>
                     {% endif %}
                 </div>
@@ -167,33 +171,39 @@
                 <div class="card-header">
                     <h6 class="mb-0">
                         <i class="fas fa-exclamation-triangle text-danger"></i>
-                        Eventos Vencidos
+                        Entregas Vencidas
                     </h6>
                 </div>
                 <div class="card-body">
-                    {% if eventos_vencidos %}
-                    {% for evento in eventos_vencidos %}
+                    {% if entregas_vencidas %}
+                    {% for evento in entregas_vencidas %}
                     <div class="d-flex align-items-center mb-3 p-2 border rounded bg-light">
                         <div class="me-3">
                             <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" 
                                  style="width: 40px; height: 40px;">
-                                <i class="fas fa-exclamation"></i>
+                                <i class="fas fa-truck"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1">
                             <h6 class="mb-1 text-danger">{{ evento.titulo }}</h6>
                             <small class="text-muted">
+                                <i class="fas fa-calendar text-danger"></i>
                                 {{ evento.fecha_evento.strftime('%d/%m/%Y') }}
-                                {% if evento.hora_evento %}
-                                - {{ evento.hora_evento.strftime('%H:%M') }}
+                                {% if evento.contrato %}
+                                <br><i class="fas fa-file-contract text-info"></i>
+                                OC: {{ evento.contrato.numero_oc }}
                                 {% endif %}
                                 {% if evento.proyecto %}
-                                - {{ evento.proyecto.nombre }}
+                                <br><i class="fas fa-project-diagram text-success"></i>
+                                {{ evento.proyecto.nombre }}
                                 {% endif %}
                             </small>
                             <div class="mt-1">
-                                <span class="badge bg-danger">Vencido</span>
-                                <span class="badge bg-warning">{{ evento.prioridad.value.title() }}</span>
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Vencida
+                                </span>
+                                <span class="badge bg-warning">Urgente</span>
                             </div>
                         </div>
                         <div class="ms-3">
@@ -212,14 +222,14 @@
                     {% endfor %}
                     <div class="text-center">
                         <a href="{{ url_for('calendario.lista_eventos', estado='pendiente') }}" class="btn btn-outline-danger btn-sm">
-                            Ver eventos pendientes
+                            Ver entregas pendientes
                         </a>
                     </div>
                     {% else %}
                     <div class="text-center text-muted py-4">
-                        <i class="fas fa-thumbs-up fa-3x mb-3"></i>
+                        <i class="fas fa-thumbs-up fa-3x mb-3 text-success"></i>
                         <h6>¡Excelente!</h6>
-                        <p class="mb-0">No tienes eventos vencidos</p>
+                        <p class="mb-0">No tienes entregas vencidas</p>
                     </div>
                     {% endif %}
                 </div>
@@ -285,6 +295,9 @@
                         </a>
                         <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-info">
                             <i class="fas fa-calendar-alt"></i> Vista Mensual
+                        </a>
+                        <a href="{{ url_for('calendario.contratos_con_entregas') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-file-contract"></i> Contratos con Entregas
                         </a>
                     </div>
                 </div>

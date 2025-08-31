@@ -244,6 +244,7 @@ class Contrato(db.Model):
     estado = db.Column(db.Enum(EstadoContrato), default=EstadoContrato.BORRADOR, nullable=False)
     fecha_emision = db.Column(db.Date)
     fecha_vencimiento = db.Column(db.Date)
+    fecha_entrega_comprometida = db.Column(db.Date)
     condiciones_pago = db.Column(db.Text)
     notas = db.Column(db.Text)
     
@@ -651,6 +652,7 @@ class EventoEntrega(db.Model):
     
     id = db.Column(db.String, primary_key=True)
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'))
+    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'))
     titulo = db.Column(db.String(200), nullable=False)
     descripcion = db.Column(db.Text)
     fecha_evento = db.Column(db.Date, nullable=False)
@@ -673,6 +675,7 @@ class EventoEntrega(db.Model):
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
     
     # Relationships
+    contrato = db.relationship('Contrato', backref='eventos_entrega')
     completado_por_user = db.relationship('User', foreign_keys=[completado_por])
     creator = db.relationship('User', foreign_keys=[created_by])
     

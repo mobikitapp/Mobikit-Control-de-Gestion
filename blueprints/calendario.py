@@ -8,6 +8,7 @@ import pytz
 from app import db
 from models import EventoEntrega, Proyecto, Despacho, RolUsuario
 from services.calendario_service import CalendarioService
+from services.contrato_eventos_service import ContratoEventosService
 from utils.auth import role_required
 
 # Create blueprint
@@ -259,18 +260,58 @@ def completar_evento(evento_id):
 @calendario_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """Dashboard del calendario con resumen de eventos"""
+    """Dashboard del calendario centrado en entregas de contratos"""
     try:
         service = CalendarioService()
+        contrato_service = ContratoEventosService()
         
-        # Get dashboard data
+        # Auto-generate events from contracts if needed
+        contrato_service.generar_eventos_desde_contratos(current_user.id)
+        
+        # Get delivery-focused data
+        entregas_proximas = contrato_service.get_entregas_proximas(dias=7)
+        entregas_vencidas = contrato_service.get_entregas_vencidas()
+        contratos_con_entregas = contrato_service.get_contratos_con_entregas_pendientes()
+        
+        # Get regular calendar data
         data = service.get_calendario_dashboard(current_user.id, current_user.rol)
+        
+        # Add delivery data to template context
+        data.update({
+            'entregas_proximas': entregas_proximas,
+            'entregas_vencidas': entregas_vencidas,
+            'contratos_con_entregas': contratos_con_entregas,
+        })
         
         return render_template('calendario/dashboard.html', **data)
         
     except Exception as e:
         flash(f'Error al cargar dashboard del calendario: {str(e)}', 'error')
         return redirect(url_for('index'))
+
+
+@calendario_bp.route('/contratos-con-entregas')
+@login_required
+def contratos_con_entregas():
+    """Vista de contratos con fechas de entrega comprometidas"""
+    try:
+        contrato_service = ContratoEventosService()
+        
+        # Get contracts with delivery dates
+        contratos = contrato_service.get_contratos_con_entregas_pendientes()
+        
+        # Get delivery events for these contracts
+        entregas_proximas = contrato_service.get_entregas_proximas(dias=30)
+        entregas_vencidas = contrato_service.get_entregas_vencidas()
+        
+        return render_template('calendario/contratos_entregas.html',
+                             contratos=contratos,
+                             entregas_proximas=entregas_proximas,
+                             entregas_vencidas=entregas_vencidas)
+                             
+    except Exception as e:
+        flash(f'Error al cargar contratos con entregas: {str(e)}', 'error')
+        return redirect(url_for('calendario.dashboard'))
 
 
 # API Routes for AJAX calls
