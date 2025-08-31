@@ -84,10 +84,10 @@ class PlanificacionOperacionalService:
         # Calculate boards for different materials
         tableros_por_material = {}
         
-        if proyecto.valor_presupuestado_provision:
+        if proyecto.monto_provision_presupuestado:
             for material, _ in self.DEFAULT_FACTORS.items():
                 resultado = self.calcular_tableros_aproximados(
-                    monto_provision=float(proyecto.valor_presupuestado_provision),
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
                     tipo_material=material
                 )
                 tableros_por_material[material] = resultado
@@ -229,7 +229,7 @@ class PlanificacionOperacionalService:
         ]))
         
         # Filter by provision amount (must have one)
-        query = query.filter(Proyecto.valor_presupuestado_provision.isnot(None))
+        query = query.filter(Proyecto.monto_provision_presupuestado.isnot(None))
         
         # Apply client filter
         if cliente_id:
@@ -261,8 +261,8 @@ class PlanificacionOperacionalService:
                     meses_duracion = len(meses_proyecto)
                     
                     monto_mes = Decimal('0')
-                    if proyecto.valor_presupuestado_provision:
-                        monto_mes = proyecto.valor_presupuestado_provision / meses_duracion
+                    if proyecto.monto_provision_presupuestado:
+                        monto_mes = proyecto.monto_provision_presupuestado / meses_duracion
                     
                     # Calculate boards for this month
                     tableros_resultado = self.calcular_tableros_aproximados(
@@ -369,9 +369,9 @@ class PlanificacionOperacionalService:
                     capacidad[mes]['proyectos_activos'] += 1
                     
                     # Calculate boards for this project in this month
-                    if proyecto.valor_presupuestado_provision:
+                    if proyecto.monto_provision_presupuestado:
                         tableros_resultado = self.calcular_tableros_aproximados(
-                            monto_provision=float(proyecto.valor_presupuestado_provision) / len(meses_proyecto),
+                            monto_provision=float(proyecto.monto_provision_presupuestado) / len(meses_proyecto),
                             tipo_material='melamina'  # Default material
                         )
                         

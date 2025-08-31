@@ -156,13 +156,13 @@ class ComercialService:
             
             # Update commercial values
             if data.get('valor_presupuestado_provision'):
-                proyecto.valor_presupuestado_provision = Decimal(data['valor_presupuestado_provision'])
+                proyecto.monto_provision_presupuestado = Decimal(data['valor_presupuestado_provision'])
             
             if data.get('margen_venta_provision'):
                 proyecto.margen_venta_provision = Decimal(data['margen_venta_provision'])
             
             if data.get('valor_instalacion'):
-                proyecto.valor_instalacion = Decimal(data['valor_instalacion'])
+                proyecto.monto_instalacion_presupuestado = Decimal(data['valor_instalacion'])
             
             if data.get('margen_venta_instalacion'):
                 proyecto.margen_venta_instalacion = Decimal(data['margen_venta_instalacion'])
@@ -409,16 +409,16 @@ class ComercialService:
                 stats['terminado'] += 1
             
             # Accumulate values
-            if proyecto.valor_presupuestado_provision:
-                stats['valor_total_provision'] += proyecto.valor_presupuestado_provision
-                valores_provision.append(proyecto.valor_presupuestado_provision)
+            if proyecto.monto_provision_presupuestado:
+                stats['valor_total_provision'] += proyecto.monto_provision_presupuestado
+                valores_provision.append(proyecto.monto_provision_presupuestado)
                 
                 if proyecto.margen_venta_provision:
                     margenes_provision.append(proyecto.margen_venta_provision)
             
-            if proyecto.valor_instalacion:
-                stats['valor_total_instalacion'] += proyecto.valor_instalacion
-                valores_instalacion.append(proyecto.valor_instalacion)
+            if proyecto.monto_instalacion_presupuestado:
+                stats['valor_total_instalacion'] += proyecto.monto_instalacion_presupuestado
+                valores_instalacion.append(proyecto.monto_instalacion_presupuestado)
                 
                 if proyecto.margen_venta_instalacion:
                     margenes_instalacion.append(proyecto.margen_venta_instalacion)
@@ -510,8 +510,8 @@ class ComercialService:
                     valor_provision_mes = Decimal('0')
                     valor_instalacion_mes = Decimal('0')
                     
-                    if proyecto.valor_presupuestado_provision:
-                        valor_provision_mes = proyecto.valor_presupuestado_provision / meses_duracion
+                    if proyecto.monto_provision_presupuestado:
+                        valor_provision_mes = proyecto.monto_provision_presupuestado / meses_duracion
                     
                     if proyecto.valor_instalacion:
                         valor_instalacion_mes = proyecto.valor_instalacion / meses_duracion
