@@ -30,9 +30,7 @@ def process_form_data(form_data, is_update=False):
                 processed[key] = None
         elif key in ['cliente_id']:
             processed[key] = int(value) if value else None
-        elif key == 'estado':
-            # Estado values are already in uppercase from form
-            processed[key] = value if value else None
+        
         elif key in ['monto_provision_presupuestado', 'margen_venta_provision', 
                      'monto_instalacion_presupuestado', 'margen_venta_instalacion']:
             processed[key] = Decimal(str(value)) if value else None
@@ -65,7 +63,7 @@ def index():
         filters_data = {
             'cliente_id': request.args.get('cliente_id', type=int),
             'nombre': request.args.get('nombre', ''),
-            'estado': request.args.get('estado', ''),
+            
             'responsable': request.args.get('responsable', ''),
             'fecha_inicio_desde': request.args.get('fecha_inicio_desde', ''),
             'fecha_inicio_hasta': request.args.get('fecha_inicio_hasta', ''),
@@ -301,7 +299,7 @@ def api_by_cliente(cliente_id):
         return jsonify([{
             'id': p.id,
             'nombre': p.nombre,
-            'estado': p.estado.value
+            'estado': p.estado_comercial.value
         } for p in proyectos])
         
     except Exception as e:

@@ -68,8 +68,7 @@ class ProyectosRepository:
         if filters.nombre:
             conditions.append(Proyecto.nombre.ilike(f"%{filters.nombre}%"))
         
-        if filters.estado:
-            conditions.append(Proyecto.estado == filters.estado)
+        
         
         if filters.responsable:
             conditions.append(Proyecto.responsable == filters.responsable)
