@@ -153,6 +153,27 @@ class FabricacionRepository:
         return query.first() is not None
     
     @staticmethod
+    def generate_next_codigo() -> str:
+        """Generate next OP-xxxx codigo"""
+        # Get the last OP code
+        last_of = (db.session.query(OrdenFabricacion)
+                   .filter(OrdenFabricacion.codigo.like('OP-%'))
+                   .order_by(OrdenFabricacion.codigo.desc())
+                   .first())
+        
+        if last_of:
+            # Extract number from OP-xxxx format
+            try:
+                last_number = int(last_of.codigo.split('-')[1])
+                next_number = last_number + 1
+            except (IndexError, ValueError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        return f"OP-{next_number:04d}"
+    
+    @staticmethod
     def can_change_status(of: OrdenFabricacion, new_status: EstadoOF) -> tuple[bool, str]:
         """
         Check if status change is allowed
@@ -164,14 +185,19 @@ class FabricacionRepository:
         
         # Define allowed transitions
         allowed_transitions = {
-            EstadoOF.PLANIFICADA: [EstadoOF.EN_PRODUCCION],
-            EstadoOF.EN_PRODUCCION: [EstadoOF.QA, EstadoOF.PLANIFICADA],  # Can go back to planned
+            EstadoOF.PLANIFICADA: [EstadoOF.ENVIADO_PRODUCCION],
+            EstadoOF.ENVIADO_PRODUCCION: [EstadoOF.SECCIONANDO, EstadoOF.PLANIFICADA],  # Can go back to planned
+            EstadoOF.SECCIONANDO: [EstadoOF.EN_PRODUCCION, EstadoOF.ENVIADO_PRODUCCION],  # Can go back to enviado_produccion
+            EstadoOF.EN_PRODUCCION: [EstadoOF.QA, EstadoOF.SECCIONANDO],  # Can go back to seccionando
             EstadoOF.QA: [EstadoOF.TERMINADA, EstadoOF.EN_PRODUCCION],    # Can go back to production
             EstadoOF.TERMINADA: [EstadoOF.ENTREGADA],
             EstadoOF.ENTREGADA: []  # Final state
         }
         
         if new_status in allowed_transitions.get(current_status, []):
+            # Special validation for SECCIONANDO state
+            if new_status == EstadoOF.SECCIONANDO and (not of.cantidad_tableros or of.cantidad_tableros <= 0):
+                return False, "La cantidad de tableros es obligatoria para cambiar a estado seccionando"
             return True, ""
         else:
             return False, f"No se puede cambiar de {current_status.value} a {new_status.value}"

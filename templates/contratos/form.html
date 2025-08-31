@@ -59,6 +59,20 @@
                                 </div>
                             </div>
                             
+                            <!-- Tipo de Documento -->
+                            <div class="col-md-6">
+                                <label for="tipo_documento" class="form-label">
+                                    Tipo de Documento <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="tipo_documento" name="tipo_documento" required>
+                                    <option value="contrato" {% if not contrato or contrato.tipo_documento.value == 'contrato' %}selected{% endif %}>Contrato</option>
+                                    <option value="orden_compra" {% if contrato and contrato.tipo_documento.value == 'orden_compra' %}selected{% endif %}>Orden de Compra</option>
+                                </select>
+                                <div class="invalid-feedback">
+                                    Por favor selecciona el tipo de documento.
+                                </div>
+                            </div>
+                            
                             <!-- Número OC -->
                             <div class="col-md-6">
                                 <label for="numero_oc" class="form-label">

@@ -6,6 +6,8 @@ from enum import Enum
 
 class EstadoOFEnum(str, Enum):
     PLANIFICADA = "planificada"
+    ENVIADO_PRODUCCION = "enviado_produccion"
+    SECCIONANDO = "seccionando"
     EN_PRODUCCION = "en_produccion"
     QA = "qa"
     TERMINADA = "terminada"
@@ -39,8 +41,11 @@ class OrdenFabricacionItemResponse(OrdenFabricacionItemBase):
 class OrdenFabricacionBase(BaseModel):
     proyecto_id: int = Field(..., description="ID del proyecto")
     contrato_id: Optional[int] = Field(None, description="ID del contrato (opcional)")
-    codigo: str = Field(..., min_length=1, max_length=50, description="Código de la OF")
+    codigo: Optional[str] = Field(None, min_length=1, max_length=50, description="Código de la OF (se genera automáticamente si no se proporciona)")
     descripcion: Optional[str] = Field(None, description="Descripción de la OF")
+    glosa: Optional[str] = Field(None, description="Glosa de la OF")
+    cantidad_tableros: Optional[int] = Field(None, description="Cantidad de tableros")
+    fecha_entrega_fabrica: Optional[date] = Field(None, description="Fecha de entrega de fábrica")
     estado: EstadoOFEnum = Field(EstadoOFEnum.PLANIFICADA, description="Estado de la OF")
     fecha_planificada: Optional[date] = Field(None, description="Fecha planificada")
     fecha_inicio: Optional[datetime] = Field(None, description="Fecha de inicio")
@@ -69,6 +74,12 @@ class OrdenFabricacionBase(BaseModel):
             if v < values['fecha_qc']:
                 raise ValueError('La fecha de fin debe ser posterior a la fecha de QC')
         return v
+    
+    @validator('cantidad_tableros')
+    def validate_cantidad_tableros(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError('La cantidad de tableros debe ser mayor a 0')
+        return v
 
 class OrdenFabricacionCreate(OrdenFabricacionBase):
     items: List[OrdenFabricacionItemCreate] = Field([], description="Items de la OF")
@@ -78,6 +89,9 @@ class OrdenFabricacionUpdate(BaseModel):
     contrato_id: Optional[int] = None
     codigo: Optional[str] = Field(None, min_length=1, max_length=50)
     descripcion: Optional[str] = None
+    glosa: Optional[str] = None
+    cantidad_tableros: Optional[int] = None
+    fecha_entrega_fabrica: Optional[date] = None
     estado: Optional[EstadoOFEnum] = None
     fecha_planificada: Optional[date] = None
     fecha_inicio: Optional[datetime] = None
@@ -85,6 +99,13 @@ class OrdenFabricacionUpdate(BaseModel):
     fecha_fin: Optional[datetime] = None
     responsable: Optional[str] = None
     notas: Optional[str] = None
+
+    @validator('estado')
+    def validate_estado_seccionando(cls, v, values):
+        if v and v == EstadoOFEnum.SECCIONANDO and 'cantidad_tableros' in values:
+            if not values['cantidad_tableros']:
+                raise ValueError('La cantidad de tableros es obligatoria para cambiar a estado seccionando')
+        return v
 
 class OrdenFabricacionResponse(OrdenFabricacionBase):
     id: int

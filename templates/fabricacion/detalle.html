@@ -93,7 +93,7 @@
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Estado</label>
                             <div class="form-control-plaintext">
-                                <span class="badge bg-{{ 'warning' if of.estado.value == 'planificada' else 'info' if of.estado.value == 'en_produccion' else 'primary' if of.estado.value == 'qa' else 'success' if of.estado.value == 'terminada' else 'secondary' }}">
+                                <span class="badge bg-{{ 'warning' if of.estado.value == 'planificada' else 'danger' if of.estado.value == 'enviado_produccion' else 'warning' if of.estado.value == 'seccionando' else 'info' if of.estado.value == 'en_produccion' else 'primary' if of.estado.value == 'qa' else 'success' if of.estado.value == 'terminada' else 'secondary' }}">
                                     {{ of.estado.value|title|replace('_', ' ') }}
                                 </span>
                             </div>
@@ -139,6 +139,24 @@
                             <label class="form-label fw-medium">Fecha QC</label>
                             <div class="form-control-plaintext">
                                 {{ of.fecha_qc.strftime('%d/%m/%Y %H:%M') }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if of.fecha_entrega_fabrica %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Fecha Entrega Fábrica</label>
+                            <div class="form-control-plaintext">
+                                {{ of.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if of.cantidad_tableros %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Cantidad de Tableros</label>
+                            <div class="form-control-plaintext">
+                                <span class="fw-bold">{{ of.cantidad_tableros }}</span> tableros
                             </div>
                         </div>
                         {% endif %}

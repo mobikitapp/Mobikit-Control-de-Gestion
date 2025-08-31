@@ -21,7 +21,6 @@ class DespachoBase(BaseModel):
     estado: EstadoDespachoEnum = Field(EstadoDespachoEnum.PROGRAMADO, description="Estado del despacho")
     fecha_programada: Optional[date] = Field(None, description="Fecha programada")
     fecha_envio: Optional[datetime] = Field(None, description="Fecha de envío")
-    fecha_entrega: Optional[datetime] = Field(None, description="Fecha de entrega")
     destino: str = Field(..., min_length=1, description="Destino del despacho")
     contacto_destino: Optional[str] = Field(None, max_length=200, description="Contacto en destino")
     telefono_contacto: Optional[str] = Field(None, max_length=50, description="Teléfono de contacto")
@@ -35,12 +34,6 @@ class DespachoBase(BaseModel):
                 raise ValueError('La fecha de envío no puede ser anterior a la fecha programada')
         return v
 
-    @validator('fecha_entrega')
-    def validate_fecha_entrega(cls, v, values):
-        if v and 'fecha_envio' in values and values['fecha_envio']:
-            if v < values['fecha_envio']:
-                raise ValueError('La fecha de entrega debe ser posterior a la fecha de envío')
-        return v
 
 class DespachoCreate(DespachoBase):
     pass
@@ -52,7 +45,6 @@ class DespachoUpdate(BaseModel):
     estado: Optional[EstadoDespachoEnum] = None
     fecha_programada: Optional[date] = None
     fecha_envio: Optional[datetime] = None
-    fecha_entrega: Optional[datetime] = None
     destino: Optional[str] = Field(None, min_length=1)
     contacto_destino: Optional[str] = Field(None, max_length=200)
     telefono_contacto: Optional[str] = Field(None, max_length=50)

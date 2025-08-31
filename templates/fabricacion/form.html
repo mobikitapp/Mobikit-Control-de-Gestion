@@ -74,12 +74,23 @@
                             <!-- Código OF -->
                             <div class="col-md-6">
                                 <label for="codigo" class="form-label">
-                                    Código OF <span class="text-danger">*</span>
+                                    Código OF
                                 </label>
                                 <input type="text" class="form-control" id="codigo" name="codigo" 
-                                       value="{{ of.codigo if of else '' }}" required>
-                                <div class="invalid-feedback">
-                                    Por favor ingresa el código de la OF.
+                                       value="{{ of.codigo if of else '' }}" placeholder="Se generará automáticamente si se deja vacío">
+                                <div class="form-text">
+                                    Si se deja vacío, se generará un código OP-xxxx automáticamente.
+                                </div>
+                            </div>
+                            
+                            <!-- Cantidad de Tableros -->
+                            <div class="col-md-6">
+                                <label for="cantidad_tableros" class="form-label">Cantidad de Tableros</label>
+                                <input type="number" class="form-control" id="cantidad_tableros" name="cantidad_tableros" 
+                                       value="{{ of.cantidad_tableros if of else '' }}" min="1" 
+                                       placeholder="Cantidad de tableros requerida">
+                                <div class="form-text">
+                                    Obligatorio para cambiar a estado "Seccionando".
                                 </div>
                             </div>
                             
@@ -88,6 +99,8 @@
                                 <label for="estado" class="form-label">Estado</label>
                                 <select class="form-select" id="estado" name="estado">
                                     <option value="planificada" {% if not of or of.estado.value == 'planificada' %}selected{% endif %}>Planificada</option>
+                                    <option value="enviado_produccion" {% if of and of.estado.value == 'enviado_produccion' %}selected{% endif %}>Enviado a Producción</option>
+                                    <option value="seccionando" {% if of and of.estado.value == 'seccionando' %}selected{% endif %}>Seccionando</option>
                                     <option value="en_produccion" {% if of and of.estado.value == 'en_produccion' %}selected{% endif %}>En Producción</option>
                                     <option value="qa" {% if of and of.estado.value == 'qa' %}selected{% endif %}>QA</option>
                                     <option value="terminada" {% if of and of.estado.value == 'terminada' %}selected{% endif %}>Terminada</option>
@@ -113,11 +126,25 @@
                                        value="{{ of.fecha_planificada.strftime('%Y-%m-%d') if of and of.fecha_planificada else '' }}">
                             </div>
                             
+                            <!-- Fecha Entrega Fábrica -->
+                            <div class="col-md-6">
+                                <label for="fecha_entrega_fabrica" class="form-label">Fecha Entrega Fábrica</label>
+                                <input type="date" class="form-control" id="fecha_entrega_fabrica" name="fecha_entrega_fabrica" 
+                                       value="{{ of.fecha_entrega_fabrica.strftime('%Y-%m-%d') if of and of.fecha_entrega_fabrica else '' }}">
+                            </div>
+                            
                             <!-- Descripción -->
                             <div class="col-12">
                                 <label for="descripcion" class="form-label">Descripción</label>
                                 <textarea class="form-control" id="descripcion" name="descripcion" rows="3" 
                                           placeholder="Descripción de los trabajos a realizar">{{ of.descripcion if of else '' }}</textarea>
+                            </div>
+                            
+                            <!-- Glosa -->
+                            <div class="col-12">
+                                <label for="glosa" class="form-label">Glosa</label>
+                                <textarea class="form-control" id="glosa" name="glosa" rows="2" 
+                                          placeholder="Glosa o comentarios adicionales sobre la orden">{{ of.glosa if of else '' }}</textarea>
                             </div>
                             
                             <!-- Notas -->

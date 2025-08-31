@@ -4,6 +4,10 @@ from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
 
+class TipoDocumentoEnum(str, Enum):
+    CONTRATO = "contrato"
+    ORDEN_COMPRA = "orden_compra"
+
 class EstadoContratoEnum(str, Enum):
     BORRADOR = "borrador"
     VIGENTE = "vigente"
@@ -17,6 +21,7 @@ class TipoAdjuntoEnum(str, Enum):
 
 class ContratoBase(BaseModel):
     proyecto_id: int = Field(..., description="ID del proyecto")
+    tipo_documento: TipoDocumentoEnum = Field(TipoDocumentoEnum.CONTRATO, description="Tipo de documento")
     numero_oc: str = Field(..., min_length=1, max_length=50, description="Número de OC")
     monto_total: Optional[Decimal] = Field(None, description="Monto total del contrato")
     moneda: str = Field("CLP", max_length=3, description="Moneda del contrato")
@@ -44,6 +49,7 @@ class ContratoCreate(ContratoBase):
 
 class ContratoUpdate(BaseModel):
     proyecto_id: Optional[int] = None
+    tipo_documento: Optional[TipoDocumentoEnum] = None
     numero_oc: Optional[str] = Field(None, min_length=1, max_length=50)
     monto_total: Optional[Decimal] = None
     moneda: Optional[str] = Field(None, max_length=3)
@@ -86,6 +92,7 @@ class ContratoResponse(ContratoBase):
 
 class ContratoSearchFilters(BaseModel):
     proyecto_id: Optional[int] = Field(None, description="Filtrar por proyecto")
+    tipo_documento: Optional[TipoDocumentoEnum] = Field(None, description="Filtrar por tipo de documento")
     numero_oc: Optional[str] = Field(None, description="Buscar por número de OC")
     estado: Optional[EstadoContratoEnum] = Field(None, description="Filtrar por estado")
     moneda: Optional[str] = Field(None, description="Filtrar por moneda")

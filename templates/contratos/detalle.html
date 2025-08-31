@@ -76,6 +76,15 @@
                         </div>
                         
                         <div class="col-md-6">
+                            <label class="form-label fw-medium">Tipo de Documento</label>
+                            <div class="form-control-plaintext">
+                                <span class="badge bg-{{ 'primary' if contrato.tipo_documento.value == 'contrato' else 'info' }}">
+                                    {{ 'Contrato' if contrato.tipo_documento.value == 'contrato' else 'Orden de Compra' }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
                             <label class="form-label fw-medium">Estado</label>
                             <div class="form-control-plaintext">
                                 <span class="badge bg-{{ 'success' if contrato.estado.value == 'vigente' else 'warning' if contrato.estado.value == 'borrador' else 'info' if contrato.estado.value == 'cerrado' else 'danger' }}">
