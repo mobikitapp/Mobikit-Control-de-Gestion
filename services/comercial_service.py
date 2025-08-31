@@ -15,17 +15,22 @@ from models import (
 class ComercialService:
     """Service layer for commercial operations"""
 
-    def get_centro_vendedores_data(self, cliente_id=None, vendedor_id=None, estado_comercial=None):
+    def get_centro_vendedores_data(self, current_user_id, cliente_id=None, vendedor_id=None, estado_comercial=None):
         """Get data for sales center dashboard"""
+        from flask_login import current_user
         
         # Build base query
         query = db.session.query(Proyecto).join(Cliente)
+        
+        # For non-admin users, only show their own projects
+        if current_user.rol.value != 'admin':
+            query = query.filter(Proyecto.vendedor_id == current_user_id)
         
         # Apply filters
         if cliente_id:
             query = query.filter(Proyecto.cliente_id == cliente_id)
         
-        if vendedor_id:
+        if vendedor_id and current_user.rol.value == 'admin':
             query = query.filter(Proyecto.vendedor_id == vendedor_id)
         
         if estado_comercial:
@@ -228,14 +233,13 @@ class ComercialService:
     def crear_tarea_comercial(self, data, user_id):
         """Create a new commercial task"""
         try:
-            tarea = TareaComercial(
-                proyecto_id=data['proyecto_id'],
-                vendedor_id=data['vendedor_id'],
-                titulo=data['titulo'],
-                descripcion=data.get('descripcion'),
-                fecha_limite=datetime.strptime(data['fecha_limite'], '%Y-%m-%d').date() if data.get('fecha_limite') else None,
-                created_by=user_id
-            )
+            tarea = TareaComercial()
+            tarea.proyecto_id = data['proyecto_id']
+            tarea.vendedor_id = data['vendedor_id']
+            tarea.titulo = data['titulo']
+            tarea.descripcion = data.get('descripcion')
+            tarea.fecha_limite = datetime.strptime(data['fecha_limite'], '%Y-%m-%d').date() if data.get('fecha_limite') else None
+            tarea.created_by = user_id
             
             db.session.add(tarea)
             db.session.commit()
@@ -338,11 +342,10 @@ class ComercialService:
                            .first())
                 
                 if not objetivo:
-                    objetivo = ObjetivoMensual(
-                        año=año,
-                        mes=mes,
-                        created_by=user_id
-                    )
+                    objetivo = ObjetivoMensual()
+                    objetivo.año = año
+                    objetivo.mes = mes
+                    objetivo.created_by = user_id
                     db.session.add(objetivo)
                 
                 # Update values
@@ -473,13 +476,12 @@ class ComercialService:
                        .first())
             
             if not existing:
-                tarea = TareaComercial(
-                    proyecto_id=proyecto.id,
-                    vendedor_id=proyecto.vendedor_id,
-                    titulo="Agregar información comercial",
-                    descripcion="Completar valor de provisión, margen de venta y valor de instalación (si aplica)",
-                    created_by=user_id
-                )
+                tarea = TareaComercial()
+                tarea.proyecto_id = proyecto.id
+                tarea.vendedor_id = proyecto.vendedor_id
+                tarea.titulo = "Agregar información comercial"
+                tarea.descripcion = "Completar valor de provisión, margen de venta y valor de instalación (si aplica)"
+                tarea.created_by = user_id
                 db.session.add(tarea)
 
     def _construir_matriz_mensual(self, proyectos, año):

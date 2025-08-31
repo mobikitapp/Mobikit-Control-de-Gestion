@@ -34,6 +34,7 @@ def centro_vendedores():
         
         # Get data for the sales center
         data = service.get_centro_vendedores_data(
+            current_user_id=current_user.id,
             cliente_id=cliente_id,
             vendedor_id=vendedor_id,
             estado_comercial=estado_comercial
@@ -261,6 +262,7 @@ def actualizar_objetivos():
     except Exception as e:
         flash(f'Error: {str(e)}', 'error')
     
+    año = request.form.get('año', type=int) or datetime.now().year
     return redirect(url_for('comercial.objetivos_mensuales', año=año))
 
 
