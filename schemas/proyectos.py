@@ -5,17 +5,17 @@ from enum import Enum
 from decimal import Decimal
 
 class EstadoProyectoEnum(str, Enum):
-    PLANIFICACION = "planificacion"
-    EN_DESARROLLO = "en_desarrollo"
-    PAUSADO = "pausado"
-    COMPLETADO = "completado"
-    CANCELADO = "cancelado"
+    PLANIFICACION = "PLANIFICACION"
+    EN_DESARROLLO = "EN_DESARROLLO"
+    PAUSADO = "PAUSADO"
+    COMPLETADO = "COMPLETADO"
+    CANCELADO = "CANCELADO"
 
 class EstadoComercialEnum(str, Enum):
-    PENDIENTE_PRESUPUESTO = "pendiente_presupuesto"
-    PRESUPUESTADO = "presupuestado"
-    ADJUDICADO = "adjudicado"
-    TERMINADO = "terminado"
+    PENDIENTE_PRESUPUESTO = "PENDIENTE_PRESUPUESTO"
+    PRESUPUESTADO = "PRESUPUESTADO"
+    ADJUDICADO = "ADJUDICADO"
+    TERMINADO = "TERMINADO"
 
 class ProyectoBase(BaseModel):
     cliente_id: int = Field(..., description="ID del cliente")
