@@ -42,7 +42,7 @@ def matriz_operacional():
             tipo_material=tipo_material
         )
         
-        return render_template('planificacion_operacional/matriz.html', **data)
+        return render_template('planificacion_operacional/matriz.html', calendar=calendar, **data)
         
     except Exception as e:
         flash(f'Error al cargar matriz operacional: {str(e)}', 'error')
@@ -61,7 +61,7 @@ def configuracion_conversion():
         factores = service.get_factores_conversion()
         
         return render_template('planificacion_operacional/configuracion.html', 
-                             factores=factores)
+                             factores=factores, calendar=calendar)
         
     except Exception as e:
         flash(f'Error al cargar configuración: {str(e)}', 'error')
@@ -114,7 +114,7 @@ def detalle_proyecto_operacional(proyecto_id):
             return redirect(url_for('planificacion_operacional.matriz_operacional'))
         
         return render_template('planificacion_operacional/proyecto_detalle.html', 
-                             **proyecto_data)
+                             calendar=calendar, **proyecto_data)
         
     except Exception as e:
         flash(f'Error al cargar detalle del proyecto: {str(e)}', 'error')
@@ -136,7 +136,7 @@ def capacidad_produccion():
         # Get capacity analysis
         data = service.get_analisis_capacidad(año=año, vista=vista)
         
-        return render_template('planificacion_operacional/capacidad.html', **data)
+        return render_template('planificacion_operacional/capacidad.html', calendar=calendar, **data)
         
     except Exception as e:
         flash(f'Error al cargar análisis de capacidad: {str(e)}', 'error')
