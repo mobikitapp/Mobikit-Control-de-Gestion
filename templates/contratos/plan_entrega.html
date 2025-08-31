@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}Plan de Entrega - {{ contrato.numero_oc }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">Plan de Entrega</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('contratos.index') }}">Contratos</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}">{{ contrato.numero_oc }}</a></li>
+                            <li class="breadcrumb-item active">Plan de Entrega</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    {% if not plan %}
+                    <a href="{{ url_for('contratos.crear_plan_entrega', contrato_id=contrato.id) }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Crear Plan de Entrega
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Volver al Contrato
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información del Contrato -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="card-title">{{ contrato.numero_oc }}</h5>
+                            <p class="text-muted mb-0">{{ contrato.proyecto.nombre }}</p>
+                            <p class="text-muted">Cliente: {{ contrato.proyecto.cliente.nombre }}</p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <span class="badge bg-{{ 'success' if contrato.estado.value == 'VIGENTE' else 'secondary' }} fs-6">
+                                {{ contrato.estado.value }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if plan %}
+    <!-- Estadísticas del Plan -->
+    {% if estadisticas %}
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-primary">{{ estadisticas.total_hitos }}</div>
+                    <div class="text-muted">Total Hitos</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-success">{{ estadisticas.hitos_completados }}</div>
+                    <div class="text-muted">Completados</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-warning">{{ estadisticas.hitos_pendientes }}</div>
+                    <div class="text-muted">Pendientes</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-danger">{{ estadisticas.hitos_atrasados }}</div>
+                    <div class="text-muted">Atrasados</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progreso General -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">Progreso General</h6>
+                    <div class="progress mb-2" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ estadisticas.progreso_porcentaje }}%"
+                             aria-valuenow="{{ estadisticas.progreso_porcentaje }}" 
+                             aria-valuemin="0" aria-valuemax="100">
+                            {{ "%.1f"|format(estadisticas.progreso_porcentaje) }}%
+                        </div>
+                    </div>
+                    {% if estadisticas.proximo_hito %}
+                    <small class="text-muted">
+                        Próximo hito: <strong>{{ estadisticas.proximo_hito.titulo }}</strong> 
+                        ({{ estadisticas.proximo_hito.fecha_programada.strftime('%d/%m/%Y') }})
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Plan de Entrega -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">{{ plan.nombre }}</h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarHito">
+                        <i class="fas fa-plus me-1"></i>Agregar Hito
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if plan.descripcion %}
+                    <p class="text-muted">{{ plan.descripcion }}</p>
+                    {% endif %}
+
+                    <!-- Lista de Hitos -->
+                    {% if plan.hitos %}
+                    <div class="timeline">
+                        {% for hito in plan.hitos %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker 
+                                {% if hito.estado.value == 'COMPLETADO' %}bg-success
+                                {% elif hito.estado.value == 'ATRASADO' %}bg-danger
+                                {% else %}bg-warning{% endif %}">
+                                <i class="fas fa-{% if hito.estado.value == 'COMPLETADO' %}check
+                                    {% elif hito.estado.value == 'ATRASADO' %}exclamation-triangle
+                                    {% else %}clock{% endif %}"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ hito.titulo }}</h6>
+                                        {% if hito.descripcion %}
+                                        <p class="text-muted mb-2">{{ hito.descripcion }}</p>
+                                        {% endif %}
+                                        <div class="d-flex align-items-center gap-3">
+                                            <small class="text-muted">
+                                                <i class="fas fa-calendar me-1"></i>
+                                                {{ hito.fecha_programada.strftime('%d/%m/%Y') }}
+                                            </small>
+                                            <span class="badge bg-{% if hito.estado.value == 'COMPLETADO' %}success
+                                                {% elif hito.estado.value == 'ATRASADO' %}danger
+                                                {% else %}warning{% endif %}">
+                                                {{ hito.estado.value.title() }}
+                                            </span>
+                                        </div>
+                                        {% if hito.estado.value == 'COMPLETADO' and hito.fecha_completado %}
+                                        <small class="text-success">
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            Completado el {{ hito.fecha_completado.strftime('%d/%m/%Y %H:%M') }}
+                                        </small>
+                                        {% if hito.notas_completado %}
+                                        <div class="mt-2">
+                                            <small class="text-muted">Notas: {{ hito.notas_completado }}</small>
+                                        </div>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        {% if hito.estado.value == 'PENDIENTE' or hito.estado.value == 'ATRASADO' %}
+                                        <button type="button" class="btn btn-sm btn-success" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#modalCompletarHito"
+                                                data-hito-id="{{ hito.id }}"
+                                                data-hito-titulo="{{ hito.titulo }}">
+                                            <i class="fas fa-check me-1"></i>Completar
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <div class="text-muted">
+                            <i class="fas fa-calendar-alt fa-3x mb-3"></i>
+                            <p>No hay hitos definidos en este plan</p>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarHito">
+                                <i class="fas fa-plus me-2"></i>Agregar Primer Hito
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Completar Hito -->
+    <div class="modal fade" id="modalCompletarHito" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Completar Hito</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formCompletarHito" method="POST">
+                    <div class="modal-body">
+                        <p>¿Está seguro que desea marcar como completado el hito <strong id="hitoTitulo"></strong>?</p>
+                        <div class="mb-3">
+                            <label for="notasCompletado" class="form-label">Notas de completado (opcional)</label>
+                            <textarea class="form-control" id="notasCompletado" name="notas_completado" rows="3"
+                                    placeholder="Agregue cualquier observación sobre la completitud del hito..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check me-2"></i>Completar Hito
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Agregar Hito -->
+    <div class="modal fade" id="modalAgregarHito" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Agregar Nuevo Hito</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{{ url_for('contratos.agregar_hito', plan_id=plan.id) }}" method="POST">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="titulo" class="form-label">Título del Hito <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="titulo" name="titulo" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descripcion" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="descripcion" name="descripcion" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fecha_programada" class="form-label">Fecha Programada <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="fecha_programada" name="fecha_programada" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Agregar Hito
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- No hay plan de entrega -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <div class="text-muted">
+                        <i class="fas fa-calendar-plus fa-5x mb-4"></i>
+                        <h4>Sin Plan de Entrega</h4>
+                        <p class="lead">Este contrato aún no tiene un plan de entrega definido.</p>
+                        <p>Un plan de entrega te permite organizar las fechas y hitos importantes para la entrega de tu proyecto.</p>
+                        <a href="{{ url_for('contratos.crear_plan_entrega', contrato_id=contrato.id) }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i>Crear Plan de Entrega
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 50px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 11px;
+    top: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 3px solid #dee2e6;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Modal para completar hito
+    const modalCompletarHito = document.getElementById('modalCompletarHito');
+    if (modalCompletarHito) {
+        modalCompletarHito.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const hitoId = button.getAttribute('data-hito-id');
+            const hitoTitulo = button.getAttribute('data-hito-titulo');
+            
+            document.getElementById('hitoTitulo').textContent = hitoTitulo;
+            document.getElementById('formCompletarHito').action = 
+                '{{ url_for("contratos.completar_hito", hito_id=0) }}'.replace('0', hitoId);
+        });
+    }
+});
+</script>
+{% endblock %}

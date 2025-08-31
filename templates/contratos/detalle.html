@@ -175,6 +175,11 @@
                             Ver Órdenes de Fabricación
                         </a>
                         
+                        <a href="{{ url_for('contratos.plan_entrega', contrato_id=contrato.id) }}" class="btn btn-outline-success">
+                            <i data-feather="calendar" class="me-2"></i>
+                            Plan de Entrega
+                        </a>
+                        
                         <a href="{{ url_for('proyectos.detalle', proyecto_id=contrato.proyecto_id) }}" class="btn btn-outline-primary">
                             <i data-feather="folder" class="me-2"></i>
                             Ver Proyecto
