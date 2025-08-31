@@ -46,7 +46,15 @@
                         <option value="">Todos los proyectos</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <label for="tipo_documento" class="form-label">Tipo</label>
+                    <select class="form-select" id="tipo_documento" name="tipo_documento">
+                        <option value="">Todos los tipos</option>
+                        <option value="contrato" {% if filters.tipo_documento == 'contrato' %}selected{% endif %}>Contrato</option>
+                        <option value="orden_compra" {% if filters.tipo_documento == 'orden_compra' %}selected{% endif %}>Orden de Compra</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <label for="numero_oc" class="form-label">Número OC</label>
                     <input type="text" class="form-control" id="numero_oc" name="numero_oc" 
                            value="{{ filters.numero_oc or '' }}" placeholder="Buscar por número">
@@ -116,6 +124,7 @@
                     <thead class="table-dark">
                         <tr>
                             <th>Número OC</th>
+                            <th>Tipo</th>
                             <th>Proyecto</th>
                             <th>Cliente</th>
                             <th>Estado</th>
@@ -130,6 +139,11 @@
                         <tr>
                             <td>
                                 <div class="fw-medium">{{ contrato.numero_oc }}</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'primary' if contrato.tipo_documento.value == 'contrato' else 'info' }}">
+                                    {{ 'Contrato' if contrato.tipo_documento.value == 'contrato' else 'Orden de Compra' }}
+                                </span>
                             </td>
                             <td>
                                 <a href="{{ url_for('proyectos.detalle', proyecto_id=contrato.proyecto.id) }}" class="text-decoration-none">

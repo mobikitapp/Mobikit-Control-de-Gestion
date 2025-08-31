@@ -45,9 +45,13 @@ class FabricacionService:
                 if contrato.proyecto_id != of_data['proyecto_id']:
                     raise ValueError("El contrato no pertenece al proyecto especificado")
             
-            # Check if codigo already exists
-            if self.repo.exists_codigo(of_data['codigo']):
-                raise ValueError(f"Ya existe una OF con código {of_data['codigo']}")
+            # Generate automatic codigo if not provided or empty
+            if not of_data.get('codigo') or of_data['codigo'].strip() == '':
+                of_data['codigo'] = self.repo.generate_next_codigo()
+            else:
+                # Check if provided codigo already exists
+                if self.repo.exists_codigo(of_data['codigo']):
+                    raise ValueError(f"Ya existe una OF con código {of_data['codigo']}")
             
             # Extract items data
             items_data = of_data.pop('items', [])

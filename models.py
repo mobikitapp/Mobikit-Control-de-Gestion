@@ -23,6 +23,10 @@ class EstadoProyecto(Enum):
     COMPLETADO = "completado"
     CANCELADO = "cancelado"
 
+class TipoDocumento(Enum):
+    CONTRATO = "contrato"
+    ORDEN_COMPRA = "orden_compra"
+
 class EstadoContrato(Enum):
     BORRADOR = "borrador"
     VIGENTE = "vigente"
@@ -31,6 +35,8 @@ class EstadoContrato(Enum):
 
 class EstadoOF(Enum):
     PLANIFICADA = "planificada"
+    ENVIADO_PRODUCCION = "enviado_produccion"
+    SECCIONANDO = "seccionando"
     EN_PRODUCCION = "en_produccion"
     QA = "qa"
     TERMINADA = "terminada"
@@ -234,6 +240,7 @@ class Contrato(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
+    tipo_documento = db.Column(db.Enum(TipoDocumento), default=TipoDocumento.CONTRATO, nullable=False)
     numero_oc = db.Column(db.String(50), unique=True, nullable=False)
     monto_total = db.Column(db.Numeric(15, 2))
     moneda = db.Column(db.String(3), default='CLP', nullable=False)
@@ -256,6 +263,7 @@ class Contrato(db.Model):
     # Indexes
     __table_args__ = (
         Index('idx_contrato_proyecto', 'proyecto_id'),
+        Index('idx_contrato_tipo', 'tipo_documento'),
         Index('idx_contrato_numero_oc', 'numero_oc'),
         Index('idx_contrato_estado', 'estado'),
         Index('idx_contrato_fechas', 'fecha_emision', 'fecha_vencimiento'),
@@ -298,6 +306,9 @@ class OrdenFabricacion(db.Model):
     contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=True)
     codigo = db.Column(db.String(50), unique=True, nullable=False)
     descripcion = db.Column(db.Text)
+    glosa = db.Column(db.Text)
+    cantidad_tableros = db.Column(db.Integer)
+    fecha_entrega_fabrica = db.Column(db.Date)
     estado = db.Column(db.Enum(EstadoOF), default=EstadoOF.PLANIFICADA, nullable=False)
     fecha_planificada = db.Column(db.Date)
     fecha_inicio = db.Column(db.DateTime)
@@ -361,7 +372,6 @@ class Despacho(db.Model):
     estado = db.Column(db.Enum(EstadoDespacho), default=EstadoDespacho.PROGRAMADO, nullable=False)
     fecha_programada = db.Column(db.Date)
     fecha_envio = db.Column(db.DateTime)
-    fecha_entrega = db.Column(db.DateTime)
     destino = db.Column(db.Text, nullable=False)
     contacto_destino = db.Column(db.String(200))
     telefono_contacto = db.Column(db.String(50))
