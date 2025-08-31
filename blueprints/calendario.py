@@ -3,6 +3,7 @@ from flask_login import current_user, login_required
 from datetime import datetime, timedelta
 import calendar
 from dateutil.relativedelta import relativedelta
+import pytz
 
 from app import db
 from models import EventoEntrega, Proyecto, Despacho, RolUsuario
@@ -32,6 +33,10 @@ def vista_mensual():
         
         # Get calendar data
         data = service.get_calendario_mensual(year, month, current_user.id, current_user.rol)
+        
+        # Add current datetime for template
+        now = datetime.now()
+        data['now'] = now
         
         return render_template('calendario/vista_mensual.html', **data)
         

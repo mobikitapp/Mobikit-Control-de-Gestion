@@ -164,10 +164,10 @@
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('calendario.vista_mensual', year=now().year, month=now().month) }}" class="btn btn-outline-info w-100">
+                            <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-info w-100">
                                 <i class="fas fa-calendar-day"></i><br>
                                 <strong>Mes Actual</strong><br>
-                                <small class="text-muted">{{ now().strftime('%B') }}</small>
+                                <small class="text-muted">{{ now.strftime('%B') }}</small>
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
@@ -341,8 +341,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Helper function to get current date (for template)
-function now() {
+// Helper function to get current date
+function getCurrentDate() {
     return new Date();
 }
 </script>
