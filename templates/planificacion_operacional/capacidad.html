@@ -131,7 +131,7 @@
                                     <td>
                                         <div class="progress" style="width: 100px;">
                                             <div class="progress-bar {% if data.capacidad_porcentaje < 70 %}bg-success{% elif data.capacidad_porcentaje < 90 %}bg-warning{% else %}bg-danger{% endif %}" 
-                                                 style="width: {{ [data.capacidad_porcentaje, 100] | min }}%">
+                                                 style="width: {{ data.capacidad_porcentaje if data.capacidad_porcentaje < 100 else 100 }}%">
                                             </div>
                                         </div>
                                         {{ "{:.0f}".format(data.capacidad_porcentaje or 0) }}%
