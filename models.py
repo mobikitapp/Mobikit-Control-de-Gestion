@@ -129,6 +129,10 @@ class SubcategoriaCloset(Enum):
 
 # Baño no tiene subcategorías
 
+class EstadoHitoEntrega(Enum):
+    PENDIENTE = "pendiente"
+    COMPLETADO = "completado"
+    ATRASADO = "atrasado"
 
 # (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 class User(UserMixin, db.Model):
@@ -331,6 +335,7 @@ class Contrato(db.Model):
     # Relationships
     adjuntos = db.relationship('ContratoAdjunto', backref='contrato', lazy=True, cascade='all, delete-orphan')
     ordenes_fabricacion = db.relationship('OrdenFabricacion', backref='contrato', lazy=True)
+    plan_entrega = db.relationship('PlanEntrega', backref='contrato', uselist=False, cascade='all, delete-orphan')
     creator = db.relationship('User', foreign_keys=[created_by])
     
     # Indexes
@@ -370,6 +375,64 @@ class ContratoAdjunto(db.Model):
 
     def __repr__(self):
         return f'<ContratoAdjunto {self.filename}>'
+
+class PlanEntrega(db.Model):
+    __tablename__ = 'planes_entrega'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=False, unique=True)
+    nombre = db.Column(db.String(200), nullable=False)
+    descripcion = db.Column(db.Text)
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    hitos = db.relationship('HitoEntrega', backref='plan_entrega', lazy=True, cascade='all, delete-orphan', order_by='HitoEntrega.fecha_programada')
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_plan_entrega_contrato', 'contrato_id'),
+    )
+
+    def __repr__(self):
+        return f'<PlanEntrega {self.nombre}>'
+
+class HitoEntrega(db.Model):
+    __tablename__ = 'hitos_entrega'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    plan_entrega_id = db.Column(db.Integer, db.ForeignKey('planes_entrega.id'), nullable=False)
+    orden = db.Column(db.Integer, nullable=False, default=1)
+    titulo = db.Column(db.String(200), nullable=False)
+    descripcion = db.Column(db.Text)
+    fecha_programada = db.Column(db.Date, nullable=False)
+    fecha_completado = db.Column(db.DateTime)
+    estado = db.Column(db.Enum(EstadoHitoEntrega), default=EstadoHitoEntrega.PENDIENTE, nullable=False)
+    notas_completado = db.Column(db.Text)
+    completado_por = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    creator = db.relationship('User', foreign_keys=[created_by])
+    completado_por_user = db.relationship('User', foreign_keys=[completado_por])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_hito_entrega_plan', 'plan_entrega_id'),
+        Index('idx_hito_entrega_fecha', 'fecha_programada'),
+        Index('idx_hito_entrega_estado', 'estado'),
+        Index('idx_hito_entrega_orden', 'plan_entrega_id', 'orden'),
+    )
+
+    def __repr__(self):
+        return f'<HitoEntrega {self.titulo}>'
 
 class OrdenFabricacion(db.Model):
     __tablename__ = 'ordenes_fabricacion'

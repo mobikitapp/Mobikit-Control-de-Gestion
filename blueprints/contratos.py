@@ -8,7 +8,9 @@ from models import RolUsuario
 from services.contratos_service import ContratosService
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
+from services.planes_entrega_service import PlanesEntregaService
 from schemas.contratos import ContratoCreate, ContratoUpdate, ContratoSearchFilters
+from schemas.planes_entrega import PlanEntregaCreate, HitoEntregaCreate, CompletarHitoRequest
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,6 +19,7 @@ contratos_bp = Blueprint('contratos', __name__)
 contratos_service = ContratosService()
 proyectos_service = ProyectosService()
 clientes_service = ClientesService()
+planes_entrega_service = PlanesEntregaService()
 
 @contratos_bp.route('/')
 @require_login
@@ -248,4 +251,181 @@ def eliminar_adjunto(adjunto_id):
         logger.error(f"Error eliminando adjunto {adjunto_id}: {str(e)}")
         flash('Error al eliminar archivo', 'error')
         return redirect(url_for('contratos.index'))
+
+# ============================
+# PLAN DE ENTREGA ROUTES
+# ============================
+
+@contratos_bp.route('/<int:contrato_id>/plan-entrega')
+@require_login
+def plan_entrega(contrato_id):
+    """Ver plan de entrega del contrato"""
+    try:
+        contrato = contratos_service.get_contrato_by_id(contrato_id)
+        if not contrato:
+            flash('Contrato no encontrado', 'error')
+            return redirect(url_for('contratos.index'))
+        
+        plan = planes_entrega_service.get_plan_by_contrato_id(contrato_id)
+        estadisticas = None
+        
+        if plan:
+            estadisticas = planes_entrega_service.get_estadisticas_plan(plan.id)
+        
+        return render_template('contratos/plan_entrega.html', 
+                             contrato=contrato,
+                             plan=plan,
+                             estadisticas=estadisticas)
+        
+    except Exception as e:
+        logger.error(f"Error cargando plan de entrega para contrato {contrato_id}: {str(e)}")
+        flash('Error al cargar plan de entrega', 'error')
+        return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
+
+@contratos_bp.route('/<int:contrato_id>/plan-entrega/crear', methods=['GET', 'POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def crear_plan_entrega(contrato_id):
+    """Crear plan de entrega para contrato"""
+    try:
+        contrato = contratos_service.get_contrato_by_id(contrato_id)
+        if not contrato:
+            flash('Contrato no encontrado', 'error')
+            return redirect(url_for('contratos.index'))
+        
+        # Check if plan already exists
+        existing_plan = planes_entrega_service.get_plan_by_contrato_id(contrato_id)
+        if existing_plan:
+            flash('El contrato ya tiene un plan de entrega', 'warning')
+            return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
+        
+        if request.method == 'POST':
+            # Get plan data
+            plan_data = {
+                'contrato_id': contrato_id,
+                'nombre': request.form.get('nombre'),
+                'descripcion': request.form.get('descripcion')
+            }
+            
+            # Get hitos data
+            hitos_data = []
+            titulos = request.form.getlist('hito_titulo[]')
+            descripciones = request.form.getlist('hito_descripcion[]')
+            fechas = request.form.getlist('hito_fecha[]')
+            
+            for i, titulo in enumerate(titulos):
+                if titulo.strip():
+                    hito_data = {
+                        'titulo': titulo.strip(),
+                        'descripcion': descripciones[i] if i < len(descripciones) else '',
+                        'fecha_programada': fechas[i] if i < len(fechas) else None,
+                        'orden': i + 1
+                    }
+                    hitos_data.append(hito_data)
+            
+            if not hitos_data:
+                flash('Debe agregar al menos un hito de entrega', 'error')
+                return render_template('contratos/plan_entrega_form.html', contrato=contrato)
+            
+            # Create plan with hitos
+            plan = planes_entrega_service.create_plan_with_hitos(
+                plan_data, hitos_data, current_user.id
+            )
+            
+            flash('Plan de entrega creado exitosamente', 'success')
+            return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
+        
+        return render_template('contratos/plan_entrega_form.html', contrato=contrato)
+        
+    except Exception as e:
+        logger.error(f"Error creando plan de entrega para contrato {contrato_id}: {str(e)}")
+        flash('Error al crear plan de entrega', 'error')
+        return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
+
+@contratos_bp.route('/hitos/<int:hito_id>/completar', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+def completar_hito(hito_id):
+    """Marcar hito como completado"""
+    try:
+        notas = request.form.get('notas_completado', '')
+        
+        hito = planes_entrega_service.completar_hito(
+            hito_id, notas, current_user.id
+        )
+        
+        flash(f'Hito "{hito.titulo}" completado exitosamente', 'success')
+        return redirect(url_for('contratos.plan_entrega', 
+                              contrato_id=hito.plan_entrega.contrato_id))
+        
+    except Exception as e:
+        logger.error(f"Error completando hito {hito_id}: {str(e)}")
+        flash('Error al completar hito', 'error')
+        # Try to redirect back, or to main page if we can't determine the contrato
+        return redirect(request.referrer or url_for('contratos.index'))
+
+@contratos_bp.route('/planes-entrega/<int:plan_id>/hitos/agregar', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def agregar_hito(plan_id):
+    """Agregar nuevo hito al plan de entrega"""
+    try:
+        hito_data = {
+            'titulo': request.form.get('titulo'),
+            'descripcion': request.form.get('descripcion'),
+            'fecha_programada': request.form.get('fecha_programada')
+        }
+        
+        hito = planes_entrega_service.add_hito(plan_id, hito_data, current_user.id)
+        
+        flash(f'Hito "{hito.titulo}" agregado exitosamente', 'success')
+        
+        # Get contrato_id for redirect
+        plan = planes_entrega_service.get_plan_by_id(plan_id)
+        return redirect(url_for('contratos.plan_entrega', 
+                              contrato_id=plan.contrato_id))
+        
+    except Exception as e:
+        logger.error(f"Error agregando hito al plan {plan_id}: {str(e)}")
+        flash('Error al agregar hito', 'error')
+        return redirect(request.referrer or url_for('contratos.index'))
+
+@contratos_bp.route('/api/proximos-hitos')
+@require_login
+def api_proximos_hitos():
+    """API endpoint para obtener próximos hitos"""
+    try:
+        dias = request.args.get('dias', 7, type=int)
+        hitos = planes_entrega_service.get_proximos_hitos(dias)
+        
+        return jsonify([{
+            'id': h.id,
+            'titulo': h.titulo,
+            'fecha_programada': h.fecha_programada.isoformat(),
+            'plan_nombre': h.plan_entrega.nombre,
+            'contrato_numero': h.plan_entrega.contrato.numero_oc,
+            'estado': h.estado.value
+        } for h in hitos])
+        
+    except Exception as e:
+        logger.error(f"Error en API próximos hitos: {str(e)}")
+        return jsonify({'error': 'Error al cargar hitos'}), 500
+
+@contratos_bp.route('/api/hitos-atrasados')
+@require_login
+def api_hitos_atrasados():
+    """API endpoint para obtener hitos atrasados"""
+    try:
+        hitos = planes_entrega_service.get_hitos_atrasados()
+        
+        return jsonify([{
+            'id': h.id,
+            'titulo': h.titulo,
+            'fecha_programada': h.fecha_programada.isoformat(),
+            'dias_atraso': (datetime.now().date() - h.fecha_programada).days,
+            'plan_nombre': h.plan_entrega.nombre,
+            'contrato_numero': h.plan_entrega.contrato.numero_oc,
+            'estado': h.estado.value
+        } for h in hitos])
+        
+    except Exception as e:
+        logger.error(f"Error en API hitos atrasados: {str(e)}")
+        return jsonify({'error': 'Error al cargar hitos atrasados'}), 500
 
