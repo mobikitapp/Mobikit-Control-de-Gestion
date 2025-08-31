@@ -136,6 +136,21 @@
                         </ul>
                     </li>
                     {% endif %}
+                    
+                    {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i data-feather="settings" class="me-1"></i>
+                            Planificación Operacional
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('planificacion_operacional.matriz_operacional') }}">Matriz Operacional</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('planificacion_operacional.capacidad_produccion') }}">Capacidad de Producción</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('planificacion_operacional.configuracion_conversion') }}">Configurar Factores</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
                 </ul>
                 
                 <ul class="navbar-nav">

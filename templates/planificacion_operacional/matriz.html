@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% set title = "Planificación Operacional" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-cogs text-primary"></i>
+                        Planificación Operacional {{ año }}
+                    </h4>
+                    <p class="mb-0 text-muted">Conversión de montos de provisión a tableros aproximados para corte</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conversion Factor Info -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6><i class="fas fa-calculator"></i> Factor de Conversión Actual: {{ tipos_material|title }}</h6>
+                            <p class="mb-0">
+                                <strong>{{ factor_info.descripcion }}</strong> - 
+                                ${{ "{:,}".format(factor_info.factor_m2) }} por m² | 
+                                Tablero estándar: {{ factor_info.area_tablero }}m² | 
+                                Desperdicio: {{ "{:.0f}".format((factor_info.factor_desperdicio - 1) * 100) }}%
+                            </p>
+                            <small>{{ factor_info.ejemplo_calculo }}</small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{{ url_for('planificacion_operacional.configuracion_conversion') }}" class="btn btn-light btn-sm">
+                                <i class="fas fa-cog"></i> Configurar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Filtros y Configuración</h6>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Año</label>
+                            <select class="form-select" name="año">
+                                {% for y in range(2024, 2030) %}
+                                <option value="{{ y }}" {% if año == y %}selected{% endif %}>{{ y }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Mes Inicio</label>
+                            <select class="form-select" name="mes_inicio">
+                                {% for m in range(1, 13) %}
+                                <option value="{{ m }}" {% if mes_inicio == m %}selected{% endif %}>
+                                    {{ calendar.month_name[m][:3] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Mes Fin</label>
+                            <select class="form-select" name="mes_fin">
+                                {% for m in range(1, 13) %}
+                                <option value="{{ m }}" {% if mes_fin == m %}selected{% endif %}>
+                                    {{ calendar.month_name[m][:3] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Material</label>
+                            <select class="form-select" name="tipo_material">
+                                {% for tipo in tipos_material %}
+                                <option value="{{ tipo }}" {% if tipo_material == tipo %}selected{% endif %}>
+                                    {{ tipo.title() }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Cliente</label>
+                            <select class="form-select" name="cliente_id">
+                                <option value="">Todos</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" {% if filtros.cliente_id == cliente.id %}selected{% endif %}>
+                                    {{ cliente.nombre[:20] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter"></i> Aplicar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operational Matrix -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Matriz Operacional - Tableros por Mes</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Mes</th>
+                                    <th>Proyectos</th>
+                                    <th>Monto Total</th>
+                                    <th>Tableros</th>
+                                    <th>Área Total (m²)</th>
+                                    <th>Promedio por Proyecto</th>
+                                    <th>Estado Capacidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set total_monto = 0 %}
+                                {% set total_tableros = 0 %}
+                                {% set total_area = 0 %}
+                                {% set total_proyectos = 0 %}
+                                
+                                {% for mes in range(mes_inicio, mes_fin + 1) %}
+                                {% if mes in matriz %}
+                                {% set mes_data = matriz[mes] %}
+                                {% set total_monto = total_monto + mes_data.total_monto %}
+                                {% set total_tableros = total_tableros + mes_data.total_tableros %}
+                                {% set total_area = total_area + mes_data.total_area_m2 %}
+                                {% set total_proyectos = total_proyectos + mes_data.proyectos|length %}
+                                
+                                <!-- Capacity indicator -->
+                                {% set capacidad_porcentaje = (mes_data.total_tableros / 500) * 100 %}
+                                {% set clase_capacidad = 'table-success' if capacidad_porcentaje < 70 else 'table-warning' if capacidad_porcentaje < 90 else 'table-danger' %}
+                                
+                                <tr class="{{ clase_capacidad if mes_data.proyectos else '' }}">
+                                    <td>
+                                        <strong>{{ mes_data.mes_nombre[:3] }}</strong>
+                                        <br><small class="text-muted">{{ año }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ mes_data.proyectos|length }}</span>
+                                        {% if mes_data.proyectos|length > 0 %}
+                                        <br>
+                                        {% for proyecto_mes in mes_data.proyectos[:2] %}
+                                        <small class="text-muted d-block">{{ proyecto_mes.proyecto.nombre[:15] }}{% if proyecto_mes.proyecto.nombre|length > 15 %}...{% endif %}</small>
+                                        {% endfor %}
+                                        {% if mes_data.proyectos|length > 2 %}
+                                        <small class="text-muted">+{{ mes_data.proyectos|length - 2 }} más</small>
+                                        {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>${{ "{:,.0f}".format(mes_data.total_monto) }}</strong>
+                                    </td>
+                                    <td>
+                                        <h5 class="text-primary mb-1">{{ mes_data.total_tableros }}</h5>
+                                        <small class="text-muted">tableros</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ "{:.1f}".format(mes_data.total_area_m2) }} m²</strong>
+                                    </td>
+                                    <td>
+                                        {% if mes_data.proyectos|length > 0 %}
+                                        <span class="badge bg-info">{{ "{:.1f}".format(mes_data.total_tableros / mes_data.proyectos|length) }}</span>
+                                        <br><small>tableros/proyecto</small>
+                                        {% else %}
+                                        <small class="text-muted">-</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if mes_data.total_tableros > 0 %}
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar {% if capacidad_porcentaje < 70 %}bg-success{% elif capacidad_porcentaje < 90 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                 style="width: {{ min(capacidad_porcentaje, 100) }}%">
+                                                {{ "{:.0f}".format(capacidad_porcentaje) }}%
+                                            </div>
+                                        </div>
+                                        <small>{{ mes_data.total_tableros }}/500 tableros</small>
+                                        {% else %}
+                                        <small class="text-muted">Sin carga</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                                
+                                <!-- Totals Row -->
+                                <tr class="table-info">
+                                    <td><strong>TOTAL</strong></td>
+                                    <td><span class="badge bg-primary">{{ total_proyectos }}</span></td>
+                                    <td><strong>${{ "{:,.0f}".format(total_monto) }}</strong></td>
+                                    <td><h5 class="text-primary">{{ total_tableros }}</h5></td>
+                                    <td><strong>{{ "{:.1f}".format(total_area) }} m²</strong></td>
+                                    <td>
+                                        {% if total_proyectos > 0 %}
+                                        <span class="badge bg-info">{{ "{:.1f}".format(total_tableros / total_proyectos) }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>Promedio: {{ "{:.0f}".format(total_tableros / (mes_fin - mes_inicio + 1)) }}/mes</strong>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ total_tableros }}</h3>
+                    <small>Tableros Totales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:.0f}".format(total_area) }}</h3>
+                    <small>m² Totales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:.1f}".format(total_monto / 1000000) }}M</h3>
+                    <small>Monto Total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:.0f}".format(total_tableros / (mes_fin - mes_inicio + 1)) }}</h3>
+                    <small>Promedio Mensual</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('planificacion_operacional.capacidad_produccion', año=año) }}" class="btn btn-primary me-2">
+                        <i class="fas fa-chart-area"></i> Análisis de Capacidad
+                    </a>
+                    <a href="{{ url_for('planificacion_operacional.configuracion_conversion') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-cog"></i> Configurar Factores
+                    </a>
+                    <button class="btn btn-outline-info" onclick="window.print()">
+                        <i class="fas fa-print"></i> Imprimir Matriz
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Calculation Modal -->
+<div class="modal fade" id="calculadoraModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Calculadora Rápida</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="calculadoraForm">
+                    <div class="mb-3">
+                        <label class="form-label">Monto de Provisión ($)</label>
+                        <input type="number" class="form-control" id="montoCalculo" placeholder="1000000" step="1000">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Material</label>
+                        <select class="form-select" id="materialCalculo">
+                            {% for tipo in tipos_material %}
+                            <option value="{{ tipo }}">{{ tipo.title() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="resultadoCalculo" class="alert alert-info d-none">
+                        <!-- Results will appear here -->
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="calcularRapido()">
+                    <i class="fas fa-calculator"></i> Calcular
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Action Button -->
+<button class="btn btn-success rounded-circle position-fixed" 
+        style="bottom: 20px; right: 20px; width: 60px; height: 60px; z-index: 1000;"
+        data-bs-toggle="modal" data-bs-target="#calculadoraModal">
+    <i class="fas fa-calculator fa-lg"></i>
+</button>
+
+<script>
+function calcularRapido() {
+    const monto = document.getElementById('montoCalculo').value;
+    const material = document.getElementById('materialCalculo').value;
+    
+    if (!monto) {
+        alert('Por favor ingrese un monto');
+        return;
+    }
+    
+    fetch('/planificacion-operacional/api/calcular-tableros', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            monto_provision: parseFloat(monto),
+            tipo_material: material
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const resultado = document.getElementById('resultadoCalculo');
+            resultado.innerHTML = `
+                <h6><i class="fas fa-check-circle text-success"></i> Resultado:</h6>
+                <p><strong>Tableros necesarios:</strong> ${data.tableros_aproximados} tableros</p>
+                <p><strong>Área total:</strong> ${data.area_total_m2.toFixed(1)} m²</p>
+                <p><strong>Factor usado:</strong> $${data.factor_usado.toLocaleString()}/m²</p>
+                <small class="text-muted">${data.detalles.descripcion_material}</small>
+            `;
+            resultado.classList.remove('d-none');
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al calcular');
+    });
+}
+
+// Legend for capacity colors
+document.addEventListener('DOMContentLoaded', function() {
+    const legend = `
+    <div class="alert alert-light mt-2">
+        <small><strong>Leyenda de Capacidad:</strong></small>
+        <span class="badge bg-success ms-2">&lt;70% Óptimo</span>
+        <span class="badge bg-warning ms-2">70-90% Alto</span>
+        <span class="badge bg-danger ms-2">&gt;90% Sobrecargado</span>
+    </div>
+    `;
+    document.querySelector('.card-body.p-0').insertAdjacentHTML('afterend', legend);
+});
+</script>
+
+<style>
+@media print {
+    .btn, .card-header, .navbar, .modal, .floating { display: none !important; }
+    .table { font-size: 0.7rem; }
+    .progress { height: 10px !important; }
+}
+</style>
+{% endblock %}
