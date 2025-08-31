@@ -299,7 +299,7 @@ def api_by_cliente(cliente_id):
         return jsonify([{
             'id': p.id,
             'nombre': p.nombre,
-            'estado': p.estado.value
+            'estado': p.estado_comercial.value
         } for p in proyectos])
         
     except Exception as e:
