@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
+from datetime import datetime
 from app import db
 from replit_auth import require_login, require_role
 from models import RolUsuario
@@ -93,7 +94,8 @@ def crear():
     """Crear nuevo contrato"""
     try:
         # Validate form data
-        contrato_data = ContratoCreate(**request.form.to_dict())
+        form_data = request.form.to_dict()
+        contrato_data = ContratoCreate(**form_data)
         
         # Handle file uploads
         archivos = request.files.getlist('archivos')
@@ -105,7 +107,53 @@ def crear():
             current_user.id
         )
         
-        flash(f'Contrato {contrato.numero_oc} creado exitosamente', 'success')
+        # Check if plan de entrega should be created
+        crear_plan = form_data.get('crear_plan_entrega') == 'on'
+        plan_creado = False
+        
+        if crear_plan:
+            try:
+                # Get plan data
+                plan_data = {
+                    'contrato_id': contrato.id,
+                    'nombre': form_data.get('plan_nombre', f'Plan de Entrega - {contrato.numero_oc}'),
+                    'descripcion': form_data.get('plan_descripcion', '')
+                }
+                
+                # Get hitos data
+                cantidad_hitos = int(form_data.get('cantidad_hitos', 2))
+                hitos_data = []
+                
+                for i in range(1, cantidad_hitos + 1):
+                    titulo = form_data.get(f'hito_titulo_{i}', '')
+                    fecha = form_data.get(f'hito_fecha_{i}', '')
+                    descripcion = form_data.get(f'hito_descripcion_{i}', '')
+                    
+                    if titulo and fecha:
+                        hitos_data.append({
+                            'titulo': titulo,
+                            'descripcion': descripcion,
+                            'fecha_programada': fecha,
+                            'orden': i
+                        })
+                
+                if hitos_data:
+                    # Create plan with hitos
+                    plan = planes_entrega_service.create_plan_with_hitos(
+                        plan_data, hitos_data, current_user.id
+                    )
+                    plan_creado = True
+                    
+            except Exception as e:
+                logger.warning(f"Error creando plan de entrega para contrato {contrato.id}: {str(e)}")
+                # Don't fail the contrato creation if plan creation fails
+        
+        # Create success message
+        mensaje = f'Contrato {contrato.numero_oc} creado exitosamente'
+        if plan_creado:
+            mensaje += ' con plan de entrega'
+        flash(mensaje, 'success')
+        
         return redirect(url_for('contratos.detalle', contrato_id=contrato.id))
         
     except ValidationError as e:
