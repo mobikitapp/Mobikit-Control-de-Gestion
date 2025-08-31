@@ -179,6 +179,15 @@
                         </div>
                         {% endif %}
                         
+                        {% if of.glosa %}
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Glosa</label>
+                            <div class="form-control-plaintext">
+                                <pre class="mb-0">{{ of.glosa }}</pre>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
                         {% if of.notas %}
                         <div class="col-12">
                             <label class="form-label fw-medium">Notas</label>
@@ -203,11 +212,35 @@
                 </div>
                 <div class="card-body">
                     <div class="timeline">
-                        <div class="timeline-item {{ 'active' if of.estado.value in ['planificada', 'en_produccion', 'qa', 'terminada', 'entregada'] else '' }}">
+                        <div class="timeline-item {{ 'active' if of.estado.value in ['planificada', 'enviado_produccion', 'seccionando', 'en_produccion', 'qa', 'terminada', 'entregada'] else '' }}">
                             <div class="timeline-marker bg-warning"></div>
                             <div class="timeline-content">
                                 <h6>Planificada</h6>
                                 <small class="text-muted">{{ of.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item {{ 'active' if of.estado.value in ['enviado_produccion', 'seccionando', 'en_produccion', 'qa', 'terminada', 'entregada'] else '' }}">
+                            <div class="timeline-marker bg-danger"></div>
+                            <div class="timeline-content">
+                                <h6>Enviado a Producción</h6>
+                                {% if of.estado.value in ['enviado_produccion', 'seccionando', 'en_produccion', 'qa', 'terminada', 'entregada'] %}
+                                <small class="text-muted">{{ of.updated_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                                {% else %}
+                                <small class="text-muted">Pendiente</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item {{ 'active' if of.estado.value in ['seccionando', 'en_produccion', 'qa', 'terminada', 'entregada'] else '' }}">
+                            <div class="timeline-marker bg-warning"></div>
+                            <div class="timeline-content">
+                                <h6>Seccionando</h6>
+                                {% if of.estado.value in ['seccionando', 'en_produccion', 'qa', 'terminada', 'entregada'] %}
+                                <small class="text-muted">{{ of.updated_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                                {% else %}
+                                <small class="text-muted">Pendiente</small>
+                                {% endif %}
                             </div>
                         </div>
                         
