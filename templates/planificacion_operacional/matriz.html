@@ -192,7 +192,7 @@
                                         {% if mes_data.total_tableros > 0 %}
                                         <div class="progress" style="height: 20px;">
                                             <div class="progress-bar {% if capacidad_porcentaje < 70 %}bg-success{% elif capacidad_porcentaje < 90 %}bg-warning{% else %}bg-danger{% endif %}" 
-                                                 style="width: {{ min(capacidad_porcentaje, 100) }}%">
+                                                 style="width: {{ [capacidad_porcentaje, 100] | min }}%">
                                                 {{ "{:.0f}".format(capacidad_porcentaje) }}%
                                             </div>
                                         </div>
