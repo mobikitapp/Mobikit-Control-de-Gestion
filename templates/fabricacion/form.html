@@ -34,7 +34,7 @@
                             <!-- Cliente y Proyecto -->
                             <div class="col-md-6">
                                 <label for="cliente_id" class="form-label">Cliente</label>
-                                <select class="form-select" id="cliente_id" onchange="updateProyectos(); updateContratos();">
+                                <select class="form-select" id="cliente_id">
                                     <option value="">Seleccionar cliente</option>
                                     {% for cliente in clientes %}
                                     <option value="{{ cliente.id }}" 
@@ -49,7 +49,7 @@
                                 <label for="proyecto_id" class="form-label">
                                     Proyecto <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateContratos()" required>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id" required>
                                     <option value="">Seleccionar proyecto</option>
                                     {% if of %}
                                     <option value="{{ of.proyecto_id }}" selected>{{ of.proyecto.nombre }}</option>
