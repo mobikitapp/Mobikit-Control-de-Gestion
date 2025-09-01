@@ -10,7 +10,7 @@ from services.contratos_service import ContratosService
 from services.clientes_service import ClientesService
 from services.user_service import UserService
 from schemas.fabricacion import (OrdenFabricacionCreate, OrdenFabricacionUpdate, 
-                                OrdenFabricacionSearchFilters, CambioEstadoOF)
+                                OrdenFabricacionSearchFilters)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,8 @@ def index():
             'proyecto_id': request.args.get('proyecto_id', type=int),
             'contrato_id': request.args.get('contrato_id', type=int),
             'codigo': request.args.get('codigo', ''),
-            'estado': request.args.get('estado', ''),
+            'area_id': request.args.get('area_id', type=int),
+            'estado_id': request.args.get('estado_id', type=int),
             'responsable': request.args.get('responsable', ''),
             'fecha_planificada_desde': request.args.get('fecha_planificada_desde', ''),
             'fecha_planificada_hasta': request.args.get('fecha_planificada_hasta', ''),
@@ -205,23 +206,49 @@ def actualizar(of_id):
 @fabricacion_bp.route('/<int:of_id>/cambiar-estado', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def cambiar_estado(of_id):
-    """Cambiar estado de la orden de fabricación"""
+    """Cambiar estado dentro del área actual"""
     try:
-        # Validate request data
-        cambio_data = CambioEstadoOF(**request.form.to_dict())
+        nuevo_estado_id = request.form.get('nuevo_estado_id', type=int)
+        responsable_id = request.form.get('responsable_id')
+        notas = request.form.get('notas')
         
-        success = fabricacion_service.change_of_status(of_id, cambio_data.nuevo_estado, cambio_data.notas)
+        if not nuevo_estado_id:
+            flash('Debe seleccionar un estado', 'error')
+            return redirect(url_for('fabricacion.detalle', of_id=of_id))
+        
+        success = fabricacion_service.change_estado_area(
+            of_id, nuevo_estado_id, responsable_id=responsable_id, notas=notas
+        )
         if success:
-            flash('Estado de la OF actualizado exitosamente', 'success')
+            flash('Estado actualizado exitosamente', 'success')
         else:
-            flash('Error al cambiar estado de la OF', 'error')
+            flash('Error al cambiar estado', 'error')
             
-    except ValidationError as e:
-        for error in e.errors():
-            flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
     except Exception as e:
         logger.error(f"Error cambiando estado de OF {of_id}: {str(e)}")
-        flash('Error al cambiar estado de la OF', 'error')
+        flash(f'Error al cambiar estado: {str(e)}', 'error')
+    
+    return redirect(url_for('fabricacion.detalle', of_id=of_id))
+
+@fabricacion_bp.route('/<int:of_id>/avanzar-area', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+def avanzar_area(of_id):
+    """Avanzar OF a la siguiente área"""
+    try:
+        responsable_id = request.form.get('responsable_id')
+        notas = request.form.get('notas')
+        
+        success = fabricacion_service.advance_to_next_area(
+            of_id, current_user.id, responsable_id=responsable_id, notas=notas
+        )
+        if success:
+            flash('Orden avanzada a la siguiente área exitosamente', 'success')
+        else:
+            flash('Error al avanzar a siguiente área', 'error')
+            
+    except Exception as e:
+        logger.error(f"Error avanzando OF {of_id}: {str(e)}")
+        flash(f'Error: {str(e)}', 'error')
     
     return redirect(url_for('fabricacion.detalle', of_id=of_id))
 
@@ -251,7 +278,8 @@ def api_by_proyecto(proyecto_id):
         return jsonify([{
             'id': of.id,
             'codigo': of.codigo,
-            'estado': of.estado.value
+            'area': of.area_actual.nombre if of.area_actual else 'Sin área',
+            'estado': of.estado_actual.nombre if of.estado_actual else 'Sin estado'
         } for of in ofs])
         
     except Exception as e:

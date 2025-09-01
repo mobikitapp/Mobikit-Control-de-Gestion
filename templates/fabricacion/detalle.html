@@ -10,31 +10,18 @@
                 <h1 class="h2">
                     <i data-feather="tool" class="me-2"></i>
                     OF {{ of.codigo }}
-                    <span class="badge bg-{{ 'warning' if of.estado.value == 'planificada' else 'info' if of.estado.value == 'en_produccion' else 'primary' if of.estado.value == 'qa' else 'success' if of.estado.value == 'terminada' else 'secondary' }} ms-2">
-                        {{ of.estado.value|title|replace('_', ' ') }}
+                    {% if of.area_actual and of.estado_actual %}
+                    <span class="badge ms-2" style="background-color: {{ of.area_actual.color_hex }}">
+                        {{ of.area_actual.nombre }}
                     </span>
+                    {% endif %}
                 </h1>
                 <div class="d-flex gap-2">
                     {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
-                    <div class="dropdown">
-                        <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i data-feather="play" class="me-2"></i>
-                            Cambiar Estado
-                        </button>
-                        <ul class="dropdown-menu">
-                            {% if of.estado.value == 'planificada' %}
-                            <li><a class="dropdown-item" href="#" onclick="changeStatus('en_produccion')">Iniciar Producción</a></li>
-                            {% elif of.estado.value == 'en_produccion' %}
-                            <li><a class="dropdown-item" href="#" onclick="changeStatus('qa')">Enviar a QA</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="changeStatus('planificada')">Volver a Planificada</a></li>
-                            {% elif of.estado.value == 'qa' %}
-                            <li><a class="dropdown-item" href="#" onclick="changeStatus('terminada')">Marcar como Terminada</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="changeStatus('en_produccion')">Volver a Producción</a></li>
-                            {% elif of.estado.value == 'terminada' %}
-                            <li><a class="dropdown-item" href="#" onclick="changeStatus('entregada')">Marcar como Entregada</a></li>
-                            {% endif %}
-                        </ul>
-                    </div>
+                    <a href="#control-estados" class="btn btn-success">
+                        <i data-feather="settings" class="me-2"></i>
+                        Control de Estados
+                    </a>
                     <a href="{{ url_for('fabricacion.editar', of_id=of.id) }}" class="btn btn-primary">
                         <i data-feather="edit" class="me-2"></i>
                         Editar
@@ -91,11 +78,17 @@
                         {% endif %}
                         
                         <div class="col-md-6">
-                            <label class="form-label fw-medium">Estado</label>
+                            <label class="form-label fw-medium">Área / Estado</label>
                             <div class="form-control-plaintext">
-                                <span class="badge bg-{{ 'warning' if of.estado.value == 'planificada' else 'danger' if of.estado.value == 'enviado_produccion' else 'warning' if of.estado.value == 'seccionando' else 'info' if of.estado.value == 'en_produccion' else 'primary' if of.estado.value == 'qa' else 'success' if of.estado.value == 'terminada' else 'secondary' }}">
-                                    {{ of.estado.value|title|replace('_', ' ') }}
-                                </span>
+                                {% if of.area_actual and of.estado_actual %}
+                                    <span class="badge" style="background-color: {{ of.area_actual.color_hex }}">
+                                        {{ of.area_actual.nombre }}
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">{{ of.estado_actual.nombre }}</small>
+                                {% else %}
+                                    <span class="badge bg-secondary">Sin estado</span>
+                                {% endif %}
                             </div>
                         </div>
                         
@@ -199,96 +192,104 @@
             </div>
         </div>
         
-        <!-- Timeline -->
+        <!-- Control de Estados -->
         <div class="col-lg-4">
+            {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] and of.area_progreso_actual %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="settings" class="me-2"></i>
+                        Control de Estados
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Estado Actual</label>
+                        <div>
+                            <span class="badge" style="background-color: {{ of.area_actual.color_hex }}">
+                                {{ of.area_actual.nombre }}
+                            </span>
+                            <span class="ms-2">{{ of.estado_actual.nombre }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Cambiar estado dentro del área -->
+                    {% set area_estados = of.area_actual.estados|selectattr('activo')|list %}
+                    {% set puede_cambiar_estado = area_estados|length > 1 %}
+                    
+                    {% if puede_cambiar_estado %}
+                    <form action="{{ url_for('fabricacion.cambiar_estado', of_id=of.id) }}" method="POST" class="mb-3">
+                        <label class="form-label">Cambiar Estado</label>
+                        <select name="nuevo_estado_id" class="form-select form-select-sm mb-2" required>
+                            <option value="">Seleccionar estado...</option>
+                            {% for estado in area_estados %}
+                                {% if estado.id != of.estado_actual.id %}
+                                <option value="{{ estado.id }}">{{ estado.nombre }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <textarea name="notas" class="form-control form-control-sm mb-2" placeholder="Notas (opcional)" rows="2"></textarea>
+                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                            <i data-feather="check" class="me-1"></i> Cambiar Estado
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    <!-- Avanzar a siguiente área -->
+                    {% if of.estado_actual.es_final %}
+                    <form action="{{ url_for('fabricacion.avanzar_area', of_id=of.id) }}" method="POST">
+                        <label class="form-label">Avanzar a Siguiente Área</label>
+                        <textarea name="notas" class="form-control form-control-sm mb-2" placeholder="Notas (opcional)" rows="2"></textarea>
+                        <button type="submit" class="btn btn-sm btn-success w-100">
+                            <i data-feather="arrow-right" class="me-1"></i> Avanzar a Siguiente Área
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Flujo de Producción -->
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i data-feather="clock" class="me-2"></i>
-                        Progreso de la Orden
+                        <i data-feather="activity" class="me-2"></i>
+                        Flujo de Producción
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="timeline">
-                        <div class="timeline-item {{ 'active' if of.estado.value in ['planificada', 'enviado_produccion', 'seccionando', 'en_produccion', 'qa', 'terminada', 'entregada'] else '' }}">
-                            <div class="timeline-marker bg-warning"></div>
+                        <div class="timeline-item active">
+                            <div class="timeline-marker bg-secondary"></div>
                             <div class="timeline-content">
-                                <h6>Planificada</h6>
+                                <h6>Creada</h6>
                                 <small class="text-muted">{{ of.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
                             </div>
                         </div>
                         
-                        <div class="timeline-item {{ 'active' if of.estado.value in ['enviado_produccion', 'seccionando', 'en_produccion', 'qa', 'terminada', 'entregada'] else '' }}">
-                            <div class="timeline-marker bg-danger"></div>
-                            <div class="timeline-content">
-                                <h6>Enviado a Producción</h6>
-                                {% if of.estado.value in ['enviado_produccion', 'seccionando', 'en_produccion', 'qa', 'terminada', 'entregada'] %}
-                                <small class="text-muted">{{ of.updated_at.strftime('%d/%m/%Y %H:%M') }}</small>
-                                {% else %}
-                                <small class="text-muted">Pendiente</small>
-                                {% endif %}
+                        {% if of.progreso_areas %}
+                            {% for progreso in of.progreso_areas %}
+                            <div class="timeline-item {{ 'active' if progreso.area.activo else '' }}">
+                                <div class="timeline-marker" style="background-color: {{ progreso.area.color_hex }}"></div>
+                                <div class="timeline-content">
+                                    <h6>{{ progreso.area.nombre }}</h6>
+                                    <small class="text-muted">{{ progreso.estado.nombre }}</small>
+                                    {% if progreso.fecha_cambio_estado %}
+                                    <br>
+                                    <small class="text-muted">{{ progreso.fecha_cambio_estado.strftime('%d/%m/%Y %H:%M') }}</small>
+                                    {% endif %}
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="timeline-item {{ 'active' if of.estado.value in ['seccionando', 'en_produccion', 'qa', 'terminada', 'entregada'] else '' }}">
-                            <div class="timeline-marker bg-warning"></div>
-                            <div class="timeline-content">
-                                <h6>Seccionando</h6>
-                                {% if of.estado.value in ['seccionando', 'en_produccion', 'qa', 'terminada', 'entregada'] %}
-                                <small class="text-muted">{{ of.updated_at.strftime('%d/%m/%Y %H:%M') }}</small>
-                                {% else %}
-                                <small class="text-muted">Pendiente</small>
-                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker bg-secondary"></div>
+                                <div class="timeline-content">
+                                    <h6>Sin progreso registrado</h6>
+                                    <small class="text-muted">Pendiente de iniciar</small>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="timeline-item {{ 'active' if of.estado.value in ['en_produccion', 'qa', 'terminada', 'entregada'] else '' }}">
-                            <div class="timeline-marker bg-info"></div>
-                            <div class="timeline-content">
-                                <h6>En Producción</h6>
-                                {% if of.fecha_inicio %}
-                                <small class="text-muted">{{ of.fecha_inicio.strftime('%d/%m/%Y %H:%M') }}</small>
-                                {% else %}
-                                <small class="text-muted">Pendiente</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-item {{ 'active' if of.estado.value in ['qa', 'terminada', 'entregada'] else '' }}">
-                            <div class="timeline-marker bg-primary"></div>
-                            <div class="timeline-content">
-                                <h6>Control de Calidad</h6>
-                                {% if of.fecha_qc %}
-                                <small class="text-muted">{{ of.fecha_qc.strftime('%d/%m/%Y %H:%M') }}</small>
-                                {% else %}
-                                <small class="text-muted">Pendiente</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-item {{ 'active' if of.estado.value in ['terminada', 'entregada'] else '' }}">
-                            <div class="timeline-marker bg-success"></div>
-                            <div class="timeline-content">
-                                <h6>Terminada</h6>
-                                {% if of.fecha_fin %}
-                                <small class="text-muted">{{ of.fecha_fin.strftime('%d/%m/%Y %H:%M') }}</small>
-                                {% else %}
-                                <small class="text-muted">Pendiente</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-item {{ 'active' if of.estado.value == 'entregada' else '' }}">
-                            <div class="timeline-marker bg-secondary"></div>
-                            <div class="timeline-content">
-                                <h6>Entregada</h6>
-                                {% if of.estado.value == 'entregada' %}
-                                <small class="text-muted">{{ of.updated_at.strftime('%d/%m/%Y %H:%M') }}</small>
-                                {% else %}
-                                <small class="text-muted">Pendiente</small>
-                                {% endif %}
-                            </div>
-                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

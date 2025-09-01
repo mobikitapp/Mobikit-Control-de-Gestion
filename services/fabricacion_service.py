@@ -5,8 +5,9 @@ from repositories.fabricacion_repo import FabricacionRepository, OrdenFabricacio
 from repositories.proyectos_repo import ProyectosRepository
 from repositories.contratos_repo import ContratosRepository
 from services.audit_service import AuditService, serialize_model
+from services.areas_service import AreasService
 from schemas.fabricacion import OrdenFabricacionSearchFilters
-from models import OrdenFabricacion, EstadoOF
+from models import OrdenFabricacion
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ class FabricacionService:
         self.items_repo = OrdenFabricacionItemRepository()
         self.proyectos_repo = ProyectosRepository()
         self.contratos_repo = ContratosRepository()
+        self.areas_service = AreasService()
     
     def create_orden_fabricacion(self, of_data: Dict[str, Any], created_by: str) -> OrdenFabricacion:
         """
@@ -48,8 +50,8 @@ class FabricacionService:
             # Always generate automatic codigo for generic orders
             of_data['codigo'] = self.repo.generate_next_codigo()
             
-            # Force initial state to PENDIENTE_APROBACION_DISENO
-            of_data['estado'] = EstadoOF.PENDIENTE_APROBACION_DISENO.value
+            # Remove estado if present (no longer used)
+            of_data.pop('estado', None)
             
             # Extract items data
             items_data = of_data.pop('items', [])
@@ -61,6 +63,9 @@ class FabricacionService:
             for item_data in items_data:
                 item_data['of_id'] = of.id
                 self.items_repo.create(item_data)
+            
+            # Initialize in areas system with initial state
+            self.areas_service.initialize_orden_in_areas(of.id, created_by)
             
             # Commit transaction
             db.session.commit()
@@ -147,13 +152,14 @@ class FabricacionService:
             logger.error(f"Error actualizando OF {of_id}: {str(e)}")
             raise
     
-    def change_of_status(self, of_id: int, new_status: EstadoOF, notas: str = None) -> bool:
+    def change_estado_area(self, of_id: int, nuevo_estado_id: int, responsable_id: str = None, notas: str = None) -> bool:
         """
-        Change OF status with business rules validation
+        Change estado within the same area using AreasService
         
         Args:
             of_id: OF ID
-            new_status: New status enum
+            nuevo_estado_id: New estado ID within the same area
+            responsable_id: Optional responsible user ID
             notas: Optional notes for the status change
             
         Returns:
@@ -164,57 +170,54 @@ class FabricacionService:
             if not of:
                 raise ValueError(f"OF {of_id} no encontrada")
             
-            # Special validation for SECCIONANDO state
-            if new_status == EstadoOF.SECCIONANDO:
-                if not of.cantidad_tableros or of.cantidad_tableros <= 0:
-                    raise ValueError("La cantidad de tableros es obligatoria y debe ser mayor a 0 para cambiar a estado seccionando")
-            
-            # Validate status transition
-            can_change, error_msg = self.repo.can_change_status(of, new_status)
-            if not can_change:
-                raise ValueError(error_msg)
-            
-            # Store original data for audit
-            datos_anteriores = serialize_model(of)
-            
-            # Update status and timestamps
-            update_data = {'estado': new_status}
-            
-            # Set appropriate timestamp based on new status
-            now = datetime.now()
-            if new_status == EstadoOF.ENVIADO_A_FABRICACION and not of.fecha_inicio:
-                update_data['fecha_inicio'] = now
-            elif new_status == EstadoOF.FABRICACION_COMPLETA and not of.fecha_qc:
-                update_data['fecha_qc'] = now
-            elif new_status == EstadoOF.LISTO_PARA_DESPACHO and not of.fecha_fin:
-                update_data['fecha_fin'] = now
-            
-            # Add notes if provided
-            if notas:
-                current_notes = of.notas or ""
-                update_data['notas'] = f"{current_notes}\n[{now.strftime('%Y-%m-%d %H:%M')}] {new_status.value}: {notas}".strip()
-            
-            # Update OF
-            of_actualizada = self.repo.update(of, update_data)
-            
-            # Commit transaction
-            db.session.commit()
-            
-            # Log audit
-            AuditService.log_action(
-                'ordenes_fabricacion', 
+            # Use AreasService to change estado
+            self.areas_service.change_estado_within_area(
                 of_id, 
-                'UPDATE',
-                datos_anteriores=datos_anteriores,
-                datos_nuevos=serialize_model(of_actualizada)
+                nuevo_estado_id, 
+                responsable_id=responsable_id, 
+                notas=notas
             )
             
-            logger.info(f"Estado de OF cambiado: {of_id} -> {new_status.value}")
+            logger.info(f"Estado de OF cambiado: {of_id} -> estado_id {nuevo_estado_id}")
             return True
             
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error cambiando estado de OF {of_id}: {str(e)}")
+            raise
+    
+    def advance_to_next_area(self, of_id: int, created_by: str, responsable_id: str = None, notas: str = None) -> bool:
+        """
+        Advance OF to next area in the workflow
+        
+        Args:
+            of_id: OF ID
+            created_by: User ID who is advancing the OF
+            responsable_id: Optional responsible user ID for the new area
+            notas: Optional notes
+            
+        Returns:
+            True if advance was successful
+        """
+        try:
+            of = self.repo.get_by_id(of_id)
+            if not of:
+                raise ValueError(f"OF {of_id} no encontrada")
+            
+            # Use AreasService to advance to next area
+            self.areas_service.advance_to_next_area(
+                of_id,
+                created_by,
+                responsable_id=responsable_id,
+                notas=notas
+            )
+            
+            logger.info(f"OF {of_id} avanzada a siguiente área")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error avanzando OF {of_id} a siguiente área: {str(e)}")
             raise
     
     def delete_orden_fabricacion(self, of_id: int) -> bool:
@@ -233,8 +236,12 @@ class FabricacionService:
                 raise ValueError(f"OF {of_id} no encontrada")
             
             # Check if OF can be deleted (business rules)
-            if of.estado in [EstadoOF.ENVIADO_A_FABRICACION, EstadoOF.SECCIONANDO, EstadoOF.ENCHAPANDO, EstadoOF.MECANIZANDO, EstadoOF.FABRICACION_COMPLETA, EstadoOF.LISTO_PARA_DESPACHO, EstadoOF.DESPACHADO]:
-                raise ValueError("No se puede eliminar una OF que está en producción o terminada")
+            # Check if OF has advanced beyond initial state
+            progreso = of.area_progreso_actual
+            if progreso:
+                # Can only delete if in initial area (Pendientes) and initial state
+                if progreso.area.tipo.value != 'PENDIENTES_FABRICACION' or not progreso.estado.es_inicial:
+                    raise ValueError("No se puede eliminar una OF que ha avanzado en el proceso de fabricación")
             
             # Check if OF has related despachos
             if of.despachos:

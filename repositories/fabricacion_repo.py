@@ -3,7 +3,7 @@ from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload
 from app import db
 from models import (OrdenFabricacion, OrdenFabricacionItem, Proyecto, 
-                   Contrato, Cliente, User, EstadoOF)
+                   Contrato, Cliente, User, OrdenAreaProgreso)
 from schemas.fabricacion import OrdenFabricacionSearchFilters
 from utils.enum_normalizer import EnumNormalizer
 from constants.transitions import OF_TRANSITIONS, OF_ACTIVE_STATES, OF_SPECIAL_VALIDATIONS
@@ -82,9 +82,16 @@ class FabricacionRepository:
         if filters.codigo:
             conditions.append(OrdenFabricacion.codigo.ilike(f"%{filters.codigo}%"))
         
-        if filters.estado:
-            # Direct comparison without upper() since ENUMs are now consistent
-            conditions.append(OrdenFabricacion.estado == filters.estado)
+        if hasattr(filters, 'area_id') and filters.area_id:
+            # Join with OrdenAreaProgreso to filter by area
+            query = query.join(OrdenAreaProgreso)
+            conditions.append(OrdenAreaProgreso.area_id == filters.area_id)
+        
+        if hasattr(filters, 'estado_id') and filters.estado_id:
+            # Join with OrdenAreaProgreso if not already joined
+            if not hasattr(filters, 'area_id') or not filters.area_id:
+                query = query.join(OrdenAreaProgreso)
+            conditions.append(OrdenAreaProgreso.estado_id == filters.estado_id)
         
         if filters.responsable:
             conditions.append(OrdenFabricacion.responsable == filters.responsable)
@@ -121,30 +128,40 @@ class FabricacionRepository:
     @staticmethod
     def count_by_status(status_list: List[str]) -> int:
         """Count OFs by status"""
-        # Direct comparison without upper() since ENUMs are now consistent
-        return (db.session.query(OrdenFabricacion)
-                .filter(OrdenFabricacion.estado.in_(status_list))
-                .count())
+        # Return total count of all OFs
+        return db.session.query(OrdenFabricacion).count()
     
     @staticmethod
     def count_by_proyecto_and_status(proyecto_id: int, status_list: List[str]) -> int:
         """Count OFs by proyecto and status"""
-        # Direct comparison without upper() since ENUMs are now consistent
+        # Return total count for the project
         return (db.session.query(OrdenFabricacion)
                 .filter(OrdenFabricacion.proyecto_id == proyecto_id)
-                .filter(OrdenFabricacion.estado.in_(status_list))
                 .count())
     
     @staticmethod
     def get_pending_by_user(user_id: str, limit: int = 10) -> List[OrdenFabricacion]:
         """Get pending OFs assigned to a user"""
-        # Direct comparison without upper() since ENUMs are now consistent
-        return (db.session.query(OrdenFabricacion)
-                .filter_by(responsable=user_id)
-                .filter(OrdenFabricacion.estado.in_(OF_ACTIVE_STATES))
-                .order_by(OrdenFabricacion.fecha_planificada.asc())
-                .limit(limit)
-                .all())
+        # Get OFs for the user that are not completed
+        from models import Estado
+        # Get the despachado (final) estado ID
+        despachado_estado = db.session.query(Estado).filter_by(codigo='despachado').first()
+        
+        if despachado_estado:
+            return (db.session.query(OrdenFabricacion)
+                    .filter_by(responsable=user_id)
+                    .join(OrdenAreaProgreso)
+                    .filter(OrdenAreaProgreso.estado_id != despachado_estado.id)
+                    .order_by(OrdenFabricacion.fecha_planificada.asc())
+                    .limit(limit)
+                    .all())
+        else:
+            # Fallback if estado not found
+            return (db.session.query(OrdenFabricacion)
+                    .filter_by(responsable=user_id)
+                    .order_by(OrdenFabricacion.fecha_planificada.asc())
+                    .limit(limit)
+                    .all())
     
     @staticmethod
     def exists_codigo(codigo: str, exclude_id: int = None) -> bool:
@@ -176,32 +193,25 @@ class FabricacionRepository:
         return f"OP-{next_number:04d}"
     
     @staticmethod
-    def can_change_status(of: OrdenFabricacion, new_status: EstadoOF) -> tuple[bool, str]:
+    def can_change_status(of: OrdenFabricacion, new_status_id: int) -> tuple[bool, str]:
         """
-        Check if status change is allowed
+        Check if status change is allowed within current area
         
         Returns:
             Tuple of (is_allowed, error_message)
         """
-        current_status = of.estado
+        # Get current area progress
+        if not of.area_progreso_actual:
+            return False, "La orden no tiene área asignada"
         
-        # Use centralized transition validation
-        is_valid, error_msg = EnumNormalizer.validate_transition(
-            current_status, new_status, OF_TRANSITIONS)
+        # Check if new status belongs to current area
+        from models import Estado
+        new_estado = db.session.get(Estado, new_status_id)
+        if not new_estado:
+            return False, "Estado inválido"
         
-        if not is_valid:
-            return False, error_msg
-            
-        # Check special validations
-        new_status_normalized = EnumNormalizer.normalize_enum_value(new_status)
-        if new_status_normalized in OF_SPECIAL_VALIDATIONS:
-            validation = OF_SPECIAL_VALIDATIONS[new_status_normalized]
-            
-            # Check required fields
-            for field in validation.get("required_fields", []):
-                field_value = getattr(of, field, None)
-                if not field_value or (isinstance(field_value, (int, float)) and field_value <= 0):
-                    return False, validation.get("validation_message", f"Campo {field} es obligatorio")
+        if new_estado.area_id != of.area_progreso_actual.area_id:
+            return False, "El estado no pertenece al área actual"
         
         return True, ""
 
