@@ -29,22 +29,22 @@ class EstadoContrato(Enum):
 
 class EstadoOF(Enum):
     # Estados de Pendientes de Fabricación
-    PENDIENTE_APROBACION_DISENO = "pendiente_aprobacion_diseno"
-    APROBADO = "aprobado"
+    PENDIENTE_APROBACION_DISENO = "PENDIENTE_APROBACION_DISENO"
+    APROBADO = "APROBADO"
     # Estados de Fábrica
-    ENVIADO_A_FABRICACION = "enviado_a_fabricacion"
-    SECCIONANDO = "seccionando"
-    ENCHAPANDO = "enchapando"
-    MECANIZANDO = "mecanizando"
-    FABRICACION_COMPLETA = "fabricacion_completa"
+    ENVIADO_A_FABRICACION = "ENVIADO_A_FABRICACION"
+    SECCIONANDO = "SECCIONANDO"
+    ENCHAPANDO = "ENCHAPANDO"
+    MECANIZANDO = "MECANIZANDO"
+    FABRICACION_COMPLETA = "FABRICACION_COMPLETA"
     # Estados de Embalaje
-    PENDIENTE_DE_EMBALAR = "pendiente_de_embalar"
-    EMBALANDO = "embalando"
-    EMBALAJE_LISTO = "embalaje_listo"
+    PENDIENTE_DE_EMBALAR = "PENDIENTE_DE_EMBALAR"
+    EMBALANDO = "EMBALANDO"
+    EMBALAJE_LISTO = "EMBALAJE_LISTO"
     # Estados de Bodega
-    LISTO_PARA_DESPACHO = "listo_para_despacho"
+    LISTO_PARA_DESPACHO = "LISTO_PARA_DESPACHO"
     # Estados de Despacho
-    DESPACHADO = "despachado"
+    DESPACHADO = "DESPACHADO"
 
 class EstadoDespacho(Enum):
     PROGRAMADO = "PROGRAMADO"
