@@ -242,4 +242,12 @@ class ProyectosService:
         except Exception as e:
             logger.error(f"Error obteniendo proyectos del responsable {responsable_id}: {str(e)}")
             raise
+    
+    def get_active_proyectos(self) -> List[Proyecto]:
+        """Get all active proyectos"""
+        try:
+            return self.repo.get_active()
+        except Exception as e:
+            logger.error(f"Error obteniendo proyectos activos: {str(e)}")
+            raise
 
