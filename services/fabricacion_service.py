@@ -49,7 +49,7 @@ class FabricacionService:
             of_data['codigo'] = self.repo.generate_next_codigo()
             
             # Force initial state to PENDIENTE_APROBACION_DISENO
-            of_data['estado'] = EstadoOF.PENDIENTE_APROBACION_DISENO
+            of_data['estado'] = EstadoOF.PENDIENTE_APROBACION_DISENO.value
             
             # Extract items data
             items_data = of_data.pop('items', [])
