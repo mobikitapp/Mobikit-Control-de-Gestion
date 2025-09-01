@@ -45,13 +45,8 @@ class FabricacionService:
                 if contrato.proyecto_id != of_data['proyecto_id']:
                     raise ValueError("El contrato no pertenece al proyecto especificado")
             
-            # Generate automatic codigo if not provided or empty
-            if not of_data.get('codigo') or of_data['codigo'].strip() == '':
-                of_data['codigo'] = self.repo.generate_next_codigo()
-            else:
-                # Check if provided codigo already exists
-                if self.repo.exists_codigo(of_data['codigo']):
-                    raise ValueError(f"Ya existe una OF con código {of_data['codigo']}")
+            # Always generate automatic codigo for generic orders
+            of_data['codigo'] = self.repo.generate_next_codigo()
             
             # Extract items data
             items_data = of_data.pop('items', [])
@@ -123,10 +118,8 @@ class FabricacionService:
                     if contrato.proyecto_id != proyecto_id:
                         raise ValueError("El contrato no pertenece al proyecto especificado")
             
-            # Check codigo uniqueness if updating codigo
-            if 'codigo' in update_data and update_data['codigo'] != of.codigo:
-                if self.repo.exists_codigo(update_data['codigo'], exclude_id=of_id):
-                    raise ValueError(f"Ya existe una OF con código {update_data['codigo']}")
+            # Remove codigo from update data - codes are auto-generated and not editable
+            update_data.pop('codigo', None)
             
             # Update OF
             of_actualizada = self.repo.update(of, update_data)

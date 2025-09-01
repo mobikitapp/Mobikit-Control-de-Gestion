@@ -41,7 +41,6 @@ class OrdenFabricacionItemResponse(OrdenFabricacionItemBase):
 class OrdenFabricacionBase(BaseModel):
     proyecto_id: int = Field(..., description="ID del proyecto")
     contrato_id: Optional[int] = Field(None, description="ID del contrato (opcional)")
-    codigo: Optional[str] = Field(None, min_length=1, max_length=50, description="Código de la OF (se genera automáticamente si no se proporciona)")
     descripcion: Optional[str] = Field(None, description="Descripción de la OF")
     glosa: Optional[str] = Field(None, description="Glosa de la OF")
     cantidad_tableros: Optional[int] = Field(None, description="Cantidad de tableros")
@@ -87,7 +86,6 @@ class OrdenFabricacionCreate(OrdenFabricacionBase):
 class OrdenFabricacionUpdate(BaseModel):
     proyecto_id: Optional[int] = None
     contrato_id: Optional[int] = None
-    codigo: Optional[str] = Field(None, min_length=1, max_length=50)
     descripcion: Optional[str] = None
     glosa: Optional[str] = None
     cantidad_tableros: Optional[int] = None

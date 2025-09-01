@@ -71,17 +71,16 @@
                                 </select>
                             </div>
                             
-                            <!-- Código OF -->
+                            <!-- Código OF (Solo visualización) -->
+                            {% if of %}
                             <div class="col-md-6">
-                                <label for="codigo" class="form-label">
-                                    Código OF
-                                </label>
-                                <input type="text" class="form-control" id="codigo" name="codigo" 
-                                       value="{{ of.codigo if of else '' }}" placeholder="Se generará automáticamente si se deja vacío">
+                                <label class="form-label">Código OF</label>
+                                <div class="form-control-plaintext fw-bold">{{ of.codigo }}</div>
                                 <div class="form-text">
-                                    Si se deja vacío, se generará un código OP-xxxx automáticamente.
+                                    Código generado automáticamente al crear la orden.
                                 </div>
                             </div>
+                            {% endif %}
                             
                             <!-- Cantidad de Tableros -->
                             <div class="col-md-6">
