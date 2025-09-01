@@ -1,0 +1,130 @@
+
+{% extends "base.html" %}
+
+{% block title %}Tareas Comerciales - Mobikit{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-tasks"></i> Tareas Comerciales</h1>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="vendedor_id" class="form-label">Vendedor</label>
+                <select class="form-select" id="vendedor_id" name="vendedor_id">
+                    <option value="">Todos los vendedores</option>
+                    {% for vendedor in vendedores %}
+                    <option value="{{ vendedor.id }}" 
+                            {% if filtros.vendedor_id == vendedor.id %}selected{% endif %}>
+                        {{ vendedor.first_name }} {{ vendedor.last_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="estado" class="form-label">Estado</label>
+                <select class="form-select" id="estado" name="estado">
+                    <option value="">Todas</option>
+                    <option value="pendientes" {% if filtros.estado == 'pendientes' %}selected{% endif %}>Pendientes</option>
+                    <option value="completadas" {% if filtros.estado == 'completadas' %}selected{% endif %}>Completadas</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-filter"></i> Filtrar
+                </button>
+                <a href="{{ url_for('comercial.tareas_comerciales') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lista de tareas -->
+<div class="card">
+    <div class="card-body">
+        {% if tareas %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Proyecto</th>
+                        <th>Tarea</th>
+                        <th>Vendedor</th>
+                        <th>Estado</th>
+                        <th>Fecha Límite</th>
+                        <th>Creada</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tarea in tareas %}
+                    <tr>
+                        <td>
+                            <strong>{{ tarea.proyecto.nombre }}</strong><br>
+                            <small class="text-muted">{{ tarea.proyecto.cliente.nombre }}</small>
+                        </td>
+                        <td>
+                            <strong>{{ tarea.titulo }}</strong>
+                            {% if tarea.descripcion %}
+                            <br><small class="text-muted">{{ tarea.descripcion }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if tarea.vendedor %}
+                            {{ tarea.vendedor.first_name }} {{ tarea.vendedor.last_name }}
+                            {% else %}
+                            <small class="text-muted">Sin asignar</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if tarea.completada else 'warning' }}">
+                                {{ 'Completada' if tarea.completada else 'Pendiente' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if tarea.fecha_limite %}
+                            {{ tarea.fecha_limite.strftime('%d/%m/%Y') }}
+                            {% else %}
+                            <small class="text-muted">Sin fecha</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ tarea.created_at.strftime('%d/%m/%Y') if tarea.created_at else '' }}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('comercial.proyecto_comercial', proyecto_id=tarea.proyecto_id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="Ver proyecto">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if not tarea.completada and (current_user.id == tarea.vendedor_id or current_user.rol.value == 'admin') %}
+                                <form method="POST" action="{{ url_for('comercial.completar_tarea', tarea_id=tarea.id) }}" 
+                                      style="display: inline;" 
+                                      onsubmit="return confirm('¿Marcar esta tarea como completada?')">
+                                    <button type="submit" class="btn btn-sm btn-success" title="Completar tarea">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+            <h5>No hay tareas comerciales</h5>
+            <p class="text-muted">Las tareas comerciales aparecerán aquí cuando sean creadas.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

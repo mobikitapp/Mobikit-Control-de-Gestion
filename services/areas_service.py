@@ -174,8 +174,8 @@ class AreasService:
                 'estado_id': estado_inicial.id,
                 'fecha_ingreso_area': now,
                 'fecha_cambio_estado': now,
-                'responsable_area': responsable_id,
-                'notas_area': notas,
+                'responsable_area': responsable_id if responsable_id else None,
+                'notas_area': notas if notas else None,
                 'es_actual': True,
                 'created_by': created_by
             }

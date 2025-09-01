@@ -149,6 +149,12 @@ class OrdenAreaProgresoRepository:
     @staticmethod
     def create_progress(progress_data: Dict[str, Any]) -> OrdenAreaProgreso:
         """Create new area progress record"""
+        # Convert empty strings to None for foreign key fields
+        if 'responsable_area' in progress_data and progress_data['responsable_area'] == '':
+            progress_data['responsable_area'] = None
+        if 'notas_area' in progress_data and progress_data['notas_area'] == '':
+            progress_data['notas_area'] = None
+            
         progress = OrdenAreaProgreso(**progress_data)
         db.session.add(progress)
         db.session.flush()
@@ -157,8 +163,14 @@ class OrdenAreaProgresoRepository:
     @staticmethod
     def update_progress(progress: OrdenAreaProgreso, update_data: Dict[str, Any]) -> OrdenAreaProgreso:
         """Update area progress"""
+        # Convert empty strings to None for foreign key fields
+        if 'responsable_area' in update_data and update_data['responsable_area'] == '':
+            update_data['responsable_area'] = None
+        if 'notas_area' in update_data and update_data['notas_area'] == '':
+            update_data['notas_area'] = None
+            
         for key, value in update_data.items():
-            if hasattr(progress, key) and value is not None:
+            if hasattr(progress, key):
                 setattr(progress, key, value)
         db.session.flush()
         return progress

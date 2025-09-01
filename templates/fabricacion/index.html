@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros.html' import moment %}
 
 {% block title %}Órdenes de Fabricación - Sistema de Manufactura{% endblock %}
 
@@ -20,7 +21,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-header">
@@ -93,7 +94,7 @@
             </form>
         </div>
     </div>
-    
+
     <!-- Results -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -117,8 +118,9 @@
                             <th>Cliente</th>
                             <th>Área / Estado</th>
                             <th>Fecha Planificada</th>
+                            <th>Fecha Entrega</th>
+                            <th>Días Restantes</th>
                             <th>Responsable</th>
-                            <th>Items</th>
                             <th width="150">Acciones</th>
                         </tr>
                     </thead>
@@ -165,14 +167,35 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if of.responsable_user %}
-                                    {{ of.responsable_user.nombre_completo }}
+                                {% if of.fecha_entrega_fabrica %}
+                                    {{ of.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}
                                 {% else %}
                                     -
                                 {% endif %}
                             </td>
                             <td>
-                                <span class="badge bg-secondary">{{ of.items|length }} items</span>
+                                {% if of.days_remaining is not none %}
+                                    {% if of.days_remaining < 0 %}
+                                        <span class="badge bg-danger">{{ of.days_remaining|abs }} días vencido</span>
+                                    {% elif of.days_remaining == 0 %}
+                                        <span class="badge bg-warning">Hoy</span>
+                                    {% elif of.days_remaining <= 7 %}
+                                        <span class="badge bg-warning">{{ of.days_remaining }} días</span>
+                                    {% elif of.days_remaining <= 30 %}
+                                        <span class="badge bg-info">{{ of.days_remaining }} días</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ of.days_remaining }} días</span>
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if of.responsable_user %}
+                                    {{ of.responsable_user.nombre_completo }}
+                                {% else %}
+                                    -
+                                {% endif %}
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
@@ -212,7 +235,7 @@
             </div>
             {% endif %}
         </div>
-        
+
         {% if total_pages > 1 %}
         <div class="card-footer">
             <nav>
@@ -224,7 +247,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    
+
                     {% for page_num in range(1, total_pages + 1) %}
                         {% if page_num == filters.page %}
                         <li class="page-item active">
@@ -242,7 +265,7 @@
                         </li>
                         {% endif %}
                     {% endfor %}
-                    
+
                     {% if has_next %}
                     <li class="page-item">
                         <a class="page-link" href="{{ url_for('fabricacion.index', page=filters.page+1, **request.args) }}">
@@ -301,10 +324,10 @@ async function updateProyectosFilter() {
     const clienteSelect = document.getElementById('cliente_filtro');
     const proyectoSelect = document.getElementById('proyecto_id');
     const clienteId = clienteSelect.value;
-    
+
     // Clear current options
     proyectoSelect.innerHTML = '<option value="">Todos los proyectos</option>';
-    
+
     if (clienteId) {
         try {
             const response = await fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
@@ -327,7 +350,7 @@ async function updateProyectosFilter() {
 function avanzarEstado(ofId, codigo) {
     document.getElementById('codigoOrden').textContent = codigo;
     document.getElementById('avanzarEstadoForm').action = `/fabricacion/${ofId}/avanzar-area`;
-    
+
     // Load responsables if not already loaded
     const responsableSelect = document.getElementById('responsable_avance');
     if (responsableSelect.children.length === 1) {
@@ -345,7 +368,7 @@ function avanzarEstado(ofId, codigo) {
                 console.error('Error loading users:', error);
             });
     }
-    
+
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('avanzarEstadoModal'));
     modal.show();
@@ -355,7 +378,7 @@ function avanzarEstado(ofId, codigo) {
 document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const proyectoId = urlParams.get('proyecto_id');
-    
+
     if (proyectoId) {
         // This would need a more complex implementation to find the client
         // For now, just set the proyecto if it's in the URL
