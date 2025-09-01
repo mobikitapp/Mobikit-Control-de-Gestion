@@ -336,68 +336,160 @@ h4, h5, h6 {
     background-color: var(--mobikit-hover);
 }
 
-/* Badges - Estilo con bordes y fondo blanco */
+/* Badges - Estilo mejorado con mejor contraste */
 .badge {
-    font-weight: 500;
+    font-weight: 600;
     padding: 0.35rem 0.75rem;
     border-radius: 20px;
     font-size: 0.75rem;
     letter-spacing: 0.025em;
-    background-color: var(--mobikit-white) !important;
-    border: 1px solid;
+    border: 1px solid transparent;
 }
 
+/* Badges principales con fondo de color y texto blanco para mejor contraste */
 .badge.bg-primary { 
+    background-color: var(--mobikit-red) !important;
+    color: var(--mobikit-white) !important;
     border-color: var(--mobikit-red);
-    color: var(--mobikit-red) !important; 
 }
 .badge.bg-secondary { 
+    background-color: var(--mobikit-gray) !important;
+    color: var(--mobikit-white) !important;
     border-color: var(--mobikit-gray);
-    color: var(--mobikit-gray) !important; 
 }
 .badge.bg-success { 
+    background-color: var(--mobikit-success) !important;
+    color: var(--mobikit-white) !important;
     border-color: var(--mobikit-success);
-    color: var(--mobikit-success) !important; 
 }
 .badge.bg-warning { 
+    background-color: var(--mobikit-warning) !important;
+    color: var(--mobikit-white) !important;
     border-color: var(--mobikit-warning);
-    color: var(--mobikit-warning) !important; 
 }
 .badge.bg-info { 
+    background-color: var(--mobikit-info) !important;
+    color: var(--mobikit-white) !important;
     border-color: var(--mobikit-info);
-    color: var(--mobikit-info) !important; 
 }
 .badge.bg-danger { 
+    background-color: var(--mobikit-danger) !important;
+    color: var(--mobikit-white) !important;
     border-color: var(--mobikit-danger);
-    color: var(--mobikit-danger) !important; 
 }
 
-/* Badges especiales para dashboard que necesitan fondo de color para legibilidad */
+/* Badge especial para elementos claros */
 .badge.bg-light {
     background-color: var(--mobikit-hover) !important;
-    border-color: var(--mobikit-border);
+    border: 2px solid var(--mobikit-border);
     color: var(--mobikit-gray) !important;
 }
 
-/* Role-specific badges */
-.badge.bg-admin { background-color: var(--mobikit-red) !important; }
-.badge.bg-general { background-color: var(--mobikit-gray) !important; }
-.badge.bg-diseñador { background-color: var(--mobikit-info) !important; }
-.badge.bg-operación { background-color: var(--mobikit-success) !important; }
-.badge.bg-embalaje { background-color: var(--mobikit-warning) !important; }
-.badge.bg-despacho { background-color: var(--mobikit-danger) !important; }
+/* Role-specific badges con mejor contraste */
+.badge.bg-admin { 
+    background-color: var(--mobikit-red) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-general { 
+    background-color: var(--mobikit-gray) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-diseñador { 
+    background-color: var(--mobikit-info) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-operación { 
+    background-color: var(--mobikit-success) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-embalaje { 
+    background-color: var(--mobikit-warning) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-despacho { 
+    background-color: var(--mobikit-danger) !important; 
+    color: var(--mobikit-white) !important;
+}
 
-/* Status badges - Estados de producción */
-.badge.bg-pendiente { background-color: var(--mobikit-info) !important; }
-.badge.bg-en-progreso { background-color: var(--mobikit-warning) !important; }
-.badge.bg-completada { background-color: var(--mobikit-success) !important; }
-.badge.bg-diseño { background-color: var(--mobikit-info) !important; }
-.badge.bg-producción { background-color: var(--mobikit-red) !important; }
-.badge.bg-entregado { background-color: var(--mobikit-success) !important; }
+/* Status badges - Estados de producción con mejor contraste */
+.badge.bg-pendiente { 
+    background-color: var(--mobikit-info) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-en-progreso { 
+    background-color: var(--mobikit-warning) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-completada { 
+    background-color: var(--mobikit-success) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-diseño { 
+    background-color: var(--mobikit-info) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-producción { 
+    background-color: var(--mobikit-red) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-entregado { 
+    background-color: var(--mobikit-success) !important; 
+    color: var(--mobikit-white) !important;
+}
 
-/* Category badges */
-.badge.bg-cocinas { background-color: var(--mobikit-cocinas) !important; }
-.badge.bg-closet { background-color: var(--mobikit-gray-logo) !important; }
+/* Category badges con mejor contraste */
+.badge.bg-cocinas { 
+    background-color: var(--mobikit-cocinas) !important; 
+    color: var(--mobikit-white) !important;
+}
+.badge.bg-closet { 
+    background-color: var(--mobikit-gray-logo) !important; 
+    color: var(--mobikit-white) !important;
+}
+
+/* Estados específicos de fabricación con mejor contraste */
+.badge.bg-pendiente-fabricacion,
+.badge.bg-pendiente_fabricacion {
+    background-color: #6B7280 !important; /* Gris más oscuro */
+    color: var(--mobikit-white) !important;
+    border-color: #6B7280;
+}
+
+.badge.bg-en-fabricacion,
+.badge.bg-en_fabricacion {
+    background-color: var(--mobikit-warning) !important;
+    color: var(--mobikit-white) !important;
+    border-color: var(--mobikit-warning);
+}
+
+.badge.bg-fabricacion-completada,
+.badge.bg-fabricacion_completada {
+    background-color: var(--mobikit-success) !important;
+    color: var(--mobikit-white) !important;
+    border-color: var(--mobikit-success);
+}
+
+/* Estados de despacho con mejor contraste */
+.badge.bg-programado {
+    background-color: #3B82F6 !important; /* Azul más oscuro */
+    color: var(--mobikit-white) !important;
+}
+
+.badge.bg-en-transporte,
+.badge.bg-en_transporte {
+    background-color: var(--mobikit-warning) !important;
+    color: var(--mobikit-white) !important;
+}
+
+.badge.bg-entregado {
+    background-color: var(--mobikit-success) !important;
+    color: var(--mobikit-white) !important;
+}
+
+.badge.bg-observado {
+    background-color: var(--mobikit-danger) !important;
+    color: var(--mobikit-white) !important;
+}
 
 /* Dashboard Cards */
 .dashboard-card {
