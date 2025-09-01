@@ -84,7 +84,8 @@ def nuevo():
         return render_template('contratos/form.html',
                              contrato=None,
                              clientes=clientes,
-                             proyectos=proyectos, # Pasar proyectos al template
+                             proyectos=proyectos,
+                             current_user=current_user,
                              title="Nuevo Contrato / OC")
     except Exception as e:
         logger.error(f"Error cargando formulario nuevo contrato: {str(e)}")
@@ -168,6 +169,7 @@ def crear():
                              contrato=None,
                              clientes=clientes,
                              proyectos=proyectos,
+                             current_user=current_user,
                              title="Nuevo Contrato / OC")
     except Exception as e:
         logger.error(f"Error creando contrato: {str(e)}")
@@ -178,6 +180,7 @@ def crear():
                              contrato=None,
                              clientes=clientes,
                              proyectos=proyectos,
+                             current_user=current_user,
                              title="Nuevo Contrato / OC")
 
 @contratos_bp.route('/<int:contrato_id>')
@@ -213,6 +216,7 @@ def editar(contrato_id):
                              contrato=contrato,
                              clientes=clientes,
                              proyectos=proyectos,
+                             current_user=current_user,
                              title=f"Editar Contrato / OC - {contrato.numero_oc}")
 
     except Exception as e:
@@ -248,6 +252,7 @@ def actualizar(contrato_id):
                              contrato=contrato,
                              clientes=clientes,
                              proyectos=proyectos,
+                             current_user=current_user,
                              title=f"Editar Contrato / OC - {contrato.numero_oc}")
     except Exception as e:
         logger.error(f"Error actualizando contrato {contrato_id}: {str(e)}")
