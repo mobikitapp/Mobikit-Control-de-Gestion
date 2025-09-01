@@ -48,6 +48,9 @@ class FabricacionService:
             # Always generate automatic codigo for generic orders
             of_data['codigo'] = self.repo.generate_next_codigo()
             
+            # Force initial state to PENDIENTE_APROBACION_DISENO
+            of_data['estado'] = EstadoOF.PENDIENTE_APROBACION_DISENO.value
+            
             # Extract items data
             items_data = of_data.pop('items', [])
             
@@ -160,6 +163,11 @@ class FabricacionService:
             of = self.repo.get_by_id(of_id)
             if not of:
                 raise ValueError(f"OF {of_id} no encontrada")
+            
+            # Special validation for SECCIONANDO state
+            if new_status == EstadoOF.SECCIONANDO:
+                if not of.cantidad_tableros or of.cantidad_tableros <= 0:
+                    raise ValueError("La cantidad de tableros es obligatoria y debe ser mayor a 0 para cambiar a estado seccionando")
             
             # Validate status transition
             can_change, error_msg = self.repo.can_change_status(of, new_status)

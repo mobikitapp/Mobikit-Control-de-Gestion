@@ -18,7 +18,7 @@
             </div>
         </div>
     </div>
-    
+
     <form method="POST" action="{{ url_for('fabricacion.crear') if not of else url_for('fabricacion.actualizar', of_id=of.id) }}" novalidate>
         <div class="row g-4">
             <!-- Main Information -->
@@ -44,7 +44,7 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            
+
                             <div class="col-md-6">
                                 <label for="proyecto_id" class="form-label">
                                     Proyecto <span class="text-danger">*</span>
@@ -59,18 +59,21 @@
                                     Por favor selecciona un proyecto.
                                 </div>
                             </div>
-                            
-                            <!-- Contrato (opcional) -->
+
+                            <!-- Contrato / OC (opcional) -->
                             <div class="col-md-6">
-                                <label for="contrato_id" class="form-label">Contrato (Opcional)</label>
+                                <label for="contrato_id" class="form-label">Contrato / OC (Opcional)</label>
                                 <select class="form-select" id="contrato_id" name="contrato_id">
-                                    <option value="">Sin contrato asociado</option>
+                                    <option value="">Sin contrato/OC asociado</option>
                                     {% if of and of.contrato %}
                                     <option value="{{ of.contrato_id }}" selected>{{ of.contrato.numero_oc }}</option>
                                     {% endif %}
                                 </select>
+                                <div class="form-text">
+                                    Selecciona el contrato u orden de compra asociada al proyecto.
+                                </div>
                             </div>
-                            
+
                             <!-- Código OF (Solo visualización) -->
                             {% if of %}
                             <div class="col-md-6">
@@ -81,47 +84,42 @@
                                 </div>
                             </div>
                             {% endif %}
-                            
+
                             <!-- Cantidad de Tableros -->
                             <div class="col-md-6">
                                 <label for="cantidad_tableros" class="form-label">Cantidad de Tableros</label>
                                 <input type="number" class="form-control" id="cantidad_tableros" name="cantidad_tableros" 
                                        value="{{ of.cantidad_tableros if of else '' }}" min="1" 
-                                       placeholder="Cantidad de tableros requerida">
+                                       placeholder="Opcional en creación">
                                 <div class="form-text">
-                                    Obligatorio para cambiar a estado "Seccionando".
+                                    <i data-feather="info" class="me-1"></i>
+                                    Opcional al crear. <strong>Obligatorio</strong> para cambiar a estado "Seccionando".
                                 </div>
                             </div>
-                            
+
                             <!-- Estado -->
-                            <div class="col-md-6">
-                                <label for="estado" class="form-label">Estado</label>
-                                <select class="form-select" id="estado" name="estado">
-                                    <optgroup label="Pendientes de Fabricación">
-                                        <option value="pendiente_aprobacion_diseño" {% if not of or of.estado.value == 'pendiente_aprobacion_diseño' %}selected{% endif %}>Pendiente Aprobación Diseño</option>
-                                        <option value="aprobado" {% if of and of.estado.value == 'aprobado' %}selected{% endif %}>Aprobado</option>
-                                    </optgroup>
-                                    <optgroup label="Fábrica">
-                                        <option value="enviado_a_fabricacion" {% if of and of.estado.value == 'enviado_a_fabricacion' %}selected{% endif %}>Enviado a Fabricación</option>
-                                        <option value="seccionando" {% if of and of.estado.value == 'seccionando' %}selected{% endif %}>Seccionando</option>
-                                        <option value="enchapando" {% if of and of.estado.value == 'enchapando' %}selected{% endif %}>Enchapando</option>
-                                        <option value="mecanizando" {% if of and of.estado.value == 'mecanizando' %}selected{% endif %}>Mecanizando</option>
-                                        <option value="fabricacion_completa" {% if of and of.estado.value == 'fabricacion_completa' %}selected{% endif %}>Fabricación Completa</option>
-                                    </optgroup>
-                                    <optgroup label="Embalaje">
-                                        <option value="pendiente_de_embalar" {% if of and of.estado.value == 'pendiente_de_embalar' %}selected{% endif %}>Pendiente de Embalar</option>
-                                        <option value="embalando" {% if of and of.estado.value == 'embalando' %}selected{% endif %}>Embalando</option>
-                                        <option value="embalaje_listo" {% if of and of.estado.value == 'embalaje_listo' %}selected{% endif %}>Embalaje Listo</option>
-                                    </optgroup>
-                                    <optgroup label="Bodega">
-                                        <option value="listo_para_despacho" {% if of and of.estado.value == 'listo_para_despacho' %}selected{% endif %}>Listo para Despacho</option>
-                                    </optgroup>
-                                    <optgroup label="Despacho">
-                                        <option value="despachado" {% if of and of.estado.value == 'despachado' %}selected{% endif %}>Despachado</option>
-                                    </optgroup>
-                                </select>
+                            {% if of %}
+                        <div class="col-md-6">
+                            <label for="estado" class="form-label">Estado</label>
+                            <select class="form-select" id="estado" name="estado" required>
+                                {% for estado in EstadoOF %}
+                                <option value="{{ estado.value }}" 
+                                        {% if of.estado == estado %}selected{% endif %}>
+                                    {{ estado.value|replace('_', ' ')|title }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% else %}
+                        <div class="col-md-6">
+                            <label class="form-label">Estado Inicial</label>
+                            <div class="form-control-plaintext">
+                                <span class="badge bg-warning">Pendiente Aprobación Diseño</span>
+                                <small class="text-muted d-block">Todas las órdenes nuevas inician en este estado</small>
                             </div>
-                            
+                        </div>
+                        {% endif %}
+
                             <!-- Responsable -->
                             <div class="col-md-6">
                                 <label for="responsable" class="form-label">Responsable</label>
@@ -138,35 +136,35 @@
                                     Persona responsable de la orden de fabricación.
                                 </div>
                             </div>
-                            
+
                             <!-- Fecha Planificada -->
                             <div class="col-md-6">
                                 <label for="fecha_planificada" class="form-label">Fecha Planificada</label>
                                 <input type="date" class="form-control" id="fecha_planificada" name="fecha_planificada" 
                                        value="{{ of.fecha_planificada.strftime('%Y-%m-%d') if of and of.fecha_planificada else '' }}">
                             </div>
-                            
+
                             <!-- Fecha Entrega Fábrica -->
                             <div class="col-md-6">
                                 <label for="fecha_entrega_fabrica" class="form-label">Fecha Entrega Fábrica</label>
                                 <input type="date" class="form-control" id="fecha_entrega_fabrica" name="fecha_entrega_fabrica" 
                                        value="{{ of.fecha_entrega_fabrica.strftime('%Y-%m-%d') if of and of.fecha_entrega_fabrica else '' }}">
                             </div>
-                            
+
                             <!-- Descripción -->
                             <div class="col-12">
                                 <label for="descripcion" class="form-label">Descripción</label>
                                 <textarea class="form-control" id="descripcion" name="descripcion" rows="3" 
                                           placeholder="Descripción de los trabajos a realizar">{{ of.descripcion if of else '' }}</textarea>
                             </div>
-                            
+
                             <!-- Glosa -->
                             <div class="col-12">
                                 <label for="glosa" class="form-label">Glosa</label>
                                 <textarea class="form-control" id="glosa" name="glosa" rows="2" 
                                           placeholder="Glosa o comentarios adicionales sobre la orden">{{ of.glosa if of else '' }}</textarea>
                             </div>
-                            
+
                             <!-- Notas -->
                             <div class="col-12">
                                 <label for="notas" class="form-label">Notas</label>
@@ -177,9 +175,9 @@
                     </div>
                 </div>
             </div>
-            
+
         </div>
-        
+
         <!-- Action Buttons -->
         <div class="row mt-4">
             <div class="col-12">
@@ -206,7 +204,7 @@
                 </div>
             </div>
         </div>
-        
+
     </form>
 </div>
 
@@ -247,11 +245,11 @@ async function updateProyectos() {
     const clienteSelect = document.getElementById('cliente_id');
     const proyectoSelect = document.getElementById('proyecto_id');
     const clienteId = clienteSelect.value;
-    
+
     // Clear current options (except selected one)
     const selectedProyecto = proyectoSelect.value;
     proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto</option>';
-    
+
     if (clienteId) {
         try {
             const response = await fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
@@ -277,35 +275,69 @@ async function updateContratos() {
     const proyectoSelect = document.getElementById('proyecto_id');
     const contratoSelect = document.getElementById('contrato_id');
     const proyectoId = proyectoSelect.value;
-    
-    // Clear current options (except selected one)
+
+    // Clear current options
     const selectedContrato = contratoSelect.value;
-    contratoSelect.innerHTML = '<option value="">Sin contrato asociado</option>';
-    
+    contratoSelect.innerHTML = '<option value="">Sin contrato/OC asociado</option>';
+
     if (proyectoId) {
-        // This would need an API endpoint for contracts by project
-        // For now, we'll keep it simple
-        console.log('Would load contracts for proyecto:', proyectoId);
+        try {
+            const response = await fetch(`{{ url_for('contratos.api_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId));
+            if (response.ok) {
+                const contratos = await response.json();
+                contratos.forEach(contrato => {
+                    const option = document.createElement('option');
+                    option.value = contrato.id;
+                    option.textContent = `${contrato.numero_oc} (${contrato.estado})`;
+                    if (contrato.id == selectedContrato) {
+                        option.selected = true;
+                    }
+                    contratoSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading contratos:', error);
+        }
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Cascade selects initialized');
+    
     // Form validation
     const form = document.querySelector('form');
     const clienteSelect = document.getElementById('cliente_id');
+
+    // Add event listeners for cascade selects
+    clienteSelect.addEventListener('change', function() {
+        updateProyectos().then(() => {
+            // Clear contratos when cliente changes
+            updateContratos();
+        });
+    });
     
+    document.getElementById('proyecto_id').addEventListener('change', function() {
+        console.log('Would load contracts for proyecto:', this.value);
+        updateContratos();
+    });
+
     // Initialize proyectos if cliente is pre-selected
     if (clienteSelect.value) {
-        updateProyectos();
+        updateProyectos().then(() => {
+            const proyectoSelect = document.getElementById('proyecto_id');
+            if (proyectoSelect.value) {
+                updateContratos();
+            }
+        });
     }
-    
+
     // Form submission validation
     form.addEventListener('submit', function(e) {
         let isValid = true;
-        
+
         // Reset previous validation
         form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-        
+
         // Validate required fields
         const requiredFields = ['proyecto_id'];
         requiredFields.forEach(fieldName => {
@@ -315,12 +347,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 isValid = false;
             }
         });
-        
+
         if (!isValid) {
             e.preventDefault();
             e.stopPropagation();
         }
-        
+
         form.classList.add('was-validated');
     });
 });

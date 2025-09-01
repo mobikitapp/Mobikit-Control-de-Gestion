@@ -5,7 +5,7 @@ from decimal import Decimal
 from enum import Enum
 
 class EstadoOFEnum(str, Enum):
-    # Estados de Pendientes de Fabricación
+    # Estados de Pendientes de Fabricación - using exact values from models.py
     PENDIENTE_APROBACION_DISENO = "pendiente_aprobacion_diseño"
     APROBADO = "aprobado"
     # Estados de Fábrica
@@ -55,7 +55,6 @@ class OrdenFabricacionBase(BaseModel):
     glosa: Optional[str] = Field(None, description="Glosa de la OF")
     cantidad_tableros: Optional[int] = Field(None, description="Cantidad de tableros")
     fecha_entrega_fabrica: Optional[date] = Field(None, description="Fecha de entrega de fábrica")
-    estado: EstadoOFEnum = Field(EstadoOFEnum.PENDIENTE_APROBACION_DISENO, description="Estado de la OF")
     fecha_planificada: Optional[date] = Field(None, description="Fecha planificada")
     fecha_inicio: Optional[datetime] = Field(None, description="Fecha de inicio")
     fecha_qc: Optional[datetime] = Field(None, description="Fecha de QC")
@@ -84,14 +83,35 @@ class OrdenFabricacionBase(BaseModel):
                 raise ValueError('La fecha de fin debe ser posterior a la fecha de QC')
         return v
     
-    @validator('cantidad_tableros')
+    @validator('cantidad_tableros', pre=True)
     def validate_cantidad_tableros(cls, v):
+        # Handle empty string or None
+        if v == '' or v is None:
+            return None
+        # Convert to int if it's a string
+        if isinstance(v, str):
+            try:
+                v = int(v)
+            except ValueError:
+                raise ValueError('La cantidad de tableros debe ser un número entero')
+        # Validate positive number
         if v is not None and v <= 0:
             raise ValueError('La cantidad de tableros debe ser mayor a 0')
         return v
 
 class OrdenFabricacionCreate(OrdenFabricacionBase):
     items: List[OrdenFabricacionItemCreate] = Field([], description="Items de la OF")
+    
+    class Config:
+        # El estado siempre será PENDIENTE_APROBACION_DISENO al crear
+        schema_extra = {
+            "properties": {
+                "estado": {
+                    "const": "pendiente_aprobacion_diseño",
+                    "description": "Estado fijo al crear (siempre pendiente_aprobacion_diseño)"
+                }
+            }
+        }
 
 class OrdenFabricacionUpdate(BaseModel):
     proyecto_id: Optional[int] = None
@@ -108,10 +128,26 @@ class OrdenFabricacionUpdate(BaseModel):
     responsable: Optional[str] = None
     notas: Optional[str] = None
 
+    @validator('cantidad_tableros', pre=True)
+    def validate_cantidad_tableros(cls, v):
+        # Handle empty string or None
+        if v == '' or v is None:
+            return None
+        # Convert to int if it's a string
+        if isinstance(v, str):
+            try:
+                v = int(v)
+            except ValueError:
+                raise ValueError('La cantidad de tableros debe ser un número entero')
+        # Validate positive number
+        if v is not None and v <= 0:
+            raise ValueError('La cantidad de tableros debe ser mayor a 0')
+        return v
+
     @validator('estado')
     def validate_estado_seccionando(cls, v, values):
-        if v and v == EstadoOFEnum.SECCIONANDO and 'cantidad_tableros' in values:
-            if not values['cantidad_tableros']:
+        if v and v == EstadoOFEnum.SECCIONANDO:
+            if 'cantidad_tableros' not in values or not values['cantidad_tableros']:
                 raise ValueError('La cantidad de tableros es obligatoria para cambiar a estado seccionando')
         return v
 

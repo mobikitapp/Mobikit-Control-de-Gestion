@@ -185,31 +185,32 @@ class FabricacionRepository:
         """
         current_status = of.estado
         
-        # Define allowed transitions
-        # Las transiciones de estado ahora se manejan a través del sistema de áreas
-        # permitiendo cualquier transición que siga el flujo de áreas
+        # Define allowed transitions using enum values from models.py
         allowed_transitions = {
-            EstadoOF.PENDIENTE_APROBACION_DISENO: [EstadoOF.APROBADO],
-            EstadoOF.APROBADO: [EstadoOF.ENVIADO_A_FABRICACION],
-            EstadoOF.ENVIADO_A_FABRICACION: [EstadoOF.SECCIONANDO, EstadoOF.APROBADO],
-            EstadoOF.SECCIONANDO: [EstadoOF.ENCHAPANDO, EstadoOF.ENVIADO_A_FABRICACION],
-            EstadoOF.ENCHAPANDO: [EstadoOF.MECANIZANDO, EstadoOF.SECCIONANDO],
-            EstadoOF.MECANIZANDO: [EstadoOF.FABRICACION_COMPLETA, EstadoOF.ENCHAPANDO],
-            EstadoOF.FABRICACION_COMPLETA: [EstadoOF.PENDIENTE_DE_EMBALAR],
-            EstadoOF.PENDIENTE_DE_EMBALAR: [EstadoOF.EMBALANDO],
-            EstadoOF.EMBALANDO: [EstadoOF.EMBALAJE_LISTO, EstadoOF.PENDIENTE_DE_EMBALAR],
-            EstadoOF.EMBALAJE_LISTO: [EstadoOF.LISTO_PARA_DESPACHO],
-            EstadoOF.LISTO_PARA_DESPACHO: [EstadoOF.DESPACHADO],
-            EstadoOF.DESPACHADO: []  # Estado final
+            "pendiente_aprobacion_diseño": ["aprobado"],
+            "aprobado": ["enviado_a_fabricacion"],
+            "enviado_a_fabricacion": ["seccionando", "aprobado"],
+            "seccionando": ["enchapando", "enviado_a_fabricacion"],
+            "enchapando": ["mecanizando", "seccionando"],
+            "mecanizando": ["fabricacion_completa", "enchapando"],
+            "fabricacion_completa": ["pendiente_de_embalar"],
+            "pendiente_de_embalar": ["embalando"],
+            "embalando": ["embalaje_listo", "pendiente_de_embalar"],
+            "embalaje_listo": ["listo_para_despacho"],
+            "listo_para_despacho": ["despachado"],
+            "despachado": []  # Estado final
         }
         
-        if new_status in allowed_transitions.get(current_status, []):
-            # Special validation for SECCIONANDO state
-            if new_status == EstadoOF.SECCIONANDO and (not of.cantidad_tableros or of.cantidad_tableros <= 0):
+        current_status_value = current_status.value if hasattr(current_status, 'value') else str(current_status)
+        new_status_value = new_status.value if hasattr(new_status, 'value') else str(new_status)
+        
+        if new_status_value in allowed_transitions.get(current_status_value, []):
+            # Special validation for SECCIONANDO state  
+            if new_status_value == "seccionando" and (not of.cantidad_tableros or of.cantidad_tableros <= 0):
                 return False, "La cantidad de tableros es obligatoria para cambiar a estado seccionando"
             return True, ""
         else:
-            return False, f"No se puede cambiar de {current_status.value} a {new_status.value}"
+            return False, f"No se puede cambiar de {current_status_value} a {new_status_value}"
 
 class OrdenFabricacionItemRepository:
     """Repository for OrdenFabricacionItem operations"""
