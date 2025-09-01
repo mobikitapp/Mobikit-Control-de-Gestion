@@ -5,23 +5,23 @@ from decimal import Decimal
 from enum import Enum
 
 class EstadoOFEnum(str, Enum):
-    # Estados de Pendientes de Fabricación
-    PENDIENTE_APROBACION_DISENO = "PENDIENTE_APROBACION_DISENO"
-    APROBADO = "APROBADO"
+    # Estados de Pendientes de Fabricación - using exact values from models.py
+    PENDIENTE_APROBACION_DISENO = "pendiente_aprobacion_diseño"
+    APROBADO = "aprobado"
     # Estados de Fábrica
-    ENVIADO_A_FABRICACION = "ENVIADO_A_FABRICACION"
-    SECCIONANDO = "SECCIONANDO"
-    ENCHAPANDO = "ENCHAPANDO"
-    MECANIZANDO = "MECANIZANDO"
-    FABRICACION_COMPLETA = "FABRICACION_COMPLETA"
+    ENVIADO_A_FABRICACION = "enviado_a_fabricacion"
+    SECCIONANDO = "seccionando"
+    ENCHAPANDO = "enchapando"
+    MECANIZANDO = "mecanizando"
+    FABRICACION_COMPLETA = "fabricacion_completa"
     # Estados de Embalaje
-    PENDIENTE_DE_EMBALAR = "PENDIENTE_DE_EMBALAR"
-    EMBALANDO = "EMBALANDO"
-    EMBALAJE_LISTO = "EMBALAJE_LISTO"
+    PENDIENTE_DE_EMBALAR = "pendiente_de_embalar"
+    EMBALANDO = "embalando"
+    EMBALAJE_LISTO = "embalaje_listo"
     # Estados de Bodega
-    LISTO_PARA_DESPACHO = "LISTO_PARA_DESPACHO"
+    LISTO_PARA_DESPACHO = "listo_para_despacho"
     # Estados de Despacho
-    DESPACHADO = "DESPACHADO"
+    DESPACHADO = "despachado"
 
 class OrdenFabricacionItemBase(BaseModel):
     sku_codigo: str = Field(..., min_length=1, max_length=50, description="SKU o código del item")
@@ -107,8 +107,8 @@ class OrdenFabricacionCreate(OrdenFabricacionBase):
         schema_extra = {
             "properties": {
                 "estado": {
-                    "const": "PENDIENTE_APROBACION_DISENO",
-                    "description": "Estado fijo al crear (siempre PENDIENTE_APROBACION_DISENO)"
+                    "const": "pendiente_aprobacion_diseño",
+                    "description": "Estado fijo al crear (siempre pendiente_aprobacion_diseño)"
                 }
             }
         }
