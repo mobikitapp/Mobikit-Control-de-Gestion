@@ -60,15 +60,18 @@
                                 </div>
                             </div>
 
-                            <!-- Contrato (opcional) -->
+                            <!-- Contrato / OC (opcional) -->
                             <div class="col-md-6">
-                                <label for="contrato_id" class="form-label">Contrato (Opcional)</label>
+                                <label for="contrato_id" class="form-label">Contrato / OC (Opcional)</label>
                                 <select class="form-select" id="contrato_id" name="contrato_id">
-                                    <option value="">Sin contrato asociado</option>
+                                    <option value="">Sin contrato/OC asociado</option>
                                     {% if of and of.contrato %}
                                     <option value="{{ of.contrato_id }}" selected>{{ of.contrato.numero_oc }}</option>
                                     {% endif %}
                                 </select>
+                                <div class="form-text">
+                                    Selecciona el contrato u orden de compra asociada al proyecto.
+                                </div>
                             </div>
 
                             <!-- Código OF (Solo visualización) -->
@@ -274,12 +277,26 @@ async function updateContratos() {
 
     // Clear current options (except selected one)
     const selectedContrato = contratoSelect.value;
-    contratoSelect.innerHTML = '<option value="">Sin contrato asociado</option>';
+    contratoSelect.innerHTML = '<option value="">Sin contrato/OC asociado</option>';
 
     if (proyectoId) {
-        // This would need an API endpoint for contracts by project
-        // For now, we'll keep it simple
-        console.log('Would load contracts for proyecto:', proyectoId);
+        try {
+            const response = await fetch(`{{ url_for('contratos.api_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId));
+            if (response.ok) {
+                const contratos = await response.json();
+                contratos.forEach(contrato => {
+                    const option = document.createElement('option');
+                    option.value = contrato.id;
+                    option.textContent = `${contrato.numero_oc} (${contrato.estado})`;
+                    if (contrato.id == selectedContrato) {
+                        option.selected = true;
+                    }
+                    contratoSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading contratos:', error);
+        }
     }
 }
 
