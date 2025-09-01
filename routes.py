@@ -75,17 +75,38 @@ def index():
     from repositories.despachos_repo import DespachosRepository
     
     # Get dashboard statistics
-    stats = {
-        'total_clientes': ClientesRepository.count_active(),
-        'proyectos_activos': ProyectosRepository.count_by_status(['PENDIENTE_PRESUPUESTO', 'PRESUPUESTADO', 'ADJUDICADO', 'EN_DESARROLLO']),
-        'contratos_vigentes': ContratosRepository.count_by_status('VIGENTE'),
-        'of_en_produccion': FabricacionRepository.count_by_status(['enviado_a_fabricacion', 'seccionando', 'enchapando', 'mecanizando']),
-        'despachos_pendientes': DespachosRepository.count_by_status(['PROGRAMADO', 'EN_TRANSPORTE'])
-    }
+    try:
+        stats = {
+            'total_clientes': ClientesRepository.count_active(),
+            'proyectos_activos': ProyectosRepository.count_by_status(['PENDIENTE_PRESUPUESTO', 'PRESUPUESTADO', 'ADJUDICADO', 'EN_DESARROLLO']),
+            'contratos_vigentes': ContratosRepository.count_by_status('VIGENTE'),
+            'of_en_produccion': FabricacionRepository.count_by_status([
+                'enviado_a_fabricacion',
+                'seccionando',
+                'enchapando',
+                'mecanizando'
+            ]),
+            'despachos_pendientes': DespachosRepository.count_by_status(['PROGRAMADO', 'EN_TRANSPORTE'])
+        }
+    except Exception as e:
+        print(f"Dashboard stats error: {str(e)}")  # Debug logging
+        # Fallback stats if there's an error
+        stats = {
+            'total_clientes': 0,
+            'proyectos_activos': 0,
+            'contratos_vigentes': 0,
+            'of_en_produccion': 0,
+            'despachos_pendientes': 0
+        }
     
     # Get recent activity
-    recent_projects = ProyectosRepository.get_recent(limit=5)
-    pending_ofs = FabricacionRepository.get_pending_by_user(current_user.id, limit=5)
+    try:
+        recent_projects = ProyectosRepository.get_recent(limit=5)
+        pending_ofs = FabricacionRepository.get_pending_by_user(current_user.id, limit=5)
+    except Exception as e:
+        print(f"Dashboard activity error: {str(e)}")  # Debug logging
+        recent_projects = []
+        pending_ofs = []
     
     return render_template('index.html', 
                          stats=stats, 
