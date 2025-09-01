@@ -29,7 +29,7 @@ class EstadoContrato(Enum):
 
 class EstadoOF(Enum):
     # Estados de Pendientes de Fabricación
-    PENDIENTE_APROBACION_DISENO = "pendiente_aprobacion_diseño"
+    PENDIENTE_APROBACION_DISENO = "pendiente_aprobacion_diseno"
     APROBADO = "aprobado"
     # Estados de Fábrica
     ENVIADO_A_FABRICACION = "enviado_a_fabricacion"
