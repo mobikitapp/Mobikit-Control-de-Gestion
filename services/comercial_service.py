@@ -258,8 +258,8 @@ class ComercialService:
         # Build query for projects with proper joins and eager loading
         query = (db.session.query(Proyecto)
                 .options(
-                    db.joinedload(Proyecto.cliente),
-                    db.joinedload(Proyecto.vendedor_user)
+                    joinedload(Proyecto.cliente),
+                    joinedload(Proyecto.vendedor_user)
                 )
                 .join(Cliente)
                 .filter(Proyecto.activo == True))
@@ -299,8 +299,24 @@ class ComercialService:
                 EstadoComercial.ADJUDICADO
             ]))
 
-        # Get projects as model objects
-        proyectos = query.all()
+        # Get projects as model objects - force explicit object loading
+        proyectos_query_result = query.all()
+        
+        # Verify we have proper Proyecto objects
+        proyectos = []
+        for item in proyectos_query_result:
+            if isinstance(item, Proyecto):
+                proyectos.append(item)
+            else:
+                print(f"WARNING: Query returned non-Proyecto object: {type(item)}")
+                # Try to get the actual Proyecto object if this is a tuple or other structure
+                if hasattr(item, 'Proyecto'):
+                    proyectos.append(item.Proyecto)
+                elif isinstance(item, (tuple, list)) and len(item) > 0:
+                    if isinstance(item[0], Proyecto):
+                        proyectos.append(item[0])
+        
+        print(f"DEBUG: Final proyectos count: {len(proyectos)}, types: {[type(p) for p in proyectos[:3]]}")
 
         # Build monthly matrix
         matriz = self._construir_matriz_mensual(proyectos, año)
@@ -514,9 +530,16 @@ class ComercialService:
             }
 
         for proyecto in proyectos:
+            # Debug: Log project type
+            print(f"DEBUG: Proyecto type: {type(proyecto)}, ID: {getattr(proyecto, 'id', 'Unknown')}")
+            
             # Ensure we have a proper Proyecto object
+            if not isinstance(proyecto, Proyecto):
+                print(f"DEBUG: Skipping non-Proyecto object: {type(proyecto)}")
+                continue
+                
             if not hasattr(proyecto, 'monto_provision_presupuestado'):
-                # Skip objects that aren't proper Proyecto instances
+                print(f"DEBUG: Proyecto {proyecto.id} missing monto_provision_presupuestado attribute")
                 continue
                 
             # Determine which months this project affects
