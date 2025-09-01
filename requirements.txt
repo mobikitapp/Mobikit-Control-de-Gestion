@@ -31,3 +31,5 @@ pytz
 replit-object-storage
 sqlalchemy
 python-dateutil
+pytest
+requests
