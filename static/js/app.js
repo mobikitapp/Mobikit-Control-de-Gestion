@@ -249,6 +249,9 @@ const ManufacturingApp = {
                                         <option value="">Seleccione estado...</option>
                                         <option value="PENDIENTE_PRESUPUESTO" ${estadoActual === 'PENDIENTE_PRESUPUESTO' ? 'selected' : ''}>Pendiente Presupuesto</option>
                                         <option value="PRESUPUESTADO" ${estadoActual === 'PRESUPUESTADO' ? 'selected' : ''}>Presupuestado</option>
+                                        <option value="ADJUDICADO" ${estadoActual === 'ADJUDICADO' ? 'selected' : ''}>Adjudicado</option>
+                                        <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
+                                        <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
                                         <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
                                         <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
                                     </select>

@@ -6,6 +6,7 @@ from services.audit_service import AuditService, serialize_model
 from schemas.proyectos import ProyectoSearchFilters
 from models import Proyecto, OrdenFabricacion # Imported OrdenFabricacion
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +169,9 @@ class ProyectosService:
             # Update proyecto
             proyecto_actualizado = self.repo.update(proyecto, update_data)
 
+            # Apply automatic estado changes based on business rules
+            self._aplicar_cambios_automaticos_estado(proyecto_actualizado, update_data)
+
             # Commit transaction
             db.session.commit()
 
@@ -294,6 +298,72 @@ class ProyectosService:
         except Exception as e:
             logger.error(f"Error obteniendo proyectos activos: {str(e)}")
             raise
+
+    def _aplicar_cambios_automaticos_estado(self, proyecto, update_data):
+        """Apply automatic estado changes based on business rules"""
+        try:
+            from models import EstadoComercial
+            
+            # Rule 1: If monto_provision_presupuestado is set and estado is PENDIENTE_PRESUPUESTO, 
+            # change to PRESUPUESTADO
+            if (proyecto.estado_comercial == EstadoComercial.PENDIENTE_PRESUPUESTO and 
+                proyecto.monto_provision_presupuestado and 
+                proyecto.monto_provision_presupuestado > 0):
+                
+                proyecto.estado_comercial = EstadoComercial.PRESUPUESTADO
+                logger.info(f"Auto-cambio: Proyecto {proyecto.id} cambiado a PRESUPUESTADO por agregar monto provisión")
+                
+                # Add note about automatic change
+                nota_automatica = f"[{datetime.now().strftime('%d/%m/%Y %H:%M')}] Cambio automático a PRESUPUESTADO por ingreso de monto de provisión"
+                if proyecto.notas_comerciales:
+                    proyecto.notas_comerciales += f"\n{nota_automatica}"
+                else:
+                    proyecto.notas_comerciales = nota_automatica
+
+        except Exception as e:
+            logger.warning(f"Error aplicando cambios automáticos de estado: {str(e)}")
+
+    def cambiar_estado_por_contrato_creado(self, proyecto_id: int):
+        """Change proyecto estado to EN_DESARROLLO when contract/order is created"""
+        try:
+            from models import EstadoComercial
+            
+            proyecto = self.get_proyecto_by_id(proyecto_id)
+            if not proyecto:
+                return
+            
+            # Only change if not already in EN_DESARROLLO or TERMINADO
+            if proyecto.estado_comercial not in [EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]:
+                
+                # Store original data for audit
+                datos_anteriores = serialize_model(proyecto)
+                
+                proyecto.estado_comercial = EstadoComercial.EN_DESARROLLO
+                
+                # Add note about automatic change
+                nota_automatica = f"[{datetime.now().strftime('%d/%m/%Y %H:%M')}] Cambio automático a EN_DESARROLLO por creación de contrato/orden"
+                if proyecto.notas_comerciales:
+                    proyecto.notas_comerciales += f"\n{nota_automatica}"
+                else:
+                    proyecto.notas_comerciales = nota_automatica
+                
+                db.session.commit()
+                
+                # Log audit
+                from services.audit_service import AuditService
+                AuditService.log_action(
+                    'proyectos', 
+                    proyecto_id, 
+                    'UPDATE',
+                    datos_anteriores=datos_anteriores,
+                    datos_nuevos=serialize_model(proyecto)
+                )
+                
+                logger.info(f"Auto-cambio: Proyecto {proyecto_id} cambiado a EN_DESARROLLO por creación de contrato/orden")
+                
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error en cambio automático de estado por contrato: {str(e)}")
 
     def _count_contratos_vigentes(self, proyecto):
         """Count active contracts safely"""
