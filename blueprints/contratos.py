@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, date
 from app import db
 from replit_auth import require_login, require_role
 from models import RolUsuario
@@ -193,7 +193,13 @@ def detalle(contrato_id):
             flash('Contrato no encontrado', 'error')
             return redirect(url_for('contratos.index'))
 
-        return render_template('contratos/detalle.html', contrato=contrato)
+        # Add today's date for template comparison
+        today = date.today()
+        
+        return render_template('contratos/detalle.html', 
+                             contrato=contrato, 
+                             today=today,
+                             current_user=current_user)
 
     except Exception as e:
         logger.error(f"Error obteniendo contrato {contrato_id}: {str(e)}")

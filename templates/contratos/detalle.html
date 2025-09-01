@@ -124,7 +124,7 @@
                             <label class="form-label fw-medium">Fecha de Vencimiento</label>
                             <div class="form-control-plaintext">
                                 {{ contrato.fecha_vencimiento.strftime('%d/%m/%Y') }}
-                                {% if contrato.fecha_vencimiento and contrato.estado.value == 'VIGENTE' and contrato.fecha_vencimiento < macros.current_date() %}
+                                {% if contrato.fecha_vencimiento and contrato.estado.value == 'VIGENTE' and contrato.fecha_vencimiento < today %}
                                 <span class="badge bg-danger ms-2">Vencido</span>
                                 {% endif %}
                             </div>
@@ -362,7 +362,7 @@ function deleteAttachment(attachmentId) {
 
 function confirmarEliminacion(contratoId, numeroOc) {
     document.getElementById('contratoNumero').textContent = numeroOc;
-    document.getElementById('eliminarContratoForm').action = `/contratos/${contratoId}/eliminar`;
+    document.getElementById('eliminarContratoForm').action = `{{ url_for('contratos.eliminar', contrato_id=0) }}`.replace('0', contratoId);
 
     const modal = new bootstrap.Modal(document.getElementById('eliminarContratoModal'));
     modal.show();
