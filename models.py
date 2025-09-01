@@ -455,7 +455,6 @@ class OrdenFabricacion(db.Model):
     glosa = db.Column(db.Text)
     cantidad_tableros = db.Column(db.Integer)
     fecha_entrega_fabrica = db.Column(db.Date)
-    estado = db.Column(db.Enum(EstadoOF), default=EstadoOF.PENDIENTE_APROBACION_DISENO, nullable=False)
     fecha_planificada = db.Column(db.Date)
     fecha_inicio = db.Column(db.DateTime)
     fecha_qc = db.Column(db.DateTime)
@@ -478,10 +477,33 @@ class OrdenFabricacion(db.Model):
         Index('idx_of_proyecto', 'proyecto_id'),
         Index('idx_of_contrato', 'contrato_id'),
         Index('idx_of_codigo', 'codigo'),
-        Index('idx_of_estado', 'estado'),
         Index('idx_of_responsable', 'responsable'),
         Index('idx_of_fechas', 'fecha_planificada', 'fecha_inicio'),
     )
+
+    @property
+    def area_progreso_actual(self):
+        """Obtiene el progreso actual de la orden en el sistema de áreas"""
+        from sqlalchemy.orm import joinedload
+        return (db.session.query(OrdenAreaProgreso)
+                .options(
+                    joinedload(OrdenAreaProgreso.area),
+                    joinedload(OrdenAreaProgreso.estado)
+                )
+                .filter_by(orden_fabricacion_id=self.id, es_actual=True)
+                .first())
+    
+    @property
+    def area_actual(self):
+        """Obtiene el área actual de la orden"""
+        progreso = self.area_progreso_actual
+        return progreso.area if progreso else None
+    
+    @property
+    def estado_actual(self):
+        """Obtiene el estado actual de la orden"""
+        progreso = self.area_progreso_actual
+        return progreso.estado if progreso else None
 
     def __repr__(self):
         return f'<OrdenFabricacion {self.codigo}>'
