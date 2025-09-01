@@ -4,7 +4,7 @@ from repositories.proyectos_repo import ProyectosRepository
 from repositories.clientes_repo import ClientesRepository
 from services.audit_service import AuditService, serialize_model
 from schemas.proyectos import ProyectoSearchFilters
-from models import Proyecto
+from models import Proyecto, OrdenFabricacion # Imported OrdenFabricacion
 import logging
 
 logger = logging.getLogger(__name__)
@@ -91,46 +91,53 @@ class ProyectosService:
         return self.repo.get_by_id(proyecto_id)
 
     def get_proyecto_with_stats(self, proyecto_id: int) -> Optional[Dict[str, Any]]:
-        """Get proyecto with additional statistics"""
+        """Get proyecto with detailed statistics"""
         try:
-            proyecto = self.repo.get_by_id(proyecto_id)
+            proyecto = self.get_proyecto_by_id(proyecto_id)
             if not proyecto:
                 return None
 
-            # Calculate basic statistics safely
+            # Get ordenes de fabricacion with proper error handling
+            ordenes = []
+            try:
+                ordenes = db.session.query(OrdenFabricacion).filter_by(
+                    proyecto_id=proyecto_id, 
+                    activo=True
+                ).all()
+            except Exception as e:
+                logger.warning(f"Error loading ordenes for proyecto {proyecto_id}: {str(e)}")
+                ordenes = []
+
+            # Calculate statistics with error handling
             stats = {
-                'total_contratos': len(proyecto.contratos) if hasattr(proyecto, 'contratos') and proyecto.contratos else 0,
-                'contratos_vigentes': self._count_contratos_vigentes(proyecto),
-                'total_ofs': len(proyecto.ordenes_fabricacion) if hasattr(proyecto, 'ordenes_fabricacion') and proyecto.ordenes_fabricacion else 0,
-                'ofs_en_produccion': self._count_ofs_en_produccion(proyecto),
-                'total_despachos': len(proyecto.despachos) if hasattr(proyecto, 'despachos') and proyecto.despachos else 0,
-                'ordenes_por_estado': self._get_ordenes_por_estado_safe(proyecto),
-                'progreso_fabricacion': self._calcular_progreso_fabricacion_safe(proyecto)
+                'total_ordenes': len(ordenes),
+                'ordenes_por_estado': self._get_ordenes_por_estado_safe(ordenes),
+                'progreso_fabricacion': self._calcular_progreso_fabricacion_safe(ordenes),
+                'contratos_asociados': self._get_contratos_count(proyecto_id),
+                'despachos_realizados': self._get_despachos_count(proyecto_id)
             }
 
             return {
                 'proyecto': proyecto,
                 'stats': stats
             }
+
         except Exception as e:
-            logger.error(f"Error calculating stats for proyecto {proyecto_id}: {str(e)}")
-            # Return basic proyecto data without stats if there's an error
-            try:
-                proyecto = self.repo.get_by_id(proyecto_id)
+            logger.error(f"Error obteniendo proyecto con stats {proyecto_id}: {str(e)}")
+            # Return basic project data without stats if there's an error
+            proyecto = self.get_proyecto_by_id(proyecto_id)
+            if proyecto:
                 return {
                     'proyecto': proyecto,
                     'stats': {
-                        'total_contratos': 0,
-                        'contratos_vigentes': 0,
-                        'total_ofs': 0,
-                        'ofs_en_produccion': 0,
-                        'total_despachos': 0,
+                        'total_ordenes': 0,
                         'ordenes_por_estado': {},
-                        'progreso_fabricacion': 0
+                        'progreso_fabricacion': 0,
+                        'contratos_asociados': 0,
+                        'despachos_realizados': 0
                     }
-                } if proyecto else None
-            except Exception:
-                return None
+                }
+            return None
 
     def update_proyecto(self, proyecto_id: int, update_data: Dict[str, Any]) -> Proyecto:
         """
@@ -294,7 +301,7 @@ class ProyectosService:
         try:
             if not hasattr(proyecto, 'contratos') or not proyecto.contratos:
                 return 0
-            
+
             vigentes = 0
             for contrato in proyecto.contratos:
                 try:
@@ -311,7 +318,7 @@ class ProyectosService:
         try:
             if not hasattr(proyecto, 'ordenes_fabricacion') or not proyecto.ordenes_fabricacion:
                 return 0
-            
+
             en_produccion = 0
             for orden in proyecto.ordenes_fabricacion:
                 try:
@@ -334,14 +341,14 @@ class ProyectosService:
         except Exception:
             return 0
 
-    def _get_ordenes_por_estado_safe(self, proyecto):
+    def _get_ordenes_por_estado_safe(self, ordenes):
         """Group ordenes by their current estado safely"""
         estados = {}
         try:
-            if not hasattr(proyecto, 'ordenes_fabricacion') or not proyecto.ordenes_fabricacion:
+            if not ordenes:
                 return estados
-                
-            for orden in proyecto.ordenes_fabricacion:
+
+            for orden in ordenes:
                 estado_key = 'Sin estado'
                 try:
                     # Try to get current area progress
@@ -356,19 +363,15 @@ class ProyectosService:
                         estado_key = orden.estado.value.replace('_', ' ').title()
                 except Exception:
                     pass
-                
+
                 estados[estado_key] = estados.get(estado_key, 0) + 1
         except Exception:
             pass
         return estados
 
-    def _calcular_progreso_fabricacion_safe(self, proyecto):
+    def _calcular_progreso_fabricacion_safe(self, ordenes):
         """Calculate overall fabrication progress safely"""
         try:
-            if not hasattr(proyecto, 'ordenes_fabricacion') or not proyecto.ordenes_fabricacion:
-                return 0
-
-            ordenes = proyecto.ordenes_fabricacion
             if not ordenes:
                 return 0
 
@@ -393,4 +396,22 @@ class ProyectosService:
 
             return round((ordenes_completadas / len(ordenes)) * 100, 1)
         except Exception:
+            return 0
+
+    def _get_contratos_count(self, proyecto_id):
+        """Get count of contracts for project"""
+        try:
+            from models import Contrato
+            return Contrato.query.filter_by(proyecto_id=proyecto_id, activo=True).count()
+        except Exception as e:
+            logger.warning(f"Error counting contratos for proyecto {proyecto_id}: {str(e)}")
+            return 0
+
+    def _get_despachos_count(self, proyecto_id):
+        """Get count of dispatches for project"""
+        try:
+            from models import Despacho
+            return Despacho.query.filter_by(proyecto_id=proyecto_id, activo=True).count()
+        except Exception as e:
+            logger.warning(f"Error counting despachos for proyecto {proyecto_id}: {str(e)}")
             return 0

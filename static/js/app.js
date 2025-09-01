@@ -191,13 +191,17 @@ const ManufacturingApp = {
 
     // Setup dynamic item management (for OF items, etc.)
     setupDynamicItems() {
-        // Add event listeners for dynamic item addition/removal
+        // Handle dynamic item addition/removal
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('add-item-btn')) {
-                this.addDynamicItem(e.target);
-            } else if (e.target.classList.contains('remove-item-btn') || 
-                      e.target.closest('.remove-item-btn')) {
-                this.removeDynamicItem(e.target);
+            try {
+                if (e.target && e.target.classList.contains('add-item-btn')) {
+                    this.addDynamicItem(e.target);
+                } else if (e.target && (e.target.classList.contains('remove-item-btn') || 
+                          e.target.closest('.remove-item-btn'))) {
+                    this.removeDynamicItem(e.target);
+                }
+            } catch (error) {
+                console.error('Error handling dynamic item click:', error);
             }
         });
     },
