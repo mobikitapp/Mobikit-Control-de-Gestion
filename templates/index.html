@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Sistema de Manufactura{% endblock %}
+{% block title %}Dashboard - Mobikit{% endblock %}
 
 {% block content %}
 {% if show_login %}
@@ -10,8 +10,8 @@
         <div class="row justify-content-center">
             <div class="col-lg-8 text-center">
                 <div class="mb-5">
-                    <i data-feather="settings" class="display-1 text-primary mb-4"></i>
-                    <h1 class="display-4 fw-bold mb-4">Sistema de Manufactura</h1>
+                    <img src="{{ url_for('static', filename='img/branding/app-icon.png') }}" alt="Mobikit Order & Dispatch Tracking" class="mb-4" style="height: 150px; width: auto;">
+                    <h2 class="h3 fw-bold mb-4" style="color: var(--mobikit-gray);">Sistema de Gestión <span style="color: var(--mobikit-red);">Mobikit</span></h2>
                     <p class="lead mb-4">
                         Plataforma centralizada para la gestión integral de clientes, proyectos, 
                         contratos, órdenes de fabricación y despachos.
