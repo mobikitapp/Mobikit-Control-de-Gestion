@@ -118,18 +118,18 @@ class FabricacionRepository:
     @staticmethod
     def count_by_status(status_list: List[str]) -> int:
         """Count OFs by status"""
-        status_enums = [EstadoOF(status) for status in status_list]
+        # Use status values directly without enum conversion
         return (db.session.query(OrdenFabricacion)
-                .filter(OrdenFabricacion.estado.in_(status_enums))
+                .filter(OrdenFabricacion.estado.in_(status_list))
                 .count())
     
     @staticmethod
     def count_by_proyecto_and_status(proyecto_id: int, status_list: List[str]) -> int:
         """Count OFs by proyecto and status"""
-        status_enums = [EstadoOF(status) for status in status_list]
+        # Use status values directly without enum conversion
         return (db.session.query(OrdenFabricacion)
                 .filter(OrdenFabricacion.proyecto_id == proyecto_id)
-                .filter(OrdenFabricacion.estado.in_(status_enums))
+                .filter(OrdenFabricacion.estado.in_(status_list))
                 .count())
     
     @staticmethod
@@ -138,9 +138,9 @@ class FabricacionRepository:
         return (db.session.query(OrdenFabricacion)
                 .filter_by(responsable=user_id)
                 .filter(OrdenFabricacion.estado.in_([
-                    EstadoOF.PENDIENTE_APROBACION_DISENO, EstadoOF.APROBADO, 
-                    EstadoOF.ENVIADO_A_FABRICACION, EstadoOF.SECCIONANDO,
-                    EstadoOF.ENCHAPANDO, EstadoOF.MECANIZANDO
+                    'pendiente_aprobacion_diseño', 'aprobado', 
+                    'enviado_a_fabricacion', 'seccionando',
+                    'enchapando', 'mecanizando'
                 ]))
                 .order_by(OrdenFabricacion.fecha_planificada.asc())
                 .limit(limit)
