@@ -90,9 +90,10 @@
                                 <label for="cantidad_tableros" class="form-label">Cantidad de Tableros</label>
                                 <input type="number" class="form-control" id="cantidad_tableros" name="cantidad_tableros" 
                                        value="{{ of.cantidad_tableros if of else '' }}" min="1" 
-                                       placeholder="Cantidad de tableros requerida">
+                                       placeholder="Opcional en creación">
                                 <div class="form-text">
-                                    Obligatorio para cambiar a estado "Seccionando".
+                                    <i data-feather="info" class="me-1"></i>
+                                    Opcional al crear. <strong>Obligatorio</strong> para cambiar a estado "Seccionando".
                                 </div>
                             </div>
 

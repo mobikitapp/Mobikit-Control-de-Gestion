@@ -164,6 +164,11 @@ class FabricacionService:
             if not of:
                 raise ValueError(f"OF {of_id} no encontrada")
             
+            # Special validation for SECCIONANDO state
+            if new_status == EstadoOF.SECCIONANDO:
+                if not of.cantidad_tableros or of.cantidad_tableros <= 0:
+                    raise ValueError("La cantidad de tableros es obligatoria y debe ser mayor a 0 para cambiar a estado seccionando")
+            
             # Validate status transition
             can_change, error_msg = self.repo.can_change_status(of, new_status)
             if not can_change:

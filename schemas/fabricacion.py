@@ -120,8 +120,8 @@ class OrdenFabricacionUpdate(BaseModel):
 
     @validator('estado')
     def validate_estado_seccionando(cls, v, values):
-        if v and v == EstadoOFEnum.SECCIONANDO and 'cantidad_tableros' in values:
-            if not values['cantidad_tableros']:
+        if v and v == EstadoOFEnum.SECCIONANDO:
+            if 'cantidad_tableros' not in values or not values['cantidad_tableros']:
                 raise ValueError('La cantidad de tableros es obligatoria para cambiar a estado seccionando')
         return v
 
