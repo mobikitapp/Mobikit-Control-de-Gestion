@@ -139,7 +139,7 @@ class ProyectosRepository:
         return (db.session.query(Proyecto)
                 .options(
                     joinedload(Proyecto.cliente),
-                    joinedload(Proyecto.responsable),
+                    joinedload(Proyecto.responsable_user),
                     joinedload(Proyecto.vendedor_user)
                 )
                 .filter_by(responsable_id=responsable_id)
@@ -152,7 +152,7 @@ class ProyectosRepository:
         return (db.session.query(Proyecto)
                 .options(
                     joinedload(Proyecto.cliente),
-                    joinedload(Proyecto.responsable),
+                    joinedload(Proyecto.responsable_user),
                     joinedload(Proyecto.vendedor_user)
                 )
                 .join(Cliente)
