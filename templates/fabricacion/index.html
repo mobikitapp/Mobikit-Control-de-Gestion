@@ -185,6 +185,11 @@
                                        class="btn btn-outline-secondary" title="Editar">
                                         <i data-feather="edit"></i>
                                     </a>
+                                    <button type="button" class="btn btn-outline-success" 
+                                            title="Avanzar estado/área" 
+                                            onclick="avanzarEstado({{ of.id }}, '{{ of.codigo }}')">
+                                        <i data-feather="arrow-right"></i>
+                                    </button>
                                     {% endif %}
                                 </div>
                             </td>
@@ -251,6 +256,42 @@
         {% endif %}
     </div>
 </div>
+<!-- Modal para avanzar estado -->
+<div class="modal fade" id="avanzarEstadoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Avanzar Estado de la Orden</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="avanzarEstadoForm" method="POST">
+                <div class="modal-body">
+                    <p>¿Está seguro que desea avanzar la orden <strong id="codigoOrden"></strong>?</p>
+                    <small class="text-muted">El sistema determinará automáticamente si avanzar al siguiente estado dentro del área o a la siguiente área.</small>
+                    <div class="mb-3">
+                        <label for="responsable_avance" class="form-label">Responsable (opcional)</label>
+                        <select class="form-select" id="responsable_avance" name="responsable_id">
+                            <option value="">Seleccionar responsable</option>
+                            <!-- Options will be loaded dynamically -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notas_avance" class="form-label">Notas (opcional)</label>
+                        <textarea class="form-control" id="notas_avance" name="notas" rows="3" 
+                                  placeholder="Agregar comentarios sobre el avance"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i data-feather="arrow-right" class="me-2"></i>
+                        Avanzar Estado
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -280,6 +321,34 @@ async function updateProyectosFilter() {
             console.error('Error loading proyectos:', error);
         }
     }
+}
+
+// Function to advance state
+function avanzarEstado(ofId, codigo) {
+    document.getElementById('codigoOrden').textContent = codigo;
+    document.getElementById('avanzarEstadoForm').action = `/fabricacion/${ofId}/avanzar-area`;
+    
+    // Load responsables if not already loaded
+    const responsableSelect = document.getElementById('responsable_avance');
+    if (responsableSelect.children.length === 1) {
+        fetch('/contratos/api/users/active')
+            .then(response => response.json())
+            .then(users => {
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = user.nombre_completo;
+                    responsableSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading users:', error);
+            });
+    }
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('avanzarEstadoModal'));
+    modal.show();
 }
 
 // Initialize on page load if there's a selected proyecto

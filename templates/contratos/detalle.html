@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros.html' import render_field, render_select_field %}
 
 {% block title %}{{ contrato.numero_oc }} - Contratos - Sistema de Manufactura{% endblock %}
 
@@ -36,6 +37,13 @@
                         Editar
                     </a>
                     {% endif %}
+
+                    {% if current_user.rol.value == 'admin' %}
+                    <button type="button" class="btn btn-outline-danger" onclick="confirmarEliminacion({{ contrato.id }}, '{{ contrato.numero_oc }}')">
+                        <i data-feather="trash-2" class="me-2"></i>
+                        Eliminar
+                    </button>
+                    {% endif %}
                     <a href="{{ url_for('contratos.index') }}" class="btn btn-outline-secondary">
                         <i data-feather="arrow-left" class="me-2"></i>
                         Volver
@@ -44,7 +52,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row g-4">
         <!-- Contract Information -->
         <div class="col-lg-8">
@@ -65,7 +73,7 @@
                                 </a>
                             </div>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Cliente</label>
                             <div class="form-control-plaintext">
@@ -74,7 +82,7 @@
                                 </a>
                             </div>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Tipo de Documento</label>
                             <div class="form-control-plaintext">
@@ -83,7 +91,7 @@
                                 </span>
                             </div>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Estado</label>
                             <div class="form-control-plaintext">
@@ -92,7 +100,7 @@
                                 </span>
                             </div>
                         </div>
-                        
+
                         {% if contrato.monto_total %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Monto Total</label>
@@ -101,7 +109,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if contrato.fecha_emision %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha de Emisión</label>
@@ -110,26 +118,26 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if contrato.fecha_vencimiento %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha de Vencimiento</label>
                             <div class="form-control-plaintext">
                                 {{ contrato.fecha_vencimiento.strftime('%d/%m/%Y') }}
-                                {% if contrato.fecha_vencimiento < moment().date() and contrato.estado.value == 'VIGENTE' %}
+                                {% if contrato.fecha_vencimiento and contrato.estado.value == 'VIGENTE' and contrato.fecha_vencimiento < today %}
                                 <span class="badge bg-danger ms-2">Vencido</span>
                                 {% endif %}
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha de Creación</label>
                             <div class="form-control-plaintext">
                                 {{ contrato.created_at.strftime('%d/%m/%Y %H:%M') }}
                             </div>
                         </div>
-                        
+
                         {% if contrato.condiciones_pago %}
                         <div class="col-12">
                             <label class="form-label fw-medium">Condiciones de Pago</label>
@@ -138,7 +146,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if contrato.notas %}
                         <div class="col-12">
                             <label class="form-label fw-medium">Notas</label>
@@ -151,7 +159,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Quick Actions -->
         <div class="col-lg-4">
             <div class="card">
@@ -169,17 +177,17 @@
                             Nueva Orden de Fabricación
                         </a>
                         {% endif %}
-                        
+
                         <a href="{{ url_for('fabricacion.index') }}?contrato_id={{ contrato.id }}" class="btn btn-outline-secondary">
                             <i data-feather="tool" class="me-2"></i>
                             Ver Órdenes de Fabricación
                         </a>
-                        
+
                         <a href="{{ url_for('contratos.plan_entrega', contrato_id=contrato.id) }}" class="btn btn-outline-success">
                             <i data-feather="calendar" class="me-2"></i>
                             Plan de Entrega
                         </a>
-                        
+
                         <a href="{{ url_for('proyectos.detalle', proyecto_id=contrato.proyecto_id) }}" class="btn btn-outline-primary">
                             <i data-feather="folder" class="me-2"></i>
                             Ver Proyecto
@@ -189,7 +197,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Attachments Section -->
     <div class="row mt-4">
         <div class="col-12">
@@ -239,7 +247,7 @@
                                                 <i data-feather="download"></i>
                                             </a>
                                             {% if current_user.rol.value in ['admin', 'ventas'] %}
-                                            <button type="button" class="btn btn-outline-danger" 
+                                            <button type="button" class="btn btn-outline-danger"
                                                     onclick="deleteAttachment({{ adjunto.id }})" title="Eliminar">
                                                 <i data-feather="trash-2"></i>
                                             </button>
@@ -276,7 +284,7 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="archivo" class="form-label">Archivo</label>
-                        <input type="file" class="form-control" id="archivo" name="archivo" required 
+                        <input type="file" class="form-control" id="archivo" name="archivo" required
                                accept=".pdf,.jpg,.jpeg,.png">
                         <div class="form-text">Máximo 25MB. Formatos: PDF, JPG, PNG</div>
                     </div>
@@ -302,6 +310,28 @@
 </div>
 {% endif %}
 
+<!-- Delete Contract Confirmation Modal -->
+<div class="modal fade" id="eliminarContratoModal" tabindex="-1" aria-labelledby="eliminarContratoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eliminarContratoModalLabel">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ¿Estás seguro de que deseas eliminar el contrato "<strong id="contratoNumero"></strong>"? Esta acción no se puede deshacer.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="eliminarContratoForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <!-- Status Change Form (Hidden) -->
 <form id="statusForm" method="POST" action="{{ url_for('contratos.cambiar_estado', contrato_id=contrato.id) }}" style="display: none;">
     <input type="hidden" id="nuevo_estado" name="nuevo_estado">
@@ -309,12 +339,11 @@
 
 <!-- Delete Attachment Form (Hidden) -->
 <form id="deleteAttachmentForm" method="POST" style="display: none;">
-    
+
 </form>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
 <script>
 function changeStatus(newStatus) {
     if (confirm('¿Estás seguro de que deseas cambiar el estado del contrato?')) {
@@ -331,6 +360,14 @@ function deleteAttachment(attachmentId) {
     }
 }
 
+function confirmarEliminacion(contratoId, numeroOc) {
+    document.getElementById('contratoNumero').textContent = numeroOc;
+    document.getElementById('eliminarContratoForm').action = `{{ url_for('contratos.eliminar', contrato_id=0) }}`.replace('0', contratoId);
+
+    const modal = new bootstrap.Modal(document.getElementById('eliminarContratoModal'));
+    modal.show();
+}
+
 // Auto-hide alerts after 5 seconds
 document.addEventListener('DOMContentLoaded', function() {
     const alerts = document.querySelectorAll('.alert');
@@ -341,6 +378,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 5000);
     });
+
+    // Initialize feather icons after modal content is loaded
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
 });
 </script>
 {% endblock %}

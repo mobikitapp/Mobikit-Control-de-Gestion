@@ -18,31 +18,56 @@ class StorageAdapter:
         self.bucket = os.environ.get("STORAGE_BUCKET", "manufacturing-app")
         
     def generate_storage_path(self, entity_type: str, entity_id: int, 
-                            sub_entity: str = None, filename: str = None) -> str:
+                            sub_entity: str = None, filename: str = None,
+                            cliente_id: int = None, proyecto_id: int = None) -> str:
         """
-        Generate standardized storage path
+        Generate standardized storage path following Cliente/Proyecto structure
         
         Args:
-            entity_type: Type of entity (clientes, proyectos, contratos, etc.)
+            entity_type: Type of entity (contratos, despachos, etc.)
             entity_id: ID of the entity
-            sub_entity: Sub-entity type (docs, qa, evidencias)
+            sub_entity: Sub-entity type (docs, evidencias)
             filename: Original filename
+            cliente_id: ID of the client (required for new structure)
+            proyecto_id: ID of the project (required for new structure)
             
         Returns:
-            Storage path following the defined structure
+            Storage path following the Cliente/Proyecto structure
         """
-        parts = [entity_type, str(entity_id)]
+        # For the new Cliente/Proyecto structure
+        if cliente_id and proyecto_id and entity_type in ['contratos', 'despachos']:
+            parts = [
+                f"Cliente-{cliente_id}",
+                f"Proyecto-{proyecto_id}",
+                entity_type.title(),  # Contratos or Despachos
+                str(entity_id)
+            ]
+            
+            if sub_entity:
+                parts.append(sub_entity)
+                
+            if filename:
+                # Generate unique filename to avoid conflicts
+                file_ext = os.path.splitext(filename)[1]
+                unique_filename = f"{uuid.uuid4().hex}{file_ext}"
+                parts.append(unique_filename)
+                
+            return "/".join(parts)
         
-        if sub_entity:
-            parts.append(sub_entity)
+        # Fallback to legacy structure for backward compatibility
+        else:
+            parts = [entity_type, str(entity_id)]
             
-        if filename:
-            # Generate unique filename to avoid conflicts
-            file_ext = os.path.splitext(filename)[1]
-            unique_filename = f"{uuid.uuid4().hex}{file_ext}"
-            parts.append(unique_filename)
-            
-        return "/".join(parts)
+            if sub_entity:
+                parts.append(sub_entity)
+                
+            if filename:
+                # Generate unique filename to avoid conflicts
+                file_ext = os.path.splitext(filename)[1]
+                unique_filename = f"{uuid.uuid4().hex}{file_ext}"
+                parts.append(unique_filename)
+                
+            return "/".join(parts)
     
     def put_file(self, file_stream: BinaryIO, path: str, 
                 content_type: str = None, filename: str = None) -> str:

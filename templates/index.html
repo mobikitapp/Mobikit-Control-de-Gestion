@@ -204,9 +204,13 @@
                         {% for of in pending_ofs %}
                         <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
                             <div class="flex-shrink-0">
-                                <span class="badge bg-{{ 'warning' if of.estado.value == 'planificada' else 'info' if of.estado.value == 'en_produccion' else 'primary' }}">
-                                    {{ of.estado.value|title }}
+                                {% if of.estado_actual %}
+                                <span class="badge bg-{{ 'warning' if of.area_actual.tipo.value == 'pendientes_fabricacion' else 'info' if of.area_actual.tipo.value == 'fabrica' else 'secondary' if of.area_actual.tipo.value == 'embalaje' else 'success' if of.area_actual.tipo.value == 'bodega' else 'primary' }}">
+                                    {{ of.estado_actual.nombre }}
                                 </span>
+                                {% else %}
+                                <span class="badge bg-secondary">Sin Estado</span>
+                                {% endif %}
                             </div>
                             <div class="flex-grow-1 ms-3">
                                 <div class="fw-medium">

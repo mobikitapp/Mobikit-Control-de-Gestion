@@ -88,12 +88,19 @@
                             <!-- Estado -->
                             <div class="col-md-6">
                                 <label for="estado" class="form-label">Estado</label>
+                                {% if current_user.rol.value == 'admin' %}
                                 <select class="form-select" id="estado" name="estado">
                                     <option value="BORRADOR" {% if not contrato or contrato.estado.value == 'BORRADOR' %}selected{% endif %}>Borrador</option>
                                     <option value="VIGENTE" {% if contrato and contrato.estado.value == 'VIGENTE' %}selected{% endif %}>Vigente</option>
                                     <option value="CERRADO" {% if contrato and contrato.estado.value == 'CERRADO' %}selected{% endif %}>Cerrado</option>
                                     <option value="ANULADO" {% if contrato and contrato.estado.value == 'ANULADO' %}selected{% endif %}>Anulado</option>
                                 </select>
+                                {% else %}
+                                <input type="text" class="form-control" readonly 
+                                       value="{{ contrato.estado.value|title if contrato else 'Borrador' }}">
+                                <input type="hidden" name="estado" value="{{ contrato.estado.value if contrato else 'BORRADOR' }}">
+                                <small class="form-text text-muted">Solo los administradores pueden cambiar el estado</small>
+                                {% endif %}
                             </div>
                             
                             <!-- Monto Total -->

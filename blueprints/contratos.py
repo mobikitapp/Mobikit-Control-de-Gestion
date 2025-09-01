@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, date
 from app import db
 from replit_auth import require_login, require_role
 from models import RolUsuario
@@ -84,7 +84,8 @@ def nuevo():
         return render_template('contratos/form.html',
                              contrato=None,
                              clientes=clientes,
-                             proyectos=proyectos, # Pasar proyectos al template
+                             proyectos=proyectos,
+                             current_user=current_user,
                              title="Nuevo Contrato / OC")
     except Exception as e:
         logger.error(f"Error cargando formulario nuevo contrato: {str(e)}")
@@ -168,6 +169,7 @@ def crear():
                              contrato=None,
                              clientes=clientes,
                              proyectos=proyectos,
+                             current_user=current_user,
                              title="Nuevo Contrato / OC")
     except Exception as e:
         logger.error(f"Error creando contrato: {str(e)}")
@@ -178,6 +180,7 @@ def crear():
                              contrato=None,
                              clientes=clientes,
                              proyectos=proyectos,
+                             current_user=current_user,
                              title="Nuevo Contrato / OC")
 
 @contratos_bp.route('/<int:contrato_id>')
@@ -190,7 +193,13 @@ def detalle(contrato_id):
             flash('Contrato no encontrado', 'error')
             return redirect(url_for('contratos.index'))
 
-        return render_template('contratos/detalle.html', contrato=contrato)
+        # Add today's date for template comparison
+        today = date.today()
+        
+        return render_template('contratos/detalle.html', 
+                             contrato=contrato, 
+                             today=today,
+                             current_user=current_user)
 
     except Exception as e:
         logger.error(f"Error obteniendo contrato {contrato_id}: {str(e)}")
@@ -213,6 +222,7 @@ def editar(contrato_id):
                              contrato=contrato,
                              clientes=clientes,
                              proyectos=proyectos,
+                             current_user=current_user,
                              title=f"Editar Contrato / OC - {contrato.numero_oc}")
 
     except Exception as e:
@@ -248,6 +258,7 @@ def actualizar(contrato_id):
                              contrato=contrato,
                              clientes=clientes,
                              proyectos=proyectos,
+                             current_user=current_user,
                              title=f"Editar Contrato / OC - {contrato.numero_oc}")
     except Exception as e:
         logger.error(f"Error actualizando contrato {contrato_id}: {str(e)}")
@@ -521,3 +532,22 @@ def api_by_proyecto(proyecto_id):
     except Exception as e:
         logger.error(f"Error en API contratos por proyecto: {str(e)}")
         return jsonify({'error': 'Error al cargar contratos'}), 500
+
+@contratos_bp.route('/api/users/active')
+@require_login
+def api_users_active():
+    """API endpoint para obtener usuarios activos"""
+    try:
+        from services.user_service import UserService
+        user_service = UserService()
+        users = user_service.get_active_users()
+        
+        return jsonify([{
+            'id': u.id,
+            'nombre_completo': f"{u.nombre} {u.apellido}" if u.apellido else u.nombre,
+            'email': u.email
+        } for u in users])
+
+    except Exception as e:
+        logger.error(f"Error en API usuarios activos: {str(e)}")
+        return jsonify({'error': 'Error al cargar usuarios'}), 500

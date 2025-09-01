@@ -4,6 +4,7 @@ from werkzeug.datastructures import FileStorage
 from adapters.storage_adapter import StorageAdapter, StorageError
 from services.audit_service import AuditService
 from app import db
+from models import Contrato, Despacho
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,8 @@ class StorageService:
         self.adapter = StorageAdapter()
     
     def upload_file(self, file: FileStorage, entity_type: str, entity_id: int, 
-                   sub_entity: str = None, file_type: str = None) -> Dict[str, Any]:
+                   sub_entity: str = None, file_type: str = None,
+                   cliente_id: int = None, proyecto_id: int = None) -> Dict[str, Any]:
         """
         Upload a file and return metadata
         
@@ -46,7 +48,8 @@ class StorageService:
             
             # Generate storage path
             storage_path = self.adapter.generate_storage_path(
-                entity_type, entity_id, sub_entity, file.filename
+                entity_type, entity_id, sub_entity, file.filename,
+                cliente_id, proyecto_id
             )
             
             # Upload file
@@ -162,3 +165,48 @@ class StorageService:
         # This would implement cleanup logic for orphaned files
         # For now, we'll just return 0 as a placeholder
         return 0
+    
+    def _resolve_cliente_proyecto_ids(self, entity_type: str, entity_id: int) -> tuple[int, int]:
+        """
+        Resolve cliente_id and proyecto_id for a given entity
+        
+        Args:
+            entity_type: Type of entity (contratos, despachos)
+            entity_id: ID of the entity
+            
+        Returns:
+            Tuple of (cliente_id, proyecto_id)
+        """
+        if entity_type == 'contratos':
+            contrato = db.session.get(Contrato, entity_id)
+            if contrato and contrato.proyecto:
+                return contrato.proyecto.cliente_id, contrato.proyecto.id
+        elif entity_type == 'despachos':
+            despacho = db.session.get(Despacho, entity_id)
+            if despacho and despacho.proyecto:
+                return despacho.proyecto.cliente_id, despacho.proyecto.id
+        
+        return None, None
+    
+    def upload_file_for_entity(self, file: FileStorage, entity_type: str, entity_id: int, 
+                              sub_entity: str = None, file_type: str = None) -> Dict[str, Any]:
+        """
+        Upload a file using the new Cliente/Proyecto structure
+        
+        Args:
+            file: Uploaded file
+            entity_type: Type of entity (contratos, despachos)
+            entity_id: ID of the entity
+            sub_entity: Sub-entity type (docs, evidencias)
+            file_type: Type of file for categorization
+            
+        Returns:
+            Dictionary with file metadata
+        """
+        # Resolve cliente and proyecto IDs
+        cliente_id, proyecto_id = self._resolve_cliente_proyecto_ids(entity_type, entity_id)
+        
+        return self.upload_file(
+            file, entity_type, entity_id, sub_entity, file_type,
+            cliente_id, proyecto_id
+        )

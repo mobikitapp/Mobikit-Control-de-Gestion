@@ -302,6 +302,76 @@ class FabricacionService:
             logger.error(f"Error obteniendo OFs del proyecto {proyecto_id}: {str(e)}")
             raise
     
+    def smart_advance_orden(self, of_id: int, created_by: str, responsable_id: str = None, notas: str = None) -> tuple[bool, str]:
+        """
+        Smart advance function that determines whether to advance state within area or move to next area
+        
+        Args:
+            of_id: OF ID
+            created_by: User ID who is advancing the OF
+            responsable_id: Optional responsible user ID
+            notas: Optional notes
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        try:
+            of = self.repo.get_by_id(of_id)
+            if not of:
+                return False, f"OF {of_id} no encontrada"
+            
+            # Get current progress
+            from repositories.areas_repository import OrdenAreaProgresoRepository
+            progreso_repo = OrdenAreaProgresoRepository()
+            current_progress = progreso_repo.get_current_progress(of_id)
+            
+            if not current_progress:
+                return False, "Orden no encontrada en sistema de áreas"
+            
+            # Check if current state is final for the area
+            if current_progress.estado.es_final:
+                # Current state is final, advance to next area
+                try:
+                    self.areas_service.advance_to_next_area(
+                        of_id,
+                        created_by,
+                        responsable_id=responsable_id,
+                        notas=notas
+                    )
+                    return True, f"Orden avanzada a la siguiente área exitosamente"
+                except ValueError as e:
+                    if "No hay siguiente área" in str(e):
+                        return False, "La orden ya está en el área final del proceso"
+                    return False, str(e)
+            else:
+                # Current state is not final, advance to next state within area
+                from repositories.areas_repository import AreasRepository
+                areas_repo = AreasRepository()
+                estados_area = areas_repo.get_estados_by_area(current_progress.area_id)
+                
+                # Find next state in sequence
+                current_orden = current_progress.estado.orden_en_area
+                next_estado = next(
+                    (e for e in estados_area if e.orden_en_area == current_orden + 1),
+                    None
+                )
+                
+                if not next_estado:
+                    return False, "No hay siguiente estado en el área actual"
+                
+                self.areas_service.change_estado_in_area(
+                    of_id, 
+                    next_estado.id, 
+                    responsable_id=responsable_id, 
+                    notas=notas
+                )
+                return True, f"Estado actualizado a '{next_estado.nombre}' exitosamente"
+                
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error en avance inteligente de OF {of_id}: {str(e)}")
+            return False, str(e)
+
     def get_pending_ofs_by_user(self, user_id: str, limit: int = 10) -> List[OrdenFabricacion]:
         """Get pending OFs assigned to a user"""
         try:

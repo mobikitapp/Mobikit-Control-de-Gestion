@@ -46,10 +46,13 @@ The system follows a modular blueprint architecture with clear separation of con
 - **Access Control**: Role-based access to features and data with audit logging
 
 ### Storage & File Management
-- **Standardized Paths**: Organized storage structure by entity type and purpose
-- **Multiple File Types**: Support for contracts, plans, specifications, QA evidence, and delivery documentation
+- **Standardized Paths**: Organized storage structure following Cliente/Proyecto hierarchy:
+  - `Cliente-{id}/Proyecto-{id}/Contratos/{contrato_id}/{docs|evidencias}/`
+  - `Cliente-{id}/Proyecto-{id}/Despachos/{despacho_id}/{docs|evidencias}/`
+- **Multiple File Types**: Support for contracts, delivery documentation, and QA evidence
 - **Size Limits**: Configurable upload limits (default 25MB) with MIME type validation
 - **Audit Trail**: Complete tracking of file uploads, downloads, and modifications
+- **Backward Compatibility**: Legacy structure still supported for existing files
 
 ### Database Design
 - **Relational Structure**: Normalized schema with proper foreign key constraints

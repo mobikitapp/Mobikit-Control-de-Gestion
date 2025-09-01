@@ -267,9 +267,9 @@
                             </div>
                         </div>
                         
-                        {% if of.progreso_areas %}
-                            {% for progreso in of.progreso_areas %}
-                            <div class="timeline-item {{ 'active' if progreso.area.activo else '' }}">
+                        {% if historial_progreso %}
+                            {% for progreso in historial_progreso %}
+                            <div class="timeline-item {{ 'active' if progreso.es_actual else '' }}">
                                 <div class="timeline-marker" style="background-color: {{ progreso.area.color_hex }}"></div>
                                 <div class="timeline-content">
                                     <h6>{{ progreso.area.nombre }}</h6>
@@ -277,6 +277,14 @@
                                     {% if progreso.fecha_cambio_estado %}
                                     <br>
                                     <small class="text-muted">{{ progreso.fecha_cambio_estado.strftime('%d/%m/%Y %H:%M') }}</small>
+                                    {% endif %}
+                                    {% if progreso.responsable_user %}
+                                    <br>
+                                    <small class="text-muted">Responsable: {{ progreso.responsable_user.nombre_completo }}</small>
+                                    {% endif %}
+                                    {% if progreso.notas %}
+                                    <br>
+                                    <small class="text-muted fst-italic">{{ progreso.notas }}</small>
                                     {% endif %}
                                 </div>
                             </div>
