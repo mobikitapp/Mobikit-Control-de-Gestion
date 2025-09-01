@@ -97,28 +97,45 @@
                                 </div>
                             </div>
 
-                            <!-- Estado -->
-                            {% if of %}
-                        <div class="col-md-6">
-                            <label for="estado" class="form-label">Estado</label>
-                            <select class="form-select" id="estado" name="estado" required>
-                                {% for estado in EstadoOF %}
-                                <option value="{{ estado.value }}" 
-                                        {% if of.estado == estado %}selected{% endif %}>
-                                    {{ estado.value|replace('_', ' ')|title }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        {% else %}
-                        <div class="col-md-6">
-                            <label class="form-label">Estado Inicial</label>
-                            <div class="form-control-plaintext">
-                                <span class="badge bg-warning">Pendiente Aprobación Diseño</span>
-                                <small class="text-muted d-block">Todas las órdenes nuevas inician en este estado</small>
+                            <!-- Estado - Solo para admins en edición -->
+                            {% if of and current_user.rol.value == 'admin' %}
+                            <div class="col-md-6">
+                                <label for="estado_actual_id" class="form-label">Estado</label>
+                                <select class="form-select" id="estado_actual_id" name="estado_actual_id">
+                                    <option value="">Mantener estado actual</option>
+                                    {% for estado in estados_area %}
+                                    <option value="{{ estado.id }}" 
+                                            {% if of.estado_actual and of.estado_actual.id == estado.id %}selected{% endif %}>
+                                        {{ estado.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    <i data-feather="info" class="me-1"></i>
+                                    Solo administradores pueden cambiar el estado directamente.
+                                </div>
                             </div>
-                        </div>
-                        {% endif %}
+                            {% elif of %}
+                            <div class="col-md-6">
+                                <label class="form-label">Estado Actual</label>
+                                <div class="form-control-plaintext">
+                                    <span class="badge bg-primary">
+                                        {{ of.estado_actual.nombre if of.estado_actual else 'Sin estado' }}
+                                    </span>
+                                    <small class="text-muted d-block">
+                                        Área: {{ of.area_actual.nombre if of.area_actual else 'Sin área' }}
+                                    </small>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="col-md-6">
+                                <label class="form-label">Estado Inicial</label>
+                                <div class="form-control-plaintext">
+                                    <span class="badge bg-warning">Pendiente Aprobación Diseño</span>
+                                    <small class="text-muted d-block">Todas las órdenes nuevas inician en este estado</small>
+                                </div>
+                            </div>
+                            {% endif %}
 
                             <!-- Responsable -->
                             <div class="col-md-6">

@@ -161,10 +161,18 @@ def editar(of_id):
 
         # Get area states if admin and OF has area
         estados_area = []
-        if current_user.rol.value == 'admin' and of.area_actual:
+        if current_user.rol.value == 'admin':
             from repositories.areas_repository import AreasRepository
             areas_repo = AreasRepository()
-            estados_area = areas_repo.get_estados_by_area(of.area_actual.id)
+            if of.area_actual:
+                # Get states for current area
+                estados_area = areas_repo.get_estados_by_area(of.area_actual.id)
+            else:
+                # If no current area, get states for first area (Pendientes de Fabricación)
+                from models import TipoArea
+                primera_area = areas_repo.get_area_by_tipo(TipoArea.PENDIENTES_FABRICACION)
+                if primera_area:
+                    estados_area = areas_repo.get_estados_by_area(primera_area.id)
 
         return render_template('fabricacion/form.html', 
                              of=of,
@@ -189,7 +197,7 @@ def actualizar(of_id):
             return redirect(url_for('fabricacion.index'))
 
         form_data = request.form.to_dict()
-        
+
         # Only allow admin to change status
         if current_user.rol.value != 'admin' and 'estado_actual_id' in form_data:
             del form_data['estado_actual_id']
@@ -206,17 +214,25 @@ def actualizar(of_id):
     except ValidationError as e:
         for error in e.errors():
             flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
-        
+
         # Reload data for the form in case of error
         clientes = clientes_service.get_active_clientes()
         users = user_service.get_active_users()
 
         # Get area states if admin and OF has area
         estados_area = []
-        if current_user.rol.value == 'admin' and of.area_actual:
+        if current_user.rol.value == 'admin':
             from repositories.areas_repository import AreasRepository
             areas_repo = AreasRepository()
-            estados_area = areas_repo.get_estados_by_area(of.area_actual.id)
+            if of.area_actual:
+                # Get states for current area
+                estados_area = areas_repo.get_estados_by_area(of.area_actual.id)
+            else:
+                # If no current area, get states for first area (Pendientes de Fabricación)
+                from models import TipoArea
+                primera_area = areas_repo.get_area_by_tipo(TipoArea.PENDIENTES_FABRICACION)
+                if primera_area:
+                    estados_area = areas_repo.get_estados_by_area(primera_area.id)
 
         return render_template('fabricacion/form.html', 
                              of=of,
