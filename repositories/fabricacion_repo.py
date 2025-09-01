@@ -5,6 +5,8 @@ from app import db
 from models import (OrdenFabricacion, OrdenFabricacionItem, Proyecto, 
                    Contrato, Cliente, User, EstadoOF)
 from schemas.fabricacion import OrdenFabricacionSearchFilters
+from utils.enum_normalizer import EnumNormalizer
+from constants.transitions import OF_TRANSITIONS, OF_ACTIVE_STATES, OF_SPECIAL_VALIDATIONS
 
 class FabricacionRepository:
     """Repository for OrdenFabricacion operations"""
@@ -81,7 +83,9 @@ class FabricacionRepository:
             conditions.append(OrdenFabricacion.codigo.ilike(f"%{filters.codigo}%"))
         
         if filters.estado:
-            conditions.append(OrdenFabricacion.estado == filters.estado)
+            # Use centralized enum normalizer
+            conditions.append(EnumNormalizer.create_case_insensitive_filter(
+                OrdenFabricacion.estado, filters.estado))
         
         if filters.responsable:
             conditions.append(OrdenFabricacion.responsable == filters.responsable)
@@ -117,31 +121,30 @@ class FabricacionRepository:
     
     @staticmethod
     def count_by_status(status_list: List[str]) -> int:
-        """Count OFs by status"""
-        # Use status values directly without enum conversion
+        """Count OFs by status - case insensitive"""
+        # Convert to uppercase for case-insensitive comparison
+        uppercase_status_list = [status.upper() for status in status_list]
         return (db.session.query(OrdenFabricacion)
-                .filter(OrdenFabricacion.estado.in_(status_list))
+                .filter(func.upper(OrdenFabricacion.estado).in_(uppercase_status_list))
                 .count())
     
     @staticmethod
     def count_by_proyecto_and_status(proyecto_id: int, status_list: List[str]) -> int:
-        """Count OFs by proyecto and status"""
-        # Use status values directly without enum conversion
+        """Count OFs by proyecto and status - case insensitive"""
+        # Convert to uppercase for case-insensitive comparison
+        uppercase_status_list = [status.upper() for status in status_list]
         return (db.session.query(OrdenFabricacion)
                 .filter(OrdenFabricacion.proyecto_id == proyecto_id)
-                .filter(OrdenFabricacion.estado.in_(status_list))
+                .filter(func.upper(OrdenFabricacion.estado).in_(uppercase_status_list))
                 .count())
     
     @staticmethod
     def get_pending_by_user(user_id: str, limit: int = 10) -> List[OrdenFabricacion]:
         """Get pending OFs assigned to a user"""
+        # Use centralized active states constant
         return (db.session.query(OrdenFabricacion)
                 .filter_by(responsable=user_id)
-                .filter(OrdenFabricacion.estado.in_([
-                    'pendiente_aprobacion_diseño', 'aprobado', 
-                    'enviado_a_fabricacion', 'seccionando',
-                    'enchapando', 'mecanizando'
-                ]))
+                .filter(func.upper(OrdenFabricacion.estado).in_(OF_ACTIVE_STATES))
                 .order_by(OrdenFabricacion.fecha_planificada.asc())
                 .limit(limit)
                 .all())
@@ -185,32 +188,25 @@ class FabricacionRepository:
         """
         current_status = of.estado
         
-        # Define allowed transitions using enum values from models.py
-        allowed_transitions = {
-            "pendiente_aprobacion_diseño": ["aprobado"],
-            "aprobado": ["enviado_a_fabricacion"],
-            "enviado_a_fabricacion": ["seccionando", "aprobado"],
-            "seccionando": ["enchapando", "enviado_a_fabricacion"],
-            "enchapando": ["mecanizando", "seccionando"],
-            "mecanizando": ["fabricacion_completa", "enchapando"],
-            "fabricacion_completa": ["pendiente_de_embalar"],
-            "pendiente_de_embalar": ["embalando"],
-            "embalando": ["embalaje_listo", "pendiente_de_embalar"],
-            "embalaje_listo": ["listo_para_despacho"],
-            "listo_para_despacho": ["despachado"],
-            "despachado": []  # Estado final
-        }
+        # Use centralized transition validation
+        is_valid, error_msg = EnumNormalizer.validate_transition(
+            current_status, new_status, OF_TRANSITIONS)
         
-        current_status_value = current_status.value if hasattr(current_status, 'value') else str(current_status)
-        new_status_value = new_status.value if hasattr(new_status, 'value') else str(new_status)
+        if not is_valid:
+            return False, error_msg
+            
+        # Check special validations
+        new_status_normalized = EnumNormalizer.normalize_enum_value(new_status)
+        if new_status_normalized in OF_SPECIAL_VALIDATIONS:
+            validation = OF_SPECIAL_VALIDATIONS[new_status_normalized]
+            
+            # Check required fields
+            for field in validation.get("required_fields", []):
+                field_value = getattr(of, field, None)
+                if not field_value or (isinstance(field_value, (int, float)) and field_value <= 0):
+                    return False, validation.get("validation_message", f"Campo {field} es obligatorio")
         
-        if new_status_value in allowed_transitions.get(current_status_value, []):
-            # Special validation for SECCIONANDO state  
-            if new_status_value == "seccionando" and (not of.cantidad_tableros or of.cantidad_tableros <= 0):
-                return False, "La cantidad de tableros es obligatoria para cambiar a estado seccionando"
-            return True, ""
-        else:
-            return False, f"No se puede cambiar de {current_status_value} a {new_status_value}"
+        return True, ""
 
 class OrdenFabricacionItemRepository:
     """Repository for OrdenFabricacionItem operations"""
