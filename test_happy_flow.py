@@ -124,9 +124,14 @@ class HappyFlowTester:
     def test_cliente_creation(self):
         """Test 1: Create a test client"""
         try:
+            # Generate unique RUT using timestamp to avoid duplicates
+            import time
+            unique_suffix = str(int(time.time()))[-6:]  # Last 6 digits of timestamp
+            unique_rut = f"96.{unique_suffix[:3]}.{unique_suffix[3:]}-7"
+            
             cliente_data = ClienteCreate(
                 nombre="Constructora Happy Flow S.A.",
-                rut="96.123.456-7",
+                rut=unique_rut,
                 condiciones_comerciales="30 días, descuento 2% por pronto pago",
                 contacto_principal="Juan Pérez",
                 email_contacto="juan.perez@happyflow.cl",
@@ -516,9 +521,19 @@ class HappyFlowTester:
 if __name__ == "__main__":
     tester = HappyFlowTester()
     
-    # Ask if user wants to cleanup test data
-    cleanup_choice = input("\n¿Deseas limpiar los datos de prueba al finalizar? (y/n): ").lower().strip()
-    cleanup = cleanup_choice in ['y', 'yes', 's', 'si', 'sí']
+    # Check if running in automated mode (no TTY available)
+    cleanup = True  # Default to cleanup for automated tests
+    
+    # Only ask for input if running interactively
+    if sys.stdin.isatty():
+        try:
+            cleanup_choice = input("\n¿Deseas limpiar los datos de prueba al finalizar? (y/n): ").lower().strip()
+            cleanup = cleanup_choice in ['y', 'yes', 's', 'si', 'sí']
+        except (EOFError, KeyboardInterrupt):
+            print("\n⚠️  Entrada no disponible, usando limpieza automática")
+            cleanup = True
+    else:
+        print("\n🤖 Modo automático: Limpieza de datos activada")
     
     success = tester.run_full_test(cleanup=cleanup)
     
