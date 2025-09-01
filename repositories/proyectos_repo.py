@@ -140,7 +140,7 @@ class ProyectosRepository:
                 .options(
                     joinedload(Proyecto.cliente),
                     joinedload(Proyecto.responsable),
-                    joinedload(Proyecto.vendedor)
+                    joinedload(Proyecto.vendedor_user)
                 )
                 .filter_by(responsable_id=responsable_id)
                 .order_by(Proyecto.created_at.desc())
@@ -153,7 +153,7 @@ class ProyectosRepository:
                 .options(
                     joinedload(Proyecto.cliente),
                     joinedload(Proyecto.responsable),
-                    joinedload(Proyecto.vendedor)
+                    joinedload(Proyecto.vendedor_user)
                 )
                 .join(Cliente)
                 .filter(Cliente.activo == True)
