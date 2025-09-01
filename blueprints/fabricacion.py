@@ -40,24 +40,24 @@ def index():
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int)
         }
-        
+
         # Clean empty values
         filters_data = {k: v for k, v in filters_data.items() if v}
-        
+
         # Validate filters
         filters = OrdenFabricacionSearchFilters(**filters_data)
-        
+
         # Search OFs
         ofs, total_count = fabricacion_service.search_ordenes_fabricacion(filters)
-        
+
         # Get data for filter dropdowns
         clientes = clientes_service.get_active_clientes()
-        
+
         # Calculate pagination
         total_pages = (total_count + filters.per_page - 1) // filters.per_page
         has_prev = filters.page > 1
         has_next = filters.page < total_pages
-        
+
         return render_template('fabricacion/index.html',
                              ofs=ofs,
                              clientes=clientes,
@@ -66,7 +66,7 @@ def index():
                              total_pages=total_pages,
                              has_prev=has_prev,
                              has_next=has_next)
-                             
+
     except ValidationError as e:
         flash('Filtros inválidos', 'error')
         return redirect(url_for('fabricacion.index'))
@@ -99,19 +99,19 @@ def crear():
     try:
         # Get form data
         form_data = request.form.to_dict()
-        
+
         # Generic orders don't have items
         form_data['items'] = []
-        
+
         # Validate form data
         of_data = OrdenFabricacionCreate(**form_data)
-        
+
         # Create OF
         of = fabricacion_service.create_orden_fabricacion(of_data.dict(), current_user.id)
-        
+
         flash(f'Orden de Fabricación {of.codigo} creada exitosamente', 'success')
         return redirect(url_for('fabricacion.detalle', of_id=of.id))
-        
+
     except ValidationError as e:
         for error in e.errors():
             flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
@@ -138,9 +138,9 @@ def detalle(of_id):
         if not of:
             flash('Orden de Fabricación no encontrada', 'error')
             return redirect(url_for('fabricacion.index'))
-        
+
         return render_template('fabricacion/detalle.html', of=of)
-                             
+
     except Exception as e:
         logger.error(f"Error obteniendo OF {of_id}: {str(e)}")
         flash('Error al cargar orden de fabricación', 'error')
@@ -155,15 +155,24 @@ def editar(of_id):
         if not of:
             flash('Orden de Fabricación no encontrada', 'error')
             return redirect(url_for('fabricacion.index'))
-        
+
         clientes = clientes_service.get_active_clientes()
         users = user_service.get_active_users()
+
+        # Get area states if admin and OF has area
+        estados_area = []
+        if current_user.rol.value == 'admin' and of.area_actual:
+            from repositories.areas_repository import AreasRepository
+            areas_repo = AreasRepository()
+            estados_area = areas_repo.get_estados_by_area(of.area_actual.id)
+
         return render_template('fabricacion/form.html', 
                              of=of,
                              clientes=clientes,
                              users=users,
+                             estados_area=estados_area,
                              title=f"Editar OF - {of.codigo}")
-                             
+
     except Exception as e:
         logger.error(f"Error obteniendo OF para editar {of_id}: {str(e)}")
         flash('Error al cargar orden de fabricación', 'error')
@@ -178,25 +187,42 @@ def actualizar(of_id):
         if not of:
             flash('Orden de Fabricación no encontrada', 'error')
             return redirect(url_for('fabricacion.index'))
+
+        form_data = request.form.to_dict()
         
+        # Only allow admin to change status
+        if current_user.rol.value != 'admin' and 'estado_actual_id' in form_data:
+            del form_data['estado_actual_id']
+
         # Validate form data
-        update_data = OrdenFabricacionUpdate(**request.form.to_dict())
-        
+        update_data = OrdenFabricacionUpdate(**form_data)
+
         # Update OF
         of_actualizada = fabricacion_service.update_orden_fabricacion(of_id, update_data.dict(exclude_unset=True))
-        
+
         flash(f'Orden de Fabricación {of_actualizada.codigo} actualizada exitosamente', 'success')
         return redirect(url_for('fabricacion.detalle', of_id=of_id))
-        
+
     except ValidationError as e:
         for error in e.errors():
             flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
+        
+        # Reload data for the form in case of error
         clientes = clientes_service.get_active_clientes()
         users = user_service.get_active_users()
+
+        # Get area states if admin and OF has area
+        estados_area = []
+        if current_user.rol.value == 'admin' and of.area_actual:
+            from repositories.areas_repository import AreasRepository
+            areas_repo = AreasRepository()
+            estados_area = areas_repo.get_estados_by_area(of.area_actual.id)
+
         return render_template('fabricacion/form.html', 
                              of=of,
                              clientes=clientes,
                              users=users,
+                             estados_area=estados_area,
                              title=f"Editar OF - {of.codigo}")
     except Exception as e:
         logger.error(f"Error actualizando OF {of_id}: {str(e)}")
@@ -211,11 +237,11 @@ def cambiar_estado(of_id):
         nuevo_estado_id = request.form.get('nuevo_estado_id', type=int)
         responsable_id = request.form.get('responsable_id')
         notas = request.form.get('notas')
-        
+
         if not nuevo_estado_id:
             flash('Debe seleccionar un estado', 'error')
             return redirect(url_for('fabricacion.detalle', of_id=of_id))
-        
+
         success = fabricacion_service.change_estado_area(
             of_id, nuevo_estado_id, responsable_id=responsable_id, notas=notas
         )
@@ -223,11 +249,11 @@ def cambiar_estado(of_id):
             flash('Estado actualizado exitosamente', 'success')
         else:
             flash('Error al cambiar estado', 'error')
-            
+
     except Exception as e:
         logger.error(f"Error cambiando estado de OF {of_id}: {str(e)}")
         flash(f'Error al cambiar estado: {str(e)}', 'error')
-    
+
     return redirect(url_for('fabricacion.detalle', of_id=of_id))
 
 @fabricacion_bp.route('/<int:of_id>/avanzar-area', methods=['POST'])
@@ -237,7 +263,7 @@ def avanzar_area(of_id):
     try:
         responsable_id = request.form.get('responsable_id')
         notas = request.form.get('notas')
-        
+
         success, message = fabricacion_service.smart_advance_orden(
             of_id, current_user.id, responsable_id=responsable_id, notas=notas
         )
@@ -245,11 +271,11 @@ def avanzar_area(of_id):
             flash(message, 'success')
         else:
             flash(f'Error: {message}', 'error')
-            
+
     except Exception as e:
         logger.error(f"Error avanzando OF {of_id}: {str(e)}")
         flash(f'Error: {str(e)}', 'error')
-    
+
     return redirect(url_for('fabricacion.index'))
 
 @fabricacion_bp.route('/<int:of_id>/eliminar', methods=['POST'])
@@ -262,11 +288,11 @@ def eliminar(of_id):
             flash('Orden de Fabricación eliminada exitosamente', 'success')
         else:
             flash('Error al eliminar orden de fabricación', 'error')
-            
+
     except Exception as e:
         logger.error(f"Error eliminando OF {of_id}: {str(e)}")
         flash('Error al eliminar orden de fabricación', 'error')
-    
+
     return redirect(url_for('fabricacion.index'))
 
 @fabricacion_bp.route('/api/by-proyecto/<int:proyecto_id>')
@@ -281,8 +307,7 @@ def api_by_proyecto(proyecto_id):
             'area': of.area_actual.nombre if of.area_actual else 'Sin área',
             'estado': of.estado_actual.nombre if of.estado_actual else 'Sin estado'
         } for of in ofs])
-        
+
     except Exception as e:
         logger.error(f"Error en API OFs por proyecto: {str(e)}")
         return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
-

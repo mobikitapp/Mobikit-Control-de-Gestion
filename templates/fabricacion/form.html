@@ -303,7 +303,7 @@ async function updateContratos() {
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Cascade selects initialized');
-    
+
     // Form validation
     const form = document.querySelector('form');
     const clienteSelect = document.getElementById('cliente_id');
@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateContratos();
         });
     });
-    
+
     document.getElementById('proyecto_id').addEventListener('change', function() {
         console.log('Would load contracts for proyecto:', this.value);
         updateContratos();
