@@ -512,15 +512,11 @@ class ComercialService:
                     valor_provision_mes = Decimal('0')
                     valor_instalacion_mes = Decimal('0')
 
-                    # Handle both dict and object access
-                    monto_provision = getattr(proyecto, 'monto_provision_presupuestado', None) or proyecto.get('monto_provision_presupuestado', None) if hasattr(proyecto, 'get') else getattr(proyecto, 'monto_provision_presupuestado', None)
-                    monto_instalacion = getattr(proyecto, 'monto_instalacion_presupuestado', None) or proyecto.get('monto_instalacion_presupuestado', None) if hasattr(proyecto, 'get') else getattr(proyecto, 'monto_instalacion_presupuestado', None)
+                    if proyecto.monto_provision_presupuestado:
+                        valor_provision_mes = proyecto.monto_provision_presupuestado / meses_duracion
 
-                    if monto_provision:
-                        valor_provision_mes = monto_provision / meses_duracion
-
-                    if monto_instalacion:
-                        valor_instalacion_mes = monto_instalacion / meses_duracion
+                    if proyecto.monto_instalacion_presupuestado:
+                        valor_instalacion_mes = proyecto.monto_instalacion_presupuestado / meses_duracion
 
                     proyecto_mes = {
                         'proyecto': proyecto,
