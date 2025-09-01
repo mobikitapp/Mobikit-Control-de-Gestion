@@ -320,11 +320,11 @@ class ContratosService:
     def delete_contrato(self, contrato_id: int) -> bool:
         """Delete a contrato"""
         try:
-            contrato = self.contratos_repo.get_by_id(contrato_id)
+            contrato = self.repo.get_by_id(contrato_id)
             if not contrato:
                 return False
 
-            self.contratos_repo.delete(contrato)
+            self.repo.delete(contrato)
             db.session.commit()
             return True
 
@@ -336,7 +336,7 @@ class ContratosService:
     def get_contratos_by_proyecto(self, proyecto_id: int):
         """Get all contratos for a specific proyecto"""
         try:
-            return self.contratos_repo.get_by_proyecto(proyecto_id)
+            return self.repo.get_by_proyecto(proyecto_id)
         except Exception as e:
             logger.error(f"Error getting contratos for proyecto {proyecto_id}: {str(e)}")
             raise

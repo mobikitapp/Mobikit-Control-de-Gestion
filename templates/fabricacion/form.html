@@ -276,8 +276,7 @@ async function updateContratos() {
     const proyectoId = proyectoSelect.value;
 
     // Clear current options (except selected one)
-    const selectedContrato = contratoSelect.value;
-    contratoSelect.innerHTML = '<option value="">Sin contrato/OC asociado</option>';
+    const selectedContrato = contratoSelect.value;contratoSelect.innerHTML = '<option value="">Sin contrato/OC asociado</option>';
 
     if (proyectoId) {
         try {
@@ -319,6 +318,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Validate required fields
         const requiredFields = ['proyecto_id'];
+        requiredFields.forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            }
+        });
+
+        if (!isValid) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        form.classList.add('was-validated');
+    });
+
+    // Initialize proyectos and contratos if cliente is pre-selected
+    if (clienteSelect.value) {
+        updateProyectos().then(() => {
+            const proyectoSelect = document.getElementById('proyecto_id');
+            if (proyectoSelect.value) {
+                updateContratos();
+            }
+        });
+    }
+
+    // Add event listeners for cascade selects
+    document.getElementById('proyecto_id').addEventListener('change', updateContratos);
+});iredFields = ['proyecto_id'];
         requiredFields.forEach(fieldName => {
             const field = document.getElementById(fieldName);
             if (!field.value.trim()) {
