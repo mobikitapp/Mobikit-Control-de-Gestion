@@ -56,6 +56,11 @@ class ContratosService:
             # Commit transaction
             db.session.commit()
 
+            # Auto-change proyecto estado to EN_DESARROLLO
+            from services.proyectos_service import ProyectosService
+            proyectos_service = ProyectosService()
+            proyectos_service.cambiar_estado_por_contrato_creado(contrato.proyecto_id)
+
             # Log audit
             AuditService.log_action(
                 'contratos', 

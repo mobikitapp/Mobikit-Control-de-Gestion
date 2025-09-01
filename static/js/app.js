@@ -191,53 +191,188 @@ const ManufacturingApp = {
 
     // Setup dynamic item management (for OF items, etc.)
     setupDynamicItems() {
-        // Add event listeners for dynamic item addition/removal
+        // Handle dynamic item addition/removal
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('add-item-btn')) {
-                this.addDynamicItem(e.target);
-            } else if (e.target.classList.contains('remove-item-btn') || 
-                      e.target.closest('.remove-item-btn')) {
-                this.removeDynamicItem(e.target);
+            try {
+                if (!e.target) return;
+                
+                if (e.target.classList && e.target.classList.contains('add-item-btn')) {
+                    this.addDynamicItem(e.target);
+                } else if (e.target.classList && e.target.classList.contains('remove-item-btn')) {
+                    this.removeDynamicItem(e.target);
+                } else if (e.target.closest) {
+                    const removeBtn = e.target.closest('.remove-item-btn');
+                    if (removeBtn) {
+                        this.removeDynamicItem(removeBtn);
+                    }
+                    
+                    // Handle estado change buttons
+                    const estadoBtn = e.target.closest('.change-estado-btn');
+                    if (estadoBtn) {
+                        this.handleEstadoChange(estadoBtn);
+                    }
+                }
+            } catch (error) {
+                console.error('Error handling dynamic item click:', error);
             }
         });
     },
 
+    // Handle estado change from project list
+    handleEstadoChange(button) {
+        if (!button || !button.dataset) return;
+        
+        const proyectoId = button.dataset.proyectoId;
+        const estadoActual = button.dataset.estadoActual;
+        
+        if (!proyectoId) return;
+        
+        this.showEstadoChangeModal(proyectoId, estadoActual);
+    },
+
+    // Show modal to change project estado
+    showEstadoChangeModal(proyectoId, estadoActual) {
+        const modalHtml = `
+            <div class="modal fade" id="cambiarEstadoModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Cambiar Estado del Proyecto</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="cambiarEstadoForm">
+                                <input type="hidden" id="proyectoId" value="${proyectoId}">
+                                <div class="mb-3">
+                                    <label for="nuevoEstado" class="form-label">Nuevo Estado</label>
+                                    <select class="form-select" id="nuevoEstado" required>
+                                        <option value="">Seleccione estado...</option>
+                                        <option value="PENDIENTE_PRESUPUESTO" ${estadoActual === 'PENDIENTE_PRESUPUESTO' ? 'selected' : ''}>Pendiente Presupuesto</option>
+                                        <option value="PRESUPUESTADO" ${estadoActual === 'PRESUPUESTADO' ? 'selected' : ''}>Presupuestado</option>
+                                        <option value="ADJUDICADO" ${estadoActual === 'ADJUDICADO' ? 'selected' : ''}>Adjudicado</option>
+                                        <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
+                                        <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
+                                        <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
+                                        <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="observacion" class="form-label">Observación (opcional)</label>
+                                    <textarea class="form-control" id="observacion" rows="3" placeholder="Motivo del cambio de estado..."></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" onclick="ManufacturingApp.confirmarCambioEstado()">Cambiar Estado</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        const existingModal = document.getElementById('cambiarEstadoModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('cambiarEstadoModal'));
+        modal.show();
+    },
+
+    // Confirm estado change
+    async confirmarCambioEstado() {
+        const proyectoId = document.getElementById('proyectoId').value;
+        const nuevoEstado = document.getElementById('nuevoEstado').value;
+        const observacion = document.getElementById('observacion').value;
+        
+        if (!nuevoEstado) {
+            this.showNotification('Debe seleccionar un estado', 'danger');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/proyectos/${proyectoId}/cambiar-estado`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    estado: nuevoEstado,
+                    observacion: observacion
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Estado actualizado correctamente', 'success');
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('cambiarEstadoModal')).hide();
+                // Reload page to show changes
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                this.showNotification(data.message || 'Error al cambiar estado', 'danger');
+            }
+        } catch (error) {
+            console.error('Error changing estado:', error);
+            this.showNotification('Error en la comunicación con el servidor', 'danger');
+        }
+    },
+
     // Add dynamic item (generic implementation)
     addDynamicItem(button) {
-        const container = button.closest('.dynamic-container');
-        if (!container) return;
+        try {
+            if (!button || typeof button.closest !== 'function') return;
+            
+            const container = button.closest('.dynamic-container');
+            if (!container) return;
 
-        const template = container.querySelector('.item-template');
-        if (!template) return;
+            const template = container.querySelector('.item-template');
+            if (!template) return;
 
-        const newItem = template.cloneNode(true);
-        newItem.classList.remove('item-template');
-        newItem.style.display = 'block';
+            const newItem = template.cloneNode(true);
+            newItem.classList.remove('item-template');
+            newItem.style.display = 'block';
 
-        // Update input names with new index
-        const items = container.querySelectorAll('.dynamic-item:not(.item-template)');
-        const newIndex = items.length;
+            // Update input names with new index
+            const items = container.querySelectorAll('.dynamic-item:not(.item-template)');
+            const newIndex = items.length;
 
-        newItem.querySelectorAll('input, select, textarea').forEach(input => {
-            const name = input.name;
-            if (name) {
-                input.name = name.replace(/\[\d+\]/, `[${newIndex}]`);
+            newItem.querySelectorAll('input, select, textarea').forEach(input => {
+                const name = input.name;
+                if (name) {
+                    input.name = name.replace(/\[\d+\]/, `[${newIndex}]`);
+                }
+            });
+
+            container.appendChild(newItem);
+
+            // Re-initialize Feather icons
+            if (typeof feather !== 'undefined') {
+                feather.replace();
             }
-        });
-
-        container.appendChild(newItem);
-
-        // Re-initialize Feather icons
-        if (typeof feather !== 'undefined') {
-            feather.replace();
+        } catch (error) {
+            console.error('Error adding dynamic item:', error);
         }
     },
 
     // Remove dynamic item
     removeDynamicItem(button) {
-        const item = button.closest('.dynamic-item');
-        if (item && confirm('¿Estás seguro de que deseas eliminar este elemento?')) {
-            item.remove();
+        try {
+            if (!button || typeof button.closest !== 'function') return;
+            
+            const item = button.closest('.dynamic-item');
+            if (item && confirm('¿Estás seguro de que deseas eliminar este elemento?')) {
+                item.remove();
+            }
+        } catch (error) {
+            console.error('Error removing dynamic item:', error);
         }
     },
 

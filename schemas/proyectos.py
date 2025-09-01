@@ -24,10 +24,10 @@ class ProyectoBase(BaseModel):
     
     # Campos comerciales
     vendedor_id: Optional[str] = Field(None, description="ID del vendedor")
-    monto_provision_presupuestado: Optional[Decimal] = Field(None, description="Monto de provisión presupuestado")
-    margen_venta_provision: Optional[Decimal] = Field(None, description="Margen de venta provisión (%)")
-    monto_instalacion_presupuestado: Optional[Decimal] = Field(None, description="Monto de instalación presupuestado")
-    margen_venta_instalacion: Optional[Decimal] = Field(None, description="Margen de venta instalación (%)")
+    monto_provision_presupuestado: Optional[Decimal] = Field(None, description="Monto neto de venta por provisión (precio al cliente)")
+    margen_venta_provision: Optional[Decimal] = Field(None, description="Margen de ganancia sobre provisión (%)")
+    monto_instalacion_presupuestado: Optional[Decimal] = Field(None, description="Monto neto de venta por instalación (precio al cliente)")
+    margen_venta_instalacion: Optional[Decimal] = Field(None, description="Margen de ganancia sobre instalación (%)")
     fecha_presupuesto: Optional[date] = Field(None, description="Fecha del presupuesto")
     fecha_adjudicacion: Optional[date] = Field(None, description="Fecha de adjudicación")
     notas_comerciales: Optional[str] = Field(None, description="Notas comerciales")

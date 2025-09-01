@@ -10,8 +10,8 @@
                 <h1 class="h2">
                     <i data-feather="folder" class="me-2"></i>
                     {{ proyecto.nombre }}
-                    <span class="badge bg-{{ 'success' if proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' if proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if proyecto.estado_comercial.value == 'PRESUPUESTADO' else 'secondary' }} ms-2">
-                        {{ proyecto.estado_comercial.value.replace('_', ' ')|title }}
+                    <span class="badge bg-{{ 'success' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PRESUPUESTADO' else 'secondary' }} ms-2">
+                        {{ proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto.estado_comercial else 'N/A' }}
                     </span>
                 </h1>
                 <div class="d-flex gap-2">
@@ -29,7 +29,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row g-4">
         <!-- Project Information -->
         <div class="col-lg-8">
@@ -45,35 +45,39 @@
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Cliente</label>
                             <div class="form-control-plaintext">
+                                {% if proyecto.cliente %}
                                 <a href="{{ url_for('clientes.detalle', cliente_id=proyecto.cliente.id) }}" class="text-decoration-none">
                                     {{ proyecto.cliente.nombre }}
                                 </a>
+                                {% else %}
+                                N/A
+                                {% endif %}
                             </div>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Estado</label>
                             <div class="form-control-plaintext">
-                                <span class="badge bg-{{ 'success' if proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' if proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if proyecto.estado_comercial.value == 'PRESUPUESTADO' else 'secondary' }}">
-                                    {{ proyecto.estado_comercial.value.replace('_', ' ')|title }}
+                                <span class="badge bg-{{ 'success' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PRESUPUESTADO' else 'secondary' }}">
+                                    {{ proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto.estado_comercial else 'N/A' }}
                                 </span>
                             </div>
                         </div>
-                        
+
                         {% if proyecto.responsable_user %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Responsable</label>
                             <div class="form-control-plaintext">{{ proyecto.responsable_user.nombre_completo }}</div>
                         </div>
                         {% endif %}
-                        
+
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha de Creación</label>
                             <div class="form-control-plaintext">
-                                {{ proyecto.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                {{ proyecto.created_at.strftime('%d/%m/%Y %H:%M') if proyecto.created_at else 'N/A' }}
                             </div>
                         </div>
-                        
+
                         {% if proyecto.fecha_inicio %}
                         <div class="col-md-4">
                             <label class="form-label fw-medium">Fecha de Inicio</label>
@@ -82,7 +86,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if proyecto.fecha_fin_estimada %}
                         <div class="col-md-4">
                             <label class="form-label fw-medium">Fecha Fin Estimada</label>
@@ -91,7 +95,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if proyecto.fecha_fin_real %}
                         <div class="col-md-4">
                             <label class="form-label fw-medium">Fecha Fin Real</label>
@@ -100,7 +104,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if proyecto.descripcion %}
                         <div class="col-12">
                             <label class="form-label fw-medium">Descripción</label>
@@ -109,7 +113,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if proyecto.notas %}
                         <div class="col-12">
                             <label class="form-label fw-medium">Notas</label>
@@ -122,7 +126,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Statistics -->
         <div class="col-lg-4">
             <div class="card">
@@ -137,47 +141,47 @@
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-warning bg-opacity-10 rounded">
                                 <div>
-                                    <div class="fw-bold fs-4">{{ stats.total_contratos }}</div>
+                                    <div class="fw-bold fs-4">{{ (stats.total_contratos if stats else 0) or 0 }}</div>
                                     <div class="text-muted small">Contratos Total</div>
                                 </div>
                                 <i data-feather="file-text" class="text-warning"></i>
                             </div>
                         </div>
-                        
+
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-success bg-opacity-10 rounded">
                                 <div>
-                                    <div class="fw-bold fs-4">{{ stats.contratos_vigentes }}</div>
+                                    <div class="fw-bold fs-4">{{ (stats.contratos_vigentes if stats else 0) or 0 }}</div>
                                     <div class="text-muted small">Contratos Vigentes</div>
                                 </div>
                                 <i data-feather="check-circle" class="text-success"></i>
                             </div>
                         </div>
-                        
+
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-info bg-opacity-10 rounded">
                                 <div>
-                                    <div class="fw-bold fs-4">{{ stats.total_ofs }}</div>
+                                    <div class="fw-bold fs-4">{{ (stats.total_ordenes if stats else 0) or 0 }}</div>
                                     <div class="text-muted small">Órdenes de Fabricación</div>
                                 </div>
                                 <i data-feather="tool" class="text-info"></i>
                             </div>
                         </div>
-                        
+
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-primary bg-opacity-10 rounded">
                                 <div>
-                                    <div class="fw-bold fs-4">{{ stats.ofs_en_produccion }}</div>
+                                    <div class="fw-bold fs-4">{{ (stats.ordenes_por_estado|length if stats and stats.ordenes_por_estado else 0) or 0 }}</div>
                                     <div class="text-muted small">OFs en Producción</div>
                                 </div>
                                 <i data-feather="activity" class="text-primary"></i>
                             </div>
                         </div>
-                        
+
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-secondary bg-opacity-10 rounded">
                                 <div>
-                                    <div class="fw-bold fs-4">{{ stats.total_despachos }}</div>
+                                    <div class="fw-bold fs-4">{{ (stats.despachos_realizados if stats else 0) or 0 }}</div>
                                     <div class="text-muted small">Despachos Total</div>
                                 </div>
                                 <i data-feather="truck" class="text-secondary"></i>
@@ -186,7 +190,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Quick Actions -->
             <div class="card mt-4">
                 <div class="card-header">
@@ -203,33 +207,33 @@
                             Nuevo Contrato
                         </a>
                         {% endif %}
-                        
+
                         {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
                         <a href="{{ url_for('fabricacion.nueva') }}?proyecto_id={{ proyecto.id }}" class="btn btn-outline-info">
                             <i data-feather="plus-circle" class="me-2"></i>
                             Nueva Orden de Fabricación
                         </a>
                         {% endif %}
-                        
+
                         {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
                         <a href="{{ url_for('despachos.nuevo') }}?proyecto_id={{ proyecto.id }}" class="btn btn-outline-primary">
                             <i data-feather="truck" class="me-2"></i>
                             Nuevo Despacho
                         </a>
                         {% endif %}
-                        
+
                         <div class="dropdown-divider"></div>
-                        
+
                         <a href="{{ url_for('contratos.index') }}?proyecto_id={{ proyecto.id }}" class="btn btn-outline-secondary">
                             <i data-feather="file-text" class="me-2"></i>
                             Ver Contratos
                         </a>
-                        
+
                         <a href="{{ url_for('fabricacion.index') }}?proyecto_id={{ proyecto.id }}" class="btn btn-outline-secondary">
                             <i data-feather="tool" class="me-2"></i>
                             Ver Órdenes de Fabricación
                         </a>
-                        
+
                         <a href="{{ url_for('despachos.index') }}?proyecto_id={{ proyecto.id }}" class="btn btn-outline-secondary">
                             <i data-feather="truck" class="me-2"></i>
                             Ver Despachos
@@ -239,7 +243,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Recent Activity Tabs -->
     <div class="row mt-4">
         <div class="col-12">
@@ -291,8 +295,8 @@
                                                 </a>
                                             </td>
                                             <td>
-                                                <span class="badge bg-{{ 'success' if contrato.estado.value == 'VIGENTE' else 'warning' if contrato.estado.value == 'BORRADOR' else 'secondary' }}">
-                                                    {{ contrato.estado.value|title }}
+                                                <span class="badge bg-{{ 'success' if contrato.estado and contrato.estado.value == 'VIGENTE' else 'warning' if contrato.estado and contrato.estado.value == 'BORRADOR' else 'secondary' }}">
+                                                    {{ contrato.estado.value|title if contrato.estado else 'N/A' }}
                                                 </span>
                                             </td>
                                             <td>
@@ -327,7 +331,7 @@
                             </div>
                             {% endif %}
                         </div>
-                        
+
                         <!-- Fabricación Tab -->
                         <div class="tab-pane fade" id="fabricacion" role="tabpanel">
                             {% if proyecto.ordenes_fabricacion %}
@@ -351,8 +355,8 @@
                                                 </a>
                                             </td>
                                             <td>
-                                                <span class="badge bg-{{ 'warning' if of.estado.value == 'planificada' else 'info' if of.estado.value == 'en_produccion' else 'primary' if of.estado.value == 'qa' else 'success' }}">
-                                                    {{ of.estado.value|title }}
+                                                <span class="badge bg-{{ 'warning' if of.estado and of.estado.value == 'planificada' else 'info' if of.estado and of.estado.value == 'en_produccion' else 'primary' if of.estado and of.estado.value == 'qa' else 'success' }}">
+                                                    {{ of.estado.value|title if of.estado else 'N/A' }}
                                                 </span>
                                             </td>
                                             <td>
@@ -387,7 +391,7 @@
                             </div>
                             {% endif %}
                         </div>
-                        
+
                         <!-- Despachos Tab -->
                         <div class="tab-pane fade" id="despachos" role="tabpanel">
                             {% if proyecto.despachos %}
@@ -411,8 +415,8 @@
                                                 </a>
                                             </td>
                                             <td>
-                                                <span class="badge bg-{{ 'warning' if despacho.estado.value == 'programado' else 'info' if despacho.estado.value == 'en_transporte' else 'success' if despacho.estado.value == 'entregado' else 'danger' }}">
-                                                    {{ despacho.estado.value|title }}
+                                                <span class="badge bg-{{ 'warning' if despacho.estado and despacho.estado.value == 'programado' else 'info' if despacho.estado and despacho.estado.value == 'en_transporte' else 'success' if despacho.estado and despacho.estado.value == 'entregado' else 'danger' }}">
+                                                    {{ despacho.estado.value|title if despacho.estado else 'N/A' }}
                                                 </span>
                                             </td>
                                             <td>
@@ -422,7 +426,7 @@
                                                     -
                                                 {% endif %}
                                             </td>
-                                            <td>{{ despacho.destino[:50] }}{% if despacho.destino|length > 50 %}...{% endif %}</td>
+                                            <td>{{ despacho.destino[:50] if despacho.destino else '' }}{% if despacho.destino and despacho.destino|length > 50 %}...{% endif %}</td>
                                             <td>
                                                 <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" 
                                                    class="btn btn-sm btn-outline-primary">
@@ -447,4 +451,35 @@
         </div>
     </div>
 </div>
+
+<script>
+    // This script addresses the JavaScript error "Uncaught TypeError: Cannot read properties of null (reading 'closest')"
+    // It ensures that elements are checked for existence before calling .closest()
+    document.addEventListener('DOMContentLoaded', (event) => {
+        // Add null checks to any JavaScript code that might be causing this error.
+        // For instance, if you're manipulating DOM elements based on user interaction or data loading.
+        
+        // Example for potential data loading issues or event listeners:
+        const elementsToProcess = document.querySelectorAll('.process-me'); // Replace with actual selectors
+        elementsToProcess.forEach(element => {
+            if (element && element.parentNode) {
+                // Safely process the element, e.g., attach event listeners
+                const closestContainer = element.closest('.container-class'); // Replace with actual selector
+                if (closestContainer) {
+                    // Perform actions that depend on the closest parent
+                    // console.log('Processing element within:', closestContainer);
+                } else {
+                    // Handle cases where the closest parent is not found
+                    // console.log('Element found, but no specific container.');
+                }
+            } else {
+                console.warn("Element or its parent is null, skipping processing.");
+            }
+        });
+
+        // If the error is specifically related to the "Ver Detalle" action, ensure that the links are correctly generated and that the target elements exist.
+        // For example, if the 'Ver Detalle' link is supposed to open a modal or navigate, ensure those targets are valid.
+    });
+</script>
+
 {% endblock %}

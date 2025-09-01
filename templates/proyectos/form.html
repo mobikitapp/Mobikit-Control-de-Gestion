@@ -179,7 +179,7 @@
 
                             <!-- Monto Provisión -->
                             <div class="col-md-6">
-                                <label for="monto_provision_presupuestado" class="form-label">Monto Provisión Presupuestado</label>
+                                <label for="monto_provision_presupuestado" class="form-label">Monto Neto Venta Provisión</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
                                     <input type="number" class="form-control" id="monto_provision_presupuestado" 
@@ -187,20 +187,22 @@
                                            value="{{ proyecto.monto_provision_presupuestado if proyecto else '' }}" 
                                            placeholder="0">
                                 </div>
+                                <small class="text-muted">Precio neto de venta al cliente por provisión de materiales</small>
                             </div>
 
                             <!-- Margen Provisión -->
                             <div class="col-md-6">
-                                <label for="margen_venta_provision" class="form-label">Margen Venta Provisión (%)</label>
+                                <label for="margen_venta_provision" class="form-label">Margen Ganancia Provisión (%)</label>
                                 <input type="number" class="form-control" id="margen_venta_provision" 
                                        name="margen_venta_provision" min="0" max="100" step="0.1"
                                        value="{{ proyecto.margen_venta_provision if proyecto else '' }}" 
                                        placeholder="25.0">
+                                <small class="text-muted">Porcentaje de ganancia sobre el monto neto</small>
                             </div>
 
                             <!-- Monto Instalación -->
                             <div class="col-md-6">
-                                <label for="monto_instalacion_presupuestado" class="form-label">Monto Instalación Presupuestado</label>
+                                <label for="monto_instalacion_presupuestado" class="form-label">Monto Neto Venta Instalación</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
                                     <input type="number" class="form-control" id="monto_instalacion_presupuestado" 
@@ -208,15 +210,17 @@
                                            value="{{ proyecto.monto_instalacion_presupuestado if proyecto else '' }}" 
                                            placeholder="0">
                                 </div>
+                                <small class="text-muted">Precio neto de venta al cliente por instalación</small>
                             </div>
 
                             <!-- Margen Instalación -->
                             <div class="col-md-6">
-                                <label for="margen_venta_instalacion" class="form-label">Margen Venta Instalación (%)</label>
+                                <label for="margen_venta_instalacion" class="form-label">Margen Ganancia Instalación (%)</label>
                                 <input type="number" class="form-control" id="margen_venta_instalacion" 
                                        name="margen_venta_instalacion" min="0" max="100" step="0.1"
                                        value="{{ proyecto.margen_venta_instalacion if proyecto else '' }}" 
-                                       placeholder="30.0">
+                                       placeholder="15.0">
+                                <small class="text-muted">Porcentaje de ganancia sobre el monto neto</small>
                             </div>
 
                             <!-- Notas Comerciales -->
@@ -454,38 +458,48 @@ document.addEventListener('DOMContentLoaded', function() {
         const instalacion = parseFloat(montoInstalacion.value) || 0;
         const margenInst = parseFloat(margenInstalacion.value) || 0;
 
-        const totalProvision = provision * (1 + margenProv / 100);
-        const totalInstalacion = instalacion * (1 + margenInst / 100);
-        const total = totalProvision + totalInstalacion;
+        // Los montos ingresados son montos netos de venta
+        const ventaProvision = provision;
+        const ventaInstalacion = instalacion;
+        const totalVenta = ventaProvision + ventaInstalacion;
+
+        // Calcular ganancias aplicando el margen sobre los montos de venta
+        const gananciaProvision = provision * (margenProv / 100);
+        const gananciaInstalacion = instalacion * (margenInst / 100);
+        const totalGanancia = gananciaProvision + gananciaInstalacion;
 
         // Mostrar totales si hay algún valor
         if (provision > 0 || instalacion > 0) {
             let infoHtml = '<div class="alert alert-info mt-2"><small>';
             if (provision > 0) {
-                infoHtml += `<div>Venta Provisión: $${totalProvision.toLocaleString('es-CL')}</div>`;
+                infoHtml += `<div>Venta Provisión: $${ventaProvision.toLocaleString('es-CL')}</div>`;
+                if (margenProv > 0) {
+                    infoHtml += `<div class="text-success">Ganancia Provisión (${margenProv}%): $${gananciaProvision.toLocaleString('es-CL')}</div>`;
+                }
             }
             if (instalacion > 0) {
-                infoHtml += `<div>Venta Instalación: $${totalInstalacion.toLocaleString('es-CL')}</div>`;
+                infoHtml += `<div>Venta Instalación: $${ventaInstalacion.toLocaleString('es-CL')}</div>`;
+                if (margenInst > 0) {
+                    infoHtml += `<div class="text-success">Ganancia Instalación (${margenInst}%): $${gananciaInstalacion.toLocaleString('es-CL')}</div>`;
+                }
             }
-            infoHtml += `<div class="fw-bold">Total Estimado: $${total.toLocaleString('es-CL')}</div>`;
+            infoHtml += `<div><strong>Total Venta: $${totalVenta.toLocaleString('es-CL')}</strong></div>`;
+            if (totalGanancia > 0) {
+                infoHtml += `<div class="text-success"><strong>Total Ganancia: $${totalGanancia.toLocaleString('es-CL')}</strong></div>`;
+            }
             infoHtml += '</small></div>';
 
-            // Remover alert anterior
-            const oldAlert = document.querySelector('.totales-alert');
-            if (oldAlert) oldAlert.remove();
-
-            // Añadir nuevo alert
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'totales-alert';
-            alertDiv.innerHTML = infoHtml;
-            const notasComerciales = document.querySelector('#notas_comerciales');
-            if (notasComerciales) {
-                notasComerciales.closest('.col-12').after(alertDiv);
+            if (!document.getElementById('totales-info')) {
+                const totalDiv = document.createElement('div');
+                totalDiv.id = 'totales-info';
+                totalDiv.innerHTML = infoHtml;
+                document.querySelector('.row:has(#monto_provision_presupuestado)').appendChild(totalDiv);
+            } else {
+                document.getElementById('totales-info').innerHTML = infoHtml;
             }
         } else {
-            // Remover alert si no hay valores
-            const oldAlert = document.querySelector('.totales-alert');
-            if (oldAlert) oldAlert.remove();
+            const totalDiv = document.getElementById('totales-info');
+            if (totalDiv) totalDiv.remove();
         }
     }
 

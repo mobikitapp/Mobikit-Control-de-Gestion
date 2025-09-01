@@ -229,10 +229,10 @@ class Proyecto(db.Model):
     # Campos comerciales
     vendedor_id = db.Column(db.String, db.ForeignKey('users.id'))
     estado_comercial = db.Column(db.Enum(EstadoComercial), default=EstadoComercial.PENDIENTE_PRESUPUESTO)
-    monto_provision_presupuestado = db.Column(db.Numeric(15, 2))
-    margen_venta_provision = db.Column(db.Numeric(5, 2))  # Porcentaje
-    monto_instalacion_presupuestado = db.Column(db.Numeric(15, 2))
-    margen_venta_instalacion = db.Column(db.Numeric(5, 2))  # Porcentaje
+    monto_provision_presupuestado = db.Column(db.Numeric(15, 2))  # Monto neto de venta por provisión
+    margen_venta_provision = db.Column(db.Numeric(5, 2))  # Porcentaje de ganancia sobre provisión
+    monto_instalacion_presupuestado = db.Column(db.Numeric(15, 2))  # Monto neto de venta por instalación
+    margen_venta_instalacion = db.Column(db.Numeric(5, 2))  # Porcentaje de ganancia sobre instalación
     fecha_presupuesto = db.Column(db.Date)
     fecha_adjudicacion = db.Column(db.Date)
     notas_comerciales = db.Column(db.Text)
@@ -484,26 +484,35 @@ class OrdenFabricacion(db.Model):
     @property
     def area_progreso_actual(self):
         """Obtiene el progreso actual de la orden en el sistema de áreas"""
-        from sqlalchemy.orm import joinedload
-        return (db.session.query(OrdenAreaProgreso)
-                .options(
-                    joinedload(OrdenAreaProgreso.area),
-                    joinedload(OrdenAreaProgreso.estado)
-                )
-                .filter_by(orden_fabricacion_id=self.id, es_actual=True)
-                .first())
+        try:
+            from sqlalchemy.orm import joinedload
+            return (db.session.query(OrdenAreaProgreso)
+                    .options(
+                        joinedload(OrdenAreaProgreso.area),
+                        joinedload(OrdenAreaProgreso.estado)
+                    )
+                    .filter_by(orden_fabricacion_id=self.id, es_actual=True)
+                    .first())
+        except Exception:
+            return None
     
     @property
     def area_actual(self):
         """Obtiene el área actual de la orden"""
-        progreso = self.area_progreso_actual
-        return progreso.area if progreso else None
+        try:
+            progreso = self.area_progreso_actual
+            return progreso.area if progreso else None
+        except Exception:
+            return None
     
     @property
     def estado_actual(self):
         """Obtiene el estado actual de la orden"""
-        progreso = self.area_progreso_actual
-        return progreso.estado if progreso else None
+        try:
+            progreso = self.area_progreso_actual
+            return progreso.estado if progreso else None
+        except Exception:
+            return None
 
     def __repr__(self):
         return f'<OrdenFabricacion {self.codigo}>'
