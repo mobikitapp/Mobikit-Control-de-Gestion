@@ -254,8 +254,10 @@ class ComercialService:
     def get_planificacion_comercial(self, año, cliente_id=None, estado_filter='todos'):
         """Get commercial planning matrix by year"""
 
-        # Build query for projects
-        query = db.session.query(Proyecto).join(Cliente)
+        # Build query for projects with proper joins
+        query = (db.session.query(Proyecto)
+                .join(Cliente)
+                .filter(Proyecto.activo == True))
 
         # Filter by year (projects with dates in the year)
         fecha_inicio = date(año, 1, 1)
@@ -269,7 +271,12 @@ class ComercialService:
                          Proyecto.fecha_fin_estimada >= fecha_inicio)),
                 and_(Proyecto.fecha_fin_estimada.isnot(None), 
                      Proyecto.fecha_fin_estimada >= fecha_inicio,
-                     Proyecto.fecha_fin_estimada <= fecha_fin)
+                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                # Include projects with commercial info but no dates
+                and_(Proyecto.fecha_inicio.is_(None),
+                     Proyecto.fecha_fin_estimada.is_(None),
+                     or_(Proyecto.monto_provision_presupuestado.isnot(None),
+                         Proyecto.monto_instalacion_presupuestado.isnot(None)))
             )
         )
 
@@ -287,6 +294,7 @@ class ComercialService:
                 EstadoComercial.ADJUDICADO
             ]))
 
+        # Get projects as model objects
         proyectos = query.all()
 
         # Build monthly matrix
@@ -541,26 +549,43 @@ class ComercialService:
 
     def _obtener_meses_proyecto(self, proyecto, año):
         """Get months affected by a project in the given year"""
-        if not proyecto.fecha_inicio or not proyecto.fecha_fin_estimada:
-            # If no dates, assume current month
+        
+        # If project has both start and end dates, use them
+        if proyecto.fecha_inicio and proyecto.fecha_fin_estimada:
+            inicio = max(proyecto.fecha_inicio, date(año, 1, 1))
+            fin = min(proyecto.fecha_fin_estimada, date(año, 12, 31))
+
+            if inicio > date(año, 12, 31) or fin < date(año, 1, 1):
+                return []
+
+            meses = []
+            fecha_actual = date(inicio.year, inicio.month, 1)
+            fecha_limite = date(fin.year, fin.month, 1)
+
+            while fecha_actual <= fecha_limite:
+                if fecha_actual.year == año:
+                    meses.append(fecha_actual.month)
+                fecha_actual += relativedelta(months=1)
+
+            return meses
+        
+        # If project has only start date, include it if in the year
+        elif proyecto.fecha_inicio:
+            if proyecto.fecha_inicio.year == año:
+                return [proyecto.fecha_inicio.month]
+            else:
+                return []
+        
+        # If project has commercial data but no dates, spread across year
+        elif (proyecto.monto_provision_presupuestado or 
+              proyecto.monto_instalacion_presupuestado):
+            # For projects without dates but with commercial data, 
+            # distribute across the entire year
+            return list(range(1, 13))
+        
+        # If no dates and no commercial data, use current month if in year
+        else:
             return [datetime.now().month] if datetime.now().year == año else []
-
-        inicio = max(proyecto.fecha_inicio, date(año, 1, 1))
-        fin = min(proyecto.fecha_fin_estimada, date(año, 12, 31))
-
-        if inicio > date(año, 12, 31) or fin < date(año, 1, 1):
-            return []
-
-        meses = []
-        fecha_actual = date(inicio.year, inicio.month, 1)
-        fecha_limite = date(fin.year, fin.month, 1)
-
-        while fecha_actual <= fecha_limite:
-            if fecha_actual.year == año:
-                meses.append(fecha_actual.month)
-            fecha_actual += relativedelta(months=1)
-
-        return meses
 
     def _calcular_totales_mensuales(self, matriz):
         """Calculate monthly totals from matrix"""
