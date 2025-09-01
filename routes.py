@@ -81,14 +81,15 @@ def index():
             'proyectos_activos': ProyectosRepository.count_by_status(['PENDIENTE_PRESUPUESTO', 'PRESUPUESTADO', 'ADJUDICADO', 'EN_DESARROLLO']),
             'contratos_vigentes': ContratosRepository.count_by_status('VIGENTE'),
             'of_en_produccion': FabricacionRepository.count_by_status([
-                EstadoOF.ENVIADO_A_FABRICACION.value,
-                EstadoOF.SECCIONANDO.value,
-                EstadoOF.ENCHAPANDO.value,
-                EstadoOF.MECANIZANDO.value
+                'enviado_a_fabricacion',
+                'seccionando',
+                'enchapando',
+                'mecanizando'
             ]),
             'despachos_pendientes': DespachosRepository.count_by_status(['PROGRAMADO', 'EN_TRANSPORTE'])
         }
     except Exception as e:
+        print(f"Dashboard stats error: {str(e)}")  # Debug logging
         # Fallback stats if there's an error
         stats = {
             'total_clientes': 0,
@@ -99,8 +100,13 @@ def index():
         }
     
     # Get recent activity
-    recent_projects = ProyectosRepository.get_recent(limit=5)
-    pending_ofs = FabricacionRepository.get_pending_by_user(current_user.id, limit=5)
+    try:
+        recent_projects = ProyectosRepository.get_recent(limit=5)
+        pending_ofs = FabricacionRepository.get_pending_by_user(current_user.id, limit=5)
+    except Exception as e:
+        print(f"Dashboard activity error: {str(e)}")  # Debug logging
+        recent_projects = []
+        pending_ofs = []
     
     return render_template('index.html', 
                          stats=stats, 
