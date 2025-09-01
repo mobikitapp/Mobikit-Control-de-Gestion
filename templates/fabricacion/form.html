@@ -22,7 +22,7 @@
     <form method="POST" action="{{ url_for('fabricacion.crear') if not of else url_for('fabricacion.actualizar', of_id=of.id) }}" novalidate>
         <div class="row g-4">
             <!-- Main Information -->
-            <div class="col-lg-8">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
@@ -97,24 +97,30 @@
                             <div class="col-md-6">
                                 <label for="estado" class="form-label">Estado</label>
                                 <select class="form-select" id="estado" name="estado">
-                                    <option value="planificada" {% if not of or of.estado.value == 'planificada' %}selected{% endif %}>Planificada</option>
-                                    <option value="enviado_produccion" {% if of and of.estado.value == 'enviado_produccion' %}selected{% endif %}>Enviado a Producción</option>
-                                    <option value="seccionando" {% if of and of.estado.value == 'seccionando' %}selected{% endif %}>Seccionando</option>
-                                    <option value="en_produccion" {% if of and of.estado.value == 'en_produccion' %}selected{% endif %}>En Producción</option>
-                                    <option value="qa" {% if of and of.estado.value == 'qa' %}selected{% endif %}>QA</option>
-                                    <option value="terminada" {% if of and of.estado.value == 'terminada' %}selected{% endif %}>Terminada</option>
-                                    <option value="entregada" {% if of and of.estado.value == 'entregada' %}selected{% endif %}>Entregada</option>
+                                    <option value="PLANIFICADA" {% if not of or of.estado.value == 'PLANIFICADA' %}selected{% endif %}>Planificada</option>
+                                    <option value="ENVIADO_PRODUCCION" {% if of and of.estado.value == 'ENVIADO_PRODUCCION' %}selected{% endif %}>Enviado a Producción</option>
+                                    <option value="SECCIONANDO" {% if of and of.estado.value == 'SECCIONANDO' %}selected{% endif %}>Seccionando</option>
+                                    <option value="EN_PRODUCCION" {% if of and of.estado.value == 'EN_PRODUCCION' %}selected{% endif %}>En Producción</option>
+                                    <option value="QA" {% if of and of.estado.value == 'QA' %}selected{% endif %}>QA</option>
+                                    <option value="TERMINADA" {% if of and of.estado.value == 'TERMINADA' %}selected{% endif %}>Terminada</option>
+                                    <option value="ENTREGADA" {% if of and of.estado.value == 'ENTREGADA' %}selected{% endif %}>Entregada</option>
                                 </select>
                             </div>
                             
                             <!-- Responsable -->
                             <div class="col-md-6">
                                 <label for="responsable" class="form-label">Responsable</label>
-                                <input type="text" class="form-control" id="responsable" name="responsable" 
-                                       value="{{ of.responsable if of else current_user.id }}" 
-                                       placeholder="ID del usuario responsable">
+                                <select class="form-select" id="responsable" name="responsable">
+                                    <option value="">Seleccionar responsable</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" 
+                                            {% if (of and of.responsable == user.id) or (not of and current_user.id == user.id) %}selected{% endif %}>
+                                        {{ user.first_name }} {{ user.last_name }} ({{ user.email }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
                                 <div class="form-text">
-                                    Actualmente: {{ current_user.nombre_completo }}
+                                    Persona responsable de la orden de fabricación.
                                 </div>
                             </div>
                             
@@ -157,74 +163,6 @@
                 </div>
             </div>
             
-            <!-- Items Section -->
-            <div class="col-lg-4">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Items de la Orden</h5>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="addItem()">
-                            <i data-feather="plus" class="me-1"></i>
-                            Agregar Item
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        <div id="items-container">
-                            {% if of and of.items %}
-                                {% for item in of.items %}
-                                <div class="item-row mb-3 border rounded p-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <small class="fw-medium">Item {{ loop.index }}</small>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)">
-                                            <i data-feather="trash-2"></i>
-                                        </button>
-                                    </div>
-                                    <div class="row g-2">
-                                        <div class="col-12">
-                                            <input type="text" class="form-control form-control-sm" 
-                                                   name="items[{{ loop.index0 }}][sku_codigo]" 
-                                                   value="{{ item.sku_codigo }}"
-                                                   placeholder="SKU/Código" required>
-                                        </div>
-                                        <div class="col-12">
-                                            <input type="text" class="form-control form-control-sm" 
-                                                   name="items[{{ loop.index0 }}][descripcion]" 
-                                                   value="{{ item.descripcion }}"
-                                                   placeholder="Descripción" required>
-                                        </div>
-                                        <div class="col-8">
-                                            <input type="number" class="form-control form-control-sm" 
-                                                   name="items[{{ loop.index0 }}][cantidad]" 
-                                                   value="{{ item.cantidad }}"
-                                                   placeholder="Cantidad" min="0" step="0.001" required>
-                                        </div>
-                                        <div class="col-4">
-                                            <input type="text" class="form-control form-control-sm" 
-                                                   name="items[{{ loop.index0 }}][unidad]" 
-                                                   value="{{ item.unidad }}"
-                                                   placeholder="UN">
-                                        </div>
-                                        <div class="col-12">
-                                            <textarea class="form-control form-control-sm" 
-                                                      name="items[{{ loop.index0 }}][notas]" 
-                                                      rows="2" placeholder="Notas del item">{{ item.notas or '' }}</textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-                        
-                        <div class="text-center" id="no-items" {% if of and of.items %}style="display: none;"{% endif %}>
-                            <i data-feather="package" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
-                            <p class="text-muted">No hay items agregados</p>
-                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addItem()">
-                                <i data-feather="plus" class="me-1"></i>
-                                Agregar Primer Item
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
         
         <!-- Action Buttons -->
@@ -254,8 +192,6 @@
             </div>
         </div>
         
-        <!-- Hidden input for item count -->
-        <input type="hidden" id="item_count" name="item_count" value="{{ of.items|length if of and of.items else 0 }}">
     </form>
 </div>
 
@@ -292,8 +228,6 @@
 
 {% block scripts %}
 <script>
-let itemCount = {{ of.items|length if of and of.items else 0 }};
-
 async function updateProyectos() {
     const clienteSelect = document.getElementById('cliente_id');
     const proyectoSelect = document.getElementById('proyecto_id');
@@ -340,81 +274,6 @@ async function updateContratos() {
     }
 }
 
-function addItem() {
-    const container = document.getElementById('items-container');
-    const noItemsDiv = document.getElementById('no-items');
-    
-    const itemHtml = `
-        <div class="item-row mb-3 border rounded p-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <small class="fw-medium">Item ${itemCount + 1}</small>
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)">
-                    <i data-feather="trash-2"></i>
-                </button>
-            </div>
-            <div class="row g-2">
-                <div class="col-12">
-                    <input type="text" class="form-control form-control-sm" 
-                           name="items[${itemCount}][sku_codigo]" 
-                           placeholder="SKU/Código" required>
-                </div>
-                <div class="col-12">
-                    <input type="text" class="form-control form-control-sm" 
-                           name="items[${itemCount}][descripcion]" 
-                           placeholder="Descripción" required>
-                </div>
-                <div class="col-8">
-                    <input type="number" class="form-control form-control-sm" 
-                           name="items[${itemCount}][cantidad]" 
-                           placeholder="Cantidad" min="0" step="0.001" required>
-                </div>
-                <div class="col-4">
-                    <input type="text" class="form-control form-control-sm" 
-                           name="items[${itemCount}][unidad]" 
-                           placeholder="UN" value="UN">
-                </div>
-                <div class="col-12">
-                    <textarea class="form-control form-control-sm" 
-                              name="items[${itemCount}][notas]" 
-                              rows="2" placeholder="Notas del item"></textarea>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    container.insertAdjacentHTML('beforeend', itemHtml);
-    itemCount++;
-    document.getElementById('item_count').value = itemCount;
-    
-    // Hide no-items message
-    noItemsDiv.style.display = 'none';
-    
-    // Re-initialize feather icons
-    feather.replace();
-}
-
-function removeItem(button) {
-    const itemRow = button.closest('.item-row');
-    itemRow.remove();
-    
-    // Update item count
-    itemCount--;
-    document.getElementById('item_count').value = itemCount;
-    
-    // Show no-items message if no items left
-    const container = document.getElementById('items-container');
-    if (container.children.length === 0) {
-        document.getElementById('no-items').style.display = 'block';
-    }
-    
-    // Re-number items
-    const items = container.querySelectorAll('.item-row');
-    items.forEach((item, index) => {
-        const itemNumber = item.querySelector('small');
-        itemNumber.textContent = `Item ${index + 1}`;
-    });
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     // Form validation
     const form = document.querySelector('form');
@@ -433,40 +292,11 @@ document.addEventListener('DOMContentLoaded', function() {
         form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
         
         // Validate required fields
-        const requiredFields = ['proyecto_id', 'codigo'];
+        const requiredFields = ['proyecto_id'];
         requiredFields.forEach(fieldName => {
             const field = document.getElementById(fieldName);
             if (!field.value.trim()) {
                 field.classList.add('is-invalid');
-                isValid = false;
-            }
-        });
-        
-        // Validate at least one item
-        const itemRows = document.querySelectorAll('.item-row');
-        if (itemRows.length === 0) {
-            alert('Debe agregar al menos un item a la orden de fabricación.');
-            isValid = false;
-        }
-        
-        // Validate each item
-        itemRows.forEach(row => {
-            const skuInput = row.querySelector('input[name*="sku_codigo"]');
-            const descripcionInput = row.querySelector('input[name*="descripcion"]');
-            const cantidadInput = row.querySelector('input[name*="cantidad"]');
-            
-            if (!skuInput.value.trim()) {
-                skuInput.classList.add('is-invalid');
-                isValid = false;
-            }
-            
-            if (!descripcionInput.value.trim()) {
-                descripcionInput.classList.add('is-invalid');
-                isValid = false;
-            }
-            
-            if (!cantidadInput.value || parseFloat(cantidadInput.value) <= 0) {
-                cantidadInput.classList.add('is-invalid');
                 isValid = false;
             }
         });

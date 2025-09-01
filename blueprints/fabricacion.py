@@ -8,6 +8,7 @@ from services.fabricacion_service import FabricacionService
 from services.proyectos_service import ProyectosService
 from services.contratos_service import ContratosService
 from services.clientes_service import ClientesService
+from services.user_service import UserService
 from schemas.fabricacion import (OrdenFabricacionCreate, OrdenFabricacionUpdate, 
                                 OrdenFabricacionSearchFilters, CambioEstadoOF)
 import logging
@@ -19,6 +20,7 @@ fabricacion_service = FabricacionService()
 proyectos_service = ProyectosService()
 contratos_service = ContratosService()
 clientes_service = ClientesService()
+user_service = UserService()
 
 @fabricacion_bp.route('/')
 @require_login
@@ -78,9 +80,11 @@ def nueva():
     """Formulario para nueva orden de fabricación"""
     try:
         clientes = clientes_service.get_active_clientes()
+        users = user_service.get_active_users()
         return render_template('fabricacion/form.html', 
                              of=None, 
                              clientes=clientes,
+                             users=users,
                              title="Nueva Orden de Fabricación")
     except Exception as e:
         logger.error(f"Error cargando formulario nueva OF: {str(e)}")
@@ -95,21 +99,8 @@ def crear():
         # Get form data
         form_data = request.form.to_dict()
         
-        # Process items
-        items_data = []
-        item_count = int(request.form.get('item_count', 0))
-        for i in range(item_count):
-            item_data = {
-                'sku_codigo': request.form.get(f'items[{i}][sku_codigo]', ''),
-                'descripcion': request.form.get(f'items[{i}][descripcion]', ''),
-                'cantidad': request.form.get(f'items[{i}][cantidad]', '0'),
-                'unidad': request.form.get(f'items[{i}][unidad]', 'UN'),
-                'notas': request.form.get(f'items[{i}][notas]', '')
-            }
-            if item_data['sku_codigo'] and item_data['descripcion']:
-                items_data.append(item_data)
-        
-        form_data['items'] = items_data
+        # Generic orders don't have items
+        form_data['items'] = []
         
         # Validate form data
         of_data = OrdenFabricacionCreate(**form_data)
@@ -165,9 +156,11 @@ def editar(of_id):
             return redirect(url_for('fabricacion.index'))
         
         clientes = clientes_service.get_active_clientes()
+        users = user_service.get_active_users()
         return render_template('fabricacion/form.html', 
                              of=of,
                              clientes=clientes,
+                             users=users,
                              title=f"Editar OF - {of.codigo}")
                              
     except Exception as e:
@@ -198,9 +191,11 @@ def actualizar(of_id):
         for error in e.errors():
             flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
         clientes = clientes_service.get_active_clientes()
+        users = user_service.get_active_users()
         return render_template('fabricacion/form.html', 
                              of=of,
                              clientes=clientes,
+                             users=users,
                              title=f"Editar OF - {of.codigo}")
     except Exception as e:
         logger.error(f"Error actualizando OF {of_id}: {str(e)}")
