@@ -139,7 +139,14 @@ def detalle(of_id):
             flash('Orden de Fabricación no encontrada', 'error')
             return redirect(url_for('fabricacion.index'))
 
-        return render_template('fabricacion/detalle.html', of=of)
+        # Get complete progress history for timeline
+        from repositories.areas_repository import OrdenAreaProgresoRepository
+        progreso_repo = OrdenAreaProgresoRepository()
+        historial_progreso = progreso_repo.get_progress_history(of_id)
+
+        return render_template('fabricacion/detalle.html', 
+                             of=of, 
+                             historial_progreso=historial_progreso)
 
     except Exception as e:
         logger.error(f"Error obteniendo OF {of_id}: {str(e)}")
