@@ -350,9 +350,9 @@ class FabricacionService:
                 estados_area = areas_repo.get_estados_by_area(current_progress.area_id)
                 
                 # Find next state in sequence
-                current_orden = current_progress.estado.orden_secuencia
+                current_orden = current_progress.estado.orden_en_area
                 next_estado = next(
-                    (e for e in estados_area if e.orden_secuencia == current_orden + 1),
+                    (e for e in estados_area if e.orden_en_area == current_orden + 1),
                     None
                 )
                 
