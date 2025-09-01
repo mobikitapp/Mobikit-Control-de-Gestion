@@ -41,8 +41,17 @@ class ContratosService:
             if self.repo.exists_numero_oc(contrato_data['numero_oc']):
                 raise ValueError(f"Ya existe un contrato con número OC {contrato_data['numero_oc']}")
             
+            # Extract categoria_ids before creating contrato
+            categoria_ids = contrato_data.pop('categoria_ids', [])
+            
             # Create contrato
             contrato = self.repo.create(contrato_data, created_by)
+            
+            # Handle categorías if provided
+            if categoria_ids:
+                from models import CategoriaMuebleModel
+                categorias = CategoriaMuebleModel.query.filter(CategoriaMuebleModel.id.in_(categoria_ids)).all()
+                contrato.categorias_mueble = categorias
             
             # Commit transaction
             db.session.commit()
@@ -127,8 +136,20 @@ class ContratosService:
                 if self.repo.exists_numero_oc(update_data['numero_oc'], exclude_id=contrato_id):
                     raise ValueError(f"Ya existe un contrato con número OC {update_data['numero_oc']}")
             
+            # Extract categoria_ids before updating contrato
+            categoria_ids = update_data.pop('categoria_ids', None)
+            
             # Update contrato
             contrato_actualizado = self.repo.update(contrato, update_data)
+            
+            # Handle categorías if provided
+            if categoria_ids is not None:
+                from models import CategoriaMuebleModel
+                if categoria_ids:
+                    categorias = CategoriaMuebleModel.query.filter(CategoriaMuebleModel.id.in_(categoria_ids)).all()
+                    contrato_actualizado.categorias_mueble = categorias
+                else:
+                    contrato_actualizado.categorias_mueble = []
             
             # Commit transaction
             db.session.commit()
