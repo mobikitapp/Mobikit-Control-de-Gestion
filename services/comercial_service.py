@@ -161,8 +161,7 @@ class ComercialService:
             if data.get('margen_venta_provision'):
                 proyecto.margen_venta_provision = Decimal(data['margen_venta_provision'])
             
-            if data.get('valor_instalacion'):
-                # Handle both possible field names for backward compatibility
+            # Handle both possible field names for backward compatibility
             instalacion_value = data.get('monto_instalacion_presupuestado') or data.get('valor_instalacion')
             if instalacion_value:
                 proyecto.monto_instalacion_presupuestado = Decimal(instalacion_value)
