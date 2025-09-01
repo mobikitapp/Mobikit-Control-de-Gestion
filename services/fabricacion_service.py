@@ -182,11 +182,11 @@ class FabricacionService:
             
             # Set appropriate timestamp based on new status
             now = datetime.now()
-            if new_status == EstadoOF.EN_PRODUCCION and not of.fecha_inicio:
+            if new_status == EstadoOF.ENVIADO_A_FABRICACION and not of.fecha_inicio:
                 update_data['fecha_inicio'] = now
-            elif new_status == EstadoOF.QA and not of.fecha_qc:
+            elif new_status == EstadoOF.FABRICACION_COMPLETA and not of.fecha_qc:
                 update_data['fecha_qc'] = now
-            elif new_status == EstadoOF.TERMINADA and not of.fecha_fin:
+            elif new_status == EstadoOF.LISTO_PARA_DESPACHO and not of.fecha_fin:
                 update_data['fecha_fin'] = now
             
             # Add notes if provided
@@ -233,7 +233,7 @@ class FabricacionService:
                 raise ValueError(f"OF {of_id} no encontrada")
             
             # Check if OF can be deleted (business rules)
-            if of.estado in [EstadoOF.EN_PRODUCCION, EstadoOF.QA, EstadoOF.TERMINADA]:
+            if of.estado in [EstadoOF.ENVIADO_A_FABRICACION, EstadoOF.SECCIONANDO, EstadoOF.ENCHAPANDO, EstadoOF.MECANIZANDO, EstadoOF.FABRICACION_COMPLETA, EstadoOF.LISTO_PARA_DESPACHO, EstadoOF.DESPACHADO]:
                 raise ValueError("No se puede eliminar una OF que está en producción o terminada")
             
             # Check if OF has related despachos
