@@ -530,16 +530,11 @@ class ComercialService:
             }
 
         for proyecto in proyectos:
-            # Debug: Log project type
-            print(f"DEBUG: Proyecto type: {type(proyecto)}, ID: {getattr(proyecto, 'id', 'Unknown')}")
-            
             # Ensure we have a proper Proyecto object
             if not isinstance(proyecto, Proyecto):
-                print(f"DEBUG: Skipping non-Proyecto object: {type(proyecto)}")
                 continue
                 
             if not hasattr(proyecto, 'monto_provision_presupuestado'):
-                print(f"DEBUG: Proyecto {proyecto.id} missing monto_provision_presupuestado attribute")
                 continue
                 
             # Determine which months this project affects
