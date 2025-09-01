@@ -83,9 +83,8 @@ class FabricacionRepository:
             conditions.append(OrdenFabricacion.codigo.ilike(f"%{filters.codigo}%"))
         
         if filters.estado:
-            # Use centralized enum normalizer
-            conditions.append(EnumNormalizer.create_case_insensitive_filter(
-                OrdenFabricacion.estado, filters.estado))
+            # Direct comparison without upper() since ENUMs are now consistent
+            conditions.append(OrdenFabricacion.estado == filters.estado)
         
         if filters.responsable:
             conditions.append(OrdenFabricacion.responsable == filters.responsable)
@@ -121,30 +120,28 @@ class FabricacionRepository:
     
     @staticmethod
     def count_by_status(status_list: List[str]) -> int:
-        """Count OFs by status - case insensitive"""
-        # Convert to uppercase for case-insensitive comparison
-        uppercase_status_list = [status.upper() for status in status_list]
+        """Count OFs by status"""
+        # Direct comparison without upper() since ENUMs are now consistent
         return (db.session.query(OrdenFabricacion)
-                .filter(func.upper(OrdenFabricacion.estado).in_(uppercase_status_list))
+                .filter(OrdenFabricacion.estado.in_(status_list))
                 .count())
     
     @staticmethod
     def count_by_proyecto_and_status(proyecto_id: int, status_list: List[str]) -> int:
-        """Count OFs by proyecto and status - case insensitive"""
-        # Convert to uppercase for case-insensitive comparison
-        uppercase_status_list = [status.upper() for status in status_list]
+        """Count OFs by proyecto and status"""
+        # Direct comparison without upper() since ENUMs are now consistent
         return (db.session.query(OrdenFabricacion)
                 .filter(OrdenFabricacion.proyecto_id == proyecto_id)
-                .filter(func.upper(OrdenFabricacion.estado).in_(uppercase_status_list))
+                .filter(OrdenFabricacion.estado.in_(status_list))
                 .count())
     
     @staticmethod
     def get_pending_by_user(user_id: str, limit: int = 10) -> List[OrdenFabricacion]:
         """Get pending OFs assigned to a user"""
-        # Use centralized active states constant
+        # Direct comparison without upper() since ENUMs are now consistent
         return (db.session.query(OrdenFabricacion)
                 .filter_by(responsable=user_id)
-                .filter(func.upper(OrdenFabricacion.estado).in_(OF_ACTIVE_STATES))
+                .filter(OrdenFabricacion.estado.in_(OF_ACTIVE_STATES))
                 .order_by(OrdenFabricacion.fecha_planificada.asc())
                 .limit(limit)
                 .all())
