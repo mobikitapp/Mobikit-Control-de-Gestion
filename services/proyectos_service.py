@@ -288,10 +288,17 @@ class ProyectosService:
         try:
             for orden in ordenes:
                 try:
-                    estado_actual = orden.estado_actual
-                    estado_key = estado_actual.nombre if estado_actual else 'Sin estado'
+                    # Get current area progress to determine state
+                    progreso_actual = orden.area_progreso_actual
+                    if progreso_actual and progreso_actual.estado:
+                        estado_key = progreso_actual.estado.nombre
+                    elif progreso_actual and progreso_actual.area:
+                        estado_key = f"En {progreso_actual.area.nombre}"
+                    else:
+                        estado_key = 'Sin estado'
+                    
                     estados[estado_key] = estados.get(estado_key, 0) + 1
-                except Exception:
+                except Exception as e:
                     # If there's an error accessing estado, count as 'Sin estado'
                     estados['Sin estado'] = estados.get('Sin estado', 0) + 1
         except Exception:
@@ -308,9 +315,13 @@ class ProyectosService:
             ordenes_completadas = 0
             for orden in ordenes:
                 try:
-                    estado_actual = orden.estado_actual
-                    if estado_actual and hasattr(estado_actual, 'es_final') and estado_actual.es_final:
-                        ordenes_completadas += 1
+                    # Get current area progress
+                    progreso_actual = orden.area_progreso_actual
+                    if progreso_actual and progreso_actual.estado:
+                        # Check if in final state (like "Despachado" or final area)
+                        if (progreso_actual.estado.es_final or 
+                            progreso_actual.area.tipo.value == 'despacho'):
+                            ordenes_completadas += 1
                 except Exception:
                     # If error accessing estado, don't count as completed
                     pass
