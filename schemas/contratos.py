@@ -5,8 +5,8 @@ from decimal import Decimal
 from enum import Enum
 
 class TipoDocumentoEnum(str, Enum):
-    CONTRATO = "contrato"
-    ORDEN_COMPRA = "orden_compra"
+    CONTRATO = "CONTRATO"
+    ORDEN_COMPRA = "ORDEN_COMPRA"
 
 class EstadoContratoEnum(str, Enum):
     BORRADOR = "BORRADOR"

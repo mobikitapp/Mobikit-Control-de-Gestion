@@ -18,8 +18,8 @@ def local_now():
 # Enums for status fields
 
 class TipoDocumento(Enum):
-    CONTRATO = "contrato"
-    ORDEN_COMPRA = "orden_compra"
+    CONTRATO = "CONTRATO"
+    ORDEN_COMPRA = "ORDEN_COMPRA"
 
 class EstadoContrato(Enum):
     BORRADOR = "BORRADOR"
