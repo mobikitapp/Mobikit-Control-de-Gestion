@@ -100,12 +100,12 @@
                                 {% for mes in range(1, 13) %}
                                 {% set mes_data = matriz[mes] %}
                                 {% set total_provision = total_provision + mes_data.valor_provision %}
-                                {% set total_instalacion = total_instalacion + mes_data.valor_instalacion %}
+                                {% set total_instalacion = total_instalacion + mes_data.monto_instalacion_presupuestado %}
                                 {% set total_proyectos = total_proyectos + mes_data.proyectos|length %}
                                 {% set objetivo_mes = objetivos.get(mes) %}
                                 {% set objetivo_provision = objetivo_mes.objetivo_provision if objetivo_mes else 0 %}
                                 {% set porcentaje_objetivo = (mes_data.valor_provision / objetivo_provision * 100) if objetivo_provision else 0 %}
-                                
+
                                 <tr class="{% if porcentaje_objetivo >= 100 %}table-success{% elif porcentaje_objetivo >= 80 %}table-warning{% elif objetivo_provision and porcentaje_objetivo < 50 %}table-danger{% endif %}">
                                     <td>
                                         <strong>{{ mes_data.mes_nombre[:3] }}</strong>
@@ -127,7 +127,7 @@
                                         <strong>${{ "{:,.0f}".format(mes_data.valor_provision) }}</strong>
                                     </td>
                                     <td>
-                                        <strong>${{ "{:,.0f}".format(mes_data.valor_instalacion) }}</strong>
+                                        <strong>${{ "{:,.0f}".format(mes_data.monto_instalacion_presupuestado) }}</strong>
                                     </td>
                                     <td>
                                         {% if mes_data.margen_promedio_provision %}
@@ -157,7 +157,7 @@
                                     </td>
                                 </tr>
                                 {% endfor %}
-                                
+
                                 <!-- Totals Row -->
                                 <tr class="table-info">
                                     <td><strong>TOTAL</strong></td>
