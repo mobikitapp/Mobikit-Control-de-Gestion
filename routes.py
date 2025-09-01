@@ -39,6 +39,7 @@ from blueprints.comercial import comercial_bp
 from blueprints.planificacion_operacional import planificacion_operacional_bp
 from blueprints.configuraciones import configuraciones_bp
 from blueprints.calendario import calendario_bp
+from models import EstadoOF
 
 # Register auth blueprint
 app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
@@ -78,7 +79,7 @@ def index():
         'total_clientes': ClientesRepository.count_active(),
         'proyectos_activos': ProyectosRepository.count_by_status(['PENDIENTE_PRESUPUESTO', 'PRESUPUESTADO', 'ADJUDICADO', 'EN_DESARROLLO']),
         'contratos_vigentes': ContratosRepository.count_by_status('VIGENTE'),
-        'of_en_produccion': FabricacionRepository.count_by_status(['enviado_a_fabricacion', 'seccionando', 'enchapando', 'mecanizando']),
+        'of_en_produccion': FabricacionRepository.count_by_status([EstadoOF.ENVIADO_A_FABRICACION.value, EstadoOF.SECCIONANDO.value, EstadoOF.ENCHAPANDO.value, EstadoOF.MECANIZANDO.value]),
         'despachos_pendientes': DespachosRepository.count_by_status(['PROGRAMADO', 'EN_TRANSPORTE'])
     }
     
