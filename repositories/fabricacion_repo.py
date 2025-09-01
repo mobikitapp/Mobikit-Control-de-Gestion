@@ -143,9 +143,9 @@ class FabricacionRepository:
     def get_pending_by_user(user_id: str, limit: int = 10) -> List[OrdenFabricacion]:
         """Get pending OFs assigned to a user"""
         # Get OFs for the user that are not completed
-        from models import Estado
+        from models import AreaEstado
         # Get the despachado (final) estado ID
-        despachado_estado = db.session.query(Estado).filter_by(codigo='despachado').first()
+        despachado_estado = db.session.query(AreaEstado).filter_by(codigo='despachado').first()
         
         if despachado_estado:
             return (db.session.query(OrdenFabricacion)
@@ -205,8 +205,8 @@ class FabricacionRepository:
             return False, "La orden no tiene área asignada"
         
         # Check if new status belongs to current area
-        from models import Estado
-        new_estado = db.session.get(Estado, new_status_id)
+        from models import AreaEstado
+        new_estado = db.session.get(AreaEstado, new_status_id)
         if not new_estado:
             return False, "Estado inválido"
         

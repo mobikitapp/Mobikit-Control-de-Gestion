@@ -171,7 +171,7 @@ class FabricacionService:
                 raise ValueError(f"OF {of_id} no encontrada")
             
             # Use AreasService to change estado
-            self.areas_service.change_estado_within_area(
+            self.areas_service.change_estado_in_area(
                 of_id, 
                 nuevo_estado_id, 
                 responsable_id=responsable_id, 
