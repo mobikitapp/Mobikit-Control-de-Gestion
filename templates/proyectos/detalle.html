@@ -137,7 +137,7 @@
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-warning bg-opacity-10 rounded">
                                 <div>
-                                    <div class="fw-bold fs-4">{{ stats.total_contratos }}</div>
+                                    <div class="fw-bold fs-4">{{ stats.total_contratos or 0 }}</div>
                                     <div class="text-muted small">Contratos Total</div>
                                 </div>
                                 <i data-feather="file-text" class="text-warning"></i>
@@ -147,7 +147,7 @@
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-success bg-opacity-10 rounded">
                                 <div>
-                                    <div class="fw-bold fs-4">{{ stats.contratos_vigentes }}</div>
+                                    <div class="fw-bold fs-4">{{ stats.contratos_vigentes or 0 }}</div>
                                     <div class="text-muted small">Contratos Vigentes</div>
                                 </div>
                                 <i data-feather="check-circle" class="text-success"></i>
@@ -157,7 +157,7 @@
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-info bg-opacity-10 rounded">
                                 <div>
-                                    <div class="fw-bold fs-4">{{ stats.total_ofs }}</div>
+                                    <div class="fw-bold fs-4">{{ stats.total_ofs or 0 }}</div>
                                     <div class="text-muted small">Órdenes de Fabricación</div>
                                 </div>
                                 <i data-feather="tool" class="text-info"></i>
@@ -167,7 +167,7 @@
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-primary bg-opacity-10 rounded">
                                 <div>
-                                    <div class="fw-bold fs-4">{{ stats.ofs_en_produccion }}</div>
+                                    <div class="fw-bold fs-4">{{ stats.ofs_en_produccion or 0 }}</div>
                                     <div class="text-muted small">OFs en Producción</div>
                                 </div>
                                 <i data-feather="activity" class="text-primary"></i>
@@ -177,7 +177,7 @@
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-secondary bg-opacity-10 rounded">
                                 <div>
-                                    <div class="fw-bold fs-4">{{ stats.total_despachos }}</div>
+                                    <div class="fw-bold fs-4">{{ stats.total_despachos or 0 }}</div>
                                     <div class="text-muted small">Despachos Total</div>
                                 </div>
                                 <i data-feather="truck" class="text-secondary"></i>

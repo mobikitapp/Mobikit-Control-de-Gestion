@@ -97,13 +97,15 @@ class ProyectosService:
             if not proyecto:
                 return None
 
-            # Calculate additional statistics with error handling
+            # Calculate basic statistics safely
             stats = {
-                'total_contratos': len(proyecto.contratos) if proyecto.contratos else 0,
-                'total_ordenes_fabricacion': len(proyecto.ordenes_fabricacion) if proyecto.ordenes_fabricacion else 0,
-                'total_despachos': len(proyecto.despachos) if proyecto.despachos else 0,
-                'ordenes_por_estado': self._get_ordenes_por_estado(proyecto.ordenes_fabricacion),
-                'progreso_fabricacion': self._calcular_progreso_fabricacion(proyecto.ordenes_fabricacion)
+                'total_contratos': len(proyecto.contratos) if hasattr(proyecto, 'contratos') and proyecto.contratos else 0,
+                'contratos_vigentes': self._count_contratos_vigentes(proyecto),
+                'total_ofs': len(proyecto.ordenes_fabricacion) if hasattr(proyecto, 'ordenes_fabricacion') and proyecto.ordenes_fabricacion else 0,
+                'ofs_en_produccion': self._count_ofs_en_produccion(proyecto),
+                'total_despachos': len(proyecto.despachos) if hasattr(proyecto, 'despachos') and proyecto.despachos else 0,
+                'ordenes_por_estado': self._get_ordenes_por_estado_safe(proyecto),
+                'progreso_fabricacion': self._calcular_progreso_fabricacion_safe(proyecto)
             }
 
             return {
@@ -113,17 +115,22 @@ class ProyectosService:
         except Exception as e:
             logger.error(f"Error calculating stats for proyecto {proyecto_id}: {str(e)}")
             # Return basic proyecto data without stats if there's an error
-            proyecto = self.repo.get_by_id(proyecto_id)
-            return {
-                'proyecto': proyecto,
-                'stats': {
-                    'total_contratos': 0,
-                    'total_ordenes_fabricacion': 0,
-                    'total_despachos': 0,
-                    'ordenes_por_estado': {},
-                    'progreso_fabricacion': 0
-                }
-            } if proyecto else None
+            try:
+                proyecto = self.repo.get_by_id(proyecto_id)
+                return {
+                    'proyecto': proyecto,
+                    'stats': {
+                        'total_contratos': 0,
+                        'contratos_vigentes': 0,
+                        'total_ofs': 0,
+                        'ofs_en_produccion': 0,
+                        'total_despachos': 0,
+                        'ordenes_por_estado': {},
+                        'progreso_fabricacion': 0
+                    }
+                } if proyecto else None
+            except Exception:
+                return None
 
     def update_proyecto(self, proyecto_id: int, update_data: Dict[str, Any]) -> Proyecto:
         """
@@ -282,50 +289,108 @@ class ProyectosService:
             logger.error(f"Error obteniendo proyectos activos: {str(e)}")
             raise
 
-    def _get_ordenes_por_estado(self, ordenes):
-        """Group ordenes by their current estado"""
+    def _count_contratos_vigentes(self, proyecto):
+        """Count active contracts safely"""
+        try:
+            if not hasattr(proyecto, 'contratos') or not proyecto.contratos:
+                return 0
+            
+            vigentes = 0
+            for contrato in proyecto.contratos:
+                try:
+                    if hasattr(contrato, 'estado') and contrato.estado and contrato.estado.value == 'VIGENTE':
+                        vigentes += 1
+                except Exception:
+                    continue
+            return vigentes
+        except Exception:
+            return 0
+
+    def _count_ofs_en_produccion(self, proyecto):
+        """Count manufacturing orders in production safely"""
+        try:
+            if not hasattr(proyecto, 'ordenes_fabricacion') or not proyecto.ordenes_fabricacion:
+                return 0
+            
+            en_produccion = 0
+            for orden in proyecto.ordenes_fabricacion:
+                try:
+                    # Check if orden has area_progreso_actual and is not in final state
+                    if hasattr(orden, 'area_progreso_actual') and orden.area_progreso_actual:
+                        progreso = orden.area_progreso_actual
+                        if hasattr(progreso, 'estado') and progreso.estado:
+                            if not getattr(progreso.estado, 'es_final', False):
+                                en_produccion += 1
+                        elif hasattr(progreso, 'area') and progreso.area:
+                            if getattr(progreso.area, 'tipo', None) != 'despacho':
+                                en_produccion += 1
+                    elif hasattr(orden, 'estado'):
+                        # Fallback to orden estado if available
+                        if orden.estado and orden.estado.value not in ['completada', 'despachada']:
+                            en_produccion += 1
+                except Exception:
+                    continue
+            return en_produccion
+        except Exception:
+            return 0
+
+    def _get_ordenes_por_estado_safe(self, proyecto):
+        """Group ordenes by their current estado safely"""
         estados = {}
         try:
-            for orden in ordenes:
+            if not hasattr(proyecto, 'ordenes_fabricacion') or not proyecto.ordenes_fabricacion:
+                return estados
+                
+            for orden in proyecto.ordenes_fabricacion:
+                estado_key = 'Sin estado'
                 try:
-                    # Get current area progress to determine state
-                    progreso_actual = orden.area_progreso_actual
-                    if progreso_actual and progreso_actual.estado:
-                        estado_key = progreso_actual.estado.nombre
-                    elif progreso_actual and progreso_actual.area:
-                        estado_key = f"En {progreso_actual.area.nombre}"
-                    else:
-                        estado_key = 'Sin estado'
-                    
-                    estados[estado_key] = estados.get(estado_key, 0) + 1
-                except Exception as e:
-                    # If there's an error accessing estado, count as 'Sin estado'
-                    estados['Sin estado'] = estados.get('Sin estado', 0) + 1
+                    # Try to get current area progress
+                    if hasattr(orden, 'area_progreso_actual') and orden.area_progreso_actual:
+                        progreso = orden.area_progreso_actual
+                        if hasattr(progreso, 'estado') and progreso.estado:
+                            estado_key = progreso.estado.nombre
+                        elif hasattr(progreso, 'area') and progreso.area:
+                            estado_key = f"En {progreso.area.nombre}"
+                    elif hasattr(orden, 'estado') and orden.estado:
+                        # Fallback to orden estado
+                        estado_key = orden.estado.value.replace('_', ' ').title()
+                except Exception:
+                    pass
+                
+                estados[estado_key] = estados.get(estado_key, 0) + 1
         except Exception:
             pass
         return estados
 
-    def _calcular_progreso_fabricacion(self, ordenes):
-        """Calculate overall fabrication progress"""
+    def _calcular_progreso_fabricacion_safe(self, proyecto):
+        """Calculate overall fabrication progress safely"""
         try:
+            if not hasattr(proyecto, 'ordenes_fabricacion') or not proyecto.ordenes_fabricacion:
+                return 0
+
+            ordenes = proyecto.ordenes_fabricacion
             if not ordenes:
                 return 0
 
-            # Count ordenes in final states vs total
             ordenes_completadas = 0
             for orden in ordenes:
                 try:
-                    # Get current area progress
-                    progreso_actual = orden.area_progreso_actual
-                    if progreso_actual and progreso_actual.estado:
-                        # Check if in final state (like "Despachado" or final area)
-                        if (progreso_actual.estado.es_final or 
-                            progreso_actual.area.tipo.value == 'despacho'):
+                    # Check if orden is completed
+                    if hasattr(orden, 'area_progreso_actual') and orden.area_progreso_actual:
+                        progreso = orden.area_progreso_actual
+                        if hasattr(progreso, 'estado') and progreso.estado:
+                            if getattr(progreso.estado, 'es_final', False):
+                                ordenes_completadas += 1
+                        elif hasattr(progreso, 'area') and progreso.area:
+                            if getattr(progreso.area, 'tipo', None) == 'despacho':
+                                ordenes_completadas += 1
+                    elif hasattr(orden, 'estado') and orden.estado:
+                        # Fallback to orden estado
+                        if orden.estado.value in ['completada', 'despachada']:
                             ordenes_completadas += 1
                 except Exception:
-                    # If error accessing estado, don't count as completed
-                    pass
+                    continue
 
-            return round((ordenes_completadas / len(ordenes)) * 100, 1) if ordenes else 0
+            return round((ordenes_completadas / len(ordenes)) * 100, 1)
         except Exception:
             return 0
