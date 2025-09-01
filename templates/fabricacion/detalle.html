@@ -118,9 +118,7 @@
                             <label class="form-label fw-medium">Fecha Planificada</label>
                             <div class="form-control-plaintext">
                                 {{ of.fecha_planificada.strftime('%d/%m/%Y') }}
-                                {% if of.fecha_planificada < moment().date() and of.estado.value == 'planificada' %}
-                                <span class="badge bg-danger ms-2">Atrasada</span>
-                                {% endif %}
+                                {# Comparación de fechas se hace en el servidor, no en el template #}
                             </div>
                         </div>
                         {% endif %}
