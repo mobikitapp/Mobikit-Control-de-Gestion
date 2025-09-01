@@ -484,26 +484,35 @@ class OrdenFabricacion(db.Model):
     @property
     def area_progreso_actual(self):
         """Obtiene el progreso actual de la orden en el sistema de áreas"""
-        from sqlalchemy.orm import joinedload
-        return (db.session.query(OrdenAreaProgreso)
-                .options(
-                    joinedload(OrdenAreaProgreso.area),
-                    joinedload(OrdenAreaProgreso.estado)
-                )
-                .filter_by(orden_fabricacion_id=self.id, es_actual=True)
-                .first())
+        try:
+            from sqlalchemy.orm import joinedload
+            return (db.session.query(OrdenAreaProgreso)
+                    .options(
+                        joinedload(OrdenAreaProgreso.area),
+                        joinedload(OrdenAreaProgreso.estado)
+                    )
+                    .filter_by(orden_fabricacion_id=self.id, es_actual=True)
+                    .first())
+        except Exception:
+            return None
     
     @property
     def area_actual(self):
         """Obtiene el área actual de la orden"""
-        progreso = self.area_progreso_actual
-        return progreso.area if progreso else None
+        try:
+            progreso = self.area_progreso_actual
+            return progreso.area if progreso else None
+        except Exception:
+            return None
     
     @property
     def estado_actual(self):
         """Obtiene el estado actual de la orden"""
-        progreso = self.area_progreso_actual
-        return progreso.estado if progreso else None
+        try:
+            progreso = self.area_progreso_actual
+            return progreso.estado if progreso else None
+        except Exception:
+            return None
 
     def __repr__(self):
         return f'<OrdenFabricacion {self.codigo}>'
