@@ -80,7 +80,7 @@ class ProyectosService:
             tarea.proyecto_id = proyecto.id
             tarea.vendedor_id = proyecto.vendedor_id
             tarea.titulo = "Completar información de presupuesto"
-            tarea.descripcion = "Completar monto de provisión presupuestado, margen de venta provisión, monto de instalación presupuestado y margen de venta instalación para el proyecto"
+            tarea.descripcion = "Completar montos netos de venta (provisión e instalación) y márgenes de ganancia para el proyecto. Los montos deben ser precios finales al cliente, no costos."
             tarea.created_by = created_by
             tarea.completada = False
             db.session.add(tarea)

@@ -229,10 +229,10 @@ class Proyecto(db.Model):
     # Campos comerciales
     vendedor_id = db.Column(db.String, db.ForeignKey('users.id'))
     estado_comercial = db.Column(db.Enum(EstadoComercial), default=EstadoComercial.PENDIENTE_PRESUPUESTO)
-    monto_provision_presupuestado = db.Column(db.Numeric(15, 2))
-    margen_venta_provision = db.Column(db.Numeric(5, 2))  # Porcentaje
-    monto_instalacion_presupuestado = db.Column(db.Numeric(15, 2))
-    margen_venta_instalacion = db.Column(db.Numeric(5, 2))  # Porcentaje
+    monto_provision_presupuestado = db.Column(db.Numeric(15, 2))  # Monto neto de venta por provisión
+    margen_venta_provision = db.Column(db.Numeric(5, 2))  # Porcentaje de ganancia sobre provisión
+    monto_instalacion_presupuestado = db.Column(db.Numeric(15, 2))  # Monto neto de venta por instalación
+    margen_venta_instalacion = db.Column(db.Numeric(5, 2))  # Porcentaje de ganancia sobre instalación
     fecha_presupuesto = db.Column(db.Date)
     fecha_adjudicacion = db.Column(db.Date)
     notas_comerciales = db.Column(db.Text)
