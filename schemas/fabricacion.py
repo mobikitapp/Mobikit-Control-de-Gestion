@@ -55,7 +55,6 @@ class OrdenFabricacionBase(BaseModel):
     glosa: Optional[str] = Field(None, description="Glosa de la OF")
     cantidad_tableros: Optional[int] = Field(None, description="Cantidad de tableros")
     fecha_entrega_fabrica: Optional[date] = Field(None, description="Fecha de entrega de fábrica")
-    estado: EstadoOFEnum = Field(EstadoOFEnum.PENDIENTE_APROBACION_DISENO, description="Estado de la OF")
     fecha_planificada: Optional[date] = Field(None, description="Fecha planificada")
     fecha_inicio: Optional[datetime] = Field(None, description="Fecha de inicio")
     fecha_qc: Optional[datetime] = Field(None, description="Fecha de QC")
@@ -92,6 +91,17 @@ class OrdenFabricacionBase(BaseModel):
 
 class OrdenFabricacionCreate(OrdenFabricacionBase):
     items: List[OrdenFabricacionItemCreate] = Field([], description="Items de la OF")
+    
+    class Config:
+        # El estado siempre será PENDIENTE_APROBACION_DISENO al crear
+        schema_extra = {
+            "properties": {
+                "estado": {
+                    "const": "pendiente_aprobacion_diseño",
+                    "description": "Estado fijo al crear (siempre pendiente_aprobacion_diseño)"
+                }
+            }
+        }
 
 class OrdenFabricacionUpdate(BaseModel):
     proyecto_id: Optional[int] = None

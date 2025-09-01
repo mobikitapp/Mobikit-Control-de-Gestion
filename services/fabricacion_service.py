@@ -48,6 +48,9 @@ class FabricacionService:
             # Always generate automatic codigo for generic orders
             of_data['codigo'] = self.repo.generate_next_codigo()
             
+            # Force initial state to PENDIENTE_APROBACION_DISENO
+            of_data['estado'] = EstadoOF.PENDIENTE_APROBACION_DISENO
+            
             # Extract items data
             items_data = of_data.pop('items', [])
             
