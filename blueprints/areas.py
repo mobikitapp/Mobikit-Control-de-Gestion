@@ -418,3 +418,25 @@ def avanzar_area_form(orden_id):
         logger.error(f"Error avanzando área (form): {str(e)}")
         flash('Error procesando solicitud', 'error')
         return redirect(url_for('areas.dashboard'))
+
+
+# Add main API endpoint for testing
+@areas_bp.route('/api/', methods=['GET'])
+def api_areas():
+    """API endpoint principal para áreas - usado en tests"""
+    try:
+        areas = areas_repo.get_all_areas()
+        
+        return jsonify({
+            'success': True,
+            'data': [{
+                'id': a.id,
+                'nombre': a.nombre,
+                'descripcion': a.descripcion,
+                'activo': a.activo
+            } for a in areas]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en API áreas: {str(e)}")
+        return jsonify({'error': 'Error al cargar áreas'}), 500

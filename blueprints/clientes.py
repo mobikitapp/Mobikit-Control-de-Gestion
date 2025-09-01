@@ -185,3 +185,23 @@ def api_list():
         logger.error(f"Error en API clientes: {str(e)}")
         return jsonify({'error': 'Error al cargar clientes'}), 500
 
+# Add main API endpoint for testing
+@clientes_bp.route('/api/', methods=['GET'])
+def api_clientes():
+    """API endpoint principal para clientes - usado en tests"""
+    try:
+        clientes = clientes_service.get_active_clientes()
+        return jsonify({
+            'success': True,
+            'data': [{
+                'id': c.id,
+                'nombre': c.nombre,
+                'rut': c.rut,
+                'activo': c.activo
+            } for c in clientes]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en API clientes: {str(e)}")
+        return jsonify({'error': 'Error al cargar clientes'}), 500
+

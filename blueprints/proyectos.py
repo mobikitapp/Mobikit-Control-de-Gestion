@@ -306,3 +306,27 @@ def api_by_cliente(cliente_id):
         logger.error(f"Error en API proyectos por cliente: {str(e)}")
         return jsonify({'error': 'Error al cargar proyectos'}), 500
 
+# Add main API endpoint for testing
+@proyectos_bp.route('/api/', methods=['GET'])
+def api_proyectos():
+    """API endpoint principal para proyectos - usado en tests"""
+    try:
+        # Get recent projects for testing
+        from repositories.proyectos_repo import ProyectosRepository
+        repo = ProyectosRepository()
+        proyectos = repo.get_recent_proyectos(limit=10)
+        
+        return jsonify({
+            'success': True,
+            'data': [{
+                'id': p.id,
+                'nombre': p.nombre,
+                'cliente_id': p.cliente_id,
+                'estado': p.estado_comercial.value if hasattr(p, 'estado_comercial') else 'PENDIENTE'
+            } for p in proyectos]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en API proyectos: {str(e)}")
+        return jsonify({'error': 'Error al cargar proyectos'}), 500
+

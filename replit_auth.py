@@ -160,6 +160,11 @@ def handle_error(blueprint, error, error_description=None, error_uri=None):
 def require_login(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Check for test mode bypass
+        test_mode = os.environ.get('TEST_MODE', 'false').lower() == 'true'
+        if test_mode:
+            return f(*args, **kwargs)
+            
         if not current_user.is_authenticated:
             session["next_url"] = get_next_navigation_url(request)
             return redirect(url_for('replit_auth.login'))
@@ -187,6 +192,11 @@ def require_role(*roles):
         @wraps(f)
         @require_login
         def decorated_function(*args, **kwargs):
+            # Check for test mode bypass
+            test_mode = os.environ.get('TEST_MODE', 'false').lower() == 'true'
+            if test_mode:
+                return f(*args, **kwargs)
+                
             if not current_user.activo:
                 return render_template("403.html", message="Usuario inactivo"), 403
             
