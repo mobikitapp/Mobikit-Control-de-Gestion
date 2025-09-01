@@ -83,3 +83,11 @@
         {% endif %}
     </div>
 {% endmacro %}
+
+{% macro moment() %}
+    {{ moment_obj() }}
+{% endmacro %}
+
+{# Function to get current date for calculations #}
+{% set moment_obj = moment_fn %}
+{% set moment_fn = now %}

@@ -49,6 +49,16 @@ def index():
 
         # Search OFs
         ofs, total_count = fabricacion_service.search_ordenes_fabricacion(filters)
+        
+        # Add days remaining calculation
+        from datetime import date
+        today = date.today()
+        for of in ofs:
+            if of.fecha_entrega_fabrica:
+                entrega_date = of.fecha_entrega_fabrica.date() if hasattr(of.fecha_entrega_fabrica, 'date') else of.fecha_entrega_fabrica
+                of.days_remaining = (entrega_date - today).days
+            else:
+                of.days_remaining = None
 
         # Get data for filter dropdowns
         clientes = clientes_service.get_active_clientes()
