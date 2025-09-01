@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload
 from app import db
-from models import Contrato, ContratoAdjunto, Proyecto, Cliente, User, EstadoContrato
+from models import Contrato, ContratoAdjunto, Proyecto, Cliente, User, EstadoContrato, PlanEntrega, HitoEntrega
 from schemas.contratos import ContratoSearchFilters
 
 class ContratosRepository:
@@ -62,7 +62,7 @@ class ContratosRepository:
                 .options(
                     joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
                     joinedload(Contrato.adjuntos),
-                    joinedload(Contrato.plan_entrega).joinedload('hitos')
+                    joinedload(Contrato.plan_entrega).joinedload(PlanEntrega.hitos)
                 ))
         
         # Apply filters
