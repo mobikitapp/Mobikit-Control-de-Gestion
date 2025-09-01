@@ -28,13 +28,23 @@ class EstadoContrato(Enum):
     ANULADO = "ANULADO"
 
 class EstadoOF(Enum):
-    PLANIFICADA = "PLANIFICADA"
-    ENVIADO_PRODUCCION = "ENVIADO_PRODUCCION"
-    SECCIONANDO = "SECCIONANDO"
-    EN_PRODUCCION = "EN_PRODUCCION"
-    QA = "QA"
-    TERMINADA = "TERMINADA"
-    ENTREGADA = "ENTREGADA"
+    # Estados de Pendientes de Fabricación
+    PENDIENTE_APROBACION_DISENO = "pendiente_aprobacion_diseño"
+    APROBADO = "aprobado"
+    # Estados de Fábrica
+    ENVIADO_A_FABRICACION = "enviado_a_fabricacion"
+    SECCIONANDO = "seccionando"
+    ENCHAPANDO = "enchapando"
+    MECANIZANDO = "mecanizando"
+    FABRICACION_COMPLETA = "fabricacion_completa"
+    # Estados de Embalaje
+    PENDIENTE_DE_EMBALAR = "pendiente_de_embalar"
+    EMBALANDO = "embalando"
+    EMBALAJE_LISTO = "embalaje_listo"
+    # Estados de Bodega
+    LISTO_PARA_DESPACHO = "listo_para_despacho"
+    # Estados de Despacho
+    DESPACHADO = "despachado"
 
 class EstadoDespacho(Enum):
     PROGRAMADO = "PROGRAMADO"
@@ -445,7 +455,7 @@ class OrdenFabricacion(db.Model):
     glosa = db.Column(db.Text)
     cantidad_tableros = db.Column(db.Integer)
     fecha_entrega_fabrica = db.Column(db.Date)
-    estado = db.Column(db.Enum(EstadoOF), default=EstadoOF.PLANIFICADA, nullable=False)
+    estado = db.Column(db.Enum(EstadoOF), default=EstadoOF.PENDIENTE_APROBACION_DISENO, nullable=False)
     fecha_planificada = db.Column(db.Date)
     fecha_inicio = db.Column(db.DateTime)
     fecha_qc = db.Column(db.DateTime)

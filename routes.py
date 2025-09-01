@@ -78,7 +78,7 @@ def index():
         'total_clientes': ClientesRepository.count_active(),
         'proyectos_activos': ProyectosRepository.count_by_status(['PENDIENTE_PRESUPUESTO', 'PRESUPUESTADO', 'ADJUDICADO', 'EN_DESARROLLO']),
         'contratos_vigentes': ContratosRepository.count_by_status('VIGENTE'),
-        'of_en_produccion': FabricacionRepository.count_by_status(['EN_PRODUCCION', 'QA']),
+        'of_en_produccion': FabricacionRepository.count_by_status(['enviado_a_fabricacion', 'seccionando', 'enchapando', 'mecanizando']),
         'despachos_pendientes': DespachosRepository.count_by_status(['PROGRAMADO', 'EN_TRANSPORTE'])
     }
     

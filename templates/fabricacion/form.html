@@ -97,13 +97,28 @@
                             <div class="col-md-6">
                                 <label for="estado" class="form-label">Estado</label>
                                 <select class="form-select" id="estado" name="estado">
-                                    <option value="PLANIFICADA" {% if not of or of.estado.value == 'PLANIFICADA' %}selected{% endif %}>Planificada</option>
-                                    <option value="ENVIADO_PRODUCCION" {% if of and of.estado.value == 'ENVIADO_PRODUCCION' %}selected{% endif %}>Enviado a Producción</option>
-                                    <option value="SECCIONANDO" {% if of and of.estado.value == 'SECCIONANDO' %}selected{% endif %}>Seccionando</option>
-                                    <option value="EN_PRODUCCION" {% if of and of.estado.value == 'EN_PRODUCCION' %}selected{% endif %}>En Producción</option>
-                                    <option value="QA" {% if of and of.estado.value == 'QA' %}selected{% endif %}>QA</option>
-                                    <option value="TERMINADA" {% if of and of.estado.value == 'TERMINADA' %}selected{% endif %}>Terminada</option>
-                                    <option value="ENTREGADA" {% if of and of.estado.value == 'ENTREGADA' %}selected{% endif %}>Entregada</option>
+                                    <optgroup label="Pendientes de Fabricación">
+                                        <option value="pendiente_aprobacion_diseño" {% if not of or of.estado.value == 'pendiente_aprobacion_diseño' %}selected{% endif %}>Pendiente Aprobación Diseño</option>
+                                        <option value="aprobado" {% if of and of.estado.value == 'aprobado' %}selected{% endif %}>Aprobado</option>
+                                    </optgroup>
+                                    <optgroup label="Fábrica">
+                                        <option value="enviado_a_fabricacion" {% if of and of.estado.value == 'enviado_a_fabricacion' %}selected{% endif %}>Enviado a Fabricación</option>
+                                        <option value="seccionando" {% if of and of.estado.value == 'seccionando' %}selected{% endif %}>Seccionando</option>
+                                        <option value="enchapando" {% if of and of.estado.value == 'enchapando' %}selected{% endif %}>Enchapando</option>
+                                        <option value="mecanizando" {% if of and of.estado.value == 'mecanizando' %}selected{% endif %}>Mecanizando</option>
+                                        <option value="fabricacion_completa" {% if of and of.estado.value == 'fabricacion_completa' %}selected{% endif %}>Fabricación Completa</option>
+                                    </optgroup>
+                                    <optgroup label="Embalaje">
+                                        <option value="pendiente_de_embalar" {% if of and of.estado.value == 'pendiente_de_embalar' %}selected{% endif %}>Pendiente de Embalar</option>
+                                        <option value="embalando" {% if of and of.estado.value == 'embalando' %}selected{% endif %}>Embalando</option>
+                                        <option value="embalaje_listo" {% if of and of.estado.value == 'embalaje_listo' %}selected{% endif %}>Embalaje Listo</option>
+                                    </optgroup>
+                                    <optgroup label="Bodega">
+                                        <option value="listo_para_despacho" {% if of and of.estado.value == 'listo_para_despacho' %}selected{% endif %}>Listo para Despacho</option>
+                                    </optgroup>
+                                    <optgroup label="Despacho">
+                                        <option value="despachado" {% if of and of.estado.value == 'despachado' %}selected{% endif %}>Despachado</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             

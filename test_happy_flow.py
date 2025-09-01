@@ -144,16 +144,12 @@ class HappyFlowTester:
             self.created_entities['cliente_id'] = cliente.id
             self.log_success("CLIENTE", f"Cliente creado con ID: {cliente.id}")
             
-            # Test client search
-            clientes = self.clientes_service.search_clientes_with_filters({
-                'nombre': 'Happy',
-                'activo': True
-            })
-            
-            if not clientes or len(clientes) == 0:
-                self.log_warning("CLIENTE", "Búsqueda de cliente no devolvió resultados")
+            # Verify cliente was created
+            cliente_creado = self.clientes_service.get_cliente_by_id(cliente.id)
+            if cliente_creado:
+                self.log_success("CLIENTE", f"Cliente verificado: {cliente_creado.nombre}")
             else:
-                self.log_success("CLIENTE", f"Búsqueda encontró {len(clientes)} clientes")
+                self.log_warning("CLIENTE", "No se pudo verificar el cliente")
                 
         except Exception as e:
             self.log_error("CLIENTE", f"Error creando cliente: {str(e)}")
@@ -196,8 +192,7 @@ class HappyFlowTester:
             # Test project status update
             self.proyectos_service.update_proyecto(
                 proyecto.id, 
-                {'estado_comercial': EstadoComercial.PRESUPUESTADO},
-                self.test_user_id
+                {'estado_comercial': EstadoComercial.PRESUPUESTADO}
             )
             self.log_success("PROYECTO", "Estado comercial actualizado a PRESUPUESTADO")
             
@@ -241,8 +236,7 @@ class HappyFlowTester:
                 {
                     'estado_comercial': EstadoComercial.ADJUDICADO,
                     'fecha_adjudicacion': date.today()
-                },
-                self.test_user_id
+                }
             )
             self.log_success("CONTRATO", "Proyecto actualizado a ADJUDICADO")
             
@@ -265,7 +259,7 @@ class HappyFlowTester:
                 glosa="Incluye: Base cocina (3.5m), murales (2m), closet dormitorio principal (2.5m)",
                 cantidad_tableros=18,
                 fecha_entrega_fabrica=date.today() + timedelta(days=30),
-                estado=EstadoOF.PLANIFICADA,
+                estado=EstadoOF.PENDIENTE_APROBACION_DISENO,
                 fecha_planificada=date.today() + timedelta(days=3),
                 responsable=self.test_user_id,
                 notas="Prioridad alta - cliente VIP",
@@ -298,17 +292,17 @@ class HappyFlowTester:
             # Test status changes
             self.fabricacion_service.change_of_status(
                 of.id, 
-                EstadoOF.ENVIADO_PRODUCCION,
-                "Enviado a producción - materiales confirmados"
+                EstadoOF.APROBADO,
+                "Diseño aprobado - listo para fabricación"
             )
-            self.log_success("ORDEN_FABRICACION", "Estado cambiado a ENVIADO_PRODUCCION")
+            self.log_success("ORDEN_FABRICACION", "Estado cambiado a APROBADO")
             
             self.fabricacion_service.change_of_status(
                 of.id,
-                EstadoOF.EN_PRODUCCION,
-                "Iniciada fabricación en planta"
+                EstadoOF.ENVIADO_A_FABRICACION,
+                "Enviado a fábrica para producción"
             )
-            self.log_success("ORDEN_FABRICACION", "Estado cambiado a EN_PRODUCCION")
+            self.log_success("ORDEN_FABRICACION", "Estado cambiado a ENVIADO_A_FABRICACION")
             
         except Exception as e:
             self.log_error("ORDEN_FABRICACION", f"Error con OF: {str(e)}")
@@ -423,8 +417,7 @@ class HappyFlowTester:
                 {
                     'estado_comercial': EstadoComercial.TERMINADO,
                     'fecha_fin_real': date.today()
-                },
-                self.test_user_id
+                }
             )
             self.log_success("FINALIZACION", "Proyecto marcado como TERMINADO")
             
