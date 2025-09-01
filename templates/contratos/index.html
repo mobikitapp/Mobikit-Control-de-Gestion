@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros.html' import moment %}
 
 {% block title %}Contratos / OC - Sistema de Manufactura{% endblock %}
 
@@ -129,7 +130,8 @@
                             <th>Cliente</th>
                             <th>Estado</th>
                             <th>Monto</th>
-                            <th>Fecha Emisión</th>
+                            <th>Fecha Entrega</th>
+                            <th>Días Restantes</th>
                             <th>Adjuntos</th>
                             <th width="150">Acciones</th>
                         </tr>
@@ -168,10 +170,57 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if contrato.fecha_emision %}
-                                    {{ contrato.fecha_emision.strftime('%d/%m/%Y') }}
+                                {% if contrato.plan_entrega and contrato.plan_entrega.hitos %}
+                                    {% set hito_proximo = contrato.plan_entrega.hitos|selectattr("estado", "equalto", "PENDIENTE")|list|first %}
+                                    {% if hito_proximo %}
+                                        <div class="fw-medium">{{ hito_proximo.fecha_programada.strftime('%d/%m/%Y') }}</div>
+                                        <small class="text-muted">{{ hito_proximo.titulo[:30] }}{% if hito_proximo.titulo|length > 30 %}...{% endif %}</small>
+                                    {% else %}
+                                        {% set ultimo_hito = contrato.plan_entrega.hitos|last %}
+                                        <div class="fw-medium">{{ ultimo_hito.fecha_programada.strftime('%d/%m/%Y') }}</div>
+                                        <small class="text-muted">{{ ultimo_hito.titulo[:30] }}{% if ultimo_hito.titulo|length > 30 %}...{% endif %}</small>
+                                    {% endif %}
+                                {% elif contrato.fecha_entrega_comprometida %}
+                                    <div class="fw-medium">{{ contrato.fecha_entrega_comprometida.strftime('%d/%m/%Y') }}</div>
+                                    <small class="text-muted">Fecha comprometida</small>
                                 {% else %}
-                                    -
+                                    <span class="text-muted">Sin fecha</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if contrato.plan_entrega and contrato.plan_entrega.hitos %}
+                                    {% set hito_proximo = contrato.plan_entrega.hitos|selectattr("estado", "equalto", "PENDIENTE")|list|first %}
+                                    {% if hito_proximo %}
+                                        {% set days_diff = (hito_proximo.fecha_programada - moment().date()).days %}
+                                        {% if days_diff < 0 %}
+                                            <span class="badge bg-danger">{{ days_diff|abs }} días vencido</span>
+                                        {% elif days_diff == 0 %}
+                                            <span class="badge bg-warning">Hoy</span>
+                                        {% elif days_diff <= 3 %}
+                                            <span class="badge bg-warning">{{ days_diff }} días</span>
+                                        {% elif days_diff <= 7 %}
+                                            <span class="badge bg-info">{{ days_diff }} días</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ days_diff }} días</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Completado</span>
+                                    {% endif %}
+                                {% elif contrato.fecha_entrega_comprometida %}
+                                    {% set days_diff = (contrato.fecha_entrega_comprometida - moment().date()).days %}
+                                    {% if days_diff < 0 %}
+                                        <span class="badge bg-danger">{{ days_diff|abs }} días vencido</span>
+                                    {% elif days_diff == 0 %}
+                                        <span class="badge bg-warning">Hoy</span>
+                                    {% elif days_diff <= 3 %}
+                                        <span class="badge bg-warning">{{ days_diff }} días</span>
+                                    {% elif days_diff <= 7 %}
+                                        <span class="badge bg-info">{{ days_diff }} días</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ days_diff }} días</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td>

@@ -61,7 +61,8 @@ class ContratosRepository:
         query = (db.session.query(Contrato)
                 .options(
                     joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
-                    joinedload(Contrato.adjuntos)
+                    joinedload(Contrato.adjuntos),
+                    joinedload(Contrato.plan_entrega).joinedload('hitos')
                 ))
         
         # Apply filters
