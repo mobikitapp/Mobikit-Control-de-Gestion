@@ -515,8 +515,8 @@ class ComercialService:
                     if proyecto.monto_provision_presupuestado:
                         valor_provision_mes = proyecto.monto_provision_presupuestado / meses_duracion
                     
-                    if proyecto.valor_instalacion:
-                        valor_instalacion_mes = proyecto.valor_instalacion / meses_duracion
+                    if proyecto.monto_instalacion_presupuestado:
+                        valor_instalacion_mes = proyecto.monto_instalacion_presupuestado / meses_duracion
                     
                     proyecto_mes = {
                         'proyecto': proyecto,
