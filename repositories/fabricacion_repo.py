@@ -138,9 +138,12 @@ class FabricacionRepository:
         return (db.session.query(OrdenFabricacion)
                 .filter_by(responsable=user_id)
                 .filter(OrdenFabricacion.estado.in_([
-                    'pendiente_aprobacion_diseño', 'aprobado', 
-                    'enviado_a_fabricacion', 'seccionando',
-                    'enchapando', 'mecanizando'
+                    EstadoOF.PENDIENTE_APROBACION_DISENO.value,
+                    EstadoOF.APROBADO.value,
+                    EstadoOF.ENVIADO_A_FABRICACION.value,
+                    EstadoOF.SECCIONANDO.value,
+                    EstadoOF.ENCHAPANDO.value,
+                    EstadoOF.MECANIZANDO.value
                 ]))
                 .order_by(OrdenFabricacion.fecha_planificada.asc())
                 .limit(limit)
