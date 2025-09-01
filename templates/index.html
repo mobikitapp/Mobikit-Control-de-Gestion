@@ -76,66 +76,174 @@
         </div>
     </div>
     
-    <!-- Statistics Cards -->
+    <!-- Statistics Cards - Vista Responsiva -->
     <div class="row g-4 mb-5">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i data-feather="users" class="text-primary" style="width: 32px; height: 32px;"></i>
+        <!-- Vista completa en pantallas grandes -->
+        <div class="d-none d-lg-flex col-12">
+            <div class="row g-4 w-100">
+                <div class="col-lg-3">
+                    <div class="card dashboard-stat-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i data-feather="users" class="text-primary" style="width: 32px; height: 32px;"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="fw-bold fs-4">{{ stats.total_clientes or 0 }}</div>
+                                    <div class="text-muted small">Clientes Activos</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <div class="fw-bold fs-4">{{ stats.total_clientes or 0 }}</div>
-                            <div class="text-muted small">Clientes Activos</div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3">
+                    <div class="card dashboard-stat-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i data-feather="folder" class="text-info" style="width: 32px; height: 32px;"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="fw-bold fs-4">{{ stats.proyectos_activos or 0 }}</div>
+                                    <div class="text-muted small">Proyectos Activos</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3">
+                    <div class="card dashboard-stat-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i data-feather="file-text" class="text-warning" style="width: 32px; height: 32px;"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="fw-bold fs-4">{{ stats.contratos_vigentes or 0 }}</div>
+                                    <div class="text-muted small">Contratos Vigentes</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3">
+                    <div class="card dashboard-stat-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i data-feather="tool" class="text-success" style="width: 32px; height: 32px;"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="fw-bold fs-4">{{ stats.of_en_produccion or 0 }}</div>
+                                    <div class="text-muted small">OFs en Producción</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-3">
+
+        <!-- Vista resumen en pantallas medianas y pequeñas -->
+        <div class="d-lg-none col-12">
             <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i data-feather="bar-chart-2" class="me-2"></i>
+                        Resumen del Sistema
+                    </h6>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#estadisticasDetalle" aria-expanded="false">
+                        <i data-feather="eye" style="width: 16px; height: 16px;"></i>
+                        Ver Detalle
+                    </button>
+                </div>
                 <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i data-feather="folder" class="text-info" style="width: 32px; height: 32px;"></i>
+                    <!-- Vista compacta horizontal -->
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <div class="stat-compact">
+                                <div class="stat-number text-primary fw-bold">{{ stats.total_clientes or 0 }}</div>
+                                <div class="stat-label text-muted small">Clientes</div>
+                            </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <div class="fw-bold fs-4">{{ stats.proyectos_activos or 0 }}</div>
-                            <div class="text-muted small">Proyectos Activos</div>
+                        <div class="col-3">
+                            <div class="stat-compact">
+                                <div class="stat-number text-info fw-bold">{{ stats.proyectos_activos or 0 }}</div>
+                                <div class="stat-label text-muted small">Proyectos</div>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="stat-compact">
+                                <div class="stat-number text-warning fw-bold">{{ stats.contratos_vigentes or 0 }}</div>
+                                <div class="stat-label text-muted small">Contratos</div>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="stat-compact">
+                                <div class="stat-number text-success fw-bold">{{ stats.of_en_produccion or 0 }}</div>
+                                <div class="stat-label text-muted small">OFs</div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i data-feather="file-text" class="text-warning" style="width: 32px; height: 32px;"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <div class="fw-bold fs-4">{{ stats.contratos_vigentes or 0 }}</div>
-                            <div class="text-muted small">Contratos Vigentes</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i data-feather="tool" class="text-success" style="width: 32px; height: 32px;"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <div class="fw-bold fs-4">{{ stats.of_en_produccion or 0 }}</div>
-                            <div class="text-muted small">OFs en Producción</div>
+
+                    <!-- Vista detallada colapsable -->
+                    <div class="collapse mt-3" id="estadisticasDetalle">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body py-2">
+                                        <div class="d-flex align-items-center">
+                                            <i data-feather="users" class="text-primary me-3" style="width: 24px; height: 24px;"></i>
+                                            <div>
+                                                <div class="fw-bold">{{ stats.total_clientes or 0 }}</div>
+                                                <div class="text-muted small">Clientes Activos</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body py-2">
+                                        <div class="d-flex align-items-center">
+                                            <i data-feather="folder" class="text-info me-3" style="width: 24px; height: 24px;"></i>
+                                            <div>
+                                                <div class="fw-bold">{{ stats.proyectos_activos or 0 }}</div>
+                                                <div class="text-muted small">Proyectos Activos</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body py-2">
+                                        <div class="d-flex align-items-center">
+                                            <i data-feather="file-text" class="text-warning me-3" style="width: 24px; height: 24px;"></i>
+                                            <div>
+                                                <div class="fw-bold">{{ stats.contratos_vigentes or 0 }}</div>
+                                                <div class="text-muted small">Contratos Vigentes</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body py-2">
+                                        <div class="d-flex align-items-center">
+                                            <i data-feather="tool" class="text-success me-3" style="width: 24px; height: 24px;"></i>
+                                            <div>
+                                                <div class="fw-bold">{{ stats.of_en_produccion or 0 }}</div>
+                                                <div class="text-muted small">OFs en Producción</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -145,7 +253,8 @@
     
     <!-- Recent Activity and Pending Tasks -->
     <div class="row g-4">
-        <div class="col-lg-6">
+        <!-- Vista para pantallas grandes -->
+        <div class="d-none d-lg-block col-lg-6">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
@@ -188,7 +297,7 @@
             </div>
         </div>
         
-        <div class="col-lg-6">
+        <div class="d-none d-lg-block col-lg-6">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
@@ -236,6 +345,108 @@
                 </div>
             </div>
         </div>
+
+        <!-- Vista compacta para pantallas medianas y pequeñas -->
+        <div class="d-lg-none col-12">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="activityTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="proyectos-tab" data-bs-toggle="tab" data-bs-target="#proyectos-panel" type="button" role="tab">
+                                <i data-feather="clock" style="width: 16px; height: 16px;"></i>
+                                <span class="d-none d-sm-inline ms-1">Proyectos</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tareas-tab" data-bs-toggle="tab" data-bs-target="#tareas-panel" type="button" role="tab">
+                                <i data-feather="alert-circle" style="width: 16px; height: 16px;"></i>
+                                <span class="d-none d-sm-inline ms-1">Tareas</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="activityTabsContent">
+                        <div class="tab-pane fade show active" id="proyectos-panel" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Proyectos Recientes</h6>
+                                <a href="{{ url_for('proyectos.index') }}" class="btn btn-sm btn-outline-secondary">
+                                    Ver Todos
+                                </a>
+                            </div>
+                            {% if recent_projects %}
+                                {% for proyecto in recent_projects[:3] %}
+                                <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                                    <div class="flex-shrink-0">
+                                        <span class="badge badge-sm bg-{{ 'success' if proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'secondary' }}">
+                                            {{ proyecto.estado_comercial.value.replace('_', ' ')[:3] }}
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1 ms-2">
+                                        <div class="fw-medium text-truncate">
+                                            <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" class="text-decoration-none">
+                                                {{ proyecto.nombre[:25] }}{% if proyecto.nombre|length > 25 %}...{% endif %}
+                                            </a>
+                                        </div>
+                                        <div class="text-muted small text-truncate">{{ proyecto.cliente.nombre[:20] }}{% if proyecto.cliente.nombre|length > 20 %}...{% endif %}</div>
+                                    </div>
+                                    <div class="flex-shrink-0 text-muted small">
+                                        {{ proyecto.created_at.strftime('%d/%m') }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                            <div class="text-center text-muted py-3">
+                                <i data-feather="folder" class="mb-2" style="width: 32px; height: 32px;"></i>
+                                <p class="small">No hay proyectos recientes</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="tab-pane fade" id="tareas-panel" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Mis Tareas Pendientes</h6>
+                                <a href="{{ url_for('fabricacion.index') }}" class="btn btn-sm btn-outline-secondary">
+                                    Ver Todas
+                                </a>
+                            </div>
+                            {% if pending_ofs %}
+                                {% for of in pending_ofs[:3] %}
+                                <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                                    <div class="flex-shrink-0">
+                                        {% if of.estado_actual %}
+                                        <span class="badge badge-sm bg-{{ 'warning' if of.area_actual.tipo.value == 'pendientes_fabricacion' else 'info' if of.area_actual.tipo.value == 'fabrica' else 'secondary' if of.area_actual.tipo.value == 'embalaje' else 'success' if of.area_actual.tipo.value == 'bodega' else 'primary' }}">
+                                            {{ of.estado_actual.nombre[:3] }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge badge-sm bg-secondary">S/E</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex-grow-1 ms-2">
+                                        <div class="fw-medium text-truncate">
+                                            <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" class="text-decoration-none">
+                                                {{ of.codigo }}
+                                            </a>
+                                        </div>
+                                        <div class="text-muted small text-truncate">{{ of.proyecto.nombre[:20] }}{% if of.proyecto.nombre|length > 20 %}...{% endif %}</div>
+                                    </div>
+                                    <div class="flex-shrink-0 text-muted small">
+                                        {% if of.fecha_planificada %}
+                                            {{ of.fecha_planificada.strftime('%d/%m') }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                            <div class="text-center text-muted py-3">
+                                <i data-feather="check-circle" class="mb-2" style="width: 32px; height: 32px;"></i>
+                                <p class="small">No tienes tareas pendientes</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <!-- Quick Actions -->
@@ -249,39 +460,104 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3">
-                        {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
-                        <div class="col-md-3">
-                            <a href="{{ url_for('clientes.nuevo') }}" class="btn btn-outline-primary w-100">
-                                <i data-feather="user-plus" class="me-2"></i>
-                                Nuevo Cliente
-                            </a>
+                    <!-- Vista para pantallas grandes -->
+                    <div class="d-none d-lg-block">
+                        <div class="row g-3">
+                            {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
+                            <div class="col-lg-3">
+                                <a href="{{ url_for('clientes.nuevo') }}" class="btn btn-outline-primary w-100">
+                                    <i data-feather="user-plus" class="me-2"></i>
+                                    Nuevo Cliente
+                                </a>
+                            </div>
+                            <div class="col-lg-3">
+                                <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-outline-info w-100">
+                                    <i data-feather="folder-plus" class="me-2"></i>
+                                    Nuevo Proyecto
+                                </a>
+                            </div>
+                            {% endif %}
+                            
+                            {% if current_user.rol.value in ['admin', 'ventas'] %}
+                            <div class="col-lg-3">
+                                <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-outline-warning w-100">
+                                    <i data-feather="file-plus" class="me-2"></i>
+                                    Nuevo Contrato
+                                </a>
+                            </div>
+                            {% endif %}
+                            
+                            {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                            <div class="col-lg-3">
+                                <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-outline-success w-100">
+                                    <i data-feather="plus-circle" class="me-2"></i>
+                                    Nueva OF
+                                </a>
+                            </div>
+                            {% endif %}
                         </div>
-                        <div class="col-md-3">
-                            <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-outline-info w-100">
-                                <i data-feather="folder-plus" class="me-2"></i>
-                                Nuevo Proyecto
-                            </a>
+                    </div>
+                    
+                    <!-- Vista compacta para pantallas medianas y pequeñas -->
+                    <div class="d-lg-none">
+                        <div class="row g-2">
+                            {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
+                            <div class="col-6">
+                                <a href="{{ url_for('clientes.nuevo') }}" class="btn btn-outline-primary w-100 btn-sm">
+                                    <i data-feather="user-plus" style="width: 16px; height: 16px;"></i>
+                                    <span class="d-none d-sm-inline ms-1">Cliente</span>
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-outline-info w-100 btn-sm">
+                                    <i data-feather="folder-plus" style="width: 16px; height: 16px;"></i>
+                                    <span class="d-none d-sm-inline ms-1">Proyecto</span>
+                                </a>
+                            </div>
+                            {% endif %}
+                            
+                            {% if current_user.rol.value in ['admin', 'ventas'] %}
+                            <div class="col-6">
+                                <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-outline-warning w-100 btn-sm">
+                                    <i data-feather="file-plus" style="width: 16px; height: 16px;"></i>
+                                    <span class="d-none d-sm-inline ms-1">Contrato</span>
+                                </a>
+                            </div>
+                            {% endif %}
+                            
+                            {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                            <div class="col-6">
+                                <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-outline-success w-100 btn-sm">
+                                    <i data-feather="plus-circle" style="width: 16px; height: 16px;"></i>
+                                    <span class="d-none d-sm-inline ms-1">OF</span>
+                                </a>
+                            </div>
+                            {% endif %}
                         </div>
-                        {% endif %}
                         
-                        {% if current_user.rol.value in ['admin', 'ventas'] %}
-                        <div class="col-md-3">
-                            <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-outline-warning w-100">
-                                <i data-feather="file-plus" class="me-2"></i>
-                                Nuevo Contrato
-                            </a>
+                        <!-- Botón para ver más opciones en móvil -->
+                        <div class="text-center mt-3 d-sm-none">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#masAcciones">
+                                <i data-feather="more-horizontal" style="width: 16px; height: 16px;"></i>
+                                Más opciones
+                            </button>
+                            <div class="collapse mt-2" id="masAcciones">
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <a href="{{ url_for('proyectos.index') }}" class="btn btn-outline-secondary w-100 btn-sm">
+                                            <i data-feather="list" style="width: 16px; height: 16px;"></i>
+                                            Ver Proyectos
+                                        </a>
+                                    </div>
+                                    <div class="col-12">
+                                        <a href="{{ url_for('fabricacion.index') }}" class="btn btn-outline-secondary w-100 btn-sm">
+                                            <i data-feather="tool" style="width: 16px; height: 16px;"></i>
+                                            Ver Fabricación
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        {% endif %}
-                        
-                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
-                        <div class="col-md-3">
-                            <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-outline-success w-100">
-                                <i data-feather="plus-circle" class="me-2"></i>
-                                Nueva OF
-                            </a>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
