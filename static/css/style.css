@@ -742,6 +742,26 @@ footer {
     font-size: 0.875rem;
 }
 
+/* Navbar Collapse - Menú hamburguesa */
+.navbar-collapse {
+    background-color: var(--mobikit-white) !important;
+    border: 1px solid var(--mobikit-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-top: 0.5rem;
+    padding: 1rem;
+}
+
+@media (min-width: 992px) {
+    .navbar-collapse {
+        background-color: transparent !important;
+        border: none;
+        box-shadow: none;
+        margin-top: 0;
+        padding: 0;
+    }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .container-fluid {
