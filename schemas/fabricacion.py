@@ -83,8 +83,18 @@ class OrdenFabricacionBase(BaseModel):
                 raise ValueError('La fecha de fin debe ser posterior a la fecha de QC')
         return v
     
-    @validator('cantidad_tableros')
+    @validator('cantidad_tableros', pre=True)
     def validate_cantidad_tableros(cls, v):
+        # Handle empty string or None
+        if v == '' or v is None:
+            return None
+        # Convert to int if it's a string
+        if isinstance(v, str):
+            try:
+                v = int(v)
+            except ValueError:
+                raise ValueError('La cantidad de tableros debe ser un número entero')
+        # Validate positive number
         if v is not None and v <= 0:
             raise ValueError('La cantidad de tableros debe ser mayor a 0')
         return v
@@ -117,6 +127,22 @@ class OrdenFabricacionUpdate(BaseModel):
     fecha_fin: Optional[datetime] = None
     responsable: Optional[str] = None
     notas: Optional[str] = None
+
+    @validator('cantidad_tableros', pre=True)
+    def validate_cantidad_tableros(cls, v):
+        # Handle empty string or None
+        if v == '' or v is None:
+            return None
+        # Convert to int if it's a string
+        if isinstance(v, str):
+            try:
+                v = int(v)
+            except ValueError:
+                raise ValueError('La cantidad de tableros debe ser un número entero')
+        # Validate positive number
+        if v is not None and v <= 0:
+            raise ValueError('La cantidad de tableros debe ser mayor a 0')
+        return v
 
     @validator('estado')
     def validate_estado_seccionando(cls, v, values):
