@@ -2,6 +2,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import and_, or_, func, extract, case
+from sqlalchemy.orm import joinedload
 from decimal import Decimal
 import calendar
 
@@ -254,8 +255,12 @@ class ComercialService:
     def get_planificacion_comercial(self, año, cliente_id=None, estado_filter='todos'):
         """Get commercial planning matrix by year"""
 
-        # Build query for projects with proper joins
+        # Build query for projects with proper joins and eager loading
         query = (db.session.query(Proyecto)
+                .options(
+                    db.joinedload(Proyecto.cliente),
+                    db.joinedload(Proyecto.vendedor_user)
+                )
                 .join(Cliente)
                 .filter(Proyecto.activo == True))
 
@@ -509,6 +514,11 @@ class ComercialService:
             }
 
         for proyecto in proyectos:
+            # Ensure we have a proper Proyecto object
+            if not hasattr(proyecto, 'monto_provision_presupuestado'):
+                # Skip objects that aren't proper Proyecto instances
+                continue
+                
             # Determine which months this project affects
             meses_proyecto = self._obtener_meses_proyecto(proyecto, año)
 
