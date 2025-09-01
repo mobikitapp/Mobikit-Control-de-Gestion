@@ -186,7 +186,7 @@
                                         <i data-feather="edit"></i>
                                     </a>
                                     <button type="button" class="btn btn-outline-success" 
-                                            title="Avanzar estado" 
+                                            title="Avanzar estado/área" 
                                             onclick="avanzarEstado({{ of.id }}, '{{ of.codigo }}')">
                                         <i data-feather="arrow-right"></i>
                                     </button>
@@ -266,7 +266,8 @@
             </div>
             <form id="avanzarEstadoForm" method="POST">
                 <div class="modal-body">
-                    <p>¿Está seguro que desea avanzar la orden <strong id="codigoOrden"></strong> al siguiente estado?</p>
+                    <p>¿Está seguro que desea avanzar la orden <strong id="codigoOrden"></strong>?</p>
+                    <small class="text-muted">El sistema determinará automáticamente si avanzar al siguiente estado dentro del área o a la siguiente área.</small>
                     <div class="mb-3">
                         <label for="responsable_avance" class="form-label">Responsable (opcional)</label>
                         <select class="form-select" id="responsable_avance" name="responsable_id">

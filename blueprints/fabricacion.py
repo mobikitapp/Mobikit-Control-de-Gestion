@@ -233,24 +233,24 @@ def cambiar_estado(of_id):
 @fabricacion_bp.route('/<int:of_id>/avanzar-area', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def avanzar_area(of_id):
-    """Avanzar OF a la siguiente área"""
+    """Avanzar OF al siguiente estado o área según corresponda"""
     try:
         responsable_id = request.form.get('responsable_id')
         notas = request.form.get('notas')
         
-        success = fabricacion_service.advance_to_next_area(
+        success, message = fabricacion_service.smart_advance_orden(
             of_id, current_user.id, responsable_id=responsable_id, notas=notas
         )
         if success:
-            flash('Orden avanzada a la siguiente área exitosamente', 'success')
+            flash(message, 'success')
         else:
-            flash('Error al avanzar a siguiente área', 'error')
+            flash(f'Error: {message}', 'error')
             
     except Exception as e:
         logger.error(f"Error avanzando OF {of_id}: {str(e)}")
         flash(f'Error: {str(e)}', 'error')
     
-    return redirect(url_for('fabricacion.detalle', of_id=of_id))
+    return redirect(url_for('fabricacion.index'))
 
 @fabricacion_bp.route('/<int:of_id>/eliminar', methods=['POST'])
 @require_role(RolUsuario.ADMIN)
