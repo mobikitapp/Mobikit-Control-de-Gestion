@@ -138,7 +138,9 @@ class FabricacionRepository:
         return (db.session.query(OrdenFabricacion)
                 .filter_by(responsable=user_id)
                 .filter(OrdenFabricacion.estado.in_([
-                    EstadoOF.PLANIFICADA, EstadoOF.EN_PRODUCCION, EstadoOF.QA
+                    EstadoOF.PENDIENTE_APROBACION_DISENO, EstadoOF.APROBADO, 
+                    EstadoOF.ENVIADO_A_FABRICACION, EstadoOF.SECCIONANDO,
+                    EstadoOF.ENCHAPANDO, EstadoOF.MECANIZANDO
                 ]))
                 .order_by(OrdenFabricacion.fecha_planificada.asc())
                 .limit(limit)
@@ -184,14 +186,21 @@ class FabricacionRepository:
         current_status = of.estado
         
         # Define allowed transitions
+        # Las transiciones de estado ahora se manejan a través del sistema de áreas
+        # permitiendo cualquier transición que siga el flujo de áreas
         allowed_transitions = {
-            EstadoOF.PLANIFICADA: [EstadoOF.ENVIADO_PRODUCCION],
-            EstadoOF.ENVIADO_PRODUCCION: [EstadoOF.SECCIONANDO, EstadoOF.PLANIFICADA],  # Can go back to planned
-            EstadoOF.SECCIONANDO: [EstadoOF.EN_PRODUCCION, EstadoOF.ENVIADO_PRODUCCION],  # Can go back to enviado_produccion
-            EstadoOF.EN_PRODUCCION: [EstadoOF.QA, EstadoOF.SECCIONANDO],  # Can go back to seccionando
-            EstadoOF.QA: [EstadoOF.TERMINADA, EstadoOF.EN_PRODUCCION],    # Can go back to production
-            EstadoOF.TERMINADA: [EstadoOF.ENTREGADA],
-            EstadoOF.ENTREGADA: []  # Final state
+            EstadoOF.PENDIENTE_APROBACION_DISENO: [EstadoOF.APROBADO],
+            EstadoOF.APROBADO: [EstadoOF.ENVIADO_A_FABRICACION],
+            EstadoOF.ENVIADO_A_FABRICACION: [EstadoOF.SECCIONANDO, EstadoOF.APROBADO],
+            EstadoOF.SECCIONANDO: [EstadoOF.ENCHAPANDO, EstadoOF.ENVIADO_A_FABRICACION],
+            EstadoOF.ENCHAPANDO: [EstadoOF.MECANIZANDO, EstadoOF.SECCIONANDO],
+            EstadoOF.MECANIZANDO: [EstadoOF.FABRICACION_COMPLETA, EstadoOF.ENCHAPANDO],
+            EstadoOF.FABRICACION_COMPLETA: [EstadoOF.PENDIENTE_DE_EMBALAR],
+            EstadoOF.PENDIENTE_DE_EMBALAR: [EstadoOF.EMBALANDO],
+            EstadoOF.EMBALANDO: [EstadoOF.EMBALAJE_LISTO, EstadoOF.PENDIENTE_DE_EMBALAR],
+            EstadoOF.EMBALAJE_LISTO: [EstadoOF.LISTO_PARA_DESPACHO],
+            EstadoOF.LISTO_PARA_DESPACHO: [EstadoOF.DESPACHADO],
+            EstadoOF.DESPACHADO: []  # Estado final
         }
         
         if new_status in allowed_transitions.get(current_status, []):

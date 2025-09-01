@@ -5,13 +5,23 @@ from decimal import Decimal
 from enum import Enum
 
 class EstadoOFEnum(str, Enum):
-    PLANIFICADA = "PLANIFICADA"
-    ENVIADO_PRODUCCION = "ENVIADO_PRODUCCION"
-    SECCIONANDO = "SECCIONANDO"
-    EN_PRODUCCION = "EN_PRODUCCION"
-    QA = "QA"
-    TERMINADA = "TERMINADA"
-    ENTREGADA = "ENTREGADA"
+    # Estados de Pendientes de Fabricación
+    PENDIENTE_APROBACION_DISENO = "pendiente_aprobacion_diseño"
+    APROBADO = "aprobado"
+    # Estados de Fábrica
+    ENVIADO_A_FABRICACION = "enviado_a_fabricacion"
+    SECCIONANDO = "seccionando"
+    ENCHAPANDO = "enchapando"
+    MECANIZANDO = "mecanizando"
+    FABRICACION_COMPLETA = "fabricacion_completa"
+    # Estados de Embalaje
+    PENDIENTE_DE_EMBALAR = "pendiente_de_embalar"
+    EMBALANDO = "embalando"
+    EMBALAJE_LISTO = "embalaje_listo"
+    # Estados de Bodega
+    LISTO_PARA_DESPACHO = "listo_para_despacho"
+    # Estados de Despacho
+    DESPACHADO = "despachado"
 
 class OrdenFabricacionItemBase(BaseModel):
     sku_codigo: str = Field(..., min_length=1, max_length=50, description="SKU o código del item")
@@ -45,7 +55,7 @@ class OrdenFabricacionBase(BaseModel):
     glosa: Optional[str] = Field(None, description="Glosa de la OF")
     cantidad_tableros: Optional[int] = Field(None, description="Cantidad de tableros")
     fecha_entrega_fabrica: Optional[date] = Field(None, description="Fecha de entrega de fábrica")
-    estado: EstadoOFEnum = Field(EstadoOFEnum.PLANIFICADA, description="Estado de la OF")
+    estado: EstadoOFEnum = Field(EstadoOFEnum.PENDIENTE_APROBACION_DISENO, description="Estado de la OF")
     fecha_planificada: Optional[date] = Field(None, description="Fecha planificada")
     fecha_inicio: Optional[datetime] = Field(None, description="Fecha de inicio")
     fecha_qc: Optional[datetime] = Field(None, description="Fecha de QC")
