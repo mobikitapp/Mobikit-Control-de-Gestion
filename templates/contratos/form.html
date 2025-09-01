@@ -65,8 +65,8 @@
                                     Tipo de Documento <span class="text-danger">*</span>
                                 </label>
                                 <select class="form-select" id="tipo_documento" name="tipo_documento" required>
-                                    <option value="contrato" {% if not contrato or contrato.tipo_documento.value == 'contrato' %}selected{% endif %}>Contrato</option>
-                                    <option value="orden_compra" {% if contrato and contrato.tipo_documento.value == 'orden_compra' %}selected{% endif %}>Orden de Compra</option>
+                                    <option value="CONTRATO" {% if not contrato or contrato.tipo_documento.value == 'CONTRATO' %}selected{% endif %}>Contrato</option>
+                                    <option value="ORDEN_COMPRA" {% if contrato and contrato.tipo_documento.value == 'ORDEN_COMPRA' %}selected{% endif %}>Orden de Compra</option>
                                 </select>
                                 <div class="invalid-feedback">
                                     Por favor selecciona el tipo de documento.

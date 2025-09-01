@@ -50,8 +50,8 @@
                     <label for="tipo_documento" class="form-label">Tipo</label>
                     <select class="form-select" id="tipo_documento" name="tipo_documento">
                         <option value="">Todos los tipos</option>
-                        <option value="contrato" {% if filters.tipo_documento == 'contrato' %}selected{% endif %}>Contrato</option>
-                        <option value="orden_compra" {% if filters.tipo_documento == 'orden_compra' %}selected{% endif %}>Orden de Compra</option>
+                        <option value="CONTRATO" {% if filters.tipo_documento == 'CONTRATO' %}selected{% endif %}>Contrato</option>
+                        <option value="ORDEN_COMPRA" {% if filters.tipo_documento == 'ORDEN_COMPRA' %}selected{% endif %}>Orden de Compra</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -141,8 +141,8 @@
                                 <div class="fw-medium">{{ contrato.numero_oc }}</div>
                             </td>
                             <td>
-                                <span class="badge bg-{{ 'primary' if contrato.tipo_documento.value == 'contrato' else 'info' }}">
-                                    {{ 'Contrato' if contrato.tipo_documento.value == 'contrato' else 'Orden de Compra' }}
+                                <span class="badge bg-{{ 'primary' if contrato.tipo_documento.value == 'CONTRATO' else 'info' }}">
+                                    {{ 'Contrato' if contrato.tipo_documento.value == 'CONTRATO' else 'Orden de Compra' }}
                                 </span>
                             </td>
                             <td>
