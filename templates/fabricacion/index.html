@@ -331,7 +331,7 @@ function avanzarEstado(ofId, codigo) {
     // Load responsables if not already loaded
     const responsableSelect = document.getElementById('responsable_avance');
     if (responsableSelect.children.length === 1) {
-        fetch('/api/users/active')
+        fetch('/contratos/api/users/active')
             .then(response => response.json())
             .then(users => {
                 users.forEach(user => {

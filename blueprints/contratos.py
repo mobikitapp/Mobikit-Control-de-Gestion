@@ -526,3 +526,22 @@ def api_by_proyecto(proyecto_id):
     except Exception as e:
         logger.error(f"Error en API contratos por proyecto: {str(e)}")
         return jsonify({'error': 'Error al cargar contratos'}), 500
+
+@contratos_bp.route('/api/users/active')
+@require_login
+def api_users_active():
+    """API endpoint para obtener usuarios activos"""
+    try:
+        from services.user_service import UserService
+        user_service = UserService()
+        users = user_service.get_active_users()
+        
+        return jsonify([{
+            'id': u.id,
+            'nombre_completo': f"{u.nombre} {u.apellido}" if u.apellido else u.nombre,
+            'email': u.email
+        } for u in users])
+
+    except Exception as e:
+        logger.error(f"Error en API usuarios activos: {str(e)}")
+        return jsonify({'error': 'Error al cargar usuarios'}), 500
