@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros.html' import moment %}
 
 {% block title %}Órdenes de Fabricación - Sistema de Manufactura{% endblock %}
 
@@ -117,6 +118,8 @@
                             <th>Cliente</th>
                             <th>Área / Estado</th>
                             <th>Fecha Planificada</th>
+                            <th>Fecha Entrega</th>
+                            <th>Días Restantes</th>
                             <th>Responsable</th>
                             <th width="150">Acciones</th>
                         </tr>
@@ -159,6 +162,31 @@
                                 {% if of.fecha_planificada %}
                                     {{ of.fecha_planificada.strftime('%d/%m/%Y') }}
                                     {# Comparación de fechas se hace en el servidor, no en el template #}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if of.fecha_entrega_fabrica %}
+                                    {{ of.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if of.fecha_entrega_fabrica %}
+                                    {% set days_diff = (of.fecha_entrega_fabrica - moment().date()).days %}
+                                    {% if days_diff < 0 %}
+                                        <span class="badge bg-danger">{{ days_diff|abs }} días vencido</span>
+                                    {% elif days_diff == 0 %}
+                                        <span class="badge bg-warning">Hoy</span>
+                                    {% elif days_diff <= 7 %}
+                                        <span class="badge bg-warning">{{ days_diff }} días</span>
+                                    {% elif days_diff <= 30 %}
+                                        <span class="badge bg-info">{{ days_diff }} días</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ days_diff }} días</span>
+                                    {% endif %}
                                 {% else %}
                                     -
                                 {% endif %}
