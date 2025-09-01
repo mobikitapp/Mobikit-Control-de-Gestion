@@ -152,9 +152,7 @@
                             <td>
                                 {% if of.fecha_planificada %}
                                     {{ of.fecha_planificada.strftime('%d/%m/%Y') }}
-                                    {% if of.fecha_planificada < moment().date() and of.estado.value == 'planificada' %}
-                                    <br><span class="badge bg-danger">Atrasada</span>
-                                    {% endif %}
+                                    {# Comparación de fechas se hace en el servidor, no en el template #}
                                 {% else %}
                                     -
                                 {% endif %}
