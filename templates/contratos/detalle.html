@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros.html' import render_field, render_select_field %}
 
 {% block title %}{{ contrato.numero_oc }} - Contratos - Sistema de Manufactura{% endblock %}
 
@@ -35,6 +36,13 @@
                         <i data-feather="edit" class="me-2"></i>
                         Editar
                     </a>
+                    {% endif %}
+
+                    {% if current_user.rol.value == 'admin' %}
+                    <button type="button" class="btn btn-outline-danger" onclick="confirmarEliminacion({{ contrato.id }}, '{{ contrato.numero_oc }}')">
+                        <i data-feather="trash-2" class="me-2"></i>
+                        Eliminar
+                    </button>
                     {% endif %}
                     <a href="{{ url_for('contratos.index') }}" class="btn btn-outline-secondary">
                         <i data-feather="arrow-left" class="me-2"></i>
@@ -302,6 +310,28 @@
 </div>
 {% endif %}
 
+<!-- Delete Contract Confirmation Modal -->
+<div class="modal fade" id="eliminarContratoModal" tabindex="-1" aria-labelledby="eliminarContratoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eliminarContratoModalLabel">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ¿Estás seguro de que deseas eliminar el contrato "<strong id="contratoNumero"></strong>"? Esta acción no se puede deshacer.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="eliminarContratoForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <!-- Status Change Form (Hidden) -->
 <form id="statusForm" method="POST" action="{{ url_for('contratos.cambiar_estado', contrato_id=contrato.id) }}" style="display: none;">
     <input type="hidden" id="nuevo_estado" name="nuevo_estado">
@@ -330,6 +360,14 @@ function deleteAttachment(attachmentId) {
     }
 }
 
+function confirmarEliminacion(contratoId, numeroOc) {
+    document.getElementById('contratoNumero').textContent = numeroOc;
+    document.getElementById('eliminarContratoForm').action = `/contratos/${contratoId}/eliminar`;
+
+    const modal = new bootstrap.Modal(document.getElementById('eliminarContratoModal'));
+    modal.show();
+}
+
 // Auto-hide alerts after 5 seconds
 document.addEventListener('DOMContentLoaded', function() {
     const alerts = document.querySelectorAll('.alert');
@@ -340,6 +378,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 5000);
     });
+
+    // Initialize feather icons after modal content is loaded
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
 });
 </script>
 {% endblock %}

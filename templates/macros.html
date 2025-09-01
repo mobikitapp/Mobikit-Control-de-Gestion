@@ -1,0 +1,85 @@
+
+{% macro render_field(field, label_class="", input_class="", help_text="") %}
+    <div class="mb-3">
+        {{ field.label(class=label_class + " form-label") }}
+        {{ field(class=input_class + " form-control") }}
+        {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+        {% endif %}
+        {% if field.errors %}
+        <div class="invalid-feedback d-block">
+            {% for error in field.errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro render_select_field(field, label_class="", input_class="", help_text="") %}
+    <div class="mb-3">
+        {{ field.label(class=label_class + " form-label") }}
+        {{ field(class=input_class + " form-select") }}
+        {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+        {% endif %}
+        {% if field.errors %}
+        <div class="invalid-feedback d-block">
+            {% for error in field.errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro render_textarea_field(field, label_class="", input_class="", help_text="", rows=3) %}
+    <div class="mb-3">
+        {{ field.label(class=label_class + " form-label") }}
+        {{ field(class=input_class + " form-control", rows=rows) }}
+        {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+        {% endif %}
+        {% if field.errors %}
+        <div class="invalid-feedback d-block">
+            {% for error in field.errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro render_checkbox_field(field, label_class="", help_text="") %}
+    <div class="mb-3 form-check">
+        {{ field(class="form-check-input") }}
+        {{ field.label(class=label_class + " form-check-label") }}
+        {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+        {% endif %}
+        {% if field.errors %}
+        <div class="invalid-feedback d-block">
+            {% for error in field.errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro render_file_field(field, label_class="", input_class="", help_text="", accept="") %}
+    <div class="mb-3">
+        {{ field.label(class=label_class + " form-label") }}
+        {{ field(class=input_class + " form-control", accept=accept) }}
+        {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+        {% endif %}
+        {% if field.errors %}
+        <div class="invalid-feedback d-block">
+            {% for error in field.errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+{% endmacro %}
