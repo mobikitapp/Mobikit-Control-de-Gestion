@@ -194,10 +194,13 @@ const ManufacturingApp = {
         // Handle dynamic item addition/removal
         document.addEventListener('click', (e) => {
             try {
-                if (e.target && e.target.classList.contains('add-item-btn')) {
+                if (!e.target) return;
+                
+                if (e.target.classList && e.target.classList.contains('add-item-btn')) {
                     this.addDynamicItem(e.target);
-                } else if (e.target && (e.target.classList.contains('remove-item-btn') || 
-                          e.target.closest('.remove-item-btn'))) {
+                } else if (e.target.classList && e.target.classList.contains('remove-item-btn')) {
+                    this.removeDynamicItem(e.target);
+                } else if (e.target.closest && e.target.closest('.remove-item-btn')) {
                     this.removeDynamicItem(e.target);
                 }
             } catch (error) {
@@ -208,6 +211,8 @@ const ManufacturingApp = {
 
     // Add dynamic item (generic implementation)
     addDynamicItem(button) {
+        if (!button || !button.closest) return;
+        
         const container = button.closest('.dynamic-container');
         if (!container) return;
 
@@ -239,6 +244,8 @@ const ManufacturingApp = {
 
     // Remove dynamic item
     removeDynamicItem(button) {
+        if (!button || !button.closest) return;
+        
         const item = button.closest('.dynamic-item');
         if (item && confirm('¿Estás seguro de que deseas eliminar este elemento?')) {
             item.remove();

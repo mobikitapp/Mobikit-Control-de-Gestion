@@ -101,8 +101,7 @@ class ProyectosService:
             ordenes = []
             try:
                 ordenes = db.session.query(OrdenFabricacion).filter_by(
-                    proyecto_id=proyecto_id, 
-                    activo=True
+                    proyecto_id=proyecto_id
                 ).all()
             except Exception as e:
                 logger.warning(f"Error loading ordenes for proyecto {proyecto_id}: {str(e)}")
@@ -402,7 +401,7 @@ class ProyectosService:
         """Get count of contracts for project"""
         try:
             from models import Contrato
-            return Contrato.query.filter_by(proyecto_id=proyecto_id, activo=True).count()
+            return Contrato.query.filter_by(proyecto_id=proyecto_id).count()
         except Exception as e:
             logger.warning(f"Error counting contratos for proyecto {proyecto_id}: {str(e)}")
             return 0
@@ -411,7 +410,7 @@ class ProyectosService:
         """Get count of dispatches for project"""
         try:
             from models import Despacho
-            return Despacho.query.filter_by(proyecto_id=proyecto_id, activo=True).count()
+            return Despacho.query.filter_by(proyecto_id=proyecto_id).count()
         except Exception as e:
             logger.warning(f"Error counting despachos for proyecto {proyecto_id}: {str(e)}")
             return 0
