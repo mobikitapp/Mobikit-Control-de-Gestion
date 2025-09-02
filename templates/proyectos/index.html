@@ -209,7 +209,7 @@
                                                     <th>N° OC/Contrato</th>
                                                     <th>Tipo</th>
                                                     <th>Monto</th>
-                                                    <th>Fecha Emisión</th>
+                                                    <th>Fecha Próxima Entrega</th>
                                                     <th>Fecha Vencimiento</th>
                                                     <th>Acciones</th>
                                                 </tr>
@@ -236,10 +236,17 @@
                                                         {% endif %}
                                                     </td>
                                                     <td>
-                                                        {% if contrato.fecha_emision %}
-                                                            {{ contrato.fecha_emision.strftime('%d/%m/%Y') }}
+                                                        {% if contrato.fecha_proxima_entrega %}
+                                                            <span class="badge bg-warning text-dark">
+                                                                {{ contrato.fecha_proxima_entrega.strftime('%d/%m/%Y') }}
+                                                            </span>
+                                                            {% if contrato.proximo_hito %}
+                                                                <small class="text-muted d-block">
+                                                                    {{ contrato.proximo_hito.titulo }}
+                                                                </small>
+                                                            {% endif %}
                                                         {% else %}
-                                                            -
+                                                            <span class="text-muted">Sin plan de entrega</span>
                                                         {% endif %}
                                                     </td>
                                                     <td>

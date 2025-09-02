@@ -386,7 +386,8 @@ def api_contratos_activos(proyecto_id):
             'tipo_documento': c.tipo_documento.value,
             'monto_total': float(c.monto_total) if c.monto_total else 0,
             'moneda': c.moneda,
-            'fecha_emision': c.fecha_emision.strftime('%d/%m/%Y') if c.fecha_emision else None,
+            'fecha_proxima_entrega': c.fecha_proxima_entrega.strftime('%d/%m/%Y') if c.fecha_proxima_entrega else None,
+            'proximo_hito_titulo': c.proximo_hito.titulo if c.proximo_hito else None,
             'fecha_vencimiento': c.fecha_vencimiento.strftime('%d/%m/%Y') if c.fecha_vencimiento else None,
             'estado': c.estado.value
         } for c in contratos])
