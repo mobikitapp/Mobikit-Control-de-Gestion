@@ -846,6 +846,7 @@ class EventoEntrega(db.Model):
     estado = db.Column(db.Enum(EstadoEvento), default=EstadoEvento.PENDIENTE, nullable=False)
     prioridad = db.Column(db.Enum(PrioridadEvento), default=PrioridadEvento.MEDIA, nullable=False)
     recordatorio_dias = db.Column(db.Integer, default=1)
+    recordatorio_enviado = db.Column(db.Boolean, default=False, nullable=False)
     notas = db.Column(db.Text)
     fecha_completado = db.Column(db.DateTime)
     completado_por = db.Column(db.String, db.ForeignKey('users.id'))
