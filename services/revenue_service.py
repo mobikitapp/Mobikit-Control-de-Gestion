@@ -324,7 +324,6 @@ class RevenueService:
                                        extract('month', Proyecto.created_at) == mes,
                                        Proyecto.estado_comercial.in_([
                                            EstadoComercial.PRESUPUESTADO,
-                                           EstadoComercial.COTIZADO,
                                            EstadoComercial.ADJUDICADO
                                        ])
                                    )
