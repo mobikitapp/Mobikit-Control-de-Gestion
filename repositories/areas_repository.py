@@ -128,8 +128,8 @@ class OrdenAreaProgresoRepository:
                 .all())
 
     @staticmethod
-    def get_orders_by_responsable(responsable_id: str, archivado: bool = False) -> List[OrdenAreaProgreso]:
-        """Get all OFs assigned to a user"""
+    def get_orders_by_glosa_filter(glosa_filter: str, archivado: bool = False) -> List[OrdenAreaProgreso]:
+        """Get all OFs filtered by glosa content"""
         return (db.session.query(OrdenAreaProgreso)
                 .options(
                     joinedload(OrdenAreaProgreso.orden_fabricacion)
@@ -138,10 +138,10 @@ class OrdenAreaProgresoRepository:
                     joinedload(OrdenAreaProgreso.area),
                     joinedload(OrdenAreaProgreso.estado)
                 )
-                .filter_by(
-                    responsable_area=responsable_id,
-                    es_actual=True,
-                    archivado=archivado
+                .filter(
+                    OrdenAreaProgreso.glosa.ilike(f'%{glosa_filter}%'),
+                    OrdenAreaProgreso.es_actual == True,
+                    OrdenAreaProgreso.archivado == archivado
                 )
                 .order_by(OrdenAreaProgreso.fecha_cambio_estado.asc())
                 .all())
@@ -149,9 +149,9 @@ class OrdenAreaProgresoRepository:
     @staticmethod
     def create_progress(progress_data: Dict[str, Any]) -> OrdenAreaProgreso:
         """Create new area progress record"""
-        # Convert empty strings to None for foreign key fields
-        if 'responsable_area' in progress_data and progress_data['responsable_area'] == '':
-            progress_data['responsable_area'] = None
+        # Convert empty strings to None for text fields
+        if 'glosa' in progress_data and progress_data['glosa'] == '':
+            progress_data['glosa'] = None
         if 'notas_area' in progress_data and progress_data['notas_area'] == '':
             progress_data['notas_area'] = None
             
@@ -163,9 +163,9 @@ class OrdenAreaProgresoRepository:
     @staticmethod
     def update_progress(progress: OrdenAreaProgreso, update_data: Dict[str, Any]) -> OrdenAreaProgreso:
         """Update area progress"""
-        # Convert empty strings to None for foreign key fields
-        if 'responsable_area' in update_data and update_data['responsable_area'] == '':
-            update_data['responsable_area'] = None
+        # Convert empty strings to None for text fields
+        if 'glosa' in update_data and update_data['glosa'] == '':
+            update_data['glosa'] = None
         if 'notas_area' in update_data and update_data['notas_area'] == '':
             update_data['notas_area'] = None
             

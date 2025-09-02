@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 class AreasService:
     """Service layer for Areas and OrdenAreaProgreso operations"""
-    
+
     def __init__(self):
         self.areas_repo = AreasRepository()
         self.progreso_repo = OrdenAreaProgresoRepository()
-    
+
     def initialize_orden_in_areas(self, orden_fabricacion_id: int, created_by: str) -> OrdenAreaProgreso:
         """
         Initialize a new OrdenFabricacion in the areas system
@@ -31,17 +31,17 @@ class AreasService:
             primera_area = self.areas_repo.get_area_by_tipo(TipoArea.PENDIENTES_FABRICACION)
             if not primera_area:
                 raise ValueError("Área 'Pendientes de Fabricación' no encontrada")
-            
+
             # Get initial state for this area
             estado_inicial = self.areas_repo.get_estado_inicial(primera_area.id)
             if not estado_inicial:
                 raise ValueError("Estado inicial no encontrado para área 'Pendientes de Fabricación'")
-            
+
             # Check if already exists
             existing_progress = self.progreso_repo.get_current_progress(orden_fabricacion_id)
             if existing_progress:
                 raise ValueError(f"La orden {orden_fabricacion_id} ya está en el sistema de áreas")
-            
+
             # Create progress record
             now = datetime.now()
             progress_data = {
@@ -53,10 +53,10 @@ class AreasService:
                 'es_actual': True,
                 'created_by': created_by
             }
-            
+
             progress = self.progreso_repo.create_progress(progress_data)
             db.session.commit()
-            
+
             # Log audit
             AuditService.log_action(
                 'orden_area_progreso', 
@@ -64,59 +64,67 @@ class AreasService:
                 'CREATE',
                 datos_nuevos=serialize_model(progress)
             )
-            
+
             logger.info(f"Orden {orden_fabricacion_id} inicializada en sistema de áreas")
             return progress
-            
+
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error inicializando orden en áreas: {str(e)}")
             raise
-    
-    def change_estado_in_area(self, orden_fabricacion_id: int, nuevo_estado_id: int, 
-                             responsable_id: str = None, notas: str = None, 
-                             tiempo_estimado_horas: float = None) -> OrdenAreaProgreso:
+
+    def change_estado_in_area(self, orden_id: int, nuevo_estado_id: int, glosa: str = None, notas: str = None, tiempo_estimado_horas: float = None) -> bool:
         """
-        Change state within the same area
+        Change estado within the same area
+
+        Args:
+            orden_id: Orden fabricacion ID
+            nuevo_estado_id: New estado ID within same area
+            glosa: Optional glosa description
+            notas: Optional notes
+            tiempo_estimado_horas: Optional estimated hours
+
+        Returns:
+            True if successful
         """
         try:
             # Get current progress
-            current_progress = self.progreso_repo.get_current_progress(orden_fabricacion_id)
+            current_progress = self.progreso_repo.get_current_progress(orden_id)
             if not current_progress:
-                raise ValueError(f"Orden {orden_fabricacion_id} no encontrada en sistema de áreas")
-            
+                raise ValueError("Orden no encontrada en sistema de áreas")
+
             # Get new state
             nuevo_estado = db.session.get(AreaEstado, nuevo_estado_id)
             if not nuevo_estado:
                 raise ValueError("Estado no encontrado")
-            
+
             # Validate state belongs to current area
             if nuevo_estado.area_id != current_progress.area_id:
                 raise ValueError("El estado no pertenece al área actual")
-            
+
             # Store original data for audit
             datos_anteriores = serialize_model(current_progress)
-            
+
             # Update progress
             update_data = {
                 'estado_id': nuevo_estado_id,
                 'fecha_cambio_estado': datetime.now()
             }
-            
-            if responsable_id:
-                update_data['responsable_area'] = responsable_id
-            
+
+            if glosa:
+                update_data['glosa'] = glosa
+
             if notas:
                 current_notas = current_progress.notas_area or ""
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
                 update_data['notas_area'] = f"{current_notas}\n[{timestamp}] {nuevo_estado.nombre}: {notas}".strip()
-            
+
             if tiempo_estimado_horas is not None:
                 update_data['tiempo_estimado_horas'] = tiempo_estimado_horas
-            
+
             updated_progress = self.progreso_repo.update_progress(current_progress, update_data)
             db.session.commit()
-            
+
             # Log audit
             AuditService.log_action(
                 'orden_area_progreso',
@@ -125,64 +133,62 @@ class AreasService:
                 datos_anteriores=datos_anteriores,
                 datos_nuevos=serialize_model(updated_progress)
             )
-            
-            logger.info(f"Estado cambiado para orden {orden_fabricacion_id}: {nuevo_estado.nombre}")
-            return updated_progress
-            
+
+            logger.info(f"Estado cambiado para orden {orden_id}: {nuevo_estado.nombre}")
+            return True
+
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error cambiando estado: {str(e)}")
             raise
-    
-    def advance_to_next_area(self, orden_fabricacion_id: int, created_by: str, 
-                           responsable_id: str = None, notas: str = None) -> OrdenAreaProgreso:
+
+    def advance_to_next_area(self, orden_id: int, created_by: str, glosa: str = None, notas: str = None) -> bool:
         """
         Advance OrdenFabricacion to next area in sequence
         """
         try:
             # Get current progress
-            current_progress = self.progreso_repo.get_current_progress(orden_fabricacion_id)
+            current_progress = self.progreso_repo.get_current_progress(orden_id)
             if not current_progress:
-                raise ValueError(f"Orden {orden_fabricacion_id} no encontrada en sistema de áreas")
-            
+                raise ValueError(f"Orden {orden_id} no encontrada en sistema de áreas")
+
             # Check if current state is final for the area
             if not current_progress.estado.es_final:
                 raise ValueError(f"La orden debe completar el estado final del área actual antes de avanzar")
-            
+
             # Get next area
             current_area = current_progress.area
-            siguiente_area = (db.session.query(Area)
+            next_area = (db.session.query(Area)
                             .filter_by(orden_secuencia=current_area.orden_secuencia + 1, activo=True)
                             .first())
-            
-            if not siguiente_area:
+
+            if not next_area:
                 raise ValueError("No hay siguiente área en la secuencia")
-            
+
             # Get initial state for next area
-            estado_inicial = self.areas_repo.get_estado_inicial(siguiente_area.id)
-            if not estado_inicial:
-                raise ValueError(f"Estado inicial no encontrado para área {siguiente_area.nombre}")
-            
+            initial_estado = self.areas_repo.get_estado_inicial(next_area.id)
+            if not initial_estado:
+                raise ValueError(f"Estado inicial no encontrado para área {next_area.nombre}")
+
             # Mark current progress as not current (for history)
             current_progress.es_actual = False
-            
-            # Create new progress record for next area
-            now = datetime.now()
+
+            # Create new progress record
             new_progress_data = {
-                'orden_fabricacion_id': orden_fabricacion_id,
-                'area_id': siguiente_area.id,
-                'estado_id': estado_inicial.id,
-                'fecha_ingreso_area': now,
-                'fecha_cambio_estado': now,
-                'responsable_area': responsable_id if responsable_id else None,
-                'notas_area': notas if notas else None,
+                'orden_fabricacion_id': orden_id,
+                'area_id': next_area.id,
+                'estado_id': initial_estado.id,
+                'fecha_ingreso_area': datetime.now(),
+                'fecha_cambio_estado': datetime.now(),
+                'glosa': glosa,
+                'notas_area': notas,
                 'es_actual': True,
                 'created_by': created_by
             }
-            
+
             new_progress = self.progreso_repo.create_progress(new_progress_data)
             db.session.commit()
-            
+
             # Log audit
             AuditService.log_action(
                 'orden_area_progreso',
@@ -190,15 +196,15 @@ class AreasService:
                 'CREATE',
                 datos_nuevos=serialize_model(new_progress)
             )
-            
-            logger.info(f"Orden {orden_fabricacion_id} avanzada a área {siguiente_area.nombre}")
-            return new_progress
-            
+
+            logger.info(f"Orden {orden_id} avanzada a área {next_area.nombre}")
+            return True
+
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error avanzando a siguiente área: {str(e)}")
             raise
-    
+
     def archive_dispatch(self, orden_fabricacion_id: int) -> bool:
         """
         Archive a dispatched order (remove from active lists)
@@ -207,16 +213,16 @@ class AreasService:
             current_progress = self.progreso_repo.get_current_progress(orden_fabricacion_id)
             if not current_progress:
                 raise ValueError(f"Orden {orden_fabricacion_id} no encontrada")
-            
+
             # Verify it's in dispatch area with dispatched state
             if current_progress.area.tipo != TipoArea.DESPACHO:
                 raise ValueError("Solo se pueden archivar órdenes en el área de Despacho")
-            
+
             # Archive the progress record
             datos_anteriores = serialize_model(current_progress)
             archived_progress = self.progreso_repo.archive_progress(current_progress)
             db.session.commit()
-            
+
             # Log audit
             AuditService.log_action(
                 'orden_area_progreso',
@@ -225,15 +231,15 @@ class AreasService:
                 datos_anteriores=datos_anteriores,
                 datos_nuevos=serialize_model(archived_progress)
             )
-            
+
             logger.info(f"Orden {orden_fabricacion_id} archivada en despachos")
             return True
-            
+
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error archivando despacho: {str(e)}")
             raise
-    
+
     def get_areas_dashboard_data(self) -> Dict[str, Any]:
         """
         Get comprehensive data for areas dashboard
@@ -245,11 +251,11 @@ class AreasService:
                 'areas': [],
                 'stats': self.progreso_repo.get_dashboard_stats()
             }
-            
+
             for area in areas:
                 # Get orders in this area
                 orders_in_area = self.progreso_repo.get_orders_in_area(area.id)
-                
+
                 # Group by state
                 states_data = []
                 for estado in area.estados:
@@ -278,7 +284,7 @@ class AreasService:
                             for o in orders_in_state
                         ]
                     })
-                
+
                 area_data = {
                     'area': {
                         'id': area.id,
@@ -291,22 +297,22 @@ class AreasService:
                     'total_count': len(orders_in_area),
                     'estados': states_data
                 }
-                
+
                 dashboard_data['areas'].append(area_data)
-            
+
             return dashboard_data
-            
+
         except Exception as e:
             logger.error(f"Error obteniendo datos de dashboard: {str(e)}")
             raise
-    
+
     def get_orden_area_history(self, orden_fabricacion_id: int) -> List[Dict[str, Any]]:
         """
         Get complete area transition history for an order
         """
         try:
             history = self.progreso_repo.get_progress_history(orden_fabricacion_id)
-            
+
             return [
                 {
                     'id': h.id,
@@ -331,18 +337,18 @@ class AreasService:
                 }
                 for h in history
             ]
-            
+
         except Exception as e:
             logger.error(f"Error obteniendo historial de áreas: {str(e)}")
             raise
-    
+
     def get_my_pending_orders(self, user_id: str) -> List[Dict[str, Any]]:
         """
         Get orders assigned to a specific user
         """
         try:
             orders = self.progreso_repo.get_orders_by_responsable(user_id)
-            
+
             return [
                 {
                     'orden_fabricacion': {
@@ -367,7 +373,7 @@ class AreasService:
                 }
                 for o in orders
             ]
-            
+
         except Exception as e:
             logger.error(f"Error obteniendo órdenes pendientes del usuario: {str(e)}")
             raise
