@@ -173,14 +173,14 @@ class FabricacionService:
             logger.error(f"Error actualizando OF {of_id}: {str(e)}")
             raise
 
-    def change_estado_area(self, of_id: int, nuevo_estado_id: int, glosa: str = None, notas: str = None) -> bool:
+    def change_estado_area(self, of_id: int, nuevo_estado_id: int, responsable_id: str = None, notas: str = None) -> bool:
         """
         Change estado within the same area using AreasService
 
         Args:
             of_id: OF ID
             nuevo_estado_id: New estado ID within the same area
-            glosa: Optional glosa description
+            responsable_id: Optional responsible user ID
             notas: Optional notes for the status change
 
         Returns:
@@ -195,7 +195,7 @@ class FabricacionService:
             self.areas_service.change_estado_in_area(
                 of_id, 
                 nuevo_estado_id, 
-                glosa=glosa, 
+                responsable_id=responsable_id, 
                 notas=notas
             )
 
@@ -207,14 +207,14 @@ class FabricacionService:
             logger.error(f"Error cambiando estado de OF {of_id}: {str(e)}")
             raise
 
-    def advance_to_next_area(self, of_id: int, created_by: str, glosa: str = None, notas: str = None) -> bool:
+    def advance_to_next_area(self, of_id: int, created_by: str, responsable_id: str = None, notas: str = None) -> bool:
         """
         Advance OF to next area in the workflow
 
         Args:
             of_id: OF ID
             created_by: User ID who is advancing the OF
-            glosa: Optional glosa description for the new area
+            responsable_id: Optional responsible user ID for the new area
             notas: Optional notes
 
         Returns:
@@ -229,7 +229,7 @@ class FabricacionService:
             self.areas_service.advance_to_next_area(
                 of_id,
                 created_by,
-                glosa=glosa,
+                responsable_id=responsable_id,
                 notas=notas
             )
 
@@ -323,7 +323,7 @@ class FabricacionService:
             logger.error(f"Error obteniendo OFs del proyecto {proyecto_id}: {str(e)}")
             raise
 
-    def smart_advance_orden(self, of_id: int, created_by: str, glosa: str = None, notas: str = None) -> tuple[bool, str]:
+    def smart_advance_orden(self, of_id: int, created_by: str, responsable_id: str = None, notas: str = None) -> tuple[bool, str]:
         """
         Smart advance function that determines whether to advance state within area or move to next area
 
@@ -356,7 +356,7 @@ class FabricacionService:
                     self.areas_service.advance_to_next_area(
                         of_id,
                         created_by,
-                        glosa=glosa,
+                        responsable_id=responsable_id,
                         notas=notas
                     )
                     return True, f"Orden avanzada a la siguiente área exitosamente"
@@ -383,7 +383,7 @@ class FabricacionService:
                 self.areas_service.change_estado_in_area(
                     of_id, 
                     next_estado.id, 
-                    glosa=glosa, 
+                    responsable_id=responsable_id, 
                     notas=notas
                 )
                 return True, f"Estado actualizado a '{next_estado.nombre}' exitosamente"

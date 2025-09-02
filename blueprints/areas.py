@@ -349,7 +349,7 @@ def cambiar_estado_form(orden_id):
         
         if request.method == 'POST':
             nuevo_estado_id = request.form.get('nuevo_estado_id', type=int)
-            glosa = request.form.get('glosa')
+            responsable_id = request.form.get('responsable_id')
             notas = request.form.get('notas')
             tiempo_estimado = request.form.get('tiempo_estimado_horas', type=float)
             

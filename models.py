@@ -705,7 +705,7 @@ class OrdenAreaProgreso(db.Model):
     fecha_cambio_estado = db.Column(db.DateTime, nullable=False) # Cuándo cambió al estado actual
 
     # Asignación y seguimiento
-    glosa = db.Column(db.Text)  # Glosa o descripción del trabajo en esta área
+    responsable_area = db.Column(db.String, db.ForeignKey('users.id'))  # Usuario responsable en esta área
     tiempo_estimado_horas = db.Column(db.Numeric(10, 2))  # Tiempo estimado para completar en esta área
     notas_area = db.Column(db.Text)  # Observaciones específicas del área
 
@@ -719,6 +719,7 @@ class OrdenAreaProgreso(db.Model):
 
     # Relationships
     orden_fabricacion = db.relationship('OrdenFabricacion', backref='area_progresos')
+    responsable_user = db.relationship('User', foreign_keys=[responsable_area])
     creator = db.relationship('User', foreign_keys=[created_by])
 
     # Indexes
@@ -727,6 +728,7 @@ class OrdenAreaProgreso(db.Model):
         Index('idx_progreso_area', 'area_id'),
         Index('idx_progreso_estado', 'estado_id'),
         Index('idx_progreso_actual', 'orden_fabricacion_id', 'es_actual'),
+        Index('idx_progreso_responsable', 'responsable_area'),
         Index('idx_progreso_archivado', 'archivado'),
         Index('idx_progreso_fechas', 'fecha_ingreso_area', 'fecha_cambio_estado'),
     )

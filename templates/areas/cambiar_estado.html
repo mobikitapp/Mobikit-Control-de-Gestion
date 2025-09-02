@@ -85,15 +85,17 @@
                             </small>
                         </div>
 
-                        <!-- Glosa -->
                         <div class="mb-3">
-                            <label for="glosa" class="form-label">Glosa</label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="glosa" 
-                                   name="glosa" 
-                                   value="{{ current_progress.glosa or '' }}"
-                                   placeholder="Descripción del trabajo en esta área">
+                            <label for="responsable_id" class="form-label">Responsable</label>
+                            <select class="form-select" id="responsable_id" name="responsable_id">
+                                <option value="">Sin asignar</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" 
+                                        {% if current_progress.responsable_area == user.id %}selected{% endif %}>
+                                    {{ user.nombre_completo }} ({{ user.rol.value }})
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
 
                         <div class="mb-3">
@@ -161,7 +163,7 @@
                            class="btn btn-outline-secondary btn-sm">
                             <i class="fas fa-eye"></i> Ver Orden Completa
                         </a>
-
+                        
                         {% if current_progress.estado.es_final %}
                         <form method="POST" action="{{ url_for('areas.avanzar_area_form', orden_id=orden.id) }}" 
                               onsubmit="return confirm('¿Está seguro de avanzar esta orden a la siguiente área?');">
