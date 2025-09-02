@@ -358,7 +358,7 @@ class RevenueService:
             
             # Use real data if available, otherwise fall back to manual objectives
             if objetivo:
-                # Combine manual objectives with real data
+                # Prioritize real data from projects, use manual objectives as override
                 presupuesto = float(objetivo.presupuesto_facturacion or 0) if objetivo.presupuesto_facturacion else real_presupuesto
                 adjudicado = float(objetivo.adjudicado_facturacion or 0) if objetivo.adjudicado_facturacion else real_adjudicado
                 margen_real = float(objetivo.margen_real_pct or 0) if objetivo.margen_real_pct else real_margen
