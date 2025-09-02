@@ -454,15 +454,16 @@ def area_tv_display(area_id):
         progreso_repo = OrdenAreaProgresoRepository()
         orders_in_area = progreso_repo.get_orders_in_area(area_id)
         
-        # Group by state
+        # Group by state with same format as area_detail
         states_data = []
         for estado in area.estados:
             orders_in_state = [o for o in orders_in_area if o.estado_id == estado.id]
-            states_data.append({
-                'estado': estado,
-                'orders': orders_in_state,
-                'count': len(orders_in_state)
-            })
+            if orders_in_state:  # Only include states with orders for TV
+                states_data.append({
+                    'estado': estado,
+                    'orders': orders_in_state,
+                    'count': len(orders_in_state)
+                })
         
         from datetime import datetime
         return render_template(

@@ -283,7 +283,7 @@
                     
                     <div class="order-card {% if days_in_state > 7 %}danger{% elif days_in_state > 3 %}warning{% endif %}">
                         <div class="order-code">
-                            {{ order.codigo }}
+                            {{ order.orden_fabricacion.codigo }}
                             {% if days_in_state > 7 %}
                             <i class="fas fa-exclamation-triangle text-danger status-indicator"></i>
                             {% elif days_in_state > 3 %}
@@ -296,15 +296,15 @@
                         <div class="order-info">
                             <div class="info-block">
                                 <div class="info-label">Proyecto</div>
-                                <div class="info-value">{{ order.proyecto_nombre }}</div>
-                                <div style="font-size: 0.9rem; color: #6c757d;">{{ order.cliente_nombre }}</div>
+                                <div class="info-value">{{ order.orden_fabricacion.proyecto.nombre }}</div>
+                                <div style="font-size: 0.9rem; color: #6c757d;">{{ order.orden_fabricacion.proyecto.cliente.nombre }}</div>
                             </div>
                             
                             <div class="info-block">
                                 <div class="info-label">Responsable</div>
                                 <div class="info-value">
-                                    {% if order.responsable_nombre %}
-                                    <i class="fas fa-user"></i> {{ order.responsable_nombre }}
+                                    {% if order.responsable_user %}
+                                    <i class="fas fa-user"></i> {{ order.responsable_user.nombre_completo }}
                                     {% else %}
                                     <span class="text-muted">Sin asignar</span>
                                     {% endif %}
