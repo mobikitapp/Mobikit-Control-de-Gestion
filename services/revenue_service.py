@@ -12,12 +12,12 @@ from models import ObjetivoMensual, Proyecto, EstadoComercial
 class RevenueService:
     """Service layer for Revenue Management operations"""
     
-    # Curva Break Even para constructoras
-    BREAK_EVEN_CURVE = [
-        (100000000, 60), (110000000, 55), (120000000, 51), (130000000, 48),
-        (140000000, 45), (150000000, 42), (160000000, 40), (170000000, 38),
-        (180000000, 36), (190000000, 35), (200000000, 33), (210000000, 32),
-        (220000000, 31), (230000000, 30), (240000000, 29), (250000000, 28)
+    # Curva Break Even general para constructoras (datos reales)
+    BE_GENERAL = [
+        (100_000_000, 75), (110_000_000, 68), (120_000_000, 62), (130_000_000, 58),
+        (140_000_000, 54), (150_000_000, 51), (160_000_000, 48), (170_000_000, 46),
+        (180_000_000, 44), (190_000_000, 43), (200_000_000, 42), (210_000_000, 40),
+        (220_000_000, 38), (230_000_000, 37), (240_000_000, 37), (250_000_000, 36)
     ]
     
     def __init__(self):
@@ -25,31 +25,31 @@ class RevenueService:
     
     def get_break_even_curve(self) -> List[Tuple[int, float]]:
         """Get the break even curve points"""
-        return self.BREAK_EVEN_CURVE
+        return self.BE_GENERAL
     
     def required_margin(self, adjudicado_clp: float) -> float:
         """Calculate required break even margin for given billing amount"""
         if adjudicado_clp <= 0:
-            return 60.0  # Default to highest margin
+            return 75.0  # Default to highest margin
             
         # Saturate to curve limits
-        if adjudicado_clp <= self.BREAK_EVEN_CURVE[0][0]:
-            return self.BREAK_EVEN_CURVE[0][1]
+        if adjudicado_clp <= self.BE_GENERAL[0][0]:
+            return self.BE_GENERAL[0][1]
         
-        if adjudicado_clp >= self.BREAK_EVEN_CURVE[-1][0]:
-            return self.BREAK_EVEN_CURVE[-1][1]
+        if adjudicado_clp >= self.BE_GENERAL[-1][0]:
+            return self.BE_GENERAL[-1][1]
         
         # Linear interpolation between points
-        for i in range(len(self.BREAK_EVEN_CURVE) - 1):
-            x1, y1 = self.BREAK_EVEN_CURVE[i]
-            x2, y2 = self.BREAK_EVEN_CURVE[i + 1]
+        for i in range(len(self.BE_GENERAL) - 1):
+            x1, y1 = self.BE_GENERAL[i]
+            x2, y2 = self.BE_GENERAL[i + 1]
             
             if x1 <= adjudicado_clp <= x2:
                 # Linear interpolation formula
                 margin = y1 + (y2 - y1) * (adjudicado_clp - x1) / (x2 - x1)
                 return round(margin, 2)
         
-        return 60.0  # Fallback
+        return 75.0  # Fallback to highest margin
     
     def calculate_objetivo_margin(self, adjudicado_clp: float, buffer_pp: float, 
                                   utilidad_objetivo_clp: float) -> float:
@@ -138,8 +138,8 @@ class RevenueService:
                     'margen_real_pct': 0,
                     'buffer_pp': 2.0,
                     'utilidad_objetivo_clp': 0,
-                    'be_pct': 60.0,
-                    'margen_objetivo_pct': 62.0,
+                    'be_pct': 75.0,
+                    'margen_objetivo_pct': 77.0,
                     'gap_venta': 0,
                     'estado': 'ROJO',
                     'recomendacion': 'Agregar datos'
