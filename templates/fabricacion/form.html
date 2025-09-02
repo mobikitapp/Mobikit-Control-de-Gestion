@@ -168,6 +168,16 @@
                                        value="{{ of.fecha_entrega_fabrica.strftime('%Y-%m-%d') if of and of.fecha_entrega_fabrica else '' }}">
                             </div>
 
+                            <!-- Fecha Entrega Embalaje -->
+                            <div class="col-md-6">
+                                <label for="fecha_entrega_embalaje" class="form-label">Fecha Entrega Embalaje</label>
+                                <input type="date" class="form-control" id="fecha_entrega_embalaje" name="fecha_entrega_embalaje" 
+                                       value="{{ of.fecha_entrega_embalaje.strftime('%Y-%m-%d') if of and of.fecha_entrega_embalaje else '' }}">
+                                <div class="form-text">
+                                    Fecha estimada de entrega del área de embalaje.
+                                </div>
+                            </div>
+
                             <!-- Descripción -->
                             <div class="col-12">
                                 <label for="descripcion" class="form-label">Descripción</label>

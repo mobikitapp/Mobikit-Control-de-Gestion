@@ -55,6 +55,7 @@ class OrdenFabricacionBase(BaseModel):
     glosa: Optional[str] = Field(None, description="Glosa de la OF")
     cantidad_tableros: Optional[int] = Field(None, description="Cantidad de tableros")
     fecha_entrega_fabrica: Optional[date] = Field(None, description="Fecha de entrega de fábrica")
+    fecha_entrega_embalaje: Optional[date] = Field(None, description="Fecha de entrega de embalaje")
     fecha_planificada: Optional[date] = Field(None, description="Fecha planificada")
     fecha_inicio: Optional[datetime] = Field(None, description="Fecha de inicio")
     fecha_qc: Optional[datetime] = Field(None, description="Fecha de QC")
@@ -120,6 +121,7 @@ class OrdenFabricacionUpdate(BaseModel):
     glosa: Optional[str] = None
     cantidad_tableros: Optional[int] = None
     fecha_entrega_fabrica: Optional[date] = None
+    fecha_entrega_embalaje: Optional[date] = None
     estado: Optional[EstadoOFEnum] = None
     fecha_planificada: Optional[date] = None
     fecha_inicio: Optional[datetime] = None

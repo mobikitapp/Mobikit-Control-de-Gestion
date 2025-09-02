@@ -456,6 +456,7 @@ class OrdenFabricacion(db.Model):
     glosa = db.Column(db.Text)
     cantidad_tableros = db.Column(db.Integer)
     fecha_entrega_fabrica = db.Column(db.Date)
+    fecha_entrega_embalaje = db.Column(db.Date)
     fecha_planificada = db.Column(db.Date)
     fecha_inicio = db.Column(db.DateTime)
     fecha_qc = db.Column(db.DateTime)
