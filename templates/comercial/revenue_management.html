@@ -1,0 +1,607 @@
+{% extends "base.html" %}
+{% set title = "Revenue Management" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-line text-success"></i>
+                        Revenue Management {{ año }}
+                    </h4>
+                    <p class="mb-0 text-muted">Gestión de rentabilidad y análisis de Break Even</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPIs Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>${{ "{:,.0f}".format(kpis.total_presupuesto / 1000000) }}M</h4>
+                    <small>Presupuesto Total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4>${{ "{:,.0f}".format(kpis.total_adjudicado / 1000000) }}M</h4>
+                    <small>Adjudicado Total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4>${{ "{:,.0f}".format(kpis.total_gap / 1000000) }}M</h4>
+                    <small>Gap de Venta</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.1f}".format(kpis.avg_be_pct) }}%</h4>
+                    <small>BE% Promedio</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.1f}".format(kpis.avg_margen_real_pct) }}%</h4>
+                    <small>Margen Real Prom.</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.0f}".format(kpis.porcentaje_meses_verde) }}%</h4>
+                    <small>Meses en Verde</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Controles</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Año</label>
+                            <select class="form-select" id="año-filter" onchange="cambiarAño()">
+                                {% for y in range(2024, 2030) %}
+                                <option value="{{ y }}" {% if año == y %}selected{% endif %}>{{ y }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-10 d-flex align-items-end">
+                            <button type="button" class="btn btn-success me-2" onclick="exportarDatos()">
+                                <i class="fas fa-download"></i> Exportar CSV
+                            </button>
+                            <button type="button" class="btn btn-info me-2" onclick="mostrarImportador()">
+                                <i class="fas fa-upload"></i> Importar CSV
+                            </button>
+                            <button type="button" class="btn btn-warning me-2" onclick="calcularMargenes()">
+                                <i class="fas fa-calculator"></i> Calcular Márgenes
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="actualizarDatos()">
+                                <i class="fas fa-sync"></i> Actualizar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Data Table -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Datos Mensuales</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0" id="monthlyTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Mes</th>
+                                    <th>Presupuesto</th>
+                                    <th>Adjudicado</th>
+                                    <th>Margen Real%</th>
+                                    <th>Buffer PP</th>
+                                    <th>Utilidad Obj.</th>
+                                    <th>BE%</th>
+                                    <th>Margen Obj.%</th>
+                                    <th>Estado</th>
+                                    <th>Recomendación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mes in monthly_data %}
+                                <tr class="{% if mes.estado == 'VERDE' %}table-success{% elif mes.estado == 'AMARILLO' %}table-warning{% else %}table-danger{% endif %}">
+                                    <td><strong>{{ mes.mes_nombre[:3] }}</strong></td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm" 
+                                               value="{{ mes.presupuesto_facturacion }}" 
+                                               onchange="updateField({{ mes.mes }}, 'presupuesto_facturacion', this.value)">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm" 
+                                               value="{{ mes.adjudicado_facturacion }}" 
+                                               onchange="updateField({{ mes.mes }}, 'adjudicado_facturacion', this.value)">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm" 
+                                               value="{{ mes.margen_real_pct }}" step="0.1"
+                                               onchange="updateField({{ mes.mes }}, 'margen_real_pct', this.value)">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm" 
+                                               value="{{ mes.buffer_pp }}" step="0.1"
+                                               onchange="updateField({{ mes.mes }}, 'buffer_pp', this.value)">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm" 
+                                               value="{{ mes.utilidad_objetivo_clp }}" 
+                                               onchange="updateField({{ mes.mes }}, 'utilidad_objetivo_clp', this.value)">
+                                    </td>
+                                    <td><span class="badge bg-secondary">{{ "{:.1f}".format(mes.be_pct) }}%</span></td>
+                                    <td><span class="badge bg-primary">{{ "{:.1f}".format(mes.margen_objetivo_pct) }}%</span></td>
+                                    <td>
+                                        <span class="badge bg-{% if mes.estado == 'VERDE' %}success{% elif mes.estado == 'AMARILLO' %}warning{% else %}danger{% endif %}">
+                                            {{ mes.estado }}
+                                        </span>
+                                    </td>
+                                    <td><small>{{ mes.recomendacion }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Simulator -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Simulador</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Adjudicado Base (CLP)</label>
+                        <input type="range" class="form-range" id="adjudicado-base" 
+                               min="100000000" max="300000000" step="10000000" value="150000000"
+                               oninput="updateSimulation()">
+                        <small class="text-muted" id="adjudicado-base-value">$150M</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Adjudicado Extra (CLP)</label>
+                        <input type="range" class="form-range" id="adjudicado-extra" 
+                               min="0" max="100000000" step="5000000" value="0"
+                               oninput="updateSimulation()">
+                        <small class="text-muted" id="adjudicado-extra-value">$0M</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Margen Simulado (%)</label>
+                        <input type="range" class="form-range" id="margen-sim" 
+                               min="20" max="60" step="0.5" value="35"
+                               oninput="updateSimulation()">
+                        <small class="text-muted" id="margen-sim-value">35.0%</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Buffer PP (%)</label>
+                        <input type="range" class="form-range" id="buffer-pp" 
+                               min="0" max="5" step="0.1" value="2.0"
+                               oninput="updateSimulation()">
+                        <small class="text-muted" id="buffer-pp-value">2.0%</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Utilidad Objetivo (CLP)</label>
+                        <input type="range" class="form-range" id="utilidad-objetivo" 
+                               min="0" max="20000000" step="1000000" value="5000000"
+                               oninput="updateSimulation()">
+                        <small class="text-muted" id="utilidad-objetivo-value">$5M</small>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="text-center" id="simulation-result">
+                        <div class="badge bg-secondary fs-6 p-2 mb-2">Ejecute simulación</div>
+                        <div><small>Ajuste los parámetros arriba</small></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Presupuesto vs Adjudicado</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="facturacionChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Márgenes</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="margenesChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Break Even Curve -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Curva Break Even Constructoras</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="breakEvenChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('comercial.centro_vendedores') }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-chart-line"></i> Centro de Vendedores
+                    </a>
+                    <a href="{{ url_for('comercial.planificacion_comercial', año=año) }}" class="btn btn-outline-success me-2">
+                        <i class="fas fa-chart-gantt"></i> Planificación Comercial
+                    </a>
+                    <button class="btn btn-outline-info" onclick="window.print()">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Importar Datos CSV</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Archivo CSV</label>
+                        <input type="file" class="form-control" id="csvFile" accept=".csv" required>
+                        <div class="form-text">
+                            Formato: periodo, presupuesto_facturacion, adjudicado_facturacion, margen_real_pct, buffer_pp, utilidad_objetivo_clp
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="importarArchivo()">Importar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Global variables
+    let año = {{ año }};
+    let monthlyData = {{ monthly_data | tojson }};
+    let beCurve = {{ be_curve | tojson }};
+    let charts = {};
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeCharts();
+        updateSimulation();
+    });
+
+    // Year filter
+    function cambiarAño() {
+        const newYear = document.getElementById('año-filter').value;
+        window.location.href = `?año=${newYear}`;
+    }
+
+    // Update field
+    function updateField(mes, field, value) {
+        const data = {
+            año: año,
+            mes: mes,
+            [field]: parseFloat(value) || 0
+        };
+
+        fetch('/comercial/api/revenue/mes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Refresh data
+                setTimeout(() => actualizarDatos(), 500);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al actualizar datos');
+        });
+    }
+
+    // Update simulation
+    function updateSimulation() {
+        const adjudicadoBase = parseInt(document.getElementById('adjudicado-base').value);
+        const adjudicadoExtra = parseInt(document.getElementById('adjudicado-extra').value);
+        const margenSim = parseFloat(document.getElementById('margen-sim').value);
+        const bufferPp = parseFloat(document.getElementById('buffer-pp').value);
+        const utilidadObjetivo = parseInt(document.getElementById('utilidad-objetivo').value);
+
+        // Update display values
+        document.getElementById('adjudicado-base-value').textContent = `$${Math.round(adjudicadoBase/1000000)}M`;
+        document.getElementById('adjudicado-extra-value').textContent = `$${Math.round(adjudicadoExtra/1000000)}M`;
+        document.getElementById('margen-sim-value').textContent = `${margenSim}%`;
+        document.getElementById('buffer-pp-value').textContent = `${bufferPp}%`;
+        document.getElementById('utilidad-objetivo-value').textContent = `$${Math.round(utilidadObjetivo/1000000)}M`;
+
+        // Call simulation API
+        const data = {
+            adjudicado_base: adjudicadoBase,
+            adjudicado_extra: adjudicadoExtra,
+            margen_sim_pct: margenSim,
+            buffer_pp: bufferPp,
+            utilidad_objetivo_clp: utilidadObjetivo
+        };
+
+        fetch('/comercial/api/revenue/simular', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const sim = result.data;
+                const estadoClass = sim.estado === 'VERDE' ? 'success' : 
+                                   sim.estado === 'AMARILLO' ? 'warning' : 'danger';
+                
+                document.getElementById('simulation-result').innerHTML = `
+                    <div class="badge bg-${estadoClass} fs-6 p-2 mb-2">${sim.estado}</div>
+                    <div><small>Total: $${Math.round(sim.adjudicado_total/1000000)}M</small></div>
+                    <div><small>BE: ${sim.be_pct.toFixed(1)}% | Obj: ${sim.margen_objetivo_pct.toFixed(1)}%</small></div>
+                    <div><small>${sim.recomendacion}</small></div>
+                `;
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // Export data
+    function exportarDatos() {
+        window.location.href = `/comercial/api/revenue/export?año=${año}`;
+    }
+
+    // Show import modal
+    function mostrarImportador() {
+        new bootstrap.Modal(document.getElementById('importModal')).show();
+    }
+
+    // Import file
+    function importarArchivo() {
+        const file = document.getElementById('csvFile').files[0];
+        if (!file) {
+            alert('Seleccione un archivo');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/comercial/api/revenue/import', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Importación exitosa: ${data.imported_count} registros`);
+                if (data.errors.length > 0) {
+                    console.log('Errores:', data.errors);
+                }
+                bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+                actualizarDatos();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al importar archivo');
+        });
+    }
+
+    // Refresh data
+    function actualizarDatos() {
+        window.location.reload();
+    }
+
+    // Calculate margins from projects
+    function calcularMargenes() {
+        // This would call an API to calculate real margins from projects
+        alert('Funcionalidad disponible próximamente');
+    }
+
+    // Initialize charts
+    function initializeCharts() {
+        // Prepare data
+        const labels = monthlyData.map(m => m.mes_nombre.substr(0, 3));
+        const presupuesto = monthlyData.map(m => m.presupuesto_facturacion / 1000000);
+        const adjudicado = monthlyData.map(m => m.adjudicado_facturacion / 1000000);
+        const margenReal = monthlyData.map(m => m.margen_real_pct);
+        const margenObjetivo = monthlyData.map(m => m.margen_objetivo_pct);
+        const bePct = monthlyData.map(m => m.be_pct);
+
+        // Facturación Chart
+        const ctx1 = document.getElementById('facturacionChart').getContext('2d');
+        charts.facturacion = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Presupuesto (M$)',
+                    data: presupuesto,
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    tension: 0.1
+                }, {
+                    label: 'Adjudicado (M$)',
+                    data: adjudicado,
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Millones CLP'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Márgenes Chart
+        const ctx2 = document.getElementById('margenesChart').getContext('2d');
+        charts.margenes = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Margen Real (%)',
+                    data: margenReal,
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.1
+                }, {
+                    label: 'Margen Objetivo (%)',
+                    data: margenObjetivo,
+                    borderColor: 'rgb(255, 205, 86)',
+                    backgroundColor: 'rgba(255, 205, 86, 0.1)',
+                    tension: 0.1
+                }, {
+                    label: 'Break Even (%)',
+                    data: bePct,
+                    borderColor: 'rgb(153, 102, 255)',
+                    backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Porcentaje (%)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Break Even Curve Chart
+        const ctx3 = document.getElementById('breakEvenChart').getContext('2d');
+        charts.breakEven = new Chart(ctx3, {
+            type: 'line',
+            data: {
+                labels: beCurve.map(point => `$${Math.round(point[0]/1000000)}M`),
+                datasets: [{
+                    label: 'Break Even (%)',
+                    data: beCurve.map(point => point[1]),
+                    borderColor: 'rgb(255, 159, 64)',
+                    backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Margen Break Even (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Facturación (CLP)'
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+
+<style>
+@media print {
+    .btn, .card-header, .navbar { display: none !important; }
+    .table { font-size: 0.8rem; }
+    .col-md-4 { display: none !important; }
+}
+</style>
+{% endblock %}
