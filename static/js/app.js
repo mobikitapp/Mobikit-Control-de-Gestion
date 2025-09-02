@@ -674,7 +674,33 @@ function showAlert(message, type = 'info') {
         });
     });
 
-    // Handle contracts collapse toggle
+    // Toggle collapse containers (fix for null element access)
+    function setupCollapseToggles() {
+        document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                const targetSelector = this.getAttribute('data-bs-target') || this.getAttribute('href');
+                if (!targetSelector) return;
+
+                const targetElement = document.querySelector(targetSelector);
+
+                if (targetElement) {
+                    const isVisible = targetElement.style.display !== 'none';
+                    targetElement.style.display = isVisible ? 'none' : 'block';
+
+                    // Update button text/icon if needed
+                    const icon = this.querySelector('i');
+                    if (icon) {
+                        icon.classList.toggle('fa-chevron-down');
+                        icon.classList.toggle('fa-chevron-up');
+                    }
+                }
+            });
+        });
+    }
+
+// Handle contracts collapse toggle
     document.addEventListener('click', function(e) {
         if (e.target.closest('.contratos-toggle-btn')) {
             const button = e.target.closest('.contratos-toggle-btn');
@@ -729,6 +755,27 @@ function dv(T) {
     }
     return S ? S - 1 : 'k';
 }
+
+// Enhanced row details functionality
+        document.querySelectorAll('.toggle-details').forEach(button => {
+            button.addEventListener('click', function() {
+                const row = this.closest('tr');
+                if (!row) return;
+
+                const detailsRow = row.nextElementSibling;
+
+                if (detailsRow && detailsRow.classList.contains('details-row')) {
+                    detailsRow.style.display = detailsRow.style.display === 'none' ? '' : 'none';
+
+                    // Update icon
+                    const icon = this.querySelector('i');
+                    if (icon) {
+                        icon.classList.toggle('fa-chevron-down');
+                        icon.classList.toggle('fa-chevron-up');
+                    }
+                }
+            });
+        });
 
 // Export for use in other scripts
 window.ManufacturingApp = ManufacturingApp;

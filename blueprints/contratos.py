@@ -246,7 +246,52 @@ def actualizar(contrato_id):
         # Update contrato
         contrato_actualizado = contratos_service.update_contrato(contrato_id, update_data.dict(exclude_unset=True))
 
-        flash(f'Contrato {contrato_actualizado.numero_oc} actualizado exitosamente', 'success')
+        # Check if plan de entrega should be created (for existing contracts without plan)
+        crear_plan = request.form.get('crear_plan_entrega') == 'on'
+        plan_creado = False
+
+        if crear_plan and not contrato_actualizado.plan_entrega:
+            try:
+                # Get plan data
+                plan_data = {
+                    'contrato_id': contrato_actualizado.id,
+                    'nombre': request.form.get('plan_nombre', f'Plan de Entrega - {contrato_actualizado.numero_oc}'),
+                    'descripcion': request.form.get('plan_descripcion', '')
+                }
+
+                # Get hitos data
+                cantidad_hitos = int(request.form.get('cantidad_hitos', 2))
+                hitos_data = []
+
+                for i in range(1, cantidad_hitos + 1):
+                    titulo = request.form.get(f'hito_titulo_{i}', '')
+                    fecha = request.form.get(f'hito_fecha_{i}', '')
+                    descripcion = request.form.get(f'hito_descripcion_{i}', '')
+
+                    if titulo and fecha:
+                        hitos_data.append({
+                            'titulo': titulo,
+                            'descripcion': descripcion,
+                            'fecha_programada': fecha,
+                            'orden': i
+                        })
+
+                if hitos_data:
+                    # Create plan with hitos
+                    plan = planes_entrega_service.create_plan_with_hitos(
+                        plan_data, hitos_data, current_user.id
+                    )
+                    plan_creado = True
+
+            except Exception as e:
+                logger.warning(f"Error creando plan de entrega para contrato {contrato_actualizado.id}: {str(e)}")
+                # Don't fail the contrato update if plan creation fails
+
+        # Create success message
+        mensaje = f'Contrato {contrato_actualizado.numero_oc} actualizado exitosamente'
+        if plan_creado:
+            mensaje += ' y plan de entrega creado'
+        flash(mensaje, 'success')
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
     except ValidationError as e:
