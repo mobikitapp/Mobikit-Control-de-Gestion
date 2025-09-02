@@ -136,7 +136,7 @@
                                 <tr class="{% if mes.estado == 'VERDE' %}table-success{% elif mes.estado == 'AMARILLO' %}table-warning{% else %}table-danger{% endif %}">
                                     <td>
                                         <strong>{{ mes.mes_nombre[:3] }}</strong>
-                                        {% if mes.usando_datos_reales %}
+                                        {% if mes.get('usando_datos_reales', False) %}
                                         <span class="badge bg-info ms-1" title="Usando datos de proyectos reales">
                                             <i class="fas fa-project-diagram"></i>
                                         </span>
