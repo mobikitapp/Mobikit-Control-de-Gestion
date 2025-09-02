@@ -109,7 +109,10 @@ class ContratosService:
 
     def get_contrato_by_id(self, contrato_id: int) -> Optional[Contrato]:
         """Get contrato by ID with related data"""
-        return self.repo.get_by_id(contrato_id)
+        contrato = self.repo.get_by_id(contrato_id)
+        if contrato:
+            self._enrich_contrato_with_next_milestone(contrato)
+        return contrato
 
     def update_contrato(self, contrato_id: int, update_data: Dict[str, Any]) -> Contrato:
         """
@@ -356,6 +359,10 @@ class ContratosService:
         try:
             contratos, total_count = self.repo.search(filters)
             
+            # Enrich contracts with next delivery milestone info
+            for contrato in contratos:
+                self._enrich_contrato_with_next_milestone(contrato)
+            
             # Group contracts by client and project
             grouped_data = {}
             
@@ -403,3 +410,67 @@ class ContratosService:
         except Exception as e:
             logger.error(f"Error grouping contratos by client: {str(e)}")
             raise
+
+    def _enrich_contrato_with_next_milestone(self, contrato):
+        """
+        Enrich contract with next delivery milestone information
+        """
+        try:
+            from datetime import date
+            from models import EstadoHitoEntrega
+            
+            # Initialize default values
+            contrato.fecha_proxima_entrega = None
+            contrato.proximo_hito = None
+            contrato.dias_restantes_proxima_entrega = None
+            
+            if contrato.plan_entrega and contrato.plan_entrega.hitos:
+                # Get pending milestones sorted by date and order
+                hitos_pendientes = [
+                    hito for hito in contrato.plan_entrega.hitos 
+                    if hito.estado == EstadoHitoEntrega.PENDIENTE
+                ]
+                
+                if hitos_pendientes:
+                    # Sort by date first, then by order
+                    hitos_pendientes.sort(key=lambda x: (x.fecha_programada, x.orden))
+                    proximo_hito = hitos_pendientes[0]
+                    
+                    contrato.fecha_proxima_entrega = proximo_hito.fecha_programada
+                    contrato.proximo_hito = proximo_hito
+                    
+                    # Calculate days remaining
+                    today = date.today()
+                    days_diff = (proximo_hito.fecha_programada - today).days
+                    contrato.dias_restantes_proxima_entrega = days_diff
+                else:
+                    # No pending milestones, check if there are completed ones
+                    hitos_completados = [
+                        hito for hito in contrato.plan_entrega.hitos 
+                        if hito.estado == EstadoHitoEntrega.COMPLETADO
+                    ]
+                    
+                    if hitos_completados:
+                        # All milestones completed, use the last one
+                        hitos_completados.sort(key=lambda x: (x.fecha_programada, x.orden))
+                        ultimo_hito = hitos_completados[-1]
+                        contrato.fecha_proxima_entrega = ultimo_hito.fecha_programada
+                        contrato.proximo_hito = ultimo_hito
+                        contrato.dias_restantes_proxima_entrega = 0  # Already completed
+            
+            # Fallback to contract delivery date if no plan exists
+            elif contrato.fecha_entrega_comprometida:
+                contrato.fecha_proxima_entrega = contrato.fecha_entrega_comprometida
+                contrato.proximo_hito = None
+                
+                # Calculate days remaining
+                today = date.today()
+                days_diff = (contrato.fecha_entrega_comprometida - today).days
+                contrato.dias_restantes_proxima_entrega = days_diff
+                
+        except Exception as e:
+            logger.warning(f"Error enriching contrato {contrato.id} with milestone info: {str(e)}")
+            # Set default values on error
+            contrato.fecha_proxima_entrega = contrato.fecha_entrega_comprometida
+            contrato.proximo_hito = None
+            contrato.dias_restantes_proxima_entrega = None
