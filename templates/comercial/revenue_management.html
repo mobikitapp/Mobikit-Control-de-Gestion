@@ -364,6 +364,10 @@
     document.addEventListener('DOMContentLoaded', function() {
         initializeCharts();
         updateSimulation();
+        // Guardar datos
+        if (typeof JSON !== 'undefined' && JSON.stringify) {
+            localStorage.setItem('revenueData', JSON.stringify(monthlyData));
+        }
     });
 
     // Year filter

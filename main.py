@@ -13,7 +13,7 @@ try:
     app.jinja_env.globals['max'] = max
 
     # Add moment function to template globals
-    @app.template_global('moment')
+    @app.template_global('moment_global')
     def moment_global():
         return datetime.now()
 
