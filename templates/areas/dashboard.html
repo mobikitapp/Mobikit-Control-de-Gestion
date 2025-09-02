@@ -70,7 +70,7 @@
                 </div>
                 <div class="card-body">
                     <p class="text-muted small">{{ area_data.area.descripcion }}</p>
-                    
+
                     {% if area_data.estados %}
                     <div class="row">
                         {% for estado_data in area_data.estados %}
@@ -91,7 +91,7 @@
                                         {{ estado_data.count }}
                                     </span>
                                 </div>
-                                
+
                                 {% if estado_data.orders %}
                                 <div class="mt-2">
                                     {% for order in estado_data.orders[:3] %}
@@ -112,10 +112,16 @@
                     {% endif %}
                 </div>
                 <div class="card-footer">
-                    <a href="{{ url_for('areas.area_detail', area_id=area_data.area.id) }}" 
-                       class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-eye"></i> Ver Detalles
-                    </a>
+                    <div class="btn-group w-100" role="group">
+                        <a href="{{ url_for('areas.area_detail', area_id=area_data.area.id) }}" 
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye"></i> Ver Detalles
+                        </a>
+                        <a href="{{ url_for('areas.area_tv_display', area_id=area_data.area.id) }}" 
+                           class="btn btn-outline-success btn-sm" target="_blank">
+                            <i class="fas fa-tv"></i> Vista TV
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -154,7 +160,7 @@ function refreshDashboard() {
     const originalHtml = refreshBtn.innerHTML;
     refreshBtn.innerHTML = '<i class="fas fa-spin fa-spinner"></i> Actualizando...';
     refreshBtn.disabled = true;
-    
+
     // Refresh page after a short delay
     setTimeout(() => {
         window.location.reload();

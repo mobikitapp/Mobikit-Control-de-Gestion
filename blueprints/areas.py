@@ -421,6 +421,64 @@ def avanzar_area_form(orden_id):
 
 
 # Add main API endpoint for testing
+@areas_bp.route('/tv-display')
+@login_required
+def tv_display():
+    """Vista optimizada para televisión - rotación automática de áreas"""
+    try:
+        dashboard_data = areas_service.get_areas_dashboard_data()
+        
+        return render_template(
+            'areas/tv_display.html',
+            areas=dashboard_data['areas'],
+            stats=dashboard_data['stats'],
+            title='Display de Producción TV'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error en TV display: {str(e)}")
+        flash('Error cargando display de TV', 'error')
+        return redirect(url_for('areas.dashboard'))
+
+@areas_bp.route('/area/<int:area_id>/tv')
+@login_required
+def area_tv_display(area_id):
+    """Vista de área individual optimizada para TV"""
+    try:
+        area = areas_repo.get_area_by_id(area_id)
+        if not area:
+            abort(404)
+        
+        # Get orders in this area
+        from repositories.areas_repository import OrdenAreaProgresoRepository
+        progreso_repo = OrdenAreaProgresoRepository()
+        orders_in_area = progreso_repo.get_orders_in_area(area_id)
+        
+        # Group by state
+        states_data = []
+        for estado in area.estados:
+            orders_in_state = [o for o in orders_in_area if o.estado_id == estado.id]
+            states_data.append({
+                'estado': estado,
+                'orders': orders_in_state,
+                'count': len(orders_in_state)
+            })
+        
+        from datetime import datetime
+        return render_template(
+            'areas/area_tv_display.html',
+            area=area,
+            states_data=states_data,
+            total_orders=len(orders_in_area),
+            now=datetime.now(),
+            title=f'TV - {area.nombre}'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error en área TV display: {str(e)}")
+        flash('Error cargando display de área', 'error')
+        return redirect(url_for('areas.dashboard'))
+
 @areas_bp.route('/api/', methods=['GET'])
 def api_areas():
     """API endpoint principal para áreas - usado en tests"""
