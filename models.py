@@ -546,6 +546,7 @@ class Despacho(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
+    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=True)
     of_id = db.Column(db.Integer, db.ForeignKey('ordenes_fabricacion.id'), nullable=True)
     numero_despacho = db.Column(db.String(50), unique=True, nullable=False)
     estado = db.Column(db.Enum(EstadoDespacho), default=EstadoDespacho.PROGRAMADO, nullable=False)
@@ -555,7 +556,7 @@ class Despacho(db.Model):
     contacto_destino = db.Column(db.String(200))
     telefono_contacto = db.Column(db.String(50))
     observaciones = db.Column(db.Text)
-    responsable = db.Column(db.String, db.ForeignKey('users.id'))
+    responsable_nombre = db.Column(db.String(200))
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
@@ -563,16 +564,17 @@ class Despacho(db.Model):
 
     # Relationships
     adjuntos = db.relationship('DespachoAdjunto', backref='despacho', lazy=True, cascade='all, delete-orphan')
-    responsable_user = db.relationship('User', foreign_keys=[responsable])
+    contrato = db.relationship('Contrato', foreign_keys=[contrato_id])
     creator = db.relationship('User', foreign_keys=[created_by])
 
     # Indexes
     __table_args__ = (
         Index('idx_despacho_proyecto', 'proyecto_id'),
+        Index('idx_despacho_contrato', 'contrato_id'),
         Index('idx_despacho_of', 'of_id'),
         Index('idx_despacho_numero', 'numero_despacho'),
         Index('idx_despacho_estado', 'estado'),
-        Index('idx_despacho_responsable', 'responsable'),
+        Index('idx_despacho_responsable_nombre', 'responsable_nombre'),
         Index('idx_despacho_fechas', 'fecha_programada', 'fecha_envio'),
     )
 
