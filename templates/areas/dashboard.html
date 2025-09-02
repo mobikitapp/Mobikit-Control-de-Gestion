@@ -53,10 +53,11 @@
         </div>
     </div>
 
-    <!-- Areas Cards -->
+    <!-- Areas Cards - Solo áreas con órdenes -->
     <div class="row">
         {% for area_data in areas %}
-        <div class="col-lg-6 mb-4">
+        {% if area_data.total_count > 0 %}
+        <div class="col-lg-4 col-md-6 mb-4">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center" 
                      style="background-color: {{ area_data.area.color_hex }}20; border-left: 4px solid {{ area_data.area.color_hex }};">
@@ -66,50 +67,42 @@
                         </span>
                         {{ area_data.area.nombre }}
                     </h5>
-                    <small class="text-muted">{{ area_data.total_count }} órdenes</small>
+                    <span class="badge badge-lg" style="background-color: {{ area_data.area.color_hex }}; color: white; font-size: 1.1em;">
+                        {{ area_data.total_count }}
+                    </span>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted small">{{ area_data.area.descripcion }}</p>
+                    <p class="text-muted small mb-3">{{ area_data.area.descripcion }}</p>
 
-                    {% if area_data.estados %}
-                    <div class="row">
+                    <!-- Lista de órdenes recientes -->
+                    <div class="mb-3">
+                        <h6 class="small text-uppercase text-muted mb-2">Órdenes Activas</h6>
+                        {% set all_orders = [] %}
                         {% for estado_data in area_data.estados %}
-                        <div class="col-md-6 mb-2">
-                            <div class="border rounded p-2" 
-                                 style="border-color: {{ estado_data.estado.color_hex }}!important;">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <small class="fw-bold">{{ estado_data.estado.nombre }}</small>
-                                        {% if estado_data.estado.es_inicial %}
-                                        <span class="badge badge-sm bg-success">Inicial</span>
-                                        {% endif %}
-                                        {% if estado_data.estado.es_final %}
-                                        <span class="badge badge-sm bg-info">Final</span>
-                                        {% endif %}
-                                    </div>
-                                    <span class="badge" style="background-color: {{ estado_data.estado.color_hex }}; color: white;">
-                                        {{ estado_data.count }}
-                                    </span>
-                                </div>
-
-                                {% if estado_data.orders %}
-                                <div class="mt-2">
-                                    {% for order in estado_data.orders[:3] %}
-                                    <div class="small text-muted d-flex justify-content-between">
-                                        <span>{{ order.codigo }}</span>
-                                        <span>{{ order.cliente_nombre[:20] }}{% if order.cliente_nombre|length > 20 %}...{% endif %}</span>
-                                    </div>
-                                    {% endfor %}
-                                    {% if estado_data.orders|length > 3 %}
-                                    <div class="small text-muted">Y {{ estado_data.orders|length - 3 }} más...</div>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
+                            {% for order in estado_data.orders %}
+                                {% set _ = all_orders.append(order) %}
+                            {% endfor %}
+                        {% endfor %}
+                        
+                        {% for order in all_orders[:5] %}
+                        <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                            <div>
+                                <span class="fw-bold small">{{ order.codigo }}</span>
+                                <br>
+                                <span class="text-muted small">{{ order.proyecto_nombre[:25] }}{% if order.proyecto_nombre|length > 25 %}...{% endif %}</span>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">{{ order.cliente_nombre[:15] }}{% if order.cliente_nombre|length > 15 %}...{% endif %}</small>
                             </div>
                         </div>
                         {% endfor %}
+                        
+                        {% if all_orders|length > 5 %}
+                        <div class="text-center mt-2">
+                            <small class="text-muted">Y {{ all_orders|length - 5 }} órdenes más...</small>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
                 <div class="card-footer">
                     <div class="btn-group w-100" role="group">
@@ -125,7 +118,31 @@
                 </div>
             </div>
         </div>
+        {% endif %}
         {% endfor %}
+        
+        <!-- Mensaje si no hay áreas con órdenes -->
+        {% set has_orders = namespace(value=false) %}
+        {% for area_data in areas %}
+            {% if area_data.total_count > 0 %}
+                {% set has_orders.value = true %}
+            {% endif %}
+        {% endfor %}
+        
+        {% if not has_orders.value %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h4 class="text-success">¡Todas las áreas están despejadas!</h4>
+                    <p class="text-muted">No hay órdenes de fabricación en proceso actualmente.</p>
+                    <a href="{{ url_for('fabricacion.index') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Crear Nueva Orden
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Quick Actions -->
