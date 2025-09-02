@@ -63,7 +63,8 @@ def index():
                              total_count=total_count,
                              total_pages=total_pages,
                              has_prev=has_prev,
-                             has_next=has_next)
+                             has_next=has_next,
+                             now=datetime.now())
 
     except ValidationError as e:
         flash('Filtros inválidos', 'error')
@@ -195,7 +196,7 @@ def detalle(contrato_id):
 
         # Add today's date for template comparison
         today = date.today()
-        
+
         return render_template('contratos/detalle.html', 
                              contrato=contrato, 
                              today=today,
@@ -586,7 +587,7 @@ def api_users_active():
         from services.user_service import UserService
         user_service = UserService()
         users = user_service.get_active_users()
-        
+
         return jsonify([{
             'id': u.id,
             'nombre_completo': f"{u.nombre} {u.apellido}" if u.apellido else u.nombre,
@@ -604,9 +605,9 @@ def api_sincronizar_eventos_calendario():
     try:
         from services.contrato_eventos_service import ContratoEventosService
         eventos_service = ContratoEventosService()
-        
+
         success, mensaje, eventos_creados = eventos_service.generar_eventos_desde_hitos_plan(current_user.id)
-        
+
         if success:
             return jsonify({
                 'success': True,
