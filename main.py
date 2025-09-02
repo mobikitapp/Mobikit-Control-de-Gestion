@@ -6,7 +6,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 try:
-    from app import app
+    from app import app, db
     # Add builtin functions to Jinja2 context
     app.jinja_env.globals['min'] = min
     app.jinja_env.globals['max'] = max
