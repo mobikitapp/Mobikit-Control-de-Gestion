@@ -1,26 +1,36 @@
+
 {% extends "base.html" %}
 {% set title = "Área: " + area.nombre %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid p-3">
     <!-- Area Header -->
-    <div class="row mb-4">
+    <div class="row mb-3">
         <div class="col-md-12">
-            <div class="card">
-                <div class="card-header" style="background-color: {{ area.color_hex }}20; border-left: 4px solid {{ area.color_hex }};">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h4 class="mb-1">
-                                <span class="badge" style="background-color: {{ area.color_hex }}; color: white;">
-                                    {{ area.orden_secuencia }}
-                                </span>
+            <div class="card text-white" style="background: linear-gradient(135deg, {{ area.color_hex }}, {{ area.color_hex }}cc);">
+                <div class="card-body py-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-1">
+                                <span class="badge bg-light text-dark me-3">{{ area.orden_secuencia }}</span>
                                 {{ area.nombre }}
-                            </h4>
-                            <p class="mb-0 text-muted">{{ area.descripcion }}</p>
+                            </h2>
+                            <p class="mb-0 opacity-75">{{ area.descripcion }}</p>
+                            <small class="opacity-75">
+                                <i class="fas fa-clock"></i> Actualizado: <span class="current-time"></span>
+                            </small>
                         </div>
-                        <div class="text-end">
-                            <h5 class="mb-0">{{ total_orders }}</h5>
-                            <small class="text-muted">órdenes activas</small>
+                        <div class="col-md-4 text-end">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h3 class="mb-0">{{ total_orders }}</h3>
+                                    <small>Órdenes Activas</small>
+                                </div>
+                                <div class="col-6">
+                                    <h3 class="mb-0">{{ states_data|selectattr('orders')|list|length }}</h3>
+                                    <small>Estados con Trabajo</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -29,111 +39,294 @@
     </div>
 
     <!-- States and Orders -->
-    <div class="row">
-        {% for state_data in states_data %}
-        <div class="col-lg-6 mb-4">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center"
-                     style="background-color: {{ state_data.estado.color_hex }}20; border-left: 4px solid {{ state_data.estado.color_hex }};">
-                    <div>
-                        <h6 class="mb-0">{{ state_data.estado.nombre }}</h6>
-                        <small class="text-muted">{{ state_data.estado.descripcion }}</small>
-                        {% if state_data.estado.es_inicial %}
-                        <span class="badge bg-success ms-2">Inicial</span>
-                        {% endif %}
-                        {% if state_data.estado.es_final %}
-                        <span class="badge bg-info ms-2">Final</span>
-                        {% endif %}
+    {% for state_data in states_data %}
+    {% if state_data.orders %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <!-- State Header -->
+                <div class="card-header py-3" style="background-color: {{ state_data.estado.color_hex }}15; border-left: 5px solid {{ state_data.estado.color_hex }};">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0" style="color: {{ state_data.estado.color_hex }};">
+                            <i class="fas fa-cog me-2"></i>
+                            {{ state_data.estado.nombre }}
+                            {% if state_data.estado.es_inicial %}
+                            <span class="badge bg-success ms-2">Estado Inicial</span>
+                            {% endif %}
+                            {% if state_data.estado.es_final %}
+                            <span class="badge bg-info ms-2">Estado Final</span>
+                            {% endif %}
+                        </h4>
+                        <div class="text-end">
+                            <h3 class="mb-0" style="color: {{ state_data.estado.color_hex }};">{{ state_data.count }}</h3>
+                            <small class="text-muted">órdenes</small>
+                        </div>
                     </div>
-                    <span class="badge" style="background-color: {{ state_data.estado.color_hex }}; color: white;">
-                        {{ state_data.count }}
-                    </span>
                 </div>
-                <div class="card-body">
-                    {% if state_data.orders %}
+
+                <!-- Orders Table -->
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
                                 <tr>
-                                    <th>Código</th>
+                                    <th>Orden</th>
                                     <th>Proyecto</th>
                                     <th>Cliente</th>
                                     <th>Responsable</th>
-                                    <th>Ingreso</th>
-                                    <th>Acciones</th>
+                                    <th>Tiempo en Área</th>
+                                    <th>Tiempo en Estado</th>
+                                    <th>Est. Horas</th>
+                                    <th>Estado</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for order in state_data.orders %}
-                                <tr>
+                                {% set days_in_area = (now.date() - order.fecha_ingreso_area.date()).days %}
+                                {% set days_in_state = (now.date() - order.fecha_cambio_estado.date()).days %}
+                                <tr class="{% if days_in_state > 7 %}table-danger{% elif days_in_state > 3 %}table-warning{% endif %}">
                                     <td>
-                                        <strong>{{ order.codigo }}</strong>
-                                        {% if order.tiempo_estimado_horas %}
-                                        <br><small class="text-muted">{{ order.tiempo_estimado_horas }}h est.</small>
-                                        {% endif %}
+                                        <strong class="text-primary">{{ order.codigo }}</strong>
                                     </td>
-                                    <td>{{ order.proyecto_nombre[:25] }}{% if order.proyecto_nombre|length > 25 %}...{% endif %}</td>
-                                    <td>{{ order.cliente_nombre[:20] }}{% if order.cliente_nombre|length > 20 %}...{% endif %}</td>
+                                    <td>
+                                        <div class="fw-semibold">{{ order.proyecto_nombre }}</div>
+                                    </td>
+                                    <td>{{ order.cliente_nombre }}</td>
                                     <td>
                                         {% if order.responsable_nombre %}
-                                        <small>{{ order.responsable_nombre[:15] }}{% if order.responsable_nombre|length > 15 %}...{% endif %}</small>
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-user fa-xs"></i> {{ order.responsable_nombre }}
+                                        </span>
                                         {% else %}
-                                        <small class="text-muted">Sin asignar</small>
+                                        <span class="text-muted">Sin asignar</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <small>{{ order.fecha_ingreso_area.strftime('%d/%m %H:%M') }}</small>
+                                        <span class="badge bg-info">{{ days_in_area }} días</span>
                                     </td>
                                     <td>
-                                        <div class="btn-group" role="group">
-                                            <a href="{{ url_for('areas.cambiar_estado_form', orden_id=order.id) }}" 
-                                               class="btn btn-outline-primary btn-sm">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <a href="{{ url_for('areas.orden_history', orden_id=order.id) }}" 
-                                               class="btn btn-outline-info btn-sm">
-                                                <i class="fas fa-history"></i>
-                                            </a>
-                                        </div>
+                                        <span class="badge {% if days_in_state > 7 %}bg-danger{% elif days_in_state > 3 %}bg-warning{% else %}bg-success{% endif %}">
+                                            {{ days_in_state }} días
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if order.tiempo_estimado_horas %}
+                                        <span class="badge bg-dark">{{ order.tiempo_estimado_horas }}h</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if days_in_state > 7 %}
+                                        <i class="fas fa-exclamation-triangle text-danger fa-lg blink" title="Muy Atrasado"></i>
+                                        {% elif days_in_state > 3 %}
+                                        <i class="fas fa-clock text-warning fa-lg" title="Atención Requerida"></i>
+                                        {% else %}
+                                        <i class="fas fa-check-circle text-success fa-lg" title="En Tiempo"></i>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                    {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
-                        <p>No hay órdenes en este estado</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
+    {% endif %}
+    {% endfor %}
 
-    <!-- Action Buttons -->
+    <!-- Empty State -->
+    {% if not states_data or not states_data|selectattr('orders')|list %}
     <div class="row">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-body text-center">
-                    <a href="{{ url_for('areas.dashboard') }}" class="btn btn-outline-secondary me-2">
-                        <i class="fas fa-arrow-left"></i> Volver al Dashboard
-                    </a>
-                    <button class="btn btn-outline-info" onclick="window.location.reload()">
-                        <i class="fas fa-sync-alt"></i> Actualizar
-                    </button>
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No hay órdenes activas en esta área</h4>
+                    <p class="text-muted">Todas las órdenes han sido procesadas o están en otras áreas.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Bar -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('areas.dashboard') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                                </a>
+                                <button class="btn btn-outline-info" onclick="refreshPage()">
+                                    <i class="fas fa-sync-alt"></i> Actualizar
+                                </button>
+                                <button class="btn btn-outline-success" onclick="toggleFullscreen()">
+                                    <i class="fas fa-expand"></i> Pantalla Completa
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <small class="text-muted">
+                                Auto-actualización cada 2 minutos
+                            </small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<style>
+/* TV Display Optimizations */
+@media (min-width: 1200px) {
+    body {
+        font-size: 1.1rem;
+    }
+    
+    .table {
+        font-size: 1.05rem;
+    }
+    
+    .table th {
+        font-weight: 600;
+        background-color: #f8f9fa !important;
+    }
+    
+    h2, h3, h4 {
+        font-weight: 600;
+    }
+}
+
+/* Blink animation for critical items */
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.3; }
+}
+
+.blink {
+    animation: blink 2s infinite;
+}
+
+/* Full screen mode */
+.fullscreen-mode {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    background: white;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.fullscreen-mode .container-fluid {
+    max-width: 100%;
+    padding: 0;
+}
+
+/* Table enhancements */
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,0.075);
+}
+
+.table-responsive {
+    border-radius: 0.375rem;
+}
+
+/* Priority indicators */
+.table-danger {
+    background-color: #f8d7da !important;
+}
+
+.table-warning {
+    background-color: #fff3cd !important;
+}
+</style>
+
 <script>
-// Auto-refresh every 2 minutes
+let isFullscreen = false;
+
+function refreshPage() {
+    const refreshBtn = document.querySelector('button[onclick="refreshPage()"]');
+    const originalHtml = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '<i class="fas fa-spin fa-spinner"></i> Actualizando...';
+    refreshBtn.disabled = true;
+    
+    setTimeout(() => {
+        window.location.reload();
+    }, 500);
+}
+
+function toggleFullscreen() {
+    const body = document.body;
+    const btn = document.querySelector('button[onclick="toggleFullscreen()"]');
+    
+    if (!isFullscreen) {
+        body.classList.add('fullscreen-mode');
+        btn.innerHTML = '<i class="fas fa-compress"></i> Salir Pantalla Completa';
+        isFullscreen = true;
+        
+        // Hide navigation
+        const nav = document.querySelector('nav.navbar');
+        if (nav) nav.style.display = 'none';
+        
+        // Request fullscreen API if available
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+        }
+    } else {
+        body.classList.remove('fullscreen-mode');
+        btn.innerHTML = '<i class="fas fa-expand"></i> Pantalla Completa';
+        isFullscreen = false;
+        
+        // Show navigation
+        const nav = document.querySelector('nav.navbar');
+        if (nav) nav.style.display = 'block';
+        
+        // Exit fullscreen API if available
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+
+// Update current time
+function updateTime() {
+    const timeElements = document.querySelectorAll('.current-time');
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('es-CL', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    timeElements.forEach(el => el.textContent = timeString);
+}
+
+// Auto-refresh every 2 minutes for TV display
 setInterval(() => {
+    console.log('Auto-refreshing area detail...');
     window.location.reload();
 }, 120000);
+
+// Update time every second
+setInterval(updateTime, 1000);
+updateTime();
+
+// Escape key to exit fullscreen
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && isFullscreen) {
+        toggleFullscreen();
+    }
+});
+
+console.log('Area Detail Dashboard initialized for TV display');
 </script>
 {% endblock %}

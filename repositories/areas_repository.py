@@ -27,7 +27,7 @@ class AreasRepository:
         """Get area by ID with states"""
         return (db.session.query(Area)
                 .options(joinedload(Area.estados))
-                .filter_by(area_id=area_id, activo=True)
+                .filter_by(id=area_id, activo=True)
                 .first())
 
     @staticmethod

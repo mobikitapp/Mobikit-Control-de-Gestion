@@ -136,7 +136,7 @@
                                 <tr class="{% if mes.estado == 'VERDE' %}table-success{% elif mes.estado == 'AMARILLO' %}table-warning{% else %}table-danger{% endif %}">
                                     <td>
                                         <strong>{{ mes.mes_nombre[:3] }}</strong>
-                                        {% if mes.usando_datos_reales %}
+                                        {% if mes.get('usando_datos_reales', False) %}
                                         <span class="badge bg-info ms-1" title="Usando datos de proyectos reales">
                                             <i class="fas fa-project-diagram"></i>
                                         </span>
@@ -364,6 +364,10 @@
     document.addEventListener('DOMContentLoaded', function() {
         initializeCharts();
         updateSimulation();
+        // Guardar datos
+        if (typeof JSON !== 'undefined' && JSON.stringify) {
+            localStorage.setItem('revenueData', JSON.stringify(monthlyData));
+        }
     });
 
     // Year filter
@@ -431,7 +435,7 @@
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.JSON.stringify(data)
+            body: JSON.stringify(data)
         })
         .then(response => response.json())
         .then(result => {

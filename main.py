@@ -1,5 +1,6 @@
 import os
 import logging
+from datetime import datetime
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
@@ -10,6 +11,11 @@ try:
     # Add builtin functions to Jinja2 context
     app.jinja_env.globals['min'] = min
     app.jinja_env.globals['max'] = max
+
+    # Add moment function to template globals
+    @app.template_global('moment_global')
+    def moment_global():
+        return datetime.now()
 
     # Initialize database
     with app.app_context():
