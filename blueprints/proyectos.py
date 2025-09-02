@@ -374,3 +374,24 @@ def api_proyectos():
         logger.error(f"Error en API proyectos: {str(e)}")
         return jsonify({'error': 'Error al cargar proyectos'}), 500
 
+@proyectos_bp.route('/api/<int:proyecto_id>/contratos-activos')
+@require_login
+def api_contratos_activos(proyecto_id):
+    """API endpoint para obtener contratos activos de un proyecto"""
+    try:
+        contratos = proyectos_service.get_contratos_activos_by_proyecto(proyecto_id)
+        return jsonify([{
+            'id': c.id,
+            'numero_oc': c.numero_oc,
+            'tipo_documento': c.tipo_documento.value,
+            'monto_total': float(c.monto_total) if c.monto_total else 0,
+            'moneda': c.moneda,
+            'fecha_emision': c.fecha_emision.strftime('%d/%m/%Y') if c.fecha_emision else None,
+            'fecha_vencimiento': c.fecha_vencimiento.strftime('%d/%m/%Y') if c.fecha_vencimiento else None,
+            'estado': c.estado.value
+        } for c in contratos])
+        
+    except Exception as e:
+        logger.error(f"Error en API contratos activos: {str(e)}")
+        return jsonify({'error': 'Error al cargar contratos'}), 500
+

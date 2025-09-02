@@ -484,3 +484,28 @@ class ProyectosService:
         except Exception as e:
             logger.warning(f"Error counting despachos for proyecto {proyecto_id}: {str(e)}")
             return 0
+
+    def get_contratos_activos_by_proyecto(self, proyecto_id: int) -> List:
+        """Get active contracts for a project"""
+        try:
+            from models import Contrato, EstadoContrato
+            return (db.session.query(Contrato)
+                   .filter_by(proyecto_id=proyecto_id)
+                   .filter_by(estado=EstadoContrato.VIGENTE)
+                   .order_by(Contrato.created_at.desc())
+                   .all())
+        except Exception as e:
+            logger.error(f"Error obteniendo contratos activos del proyecto {proyecto_id}: {str(e)}")
+            return []
+
+    def count_contratos_activos_by_proyecto(self, proyecto_id: int) -> int:
+        """Count active contracts for a project"""
+        try:
+            from models import Contrato, EstadoContrato
+            return (db.session.query(Contrato)
+                   .filter_by(proyecto_id=proyecto_id)
+                   .filter_by(estado=EstadoContrato.VIGENTE)
+                   .count())
+        except Exception as e:
+            logger.error(f"Error contando contratos activos del proyecto {proyecto_id}: {str(e)}")
+            return 0
