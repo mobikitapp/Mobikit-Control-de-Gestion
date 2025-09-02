@@ -95,16 +95,8 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% set total_provision = 0 %}
-                                {% set total_instalacion = 0 %}
-                                {% set total_ganancias = 0 %}
-                                {% set total_proyectos = 0 %}
                                 {% for mes in range(1, 13) %}
                                 {% set mes_data = matriz[mes] %}
-                                {% set total_provision = total_provision + mes_data.valor_provision %}
-                                {% set total_instalacion = total_instalacion + mes_data.valor_instalacion %}
-                                {% set total_ganancias = total_ganancias + mes_data.ganancias %}
-                                {% set total_proyectos = total_proyectos + mes_data.proyectos|length %}
                                 {% set objetivo_mes = objetivos.get(mes) %}
                                 {% set objetivo_provision = objetivo_mes.objetivo_provision if objetivo_mes else 0 %}
                                 {% set porcentaje_objetivo = (mes_data.valor_provision / objetivo_provision * 100) if objetivo_provision else 0 %}
@@ -167,34 +159,29 @@
                                 <!-- Totals Row -->
                                 <tr class="table-info">
                                     <td><strong>TOTAL</strong></td>
-                                    <td><span class="badge bg-primary">{{ total_proyectos }}</span></td>
-                                    <td><strong>${{ "{:,.0f}".format(total_provision) }}</strong></td>
-                                    <td><strong>${{ "{:,.0f}".format(total_instalacion) }}</strong></td>
-                                    <td><strong class="text-success">${{ "{:,.0f}".format(total_ganancias) }}</strong></td>
+                                    <td><span class="badge bg-primary">{{ gran_totales.total_proyectos }}</span></td>
+                                    <td><strong>${{ "{:,.0f}".format(gran_totales.total_provision) }}</strong></td>
+                                    <td><strong>${{ "{:,.0f}".format(gran_totales.total_instalacion) }}</strong></td>
+                                    <td><strong class="text-success">${{ "{:,.0f}".format(gran_totales.total_ganancias) }}</strong></td>
                                     <td>
-                                        {% set total_ventas = total_provision + total_instalacion %}
-                                        {% if total_ventas > 0 %}
-                                        {% set margen_total_ponderado = (total_ganancias / total_ventas * 100) %}
-                                        <span class="badge bg-success">{{ "{:.1f}".format(margen_total_ponderado) }}%</span>
+                                        {% if gran_totales.margen_global %}
+                                        <span class="badge bg-success">{{ "{:.1f}".format(gran_totales.margen_global) }}%</span>
                                         {% else %}
                                         <small class="text-muted">N/A</small>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% set objetivo_total = 0 %}
-                                        {% for mes in range(1, 13) %}
-                                        {% set objetivo_mes = objetivos.get(mes) %}
-                                        {% if objetivo_mes and objetivo_mes.objetivo_provision %}
-                                        {% set objetivo_total = objetivo_total + objetivo_mes.objetivo_provision %}
-                                        {% endif %}
-                                        {% endfor %}
-                                        {% if objetivo_total > 0 %}
-                                        <strong>${{ "{:,.0f}".format(objetivo_total) }}</strong>
+                                        {% if gran_totales.objetivo_total_provision > 0 %}
+                                        <strong>${{ "{:,.0f}".format(gran_totales.objetivo_total_provision) }}</strong>
+                                        {% else %}
+                                        <small class="text-muted">No definido</small>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if objetivo_total > 0 %}
-                                        <strong>{{ "{:.0f}".format(total_provision / objetivo_total * 100) }}%</strong>
+                                        {% if gran_totales.objetivo_total_provision > 0 %}
+                                        <strong>{{ "{:.0f}".format(gran_totales.porcentaje_objetivo) }}%</strong>
+                                        {% else %}
+                                        <small class="text-muted">-</small>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -211,7 +198,7 @@
         <div class="col-md-2">
             <div class="card bg-primary text-white">
                 <div class="card-body text-center">
-                    <h4>{{ total_proyectos }}</h4>
+                    <h4>{{ gran_totales.total_proyectos }}</h4>
                     <small>Total Proyectos</small>
                 </div>
             </div>
@@ -219,7 +206,7 @@
         <div class="col-md-2">
             <div class="card bg-success text-white">
                 <div class="card-body text-center">
-                    <h4>${{ "{:,.0f}".format(total_provision / 1000000) }}M</h4>
+                    <h4>${{ "{:,.0f}".format(gran_totales.total_provision / 1000000) }}M</h4>
                     <small>Total Provisión</small>
                 </div>
             </div>
@@ -227,7 +214,7 @@
         <div class="col-md-2">
             <div class="card bg-info text-white">
                 <div class="card-body text-center">
-                    <h4>${{ "{:,.0f}".format(total_instalacion / 1000000) }}M</h4>
+                    <h4>${{ "{:,.0f}".format(gran_totales.total_instalacion / 1000000) }}M</h4>
                     <small>Total Instalación</small>
                 </div>
             </div>
@@ -235,7 +222,7 @@
         <div class="col-md-2">
             <div class="card bg-warning text-white">
                 <div class="card-body text-center">
-                    <h4>${{ "{:,.0f}".format(total_ganancias / 1000000) }}M</h4>
+                    <h4>${{ "{:,.0f}".format(gran_totales.total_ganancias / 1000000) }}M</h4>
                     <small>Total Ganancias</small>
                 </div>
             </div>
@@ -243,7 +230,7 @@
         <div class="col-md-2">
             <div class="card bg-secondary text-white">
                 <div class="card-body text-center">
-                    <h4>{{ "{:.1f}".format((total_provision + total_instalacion) / 1000000) }}M</h4>
+                    <h4>{{ "{:.1f}".format(gran_totales.total_ventas / 1000000) }}M</h4>
                     <small>Total Ventas</small>
                 </div>
             </div>
@@ -251,12 +238,7 @@
         <div class="col-md-2">
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
-                    {% set total_ventas_calc = total_provision + total_instalacion %}
-                    {% if total_ventas_calc > 0 %}
-                    <h4>{{ "{:.1f}".format(total_ganancias / total_ventas_calc * 100) }}%</h4>
-                    {% else %}
-                    <h4>0%</h4>
-                    {% endif %}
+                    <h4>{{ "{:.1f}".format(gran_totales.margen_global) }}%</h4>
                     <small>Margen Global</small>
                 </div>
             </div>

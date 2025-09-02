@@ -330,6 +330,9 @@ class ComercialService:
         # Get filter options
         clientes = db.session.query(Cliente).filter_by(activo=True).order_by(Cliente.nombre).all()
 
+        # Calculate grand totals
+        gran_totales = self._calcular_gran_totales(matriz, objetivos)
+
         return {
             'año': año,
             'matriz': matriz,
@@ -337,6 +340,7 @@ class ComercialService:
             'objetivos': objetivos,
             'proyectos': proyectos,
             'clientes': clientes,
+            'gran_totales': gran_totales,
             'filtros': {
                 'cliente_id': cliente_id,
                 'estado_filter': estado_filter
@@ -750,3 +754,52 @@ class ComercialService:
             objetivos_dict[obj.mes] = obj
 
         return objetivos_dict
+
+    def _calcular_gran_totales(self, matriz, objetivos):
+        """Calculate grand totals for the entire year"""
+        total_provision = Decimal('0')
+        total_instalacion = Decimal('0')
+        total_ganancias = Decimal('0')
+        total_proyectos = 0
+        objetivo_total_provision = Decimal('0')
+        objetivo_total_instalacion = Decimal('0')
+
+        # Sum up monthly values
+        for mes in range(1, 13):
+            mes_data = matriz[mes]
+            total_provision += mes_data['valor_provision']
+            total_instalacion += mes_data['valor_instalacion']
+            total_ganancias += mes_data['ganancias']
+            total_proyectos += len(mes_data['proyectos'])
+
+        # Sum up objectives
+        for mes in range(1, 13):
+            objetivo_mes = objetivos.get(mes)
+            if objetivo_mes:
+                if objetivo_mes.objetivo_provision:
+                    objetivo_total_provision += objetivo_mes.objetivo_provision
+                if objetivo_mes.objetivo_instalacion:
+                    objetivo_total_instalacion += objetivo_mes.objetivo_instalacion
+
+        # Calculate overall margin
+        total_ventas = total_provision + total_instalacion
+        margen_global = Decimal('0')
+        if total_ventas > 0:
+            margen_global = (total_ganancias / total_ventas) * Decimal('100')
+
+        # Calculate objective percentage
+        porcentaje_objetivo = Decimal('0')
+        if objetivo_total_provision > 0:
+            porcentaje_objetivo = (total_provision / objetivo_total_provision) * Decimal('100')
+
+        return {
+            'total_provision': total_provision,
+            'total_instalacion': total_instalacion,
+            'total_ganancias': total_ganancias,
+            'total_ventas': total_ventas,
+            'total_proyectos': total_proyectos,
+            'margen_global': margen_global,
+            'objetivo_total_provision': objetivo_total_provision,
+            'objetivo_total_instalacion': objetivo_total_instalacion,
+            'porcentaje_objetivo': porcentaje_objetivo
+        }
