@@ -10,6 +10,12 @@ from schemas.fabricacion import OrdenFabricacionSearchFilters
 from models import OrdenFabricacion
 import logging
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services.proyectos_service import ProyectosService
+    from services.contratos_service import ContratosService
+
 logger = logging.getLogger(__name__)
 
 class FabricacionService:
@@ -35,16 +41,18 @@ class FabricacionService:
         """
         try:
             # Validate proyecto exists
-            proyecto = self.proyectos_repo.get_by_id(of_data['proyecto_id'])
+            proyecto_id = of_data['proyecto_id']
+            proyecto = self.proyectos_repo.get_by_id(proyecto_id)
             if not proyecto:
-                raise ValueError(f"Proyecto {of_data['proyecto_id']} no encontrado")
+                raise ValueError(f"Proyecto {proyecto_id} no encontrado")
 
             # Validate contrato if provided
-            if of_data.get('contrato_id'):
-                contrato = self.contratos_repo.get_by_id(of_data['contrato_id'])
+            contrato_id = of_data.get('contrato_id')
+            if contrato_id:
+                contrato = self.contratos_repo.get_by_id(contrato_id)
                 if not contrato:
-                    raise ValueError(f"Contrato {of_data['contrato_id']} no encontrado")
-                if contrato.proyecto_id != of_data['proyecto_id']:
+                    raise ValueError(f"Contrato {contrato_id} no encontrado")
+                if contrato.proyecto_id != proyecto_id:
                     raise ValueError("El contrato no pertenece al proyecto especificado")
 
             # Always generate automatic codigo for generic orders
@@ -73,7 +81,7 @@ class FabricacionService:
             # Auto-change proyecto estado to EN_DESARROLLO
             from services.proyectos_service import ProyectosService
             proyectos_service = ProyectosService()
-            proyectos_service.cambiar_estado_por_contrato_creado(of.proyecto_id)
+            proyectos_service.actualizar_estado_automatico(proyecto_id, 'en_desarrollo')
 
             # Log audit
             AuditService.log_action(
@@ -115,19 +123,21 @@ class FabricacionService:
             datos_anteriores = serialize_model(of)
 
             # Validate proyecto if updating proyecto_id
+            proyecto_id = update_data.get('proyecto_id', of.proyecto_id)
             if 'proyecto_id' in update_data and update_data['proyecto_id'] != of.proyecto_id:
                 proyecto = self.proyectos_repo.get_by_id(update_data['proyecto_id'])
                 if not proyecto:
                     raise ValueError(f"Proyecto {update_data['proyecto_id']} no encontrado")
 
             # Validate contrato if updating contrato_id
+            contrato_id = update_data.get('contrato_id')
             if 'contrato_id' in update_data:
-                if update_data['contrato_id'] and update_data['contrato_id'] != of.contrato_id:
-                    contrato = self.contratos_repo.get_by_id(update_data['contrato_id'])
+                if contrato_id and contrato_id != of.contrato_id:
+                    contrato = self.contratos_repo.get_by_id(contrato_id)
                     if not contrato:
-                        raise ValueError(f"Contrato {update_data['contrato_id']} no encontrado")
+                        raise ValueError(f"Contrato {contrato_id} no encontrado")
 
-                    proyecto_id = update_data.get('proyecto_id', of.proyecto_id)
+                    
                     if contrato.proyecto_id != proyecto_id:
                         raise ValueError("El contrato no pertenece al proyecto especificado")
 
@@ -139,6 +149,12 @@ class FabricacionService:
 
             # Commit transaction
             db.session.commit()
+
+            # Update contract status if contract_id was changed
+            if contrato_id and contrato_id != of.contrato_id and contrato_id != 'None':
+                from services.contratos_service import ContratosService
+                contratos_service = ContratosService()
+                contratos_service.actualizar_estado_automatico(contrato_id, 'en_desarrollo')
 
             # Log audit
             AuditService.log_action(
