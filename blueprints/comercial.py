@@ -27,12 +27,12 @@ def centro_vendedores():
     """Centro de vendedores - Vista principal del área comercial"""
     try:
         service = ComercialService()
-        
+
         # Get filters from request
         cliente_id = request.args.get('cliente_id', type=int)
         vendedor_id = request.args.get('vendedor_id')
         estado_comercial = request.args.get('estado_comercial')
-        
+
         # Get data for the sales center
         data = service.get_centro_vendedores_data(
             current_user_id=current_user.id,
@@ -40,9 +40,9 @@ def centro_vendedores():
             vendedor_id=vendedor_id,
             estado_comercial=estado_comercial
         )
-        
+
         return render_template('comercial/centro_vendedores.html', **data)
-        
+
     except Exception as e:
         flash(f'Error al cargar centro de vendedores: {str(e)}', 'error')
         return redirect(url_for('index'))
@@ -56,10 +56,10 @@ def lista_vendedores():
     try:
         service = ComercialService()
         vendedores_stats = service.get_vendedores_estadisticas()
-        
+
         return render_template('comercial/vendedores.html', 
                              vendedores=vendedores_stats)
-        
+
     except Exception as e:
         flash(f'Error al cargar vendedores: {str(e)}', 'error')
         return redirect(url_for('comercial.centro_vendedores'))
@@ -72,14 +72,14 @@ def vendedor_detalle(vendedor_id):
     """Detalle de un vendedor específico"""
     try:
         service = ComercialService()
-        
+
         vendedor_data = service.get_vendedor_detalle(vendedor_id)
         if not vendedor_data:
             flash('Vendedor no encontrado', 'error')
             return redirect(url_for('comercial.lista_vendedores'))
-        
+
         return render_template('comercial/vendedor_detalle.html', **vendedor_data)
-        
+
     except Exception as e:
         flash(f'Error al cargar detalle del vendedor: {str(e)}', 'error')
         return redirect(url_for('comercial.lista_vendedores'))
@@ -94,13 +94,13 @@ def proyecto_comercial(proyecto_id):
     try:
         service = ComercialService()
         proyecto_data = service.get_proyecto_comercial_data(proyecto_id)
-        
+
         if not proyecto_data:
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('comercial.centro_vendedores'))
-        
+
         return render_template('comercial/proyecto_comercial.html', **proyecto_data)
-        
+
     except Exception as e:
         flash(f'Error al cargar datos comerciales del proyecto: {str(e)}', 'error')
         return redirect(url_for('comercial.centro_vendedores'))
@@ -113,7 +113,7 @@ def actualizar_comercial_proyecto(proyecto_id):
     """Actualizar información comercial de un proyecto"""
     try:
         service = ComercialService()
-        
+
         data = {
             'vendedor_id': request.form.get('vendedor_id'),
             'estado_comercial': request.form.get('estado_comercial'),
@@ -125,16 +125,16 @@ def actualizar_comercial_proyecto(proyecto_id):
             'fecha_adjudicacion': request.form.get('fecha_adjudicacion'),
             'notas_comerciales': request.form.get('notas_comerciales')
         }
-        
+
         success = service.actualizar_comercial_proyecto(proyecto_id, data, current_user.id)
-        
+
         if success:
             flash('Información comercial actualizada exitosamente', 'success')
         else:
             flash('Error al actualizar información comercial', 'error')
-        
+
         return redirect(url_for('comercial.proyecto_comercial', proyecto_id=proyecto_id))
-        
+
     except Exception as e:
         flash(f'Error al actualizar: {str(e)}', 'error')
         return redirect(url_for('comercial.proyecto_comercial', proyecto_id=proyecto_id))
@@ -148,17 +148,17 @@ def tareas_comerciales():
     """Lista de tareas comerciales"""
     try:
         service = ComercialService()
-        
+
         vendedor_id = request.args.get('vendedor_id')
         estado = request.args.get('estado')  # 'pendientes', 'completadas', 'todas'
-        
+
         tareas_data = service.get_tareas_comerciales(
             vendedor_id=vendedor_id,
             estado=estado
         )
-        
+
         return render_template('comercial/tareas.html', **tareas_data)
-        
+
     except Exception as e:
         flash(f'Error al cargar tareas: {str(e)}', 'error')
         return redirect(url_for('comercial.centro_vendedores'))
@@ -171,18 +171,18 @@ def completar_tarea(tarea_id):
     """Marcar una tarea como completada"""
     try:
         service = ComercialService()
-        
+
         notas = request.form.get('notas', '')
         success = service.completar_tarea(tarea_id, current_user.id, notas)
-        
+
         if success:
             flash('Tarea completada exitosamente', 'success')
         else:
             flash('Error al completar la tarea', 'error')
-        
+
     except Exception as e:
         flash(f'Error: {str(e)}', 'error')
-    
+
     return redirect(url_for('comercial.tareas_comerciales'))
 
 
@@ -194,20 +194,20 @@ def planificacion_comercial():
     """Planificación comercial - Vista de matriz mensual"""
     try:
         service = ComercialService()
-        
+
         # Get filters
         año = request.args.get('año', type=int) or datetime.now().year
         cliente_id = request.args.get('cliente_id', type=int)
         estado_filter = request.args.get('estados', 'todos')  # todos, presupuestado, adjudicado
-        
+
         planning_data = service.get_planificacion_comercial(
             año=año,
             cliente_id=cliente_id,
             estado_filter=estado_filter
         )
-        
+
         return render_template('comercial/planificacion.html', **planning_data)
-        
+
     except Exception as e:
         flash(f'Error al cargar planificación comercial: {str(e)}', 'error')
         return redirect(url_for('comercial.centro_vendedores'))
@@ -220,12 +220,12 @@ def objetivos_mensuales():
     """Gestión de objetivos mensuales"""
     try:
         service = ComercialService()
-        
+
         año = request.args.get('año', type=int) or datetime.now().year
         objetivos_data = service.get_objetivos_mensuales(año)
-        
+
         return render_template('comercial/objetivos.html', **objetivos_data)
-        
+
     except Exception as e:
         flash(f'Error al cargar objetivos: {str(e)}', 'error')
         return redirect(url_for('comercial.centro_vendedores'))
@@ -238,31 +238,31 @@ def actualizar_objetivos():
     """Actualizar objetivos mensuales"""
     try:
         service = ComercialService()
-        
+
         año = request.form.get('año', type=int)
         objetivos_data = []
-        
+
         for mes in range(1, 13):
             objetivo_provision = request.form.get(f'objetivo_provision_{mes}')
             objetivo_instalacion = request.form.get(f'objetivo_instalacion_{mes}')
-            
+
             if objetivo_provision or objetivo_instalacion:
                 objetivos_data.append({
                     'mes': mes,
                     'objetivo_provision': objetivo_provision,
                     'objetivo_instalacion': objetivo_instalacion
                 })
-        
+
         success = service.actualizar_objetivos_mensuales(año, objetivos_data, current_user.id)
-        
+
         if success:
             flash('Objetivos actualizados exitosamente', 'success')
         else:
             flash('Error al actualizar objetivos', 'error')
-        
+
     except Exception as e:
         flash(f'Error: {str(e)}', 'error')
-    
+
     año = request.form.get('año', type=int) or datetime.now().year
     return redirect(url_for('comercial.objetivos_mensuales', año=año))
 
@@ -275,7 +275,7 @@ def api_crear_tarea(proyecto_id):
     """API para crear una nueva tarea comercial"""
     try:
         service = ComercialService()
-        
+
         data = request.get_json()
         tarea_data = {
             'proyecto_id': proyecto_id,
@@ -284,9 +284,9 @@ def api_crear_tarea(proyecto_id):
             'descripcion': data.get('descripcion'),
             'fecha_limite': data.get('fecha_limite')
         }
-        
+
         tarea = service.crear_tarea_comercial(tarea_data, current_user.id)
-        
+
         if tarea:
             return jsonify({
                 'success': True,
@@ -298,7 +298,7 @@ def api_crear_tarea(proyecto_id):
                 'success': False,
                 'message': 'Error al crear la tarea'
             }), 400
-            
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -313,16 +313,16 @@ def api_planificacion_datos(year):
     """API para obtener datos de planificación por año"""
     try:
         service = ComercialService()
-        
+
         cliente_id = request.args.get('cliente_id', type=int)
         estado_filter = request.args.get('estados', 'todos')
-        
+
         data = service.get_planificacion_comercial(
             año=year,
             cliente_id=cliente_id,
             estado_filter=estado_filter
         )
-        
+
         return jsonify({
             'success': True,
             'data': {
@@ -331,7 +331,7 @@ def api_planificacion_datos(year):
                 'proyectos_count': len(data['proyectos'])
             }
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -347,23 +347,23 @@ def revenue_management():
     """Revenue Management - Vista principal"""
     try:
         service = RevenueService()
-        
+
         # Get filters
         año = request.args.get('año', type=int) or datetime.now().year
-        
+
         # Get monthly data and KPIs
         monthly_data = service.get_monthly_data(año)
         kpis = service.calculate_kpis(año)
-        
+
         # Get break even curve for chart
         be_curve = service.get_break_even_curve()
-        
+
         return render_template('comercial/revenue_management.html',
                              año=año,
                              monthly_data=monthly_data,
                              kpis=kpis,
                              be_curve=be_curve)
-        
+
     except Exception as e:
         flash(f'Error al cargar Revenue Management: {str(e)}', 'error')
         return redirect(url_for('comercial.centro_vendedores'))
@@ -377,13 +377,13 @@ def api_revenue_meses():
     try:
         service = RevenueService()
         año = request.args.get('año', type=int) or datetime.now().year
-        
+
         monthly_data = service.get_monthly_data(año)
         return jsonify({
             'success': True,
             'data': monthly_data
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -399,7 +399,7 @@ def api_revenue_update_mes():
     try:
         service = RevenueService()
         data = request.get_json()
-        
+
         required_fields = ['año', 'mes']
         for field in required_fields:
             if field not in data:
@@ -407,19 +407,19 @@ def api_revenue_update_mes():
                     'success': False,
                     'error': f'Campo requerido: {field}'
                 }), 400
-        
+
         objetivo = service.update_monthly_objective(
             año=data['año'],
             mes=data['mes'],
             data=data
         )
-        
+
         return jsonify({
             'success': True,
             'message': 'Objetivo mensual actualizado',
             'id': objetivo.id
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -435,14 +435,14 @@ def api_revenue_simular():
     try:
         service = RevenueService()
         data = request.get_json()
-        
+
         # Get parameters with defaults
         adjudicado_base = float(data.get('adjudicado_base', 0))
         adjudicado_extra = float(data.get('adjudicado_extra', 0))
         margen_sim_pct = float(data.get('margen_sim_pct', 30))
         buffer_pp = float(data.get('buffer_pp', 2.0))
         utilidad_objetivo_clp = float(data.get('utilidad_objetivo_clp', 0))
-        
+
         resultado = service.simulate_scenario(
             adjudicado_base=adjudicado_base,
             adjudicado_extra=adjudicado_extra,
@@ -450,12 +450,119 @@ def api_revenue_simular():
             buffer_pp=buffer_pp,
             utilidad_objetivo_clp=utilidad_objetivo_clp
         )
-        
+
         return jsonify({
             'success': True,
             'data': resultado
         })
-        
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@comercial_bp.route('/api/revenue/calcular-proyectos/<int:anio>/<int:mes>', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+def api_revenue_calcular_proyectos(anio, mes):
+    """API: Calculate and update revenue data from real projects for a specific month"""
+    try:
+        from services.revenue_service import RevenueService
+        revenue_service = RevenueService()
+
+        # Calcular datos reales desde proyectos
+        real_adjudicado = revenue_service.calculate_real_adjudicado_from_projects(anio, mes)
+        real_presupuesto = revenue_service.calculate_real_presupuesto_from_projects(anio, mes)
+        real_margen = revenue_service.calculate_real_margins_from_projects(anio, mes)
+
+        # Update or create the monthly objective with real data
+        data = {
+            'presupuesto_facturacion': real_presupuesto,
+            'adjudicado_facturacion': real_adjudicado,
+            'margen_real_pct': real_margen
+        }
+
+        # Buscar o crear objetivo mensual
+        objetivo = (db.session.query(ObjetivoMensual)
+                   .filter_by(año=anio, mes=mes)
+                   .first())
+
+        if not objetivo:
+            objetivo = ObjetivoMensual(año=anio, mes=mes)
+            db.session.add(objetivo)
+
+        objetivo.presupuesto_facturacion = Decimal(real_presupuesto) if real_presupuesto else None
+        objetivo.adjudicado_facturacion = Decimal(real_adjudicado) if real_adjudicado else None
+        objetivo.margen_real_pct = Decimal(real_margen) if real_margen else None
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Datos calculados desde proyectos reales para {calendar.month_name[mes]} {anio}',
+            'data': {
+                'presupuesto_facturacion': real_presupuesto,
+                'adjudicado_facturacion': real_adjudicado,
+                'margen_real_pct': real_margen,
+                'objetivo_id': objetivo.id
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@comercial_bp.route('/api/revenue/calcular-proyectos/<int:anio>', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+def api_revenue_calcular_proyectos_año(anio):
+    """API: Calculate and update revenue data from real projects for entire year"""
+    try:
+        service = RevenueService()
+
+        updated_months = []
+        errors = []
+
+        for mes in range(1, 13):
+            try:
+                # Calculate real data from projects
+                real_adjudicado = service.calculate_real_adjudicado_from_projects(anio, mes)
+                real_presupuesto = service.calculate_real_presupuesto_from_projects(anio, mes)
+                real_margen = service.calculate_real_margins_from_projects(anio, mes)
+
+                # Only update if there's real data
+                if real_adjudicado > 0 or real_presupuesto > 0:
+                    data = {
+                        'presupuesto_facturacion': real_presupuesto,
+                        'adjudicado_facturacion': real_adjudicado,
+                        'margen_real_pct': real_margen
+                    }
+
+                    objetivo = service.update_monthly_objective(anio, mes, data)
+                    updated_months.append({
+                        'mes': mes,
+                        'mes_nombre': calendar.month_name[mes],
+                        'presupuesto': real_presupuesto,
+                        'adjudicado': real_adjudicado,
+                        'margen': real_margen
+                    })
+
+            except Exception as e:
+                errors.append(f"Error en {calendar.month_name[mes]}: {str(e)}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Datos calculados desde proyectos reales para {len(updated_months)} meses',
+            'updated_months': updated_months,
+            'errors': errors
+        })
+
     except Exception as e:
         return jsonify({
             'success': False,
