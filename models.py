@@ -246,7 +246,7 @@ class Proyecto(db.Model):
     contratos = db.relationship('Contrato', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     ordenes_fabricacion = db.relationship('OrdenFabricacion', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     despachos = db.relationship('Despacho', backref='proyecto', lazy=True, cascade='all, delete-orphan')
-    eventos_entrega = db.relationship('EventoEntrega', backref='proyecto', lazy=True, cascade='all, delete-orphan')
+    eventos_entrega = db.relationship('EventoEntrega', foreign_keys='EventoEntrega.proyecto_id', lazy=True, cascade='all, delete-orphan')
     responsable_user = db.relationship('User', foreign_keys=[responsable])
     vendedor_user = db.relationship('User', foreign_keys=[vendedor_id])
     creator = db.relationship('User', foreign_keys=[created_by])
