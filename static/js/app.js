@@ -705,17 +705,27 @@ function showAlert(message, type = 'info') {
         if (e.target.closest('.contratos-toggle-btn')) {
             const button = e.target.closest('.contratos-toggle-btn');
             const icon = button.querySelector('[data-feather]');
-            const target = document.querySelector(button.getAttribute('data-bs-target'));
+            const targetSelector = button.getAttribute('data-bs-target');
 
-            if (target) {
-                // Toggle icon rotation
-                target.addEventListener('shown.bs.collapse', function() {
-                    icon.style.transform = 'rotate(180deg)';
-                });
+            if (targetSelector) {
+                const target = document.querySelector(targetSelector);
 
-                target.addEventListener('hidden.bs.collapse', function() {
-                    icon.style.transform = 'rotate(0deg)';
-                });
+                if (target && icon) {
+                    const isCollapsed = !target.classList.contains('show');
+
+                    if (isCollapsed) {
+                        target.classList.add('show');
+                        icon.setAttribute('data-feather', 'chevron-down');
+                    } else {
+                        target.classList.remove('show');
+                        icon.setAttribute('data-feather', 'chevron-right');
+                    }
+
+                    // Re-render feather icons
+                    if (typeof feather !== 'undefined') {
+                        feather.replace();
+                    }
+                }
             }
         }
     });

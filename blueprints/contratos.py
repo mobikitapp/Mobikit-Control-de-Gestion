@@ -45,8 +45,8 @@ def index():
         # Validate filters
         filters = ContratoSearchFilters(**filters_data)
 
-        # Search contratos
-        contratos, total_count = contratos_service.search_contratos(filters)
+        # Search contratos grouped by client
+        contratos_agrupados, total_count = contratos_service.get_contratos_grouped_by_client(filters)
 
         # Get data for filter dropdowns
         clientes = clientes_service.get_active_clientes()
@@ -57,7 +57,7 @@ def index():
         has_next = filters.page < total_pages
 
         return render_template('contratos/index.html',
-                             contratos=contratos,
+                             contratos_agrupados=contratos_agrupados,
                              clientes=clientes,
                              filters=filters,
                              total_count=total_count,

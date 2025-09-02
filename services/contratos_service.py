@@ -345,3 +345,61 @@ class ContratosService:
         except Exception as e:
             logger.error(f"Error getting contratos for proyecto {proyecto_id}: {str(e)}")
             raise
+
+    def get_contratos_grouped_by_client(self, filters: ContratoSearchFilters) -> tuple[List[Dict], int]:
+        """
+        Get contratos grouped by client and project
+        
+        Returns:
+            Tuple of (grouped_data, total_count)
+        """
+        try:
+            contratos, total_count = self.repo.search(filters)
+            
+            # Group contracts by client and project
+            grouped_data = {}
+            
+            for contrato in contratos:
+                cliente_id = contrato.proyecto.cliente.id
+                proyecto_id = contrato.proyecto.id
+                
+                # Initialize client data if not exists
+                if cliente_id not in grouped_data:
+                    grouped_data[cliente_id] = {
+                        'cliente': contrato.proyecto.cliente,
+                        'proyectos': {},
+                        'total_contratos': 0
+                    }
+                
+                # Initialize project data if not exists
+                if proyecto_id not in grouped_data[cliente_id]['proyectos']:
+                    grouped_data[cliente_id]['proyectos'][proyecto_id] = {
+                        'proyecto': contrato.proyecto,
+                        'contratos': []
+                    }
+                
+                # Add contract to project
+                grouped_data[cliente_id]['proyectos'][proyecto_id]['contratos'].append(contrato)
+                grouped_data[cliente_id]['total_contratos'] += 1
+            
+            # Convert to list format for template
+            result = []
+            for cliente_data in grouped_data.values():
+                proyectos_list = list(cliente_data['proyectos'].values())
+                # Sort projects by name
+                proyectos_list.sort(key=lambda p: p['proyecto'].nombre)
+                
+                result.append({
+                    'cliente': cliente_data['cliente'],
+                    'proyectos': proyectos_list,
+                    'total_contratos': cliente_data['total_contratos']
+                })
+            
+            # Sort clients by name
+            result.sort(key=lambda c: c['cliente'].nombre)
+            
+            return result, total_count
+            
+        except Exception as e:
+            logger.error(f"Error grouping contratos by client: {str(e)}")
+            raise
