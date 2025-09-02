@@ -413,7 +413,7 @@ class ContratosService:
 
     def _enrich_contrato_with_next_milestone(self, contrato):
         """
-        Enrich contract with next delivery milestone information
+        Enrich contract with next delivery milestone information and OFs data
         """
         try:
             from datetime import date
@@ -423,6 +423,9 @@ class ContratosService:
             contrato.fecha_proxima_entrega = None
             contrato.proximo_hito = None
             contrato.dias_restantes_proxima_entrega = None
+            
+            # Enrich with OFs information
+            self._enrich_contrato_with_ofs_info(contrato)
             
             if contrato.plan_entrega and contrato.plan_entrega.hitos:
                 # Get pending milestones sorted by date and order
@@ -474,3 +477,51 @@ class ContratosService:
             contrato.fecha_proxima_entrega = contrato.fecha_entrega_comprometida
             contrato.proximo_hito = None
             contrato.dias_restantes_proxima_entrega = None
+
+    def _enrich_contrato_with_ofs_info(self, contrato):
+        """
+        Enrich contract with manufacturing orders information
+        """
+        try:
+            from models import OrdenFabricacion
+            
+            # Get all manufacturing orders for this contract
+            ofs = (db.session.query(OrdenFabricacion)
+                   .filter_by(contrato_id=contrato.id)
+                   .order_by(OrdenFabricacion.fecha_planificada.asc())
+                   .all())
+            
+            # Initialize OFs data
+            contrato.ordenes_fabricacion_count = len(ofs)
+            contrato.ordenes_fabricacion_list = []
+            
+            if ofs:
+                for of in ofs:
+                    # Get current area and status
+                    area_actual = None
+                    estado_actual = None
+                    
+                    if of.area_progreso_actual:
+                        area_actual = of.area_progreso_actual.area.nombre if of.area_progreso_actual.area else None
+                        estado_actual = of.area_progreso_actual.estado.nombre if of.area_progreso_actual.estado else None
+                    
+                    of_info = {
+                        'id': of.id,
+                        'codigo': of.codigo,
+                        'descripcion': of.descripcion,
+                        'fecha_entrega_fabrica': of.fecha_entrega_fabrica,
+                        'area_actual': area_actual or 'Sin asignar',
+                        'estado_actual': estado_actual or 'Sin estado',
+                        'responsable': of.responsable_user.nombre_completo if of.responsable_user else 'Sin asignar'
+                    }
+                    
+                    contrato.ordenes_fabricacion_list.append(of_info)
+            else:
+                contrato.ordenes_fabricacion_count = 0
+                contrato.ordenes_fabricacion_list = []
+                
+        except Exception as e:
+            logger.warning(f"Error enriching contrato {contrato.id} with OFs info: {str(e)}")
+            # Set default values on error
+            contrato.ordenes_fabricacion_count = 0
+            contrato.ordenes_fabricacion_list = []
