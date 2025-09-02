@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 {% set title = "Dashboard de Áreas" %}
 
@@ -94,7 +93,7 @@
                              id="area-{{ area_data.area.id }}" 
                              role="tabpanel" 
                              aria-labelledby="area-{{ area_data.area.id }}-tab">
-                            
+
                             <!-- Area Description -->
                             <div class="row mb-3">
                                 <div class="col-md-8">
@@ -169,10 +168,14 @@
                                                     <small>{{ order.fecha_ingreso_area.strftime('%d/%m/%Y %H:%M') if order.fecha_ingreso_area else '-' }}</small>
                                                 </td>
                                                 <td>
-                                                    {% set days_diff = (moment().date() - order.fecha_cambio_estado.date()).days if order.fecha_cambio_estado else 0 %}
-                                                    <small class="{% if days_diff > 3 %}text-warning{% elif days_diff > 7 %}text-danger{% else %}text-muted{% endif %}">
-                                                        {{ days_diff }} día{% if days_diff != 1 %}s{% endif %}
-                                                    </small>
+                                                    {% if order.fecha_cambio_estado %}
+                                                        {% set days_diff = (moment_global().date() - order.fecha_cambio_estado.date()).days %}
+                                                        <small class="{% if days_diff > 3 %}text-warning{% elif days_diff > 7 %}text-danger{% else %}text-muted{% endif %}">
+                                                            {{ days_diff }} día{% if days_diff != 1 %}s{% endif %}
+                                                        </small>
+                                                    {% else %}
+                                                        <small class="text-muted">-</small>
+                                                    {% endif %}
                                                 </td>
                                                 <td>
                                                     <div class="btn-group" role="group">
@@ -204,7 +207,7 @@
                             {% endif %}
                         </div>
                         {% endfor %}
-                        
+
                         <!-- Empty state if no areas -->
                         {% if not areas %}
                         <div class="text-center py-5">
