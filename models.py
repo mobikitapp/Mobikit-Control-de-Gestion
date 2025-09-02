@@ -152,7 +152,7 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String, nullable=True)
     last_name = db.Column(db.String, nullable=True)
     profile_image_url = db.Column(db.String, nullable=True)
-    
+
     # Additional fields for the manufacturing app
     rol = db.Column(db.Enum(RolUsuario), default=RolUsuario.OPERACIONES, nullable=False)
     activo = db.Column(db.Boolean, default=True, nullable=False)
@@ -184,7 +184,7 @@ class OAuth(OAuthConsumerMixin, db.Model):
 
 class Cliente(db.Model):
     __tablename__ = 'clientes'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
     rut = db.Column(db.String(20), unique=True, nullable=False)
@@ -194,15 +194,15 @@ class Cliente(db.Model):
     telefono_contacto = db.Column(db.String(50))
     direccion = db.Column(db.Text)
     activo = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     proyectos = db.relationship('Proyecto', backref='cliente', lazy=True, cascade='all, delete-orphan')
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_cliente_rut', 'rut'),
@@ -215,7 +215,7 @@ class Cliente(db.Model):
 
 class Proyecto(db.Model):
     __tablename__ = 'proyectos'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=False)
     nombre = db.Column(db.String(200), nullable=False)
@@ -225,7 +225,7 @@ class Proyecto(db.Model):
     fecha_fin_real = db.Column(db.Date)
     responsable = db.Column(db.String, db.ForeignKey('users.id'))
     notas = db.Column(db.Text)
-    
+
     # Campos comerciales
     vendedor_id = db.Column(db.String, db.ForeignKey('users.id'))
     estado_comercial = db.Column(db.Enum(EstadoComercial), default=EstadoComercial.PENDIENTE_PRESUPUESTO)
@@ -237,11 +237,11 @@ class Proyecto(db.Model):
     fecha_adjudicacion = db.Column(db.Date)
     notas_comerciales = db.Column(db.Text)
     activo = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     contratos = db.relationship('Contrato', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     ordenes_fabricacion = db.relationship('OrdenFabricacion', backref='proyecto', lazy=True, cascade='all, delete-orphan')
@@ -251,7 +251,7 @@ class Proyecto(db.Model):
     vendedor_user = db.relationship('User', foreign_keys=[vendedor_id])
     creator = db.relationship('User', foreign_keys=[created_by])
     tareas_comerciales = db.relationship('TareaComercial', backref='proyecto', lazy=True, cascade='all, delete-orphan')
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_proyecto_cliente', 'cliente_id'),
@@ -276,43 +276,43 @@ contrato_categorias = db.Table('contrato_categorias',
 
 class CategoriaMuebleModel(db.Model):
     __tablename__ = 'categorias_mueble'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.Enum(CategoriaMueble), nullable=False, unique=True)
     descripcion = db.Column(db.String(200))
     activo = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
-    
+
     # Relationships
     subcategorias = db.relationship('SubcategoriaMuebleModel', backref='categoria', lazy=True, cascade='all, delete-orphan')
     proyectos = db.relationship('Proyecto', secondary=proyecto_categorias, backref='categorias_mueble')
     contratos = db.relationship('Contrato', secondary=contrato_categorias, backref='categorias_mueble')
-    
+
     def __repr__(self):
         return f'<CategoriaMueble {self.nombre.value}>'
 
 class SubcategoriaMuebleModel(db.Model):
     __tablename__ = 'subcategorias_mueble'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     categoria_id = db.Column(db.Integer, db.ForeignKey('categorias_mueble.id'), nullable=False)
     nombre_cocina = db.Column(db.Enum(SubcategoriaCocina), nullable=True)  # Solo para cocina
     nombre_closet = db.Column(db.Enum(SubcategoriaCloset), nullable=True)  # Solo para closet
     descripcion = db.Column(db.String(200))
     activo = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
-    
+
     # Índices
     __table_args__ = (
         Index('idx_subcategoria_categoria', 'categoria_id'),
     )
-    
+
     def __repr__(self):
         nombre = self.nombre_cocina.value if self.nombre_cocina else (self.nombre_closet.value if self.nombre_closet else 'Sin nombre')
         return f'<SubcategoriaMueble {nombre}>'
-    
+
     @property
     def nombre_display(self):
         if self.nombre_cocina:
@@ -324,7 +324,7 @@ class SubcategoriaMuebleModel(db.Model):
 
 class Contrato(db.Model):
     __tablename__ = 'contratos'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
     tipo_documento = db.Column(db.Enum(TipoDocumento), default=TipoDocumento.CONTRATO, nullable=False)
@@ -337,17 +337,17 @@ class Contrato(db.Model):
     fecha_entrega_comprometida = db.Column(db.Date)
     condiciones_pago = db.Column(db.Text)
     notas = db.Column(db.Text)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     adjuntos = db.relationship('ContratoAdjunto', backref='contrato', lazy=True, cascade='all, delete-orphan')
     ordenes_fabricacion = db.relationship('OrdenFabricacion', backref='contrato', lazy=True)
     plan_entrega = db.relationship('PlanEntrega', backref='contrato', uselist=False, cascade='all, delete-orphan')
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_contrato_proyecto', 'proyecto_id'),
@@ -362,7 +362,7 @@ class Contrato(db.Model):
 
 class ContratoAdjunto(db.Model):
     __tablename__ = 'contrato_adjuntos'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=False)
     storage_key = db.Column(db.String(500), nullable=False)
@@ -370,13 +370,13 @@ class ContratoAdjunto(db.Model):
     mime_type = db.Column(db.String(100), nullable=False)
     size_bytes = db.Column(db.Integer, nullable=False)
     tipo = db.Column(db.Enum(TipoAdjunto), default=TipoAdjunto.CONTRATO, nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_contrato_adjunto_contrato', 'contrato_id'),
@@ -388,21 +388,21 @@ class ContratoAdjunto(db.Model):
 
 class PlanEntrega(db.Model):
     __tablename__ = 'planes_entrega'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=False, unique=True)
     nombre = db.Column(db.String(200), nullable=False)
     descripcion = db.Column(db.Text)
     activo = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     hitos = db.relationship('HitoEntrega', backref='plan_entrega', lazy=True, cascade='all, delete-orphan', order_by='HitoEntrega.fecha_programada')
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_plan_entrega_contrato', 'contrato_id'),
@@ -413,7 +413,7 @@ class PlanEntrega(db.Model):
 
 class HitoEntrega(db.Model):
     __tablename__ = 'hitos_entrega'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     plan_entrega_id = db.Column(db.Integer, db.ForeignKey('planes_entrega.id'), nullable=False)
     orden = db.Column(db.Integer, nullable=False, default=1)
@@ -424,15 +424,16 @@ class HitoEntrega(db.Model):
     estado = db.Column(db.Enum(EstadoHitoEntrega), default=EstadoHitoEntrega.PENDIENTE, nullable=False)
     notas_completado = db.Column(db.Text)
     completado_por = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     creator = db.relationship('User', foreign_keys=[created_by])
-    completado_por_user = db.relationship('User', foreign_keys=[completado_por])
-    
+    completed_by_user = db.relationship('User', foreign_keys=[completado_por])
+    evento_entrega = db.relationship('EventoEntrega', backref='hito', uselist=False)
+
     # Indexes
     __table_args__ = (
         Index('idx_hito_entrega_plan', 'plan_entrega_id'),
@@ -446,7 +447,7 @@ class HitoEntrega(db.Model):
 
 class OrdenFabricacion(db.Model):
     __tablename__ = 'ordenes_fabricacion'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
     contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=True)
@@ -461,17 +462,17 @@ class OrdenFabricacion(db.Model):
     fecha_fin = db.Column(db.DateTime)
     responsable = db.Column(db.String, db.ForeignKey('users.id'))
     notas = db.Column(db.Text)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     items = db.relationship('OrdenFabricacionItem', backref='orden_fabricacion', lazy=True, cascade='all, delete-orphan')
     despachos = db.relationship('Despacho', backref='orden_fabricacion', lazy=True)
     responsable_user = db.relationship('User', foreign_keys=[responsable])
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_of_proyecto', 'proyecto_id'),
@@ -495,7 +496,7 @@ class OrdenFabricacion(db.Model):
                     .first())
         except Exception:
             return None
-    
+
     @property
     def area_actual(self):
         """Obtiene el área actual de la orden"""
@@ -504,7 +505,7 @@ class OrdenFabricacion(db.Model):
             return progreso.area if progreso else None
         except Exception:
             return None
-    
+
     @property
     def estado_actual(self):
         """Obtiene el estado actual de la orden"""
@@ -519,7 +520,7 @@ class OrdenFabricacion(db.Model):
 
 class OrdenFabricacionItem(db.Model):
     __tablename__ = 'of_items'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     of_id = db.Column(db.Integer, db.ForeignKey('ordenes_fabricacion.id'), nullable=False)
     sku_codigo = db.Column(db.String(50), nullable=False)
@@ -527,9 +528,9 @@ class OrdenFabricacionItem(db.Model):
     cantidad = db.Column(db.Numeric(10, 3), nullable=False)
     unidad = db.Column(db.String(20), default='UN', nullable=False)
     notas = db.Column(db.Text)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_of_item_of', 'of_id'),
@@ -541,7 +542,7 @@ class OrdenFabricacionItem(db.Model):
 
 class Despacho(db.Model):
     __tablename__ = 'despachos'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
     of_id = db.Column(db.Integer, db.ForeignKey('ordenes_fabricacion.id'), nullable=True)
@@ -554,16 +555,16 @@ class Despacho(db.Model):
     telefono_contacto = db.Column(db.String(50))
     observaciones = db.Column(db.Text)
     responsable = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     adjuntos = db.relationship('DespachoAdjunto', backref='despacho', lazy=True, cascade='all, delete-orphan')
     responsable_user = db.relationship('User', foreign_keys=[responsable])
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_despacho_proyecto', 'proyecto_id'),
@@ -579,7 +580,7 @@ class Despacho(db.Model):
 
 class DespachoAdjunto(db.Model):
     __tablename__ = 'despacho_adjuntos'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     despacho_id = db.Column(db.Integer, db.ForeignKey('despachos.id'), nullable=False)
     storage_key = db.Column(db.String(500), nullable=False)
@@ -587,13 +588,13 @@ class DespachoAdjunto(db.Model):
     mime_type = db.Column(db.String(100), nullable=False)
     size_bytes = db.Column(db.Integer, nullable=False)
     tipo = db.Column(db.Enum(TipoAdjunto), nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_despacho_adjunto_despacho', 'despacho_id'),
@@ -605,7 +606,7 @@ class DespachoAdjunto(db.Model):
 
 class AuditLog(db.Model):
     __tablename__ = 'audit_log'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     entidad = db.Column(db.String(50), nullable=False)  # nombre de la tabla/modelo
     entidad_id = db.Column(db.Integer, nullable=False)  # ID del registro afectado
@@ -614,12 +615,12 @@ class AuditLog(db.Model):
     payload = db.Column(db.JSON)  # datos del cambio
     ip_address = db.Column(db.String(45))
     user_agent = db.Column(db.Text)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
-    
+
     # Relationships
     actor_user = db.relationship('User', foreign_keys=[actor])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_audit_entidad', 'entidad', 'entidad_id'),
@@ -633,7 +634,7 @@ class AuditLog(db.Model):
 # Sistema de Áreas de Producción
 class Area(db.Model):
     __tablename__ = 'areas'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     tipo = db.Column(db.Enum(TipoArea), nullable=False, unique=True)
     nombre = db.Column(db.String(100), nullable=False)
@@ -641,14 +642,14 @@ class Area(db.Model):
     orden_secuencia = db.Column(db.Integer, nullable=False)
     activo = db.Column(db.Boolean, default=True, nullable=False)
     color_hex = db.Column(db.String(7), default='#6c757d')  # Color para UI
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
-    
+
     # Relationships
     estados = db.relationship('AreaEstado', backref='area', lazy=True, cascade='all, delete-orphan')
     progresos = db.relationship('OrdenAreaProgreso', backref='area', lazy=True)
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_area_tipo', 'tipo'),
@@ -661,7 +662,7 @@ class Area(db.Model):
 
 class AreaEstado(db.Model):
     __tablename__ = 'area_estados'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     area_id = db.Column(db.Integer, db.ForeignKey('areas.id'), nullable=False)
     codigo = db.Column(db.String(50), nullable=False)  # código técnico del estado
@@ -672,13 +673,13 @@ class AreaEstado(db.Model):
     es_final = db.Column(db.Boolean, default=False, nullable=False)    # Estado de salida del área
     activo = db.Column(db.Boolean, default=True, nullable=False)
     color_hex = db.Column(db.String(7), default='#6c757d')
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
-    
+
     # Relationships
     progresos = db.relationship('OrdenAreaProgreso', backref='estado', lazy=True)
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_area_estado_area', 'area_id'),
@@ -693,34 +694,34 @@ class AreaEstado(db.Model):
 
 class OrdenAreaProgreso(db.Model):
     __tablename__ = 'orden_area_progreso'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     orden_fabricacion_id = db.Column(db.Integer, db.ForeignKey('ordenes_fabricacion.id'), nullable=False)
     area_id = db.Column(db.Integer, db.ForeignKey('areas.id'), nullable=False)
     estado_id = db.Column(db.Integer, db.ForeignKey('area_estados.id'), nullable=False)
-    
+
     # Timestamps
     fecha_ingreso_area = db.Column(db.DateTime, nullable=False)  # Cuándo llegó a esta área
     fecha_cambio_estado = db.Column(db.DateTime, nullable=False) # Cuándo cambió al estado actual
-    
+
     # Asignación y seguimiento
     responsable_area = db.Column(db.String, db.ForeignKey('users.id'))  # Usuario responsable en esta área
     tiempo_estimado_horas = db.Column(db.Numeric(10, 2))  # Tiempo estimado para completar en esta área
     notas_area = db.Column(db.Text)  # Observaciones específicas del área
-    
+
     # Control de flujo
     es_actual = db.Column(db.Boolean, default=True, nullable=False)  # Si es el progreso activo (para historial)
     archivado = db.Column(db.Boolean, default=False, nullable=False)  # Para despachos archivados
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     orden_fabricacion = db.relationship('OrdenFabricacion', backref='area_progresos')
     responsable_user = db.relationship('User', foreign_keys=[responsable_area])
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_progreso_orden', 'orden_fabricacion_id'),
@@ -737,7 +738,7 @@ class OrdenAreaProgreso(db.Model):
 
 class ContratoEntrega(db.Model):
     __tablename__ = 'contrato_entregas'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=False)
     fecha_entrega = db.Column(db.Date, nullable=False)
@@ -746,15 +747,15 @@ class ContratoEntrega(db.Model):
     orden_entrega = db.Column(db.Integer, nullable=False)  # Orden secuencial de entrega
     completada = db.Column(db.Boolean, default=False, nullable=False)
     fecha_completada = db.Column(db.DateTime)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     contrato = db.relationship('Contrato', backref='entregas')
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_entrega_contrato', 'contrato_id'),
@@ -771,7 +772,7 @@ class ContratoEntrega(db.Model):
 
 class TareaComercial(db.Model):
     __tablename__ = 'tareas_comerciales'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
     vendedor_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
@@ -781,15 +782,15 @@ class TareaComercial(db.Model):
     fecha_limite = db.Column(db.Date)
     fecha_completada = db.Column(db.DateTime)
     notas = db.Column(db.Text)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     vendedor = db.relationship('User', foreign_keys=[vendedor_id])
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_tarea_proyecto', 'proyecto_id'),
@@ -803,21 +804,21 @@ class TareaComercial(db.Model):
 
 class ObjetivoMensual(db.Model):
     __tablename__ = 'objetivos_mensuales'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     año = db.Column(db.Integer, nullable=False)
     mes = db.Column(db.Integer, nullable=False)  # 1-12
     objetivo_provision = db.Column(db.Numeric(15, 2))
     objetivo_instalacion = db.Column(db.Numeric(15, 2))
     notas = db.Column(db.Text)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Constraints
     __table_args__ = (
         UniqueConstraint('año', 'mes', name='uq_objetivo_año_mes'),
@@ -832,10 +833,11 @@ class ObjetivoMensual(db.Model):
 
 class EventoEntrega(db.Model):
     __tablename__ = 'eventos_entrega'
-    
-    id = db.Column(db.String, primary_key=True)
-    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'))
-    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'))
+
+    id = db.Column(db.String(50), primary_key=True)
+    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=True)
+    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=True)
+    hito_entrega_id = db.Column(db.Integer, db.ForeignKey('hitos_entrega.id'), nullable=True)
     titulo = db.Column(db.String(200), nullable=False)
     descripcion = db.Column(db.Text)
     fecha_evento = db.Column(db.Date, nullable=False)
@@ -843,25 +845,22 @@ class EventoEntrega(db.Model):
     tipo_evento = db.Column(db.Enum(TipoEvento), nullable=False)
     estado = db.Column(db.Enum(EstadoEvento), default=EstadoEvento.PENDIENTE, nullable=False)
     prioridad = db.Column(db.Enum(PrioridadEvento), default=PrioridadEvento.MEDIA, nullable=False)
-    
-    # Recordatorio
-    recordatorio_dias = db.Column(db.Integer, default=1)  # Días antes del evento para recordatorio
-    recordatorio_enviado = db.Column(db.Boolean, default=False, nullable=False)
-    
-    # Seguimiento
+    recordatorio_dias = db.Column(db.Integer, default=1)
+    notas = db.Column(db.Text)
     fecha_completado = db.Column(db.DateTime)
     completado_por = db.Column(db.String, db.ForeignKey('users.id'))
-    notas = db.Column(db.Text)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
-    contrato = db.relationship('Contrato', backref='eventos_entrega')
-    completado_por_user = db.relationship('User', foreign_keys=[completado_por])
+    contrato = db.relationship('Contrato', foreign_keys=[contrato_id])
+    proyecto = db.relationship('Proyecto', foreign_keys=[proyecto_id])
+    hito_entrega = db.relationship('HitoEntrega', foreign_keys=[hito_entrega_id])
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+    completed_by_user = db.relationship('User', foreign_keys=[completado_por])
+
     # Indexes
     __table_args__ = (
         Index('idx_evento_proyecto', 'proyecto_id'),
@@ -873,8 +872,8 @@ class EventoEntrega(db.Model):
 
     def __repr__(self):
         return f'<EventoEntrega {self.titulo}>'
-    
-    @property 
+
+    @property
     def fecha_recordatorio(self):
         """Fecha en que debe enviarse el recordatorio"""
         if self.recordatorio_dias and self.fecha_evento:

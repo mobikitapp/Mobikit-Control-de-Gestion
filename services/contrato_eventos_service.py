@@ -145,6 +145,138 @@ class ContratoEventosService:
             .all()
         )
 
+    def generar_eventos_desde_hitos_plan(self, usuario_id: str) -> Tuple[bool, str, int]:
+        """Generate calendar events from delivery plan milestones"""
+        try:
+            from models import PlanEntrega, HitoEntrega, EstadoHitoEntrega
+            
+            eventos_creados = 0
+            
+            # Get active delivery plans with milestones
+            planes_activos = (
+                db.session.query(PlanEntrega)
+                .filter(PlanEntrega.activo == True)
+                .join(Contrato)
+                .filter(Contrato.estado == EstadoContrato.VIGENTE)
+                .all()
+            )
+            
+            for plan in planes_activos:
+                for hito in plan.hitos:
+                    # Check if event already exists for this milestone
+                    evento_existente = (
+                        db.session.query(EventoEntrega)
+                        .filter_by(hito_entrega_id=hito.id)
+                        .first()
+                    )
+                    
+                    if hito.estado == EstadoHitoEntrega.PENDIENTE:
+                        if not evento_existente:
+                            # Create new event for pending milestone
+                            evento_id = self._generate_evento_id()
+                            
+                            nuevo_evento = EventoEntrega()
+                            nuevo_evento.id = evento_id
+                            nuevo_evento.contrato_id = plan.contrato_id
+                            nuevo_evento.proyecto_id = plan.contrato.proyecto_id
+                            nuevo_evento.hito_entrega_id = hito.id
+                            nuevo_evento.titulo = f"Hito: {hito.titulo}"
+                            nuevo_evento.descripcion = f"Hito del plan de entrega: {plan.nombre}\nDescripción: {hito.descripcion or 'Sin descripción'}"
+                            nuevo_evento.fecha_evento = hito.fecha_programada
+                            nuevo_evento.tipo_evento = TipoEvento.ENTREGA
+                            nuevo_evento.estado = EstadoEvento.PENDIENTE
+                            nuevo_evento.prioridad = PrioridadEvento.ALTA
+                            nuevo_evento.recordatorio_dias = 2
+                            nuevo_evento.created_by = usuario_id
+                            
+                            db.session.add(nuevo_evento)
+                            eventos_creados += 1
+                        else:
+                            # Update existing event if milestone date changed
+                            if evento_existente.fecha_evento != hito.fecha_programada:
+                                evento_existente.fecha_evento = hito.fecha_programada
+                                evento_existente.titulo = f"Hito: {hito.titulo}"
+                                evento_existente.descripcion = f"Hito del plan de entrega: {plan.nombre}\nDescripción: {hito.descripcion or 'Sin descripción'}"
+                                evento_existente.updated_at = datetime.now()
+                    
+                    elif hito.estado == EstadoHitoEntrega.COMPLETADO and evento_existente:
+                        # Mark event as completed if milestone is completed
+                        if evento_existente.estado == EstadoEvento.PENDIENTE:
+                            evento_existente.estado = EstadoEvento.COMPLETADO
+                            evento_existente.fecha_completado = hito.fecha_completado or datetime.now()
+                            evento_existente.completado_por = hito.completado_por or usuario_id
+                            evento_existente.updated_at = datetime.now()
+            
+            db.session.commit()
+            return True, f"Sincronización completada. {eventos_creados} eventos creados/actualizados", eventos_creados
+            
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Error sincronizando eventos: {str(e)}", 0
+
+    def actualizar_evento_desde_hito(self, hito_id: int) -> Tuple[bool, str]:
+        """Update or create event when milestone changes"""
+        try:
+            from models import HitoEntrega, EstadoHitoEntrega
+            
+            hito = db.session.query(HitoEntrega).filter_by(id=hito_id).first()
+            if not hito:
+                return False, "Hito no encontrado"
+            
+            # Find existing event for this milestone
+            evento_existente = (
+                db.session.query(EventoEntrega)
+                .filter_by(hito_entrega_id=hito.id)
+                .first()
+            )
+            
+            if hito.estado == EstadoHitoEntrega.PENDIENTE:
+                if evento_existente:
+                    # Update existing event
+                    evento_existente.fecha_evento = hito.fecha_programada
+                    evento_existente.titulo = f"Hito: {hito.titulo}"
+                    evento_existente.descripcion = f"Hito del plan de entrega: {hito.plan_entrega.nombre}\nDescripción: {hito.descripcion or 'Sin descripción'}"
+                    evento_existente.updated_at = datetime.now()
+                    mensaje = "Evento de hito actualizado"
+                else:
+                    # Create new event
+                    evento_id = self._generate_evento_id()
+                    
+                    nuevo_evento = EventoEntrega()
+                    nuevo_evento.id = evento_id
+                    nuevo_evento.contrato_id = hito.plan_entrega.contrato_id
+                    nuevo_evento.proyecto_id = hito.plan_entrega.contrato.proyecto_id
+                    nuevo_evento.hito_entrega_id = hito.id
+                    nuevo_evento.titulo = f"Hito: {hito.titulo}"
+                    nuevo_evento.descripcion = f"Hito del plan de entrega: {hito.plan_entrega.nombre}\nDescripción: {hito.descripcion or 'Sin descripción'}"
+                    nuevo_evento.fecha_evento = hito.fecha_programada
+                    nuevo_evento.tipo_evento = TipoEvento.ENTREGA
+                    nuevo_evento.estado = EstadoEvento.PENDIENTE
+                    nuevo_evento.prioridad = PrioridadEvento.ALTA
+                    nuevo_evento.recordatorio_dias = 2
+                    nuevo_evento.created_by = "system"
+                    
+                    db.session.add(nuevo_evento)
+                    mensaje = "Evento de hito creado"
+            
+            elif hito.estado == EstadoHitoEntrega.COMPLETADO and evento_existente:
+                # Mark event as completed
+                evento_existente.estado = EstadoEvento.COMPLETADO
+                evento_existente.fecha_completado = hito.fecha_completado or datetime.now()
+                evento_existente.completado_por = hito.completado_por or "system"
+                evento_existente.updated_at = datetime.now()
+                mensaje = "Evento marcado como completado"
+            
+            else:
+                mensaje = "Sin cambios necesarios"
+            
+            db.session.commit()
+            return True, mensaje
+            
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Error: {str(e)}"
+
     def get_entregas_vencidas(self) -> List[EventoEntrega]:
         """Get overdue delivery events"""
         return (

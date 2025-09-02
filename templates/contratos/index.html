@@ -220,6 +220,13 @@
                                                                 <div class="fw-medium">{{ ultimo_hito.fecha_programada.strftime('%d/%m/%Y') }}</div>
                                                                 <small class="text-muted">{{ ultimo_hito.titulo[:30] }}{% if ultimo_hito.titulo|length > 30 %}...{% endif %}</small>
                                                             {% endif %}
+                                                            <button class="btn btn-sm btn-outline-info mt-1 plan-entrega-toggle-btn" 
+                                                                    type="button" data-bs-toggle="collapse" 
+                                                                    data-bs-target="#plan{{ contrato.id }}" 
+                                                                    aria-expanded="false">
+                                                                <i data-feather="calendar" style="width: 12px; height: 12px;"></i>
+                                                                Ver Plan Completo
+                                                            </button>
                                                         {% elif contrato.fecha_entrega_comprometida %}
                                                             <div class="fw-medium">{{ contrato.fecha_entrega_comprometida.strftime('%d/%m/%Y') }}</div>
                                                             <small class="text-muted">Fecha comprometida</small>
@@ -285,6 +292,59 @@
                                                         </div>
                                                     </td>
                                                 </tr>
+                                                {% if contrato.plan_entrega and contrato.plan_entrega.hitos %}
+                                                <tr class="collapse" id="plan{{ contrato.id }}">
+                                                    <td colspan="8">
+                                                        <div class="card mt-2 mb-2">
+                                                            <div class="card-header bg-light">
+                                                                <h6 class="mb-0">
+                                                                    <i data-feather="calendar" class="me-2" style="width: 16px; height: 16px;"></i>
+                                                                    Plan de Entrega: {{ contrato.plan_entrega.nombre }}
+                                                                </h6>
+                                                            </div>
+                                                            <div class="card-body p-2">
+                                                                <div class="row">
+                                                                    {% for hito in contrato.plan_entrega.hitos %}
+                                                                    <div class="col-md-6 col-lg-4 mb-2">
+                                                                        <div class="card border-left-{{ 'success' if hito.estado.value == 'COMPLETADO' else 'warning' if hito.estado.value == 'EN_PROGRESO' else 'secondary' }}">
+                                                                            <div class="card-body p-2">
+                                                                                <div class="d-flex justify-content-between align-items-start">
+                                                                                    <div>
+                                                                                        <h6 class="card-title mb-1" style="font-size: 0.875rem;">{{ hito.titulo }}</h6>
+                                                                                        <p class="card-text mb-1" style="font-size: 0.75rem;">
+                                                                                            <i data-feather="calendar" style="width: 12px; height: 12px;"></i>
+                                                                                            {{ hito.fecha_programada.strftime('%d/%m/%Y') }}
+                                                                                        </p>
+                                                                                        {% if hito.descripcion %}
+                                                                                        <p class="card-text text-muted mb-1" style="font-size: 0.75rem;">{{ hito.descripcion[:50] }}{% if hito.descripcion|length > 50 %}...{% endif %}</p>
+                                                                                        {% endif %}
+                                                                                    </div>
+                                                                                    <span class="badge bg-{{ 'success' if hito.estado.value == 'COMPLETADO' else 'warning' if hito.estado.value == 'EN_PROGRESO' else 'secondary' }}" style="font-size: 0.65rem;">
+                                                                                        {{ hito.estado.value|replace('_', ' ')|title }}
+                                                                                    </span>
+                                                                                </div>
+                                                                                {% if hito.estado.value == 'COMPLETADO' and hito.fecha_completado %}
+                                                                                <small class="text-success" style="font-size: 0.7rem;">
+                                                                                    <i data-feather="check-circle" style="width: 10px; height: 10px;"></i>
+                                                                                    Completado: {{ hito.fecha_completado.strftime('%d/%m/%Y') }}
+                                                                                </small>
+                                                                                {% endif %}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    {% endfor %}
+                                                                </div>
+                                                                <div class="text-end mt-2">
+                                                                    <a href="{{ url_for('contratos.plan_entrega', contrato_id=contrato.id) }}" class="btn btn-sm btn-outline-primary">
+                                                                        <i data-feather="external-link" style="width: 12px; height: 12px;"></i>
+                                                                        Ver Plan Completo
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
                                                 {% endfor %}
                                             </tbody>
                                         </table>
@@ -422,6 +482,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     target.classList.add('show');
                     icon.setAttribute('data-feather', 'chevron-down');
+                }
+                
+                // Re-render feather icons
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+            }
+        });
+    });
+
+    // Handle delivery plan toggles
+    document.querySelectorAll('.plan-entrega-toggle-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('data-bs-target'));
+            
+            if (target) {
+                const isCollapsed = target.classList.contains('show');
+                
+                if (isCollapsed) {
+                    target.classList.remove('show');
+                    this.innerHTML = '<i data-feather="calendar" style="width: 12px; height: 12px;"></i> Ver Plan Completo';
+                } else {
+                    target.classList.add('show');
+                    this.innerHTML = '<i data-feather="calendar" style="width: 12px; height: 12px;"></i> Ocultar Plan';
                 }
                 
                 // Re-render feather icons

@@ -596,3 +596,32 @@ def api_users_active():
     except Exception as e:
         logger.error(f"Error en API usuarios activos: {str(e)}")
         return jsonify({'error': 'Error al cargar usuarios'}), 500
+
+@contratos_bp.route('/api/sincronizar-eventos-calendario', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def api_sincronizar_eventos_calendario():
+    """API endpoint para sincronizar eventos del calendario desde hitos de planes de entrega"""
+    try:
+        from services.contrato_eventos_service import ContratoEventosService
+        eventos_service = ContratoEventosService()
+        
+        success, mensaje, eventos_creados = eventos_service.generar_eventos_desde_hitos_plan(current_user.id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': mensaje,
+                'eventos_creados': eventos_creados
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': mensaje
+            }), 400
+
+    except Exception as e:
+        logger.error(f"Error sincronizando eventos del calendario: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Error interno del servidor'
+        }), 500
