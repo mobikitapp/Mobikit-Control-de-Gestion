@@ -526,7 +526,8 @@ class ComercialService:
                 'proyectos': [],
                 'valor_provision': Decimal('0'),
                 'valor_instalacion': Decimal('0'),
-                'margen_promedio_provision': Decimal('0')
+                'margen_ponderado': Decimal('0'),
+                'ganancias': Decimal('0')
             }
 
         for proyecto in proyectos:
@@ -537,41 +538,78 @@ class ComercialService:
             if not hasattr(proyecto, 'monto_provision_presupuestado'):
                 continue
                 
-            # Determine which months this project affects
-            meses_proyecto = self._obtener_meses_proyecto(proyecto, año)
+            # Get days for this project in the year
+            dias_proyecto = self._obtener_dias_proyecto(proyecto, año)
 
-            for mes in meses_proyecto:
-                if mes in matriz:
-                    # Calculate prorated values
-                    meses_duracion = len(meses_proyecto)
+            for dia_info in dias_proyecto:
+                mes = dia_info['mes']
+                dias_en_mes = dia_info['dias']
+                total_dias = sum(d['dias'] for d in dias_proyecto)
+
+                if mes in matriz and total_dias > 0:
+                    # Calculate daily proration factor
+                    factor_prorreo = Decimal(str(dias_en_mes)) / Decimal(str(total_dias))
 
                     valor_provision_mes = Decimal('0')
                     valor_instalacion_mes = Decimal('0')
+                    ganancia_provision_mes = Decimal('0')
+                    ganancia_instalacion_mes = Decimal('0')
 
                     if proyecto.monto_provision_presupuestado:
-                        valor_provision_mes = proyecto.monto_provision_presupuestado / meses_duracion
+                        valor_provision_mes = proyecto.monto_provision_presupuestado * factor_prorreo
+                        if proyecto.margen_venta_provision:
+                            ganancia_provision_mes = valor_provision_mes * (proyecto.margen_venta_provision / Decimal('100'))
 
                     if proyecto.monto_instalacion_presupuestado:
-                        valor_instalacion_mes = proyecto.monto_instalacion_presupuestado / meses_duracion
+                        valor_instalacion_mes = proyecto.monto_instalacion_presupuestado * factor_prorreo
+                        if proyecto.margen_venta_instalacion:
+                            ganancia_instalacion_mes = valor_instalacion_mes * (proyecto.margen_venta_instalacion / Decimal('100'))
+
+                    ganancia_total_mes = ganancia_provision_mes + ganancia_instalacion_mes
 
                     proyecto_mes = {
                         'proyecto': proyecto,
                         'valor_provision_mes': valor_provision_mes,
                         'valor_instalacion_mes': valor_instalacion_mes,
-                        'margen_provision': proyecto.margen_venta_provision or Decimal('0')
+                        'ganancia_provision_mes': ganancia_provision_mes,
+                        'ganancia_instalacion_mes': ganancia_instalacion_mes,
+                        'ganancia_total_mes': ganancia_total_mes,
+                        'margen_provision': proyecto.margen_venta_provision or Decimal('0'),
+                        'margen_instalacion': proyecto.margen_venta_instalacion or Decimal('0'),
+                        'dias_en_mes': dias_en_mes,
+                        'factor_prorreo': factor_prorreo
                     }
 
                     matriz[mes]['proyectos'].append(proyecto_mes)
                     matriz[mes]['valor_provision'] += valor_provision_mes
                     matriz[mes]['valor_instalacion'] += valor_instalacion_mes
+                    matriz[mes]['ganancias'] += ganancia_total_mes
 
-        # Calculate average margins per month
+        # Calculate weighted average margin per month
         for mes in matriz:
-            proyectos_mes = matriz[mes]['proyectos']
-            if proyectos_mes:
-                margenes = [p['margen_provision'] for p in proyectos_mes if p['margen_provision'] > 0]
-                if margenes:
-                    matriz[mes]['margen_promedio_provision'] = sum(margenes) / len(margenes)
+            valor_total_mes = matriz[mes]['valor_provision'] + matriz[mes]['valor_instalacion']
+            if valor_total_mes > 0:
+                # Calculate weighted margin based on value proportions
+                margen_ponderado = Decimal('0')
+                for proyecto_mes in matriz[mes]['proyectos']:
+                    valor_proyecto_mes = proyecto_mes['valor_provision_mes'] + proyecto_mes['valor_instalacion_mes']
+                    peso = valor_proyecto_mes / valor_total_mes
+                    
+                    # Calculate weighted average of provision and installation margins for this project
+                    valor_prov = proyecto_mes['valor_provision_mes']
+                    valor_inst = proyecto_mes['valor_instalacion_mes']
+                    valor_total_proyecto = valor_prov + valor_inst
+                    
+                    if valor_total_proyecto > 0:
+                        margen_proyecto = Decimal('0')
+                        if valor_prov > 0:
+                            margen_proyecto += (valor_prov / valor_total_proyecto) * proyecto_mes['margen_provision']
+                        if valor_inst > 0:
+                            margen_proyecto += (valor_inst / valor_total_proyecto) * proyecto_mes['margen_instalacion']
+                        
+                        margen_ponderado += peso * margen_proyecto
+                
+                matriz[mes]['margen_ponderado'] = margen_ponderado
 
         return matriz
 
@@ -615,6 +653,76 @@ class ComercialService:
         else:
             return [datetime.now().month] if datetime.now().year == año else []
 
+    def _obtener_dias_proyecto(self, proyecto, año):
+        """Get days affected by a project in the given year, grouped by month"""
+        
+        # If project has both start and end dates, use them
+        if proyecto.fecha_inicio and proyecto.fecha_fin_estimada:
+            # Limit dates to the specified year
+            inicio = max(proyecto.fecha_inicio, date(año, 1, 1))
+            fin = min(proyecto.fecha_fin_estimada, date(año, 12, 31))
+
+            if inicio > date(año, 12, 31) or fin < date(año, 1, 1):
+                return []
+
+            dias_por_mes = []
+            fecha_actual = inicio
+
+            while fecha_actual <= fin:
+                mes = fecha_actual.month
+                
+                # Calculate days in this month for the project
+                inicio_mes = max(fecha_actual, date(año, mes, 1))
+                fin_mes = min(fin, date(año, mes, calendar.monthrange(año, mes)[1]))
+                
+                dias_en_mes = (fin_mes - inicio_mes).days + 1
+                
+                # Check if we already have this month
+                mes_existente = next((d for d in dias_por_mes if d['mes'] == mes), None)
+                if mes_existente:
+                    mes_existente['dias'] += dias_en_mes
+                else:
+                    dias_por_mes.append({
+                        'mes': mes,
+                        'dias': dias_en_mes
+                    })
+
+                # Move to next month
+                if fecha_actual.month == 12:
+                    fecha_actual = date(fecha_actual.year + 1, 1, 1)
+                else:
+                    fecha_actual = date(fecha_actual.year, fecha_actual.month + 1, 1)
+
+            return dias_por_mes
+        
+        # If project has only start date, assign 30 days to that month
+        elif proyecto.fecha_inicio and proyecto.fecha_inicio.year == año:
+            return [{
+                'mes': proyecto.fecha_inicio.month,
+                'dias': 30
+            }]
+        
+        # If project has commercial data but no dates, distribute equally across year
+        elif (proyecto.monto_provision_presupuestado or 
+              proyecto.monto_instalacion_presupuestado):
+            # Distribute across 365 days of the year (30.4 days per month average)
+            dias_por_mes = []
+            for mes in range(1, 13):
+                dias_en_mes = calendar.monthrange(año, mes)[1]
+                dias_por_mes.append({
+                    'mes': mes,
+                    'dias': dias_en_mes
+                })
+            return dias_por_mes
+        
+        # If no dates and no commercial data, assign to current month
+        else:
+            mes_actual = datetime.now().month if datetime.now().year == año else 1
+            return [{
+                'mes': mes_actual,
+                'dias': 30
+            }]
+
     def _calcular_totales_mensuales(self, matriz):
         """Calculate monthly totals from matrix"""
         totales = {}
@@ -623,7 +731,8 @@ class ComercialService:
             totales[mes] = {
                 'valor_provision': matriz[mes]['valor_provision'],
                 'valor_instalacion': matriz[mes]['valor_instalacion'],
-                'margen_promedio_provision': matriz[mes]['margen_promedio_provision'],
+                'margen_ponderado': matriz[mes]['margen_ponderado'],
+                'ganancias': matriz[mes]['ganancias'],
                 'proyectos_count': len(matriz[mes]['proyectos'])
             }
 
