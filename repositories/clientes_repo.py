@@ -138,3 +138,32 @@ class ClientesRepository:
             'cliente': cliente,
             'stats': stats
         }
+    
+    @staticmethod
+    def get_all_with_active_projects() -> List[Dict[str, Any]]:
+        """Get all active clients with their active projects count and list"""
+        from models import Proyecto, EstadoComercial
+        
+        clientes = db.session.query(Cliente).filter_by(activo=True).order_by(Cliente.nombre.asc()).all()
+        
+        result = []
+        for cliente in clientes:
+            # Get active projects
+            proyectos_activos = db.session.query(Proyecto).filter(
+                Proyecto.cliente_id == cliente.id,
+                Proyecto.activo == True,
+                Proyecto.estado_comercial.in_([
+                    EstadoComercial.PENDIENTE_PRESUPUESTO,
+                    EstadoComercial.PRESUPUESTADO,
+                    EstadoComercial.ADJUDICADO,
+                    EstadoComercial.EN_DESARROLLO
+                ])
+            ).all()
+            
+            result.append({
+                'cliente': cliente,
+                'proyectos_activos': proyectos_activos,
+                'count_proyectos_activos': len(proyectos_activos)
+            })
+        
+        return result

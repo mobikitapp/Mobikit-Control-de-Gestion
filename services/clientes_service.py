@@ -189,4 +189,12 @@ class ClientesService:
         except Exception as e:
             logger.error(f"Error obteniendo clientes recientes: {str(e)}")
             raise
+    
+    def get_clientes_with_active_projects(self) -> List[Dict[str, Any]]:
+        """Get all active clientes with their active projects"""
+        try:
+            return self.repo.get_all_with_active_projects()
+        except Exception as e:
+            logger.error(f"Error obteniendo clientes con proyectos activos: {str(e)}")
+            raise
 

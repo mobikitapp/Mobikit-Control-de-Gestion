@@ -74,22 +74,135 @@
             <h5 class="card-title mb-0">
                 Resultados ({{ total_count }} cliente{{ 's' if total_count != 1 else '' }})
             </h5>
+            {% if filters %}
             <div class="d-flex align-items-center gap-2">
                 <small class="text-muted">
                     Página {{ filters.page }} de {{ total_pages }}
                 </small>
             </div>
+            {% endif %}
         </div>
         <div class="card-body p-0">
-            {% if clientes %}
+            {% if clientes_with_projects %}
+            <!-- Vista con proyectos expandibles -->
+            <div class="accordion" id="clientesAccordion">
+                {% for item in clientes_with_projects %}
+                {% set cliente = item.cliente %}
+                {% set proyectos_activos = item.proyectos_activos %}
+                {% set count_activos = item.count_proyectos_activos %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ cliente.id }}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapse{{ cliente.id }}" aria-expanded="false" 
+                                aria-controls="collapse{{ cliente.id }}">
+                            <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="fw-bold">{{ cliente.nombre }}</div>
+                                        <small class="text-muted">RUT: {{ cliente.rut }}</small>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="text-center">
+                                        <div class="fw-bold text-primary">{{ count_activos }}</div>
+                                        <small class="text-muted">Proyectos Activos</small>
+                                    </div>
+                                    <span class="badge bg-{{ 'success' if cliente.activo else 'secondary' }}">
+                                        {{ 'Activo' if cliente.activo else 'Inactivo' }}
+                                    </span>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('clientes.detalle', cliente_id=cliente.id) }}" 
+                                           class="btn btn-outline-primary btn-sm" title="Ver detalles" 
+                                           onclick="event.stopPropagation();">
+                                            <i data-feather="eye"></i>
+                                        </a>
+                                        {% if current_user.rol.value in ['admin', 'ventas'] %}
+                                        <a href="{{ url_for('clientes.editar', cliente_id=cliente.id) }}" 
+                                           class="btn btn-outline-secondary btn-sm" title="Editar"
+                                           onclick="event.stopPropagation();">
+                                            <i data-feather="edit"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ cliente.id }}" class="accordion-collapse collapse" 
+                         aria-labelledby="heading{{ cliente.id }}" data-bs-parent="#clientesAccordion">
+                        <div class="accordion-body">
+                            {% if proyectos_activos %}
+                            <h6 class="mb-3">Proyectos Activos ({{ count_activos }})</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Proyecto</th>
+                                            <th>Estado</th>
+                                            <th>Responsable</th>
+                                            <th>Fecha Inicio</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for proyecto in proyectos_activos %}
+                                        <tr>
+                                            <td>
+                                                <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" 
+                                                   class="text-decoration-none fw-medium">
+                                                    {{ proyecto.nombre }}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">
+                                                    {{ proyecto.estado_comercial.value.replace('_', ' ').title() }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if proyecto.responsable_user %}
+                                                    {{ proyecto.responsable_user.nombre }}
+                                                {% else %}
+                                                    <span class="text-muted">Sin asignar</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if proyecto.fecha_inicio %}
+                                                    {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') }}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" 
+                                                   class="btn btn-outline-primary btn-sm" title="Ver proyecto">
+                                                    <i data-feather="folder"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-3">
+                                <i data-feather="folder" class="text-muted mb-2" style="width: 32px; height: 32px;"></i>
+                                <p class="text-muted mb-0">No hay proyectos activos</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% elif clientes %}
+            <!-- Vista con filtros aplicados -->
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead class="table-dark">
                         <tr>
                             <th>Nombre</th>
                             <th>RUT</th>
-                            <th>Contacto Principal</th>
-                            <th>Email</th>
+                            <th>N° Proyectos Activos</th>
                             <th>Estado</th>
                             <th>Creado</th>
                             <th width="150">Acciones</th>
@@ -104,15 +217,11 @@
                             <td>
                                 <code>{{ cliente.rut }}</code>
                             </td>
-                            <td>{{ cliente.contacto_principal or '-' }}</td>
                             <td>
-                                {% if cliente.email_contacto %}
-                                <a href="mailto:{{ cliente.email_contacto }}" class="text-decoration-none">
-                                    {{ cliente.email_contacto }}
-                                </a>
-                                {% else %}
-                                -
-                                {% endif %}
+                                <span class="badge bg-primary">
+                                    <!-- Aquí necesitaríamos calcular los proyectos activos, por ahora mostramos el total -->
+                                    {{ cliente.proyectos|selectattr('activo', 'equalto', true)|list|length }}
+                                </span>
                             </td>
                             <td>
                                 <span class="badge bg-{{ 'success' if cliente.activo else 'secondary' }}">
