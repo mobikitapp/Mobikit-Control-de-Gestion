@@ -1,0 +1,84 @@
+Crea un módulo web de **Revenue Management – Constructoras (Mobikit)** en **Flask (Python 3.11)** con **PostgreSQL** y storage Replit para CSVs (`data/uploads`). Frontend **Jinja + JS + Chart.js**. SIN retail.
+
+### Tech
+- Paquetes: Flask, SQLAlchemy, psycopg[binary], Alembic, python-dotenv.
+- Secrets Replit: `SECRET_KEY`, `DATABASE_URL` (Postgres).
+- Ejecutable en Replit escuchando `$PORT`.
+
+### Estructura
+- `app.py` (app factory, Blueprints)
+- `core/db.py` (engine/session)
+- `core/models.py` (modelo)
+- `services/be_curve.py` (interpolación BE)
+- `services/engine.py` (cálculos y reglas)
+- `blueprints/dashboard.py` (vistas + API)
+- `templates/dashboard.html` (tabla, KPIs, gráficos, simulador)
+- `static/app.js` (fetch + Chart.js)
+- `data/uploads/` (CSV)
+- `alembic/` migración inicial
+- `tests/` (pytest)
+
+### Modelo (PostgreSQL)
+Tabla `rm_mes`:
+- `id` PK
+- `periodo` (YYYY-MM, unique)
+- `presupuesto_facturacion` NUMERIC
+- `adjudicado_facturacion` NUMERIC
+- `margen_real_pct` NUMERIC (0–100)
+- `buffer_pp` NUMERIC (default 2)
+- `utilidad_objetivo_clp` NUMERIC (default 0)
+
+### Curva Break Even (solo Constructoras)
+Interpolación lineal de puntos `(facturacion_CLP, margen_BE_pct)`:
+[(100000000,60),(110000000,55),(120000000,51),(130000000,48),
+ (140000000,45),(150000000,42),(160000000,40),(170000000,38),
+ (180000000,36),(190000000,35),(200000000,33),(210000000,32),
+ (220000000,31),(230000000,30),(240000000,29),(250000000,28)]
+- Función: `required_margin(adjudicado_clp) -> float`
+- Saturar fuera de rango [100–250MM] al extremo más cercano.
+
+### Fórmulas (services/engine.py)
+- `gap_venta = presupuesto - adjudicado`
+- `be_pct = required_margin(adjudicado)`
+- **Objetivo de utilidad real**:
+  `margen_objetivo_pct = be_pct + buffer_pp + (utilidad_objetivo_clp / adjudicado * 100)`
+- **Estados**:
+  - VERDE: `margen_real_pct >= margen_objetivo_pct`
+  - AMARILLO: `margen_real_pct >= margen_objetivo_pct - 2` y `< margen_objetivo_pct`
+  - ROJO: `margen_real_pct < margen_objetivo_pct - 2`
+- **Recomendaciones**:
+  - ROJO & `gap_venta > 0` → “Subir ventas”
+  - ROJO & `gap_venta <= 0` → “Mejorar margen”
+  - AMARILLO → “Optimizar mezcla”
+  - VERDE → “Posible bajar margen para ganar volumen”
+- Exponer `simulate(adjudicado_base, adjudicado_extra, margen_sim_pct, buffer_pp, utilidad_objetivo_clp)`.
+
+### API
+- `GET /` → dashboard
+- `GET /api/meses` → [{periodo, presupuesto, adjudicado, margen_real_pct, be_pct, margen_objetivo_pct, gap_venta, estado, recomendacion}]
+- `POST /api/mes` → crear/actualizar mes (JSON)
+- `POST /api/import` → subir CSV a `data/uploads/` y cargar a BD
+- `GET /api/export` → export CSV
+- `POST /api/simular` → devuelve be_pct, margen_objetivo_pct, estado, recomendacion
+
+### UI
+- Tabla editable por fila (formato CLP con miles).
+- KPIs: Σ Presupuesto, Σ Adjudicado, Gap, BE% prom, Margen Real% prom, % meses VERDE.
+- Gráficas Chart.js:
+  - Línea: Presupuesto vs Adjudicado
+  - Línea: BE% vs Margen Real% vs Margen Objetivo%
+- Simulador: sliders `adjudicado_extra`, `margen_sim_pct`, `buffer_pp`, `utilidad_objetivo_clp` (resultado con color del estado).
+
+### Seeds (ejemplo)
+Insertar 6 meses:
+- 2025-03: P=180MM, A=170MM, M=36%, buffer=2, utilidad=10MM
+- 2025-04: P=190MM, A=200MM, M=35%, buffer=2, utilidad=8MM
+- 2025-05: P=150MM, A=140MM, M=44%, buffer=2, utilidad=5MM
+- 2025-06: P=210MM, A=190MM, M=40%, buffer=3, utilidad=12MM
+- 2025-07: P=200MM, A=220MM, M=33%, buffer=2, utilidad=6MM
+- 2025-08: P=170MM, A=160MM, M=39%, buffer=2, utilidad=7MM
+
+### Tests (pytest)
+- `test_be_curve.py`: exactos e interpolación (puntos medios).
+- `test_engine.py`: cálculo de `margen_objetivo_pct`, estados y recomendaciones (incluye casos borde).
+- Validar saturación fuera de rango y manejo de división por cero si `adjudicado = 0`.

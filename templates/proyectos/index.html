@@ -108,6 +108,7 @@
                             <th>Nombre</th>
                             <th>Cliente</th>
                             <th>Estado</th>
+                            <th>N° Contratos/OC Activos</th>
                             <th>Responsable</th>
                             <th>Fecha Inicio</th>
                             <th>Fecha Fin Est.</th>
@@ -116,6 +117,7 @@
                     </thead>
                     <tbody>
                         {% for proyecto in proyectos %}
+                        {% set contratos_activos = proyecto.contratos|selectattr('estado.value', 'equalto', 'VIGENTE')|list %}
                         <tr>
                             <td>
                                 <div class="fw-medium">{{ proyecto.nombre }}</div>
@@ -132,6 +134,23 @@
                                 <span class="badge bg-{{ 'success' if proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' if proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if proyecto.estado_comercial.value == 'PRESUPUESTADO' else 'secondary' }}">
                                     {{ proyecto.estado_comercial.value.replace('_', ' ')|title }}
                                 </span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-{{ 'success' if contratos_activos|length > 0 else 'secondary' }} me-2">
+                                        {{ contratos_activos|length }}
+                                    </span>
+                                    {% if contratos_activos|length > 0 %}
+                                    <button class="btn btn-sm btn-outline-secondary contratos-toggle-btn" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#contratos-{{ proyecto.id }}" 
+                                            aria-expanded="false" 
+                                            aria-controls="contratos-{{ proyecto.id }}"
+                                            title="Ver contratos activos">
+                                        <i data-feather="chevron-down" style="width: 12px; height: 12px;"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </td>
                             <td>
                                 {% if proyecto.responsable_user %}
@@ -175,6 +194,83 @@
                                 </div>
                             </td>
                         </tr>
+                        {% if contratos_activos|length > 0 %}
+                        <tr class="collapse" id="contratos-{{ proyecto.id }}">
+                            <td colspan="8">
+                                <div class="p-3 bg-light border-start border-primary border-3">
+                                    <h6 class="mb-3">
+                                        <i data-feather="file-text" class="me-2"></i>
+                                        Contratos/OC Activos
+                                    </h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>N° OC/Contrato</th>
+                                                    <th>Tipo</th>
+                                                    <th>Monto</th>
+                                                    <th>Fecha Próxima Entrega</th>
+                                                    <th>Fecha Vencimiento</th>
+                                                    <th>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for contrato in contratos_activos %}
+                                                <tr>
+                                                    <td>
+                                                        <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                                           class="text-decoration-none fw-medium">
+                                                            {{ contrato.numero_oc }}
+                                                        </a>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-info">
+                                                            {{ contrato.tipo_documento.value.replace('_', ' ')|title }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {% if contrato.monto_total %}
+                                                            ${{ "{:,.0f}".format(contrato.monto_total) }} {{ contrato.moneda }}
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if contrato.fecha_proxima_entrega %}
+                                                            <span class="badge bg-warning text-dark">
+                                                                {{ contrato.fecha_proxima_entrega.strftime('%d/%m/%Y') }}
+                                                            </span>
+                                                            {% if contrato.proximo_hito %}
+                                                                <small class="text-muted d-block">
+                                                                    {{ contrato.proximo_hito.titulo }}
+                                                                </small>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            <span class="text-muted">Sin plan de entrega</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if contrato.fecha_vencimiento %}
+                                                            {{ contrato.fecha_vencimiento.strftime('%d/%m/%Y') }}
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                                           class="btn btn-outline-primary btn-sm" title="Ver detalles">
+                                                            <i data-feather="eye" style="width: 12px; height: 12px;"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>

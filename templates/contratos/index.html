@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% from 'macros.html' import moment %}
 
@@ -56,7 +57,7 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label for="numero_oc" class="form-label">Número OC</label>
+                    <label for="numero_oc" class="form-label">N° de Contrato / OC</label>
                     <input type="text" class="form-control" id="numero_oc" name="numero_oc" 
                            value="{{ filters.numero_oc or '' }}" placeholder="Buscar por número">
                 </div>
@@ -119,135 +120,319 @@
             </div>
         </div>
         <div class="card-body p-0">
-            {% if contratos %}
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Número OC</th>
-                            <th>Tipo</th>
-                            <th>Proyecto</th>
-                            <th>Cliente</th>
-                            <th>Estado</th>
-                            <th>Monto</th>
-                            <th>Fecha Entrega</th>
-                            <th>Días Restantes</th>
-                            <th>Adjuntos</th>
-                            <th width="150">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for contrato in contratos %}
-                        <tr>
-                            <td>
-                                <div class="fw-medium">{{ contrato.numero_oc }}</div>
-                            </td>
-                            <td>
-                                <span class="badge bg-{{ 'primary' if contrato.tipo_documento.value == 'CONTRATO' else 'info' }}">
-                                    {{ 'Contrato' if contrato.tipo_documento.value == 'CONTRATO' else 'Orden de Compra' }}
-                                </span>
-                            </td>
-                            <td>
-                                <a href="{{ url_for('proyectos.detalle', proyecto_id=contrato.proyecto.id) }}" class="text-decoration-none">
-                                    {{ contrato.proyecto.nombre }}
-                                </a>
-                            </td>
-                            <td>
-                                <a href="{{ url_for('clientes.detalle', cliente_id=contrato.proyecto.cliente.id) }}" class="text-decoration-none">
-                                    {{ contrato.proyecto.cliente.nombre }}
-                                </a>
-                            </td>
-                            <td>
-                                <span class="badge bg-{{ 'success' if contrato.estado.value == 'VIGENTE' else 'warning' if contrato.estado.value == 'BORRADOR' else 'info' if contrato.estado.value == 'CERRADO' else 'danger' }}">
-                                    {{ contrato.estado.value|title }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if contrato.monto_total %}
-                                    <div class="fw-medium">{{ contrato.moneda }} {{ "{:,.0f}".format(contrato.monto_total) }}</div>
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if contrato.plan_entrega and contrato.plan_entrega.hitos %}
-                                    {% set hito_proximo = contrato.plan_entrega.hitos|selectattr("estado", "equalto", "PENDIENTE")|list|first %}
-                                    {% if hito_proximo %}
-                                        <div class="fw-medium">{{ hito_proximo.fecha_programada.strftime('%d/%m/%Y') }}</div>
-                                        <small class="text-muted">{{ hito_proximo.titulo[:30] }}{% if hito_proximo.titulo|length > 30 %}...{% endif %}</small>
-                                    {% else %}
-                                        {% set ultimo_hito = contrato.plan_entrega.hitos|last %}
-                                        <div class="fw-medium">{{ ultimo_hito.fecha_programada.strftime('%d/%m/%Y') }}</div>
-                                        <small class="text-muted">{{ ultimo_hito.titulo[:30] }}{% if ultimo_hito.titulo|length > 30 %}...{% endif %}</small>
-                                    {% endif %}
-                                {% elif contrato.fecha_entrega_comprometida %}
-                                    <div class="fw-medium">{{ contrato.fecha_entrega_comprometida.strftime('%d/%m/%Y') }}</div>
-                                    <small class="text-muted">Fecha comprometida</small>
-                                {% else %}
-                                    <span class="text-muted">Sin fecha</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if contrato.plan_entrega and contrato.plan_entrega.hitos %}
-                                    {% set hito_proximo = contrato.plan_entrega.hitos|selectattr("estado", "equalto", "PENDIENTE")|list|first %}
-                                    {% if hito_proximo %}
-                                        {% set days_diff = (hito_proximo.fecha_programada - moment().date()).days %}
-                                        {% if days_diff < 0 %}
-                                            <span class="badge bg-danger">{{ days_diff|abs }} días vencido</span>
-                                        {% elif days_diff == 0 %}
-                                            <span class="badge bg-warning">Hoy</span>
-                                        {% elif days_diff <= 3 %}
-                                            <span class="badge bg-warning">{{ days_diff }} días</span>
-                                        {% elif days_diff <= 7 %}
-                                            <span class="badge bg-info">{{ days_diff }} días</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">{{ days_diff }} días</span>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="text-muted">Completado</span>
-                                    {% endif %}
-                                {% elif contrato.fecha_entrega_comprometida %}
-                                    {% set days_diff = (contrato.fecha_entrega_comprometida - moment().date()).days %}
-                                    {% if days_diff < 0 %}
-                                        <span class="badge bg-danger">{{ days_diff|abs }} días vencido</span>
-                                    {% elif days_diff == 0 %}
-                                        <span class="badge bg-warning">Hoy</span>
-                                    {% elif days_diff <= 3 %}
-                                        <span class="badge bg-warning">{{ days_diff }} días</span>
-                                    {% elif days_diff <= 7 %}
-                                        <span class="badge bg-info">{{ days_diff }} días</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ days_diff }} días</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if contrato.adjuntos %}
-                                    <span class="badge bg-info">{{ contrato.adjuntos|length }}</span>
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
-                                       class="btn btn-outline-primary" title="Ver detalles">
-                                        <i data-feather="eye"></i>
-                                    </a>
-                                    {% if current_user.rol.value in ['admin', 'ventas'] %}
-                                    <a href="{{ url_for('contratos.editar', contrato_id=contrato.id) }}" 
-                                       class="btn btn-outline-secondary" title="Editar">
-                                        <i data-feather="edit"></i>
-                                    </a>
-                                    {% endif %}
+            {% if contratos_agrupados %}
+            <div class="accordion" id="contratosAccordion">
+                {% for cliente_data in contratos_agrupados %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ cliente_data.cliente.id }}">
+                        <button class="accordion-button collapsed" type="button" 
+                                data-bs-toggle="collapse" data-bs-target="#collapse{{ cliente_data.cliente.id }}" 
+                                aria-expanded="false" aria-controls="collapse{{ cliente_data.cliente.id }}">
+                            <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                <div class="d-flex align-items-center">
+                                    <i data-feather="user" class="me-2"></i>
+                                    <strong>{{ cliente_data.cliente.nombre }}</strong>
                                 </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                <div class="d-flex gap-3">
+                                    <span class="badge bg-primary">{{ cliente_data.total_contratos }} contrato{{ 's' if cliente_data.total_contratos != 1 else '' }}</span>
+                                    <span class="badge bg-info">{{ cliente_data.proyectos|length }} proyecto{{ 's' if cliente_data.proyectos|length != 1 else '' }}</span>
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ cliente_data.cliente.id }}" class="accordion-collapse collapse" 
+                         aria-labelledby="heading{{ cliente_data.cliente.id }}" data-bs-parent="#contratosAccordion">
+                        <div class="accordion-body p-0">
+                            <!-- Proyectos y Contratos del Cliente -->
+                            {% for proyecto_data in cliente_data.proyectos %}
+                            <div class="border-bottom">
+                                <div class="p-3 bg-light">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center">
+                                            <button class="btn btn-sm btn-outline-secondary me-2 contratos-toggle-btn" 
+                                                    type="button" data-bs-toggle="collapse" 
+                                                    data-bs-target="#contratos{{ proyecto_data.proyecto.id }}" 
+                                                    aria-expanded="false">
+                                                <i data-feather="chevron-right" style="width: 16px; height: 16px;"></i>
+                                            </button>
+                                            <h6 class="mb-0">
+                                                <i data-feather="folder" class="me-2" style="width: 16px; height: 16px;"></i>
+                                                <strong>Proyecto:</strong> {{ proyecto_data.proyecto.nombre }}
+                                            </h6>
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <span class="badge bg-secondary">{{ proyecto_data.contratos|length }} contrato{{ 's' if proyecto_data.contratos|length != 1 else '' }}</span>
+                                            <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto_data.proyecto.id) }}" 
+                                               class="btn btn-sm btn-outline-primary" title="Ver proyecto">
+                                                <i data-feather="external-link" style="width: 14px; height: 14px;"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Lista de Contratos del Proyecto -->
+                                <div class="collapse" id="contratos{{ proyecto_data.proyecto.id }}">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>N° de Contrato / OC</th>
+                                                    <th>Tipo</th>
+                                                    <th>Estado</th>
+                                                    <th>Monto</th>
+                                                    <th>Fecha Próxima Entrega</th>
+                                                    <th>Días Restantes Próxima Entrega</th>
+                                                    <th>OFs</th>
+                                                    <th width="150">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for contrato in proyecto_data.contratos %}
+                                                <tr>
+                                                    <td>
+                                                        <div class="fw-medium">{{ contrato.numero_oc }}</div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-{{ 'primary' if contrato.tipo_documento.value == 'CONTRATO' else 'info' }}">
+                                                            {{ 'Contrato' if contrato.tipo_documento.value == 'CONTRATO' else 'Orden de Compra' }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-{{ 'success' if contrato.estado.value == 'VIGENTE' else 'warning' if contrato.estado.value == 'BORRADOR' else 'info' if contrato.estado.value == 'CERRADO' else 'danger' }}">
+                                                            {{ contrato.estado.value|title }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {% if contrato.monto_total %}
+                                                            <div class="fw-medium">{{ contrato.moneda }} {{ "{:,.0f}".format(contrato.monto_total) }}</div>
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if contrato.fecha_proxima_entrega %}
+                                                            <div class="fw-medium">{{ contrato.fecha_proxima_entrega.strftime('%d/%m/%Y') }}</div>
+                                                            {% if contrato.proximo_hito %}
+                                                                <small class="text-muted">{{ contrato.proximo_hito.titulo[:30] }}{% if contrato.proximo_hito.titulo|length > 30 %}...{% endif %}</small>
+                                                            {% elif contrato.plan_entrega %}
+                                                                <small class="text-muted">Plan completado</small>
+                                                            {% else %}
+                                                                <small class="text-muted">Fecha comprometida</small>
+                                                            {% endif %}
+                                                            {% if contrato.plan_entrega and contrato.plan_entrega.hitos %}
+                                                                <button class="btn btn-sm btn-outline-info mt-1 plan-entrega-toggle-btn" 
+                                                                        type="button" data-bs-toggle="collapse" 
+                                                                        data-bs-target="#plan{{ contrato.id }}" 
+                                                                        aria-expanded="false">
+                                                                    <i data-feather="calendar" style="width: 12px; height: 12px;"></i>
+                                                                    Ver Plan Completo
+                                                                </button>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            <span class="text-muted">Sin fecha</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if contrato.dias_restantes_proxima_entrega is not none %}
+                                                            {% set days_diff = contrato.dias_restantes_proxima_entrega %}
+                                                            {% if days_diff < 0 %}
+                                                                <span class="badge bg-danger">{{ days_diff|abs }} días vencido</span>
+                                                            {% elif days_diff == 0 %}
+                                                                <span class="badge bg-warning">Hoy</span>
+                                                            {% elif days_diff <= 3 %}
+                                                                <span class="badge bg-warning">{{ days_diff }} días</span>
+                                                            {% elif days_diff <= 7 %}
+                                                                <span class="badge bg-info">{{ days_diff }} días</span>
+                                                            {% else %}
+                                                                <span class="badge bg-secondary">{{ days_diff }} días</span>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if contrato.ordenes_fabricacion_count > 0 %}
+                                                            <div class="d-flex align-items-center gap-2">
+                                                                <span class="badge bg-primary">{{ contrato.ordenes_fabricacion_count }} OF{{ 's' if contrato.ordenes_fabricacion_count != 1 else '' }}</span>
+                                                                <button class="btn btn-sm btn-outline-info ofs-toggle-btn" 
+                                                                        type="button" data-bs-toggle="collapse" 
+                                                                        data-bs-target="#ofs{{ contrato.id }}" 
+                                                                        aria-expanded="false">
+                                                                    <i data-feather="list" style="width: 12px; height: 12px;"></i>
+                                                                </button>
+                                                            </div>
+                                                        {% else %}
+                                                            <span class="text-muted">Sin OFs</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group btn-group-sm" role="group">
+                                                            <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                                               class="btn btn-outline-primary" title="Ver detalles">
+                                                                <i data-feather="eye"></i>
+                                                            </a>
+                                                            {% if current_user.rol.value in ['admin', 'ventas'] %}
+                                                            <a href="{{ url_for('contratos.editar', contrato_id=contrato.id) }}" 
+                                                               class="btn btn-outline-secondary" title="Editar">
+                                                                <i data-feather="edit"></i>
+                                                            </a>
+                                                            {% endif %}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% if contrato.plan_entrega and contrato.plan_entrega.hitos %}
+                                                <tr class="collapse" id="plan{{ contrato.id }}">
+                                                    <td colspan="8">
+                                                        <div class="card mt-2 mb-2">
+                                                            <div class="card-header bg-light">
+                                                                <h6 class="mb-0">
+                                                                    <i data-feather="calendar" class="me-2" style="width: 16px; height: 16px;"></i>
+                                                                    Plan de Entrega: {{ contrato.plan_entrega.nombre }}
+                                                                </h6>
+                                                            </div>
+                                                            <div class="card-body p-2">
+                                                                <div class="row">
+                                                                    {% for hito in contrato.plan_entrega.hitos %}
+                                                                    <div class="col-md-6 col-lg-4 mb-2">
+                                                                        <div class="card border-left-{{ 'success' if hito.estado.value == 'COMPLETADO' else 'warning' if hito.estado.value == 'EN_PROGRESO' else 'secondary' }}">
+                                                                            <div class="card-body p-2">
+                                                                                <div class="d-flex justify-content-between align-items-start">
+                                                                                    <div>
+                                                                                        <h6 class="card-title mb-1" style="font-size: 0.875rem;">{{ hito.titulo }}</h6>
+                                                                                        <p class="card-text mb-1" style="font-size: 0.75rem;">
+                                                                                            <i data-feather="calendar" style="width: 12px; height: 12px;"></i>
+                                                                                            {{ hito.fecha_programada.strftime('%d/%m/%Y') }}
+                                                                                        </p>
+                                                                                        {% if hito.descripcion %}
+                                                                                        <p class="card-text text-muted mb-1" style="font-size: 0.75rem;">{{ hito.descripcion[:50] }}{% if hito.descripcion|length > 50 %}...{% endif %}</p>
+                                                                                        {% endif %}
+                                                                                    </div>
+                                                                                    <span class="badge bg-{{ 'success' if hito.estado.value == 'COMPLETADO' else 'warning' if hito.estado.value == 'EN_PROGRESO' else 'secondary' }}" style="font-size: 0.65rem;">
+                                                                                        {{ hito.estado.value|replace('_', ' ')|title }}
+                                                                                    </span>
+                                                                                </div>
+                                                                                {% if hito.estado.value == 'COMPLETADO' and hito.fecha_completado %}
+                                                                                <small class="text-success" style="font-size: 0.7rem;">
+                                                                                    <i data-feather="check-circle" style="width: 10px; height: 10px;"></i>
+                                                                                    Completado: {{ hito.fecha_completado.strftime('%d/%m/%Y') }}
+                                                                                </small>
+                                                                                {% endif %}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    {% endfor %}
+                                                                </div>
+                                                                <div class="text-end mt-2">
+                                                                    <a href="{{ url_for('contratos.plan_entrega', contrato_id=contrato.id) }}" class="btn btn-sm btn-outline-primary">
+                                                                        <i data-feather="external-link" style="width: 12px; height: 12px;"></i>
+                                                                        Ver Plan Completo
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                                
+                                                <!-- Lista desplegable de OFs -->
+                                                {% if contrato.ordenes_fabricacion_count > 0 %}
+                                                <tr class="collapse" id="ofs{{ contrato.id }}">
+                                                    <td colspan="8">
+                                                        <div class="card mt-2 mb-2">
+                                                            <div class="card-header bg-light">
+                                                                <h6 class="mb-0">
+                                                                    <i data-feather="settings" class="me-2" style="width: 16px; height: 16px;"></i>
+                                                                    Órdenes de Fabricación ({{ contrato.ordenes_fabricacion_count }})
+                                                                </h6>
+                                                            </div>
+                                                            <div class="card-body p-2">
+                                                                <div class="table-responsive">
+                                                                    <table class="table table-sm mb-0">
+                                                                        <thead class="table-secondary">
+                                                                            <tr>
+                                                                                <th>Código</th>
+                                                                                <th>Descripción</th>
+                                                                                <th>Área Actual</th>
+                                                                                <th>Estado Actual</th>
+                                                                                <th>Fecha Entrega Fábrica</th>
+                                                                                <th>Responsable</th>
+                                                                                <th>Acciones</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {% for of in contrato.ordenes_fabricacion_list %}
+                                                                            <tr>
+                                                                                <td>
+                                                                                    <div class="fw-medium">{{ of.codigo }}</div>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <div class="text-truncate" style="max-width: 200px;" title="{{ of.descripcion }}">
+                                                                                        {{ of.descripcion or 'Sin descripción' }}
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <span class="badge bg-info">{{ of.area_actual }}</span>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <span class="badge bg-{{ 'success' if 'completa' in of.estado_actual.lower() or 'terminad' in of.estado_actual.lower() else 'warning' if 'progreso' in of.estado_actual.lower() or 'fabricando' in of.estado_actual.lower() else 'secondary' }}">
+                                                                                        {{ of.estado_actual }}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td>
+                                                                                    {% if of.fecha_entrega_fabrica %}
+                                                                                        <div class="fw-medium">{{ of.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}</div>
+                                                                                        {% set days_diff = (of.fecha_entrega_fabrica - now.date()).days %}
+                                                                                        {% if days_diff < 0 %}
+                                                                                            <small class="text-danger">{{ days_diff|abs }} días vencido</small>
+                                                                                        {% elif days_diff == 0 %}
+                                                                                            <small class="text-warning">Hoy</small>
+                                                                                        {% elif days_diff <= 3 %}
+                                                                                            <small class="text-warning">{{ days_diff }} días</small>
+                                                                                        {% else %}
+                                                                                            <small class="text-muted">{{ days_diff }} días</small>
+                                                                                        {% endif %}
+                                                                                    {% else %}
+                                                                                        <span class="text-muted">Sin fecha</span>
+                                                                                    {% endif %}
+                                                                                </td>
+                                                                                <td>
+                                                                                    <small>{{ of.responsable }}</small>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" 
+                                                                                       class="btn btn-sm btn-outline-primary" title="Ver OF">
+                                                                                        <i data-feather="external-link" style="width: 12px; height: 12px;"></i>
+                                                                                    </a>
+                                                                                </td>
+                                                                            </tr>
+                                                                            {% endfor %}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                                <div class="text-end mt-2">
+                                                                    {% if current_user.rol.value in ['admin', 'produccion'] %}
+                                                                    <a href="{{ url_for('fabricacion.nueva', contrato_id=contrato.id) }}" class="btn btn-sm btn-outline-success">
+                                                                        <i data-feather="plus" style="width: 12px; height: 12px;"></i>
+                                                                        Nueva OF
+                                                                    </a>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
             {% else %}
             <div class="text-center py-5">
@@ -357,6 +542,87 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => console.error('Error:', error));
     }
+
+    // Handle collapsible contracts lists
+    document.querySelectorAll('.contratos-toggle-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('data-bs-target'));
+            const icon = this.querySelector('[data-feather]');
+            
+            if (target) {
+                const isCollapsed = target.classList.contains('show');
+                
+                if (isCollapsed) {
+                    target.classList.remove('show');
+                    icon.setAttribute('data-feather', 'chevron-right');
+                } else {
+                    target.classList.add('show');
+                    icon.setAttribute('data-feather', 'chevron-down');
+                }
+                
+                // Re-render feather icons
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+            }
+        });
+    });
+
+    // Handle delivery plan toggles
+    document.querySelectorAll('.plan-entrega-toggle-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('data-bs-target'));
+            
+            if (target) {
+                const isCollapsed = target.classList.contains('show');
+                
+                if (isCollapsed) {
+                    target.classList.remove('show');
+                    this.innerHTML = '<i data-feather="calendar" style="width: 12px; height: 12px;"></i> Ver Plan Completo';
+                } else {
+                    target.classList.add('show');
+                    this.innerHTML = '<i data-feather="calendar" style="width: 12px; height: 12px;"></i> Ocultar Plan';
+                }
+                
+                // Re-render feather icons
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+            }
+        });
+    });
+
+    // Handle OFs toggle
+    document.querySelectorAll('.ofs-toggle-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('data-bs-target'));
+            const icon = this.querySelector('[data-feather]');
+            
+            if (target) {
+                const isCollapsed = target.classList.contains('show');
+                
+                if (isCollapsed) {
+                    target.classList.remove('show');
+                    if (icon) {
+                        icon.setAttribute('data-feather', 'list');
+                    }
+                } else {
+                    target.classList.add('show');
+                    if (icon) {
+                        icon.setAttribute('data-feather', 'list-checks');
+                    }
+                }
+                
+                // Re-render feather icons
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

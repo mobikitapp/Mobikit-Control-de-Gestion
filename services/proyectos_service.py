@@ -4,7 +4,7 @@ from repositories.proyectos_repo import ProyectosRepository
 from repositories.clientes_repo import ClientesRepository
 from services.audit_service import AuditService, serialize_model
 from schemas.proyectos import ProyectoSearchFilters
-from models import Proyecto, OrdenFabricacion # Imported OrdenFabricacion
+from models import Proyecto, OrdenFabricacion, Contrato, EstadoContrato # Imported models used in the change
 import logging
 from datetime import datetime
 
@@ -16,6 +16,10 @@ class ProyectosService:
     def __init__(self):
         self.repo = ProyectosRepository()
         self.clientes_repo = ClientesRepository()
+        # Assuming contratos_repo is available, as it's used in the change
+        from repositories.contratos_repo import ContratosRepository
+        self.contratos_repo = ContratosRepository()
+
 
     def create_proyecto(self, proyecto_data: Dict[str, Any], created_by: str) -> Proyecto:
         """
@@ -303,16 +307,16 @@ class ProyectosService:
         """Apply automatic estado changes based on business rules"""
         try:
             from models import EstadoComercial
-            
+
             # Rule 1: If monto_provision_presupuestado is set and estado is PENDIENTE_PRESUPUESTO, 
             # change to PRESUPUESTADO
             if (proyecto.estado_comercial == EstadoComercial.PENDIENTE_PRESUPUESTO and 
                 proyecto.monto_provision_presupuestado and 
                 proyecto.monto_provision_presupuestado > 0):
-                
+
                 proyecto.estado_comercial = EstadoComercial.PRESUPUESTADO
                 logger.info(f"Auto-cambio: Proyecto {proyecto.id} cambiado a PRESUPUESTADO por agregar monto provisión")
-                
+
                 # Add note about automatic change
                 nota_automatica = f"[{datetime.now().strftime('%d/%m/%Y %H:%M')}] Cambio automático a PRESUPUESTADO por ingreso de monto de provisión"
                 if proyecto.notas_comerciales:
@@ -327,28 +331,28 @@ class ProyectosService:
         """Change proyecto estado to EN_DESARROLLO when contract/order is created"""
         try:
             from models import EstadoComercial
-            
+
             proyecto = self.get_proyecto_by_id(proyecto_id)
             if not proyecto:
                 return
-            
+
             # Only change if not already in EN_DESARROLLO or TERMINADO
             if proyecto.estado_comercial not in [EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]:
-                
+
                 # Store original data for audit
                 datos_anteriores = serialize_model(proyecto)
-                
+
                 proyecto.estado_comercial = EstadoComercial.EN_DESARROLLO
-                
+
                 # Add note about automatic change
                 nota_automatica = f"[{datetime.now().strftime('%d/%m/%Y %H:%M')}] Cambio automático a EN_DESARROLLO por creación de contrato/orden"
                 if proyecto.notas_comerciales:
                     proyecto.notas_comerciales += f"\n{nota_automatica}"
                 else:
                     proyecto.notas_comerciales = nota_automatica
-                
+
                 db.session.commit()
-                
+
                 # Log audit
                 from services.audit_service import AuditService
                 AuditService.log_action(
@@ -358,9 +362,9 @@ class ProyectosService:
                     datos_anteriores=datos_anteriores,
                     datos_nuevos=serialize_model(proyecto)
                 )
-                
+
                 logger.info(f"Auto-cambio: Proyecto {proyecto_id} cambiado a EN_DESARROLLO por creación de contrato/orden")
-                
+
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error en cambio automático de estado por contrato: {str(e)}")
@@ -483,4 +487,47 @@ class ProyectosService:
             return Despacho.query.filter_by(proyecto_id=proyecto_id).count()
         except Exception as e:
             logger.warning(f"Error counting despachos for proyecto {proyecto_id}: {str(e)}")
+            return 0
+
+    def get_contratos_activos_by_proyecto(self, proyecto_id: int) -> List[Contrato]:
+        """Get active contracts for a proyecto with delivery plan info"""
+        try:
+            from repositories.planes_entrega_repo import PlanesEntregaRepository, HitosEntregaRepository
+            from models import EstadoHitoEntrega
+
+            contratos = self.contratos_repo.get_contratos_activos_by_proyecto(proyecto_id)
+            planes_repo = PlanesEntregaRepository()
+            hitos_repo = HitosEntregaRepository()
+
+            # Add delivery plan info to each contract
+            for contrato in contratos:
+                plan = planes_repo.get_by_contrato_id(contrato.id)
+                contrato.proximo_hito = None
+                contrato.fecha_proxima_entrega = None
+
+                if plan:
+                    # Get next pending milestone
+                    hitos_pendientes = [h for h in plan.hitos 
+                                      if h.estado == EstadoHitoEntrega.PENDIENTE]
+                    if hitos_pendientes:
+                        # Sort by date and order
+                        hitos_pendientes.sort(key=lambda x: (x.fecha_programada, x.orden))
+                        contrato.proximo_hito = hitos_pendientes[0]
+                        contrato.fecha_proxima_entrega = hitos_pendientes[0].fecha_programada
+
+            return contratos
+        except Exception as e:
+            logger.error(f"Error obteniendo contratos activos del proyecto {proyecto_id}: {str(e)}")
+            raise
+
+    def count_contratos_activos_by_proyecto(self, proyecto_id: int) -> int:
+        """Count active contracts for a project"""
+        try:
+            from models import Contrato, EstadoContrato
+            return (db.session.query(Contrato)
+                   .filter_by(proyecto_id=proyecto_id)
+                   .filter_by(estado=EstadoContrato.VIGENTE)
+                   .count())
+        except Exception as e:
+            logger.error(f"Error contando contratos activos del proyecto {proyecto_id}: {str(e)}")
             return 0

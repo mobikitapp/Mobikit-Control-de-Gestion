@@ -18,34 +18,57 @@ clientes_service = ClientesService()
 def index():
     """Lista de clientes con filtros"""
     try:
-        # Get search parameters
-        filters_data = {
-            'nombre': request.args.get('nombre', ''),
-            'rut': request.args.get('rut', ''),
-            'activo': request.args.get('activo', type=bool) if request.args.get('activo') else None,
-            'contacto': request.args.get('contacto', ''),
-            'page': request.args.get('page', 1, type=int),
-            'per_page': request.args.get('per_page', 20, type=int)
-        }
+        # Check if we have search filters
+        has_filters = any([
+            request.args.get('nombre'),
+            request.args.get('rut'),
+            request.args.get('activo'),
+            request.args.get('contacto')
+        ])
         
-        # Validate filters
-        filters = ClienteSearchFilters(**filters_data)
-        
-        # Search clientes
-        clientes, total_count = clientes_service.search_clientes(filters)
-        
-        # Calculate pagination
-        total_pages = (total_count + filters.per_page - 1) // filters.per_page
-        has_prev = filters.page > 1
-        has_next = filters.page < total_pages
-        
-        return render_template('clientes/index.html',
-                             clientes=clientes,
-                             filters=filters,
-                             total_count=total_count,
-                             total_pages=total_pages,
-                             has_prev=has_prev,
-                             has_next=has_next)
+        if has_filters:
+            # Use filtered search when filters are applied
+            filters_data = {
+                'nombre': request.args.get('nombre', ''),
+                'rut': request.args.get('rut', ''),
+                'activo': request.args.get('activo', type=bool) if request.args.get('activo') else None,
+                'contacto': request.args.get('contacto', ''),
+                'page': request.args.get('page', 1, type=int),
+                'per_page': request.args.get('per_page', 20, type=int)
+            }
+            
+            # Validate filters
+            filters = ClienteSearchFilters(**filters_data)
+            
+            # Search clientes
+            clientes, total_count = clientes_service.search_clientes(filters)
+            
+            # Calculate pagination
+            total_pages = (total_count + filters.per_page - 1) // filters.per_page
+            has_prev = filters.page > 1
+            has_next = filters.page < total_pages
+            
+            return render_template('clientes/index.html',
+                                 clientes=clientes,
+                                 filters=filters,
+                                 total_count=total_count,
+                                 total_pages=total_pages,
+                                 has_prev=has_prev,
+                                 has_next=has_next,
+                                 clientes_with_projects=None)
+        else:
+            # Show all clients with active projects when no filters
+            clientes_with_projects = clientes_service.get_clientes_with_active_projects()
+            total_count = len(clientes_with_projects)
+            
+            return render_template('clientes/index.html',
+                                 clientes=None,
+                                 filters=None,
+                                 total_count=total_count,
+                                 total_pages=1,
+                                 has_prev=False,
+                                 has_next=False,
+                                 clientes_with_projects=clientes_with_projects)
                              
     except ValidationError as e:
         flash('Filtros inválidos', 'error')

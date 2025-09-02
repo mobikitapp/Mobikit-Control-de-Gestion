@@ -45,8 +45,8 @@ def index():
         # Validate filters
         filters = ContratoSearchFilters(**filters_data)
 
-        # Search contratos
-        contratos, total_count = contratos_service.search_contratos(filters)
+        # Search contratos grouped by client
+        contratos_agrupados, total_count = contratos_service.get_contratos_grouped_by_client(filters)
 
         # Get data for filter dropdowns
         clientes = clientes_service.get_active_clientes()
@@ -57,13 +57,14 @@ def index():
         has_next = filters.page < total_pages
 
         return render_template('contratos/index.html',
-                             contratos=contratos,
+                             contratos_agrupados=contratos_agrupados,
                              clientes=clientes,
                              filters=filters,
                              total_count=total_count,
                              total_pages=total_pages,
                              has_prev=has_prev,
-                             has_next=has_next)
+                             has_next=has_next,
+                             now=datetime.now())
 
     except ValidationError as e:
         flash('Filtros inválidos', 'error')
@@ -195,7 +196,7 @@ def detalle(contrato_id):
 
         # Add today's date for template comparison
         today = date.today()
-        
+
         return render_template('contratos/detalle.html', 
                              contrato=contrato, 
                              today=today,
@@ -246,7 +247,52 @@ def actualizar(contrato_id):
         # Update contrato
         contrato_actualizado = contratos_service.update_contrato(contrato_id, update_data.dict(exclude_unset=True))
 
-        flash(f'Contrato {contrato_actualizado.numero_oc} actualizado exitosamente', 'success')
+        # Check if plan de entrega should be created (for existing contracts without plan)
+        crear_plan = request.form.get('crear_plan_entrega') == 'on'
+        plan_creado = False
+
+        if crear_plan and not contrato_actualizado.plan_entrega:
+            try:
+                # Get plan data
+                plan_data = {
+                    'contrato_id': contrato_actualizado.id,
+                    'nombre': request.form.get('plan_nombre', f'Plan de Entrega - {contrato_actualizado.numero_oc}'),
+                    'descripcion': request.form.get('plan_descripcion', '')
+                }
+
+                # Get hitos data
+                cantidad_hitos = int(request.form.get('cantidad_hitos', 2))
+                hitos_data = []
+
+                for i in range(1, cantidad_hitos + 1):
+                    titulo = request.form.get(f'hito_titulo_{i}', '')
+                    fecha = request.form.get(f'hito_fecha_{i}', '')
+                    descripcion = request.form.get(f'hito_descripcion_{i}', '')
+
+                    if titulo and fecha:
+                        hitos_data.append({
+                            'titulo': titulo,
+                            'descripcion': descripcion,
+                            'fecha_programada': fecha,
+                            'orden': i
+                        })
+
+                if hitos_data:
+                    # Create plan with hitos
+                    plan = planes_entrega_service.create_plan_with_hitos(
+                        plan_data, hitos_data, current_user.id
+                    )
+                    plan_creado = True
+
+            except Exception as e:
+                logger.warning(f"Error creando plan de entrega para contrato {contrato_actualizado.id}: {str(e)}")
+                # Don't fail the contrato update if plan creation fails
+
+        # Create success message
+        mensaje = f'Contrato {contrato_actualizado.numero_oc} actualizado exitosamente'
+        if plan_creado:
+            mensaje += ' y plan de entrega creado'
+        flash(mensaje, 'success')
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
     except ValidationError as e:
@@ -541,7 +587,7 @@ def api_users_active():
         from services.user_service import UserService
         user_service = UserService()
         users = user_service.get_active_users()
-        
+
         return jsonify([{
             'id': u.id,
             'nombre_completo': f"{u.nombre} {u.apellido}" if u.apellido else u.nombre,
@@ -551,3 +597,32 @@ def api_users_active():
     except Exception as e:
         logger.error(f"Error en API usuarios activos: {str(e)}")
         return jsonify({'error': 'Error al cargar usuarios'}), 500
+
+@contratos_bp.route('/api/sincronizar-eventos-calendario', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def api_sincronizar_eventos_calendario():
+    """API endpoint para sincronizar eventos del calendario desde hitos de planes de entrega"""
+    try:
+        from services.contrato_eventos_service import ContratoEventosService
+        eventos_service = ContratoEventosService()
+
+        success, mensaje, eventos_creados = eventos_service.generar_eventos_desde_hitos_plan(current_user.id)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': mensaje,
+                'eventos_creados': eventos_creados
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': mensaje
+            }), 400
+
+    except Exception as e:
+        logger.error(f"Error sincronizando eventos del calendario: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Error interno del servidor'
+        }), 500

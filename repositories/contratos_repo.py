@@ -62,7 +62,8 @@ class ContratosRepository:
                 .options(
                     joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
                     joinedload(Contrato.adjuntos),
-                    joinedload(Contrato.plan_entrega).joinedload(PlanEntrega.hitos)
+                    joinedload(Contrato.plan_entrega).joinedload(PlanEntrega.hitos),
+                    joinedload(Contrato.ordenes_fabricacion)
                 ))
         
         # Apply filters

@@ -195,7 +195,7 @@ const ManufacturingApp = {
         document.addEventListener('click', (e) => {
             try {
                 if (!e.target) return;
-                
+
                 if (e.target.classList && e.target.classList.contains('add-item-btn')) {
                     this.addDynamicItem(e.target);
                 } else if (e.target.classList && e.target.classList.contains('remove-item-btn')) {
@@ -205,7 +205,7 @@ const ManufacturingApp = {
                     if (removeBtn) {
                         this.removeDynamicItem(removeBtn);
                     }
-                    
+
                     // Handle estado change buttons
                     const estadoBtn = e.target.closest('.change-estado-btn');
                     if (estadoBtn) {
@@ -221,12 +221,12 @@ const ManufacturingApp = {
     // Handle estado change from project list
     handleEstadoChange(button) {
         if (!button || !button.dataset) return;
-        
+
         const proyectoId = button.dataset.proyectoId;
         const estadoActual = button.dataset.estadoActual;
-        
+
         if (!proyectoId) return;
-        
+
         this.showEstadoChangeModal(proyectoId, estadoActual);
     },
 
@@ -270,16 +270,16 @@ const ManufacturingApp = {
                 </div>
             </div>
         `;
-        
+
         // Remove existing modal if any
         const existingModal = document.getElementById('cambiarEstadoModal');
         if (existingModal) {
             existingModal.remove();
         }
-        
+
         // Add modal to DOM
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
+
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('cambiarEstadoModal'));
         modal.show();
@@ -290,12 +290,12 @@ const ManufacturingApp = {
         const proyectoId = document.getElementById('proyectoId').value;
         const nuevoEstado = document.getElementById('nuevoEstado').value;
         const observacion = document.getElementById('observacion').value;
-        
+
         if (!nuevoEstado) {
             this.showNotification('Debe seleccionar un estado', 'danger');
             return;
         }
-        
+
         try {
             const response = await fetch(`/proyectos/${proyectoId}/cambiar-estado`, {
                 method: 'POST',
@@ -307,9 +307,9 @@ const ManufacturingApp = {
                     observacion: observacion
                 })
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
                 this.showNotification('Estado actualizado correctamente', 'success');
                 // Close modal
@@ -329,7 +329,7 @@ const ManufacturingApp = {
     addDynamicItem(button) {
         try {
             if (!button || typeof button.closest !== 'function') return;
-            
+
             const container = button.closest('.dynamic-container');
             if (!container) return;
 
@@ -366,7 +366,7 @@ const ManufacturingApp = {
     removeDynamicItem(button) {
         try {
             if (!button || typeof button.closest !== 'function') return;
-            
+
             const item = button.closest('.dynamic-item');
             if (item && confirm('¿Estás seguro de que deseas eliminar este elemento?')) {
                 item.remove();
@@ -665,19 +665,70 @@ function showAlert(message, type = 'info') {
 }
 
 // Manejar errores globales de JavaScript con mejor logging
-window.addEventListener('error', function(event) {
-    console.log('Global error:', {
-        message: event.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno
+    window.addEventListener('error', function(e) {
+        console.log('Global error:', {
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            colno: e.colno
+        });
     });
 
-    // Solo mostrar alerta al usuario en desarrollo
-    if (window.location.hostname === 'localhost' || window.location.hostname.includes('replit')) {
-        showAlert('Se produjo un error en la aplicación. Revise la consola para más detalles.', 'warning');
+    // Toggle collapse containers (fix for null element access)
+    function setupCollapseToggles() {
+        document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                const targetSelector = this.getAttribute('data-bs-target') || this.getAttribute('href');
+                if (!targetSelector) return;
+
+                const targetElement = document.querySelector(targetSelector);
+
+                if (targetElement) {
+                    const isVisible = targetElement.style.display !== 'none';
+                    targetElement.style.display = isVisible ? 'none' : 'block';
+
+                    // Update button text/icon if needed
+                    const icon = this.querySelector('i');
+                    if (icon) {
+                        icon.classList.toggle('fa-chevron-down');
+                        icon.classList.toggle('fa-chevron-up');
+                    }
+                }
+            });
+        });
     }
-});
+
+// Handle contracts collapse toggle
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.contratos-toggle-btn')) {
+            const button = e.target.closest('.contratos-toggle-btn');
+            const icon = button.querySelector('[data-feather]');
+            const targetSelector = button.getAttribute('data-bs-target');
+
+            if (targetSelector) {
+                const target = document.querySelector(targetSelector);
+
+                if (target && icon) {
+                    const isCollapsed = !target.classList.contains('show');
+
+                    if (isCollapsed) {
+                        target.classList.add('show');
+                        icon.setAttribute('data-feather', 'chevron-down');
+                    } else {
+                        target.classList.remove('show');
+                        icon.setAttribute('data-feather', 'chevron-right');
+                    }
+
+                    // Re-render feather icons
+                    if (typeof feather !== 'undefined') {
+                        feather.replace();
+                    }
+                }
+            }
+        }
+    });
 
 // Función para confirmar eliminación
 function confirmarEliminacion(mensaje) {
@@ -714,6 +765,27 @@ function dv(T) {
     }
     return S ? S - 1 : 'k';
 }
+
+// Enhanced row details functionality
+        document.querySelectorAll('.toggle-details').forEach(button => {
+            button.addEventListener('click', function() {
+                const row = this.closest('tr');
+                if (!row) return;
+
+                const detailsRow = row.nextElementSibling;
+
+                if (detailsRow && detailsRow.classList.contains('details-row')) {
+                    detailsRow.style.display = detailsRow.style.display === 'none' ? '' : 'none';
+
+                    // Update icon
+                    const icon = this.querySelector('i');
+                    if (icon) {
+                        icon.classList.toggle('fa-chevron-down');
+                        icon.classList.toggle('fa-chevron-up');
+                    }
+                }
+            });
+        });
 
 // Export for use in other scripts
 window.ManufacturingApp = ManufacturingApp;

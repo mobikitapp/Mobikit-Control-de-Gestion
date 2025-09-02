@@ -53,11 +53,26 @@ class ProyectosRepository:
         Returns:
             Tuple of (proyectos_list, total_count)
         """
+        from models import Contrato, EstadoContrato
+        
+        # Create subquery to count active contracts
+        contrato_count_subquery = (
+            db.session.query(
+                Contrato.proyecto_id,
+                func.count(Contrato.id).label('contratos_activos_count')
+            )
+            .filter(Contrato.estado == EstadoContrato.VIGENTE)
+            .group_by(Contrato.proyecto_id)
+            .subquery()
+        )
+        
         query = (db.session.query(Proyecto)
                 .options(
                     joinedload(Proyecto.cliente),
-                    joinedload(Proyecto.responsable_user)
-                ))
+                    joinedload(Proyecto.responsable_user),
+                    joinedload(Proyecto.contratos)
+                )
+                .outerjoin(contrato_count_subquery, Proyecto.id == contrato_count_subquery.c.proyecto_id))
 
         # Apply filters
         conditions = []
@@ -67,8 +82,6 @@ class ProyectosRepository:
 
         if filters.nombre:
             conditions.append(Proyecto.nombre.ilike(f"%{filters.nombre}%"))
-
-
 
         if filters.responsable:
             conditions.append(Proyecto.responsable == filters.responsable)
