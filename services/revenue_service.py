@@ -113,8 +113,12 @@ class RevenueService:
             'utilidad_real_clp': (margen_sim_pct / 100) * total_adjudicado
         }
     
-    def get_monthly_data(self, año: int) -> List[Dict[str, Any]]:
+    def get_monthly_data(self, año: int, use_real_data: bool = True) -> List[Dict[str, Any]]:
         """Get monthly revenue data for a given year"""
+        if use_real_data:
+            return self.get_monthly_data_with_real_projects(año)
+        
+        # Original implementation for backwards compatibility
         # Get all monthly objectives for the year
         objetivos = (db.session.query(ObjetivoMensual)
                     .filter_by(año=año)
@@ -128,21 +132,32 @@ class RevenueService:
             objetivo = next((obj for obj in objetivos if obj.mes == mes), None)
             
             if not objetivo:
-                # Create empty month structure
+                # Calculate real data from projects as fallback
+                real_adjudicado = self.calculate_real_adjudicado_from_projects(año, mes)
+                real_presupuesto = self.calculate_real_presupuesto_from_projects(año, mes)
+                real_margen = self.calculate_real_margins_from_projects(año, mes)
+                
+                gap_venta = real_presupuesto - real_adjudicado
+                be_pct = self.required_margin(real_adjudicado) if real_adjudicado > 0 else 75.0
+                margen_objetivo_pct = self.calculate_objetivo_margin(real_adjudicado, 2.0, 0) if real_adjudicado > 0 else 77.0
+                estado = self.get_revenue_status(real_margen, margen_objetivo_pct)
+                recomendacion = self.get_recommendations(gap_venta, real_margen, margen_objetivo_pct) if real_adjudicado > 0 else 'Sin proyectos'
+                
                 mes_data = {
                     'periodo': f"{año}-{mes:02d}",
                     'mes': mes,
                     'mes_nombre': calendar.month_name[mes],
-                    'presupuesto_facturacion': 0,
-                    'adjudicado_facturacion': 0,
-                    'margen_real_pct': 0,
+                    'presupuesto_facturacion': real_presupuesto,
+                    'adjudicado_facturacion': real_adjudicado,
+                    'margen_real_pct': real_margen,
                     'buffer_pp': 2.0,
                     'utilidad_objetivo_clp': 0,
-                    'be_pct': 75.0,
-                    'margen_objetivo_pct': 77.0,
-                    'gap_venta': 0,
-                    'estado': 'ROJO',
-                    'recomendacion': 'Agregar datos'
+                    'be_pct': be_pct,
+                    'margen_objetivo_pct': margen_objetivo_pct,
+                    'gap_venta': gap_venta,
+                    'estado': estado,
+                    'recomendacion': recomendacion,
+                    'usando_datos_reales': True
                 }
             else:
                 # Calculate derived values
@@ -175,7 +190,8 @@ class RevenueService:
                     'margen_objetivo_pct': margen_objetivo_pct,
                     'gap_venta': gap_venta,
                     'estado': estado,
-                    'recomendacion': recomendacion
+                    'recomendacion': recomendacion,
+                    'usando_datos_reales': False
                 }
             
             monthly_data.append(mes_data)
@@ -280,3 +296,126 @@ class RevenueService:
             return float(total_margen_weighted / total_facturacion)
         
         return 0.0
+
+    def calculate_real_adjudicado_from_projects(self, año: int, mes: int) -> float:
+        """Calculate real adjudicated amount from projects in the given month"""
+        proyectos = (db.session.query(Proyecto)
+                    .filter(
+                        extract('year', Proyecto.fecha_adjudicacion) == año,
+                        extract('month', Proyecto.fecha_adjudicacion) == mes,
+                        Proyecto.estado_comercial == EstadoComercial.ADJUDICADO
+                    )
+                    .all())
+        
+        total_adjudicado = Decimal('0')
+        for proyecto in proyectos:
+            provision = proyecto.monto_provision_presupuestado or Decimal('0')
+            instalacion = proyecto.monto_instalacion_presupuestado or Decimal('0')
+            total_adjudicado += provision + instalacion
+        
+        return float(total_adjudicado)
+
+    def calculate_real_presupuesto_from_projects(self, año: int, mes: int) -> float:
+        """Calculate real budget amount from projects with presupuesto in the given month"""
+        # Projects that were budgeted (estado PRESUPUESTADO) in this month
+        proyectos_presupuestados = (db.session.query(Proyecto)
+                                   .filter(
+                                       extract('year', Proyecto.created_at) == año,
+                                       extract('month', Proyecto.created_at) == mes,
+                                       Proyecto.estado_comercial.in_([
+                                           EstadoComercial.PRESUPUESTADO,
+                                           EstadoComercial.COTIZADO,
+                                           EstadoComercial.ADJUDICADO
+                                       ])
+                                   )
+                                   .all())
+        
+        total_presupuesto = Decimal('0')
+        for proyecto in proyectos_presupuestados:
+            provision = proyecto.monto_provision_presupuestado or Decimal('0')
+            instalacion = proyecto.monto_instalacion_presupuestado or Decimal('0')
+            total_presupuesto += provision + instalacion
+        
+        return float(total_presupuesto)
+
+    def get_monthly_data_with_real_projects(self, año: int) -> List[Dict[str, Any]]:
+        """Get monthly revenue data combining manual objectives with real project data"""
+        # Get all monthly objectives for the year
+        objetivos = (db.session.query(ObjetivoMensual)
+                    .filter_by(año=año)
+                    .order_by(ObjetivoMensual.mes)
+                    .all())
+        
+        monthly_data = []
+        
+        for mes in range(1, 13):
+            # Find objective for this month
+            objetivo = next((obj for obj in objetivos if obj.mes == mes), None)
+            
+            # Calculate real data from projects
+            real_adjudicado = self.calculate_real_adjudicado_from_projects(año, mes)
+            real_presupuesto = self.calculate_real_presupuesto_from_projects(año, mes)
+            real_margen = self.calculate_real_margins_from_projects(año, mes)
+            
+            # Use real data if available, otherwise fall back to manual objectives
+            if objetivo:
+                # Combine manual objectives with real data
+                presupuesto = float(objetivo.presupuesto_facturacion or 0) if objetivo.presupuesto_facturacion else real_presupuesto
+                adjudicado = float(objetivo.adjudicado_facturacion or 0) if objetivo.adjudicado_facturacion else real_adjudicado
+                margen_real = float(objetivo.margen_real_pct or 0) if objetivo.margen_real_pct else real_margen
+                buffer_pp = float(objetivo.buffer_pp or 2.0)
+                utilidad_objetivo = float(objetivo.utilidad_objetivo_clp or 0)
+                
+                # If manual data is 0, use real data
+                if presupuesto == 0:
+                    presupuesto = real_presupuesto
+                if adjudicado == 0:
+                    adjudicado = real_adjudicado
+                if margen_real == 0:
+                    margen_real = real_margen
+            else:
+                # No manual objective, use only real data
+                presupuesto = real_presupuesto
+                adjudicado = real_adjudicado
+                margen_real = real_margen
+                buffer_pp = 2.0
+                utilidad_objetivo = 0
+            
+            # Calculate derived values
+            gap_venta = presupuesto - adjudicado
+            be_pct = self.required_margin(adjudicado)
+            margen_objetivo_pct = self.calculate_objetivo_margin(
+                adjudicado, buffer_pp, utilidad_objetivo
+            )
+            
+            estado = self.get_revenue_status(margen_real, margen_objetivo_pct)
+            recomendacion = self.get_recommendations(gap_venta, margen_real, margen_objetivo_pct)
+            
+            mes_data = {
+                'id': objetivo.id if objetivo else None,
+                'periodo': f"{año}-{mes:02d}",
+                'mes': mes,
+                'mes_nombre': calendar.month_name[mes],
+                'presupuesto_facturacion': presupuesto,
+                'adjudicado_facturacion': adjudicado,
+                'margen_real_pct': margen_real,
+                'buffer_pp': buffer_pp,
+                'utilidad_objetivo_clp': utilidad_objetivo,
+                'be_pct': be_pct,
+                'margen_objetivo_pct': margen_objetivo_pct,
+                'gap_venta': gap_venta,
+                'estado': estado,
+                'recomendacion': recomendacion,
+                'real_adjudicado': real_adjudicado,
+                'real_presupuesto': real_presupuesto,
+                'real_margen': real_margen,
+                'usando_datos_reales': not objetivo or (
+                    not objetivo.presupuesto_facturacion and 
+                    not objetivo.adjudicado_facturacion and 
+                    not objetivo.margen_real_pct
+                )
+            }
+            
+            monthly_data.append(mes_data)
+        
+        return monthly_data

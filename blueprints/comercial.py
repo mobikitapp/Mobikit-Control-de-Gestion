@@ -461,3 +461,95 @@ def api_revenue_simular():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@comercial_bp.route('/api/revenue/calcular-proyectos/<int:año>/<int:mes>', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+def api_revenue_calcular_proyectos(año, mes):
+    """API: Calculate and update revenue data from real projects for a specific month"""
+    try:
+        service = RevenueService()
+        
+        # Calculate real data from projects
+        real_adjudicado = service.calculate_real_adjudicado_from_projects(año, mes)
+        real_presupuesto = service.calculate_real_presupuesto_from_projects(año, mes)
+        real_margen = service.calculate_real_margins_from_projects(año, mes)
+        
+        # Update or create the monthly objective with real data
+        data = {
+            'presupuesto_facturacion': real_presupuesto,
+            'adjudicado_facturacion': real_adjudicado,
+            'margen_real_pct': real_margen
+        }
+        
+        objetivo = service.update_monthly_objective(año, mes, data)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Datos calculados desde proyectos reales para {calendar.month_name[mes]} {año}',
+            'data': {
+                'presupuesto_facturacion': real_presupuesto,
+                'adjudicado_facturacion': real_adjudicado,
+                'margen_real_pct': real_margen,
+                'objetivo_id': objetivo.id
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@comercial_bp.route('/api/revenue/calcular-proyectos/<int:año>', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+def api_revenue_calcular_proyectos_año(año):
+    """API: Calculate and update revenue data from real projects for entire year"""
+    try:
+        service = RevenueService()
+        
+        updated_months = []
+        errors = []
+        
+        for mes in range(1, 13):
+            try:
+                # Calculate real data from projects
+                real_adjudicado = service.calculate_real_adjudicado_from_projects(año, mes)
+                real_presupuesto = service.calculate_real_presupuesto_from_projects(año, mes)
+                real_margen = service.calculate_real_margins_from_projects(año, mes)
+                
+                # Only update if there's real data
+                if real_adjudicado > 0 or real_presupuesto > 0:
+                    data = {
+                        'presupuesto_facturacion': real_presupuesto,
+                        'adjudicado_facturacion': real_adjudicado,
+                        'margen_real_pct': real_margen
+                    }
+                    
+                    objetivo = service.update_monthly_objective(año, mes, data)
+                    updated_months.append({
+                        'mes': mes,
+                        'mes_nombre': calendar.month_name[mes],
+                        'presupuesto': real_presupuesto,
+                        'adjudicado': real_adjudicado,
+                        'margen': real_margen
+                    })
+                    
+            except Exception as e:
+                errors.append(f"Error en {calendar.month_name[mes]}: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Datos calculados desde proyectos reales para {len(updated_months)} meses',
+            'updated_months': updated_months,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

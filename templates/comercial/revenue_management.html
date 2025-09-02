@@ -134,21 +134,37 @@
                             <tbody>
                                 {% for mes in monthly_data %}
                                 <tr class="{% if mes.estado == 'VERDE' %}table-success{% elif mes.estado == 'AMARILLO' %}table-warning{% else %}table-danger{% endif %}">
-                                    <td><strong>{{ mes.mes_nombre[:3] }}</strong></td>
+                                    <td>
+                                        <strong>{{ mes.mes_nombre[:3] }}</strong>
+                                        {% if mes.usando_datos_reales %}
+                                        <span class="badge bg-info ms-1" title="Usando datos de proyectos reales">
+                                            <i class="fas fa-project-diagram"></i>
+                                        </span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <input type="number" class="form-control form-control-sm" 
                                                value="{{ mes.presupuesto_facturacion }}" 
                                                onchange="updateField({{ mes.mes }}, 'presupuesto_facturacion', this.value)">
+                                        {% if mes.real_presupuesto and mes.real_presupuesto != mes.presupuesto_facturacion %}
+                                        <small class="text-muted">Real: ${{ "{:,.0f}".format(mes.real_presupuesto / 1000000) }}M</small>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <input type="number" class="form-control form-control-sm" 
                                                value="{{ mes.adjudicado_facturacion }}" 
                                                onchange="updateField({{ mes.mes }}, 'adjudicado_facturacion', this.value)">
+                                        {% if mes.real_adjudicado and mes.real_adjudicado != mes.adjudicado_facturacion %}
+                                        <small class="text-muted">Real: ${{ "{:,.0f}".format(mes.real_adjudicado / 1000000) }}M</small>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <input type="number" class="form-control form-control-sm" 
                                                value="{{ mes.margen_real_pct }}" step="0.1"
                                                onchange="updateField({{ mes.mes }}, 'margen_real_pct', this.value)">
+                                        {% if mes.real_margen and mes.real_margen != mes.margen_real_pct %}
+                                        <small class="text-muted">Real: {{ "{:.1f}".format(mes.real_margen) }}%</small>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <input type="number" class="form-control form-control-sm" 
@@ -176,7 +192,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Simulator -->
         <div class="col-md-4">
             <div class="card">
@@ -191,7 +207,7 @@
                                oninput="updateSimulation()">
                         <small class="text-muted" id="adjudicado-base-value">$150M</small>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label">Adjudicado Extra (CLP)</label>
                         <input type="range" class="form-range" id="adjudicado-extra" 
@@ -199,7 +215,7 @@
                                oninput="updateSimulation()">
                         <small class="text-muted" id="adjudicado-extra-value">$0M</small>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label">Margen Simulado (%)</label>
                         <input type="range" class="form-range" id="margen-sim" 
@@ -207,7 +223,7 @@
                                oninput="updateSimulation()">
                         <small class="text-muted" id="margen-sim-value">35.0%</small>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label">Buffer PP (%)</label>
                         <input type="range" class="form-range" id="buffer-pp" 
@@ -215,7 +231,7 @@
                                oninput="updateSimulation()">
                         <small class="text-muted" id="buffer-pp-value">2.0%</small>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label">Utilidad Objetivo (CLP)</label>
                         <input type="range" class="form-range" id="utilidad-objetivo" 
@@ -223,9 +239,9 @@
                                oninput="updateSimulation()">
                         <small class="text-muted" id="utilidad-objetivo-value">$5M</small>
                     </div>
-                    
+
                     <hr>
-                    
+
                     <div class="text-center" id="simulation-result">
                         <div class="badge bg-secondary fs-6 p-2 mb-2">Ejecute simulación</div>
                         <div><small>Ajuste los parámetros arriba</small></div>
@@ -399,7 +415,7 @@
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(data)
+            body: JSON.JSON.stringify(data)
         })
         .then(response => response.json())
         .then(result => {
@@ -407,7 +423,7 @@
                 const sim = result.data;
                 const estadoClass = sim.estado === 'VERDE' ? 'success' : 
                                    sim.estado === 'AMARILLO' ? 'warning' : 'danger';
-                
+
                 document.getElementById('simulation-result').innerHTML = `
                     <div class="badge bg-${estadoClass} fs-6 p-2 mb-2">${sim.estado}</div>
                     <div><small>Total: $${Math.round(sim.adjudicado_total/1000000)}M</small></div>
@@ -470,8 +486,26 @@
 
     // Calculate margins from projects
     function calcularMargenes() {
-        // This would call an API to calculate real margins from projects
-        alert('Funcionalidad disponible próximamente');
+        fetch('/comercial/api/revenue/calcular_reales', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ año: año })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Datos de proyectos calculados y aplicados correctamente.');
+                actualizarDatos();
+            } else {
+                alert('Error al calcular datos desde proyectos: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error en la petición al servidor.');
+        });
     }
 
     // Initialize charts
