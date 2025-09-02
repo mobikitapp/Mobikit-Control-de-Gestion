@@ -12,6 +12,7 @@ from models import (
     EstadoComercial, RolUsuario
 )
 from services.comercial_service import ComercialService
+from services.revenue_service import RevenueService
 from utils.auth import role_required
 
 # Create blueprint
@@ -335,4 +336,128 @@ def api_planificacion_datos(year):
         return jsonify({
             'success': False,
             'message': f'Error: {str(e)}'
+        }), 500
+
+
+# Revenue Management Routes
+@comercial_bp.route('/revenue-management')
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+def revenue_management():
+    """Revenue Management - Vista principal"""
+    try:
+        service = RevenueService()
+        
+        # Get filters
+        año = request.args.get('año', type=int) or datetime.now().year
+        
+        # Get monthly data and KPIs
+        monthly_data = service.get_monthly_data(año)
+        kpis = service.calculate_kpis(año)
+        
+        # Get break even curve for chart
+        be_curve = service.get_break_even_curve()
+        
+        return render_template('comercial/revenue_management.html',
+                             año=año,
+                             monthly_data=monthly_data,
+                             kpis=kpis,
+                             be_curve=be_curve)
+        
+    except Exception as e:
+        flash(f'Error al cargar Revenue Management: {str(e)}', 'error')
+        return redirect(url_for('comercial.centro_vendedores'))
+
+
+@comercial_bp.route('/api/revenue/meses')
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+def api_revenue_meses():
+    """API: Get monthly revenue data"""
+    try:
+        service = RevenueService()
+        año = request.args.get('año', type=int) or datetime.now().year
+        
+        monthly_data = service.get_monthly_data(año)
+        return jsonify({
+            'success': True,
+            'data': monthly_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@comercial_bp.route('/api/revenue/mes', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+def api_revenue_update_mes():
+    """API: Update or create monthly objective"""
+    try:
+        service = RevenueService()
+        data = request.get_json()
+        
+        required_fields = ['año', 'mes']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'error': f'Campo requerido: {field}'
+                }), 400
+        
+        objetivo = service.update_monthly_objective(
+            año=data['año'],
+            mes=data['mes'],
+            data=data
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Objetivo mensual actualizado',
+            'id': objetivo.id
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@comercial_bp.route('/api/revenue/simular', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+def api_revenue_simular():
+    """API: Simulate revenue scenario"""
+    try:
+        service = RevenueService()
+        data = request.get_json()
+        
+        # Get parameters with defaults
+        adjudicado_base = float(data.get('adjudicado_base', 0))
+        adjudicado_extra = float(data.get('adjudicado_extra', 0))
+        margen_sim_pct = float(data.get('margen_sim_pct', 30))
+        buffer_pp = float(data.get('buffer_pp', 2.0))
+        utilidad_objetivo_clp = float(data.get('utilidad_objetivo_clp', 0))
+        
+        resultado = service.simulate_scenario(
+            adjudicado_base=adjudicado_base,
+            adjudicado_extra=adjudicado_extra,
+            margen_sim_pct=margen_sim_pct,
+            buffer_pp=buffer_pp,
+            utilidad_objetivo_clp=utilidad_objetivo_clp
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': resultado
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500

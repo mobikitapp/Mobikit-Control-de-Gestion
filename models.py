@@ -811,6 +811,13 @@ class ObjetivoMensual(db.Model):
     objetivo_provision = db.Column(db.Numeric(15, 2))
     objetivo_instalacion = db.Column(db.Numeric(15, 2))
     notas = db.Column(db.Text)
+    
+    # Revenue Management fields
+    buffer_pp = db.Column(db.Numeric(5, 2), default=2.0)  # Buffer sobre Break Even
+    utilidad_objetivo_clp = db.Column(db.Numeric(15, 2), default=0)  # Utilidad objetivo en CLP
+    margen_real_pct = db.Column(db.Numeric(5, 2))  # Margen real del mes
+    adjudicado_facturacion = db.Column(db.Numeric(15, 2))  # Facturación adjudicada real
+    presupuesto_facturacion = db.Column(db.Numeric(15, 2))  # Presupuesto de facturación
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
