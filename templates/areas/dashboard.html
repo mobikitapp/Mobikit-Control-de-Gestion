@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% set title = "Dashboard de Áreas" %}
 
@@ -53,96 +54,169 @@
         </div>
     </div>
 
-    <!-- Areas Cards - Solo áreas con órdenes -->
+    <!-- Areas Tabs -->
     <div class="row">
-        {% for area_data in areas %}
-        {% if area_data.total_count > 0 %}
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center" 
-                     style="background-color: {{ area_data.area.color_hex }}20; border-left: 4px solid {{ area_data.area.color_hex }};">
-                    <h5 class="mb-0">
-                        <span class="badge" style="background-color: {{ area_data.area.color_hex }}; color: white;">
-                            {{ area_data.area.orden_secuencia }}
-                        </span>
-                        {{ area_data.area.nombre }}
-                    </h5>
-                    <span class="badge badge-lg" style="background-color: {{ area_data.area.color_hex }}; color: white; font-size: 1.1em;">
-                        {{ area_data.total_count }}
-                    </span>
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Áreas de Producción</h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted small mb-3">{{ area_data.area.descripcion }}</p>
-
-                    <!-- Lista de órdenes recientes -->
-                    <div class="mb-3">
-                        <h6 class="small text-uppercase text-muted mb-2">Órdenes Activas</h6>
-                        {% set all_orders = [] %}
-                        {% for estado_data in area_data.estados %}
-                            {% for order in estado_data.orders %}
-                                {% set _ = all_orders.append(order) %}
-                            {% endfor %}
+                    <!-- Tab Navigation -->
+                    <ul class="nav nav-tabs mb-3" id="areasTab" role="tablist">
+                        {% for area_data in areas %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if loop.first %}active{% endif %}" 
+                                    id="area-{{ area_data.area.id }}-tab" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#area-{{ area_data.area.id }}" 
+                                    type="button" 
+                                    role="tab" 
+                                    aria-controls="area-{{ area_data.area.id }}" 
+                                    aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
+                                    style="border-color: {{ area_data.area.color_hex }};">
+                                <span class="badge me-2" style="background-color: {{ area_data.area.color_hex }}; color: white;">
+                                    {{ area_data.area.orden_secuencia }}
+                                </span>
+                                {{ area_data.area.nombre }}
+                                {% if area_data.total_count > 0 %}
+                                <span class="badge bg-secondary ms-2">{{ area_data.total_count }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
                         {% endfor %}
-                        
-                        {% for order in all_orders[:5] %}
-                        <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
-                            <div>
-                                <span class="fw-bold small">{{ order.codigo }}</span>
-                                <br>
-                                <span class="text-muted small">{{ order.proyecto_nombre[:25] }}{% if order.proyecto_nombre|length > 25 %}...{% endif %}</span>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="areasTabContent">
+                        {% for area_data in areas %}
+                        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                             id="area-{{ area_data.area.id }}" 
+                             role="tabpanel" 
+                             aria-labelledby="area-{{ area_data.area.id }}-tab">
+                            
+                            <!-- Area Description -->
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <p class="text-muted mb-0">{{ area_data.area.descripcion }}</p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('areas.area_detail', area_id=area_data.area.id) }}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-eye"></i> Ver Detalles
+                                        </a>
+                                        <a href="{{ url_for('areas.area_tv_display', area_id=area_data.area.id) }}" 
+                                           class="btn btn-outline-success btn-sm" target="_blank">
+                                            <i class="fas fa-tv"></i> Vista TV
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="text-end">
-                                <small class="text-muted">{{ order.cliente_nombre[:15] }}{% if order.cliente_nombre|length > 15 %}...{% endif %}</small>
+
+                            {% if area_data.total_count > 0 %}
+                            <!-- Orders Table -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead style="background-color: {{ area_data.area.color_hex }}20;">
+                                        <tr>
+                                            <th>Código</th>
+                                            <th>Proyecto</th>
+                                            <th>Cliente</th>
+                                            <th>Estado</th>
+                                            <th>Responsable</th>
+                                            <th>Fecha Ingreso</th>
+                                            <th>Tiempo en Estado</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for estado_data in area_data.estados %}
+                                            {% for order in estado_data.orders %}
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ order.codigo }}</strong>
+                                                </td>
+                                                <td>
+                                                    <span class="text-truncate d-inline-block" style="max-width: 150px;" title="{{ order.proyecto_nombre }}">
+                                                        {{ order.proyecto_nombre }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="text-truncate d-inline-block" style="max-width: 120px;" title="{{ order.cliente_nombre }}">
+                                                        {{ order.cliente_nombre }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge" style="background-color: {{ estado_data.estado.color_hex }}; color: white;">
+                                                        {{ estado_data.estado.nombre }}
+                                                    </span>
+                                                    {% if estado_data.estado.es_inicial %}
+                                                    <small class="badge bg-success">Inicial</small>
+                                                    {% endif %}
+                                                    {% if estado_data.estado.es_final %}
+                                                    <small class="badge bg-info">Final</small>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if order.responsable_nombre %}
+                                                    <small>{{ order.responsable_nombre }}</small>
+                                                    {% else %}
+                                                    <span class="text-muted">Sin asignar</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <small>{{ order.fecha_ingreso_area.strftime('%d/%m/%Y %H:%M') if order.fecha_ingreso_area else '-' }}</small>
+                                                </td>
+                                                <td>
+                                                    {% set days_diff = (moment().date() - order.fecha_cambio_estado.date()).days if order.fecha_cambio_estado else 0 %}
+                                                    <small class="{% if days_diff > 3 %}text-warning{% elif days_diff > 7 %}text-danger{% else %}text-muted{% endif %}">
+                                                        {{ days_diff }} día{% if days_diff != 1 %}s{% endif %}
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group" role="group">
+                                                        <a href="{{ url_for('fabricacion.detalle', of_id=order.id) }}" 
+                                                           class="btn btn-outline-primary btn-sm" 
+                                                           title="Ver orden completa">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                        <a href="{{ url_for('areas.cambiar_estado_form', orden_id=order.id) }}" 
+                                                           class="btn btn-outline-secondary btn-sm" 
+                                                           title="Cambiar estado">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
+                            {% else %}
+                            <!-- Empty State -->
+                            <div class="text-center py-5">
+                                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                <h5 class="text-success">Área despejada</h5>
+                                <p class="text-muted">No hay órdenes de fabricación en esta área actualmente.</p>
+                            </div>
+                            {% endif %}
                         </div>
                         {% endfor %}
                         
-                        {% if all_orders|length > 5 %}
-                        <div class="text-center mt-2">
-                            <small class="text-muted">Y {{ all_orders|length - 5 }} órdenes más...</small>
+                        <!-- Empty state if no areas -->
+                        {% if not areas %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-exclamation-circle fa-3x text-warning mb-3"></i>
+                            <h4>No hay áreas configuradas</h4>
+                            <p class="text-muted">Configure las áreas de producción desde el panel de administración.</p>
                         </div>
                         {% endif %}
                     </div>
                 </div>
-                <div class="card-footer">
-                    <div class="btn-group w-100" role="group">
-                        <a href="{{ url_for('areas.area_detail', area_id=area_data.area.id) }}" 
-                           class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-eye"></i> Ver Detalles
-                        </a>
-                        <a href="{{ url_for('areas.area_tv_display', area_id=area_data.area.id) }}" 
-                           class="btn btn-outline-success btn-sm" target="_blank">
-                            <i class="fas fa-tv"></i> Vista TV
-                        </a>
-                    </div>
-                </div>
             </div>
         </div>
-        {% endif %}
-        {% endfor %}
-        
-        <!-- Mensaje si no hay áreas con órdenes -->
-        {% set has_orders = namespace(value=false) %}
-        {% for area_data in areas %}
-            {% if area_data.total_count > 0 %}
-                {% set has_orders.value = true %}
-            {% endif %}
-        {% endfor %}
-        
-        {% if not has_orders.value %}
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body text-center py-5">
-                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                    <h4 class="text-success">¡Todas las áreas están despejadas!</h4>
-                    <p class="text-muted">No hay órdenes de fabricación en proceso actualmente.</p>
-                    <a href="{{ url_for('fabricacion.index') }}" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Crear Nueva Orden
-                    </a>
-                </div>
-            </div>
-        </div>
-        {% endif %}
     </div>
 
     <!-- Quick Actions -->
@@ -188,5 +262,13 @@ function refreshDashboard() {
 setInterval(() => {
     window.location.reload();
 }, 300000);
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
 </script>
 {% endblock %}

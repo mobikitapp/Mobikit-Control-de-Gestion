@@ -11,6 +11,11 @@ try:
     app.jinja_env.globals['min'] = min
     app.jinja_env.globals['max'] = max
 
+    # Add moment function to template globals
+    @app.template_global('moment')
+    def moment_global():
+        return datetime.now()
+
     # Initialize database
     with app.app_context():
         db.create_all()
