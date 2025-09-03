@@ -40,13 +40,12 @@ class DespachosService:
             if not proyecto:
                 raise ValueError(f"Proyecto {despacho_data['proyecto_id']} no encontrado")
             
-            # Validate OF if provided
-            if despacho_data.get('of_id'):
-                of = self.fabricacion_repo.get_by_id(despacho_data['of_id'])
-                if not of:
-                    raise ValueError(f"OF {despacho_data['of_id']} no encontrada")
-                if of.proyecto_id != despacho_data['proyecto_id']:
-                    raise ValueError("La OF no pertenece al proyecto especificado")
+            # Validate hito_entrega if provided
+            if despacho_data.get('hito_entrega_id'):
+                from models import HitoEntrega
+                hito = db.session.query(HitoEntrega).filter_by(id=despacho_data['hito_entrega_id']).first()
+                if not hito:
+                    raise ValueError(f"Hito de entrega {despacho_data['hito_entrega_id']} no encontrado")
             
             # Check if numero_despacho already exists
             if self.repo.exists_numero(despacho_data['numero_despacho']):
@@ -133,16 +132,13 @@ class DespachosService:
                 if not proyecto:
                     raise ValueError(f"Proyecto {update_data['proyecto_id']} no encontrado")
             
-            # Validate OF if updating of_id
-            if 'of_id' in update_data:
-                if update_data['of_id'] and update_data['of_id'] != despacho.of_id:
-                    of = self.fabricacion_repo.get_by_id(update_data['of_id'])
-                    if not of:
-                        raise ValueError(f"OF {update_data['of_id']} no encontrada")
-                    
-                    proyecto_id = update_data.get('proyecto_id', despacho.proyecto_id)
-                    if of.proyecto_id != proyecto_id:
-                        raise ValueError("La OF no pertenece al proyecto especificado")
+            # Validate hito_entrega if updating hito_entrega_id
+            if 'hito_entrega_id' in update_data:
+                if update_data['hito_entrega_id'] and update_data['hito_entrega_id'] != despacho.hito_entrega_id:
+                    from models import HitoEntrega
+                    hito = db.session.query(HitoEntrega).filter_by(id=update_data['hito_entrega_id']).first()
+                    if not hito:
+                        raise ValueError(f"Hito de entrega {update_data['hito_entrega_id']} no encontrado")
             
             # Check numero_despacho uniqueness if updating numero_despacho
             if 'numero_despacho' in update_data and update_data['numero_despacho'] != despacho.numero_despacho:

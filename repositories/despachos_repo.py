@@ -25,7 +25,8 @@ class DespachosRepository:
                 .options(
                     joinedload(Despacho.proyecto).joinedload(Proyecto.cliente),
                     joinedload(Despacho.contrato),
-                    joinedload(Despacho.orden_fabricacion),
+                    joinedload(Despacho.hito_entrega),
+                    joinedload(Despacho.ordenes_fabricacion_detalle),
                     joinedload(Despacho.creator),
                     joinedload(Despacho.adjuntos)
                 )
@@ -65,7 +66,8 @@ class DespachosRepository:
                 .options(
                     joinedload(Despacho.proyecto).joinedload(Proyecto.cliente),
                     joinedload(Despacho.contrato),
-                    joinedload(Despacho.orden_fabricacion)
+                    joinedload(Despacho.hito_entrega),
+                    joinedload(Despacho.ordenes_fabricacion_detalle)
                 ))
         
         # Apply filters
@@ -77,8 +79,8 @@ class DespachosRepository:
         if filters.contrato_id:
             conditions.append(Despacho.contrato_id == filters.contrato_id)
         
-        if filters.of_id:
-            conditions.append(Despacho.of_id == filters.of_id)
+        if filters.hito_entrega_id:
+            conditions.append(Despacho.hito_entrega_id == filters.hito_entrega_id)
         
         if filters.numero_despacho:
             conditions.append(Despacho.numero_despacho.ilike(f"%{filters.numero_despacho}%"))
