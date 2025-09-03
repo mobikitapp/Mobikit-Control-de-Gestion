@@ -75,3 +75,4 @@ externalPort = 3000
 defaultBucketID = "replit-objstore-18a58625-bff7-44cb-bbf9-e8b65ac6622c"
 
 [agent]
+expertMode = true

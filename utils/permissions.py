@@ -6,57 +6,57 @@ Sistema de permisos granular para Mobikit
 # Definición de permisos específicos
 PERMISSIONS = {
     # Gestión de usuarios
-    'users.view': ['admin'],
-    'users.create': ['admin'],
-    'users.edit': ['admin'],
-    'users.delete': ['admin'],
+    'users.view': ['ADMIN'],
+    'users.create': ['ADMIN'],
+    'users.edit': ['ADMIN'],
+    'users.delete': ['ADMIN'],
     
     # Clientes
-    'clients.view': ['admin', 'general', 'vendedor'],
-    'clients.create': ['admin', 'general'],
-    'clients.edit': ['admin', 'general'],
-    'clients.delete': ['admin'],
+    'clients.view': ['ADMIN', 'GENERAL', 'VENTAS'],
+    'clients.create': ['ADMIN', 'GENERAL'],
+    'clients.edit': ['ADMIN', 'GENERAL'],
+    'clients.delete': ['ADMIN'],
     
     # Proyectos
-    'projects.view': ['admin', 'general', 'vendedor'],
-    'projects.create': ['admin', 'general', 'vendedor'],
-    'projects.edit': ['admin', 'general', 'vendedor'],
-    'projects.delete': ['admin'],
-    'projects.archive': ['admin', 'general'],
+    'projects.view': ['ADMIN', 'GENERAL', 'VENTAS'],
+    'projects.create': ['ADMIN', 'GENERAL', 'VENTAS'],
+    'projects.edit': ['ADMIN', 'GENERAL', 'VENTAS'],
+    'projects.delete': ['ADMIN'],
+    'projects.archive': ['ADMIN', 'GENERAL'],
     
     # Órdenes de compra
-    'orders.view': ['admin', 'general', 'vendedor', 'operación'],
-    'orders.create': ['admin', 'general', 'vendedor'],
-    'orders.edit': ['admin', 'general'],
-    'orders.delete': ['admin'],
-    'orders.approve': ['admin', 'general'],
+    'orders.view': ['ADMIN', 'GENERAL', 'VENTAS', 'OPERACIONES'],
+    'orders.create': ['ADMIN', 'GENERAL', 'VENTAS'],
+    'orders.edit': ['ADMIN', 'GENERAL'],
+    'orders.delete': ['ADMIN'],
+    'orders.approve': ['ADMIN', 'GENERAL'],
     
     # Fabricación
-    'manufacturing.view': ['admin', 'general', 'operación'],
-    'manufacturing.create': ['admin', 'general', 'operación'],
-    'manufacturing.edit': ['admin', 'general', 'operación'],
-    'manufacturing.process': ['admin', 'general', 'operación'],
+    'manufacturing.view': ['ADMIN', 'GENERAL', 'OPERACIONES'],
+    'manufacturing.create': ['ADMIN', 'GENERAL', 'OPERACIONES'],
+    'manufacturing.edit': ['ADMIN', 'GENERAL', 'OPERACIONES'],
+    'manufacturing.process': ['ADMIN', 'GENERAL', 'OPERACIONES'],
     
     # Despachos
-    'dispatch.view': ['admin', 'general', 'despacho'],
-    'dispatch.create': ['admin', 'general', 'despacho'],
-    'dispatch.edit': ['admin', 'general', 'despacho'],
-    'dispatch.process': ['admin', 'general', 'despacho'],
+    'dispatch.view': ['ADMIN', 'GENERAL', 'LOGISTICA'],
+    'dispatch.create': ['ADMIN', 'GENERAL', 'LOGISTICA'],
+    'dispatch.edit': ['ADMIN', 'GENERAL', 'LOGISTICA'],
+    'dispatch.process': ['ADMIN', 'GENERAL', 'LOGISTICA'],
     
     # Reportes y configuraciones
-    'reports.view': ['admin', 'general'],
-    'config.view': ['admin'],
-    'config.edit': ['admin'],
+    'reports.view': ['ADMIN', 'GENERAL'],
+    'config.view': ['ADMIN'],
+    'config.edit': ['ADMIN'],
     
     # Planificación
-    'planning.view': ['admin', 'general', 'vendedor'],
-    'planning.edit': ['admin', 'general'],
+    'planning.view': ['ADMIN', 'GENERAL', 'VENTAS'],
+    'planning.edit': ['ADMIN', 'GENERAL'],
 }
 
 # Permisos por rol (resumen)
 ROLE_PERMISSIONS = {
-    'admin': 'all',  # Acceso completo
-    'general': [
+    'ADMIN': 'all',  # Acceso completo
+    'GENERAL': [
         'clients.view', 'clients.create', 'clients.edit',
         'projects.view', 'projects.create', 'projects.edit', 'projects.archive',
         'orders.view', 'orders.create', 'orders.edit', 'orders.approve',
@@ -64,18 +64,18 @@ ROLE_PERMISSIONS = {
         'dispatch.view', 'dispatch.create', 'dispatch.edit', 'dispatch.process',
         'reports.view', 'planning.view', 'planning.edit'
     ],
-    'vendedor': [
+    'VENTAS': [
         'clients.view', 'projects.view', 'projects.create', 'projects.edit',
         'orders.view', 'orders.create', 'planning.view'
     ],
-    'operación': [
+    'OPERACIONES': [
         'orders.view', 'manufacturing.view', 'manufacturing.create', 
         'manufacturing.edit', 'manufacturing.process'
     ],
-    'embalaje': [
+    'PRODUCCION': [
         'orders.view', 'manufacturing.view', 'dispatch.view'
     ],
-    'despacho': [
+    'LOGISTICA': [
         'orders.view', 'dispatch.view', 'dispatch.create', 
         'dispatch.edit', 'dispatch.process'
     ]
@@ -85,7 +85,7 @@ def has_permission(user_role, permission):
     """
     Verifica si un rol tiene un permiso específico
     """
-    if user_role == 'admin':
+    if user_role == 'ADMIN':
         return True
     
     if permission in PERMISSIONS:
@@ -97,7 +97,7 @@ def get_user_permissions(user_role):
     """
     Obtiene todos los permisos de un rol
     """
-    if user_role == 'admin':
+    if user_role == 'ADMIN':
         return list(PERMISSIONS.keys())
     
     return ROLE_PERMISSIONS.get(user_role, [])

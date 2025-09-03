@@ -62,12 +62,12 @@ class TipoAdjunto(Enum):
     QA = "qa"
 
 class RolUsuario(Enum):
-    ADMIN = "admin"
-    GENERAL = "general"
-    OPERACIONES = "operaciones"
-    VENTAS = "ventas"
-    PRODUCCION = "produccion"
-    LOGISTICA = "logistica"
+    ADMIN = "ADMIN"
+    GENERAL = "GENERAL"
+    OPERACIONES = "OPERACIONES"
+    VENTAS = "VENTAS"
+    PRODUCCION = "PRODUCCION"
+    LOGISTICA = "LOGISTICA"
 
 class EstadoComercial(Enum):
     PENDIENTE_PRESUPUESTO = "PENDIENTE_PRESUPUESTO"
