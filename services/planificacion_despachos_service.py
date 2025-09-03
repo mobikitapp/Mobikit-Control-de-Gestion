@@ -27,26 +27,26 @@ class PlanificacionDespachosService:
         """
         try:
             # Obtener hitos de entrega pendientes con sus proyectos y clientes
-            # Usar plan_entrega para acceder al contrato
+            from models import PlanEntrega, Contrato
             hitos_query = db.session.query(HitoEntrega).join(
-                'plan_entrega'
+                PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id
             ).join(
-                'contrato'
+                Contrato, PlanEntrega.contrato_id == Contrato.id
             ).join(
-                'proyecto'
+                Proyecto, Contrato.proyecto_id == Proyecto.id
             ).join(
-                'cliente'
+                Cliente, Proyecto.cliente_id == Cliente.id
             ).filter(
                 HitoEntrega.estado.in_([EstadoHitoEntrega.PENDIENTE, EstadoHitoEntrega.ATRASADO])
             ).options(
                 selectinload(HitoEntrega.plan_entrega)
-                .selectinload('contrato')
-                .selectinload('proyecto')
-                .selectinload('cliente'),
+                .selectinload(PlanEntrega.contrato)
+                .selectinload(Contrato.proyecto)
+                .selectinload(Proyecto.cliente),
                 selectinload(HitoEntrega.despachos)
             ).order_by(
-                'cliente.nombre',
-                'proyecto.nombre',
+                Cliente.nombre,
+                Proyecto.nombre,
                 HitoEntrega.fecha_programada
             ).all()
             
@@ -205,19 +205,20 @@ class PlanificacionDespachosService:
         try:
             fecha_limite = date.today() + timedelta(days=dias)
             
+            from models import PlanEntrega, Contrato
             hitos = db.session.query(HitoEntrega).join(
-                'plan_entrega'
+                PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id
             ).join(
-                'contrato'
+                Contrato, PlanEntrega.contrato_id == Contrato.id
             ).join(
-                'proyecto'
+                Proyecto, Contrato.proyecto_id == Proyecto.id
             ).join(
-                'cliente'
+                Cliente, Proyecto.cliente_id == Cliente.id
             ).filter(
                 HitoEntrega.fecha_programada <= fecha_limite,
                 HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE
             ).options(
-                selectinload(HitoEntrega.plan_entrega).selectinload('contrato').selectinload('proyecto').selectinload('cliente'),
+                selectinload(HitoEntrega.plan_entrega).selectinload(PlanEntrega.contrato).selectinload(Contrato.proyecto).selectinload(Proyecto.cliente),
                 selectinload(HitoEntrega.despachos)
             ).order_by(
                 HitoEntrega.fecha_programada

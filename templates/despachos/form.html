@@ -61,7 +61,7 @@
                             
                             <div class="col-md-3">
                                 <label for="contrato_id" class="form-label">Contrato/OC (Opcional)</label>
-                                <select class="form-select" id="contrato_id" name="contrato_id" onchange="updateOFsByContrato()">
+                                <select class="form-select" id="contrato_id" name="contrato_id" onchange="updateHitosByContrato()">
                                     <option value="">Sin contrato asociado</option>
                                     {% if despacho and despacho.contrato %}
                                     <option value="{{ despacho.contrato_id }}" selected>{{ despacho.contrato.numero_oc }}</option>
@@ -70,13 +70,36 @@
                             </div>
                             
                             <div class="col-md-3">
-                                <label for="of_id" class="form-label">Orden de Fabricación (Opcional)</label>
-                                <select class="form-select" id="of_id" name="of_id">
-                                    <option value="">Sin OF asociada</option>
-                                    {% if despacho and despacho.orden_fabricacion %}
-                                    <option value="{{ despacho.of_id }}" selected>{{ despacho.orden_fabricacion.codigo }}</option>
+                                <label for="hito_entrega_id" class="form-label">Hito de Entrega (Opcional)</label>
+                                <select class="form-select" id="hito_entrega_id" name="hito_entrega_id" onchange="updateAvailableOFs()">
+                                    <option value="">Sin hito asociado</option>
+                                    {% if despacho and despacho.hito_entrega %}
+                                    <option value="{{ despacho.hito_entrega_id }}" selected>{{ despacho.hito_entrega.descripcion }}</option>
                                     {% endif %}
                                 </select>
+                            </div>
+                            
+                            <div class="col-12">
+                                <hr class="my-4">
+                                <h6>Órdenes de Fabricación</h6>
+                                <div class="alert alert-info">
+                                    <i data-feather="info" class="me-2"></i>
+                                    Selecciona las órdenes de fabricación que incluirás en este despacho y especifica las cantidades.
+                                </div>
+                                
+                                <!-- Container para OFs disponibles -->
+                                <div id="ofs-container" class="border rounded p-3 mb-3" style="min-height: 200px; background-color: #f8f9fa;">
+                                    <div id="ofs-placeholder" class="text-center text-muted py-4">
+                                        <i data-feather="package" class="mb-2" style="width: 48px; height: 48px;"></i>
+                                        <p>Selecciona un proyecto para ver las órdenes de fabricación disponibles</p>
+                                    </div>
+                                    <div id="ofs-list" style="display: none;"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <hr class="my-4">
+                                <h6>Información del Despacho</h6>
                             </div>
                             
                             <!-- Número de Despacho -->
@@ -406,6 +429,169 @@ document.addEventListener('DOMContentLoaded', function() {
         
         form.classList.add('was-validated');
     });
+
+    // Nueva función para cargar OFs disponibles
+    window.updateAvailableOFs = function() {
+        const proyectoId = document.getElementById('proyecto_id').value;
+        const container = document.getElementById('ofs-container');
+        const placeholder = document.getElementById('ofs-placeholder');
+        const list = document.getElementById('ofs-list');
+        
+        if (!proyectoId) {
+            placeholder.style.display = 'block';
+            list.style.display = 'none';
+            list.innerHTML = '';
+            return;
+        }
+
+        // Cargar OFs del proyecto
+        fetch(`/api/fabricacion/by_proyecto/${proyectoId}`)
+            .then(response => response.json())
+            .then(ofs => {
+                placeholder.style.display = 'none';
+                list.innerHTML = '';
+                
+                if (ofs.length === 0) {
+                    list.innerHTML = '<p class="text-muted text-center">No hay órdenes de fabricación disponibles para este proyecto.</p>';
+                } else {
+                    let html = '<div class="row g-3">';
+                    ofs.forEach(function(of) {
+                        html += `
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input of-checkbox" type="checkbox" 
+                                                   id="of_${of.id}" value="${of.id}" 
+                                                   onchange="toggleOFSelection(this)">
+                                            <label class="form-check-label fw-bold" for="of_${of.id}">
+                                                ${of.codigo}
+                                            </label>
+                                        </div>
+                                        <p class="small text-muted mb-2">${of.descripcion || 'Sin descripción'}</p>
+                                        <div class="row g-2 text-small">
+                                            <div class="col-6">
+                                                <strong>Cantidad:</strong> ${of.cantidad_total || 0}
+                                            </div>
+                                            <div class="col-6">
+                                                <strong>Estado:</strong> 
+                                                <span class="badge bg-${of.estado === 'terminada' ? 'success' : 'warning'}">${of.estado}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Selector de cantidad -->
+                                        <div class="of-quantity-section mt-3" style="display: none;">
+                                            <label class="form-label small">Tipo de Despacho:</label>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" 
+                                                       name="tipo_despacho_${of.id}" id="total_${of.id}" 
+                                                       value="total" onchange="updateQuantityField(${of.id})">
+                                                <label class="form-check-label small" for="total_${of.id}">Total</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" 
+                                                       name="tipo_despacho_${of.id}" id="parcial_${of.id}" 
+                                                       value="parcial" onchange="updateQuantityField(${of.id})">
+                                                <label class="form-check-label small" for="parcial_${of.id}">Parcial</label>
+                                            </div>
+                                            
+                                            <div class="quantity-input mt-2" style="display: none;">
+                                                <label class="form-label small">Cantidad a despachar:</label>
+                                                <input type="number" class="form-control form-control-sm" 
+                                                       id="cantidad_${of.id}" name="cantidad_${of.id}"
+                                                       min="1" max="${of.cantidad_total || 999}"
+                                                       placeholder="Ingrese cantidad">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    list.innerHTML = html;
+                }
+                list.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                list.innerHTML = '<p class="text-danger text-center">Error al cargar las órdenes de fabricación.</p>';
+                list.style.display = 'block';
+                placeholder.style.display = 'none';
+            });
+    };
+
+    // Funciones para manejar selección de OFs
+    window.toggleOFSelection = function(checkbox) {
+        const ofId = checkbox.value;
+        const quantitySection = checkbox.closest('.card-body').querySelector('.of-quantity-section');
+        
+        if (checkbox.checked) {
+            quantitySection.style.display = 'block';
+            // Seleccionar "total" por defecto
+            document.getElementById(`total_${ofId}`).checked = true;
+            updateQuantityField(ofId);
+        } else {
+            quantitySection.style.display = 'none';
+            // Limpiar selecciones
+            document.querySelectorAll(`input[name="tipo_despacho_${ofId}"]`).forEach(input => input.checked = false);
+            document.getElementById(`cantidad_${ofId}`).value = '';
+        }
+        updateSelectedOFsInput();
+    };
+
+    window.updateQuantityField = function(ofId) {
+        const tipo = document.querySelector(`input[name="tipo_despacho_${ofId}"]:checked`)?.value;
+        const quantityInput = document.getElementById(`cantidad_${ofId}`).closest('.quantity-input');
+        
+        if (tipo === 'parcial') {
+            quantityInput.style.display = 'block';
+            document.getElementById(`cantidad_${ofId}`).required = true;
+        } else {
+            quantityInput.style.display = 'none';
+            document.getElementById(`cantidad_${ofId}`).required = false;
+            document.getElementById(`cantidad_${ofId}`).value = '';
+        }
+        updateSelectedOFsInput();
+    };
+
+    // Actualizar campo hidden con OFs seleccionadas
+    window.updateSelectedOFsInput = function() {
+        const selectedOFs = [];
+        document.querySelectorAll('.of-checkbox:checked').forEach(checkbox => {
+            const ofId = checkbox.value;
+            const tipo = document.querySelector(`input[name="tipo_despacho_${ofId}"]:checked`)?.value;
+            const cantidad = document.getElementById(`cantidad_${ofId}`).value;
+            
+            if (tipo) {
+                selectedOFs.push({
+                    of_id: ofId,
+                    tipo_despacho: tipo,
+                    cantidad: tipo === 'total' ? null : parseInt(cantidad) || 0
+                });
+            }
+        });
+        
+        // Crear campo hidden si no existe
+        let hiddenField = document.getElementById('selected_ofs');
+        if (!hiddenField) {
+            hiddenField = document.createElement('input');
+            hiddenField.type = 'hidden';
+            hiddenField.id = 'selected_ofs';
+            hiddenField.name = 'selected_ofs';
+            document.querySelector('form').appendChild(hiddenField);
+        }
+        hiddenField.value = JSON.stringify(selectedOFs);
+    };
+
+    // Actualizar la función existente
+    const originalUpdateOFsByProyecto = window.updateOFsByProyecto;
+    window.updateOFsByProyecto = function() {
+        updateAvailableOFs();
+        if (originalUpdateOFsByProyecto) {
+            originalUpdateOFsByProyecto();
+        }
+    };
 });
 </script>
 {% endblock %}
