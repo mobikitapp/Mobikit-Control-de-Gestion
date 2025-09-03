@@ -2,6 +2,37 @@
 {% set title = "Dashboard de Áreas" %}
 
 {% block content %}
+<style>
+/* Action buttons styling */
+.btn-group-sm .btn {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+    border-radius: 0.25rem;
+}
+
+.btn-group-sm .btn i {
+    font-size: 0.7rem;
+}
+
+.table th:last-child,
+.table td:last-child {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Modal improvements */
+.modal-body .alert {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* TV Display Optimizations */
+</style>
+
 <div class="container-fluid">
     <!-- Dashboard Stats -->
     <div class="row mb-4">
@@ -126,7 +157,7 @@
                                             <th>Responsable</th>
                                             <th>Fecha Ingreso</th>
                                             <th>Tiempo en Estado</th>
-                                            <th>Acciones</th>
+                                            <th width="180px">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -178,16 +209,46 @@
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    <div class="btn-group" role="group">
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <!-- Ver detalle de la orden -->
                                                         <a href="{{ url_for('fabricacion.detalle', of_id=order.id) }}" 
-                                                           class="btn btn-outline-primary btn-sm" 
-                                                           title="Ver orden completa">
+                                                           class="btn btn-outline-info btn-sm" 
+                                                           title="Ver detalle de la orden">
                                                             <i class="fas fa-eye"></i>
                                                         </a>
-                                                        <a href="{{ url_for('areas.cambiar_estado_form', orden_id=order.id) }}" 
-                                                           class="btn btn-outline-secondary btn-sm" 
-                                                           title="Cambiar estado">
+
+                                                        <!-- Editar orden de fabricación -->
+                                                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                                        <a href="{{ url_for('fabricacion.editar', of_id=order.id) }}" 
+                                                           class="btn btn-outline-primary btn-sm" 
+                                                           title="Editar orden">
                                                             <i class="fas fa-edit"></i>
+                                                        </a>
+                                                        {% endif %}
+
+                                                        <!-- Cambiar estado dentro del área -->
+                                                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                                        <button class="btn btn-outline-warning btn-sm" 
+                                                                onclick="showStateChangeModal({{ order.id }}, '{{ estado_data.estado.nombre }}', '{{ area_data.area.nombre }}')" 
+                                                                title="Cambiar estado">
+                                                            <i class="fas fa-cog"></i>
+                                                        </button>
+                                                        {% endif %}
+
+                                                        <!-- Avanzar a siguiente área -->
+                                                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] and estado_data.estado.es_final %}
+                                                        <button class="btn btn-outline-success btn-sm" 
+                                                                onclick="showAdvanceAreaModal({{ order.id }}, '{{ order.codigo }}', '{{ area_data.area.nombre }}')" 
+                                                                title="Avanzar a siguiente área">
+                                                            <i class="fas fa-arrow-right"></i>
+                                                        </button>
+                                                        {% endif %}
+
+                                                        <!-- Ver historial de áreas -->
+                                                        <a href="{{ url_for('areas.orden_history', orden_id=order.id) }}" 
+                                                           class="btn btn-outline-secondary btn-sm" 
+                                                           title="Ver historial">
+                                                            <i class="fas fa-history"></i>
                                                         </a>
                                                     </div>
                                                 </td>
@@ -247,6 +308,95 @@
     </div>
 </div>
 
+<!-- Modal para cambiar estado -->
+<div class="modal fade" id="stateChangeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambiar Estado</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="stateChangeForm" method="POST">
+                <div class="modal-body">
+                    <div id="stateChangeContent">
+                        <p>Cargando estados disponibles...</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="responsable_estado" class="form-label">Responsable (opcional)</label>
+                        <select class="form-select" id="responsable_estado" name="responsable_id">
+                            <option value="">Sin cambios</option>
+                            {% for user in users if current_user.rol.value in ['admin', 'operaciones'] or user.id == current_user.id %}
+                            <option value="{{ user.id }}">{{ user.nombre_completo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notas_estado" class="form-label">Notas (opcional)</label>
+                        <textarea class="form-control" id="notas_estado" name="notas" rows="3" 
+                                  placeholder="Comentarios sobre el cambio de estado"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="tiempo_estimado" class="form-label">Tiempo Estimado (horas)</label>
+                        <input type="number" class="form-control" id="tiempo_estimado" 
+                               name="tiempo_estimado_horas" step="0.5" min="0" 
+                               placeholder="Tiempo estimado en horas">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-cog"></i> Cambiar Estado
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para avanzar a siguiente área -->
+<div class="modal fade" id="advanceAreaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Avanzar a Siguiente Área</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="advanceAreaForm" method="POST">
+                <div class="modal-body">
+                    <div id="advanceAreaContent">
+                        <p>¿Está seguro que desea avanzar esta orden a la siguiente área?</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="responsable_area" class="form-label">Responsable en nueva área (opcional)</label>
+                        <select class="form-select" id="responsable_area" name="responsable_id">
+                            <option value="">Sin asignar</option>
+                            {% for user in users if current_user.rol.value in ['admin', 'operaciones'] or user.id == current_user.id %}
+                            <option value="{{ user.id }}">{{ user.nombre_completo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notas_avance" class="form-label">Notas de avance (opcional)</label>
+                        <textarea class="form-control" id="notas_avance" name="notas" rows="3" 
+                                  placeholder="Comentarios sobre el avance de área"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-arrow-right"></i> Avanzar Área
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function refreshDashboard() {
     // Show loading indicator
@@ -273,5 +423,78 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 });
+
+// Modal management functions
+let currentOrderId = null;
+
+async function showStateChangeModal(orderId, currentStateName, areaName) {
+    currentOrderId = orderId;
+
+    const modal = new bootstrap.Modal(document.getElementById('stateChangeModal'));
+    const form = document.getElementById('stateChangeForm');
+    const content = document.getElementById('stateChangeContent');
+
+    // Set form action
+    form.action = `/areas/orden/${orderId}/cambiar-estado`;
+
+    try {
+        // Load available states for the current area
+        const response = await fetch(`/areas/api/estados-disponibles/${orderId}`);
+        if (response.ok) {
+            const data = await response.json();
+
+            let statesHtml = `
+                <div class="mb-3">
+                    <p><strong>Orden:</strong> #${orderId}</p>
+                    <p><strong>Área Actual:</strong> ${areaName}</p>
+                    <p><strong>Estado Actual:</strong> ${currentStateName}</p>
+                </div>
+                <div class="mb-3">
+                    <label for="nuevo_estado_id" class="form-label">Nuevo Estado</label>
+                    <select class="form-select" id="nuevo_estado_id" name="nuevo_estado_id" required>
+                        <option value="">Seleccionar nuevo estado...</option>
+            `;
+
+            data.estados.forEach(estado => {
+                if (estado.nombre !== currentStateName) {
+                    statesHtml += `<option value="${estado.id}">${estado.nombre}</option>`;
+                }
+            });
+
+            statesHtml += `</select></div>`;
+            content.innerHTML = statesHtml;
+        } else {
+            content.innerHTML = '<div class="alert alert-danger">Error cargando estados disponibles</div>';
+        }
+    } catch (error) {
+        console.error('Error loading states:', error);
+        content.innerHTML = '<div class="alert alert-danger">Error de conexión</div>';
+    }
+
+    modal.show();
+}
+
+function showAdvanceAreaModal(orderId, orderCode, currentArea) {
+    currentOrderId = orderId;
+
+    const modal = new bootstrap.Modal(document.getElementById('advanceAreaModal'));
+    const form = document.getElementById('advanceAreaForm');
+    const content = document.getElementById('advanceAreaContent');
+
+    // Set form action
+    form.action = `/areas/orden/${orderId}/avanzar-area`;
+
+    content.innerHTML = `
+        <div class="alert alert-info">
+            <p><strong>Orden:</strong> ${orderCode}</p>
+            <p><strong>Área Actual:</strong> ${currentArea}</p>
+            <p>Esta orden avanzará a la siguiente área en la secuencia de producción.</p>
+        </div>
+    `;
+
+    modal.show();
+}
+
+console.log('Areas Dashboard initialized');
 </script>
 {% endblock %}

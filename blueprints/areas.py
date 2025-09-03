@@ -26,14 +26,19 @@ def dashboard():
     """Areas dashboard - shows all areas with their current orders"""
     try:
         dashboard_data = areas_service.get_areas_dashboard_data()
-        
+
+        # Get users for responsable assignment
+        from services.user_service import UserService
+        user_service = UserService()
+        users = user_service.get_active_users()
+
         return render_template(
             'areas/dashboard.html',
-            areas=dashboard_data['areas'],
-            stats=dashboard_data['stats'],
+            dashboard_data=dashboard_data,
+            users=users,
             title='Dashboard de Áreas'
         )
-        
+
     except Exception as e:
         logger.error(f"Error en dashboard de áreas: {str(e)}")
         flash('Error cargando el dashboard de áreas', 'error')
@@ -48,12 +53,12 @@ def area_detail(area_id):
         area = areas_repo.get_area_by_id(area_id)
         if not area:
             abort(404)
-        
+
         # Get orders in this area
         from repositories.areas_repository import OrdenAreaProgresoRepository
         progreso_repo = OrdenAreaProgresoRepository()
         orders_in_area = progreso_repo.get_orders_in_area(area_id)
-        
+
         # Group by state
         states_data = []
         for estado in area.estados:
@@ -63,7 +68,7 @@ def area_detail(area_id):
                 'orders': orders_in_state,
                 'count': len(orders_in_state)
             })
-        
+
         return render_template(
             'areas/area_detail.html',
             area=area,
@@ -71,7 +76,7 @@ def area_detail(area_id):
             total_orders=len(orders_in_area),
             title=f'Área: {area.nombre}'
         )
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo detalle de área: {str(e)}")
         flash('Error cargando detalles del área', 'error')
@@ -87,17 +92,17 @@ def orden_history(orden_id):
         orden = fabricacion_service.get_orden_by_id(orden_id)
         if not orden:
             abort(404)
-        
+
         # Get area history
         history = areas_service.get_orden_area_history(orden_id)
-        
+
         return render_template(
             'areas/orden_history.html',
             orden=orden,
             history=history,
             title=f'Historial de Áreas - Orden {orden.codigo}'
         )
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo historial: {str(e)}")
         flash('Error cargando el historial', 'error')
@@ -110,13 +115,13 @@ def mis_pendientes():
     """Show orders assigned to current user"""
     try:
         orders = areas_service.get_my_pending_orders(current_user.id)
-        
+
         return render_template(
             'areas/mis_pendientes.html',
             orders=orders,
             title='Mis Órdenes Pendientes'
         )
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo órdenes pendientes: {str(e)}")
         flash('Error cargando órdenes pendientes', 'error')
@@ -129,19 +134,19 @@ def api_change_estado():
     """API endpoint to change state within area"""
     try:
         data = request.get_json()
-        
+
         # Validate required fields
         orden_id = data.get('orden_id')
         nuevo_estado_id = data.get('nuevo_estado_id')
-        
+
         if not orden_id or not nuevo_estado_id:
             return error_response("Orden ID y Estado ID son requeridos")
-        
+
         # Optional fields
         responsable_id = data.get('responsable_id')
         notas = data.get('notas')
         tiempo_estimado_horas = data.get('tiempo_estimado_horas')
-        
+
         # Change state
         updated_progress = areas_service.change_estado_in_area(
             orden_fabricacion_id=orden_id,
@@ -150,7 +155,7 @@ def api_change_estado():
             notas=notas,
             tiempo_estimado_horas=tiempo_estimado_horas
         )
-        
+
         return success_response({
             'message': 'Estado actualizado exitosamente',
             'progress': {
@@ -160,7 +165,7 @@ def api_change_estado():
                 'fecha_cambio': updated_progress.fecha_cambio_estado.isoformat()
             }
         })
-        
+
     except ValueError as e:
         return error_response(str(e))
     except Exception as e:
@@ -174,16 +179,16 @@ def api_advance_area():
     """API endpoint to advance order to next area"""
     try:
         data = request.get_json()
-        
+
         # Validate required fields
         orden_id = data.get('orden_id')
         if not orden_id:
             return error_response("Orden ID es requerido")
-        
+
         # Optional fields
         responsable_id = data.get('responsable_id')
         notas = data.get('notas')
-        
+
         # Advance to next area
         new_progress = areas_service.advance_to_next_area(
             orden_fabricacion_id=orden_id,
@@ -191,7 +196,7 @@ def api_advance_area():
             responsable_id=responsable_id,
             notas=notas
         )
-        
+
         return success_response({
             'message': f'Orden avanzada a {new_progress.area.nombre}',
             'progress': {
@@ -201,7 +206,7 @@ def api_advance_area():
                 'fecha_ingreso': new_progress.fecha_ingreso_area.isoformat()
             }
         })
-        
+
     except ValueError as e:
         return error_response(str(e))
     except Exception as e:
@@ -216,21 +221,21 @@ def api_archive_dispatch():
     """API endpoint to archive dispatched orders"""
     try:
         data = request.get_json()
-        
+
         orden_id = data.get('orden_id')
         if not orden_id:
             return error_response("Orden ID es requerido")
-        
+
         # Archive dispatch
         success = areas_service.archive_dispatch(orden_id)
-        
+
         if success:
             return success_response({
                 'message': 'Despacho archivado exitosamente'
             })
         else:
             return error_response("No se pudo archivar el despacho")
-        
+
     except ValueError as e:
         return error_response(str(e))
     except Exception as e:
@@ -245,40 +250,40 @@ def api_assign_responsable():
     """API endpoint to assign responsible person to area state"""
     try:
         data = request.get_json()
-        
+
         orden_id = data.get('orden_id')
         responsable_id = data.get('responsable_id')
-        
+
         if not orden_id or not responsable_id:
             return error_response("Orden ID y Responsable ID son requeridos")
-        
+
         # Verify user exists
         responsable = user_service.get_user_by_id(responsable_id)
         if not responsable:
             return error_response("Usuario responsable no encontrado")
-        
+
         # Get current progress
         from repositories.areas_repository import OrdenAreaProgresoRepository
         progreso_repo = OrdenAreaProgresoRepository()
         current_progress = progreso_repo.get_current_progress(orden_id)
-        
+
         if not current_progress:
             return error_response("Orden no encontrada en sistema de áreas")
-        
+
         # Update responsible person
         updated_progress = progreso_repo.update_progress(
             current_progress, 
             {'responsable_area': responsable_id}
         )
-        
+
         from app import db
         db.session.commit()
-        
+
         return success_response({
             'message': f'Responsable asignado: {responsable.nombre_completo}',
             'responsable_nombre': responsable.nombre_completo
         })
-        
+
     except Exception as e:
         logger.error(f"Error asignando responsable: {str(e)}")
         return error_response("Error interno del servidor")
@@ -292,9 +297,9 @@ def api_dashboard_stats():
         from repositories.areas_repository import OrdenAreaProgresoRepository
         progreso_repo = OrdenAreaProgresoRepository()
         stats = progreso_repo.get_dashboard_stats()
-        
+
         return success_response(stats)
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo estadísticas: {str(e)}")
         return error_response("Error interno del servidor")
@@ -306,7 +311,7 @@ def api_estados_by_area(area_id):
     """API endpoint to get states for a specific area"""
     try:
         estados = areas_repo.get_estados_by_area(area_id)
-        
+
         return success_response([
             {
                 'id': estado.id,
@@ -320,7 +325,7 @@ def api_estados_by_area(area_id):
             }
             for estado in estados
         ])
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo estados: {str(e)}")
         return error_response("Error interno del servidor")
@@ -336,23 +341,23 @@ def cambiar_estado_form(orden_id):
         from repositories.areas_repository import OrdenAreaProgresoRepository
         progreso_repo = OrdenAreaProgresoRepository()
         current_progress = progreso_repo.get_current_progress(orden_id)
-        
+
         if not current_progress:
             flash('Orden no encontrada en sistema de áreas', 'error')
             return redirect(url_for('areas.dashboard'))
-        
+
         # Get available states for current area
         estados = areas_repo.get_estados_by_area(current_progress.area_id)
-        
+
         # Get users for responsable assignment
         users = user_service.get_active_users()
-        
+
         if request.method == 'POST':
             nuevo_estado_id = request.form.get('nuevo_estado_id', type=int)
             responsable_id = request.form.get('responsable_id')
             notas = request.form.get('notas')
             tiempo_estimado = request.form.get('tiempo_estimado_horas', type=float)
-            
+
             if not nuevo_estado_id:
                 flash('Debe seleccionar un estado', 'error')
                 return render_template(
@@ -362,7 +367,7 @@ def cambiar_estado_form(orden_id):
                     estados=estados,
                     users=users
                 )
-            
+
             try:
                 updated_progress = areas_service.change_estado_in_area(
                     orden_fabricacion_id=orden_id,
@@ -371,13 +376,16 @@ def cambiar_estado_form(orden_id):
                     notas=notas,
                     tiempo_estimado_horas=tiempo_estimado
                 )
-                
+
                 flash(f'Estado actualizado a: {updated_progress.estado.nombre}', 'success')
                 return redirect(url_for('areas.area_detail', area_id=updated_progress.area_id))
-                
+
             except ValueError as e:
                 flash(str(e), 'error')
-        
+            except Exception as e_inner: 
+                 logger.error(f"Error in change_estado_in_area: {str(e_inner)}")
+                 flash('Error al actualizar estado.', 'error')
+
         return render_template(
             'areas/cambiar_estado.html',
             orden=current_progress.orden_fabricacion,
@@ -386,7 +394,7 @@ def cambiar_estado_form(orden_id):
             users=users,
             title=f'Cambiar Estado - {current_progress.orden_fabricacion.codigo}'
         )
-        
+
     except Exception as e:
         logger.error(f"Error en formulario cambiar estado: {str(e)}")
         flash('Error procesando solicitud', 'error')
@@ -400,17 +408,17 @@ def avanzar_area_form(orden_id):
     try:
         responsable_id = request.form.get('responsable_id')
         notas = request.form.get('notas')
-        
+
         new_progress = areas_service.advance_to_next_area(
             orden_fabricacion_id=orden_id,
             created_by=current_user.id,
             responsable_id=responsable_id if responsable_id else None,
             notas=notas
         )
-        
+
         flash(f'Orden avanzada a: {new_progress.area.nombre}', 'success')
         return redirect(url_for('areas.area_detail', area_id=new_progress.area_id))
-        
+
     except ValueError as e:
         flash(str(e), 'error')
         return redirect(url_for('areas.dashboard'))
@@ -420,21 +428,20 @@ def avanzar_area_form(orden_id):
         return redirect(url_for('areas.dashboard'))
 
 
-# Add main API endpoint for testing
 @areas_bp.route('/tv-display')
 @login_required
 def tv_display():
     """Vista optimizada para televisión - rotación automática de áreas"""
     try:
         dashboard_data = areas_service.get_areas_dashboard_data()
-        
+
         return render_template(
             'areas/tv_display.html',
             areas=dashboard_data['areas'],
             stats=dashboard_data['stats'],
             title='Display de Producción TV'
         )
-        
+
     except Exception as e:
         logger.error(f"Error en TV display: {str(e)}")
         flash('Error cargando display de TV', 'error')
@@ -448,12 +455,12 @@ def area_tv_display(area_id):
         area = areas_repo.get_area_by_id(area_id)
         if not area:
             abort(404)
-        
+
         # Get orders in this area
         from repositories.areas_repository import OrdenAreaProgresoRepository
         progreso_repo = OrdenAreaProgresoRepository()
         orders_in_area = progreso_repo.get_orders_in_area(area_id)
-        
+
         # Group by state with same format as area_detail
         states_data = []
         for estado in area.estados:
@@ -464,7 +471,7 @@ def area_tv_display(area_id):
                     'orders': orders_in_state,
                     'count': len(orders_in_state)
                 })
-        
+
         from datetime import datetime
         return render_template(
             'areas/area_tv_display.html',
@@ -474,7 +481,7 @@ def area_tv_display(area_id):
             now=datetime.now(),
             title=f'TV - {area.nombre}'
         )
-        
+
     except Exception as e:
         logger.error(f"Error en área TV display: {str(e)}")
         flash('Error cargando display de área', 'error')
@@ -485,7 +492,7 @@ def api_areas():
     """API endpoint principal para áreas - usado en tests"""
     try:
         areas = areas_repo.get_all_areas()
-        
+
         return jsonify({
             'success': True,
             'data': [{
@@ -495,7 +502,7 @@ def api_areas():
                 'activo': a.activo
             } for a in areas]
         })
-        
+
     except Exception as e:
         logger.error(f"Error en API áreas: {str(e)}")
         return jsonify({'error': 'Error al cargar áreas'}), 500

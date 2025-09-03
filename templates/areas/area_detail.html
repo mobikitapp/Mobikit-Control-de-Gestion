@@ -78,6 +78,7 @@
                                     <th>Tiempo en Estado</th>
                                     <th>Est. Horas</th>
                                     <th>Estado</th>
+                                    <th width="160px">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -124,6 +125,37 @@
                                         {% else %}
                                         <i class="fas fa-check-circle text-success fa-lg" title="En Tiempo"></i>
                                         {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <!-- Ver detalle -->
+                                            <a href="{{ url_for('fabricacion.detalle', of_id=order.id) }}" 
+                                               class="btn btn-outline-info btn-sm" title="Ver detalle">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            
+                                            <!-- Editar orden -->
+                                            {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                            <a href="{{ url_for('fabricacion.editar', of_id=order.id) }}" 
+                                               class="btn btn-outline-primary btn-sm" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% endif %}
+                                            
+                                            <!-- Cambiar estado -->
+                                            {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                            <a href="{{ url_for('areas.cambiar_estado_form', orden_id=order.id) }}" 
+                                               class="btn btn-outline-warning btn-sm" title="Cambiar estado">
+                                                <i class="fas fa-cog"></i>
+                                            </a>
+                                            {% endif %}
+                                            
+                                            <!-- Historial -->
+                                            <a href="{{ url_for('areas.orden_history', orden_id=order.id) }}" 
+                                               class="btn btn-outline-secondary btn-sm" title="Historial">
+                                                <i class="fas fa-history"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
