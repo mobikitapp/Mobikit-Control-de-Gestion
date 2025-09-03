@@ -118,10 +118,10 @@
                             <div class="col-md-6">
                                 <label for="estado" class="form-label">Estado</label>
                                 <select class="form-select" id="estado" name="estado">
-                                    <option value="programado" {% if not despacho or despacho.estado.value == 'programado' %}selected{% endif %}>Programado</option>
-                                    <option value="en_transporte" {% if despacho and despacho.estado.value == 'en_transporte' %}selected{% endif %}>En Transporte</option>
-                                    <option value="entregado" {% if despacho and despacho.estado.value == 'entregado' %}selected{% endif %}>Entregado</option>
-                                    <option value="observado" {% if despacho and despacho.estado.value == 'observado' %}selected{% endif %}>Observado</option>
+                                    <option value="PROGRAMADO" {% if not despacho or despacho.estado.value == 'PROGRAMADO' %}selected{% endif %}>Programado</option>
+                                    <option value="EN_TRANSPORTE" {% if despacho and despacho.estado.value == 'EN_TRANSPORTE' %}selected{% endif %}>En Transporte</option>
+                                    <option value="ENTREGADO" {% if despacho and despacho.estado.value == 'ENTREGADO' %}selected{% endif %}>Entregado</option>
+                                    <option value="OBSERVADO" {% if despacho and despacho.estado.value == 'OBSERVADO' %}selected{% endif %}>Observado</option>
                                 </select>
                             </div>
 
@@ -310,7 +310,7 @@ async function updateContratos() {
                     }
                     contratoSelect.appendChild(option);
                 });
-                
+
                 // Si hay un contrato seleccionado, actualizar hitos
                 if (selectedContrato) {
                     updateHitosByContrato(selectedContrato);
@@ -327,7 +327,9 @@ async function updateContratos() {
 
 function clearOFs() {
     const ofSelect = document.getElementById('of_id');
-    ofSelect.innerHTML = '<option value="">Sin OF asociada</option>';
+    if (ofSelect) {
+        ofSelect.innerHTML = '<option value="">Sin OF asociada</option>';
+    }
 }
 
 async function updateOFsByProyecto() {
@@ -471,7 +473,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Nueva función para cargar OFs disponibles
     window.updateAvailableOFs = function() {
-        const proyectoId = document.getElementById('proyecto_id').value;
+        const proyectoSelect = document.getElementById('proyecto_id');
+        const proyectoId = proyectoSelect ? proyectoSelect.value : null;
         const container = document.getElementById('ofs-container');
         const placeholder = document.getElementById('ofs-placeholder');
         const list = document.getElementById('ofs-list');
@@ -583,28 +586,32 @@ document.addEventListener('DOMContentLoaded', function() {
         if (checkbox.checked) {
             quantitySection.style.display = 'block';
             // Seleccionar "total" por defecto
-            document.getElementById(`total_${ofId}`).checked = true;
+            const totalRadio = document.getElementById(`total_${ofId}`);
+            if (totalRadio) totalRadio.checked = true;
             updateQuantityField(ofId);
         } else {
             quantitySection.style.display = 'none';
             // Limpiar selecciones
             document.querySelectorAll(`input[name="tipo_despacho_${ofId}"]`).forEach(input => input.checked = false);
-            document.getElementById(`cantidad_${ofId}`).value = '';
+            const quantityInput = document.getElementById(`cantidad_${ofId}`);
+            if (quantityInput) quantityInput.value = '';
         }
         updateSelectedOFsInput();
     };
 
     window.updateQuantityField = function(ofId) {
         const tipo = document.querySelector(`input[name="tipo_despacho_${ofId}"]:checked`)?.value;
-        const quantityInput = document.getElementById(`cantidad_${ofId}`).closest('.quantity-input');
+        const quantityInputContainer = document.getElementById(`cantidad_${ofId}`).closest('.quantity-input');
 
         if (tipo === 'parcial') {
-            quantityInput.style.display = 'block';
-            document.getElementById(`cantidad_${ofId}`).required = true;
+            if (quantityInputContainer) quantityInputContainer.style.display = 'block';
+            const quantityInput = document.getElementById(`cantidad_${ofId}`);
+            if (quantityInput) quantityInput.required = true;
         } else {
-            quantityInput.style.display = 'none';
-            document.getElementById(`cantidad_${ofId}`).required = false;
-            document.getElementById(`cantidad_${ofId}`).value = '';
+            if (quantityInputContainer) quantityInputContainer.style.display = 'none';
+            const quantityInput = document.getElementById(`cantidad_${ofId}`);
+            if (quantityInput) quantityInput.required = false;
+            if (quantityInput) quantityInput.value = '';
         }
         updateSelectedOFsInput();
     };
@@ -615,11 +622,19 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.of-checkbox:checked').forEach(checkbox => {
             const ofId = checkbox.value;
             const tipo = document.querySelector(`input[name="tipo_despacho_${ofId}"]:checked`)?.value;
-            const cantidad = document.getElementById(`cantidad_${ofId}`).value;
+            const cantidadInput = document.getElementById(`cantidad_${ofId}`);
+            const cantidad = cantidadInput ? cantidadInput.value : '';
+            const ofCodigo = checkbox.closest('.card-body').querySelector('.form-check-label').textContent.trim();
+            const ofDescripcion = checkbox.closest('.card-body').querySelector('.small.text-muted').textContent.trim();
+            const ofCantidadTotal = parseInt(checkbox.closest('.card-body').querySelector('div.col-6:first-of-type strong:last-child').nextSibling.textContent.trim()) || 0;
+
 
             if (tipo) {
                 selectedOFs.push({
-                    of_id: ofId,
+                    id: ofId, // Include id for potential use in removeSelectedOf
+                    codigo: ofCodigo,
+                    descripcion: ofDescripcion,
+                    cantidad_tableros: ofCantidadTotal, // Assuming this is the correct field name from backend
                     tipo_despacho: tipo,
                     cantidad: tipo === 'total' ? null : parseInt(cantidad) || 0
                 });
@@ -633,19 +648,22 @@ document.addEventListener('DOMContentLoaded', function() {
             hiddenField.type = 'hidden';
             hiddenField.id = 'selected_ofs';
             hiddenField.name = 'selected_ofs';
-            document.querySelector('form').appendChild(hiddenField);
+            form.appendChild(hiddenField);
         }
         hiddenField.value = JSON.stringify(selectedOFs);
     };
 
-    // Actualizar la función existente
-    const originalUpdateOFsByProyecto = window.updateOFsByProyecto;
+    // Actualizar la función existente si es necesario
+    // const originalUpdateOFsByProyecto = window.updateOFsByProyecto;
     window.updateOFsByProyecto = function() {
         updateAvailableOFs();
-        if (originalUpdateOFsByProyecto) {
-            originalUpdateOFsByProyecto();
-        }
+        // No need to call originalUpdateOFsByProyecto if updateAvailableOFs handles everything
     };
+    
+    // Initialize Feather Icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
 });
 </script>
 {% endblock %}
