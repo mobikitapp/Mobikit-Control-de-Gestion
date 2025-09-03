@@ -6,7 +6,7 @@ import logging
 from services.areas_service import AreasService
 from services.fabricacion_service import FabricacionService
 from services.user_service import UserService
-from repositories.areas_repository import AreasRepository
+from repositories.areas_repository import AreasRepository, OrdenAreaProgresoRepository
 from utils.auth import admin_required, role_required
 from utils.responses import success_response, error_response
 from utils.validators import validate_not_empty
@@ -15,10 +15,12 @@ from models import User
 logger = logging.getLogger(__name__)
 areas_bp = Blueprint('areas', __name__, url_prefix='/areas')
 
+# Initialize services
+areas_repo = AreasRepository()
+progreso_repo = OrdenAreaProgresoRepository()
 areas_service = AreasService()
 fabricacion_service = FabricacionService()
 user_service = UserService()
-areas_repo = AreasRepository()
 
 
 @areas_bp.route('/dashboard')
@@ -68,37 +70,54 @@ def dashboard():
 @areas_bp.route('/area/<int:area_id>')
 @login_required
 def area_detail(area_id):
-    """Detailed view of a specific area"""
+    """Show detailed view of specific area"""
     try:
         area = areas_repo.get_area_by_id(area_id)
         if not area:
             abort(404)
 
         # Get orders in this area
-        from repositories.areas_repository import OrdenAreaProgresoRepository
-        progreso_repo = OrdenAreaProgresoRepository()
         orders_in_area = progreso_repo.get_orders_in_area(area_id)
 
-        # Group by state
+        # Group by state with detailed order information
         states_data = []
         for estado in area.estados:
             orders_in_state = [o for o in orders_in_area if o.estado_id == estado.id]
+
+            # Format order data for template
+            formatted_orders = []
+            for order_progress in orders_in_state:
+                of = order_progress.orden_fabricacion
+                formatted_order = {
+                    'id': of.id,
+                    'codigo': of.codigo,
+                    'proyecto_nombre': of.proyecto.nombre if of.proyecto else 'Sin proyecto',
+                    'cliente_nombre': of.proyecto.cliente.nombre if of.proyecto and of.proyecto.cliente else 'Sin cliente',
+                    'responsable_nombre': order_progress.responsable_user.nombre_completo if order_progress.responsable_user else None,
+                    'fecha_ingreso_area': order_progress.fecha_ingreso_area,
+                    'fecha_cambio_estado': order_progress.fecha_cambio_estado,
+                    'tiempo_estimado_horas': float(order_progress.tiempo_estimado_horas) if order_progress.tiempo_estimado_horas else None
+                }
+                formatted_orders.append(formatted_order)
+
             states_data.append({
                 'estado': estado,
-                'orders': orders_in_state,
-                'count': len(orders_in_state)
+                'orders': formatted_orders,
+                'count': len(formatted_orders)
             })
 
+        from datetime import datetime
         return render_template(
             'areas/area_detail.html',
             area=area,
             states_data=states_data,
             total_orders=len(orders_in_area),
+            now=datetime.now(),
             title=f'Área: {area.nombre}'
         )
 
     except Exception as e:
-        logger.error(f"Error obteniendo detalle de área: {str(e)}")
+        logger.error(f"Error en área detail: {str(e)}")
         flash('Error cargando detalles del área', 'error')
         return redirect(url_for('areas.dashboard'))
 
@@ -499,8 +518,6 @@ def area_tv_display(area_id):
             abort(404)
 
         # Get orders in this area
-        from repositories.areas_repository import OrdenAreaProgresoRepository
-        progreso_repo = OrdenAreaProgresoRepository()
         orders_in_area = progreso_repo.get_orders_in_area(area_id)
 
         # Group by state with same format as area_detail
