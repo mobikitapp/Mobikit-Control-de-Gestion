@@ -5,19 +5,43 @@
 <style>
 /* Action buttons styling */
 .btn-group-sm .btn {
-    padding: 0.25rem 0.4rem;
-    font-size: 0.75rem;
-    border-radius: 0.25rem;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+    border-radius: 0.3rem;
+    margin: 1px;
+    min-width: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-group-sm .btn i {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
+}
+
+.btn-group-sm .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .table th:last-child,
 .table td:last-child {
     text-align: center;
     vertical-align: middle;
+    min-width: 200px;
+}
+
+/* Improved action buttons layout */
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    align-items: center;
+}
+
+.action-buttons .btn {
+    flex: 0 0 auto;
 }
 
 /* Modal improvements */
@@ -154,7 +178,7 @@
                                             <th>Responsable</th>
                                             <th>Fecha Ingreso</th>
                                             <th>Tiempo en Estado</th>
-                                            <th width="180px">Acciones</th>
+                                            <th width="220px">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -206,11 +230,12 @@
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    <div class="btn-group btn-group-sm" role="group">
+                                                    <div class="action-buttons">
                                                         <!-- Ver detalle de la orden -->
                                                         <a href="{{ url_for('fabricacion.detalle', of_id=order.id) }}" 
                                                            class="btn btn-outline-info btn-sm" 
-                                                           title="Ver detalle de la orden">
+                                                           data-bs-toggle="tooltip" 
+                                                           title="Ver detalle">
                                                             <i class="fas fa-eye"></i>
                                                         </a>
 
@@ -218,7 +243,8 @@
                                                         {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
                                                         <a href="{{ url_for('fabricacion.editar', of_id=order.id) }}" 
                                                            class="btn btn-outline-primary btn-sm" 
-                                                           title="Editar orden">
+                                                           data-bs-toggle="tooltip" 
+                                                           title="Editar">
                                                             <i class="fas fa-edit"></i>
                                                         </a>
                                                         {% endif %}
@@ -227,8 +253,19 @@
                                                         {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
                                                         <button class="btn btn-outline-warning btn-sm" 
                                                                 onclick="showStateChangeModal({{ order.id }}, '{{ estado_data.estado.nombre }}', '{{ area_data.area.nombre }}')" 
+                                                                data-bs-toggle="tooltip" 
                                                                 title="Cambiar estado">
                                                             <i class="fas fa-cog"></i>
+                                                        </button>
+                                                        {% endif %}
+
+                                                        <!-- Avanzar estado directo -->
+                                                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] and not estado_data.estado.es_final %}
+                                                        <button class="btn btn-outline-success btn-sm" 
+                                                                onclick="advanceStateDirectly({{ order.id }}, '{{ order.codigo }}', {{ area_data.area.id }})" 
+                                                                data-bs-toggle="tooltip" 
+                                                                title="Avanzar estado">
+                                                            <i class="fas fa-step-forward"></i>
                                                         </button>
                                                         {% endif %}
 
@@ -236,7 +273,8 @@
                                                         {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] and estado_data.estado.es_final %}
                                                         <button class="btn btn-outline-success btn-sm" 
                                                                 onclick="showAdvanceAreaModal({{ order.id }}, '{{ order.codigo }}', '{{ area_data.area.nombre }}')" 
-                                                                title="Avanzar a siguiente área">
+                                                                data-bs-toggle="tooltip" 
+                                                                title="Avanzar área">
                                                             <i class="fas fa-arrow-right"></i>
                                                         </button>
                                                         {% endif %}
@@ -244,7 +282,8 @@
                                                         <!-- Ver historial de áreas -->
                                                         <a href="{{ url_for('areas.orden_history', orden_id=order.id) }}" 
                                                            class="btn btn-outline-secondary btn-sm" 
-                                                           title="Ver historial">
+                                                           data-bs-toggle="tooltip" 
+                                                           title="Historial">
                                                             <i class="fas fa-history"></i>
                                                         </a>
                                                     </div>
@@ -368,13 +407,14 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="responsable_area" class="form-label">Responsable en nueva área (opcional)</label>
-                        <select class="form-select" id="responsable_area" name="responsable_id">
-                            <option value="">Sin asignar</option>
+                        <label for="responsable_area" class="form-label">Responsable en nueva área <span class="text-danger">*</span></label>
+                        <select class="form-select" id="responsable_area" name="responsable_id" required>
+                            <option value="">Seleccionar responsable...</option>
                             {% for user in users if current_user.rol.value in ['admin', 'operaciones'] or user.id == current_user.id %}
                             <option value="{{ user.id }}">{{ user.nombre_completo }}</option>
                             {% endfor %}
                         </select>
+                        <div class="form-text">Es obligatorio asignar un responsable para avanzar de área</div>
                     </div>
 
                     <div class="mb-3">
@@ -418,14 +458,86 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!window.areasTooltipsInitialized) {
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
+            return new bootstrap.Tooltip(tooltipTriggerEl, {
+                placement: 'top',
+                trigger: 'hover'
+            });
         });
         window.areasTooltipsInitialized = true;
     }
 });
 
+// Refresh tooltips after AJAX updates
+function refreshTooltips() {
+    // Dispose old tooltips
+    var existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    existingTooltips.forEach(function(element) {
+        var tooltip = bootstrap.Tooltip.getInstance(element);
+        if (tooltip) {
+            tooltip.dispose();
+        }
+    });
+
+    // Reinitialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+            placement: 'top',
+            trigger: 'hover'
+        });
+    });
+}
+
 // Modal management functions
 let currentOrderId = null;
+
+async function advanceStateDirectly(orderId, orderCode, areaId) {
+    if (!confirm(`¿Avanzar orden ${orderCode} al siguiente estado?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/areas/api/avanzar-estado-directo`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                orden_id: orderId,
+                area_id: areaId
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Show success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            alertDiv.innerHTML = `
+                <strong>¡Éxito!</strong> ${result.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+
+            // Auto-dismiss after 3 seconds
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+
+            // Refresh the page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            alert(`Error: ${result.message}`);
+        }
+    } catch (error) {
+        console.error('Error advancing state:', error);
+        alert('Error de conexión');
+    }
+}
 
 async function showStateChangeModal(orderId, currentStateName, areaName) {
     currentOrderId = orderId;
@@ -485,12 +597,18 @@ function showAdvanceAreaModal(orderId, orderCode, currentArea) {
     form.action = `/areas/orden/${orderId}/avanzar-area`;
 
     content.innerHTML = `
-        <div class="alert alert-info">
+        <div class="alert alert-warning">
+            <h6><i class="fas fa-exclamation-triangle"></i> Avance de Área Requiere Aprobación</h6>
             <p><strong>Orden:</strong> ${orderCode}</p>
             <p><strong>Área Actual:</strong> ${currentArea}</p>
-            <p>Esta orden avanzará a la siguiente área en la secuencia de producción.</p>
+            <p>Esta orden avanzará a la siguiente área. <strong>Debe asignar un responsable</strong> para el avance.</p>
         </div>
     `;
+
+    // Make responsable field required
+    const responsableSelect = document.getElementById('responsable_area');
+    responsableSelect.required = true;
+    responsableSelect.parentElement.querySelector('label').innerHTML = 'Responsable en nueva área <span class="text-danger">*</span>';
 
     modal.show();
 }

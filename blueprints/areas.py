@@ -148,6 +148,57 @@ def mis_pendientes():
         return redirect(url_for('areas.dashboard'))
 
 
+@areas_bp.route('/api/avanzar-estado-directo', methods=['POST'])
+@login_required
+def api_advance_state_directly():
+    """API endpoint to advance state directly without modal"""
+    try:
+        data = request.get_json()
+        orden_id = data.get('orden_id')
+        area_id = data.get('area_id')
+
+        if not orden_id or not area_id:
+            return error_response("Orden ID y Área ID son requeridos")
+
+        # Get current progress
+        from repositories.areas_repository import OrdenAreaProgresoRepository
+        progreso_repo = OrdenAreaProgresoRepository()
+        current_progress = progreso_repo.get_current_progress(orden_id)
+
+        if not current_progress:
+            return error_response("Orden no encontrada en sistema de áreas")
+
+        # Get area states to find next state
+        area_estados = AreasRepository.get_estados_by_area(area_id)
+        current_estado_order = current_progress.estado.orden_en_area
+        
+        # Find next state in sequence
+        next_estado = None
+        for estado in area_estados:
+            if estado.orden_en_area == current_estado_order + 1:
+                next_estado = estado
+                break
+
+        if not next_estado:
+            return error_response("No hay siguiente estado disponible en esta área")
+
+        # Change to next state
+        updated_progress = areas_service.change_estado_in_area(
+            orden_id=orden_id,
+            nuevo_estado_id=next_estado.id,
+            responsable_id=current_user.id
+        )
+
+        return success_response({
+            'message': f'Estado avanzado a: {next_estado.nombre}',
+            'nuevo_estado': next_estado.nombre
+        })
+
+    except Exception as e:
+        logger.error(f"Error avanzando estado directamente: {str(e)}")
+        return error_response(f"Error: {str(e)}")
+
+
 @areas_bp.route('/api/change-estado', methods=['POST'])
 @login_required
 def api_change_estado():
