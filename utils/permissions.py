@@ -63,12 +63,13 @@ PERMISSIONS = {
 ROLE_PERMISSIONS = {
     'admin': 'all',  # Acceso completo
     'general': [
-        'clients.view', 'clients.create', 'clients.edit',
-        'projects.view', 'projects.create', 'projects.edit', 'projects.archive',
-        'orders.view', 'orders.create', 'orders.edit', 'orders.approve',
+        'clients.view', 'clients.create', 'clients.edit', 'clients.delete',
+        'projects.view', 'projects.create', 'projects.edit', 'projects.delete', 'projects.archive',
+        'orders.view', 'orders.create', 'orders.edit', 'orders.delete', 'orders.approve',
         'manufacturing.view', 'manufacturing.create', 'manufacturing.edit', 'manufacturing.process',
         'dispatch.view', 'dispatch.create', 'dispatch.edit', 'dispatch.process',
-        'reports.view', 'planning.view', 'planning.edit'
+        'reports.view', 'planning.view', 'planning.edit',
+        'config.view'  # Solo ver configuraciones, no editar
     ],
     'vendedor': [
         'clients.view', 'projects.view', 'projects.create', 'projects.edit',
