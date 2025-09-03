@@ -315,6 +315,8 @@ async function updateContratos() {
             const response = await fetch(`{{ url_for('contratos.api_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId));
             if (response.ok) {
                 const contratos = await response.json();
+                let contratoFound = false;
+                
                 contratos.forEach(contrato => {
                     const option = document.createElement('option');
                     option.value = contrato.id;
@@ -323,27 +325,67 @@ async function updateContratos() {
                     // Restore selection if this was the previously selected contrato
                     if (contrato.id == selectedContrato) {
                         option.selected = true;
+                        contratoFound = true;
                     }
 
                     contratoSelect.appendChild(option);
                 });
 
                 // If we had a selected contrato but it's not in the new list, 
-                // try to restore it by value
-                if (selectedContrato && !contratoSelect.querySelector(`option[value="${selectedContrato}"]`)) {
-                    const option = document.createElement('option');
-                    option.value = selectedContrato;
-                    option.selected = true;
-                    option.textContent = `Contrato ID: ${selectedContrato}`;
-                    contratoSelect.appendChild(option);
+                // preserve it as a special option (this handles edge cases)
+                if (selectedContrato && !contratoFound && selectedContrato !== '') {
+                    // First try to get contrato details
+                    try {
+                        const contratoResponse = await fetch(`{{ url_for('contratos.api_get_contrato', contrato_id=0) }}`.replace('0', selectedContrato));
+                        if (contratoResponse.ok) {
+                            const contratoData = await contratoResponse.json();
+                            const option = document.createElement('option');
+                            option.value = contratoData.id;
+                            option.selected = true;
+                            option.textContent = contratoData.numero_oc + ' - ' + (contratoData.proyecto_nombre || 'Proyecto diferente');
+                            contratoSelect.appendChild(option);
+                        }
+                    } catch (e) {
+                        // Fallback: create option with just the ID
+                        const option = document.createElement('option');
+                        option.value = selectedContrato;
+                        option.selected = true;
+                        option.textContent = `Contrato ID: ${selectedContrato} (verificar)`;
+                        contratoSelect.appendChild(option);
+                    }
                 }
             } else {
                 console.error('Error loading contratos:', response.status);
-                contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
+                // Preserve selected value even on error
+                if (selectedContrato) {
+                    contratoSelect.innerHTML = `
+                        <option value="">Sin contrato asociado</option>
+                        <option value="${selectedContrato}" selected>Contrato ID: ${selectedContrato} (error al cargar)</option>
+                    `;
+                } else {
+                    contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
+                }
             }
         } catch (error) {
             console.error('Error loading contratos:', error);
-            contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
+            // Preserve selected value even on error
+            if (selectedContrato) {
+                contratoSelect.innerHTML = `
+                    <option value="">Sin contrato asociado</option>
+                    <option value="${selectedContrato}" selected>Contrato ID: ${selectedContrato} (error al cargar)</option>
+                `;
+            } else {
+                contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
+            }
+        }
+    } else {
+        // If no proyecto selected, but we have a contrato, preserve it
+        if (selectedContrato) {
+            const option = document.createElement('option');
+            option.value = selectedContrato;
+            option.selected = true;
+            option.textContent = `Contrato ID: ${selectedContrato} (seleccionar proyecto)`;
+            contratoSelect.appendChild(option);
         }
     }
 }
@@ -354,8 +396,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const contratoSelect = document.getElementById('contrato_id');
 
     if (proyectoSelect) {
-        // If we're editing (proyecto already selected), load contratos immediately
-        if (proyectoSelect.value) {
+        // Only load contratos on page load if we're in create mode OR if no contrato is pre-selected
+        const isEditMode = proyectoSelect.value && contratoSelect.value;
+        
+        if (proyectoSelect.value && !isEditMode) {
             updateContratos();
         }
 
@@ -372,8 +416,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add event listeners for cascade selects
     clienteSelect.addEventListener('change', function() {
         updateProyectos().then(() => {
-            // Clear contratos when cliente changes
-            updateContratos();
+            // Only clear contratos when cliente changes if we're in create mode
+            const contratoSelect = document.getElementById('contrato_id');
+            const isEditMode = contratoSelect.value && contratoSelect.value !== '';
+            
+            if (!isEditMode) {
+                updateContratos();
+            }
         });
     });
 
