@@ -75,7 +75,7 @@ class DespachoBase(BaseModel):
 
 
 class DespachoCreate(DespachoBase):
-    ordenes_fabricacion: List[DespachoOrdenFabricacionCreate] = Field(..., min_length=1, description="Lista de órdenes de fabricación a incluir")
+    ordenes_fabricacion: List[DespachoOrdenFabricacionCreate] = Field(default=[], description="Lista de órdenes de fabricación a incluir")
 
 class DespachoUpdate(BaseModel):
     proyecto_id: Optional[int] = None

@@ -32,26 +32,26 @@ def index():
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int)
         }
-        
+
         # Add optional filters only if they exist and are valid
         if request.args.get('proyecto_id'):
             try:
                 filters_data['proyecto_id'] = int(request.args.get('proyecto_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('numero_oc', '').strip():
             filters_data['numero_oc'] = request.args.get('numero_oc').strip()
-            
+
         if request.args.get('estado', '').strip():
             filters_data['estado'] = request.args.get('estado').strip()
-            
+
         if request.args.get('moneda', '').strip():
             filters_data['moneda'] = request.args.get('moneda').strip()
-            
+
         if request.args.get('fecha_emision_desde', '').strip():
             filters_data['fecha_emision_desde'] = request.args.get('fecha_emision_desde').strip()
-            
+
         if request.args.get('fecha_emision_hasta', '').strip():
             filters_data['fecha_emision_hasta'] = request.args.get('fecha_emision_hasta').strip()
 
@@ -640,3 +640,55 @@ def api_sincronizar_eventos_calendario():
             'success': False,
             'message': 'Error interno del servidor'
         }), 500
+
+@contratos_bp.route('/api/<int:contrato_id>/adjuntos', methods=['GET'])
+@login_required
+def api_adjuntos(contrato_id):
+    """API to get contract attachments"""
+    try:
+        contrato = contratos_service.get_contrato_by_id(contrato_id)
+        if not contrato:
+            return jsonify({'error': 'Contrato no encontrado'}), 404
+
+        adjuntos = []
+        for adjunto in contrato.adjuntos:
+            adjuntos.append({
+                'id': adjunto.id,
+                'filename': adjunto.filename,
+                'tipo': adjunto.tipo.value,
+                'size_bytes': adjunto.size_bytes,
+                'created_at': adjunto.created_at.isoformat() if adjunto.created_at else None,
+                'download_url': url_for('contratos.download_adjunto', contrato_id=contrato_id, adjunto_id=adjunto.id)
+            })
+
+        return jsonify(adjuntos)
+
+    except Exception as e:
+        logger.error(f"Error getting contract attachments: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@contratos_bp.route('/api/<int:contrato_id>/hitos', methods=['GET'])
+@login_required
+def api_hitos_by_contrato(contrato_id):
+    """API to get delivery milestones by contract"""
+    try:
+        contrato = contratos_service.get_contrato_by_id(contrato_id)
+        if not contrato:
+            return jsonify({'error': 'Contrato no encontrado'}), 404
+
+        hitos = []
+        if contrato.plan_entrega:
+            for hito in contrato.plan_entrega.hitos:
+                hitos.append({
+                    'id': hito.id,
+                    'descripcion': hito.descripcion,
+                    'fecha_programada': hito.fecha_programada.isoformat() if hito.fecha_programada else None,
+                    'estado': hito.estado.value,
+                    'orden': hito.orden
+                })
+
+        return jsonify(hitos)
+
+    except Exception as e:
+        logger.error(f"Error getting contract milestones: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500

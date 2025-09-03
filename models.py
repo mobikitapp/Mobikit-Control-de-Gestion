@@ -353,6 +353,7 @@ class Contrato(db.Model):
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
 
     # Relationships
+    proyecto = db.relationship('Proyecto', backref='contratos', lazy=True)
     adjuntos = db.relationship('ContratoAdjunto', backref='contrato', lazy=True, cascade='all, delete-orphan')
     ordenes_fabricacion = db.relationship('OrdenFabricacion', backref='contrato', lazy=True)
     plan_entrega = db.relationship('PlanEntrega', backref='contrato', uselist=False, cascade='all, delete-orphan')
@@ -443,7 +444,7 @@ class HitoEntrega(db.Model):
     creator = db.relationship('User', foreign_keys=[created_by])
     completado_por_user = db.relationship('User', foreign_keys=[completado_por])
     evento_entrega = db.relationship('EventoEntrega', backref='hito', uselist=False)
-    despachos = db.relationship('Despacho', foreign_keys='Despacho.hito_entrega_id', backref='hito_entrega_rel', lazy=True)
+    despachos = db.relationship('Despacho', foreign_keys='Despacho.hito_entrega_id', overlaps="despachos_hito,hito_entrega", lazy=True)
 
     # Indexes
     __table_args__ = (
@@ -627,7 +628,7 @@ class Despacho(db.Model):
     # Relationships
     adjuntos = db.relationship('DespachoAdjunto', backref='despacho', lazy=True, cascade='all, delete-orphan')
     contrato = db.relationship('Contrato', foreign_keys=[contrato_id])
-    hito_entrega = db.relationship('HitoEntrega', foreign_keys=[hito_entrega_id], backref='despachos_hito')
+    hito_entrega = db.relationship('HitoEntrega', foreign_keys=[hito_entrega_id], overlaps="despachos,hito_entrega_rel")
     creator = db.relationship('User', foreign_keys=[created_by])
 
     # Indexes
@@ -973,8 +974,8 @@ class EventoEntrega(db.Model):
 
     # Relationships
     contrato = db.relationship('Contrato', foreign_keys=[contrato_id])
-    proyecto = db.relationship('Proyecto', foreign_keys=[proyecto_id])
-    hito_entrega = db.relationship('HitoEntrega', foreign_keys=[hito_entrega_id])
+    proyecto = db.relationship('Proyecto', foreign_keys=[proyecto_id], overlaps="eventos_entrega")
+    hito_entrega = db.relationship('HitoEntrega', foreign_keys=[hito_entrega_id], overlaps="evento_entrega,hito")
     creator = db.relationship('User', foreign_keys=[created_by])
     completed_by_user = db.relationship('User', foreign_keys=[completado_por])
 

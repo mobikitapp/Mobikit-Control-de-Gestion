@@ -11,9 +11,14 @@ from services.fabricacion_service import FabricacionService
 from services.clientes_service import ClientesService
 # Importar el servicio de contratos (asumiendo que existe)
 from services.contratos_service import ContratosService
-from schemas.despachos import (DespachoCreate, DespachoUpdate, DespachoSearchFilters, 
+from schemas.despachos import (DespachoCreate, DespachoUpdate, DespachoSearchFilters,
                              CambioEstadoDespacho)
+from repositories.despachos_repo import DespachosRepository
+from repositories.proyectos_repo import ProyectosRepository
+from repositories.contratos_repo import ContratosRepository
+from repositories.fabricacion_repo import FabricacionRepository
 import logging
+import json # Ensure json is imported
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +29,10 @@ proyectos_service = ProyectosService()
 fabricacion_service = FabricacionService()
 clientes_service = ClientesService()
 contratos_service = ContratosService() # Instanciar el servicio de contratos
+despachos_repo = DespachosRepository()
+proyectos_repo = ProyectosRepository()
+contratos_repo = ContratosRepository()
+fabrication_repo = FabricacionRepository()
 
 @despachos_bp.route('/api/contratos/cliente/<int:cliente_id>')
 @require_login
@@ -40,6 +49,23 @@ def api_contratos_by_cliente(cliente_id):
         logger.error(f"Error loading contratos for cliente {cliente_id}: {str(e)}")
         return jsonify({'error': 'Error al cargar contratos'}), 500
 
+@despachos_bp.route('/api/fabricacion/by_proyecto/<int:proyecto_id>')
+@require_login
+def api_fabricacion_by_proyecto(proyecto_id):
+    """API endpoint to get órdenes de fabricación by proyecto"""
+    try:
+        ofs = fabricacion_service.get_by_proyecto(proyecto_id)
+        return jsonify([{
+            'id': of.id,
+            'codigo': of.codigo,
+            'descripcion': of.descripcion,
+            'cantidad_total': of.cantidad_total,
+            'estado': of.estado.value if hasattr(of.estado, 'value') else str(of.estado)
+        } for of in ofs])
+    except Exception as e:
+        logger.error(f"Error loading OFs for proyecto {proyecto_id}: {str(e)}")
+        return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
+
 
 @despachos_bp.route('/')
 @require_login
@@ -51,38 +77,38 @@ def index():
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int)
         }
-        
+
         # Add optional filters only if they exist and are valid
         if request.args.get('proyecto_id'):
             try:
                 filters_data['proyecto_id'] = int(request.args.get('proyecto_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('contrato_id'):
             try:
                 filters_data['contrato_id'] = int(request.args.get('contrato_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('of_id'):
             try:
                 filters_data['of_id'] = int(request.args.get('of_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('numero_despacho', '').strip():
             filters_data['numero_despacho'] = request.args.get('numero_despacho').strip()
-            
+
         if request.args.get('estado', '').strip():
             filters_data['estado'] = request.args.get('estado').strip()
-            
+
         if request.args.get('responsable_nombre', '').strip():
             filters_data['responsable_nombre'] = request.args.get('responsable_nombre').strip()
-            
+
         if request.args.get('fecha_programada_desde', '').strip():
             filters_data['fecha_programada_desde'] = request.args.get('fecha_programada_desde').strip()
-            
+
         if request.args.get('fecha_programada_hasta', '').strip():
             filters_data['fecha_programada_hasta'] = request.args.get('fecha_programada_hasta').strip()
 
@@ -95,7 +121,7 @@ def index():
         # Get data for filter dropdowns
         clientes = clientes_service.get_active_clientes()
         # Obtener contratos para el filtro (se podría mejorar para filtrar por cliente si se selecciona)
-        contratos = contratos_service.get_all_contratos() 
+        contratos = contratos_service.get_all_contratos()
 
         # Calculate pagination
         total_pages = (total_count + filters.per_page - 1) // filters.per_page
@@ -128,8 +154,8 @@ def nuevo():
         clientes = clientes_service.get_active_clientes()
         # Para el formulario de creación, no es necesario cargar todos los contratos aún,
         # se cargarán dinámicamente por cliente.
-        return render_template('despachos/form.html', 
-                             despacho=None, 
+        return render_template('despachos/form.html',
+                             despacho=None,
                              clientes=clientes,
                              contratos=None, # Inicialmente sin contratos
                              title="Nuevo Despacho")
@@ -146,23 +172,129 @@ def crear():
         # Validar datos del formulario
         # Se asume que el formulario enviará 'proyecto_id' o 'contrato_id'
         form_data = request.form.to_dict()
-        
+
         # Lógica para determinar si se usa proyecto o contrato
         if 'contrato_id' in form_data and form_data['contrato_id']:
+            # Convert estado to uppercase for enum compatibility
+            if 'estado' in form_data:
+                form_data['estado'] = form_data['estado'].upper()
+
+            # Process selected_ofs if provided
+            ordenes_fabricacion = []
+            if 'selected_ofs' in form_data and form_data['selected_ofs']:
+                try:
+                    selected_ofs = json.loads(form_data['selected_ofs'])
+
+                    for of_data in selected_ofs:
+                        if of_data.get('of_id'):
+                            # Get OF details to determine cantidad_total
+                            of = fabrication_repo.get_by_id(int(of_data['of_id']))
+                            if of:
+                                # For total dispatch, use all tableros; for partial, use specified cantidad
+                                tipo_despacho = of_data.get('tipo_despacho', 'TOTAL').upper()
+
+                                if tipo_despacho == 'TOTAL':
+                                    cantidad_despachada = of.cantidad_tableros or 1
+                                else:
+                                    cantidad_despachada = float(of_data.get('cantidad_despachada', 1))
+
+                                ordenes_fabricacion.append({
+                                    'orden_fabricacion_id': of.id,
+                                    'tipo_despacho': tipo_despacho,
+                                    'cantidad_despachada': cantidad_despachada,
+                                    'cantidad_total': of.cantidad_tableros or 1,
+                                    'observaciones': of_data.get('observaciones', '')
+                                })
+
+                    # Remove the processed selected_ofs field
+                    del form_data['selected_ofs']
+
+                except (json.JSONDecodeError, ValueError, KeyError) as e:
+                    logger.error(f"Error procesando selected_ofs: {e}")
+                    flash('Error procesando las órdenes de fabricación seleccionadas', 'danger')
+                    return redirect(url_for('despachos.nuevo'))
+
+            # Set ordenes_fabricacion (can be empty for generic dispatches)
+            form_data['ordenes_fabricacion'] = ordenes_fabricacion
+
+
+            # Clean up dynamic form fields that aren't part of the schema
+            fields_to_remove = []
+            for key in form_data.keys():
+                if key.startswith('tipo_despacho_') or key.startswith('cantidad_'):
+                    fields_to_remove.append(key)
+
+            for field in fields_to_remove:
+                del form_data[field]
+
+            # Parse and validate form data using Pydantic
             despacho_data = DespachoCreate(**form_data)
             # Asociar OFs seleccionadas al despacho
-            of_ids = request.form.getlist('ordenes_fabricacion')
-            despacho_data.ordenes_fabricacion_ids = [int(id) for id in of_ids]
+            # of_ids = request.form.getlist('ordenes_fabricacion') # This line is no longer needed as 'ordenes_fabricacion' is now a processed list
+            # despacho_data.ordenes_fabricacion_ids = [int(id) for id in of_ids] # This line is no longer needed
         elif 'proyecto_id' in form_data and form_data['proyecto_id']:
+            # Convert estado to uppercase for enum compatibility
+            if 'estado' in form_data:
+                form_data['estado'] = form_data['estado'].upper()
+
+            # Process selected_ofs if provided
+            ordenes_fabricacion = []
+            if 'selected_ofs' in form_data and form_data['selected_ofs']:
+                try:
+                    selected_ofs = json.loads(form_data['selected_ofs'])
+
+                    for of_data in selected_ofs:
+                        if of_data.get('of_id'):
+                            # Get OF details to determine cantidad_total
+                            of = fabrication_repo.get_by_id(int(of_data['of_id']))
+                            if of:
+                                # For total dispatch, use all tableros; for partial, use specified cantidad
+                                tipo_despacho = of_data.get('tipo_despacho', 'TOTAL').upper()
+
+                                if tipo_despacho == 'TOTAL':
+                                    cantidad_despachada = of.cantidad_tableros or 1
+                                else:
+                                    cantidad_despachada = float(of_data.get('cantidad_despachada', 1))
+
+                                ordenes_fabricacion.append({
+                                    'orden_fabricacion_id': of.id,
+                                    'tipo_despacho': tipo_despacho,
+                                    'cantidad_despachada': cantidad_despachada,
+                                    'cantidad_total': of.cantidad_tableros or 1,
+                                    'observaciones': of_data.get('observaciones', '')
+                                })
+
+                    # Remove the processed selected_ofs field
+                    del form_data['selected_ofs']
+
+                except (json.JSONDecodeError, ValueError, KeyError) as e:
+                    logger.error(f"Error procesando selected_ofs: {e}")
+                    flash('Error procesando las órdenes de fabricación seleccionadas', 'danger')
+                    return redirect(url_for('despachos.nuevo'))
+
+            # Set ordenes_fabricacion (can be empty for generic dispatches)
+            form_data['ordenes_fabricacion'] = ordenes_fabricacion
+
+
+            # Clean up dynamic form fields that aren't part of the schema
+            fields_to_remove = []
+            for key in form_data.keys():
+                if key.startswith('tipo_despacho_') or key.startswith('cantidad_'):
+                    fields_to_remove.append(key)
+
+            for field in fields_to_remove:
+                del form_data[field]
+
+            # Parse and validate form data using Pydantic
             despacho_data = DespachoCreate(**form_data)
             # Asociar OFs seleccionadas al despacho
-            of_ids = request.form.getlist('ordenes_fabricacion')
-            despacho_data.ordenes_fabricacion_ids = [int(id) for id in of_ids]
+            # of_ids = request.form.getlist('ordenes_fabricacion') # This line is no longer needed as 'ordenes_fabricacion' is now a processed list
+            # despacho_data.ordenes_fabricacion_ids = [int(id) for id in of_ids] # This line is no longer needed
         else:
             flash('Debe seleccionar un contrato o un proyecto', 'error')
             clientes = clientes_service.get_active_clientes()
-            return render_template('despachos/form.html', 
-                                 despacho=None, 
+            return render_template('despachos/form.html',
+                                 despacho=None,
                                  clientes=clientes,
                                  contratos=None,
                                  title="Nuevo Despacho")
@@ -173,8 +305,8 @@ def crear():
 
         # Crear despacho con archivos
         despacho = despachos_service.create_despacho_with_files(
-            despacho_data.dict(), 
-            archivos, 
+            despacho_data.dict(),
+            archivos,
             current_user.id
         )
 
@@ -187,8 +319,8 @@ def crear():
             flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
         clientes = clientes_service.get_active_clientes()
         # Intentar recuperar los datos del formulario para volver a mostrarlos
-        return render_template('despachos/form.html', 
-                             despacho=None, 
+        return render_template('despachos/form.html',
+                             despacho=None,
                              clientes=clientes,
                              contratos=None, # Si hubo error, limpiar contratos
                              title="Nuevo Despacho")
@@ -196,8 +328,8 @@ def crear():
         logger.error(f"Error creando despacho: {str(e)}")
         flash('Error al crear despacho', 'error')
         clientes = clientes_service.get_active_clientes()
-        return render_template('despachos/form.html', 
-                             despacho=None, 
+        return render_template('despachos/form.html',
+                             despacho=None,
                              clientes=clientes,
                              contratos=None,
                              title="Nuevo Despacho")
@@ -239,13 +371,13 @@ def editar(despacho_id):
         contratos = []
         if despacho.cliente_id:
             contratos = contratos_service.get_contratos_by_cliente(despacho.cliente_id)
-        
+
         # Cargar OFs asociadas al contrato del despacho, si existe
         ordenes_fabricacion = []
         if despacho.contrato_id:
             ordenes_fabricacion = fabricacion_service.get_ordenes_by_contrato(despacho.contrato_id)
 
-        return render_template('despachos/form.html', 
+        return render_template('despachos/form.html',
                              despacho=despacho,
                              clientes=clientes,
                              contratos=contratos, # Pasar contratos a la plantilla
@@ -273,7 +405,7 @@ def actualizar(despacho_id):
         # Manejar la actualización de las órdenes de fabricación asociadas si es necesario
         # Esto podría implicar eliminar las existentes y agregar las nuevas, o una lógica más compleja.
         # Por ahora, asumimos que las OFs no se modifican directamente desde este formulario o se manejan de otra manera.
-        
+
         # Actualizar despacho
         despacho_actualizado = despachos_service.update_despacho(despacho_id, update_data.dict(exclude_unset=True))
 
@@ -292,8 +424,8 @@ def actualizar(despacho_id):
         ordenes_fabricacion = []
         if despacho.contrato_id:
             ordenes_fabricacion = fabricacion_service.get_ordenes_by_contrato(despacho.contrato_id)
-            
-        return render_template('despachos/form.html', 
+
+        return render_template('despachos/form.html',
                              despacho=despacho,
                              clientes=clientes,
                              contratos=contratos,
@@ -383,8 +515,8 @@ def eliminar(despacho_id):
 
 
 # API routes for cascading selects
-@despachos_bp.route('/api/ordenes-fabricacion/contrato/<int:contrato_id>')
-@require_login  
+@despachos_bp.route('/api/ofs_by_contrato/<int:contrato_id>')
+@require_login
 def api_ofs_by_contrato(contrato_id):
     """API para obtener órdenes de fabricación por contrato"""
     try:
@@ -399,6 +531,31 @@ def api_ofs_by_contrato(contrato_id):
         logger.error(f"Error obteniendo OFs para contrato {contrato_id}: {str(e)}")
         return jsonify([]), 500
 
+# Add the new API endpoint for hitos by contrato
+@despachos_bp.route('/api/hitos_by_contrato/<int:contrato_id>')
+@require_login
+def api_hitos_by_contrato(contrato_id):
+    """API para obtener hitos de entrega por contrato"""
+    try:
+        from models import HitoEntrega, PlanEntrega, EstadoHitoEntrega
+
+        hitos = db.session.query(HitoEntrega).join(
+            PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id
+        ).filter(
+            PlanEntrega.contrato_id == contrato_id,
+            HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE
+        ).order_by(HitoEntrega.fecha_programada).all()
+
+        return jsonify([{
+            'id': hito.id,
+            'descripcion': hito.descripcion or hito.titulo,
+            'fecha_programada': hito.fecha_programada.isoformat()
+        } for hito in hitos])
+
+    except Exception as e:
+        logger.error(f"Error obteniendo hitos para contrato {contrato_id}: {str(e)}")
+        return jsonify([]), 500
+
 # ================ NUEVAS RUTAS PARA PLANIFICACIÓN DE DESPACHOS ================
 
 @despachos_bp.route('/planificacion')
@@ -408,19 +565,19 @@ def planificacion():
     try:
         # Obtener vista jerárquica de planificación
         vista_planificacion = planificacion_service.get_vista_planificacion()
-        
+
         # Obtener hitos próximos a vencer
         hitos_proximos = planificacion_service.get_hitos_proximos_vencimiento(7)
-        
+
         # Obtener estadísticas
         estadisticas = planificacion_service.get_estadisticas_planificacion()
-        
+
         return render_template('despachos/planificacion.html',
                              vista_planificacion=vista_planificacion,
                              hitos_proximos=hitos_proximos,
                              estadisticas=estadisticas,
                              page_title="Planificación de Despachos")
-        
+
     except Exception as e:
         logger.error(f"Error en vista de planificación: {str(e)}")
         flash('Error al cargar la planificación de despachos', 'error')
@@ -432,7 +589,7 @@ def api_planificacion():
     """API endpoint para la vista de planificación (AJAX)"""
     try:
         vista_planificacion = planificacion_service.get_vista_planificacion()
-        
+
         # Convertir a dict para JSON response
         response_data = {
             'clientes': [
@@ -463,9 +620,9 @@ def api_planificacion():
             'total_hitos_pendientes': vista_planificacion.total_hitos_pendientes,
             'total_hitos_proximos': vista_planificacion.total_hitos_proximos
         }
-        
+
         return jsonify(response_data)
-        
+
     except Exception as e:
         logger.error(f"Error en API planificación: {str(e)}")
         return jsonify({'error': 'Error al cargar planificación'}), 500
@@ -477,7 +634,7 @@ def api_estadisticas_planificacion():
     try:
         estadisticas = planificacion_service.get_estadisticas_planificacion()
         return jsonify(estadisticas)
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo estadísticas: {str(e)}")
         return jsonify({'error': 'Error al cargar estadísticas'}), 500

@@ -137,16 +137,26 @@ class PlanificacionDespachosService:
         """
         try:
             # Obtener el hito con sus relaciones
+            from models import PlanEntrega, Contrato
             hito = db.session.query(HitoEntrega).options(
-                selectinload(HitoEntrega.plan_entrega).selectinload('contrato').selectinload('proyecto')
+                selectinload(HitoEntrega.plan_entrega).selectinload(PlanEntrega.contrato).selectinload(Contrato.proyecto)
             ).filter_by(id=hito_id).first()
             if not hito:
                 return []
             
             # Obtener OFs del proyecto que estén listas para despacho
-            ofs = db.session.query(OrdenFabricacion).filter(
+            from models import OrdenAreaProgreso, Area, AreaEstado, TipoArea
+            ofs = db.session.query(OrdenFabricacion).join(
+                OrdenAreaProgreso, OrdenFabricacion.id == OrdenAreaProgreso.orden_fabricacion_id
+            ).join(
+                Area, OrdenAreaProgreso.area_id == Area.id
+            ).join(
+                AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id
+            ).filter(
                 OrdenFabricacion.proyecto_id == hito.plan_entrega.contrato.proyecto_id,
-                OrdenFabricacion.estado == EstadoOF.LISTO_PARA_DESPACHO
+                OrdenAreaProgreso.es_actual == True,
+                Area.tipo == TipoArea.BODEGA,
+                AreaEstado.codigo == 'listo_para_despacho'
             ).all()
             
             ofs_disponibles = []
@@ -276,9 +286,18 @@ class PlanificacionDespachosService:
                 func.date(Despacho.fecha_programada) >= inicio_mes
             ).count()
             
-            # OFs listas para despacho
-            ofs_listas = db.session.query(OrdenFabricacion).filter(
-                OrdenFabricacion.estado == EstadoOF.LISTO_PARA_DESPACHO
+            # OFs listas para despacho (usando sistema de áreas)
+            from models import OrdenAreaProgreso, Area, AreaEstado, TipoArea
+            ofs_listas = db.session.query(OrdenFabricacion).join(
+                OrdenAreaProgreso, OrdenFabricacion.id == OrdenAreaProgreso.orden_fabricacion_id
+            ).join(
+                Area, OrdenAreaProgreso.area_id == Area.id
+            ).join(
+                AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id
+            ).filter(
+                OrdenAreaProgreso.es_actual == True,
+                Area.tipo == TipoArea.BODEGA,
+                AreaEstado.codigo == 'listo_para_despacho'
             ).count()
             
             return {
