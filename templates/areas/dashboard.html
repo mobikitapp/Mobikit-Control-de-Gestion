@@ -292,42 +292,46 @@
                                                     <div class="action-buttons">
                                                         <!-- Ver detalle de la orden -->
                                                         <a href="{{ url_for('fabricacion.detalle', of_id=order.id) }}" 
-                                                           class="btn btn-outline-info btn-sm" 
+                                                           class="btn btn-info btn-sm" 
                                                            data-bs-toggle="tooltip" 
-                                                           title="Ver detalle">
+                                                           data-bs-placement="top"
+                                                           title="Ver detalle completo de la orden">
                                                             <i class="fas fa-eye"></i>
                                                         </a>
 
                                                         <!-- Editar orden de fabricación -->
                                                         {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
                                                         <a href="{{ url_for('fabricacion.editar', of_id=order.id) }}" 
-                                                           class="btn btn-outline-primary btn-sm" 
+                                                           class="btn btn-primary btn-sm" 
                                                            data-bs-toggle="tooltip" 
-                                                           title="Editar">
-                                                            <i class="fas fa-edit"></i>
+                                                           data-bs-placement="top"
+                                                           title="Editar orden y cambiar estado">
+                                                            <i class="fas fa-pencil-alt"></i>
                                                         </a>
                                                         {% endif %}
 
                                                         <!-- Avanzar inteligente (estado o área según corresponda) -->
                                                         {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
-                                                        <button class="btn btn-outline-success btn-sm" 
+                                                        <button class="btn btn-success btn-sm" 
                                                                 onclick="smartAdvanceOrder({{ order.id }}, '{{ order.codigo }}', '{{ area_data.area.nombre }}', {{ estado_data.estado.es_final|lower }})" 
                                                                 data-bs-toggle="tooltip" 
-                                                                title="{% if estado_data.estado.es_final %}Avanzar a siguiente área{% else %}Avanzar estado{% endif %}">
+                                                                data-bs-placement="top"
+                                                                title="{% if estado_data.estado.es_final %}Avanzar a siguiente área{% else %}Avanzar al siguiente estado{% endif %}">
                                                             {% if estado_data.estado.es_final %}
-                                                            <i class="fas fa-arrow-right"></i>
+                                                            <i class="fas fa-arrow-circle-right"></i>
                                                             {% else %}
-                                                            <i class="fas fa-step-forward"></i>
+                                                            <i class="fas fa-chevron-right"></i>
                                                             {% endif %}
                                                         </button>
                                                         {% endif %}
 
                                                         <!-- Ver historial de áreas -->
                                                         <a href="{{ url_for('areas.orden_history', orden_id=order.id) }}" 
-                                                           class="btn btn-outline-secondary btn-sm" 
+                                                           class="btn btn-secondary btn-sm" 
                                                            data-bs-toggle="tooltip" 
-                                                           title="Historial">
-                                                            <i class="fas fa-history"></i>
+                                                           data-bs-placement="top"
+                                                           title="Ver historial de movimientos">
+                                                            <i class="fas fa-clock"></i>
                                                         </a>
                                                     </div>
                                                 </td>
@@ -450,23 +454,9 @@ setInterval(() => {
     window.location.reload();
 }, 300000);
 
-// Initialize tooltips - only once
-document.addEventListener('DOMContentLoaded', function() {
-    if (!window.areasTooltipsInitialized) {
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl, {
-                placement: 'top',
-                trigger: 'hover'
-            });
-        });
-        window.areasTooltipsInitialized = true;
-    }
-});
-
-// Refresh tooltips after AJAX updates
-function refreshTooltips() {
-    // Dispose old tooltips
+// Initialize tooltips
+function initializeTooltips() {
+    // Dispose existing tooltips first
     var existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
     existingTooltips.forEach(function(element) {
         var tooltip = bootstrap.Tooltip.getInstance(element);
@@ -475,15 +465,24 @@ function refreshTooltips() {
         }
     });
 
-    // Reinitialize tooltips
+    // Initialize new tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl, {
-            placement: 'top',
-            trigger: 'hover'
+            trigger: 'hover focus'
         });
     });
 }
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeTooltips();
+});
+
+// Refresh tooltips after tab switches
+document.addEventListener('shown.bs.tab', function (e) {
+    setTimeout(initializeTooltips, 100);
+});
 
 // Modal management functions
 let currentOrderId = null;
