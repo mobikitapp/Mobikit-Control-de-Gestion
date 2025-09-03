@@ -7,7 +7,9 @@ from repositories.contratos_repo import ContratosRepository
 from services.audit_service import AuditService, serialize_model
 from services.areas_service import AreasService
 from schemas.fabricacion import OrdenFabricacionSearchFilters
-from models import OrdenFabricacion
+from models import (
+    OrdenFabricacion, OrdenAreaProgreso, AreaEstado, TipoArea, EstadoBodega
+)
 import logging
 
 from typing import TYPE_CHECKING
@@ -416,3 +418,49 @@ class FabricacionService:
         except Exception as e:
             logger.error(f"Error obteniendo OFs pendientes del usuario {user_id}: {str(e)}")
             raise
+
+    def get_ofs_disponibles_para_despacho(self, contrato_id: int) -> List[OrdenFabricacion]:
+        """
+        Obtiene las OFs de un contrato que están disponibles para despacho
+        (en área BODEGA con estado 'listo_para_despacho')
+        
+        Args:
+            contrato_id: ID del contrato
+            
+        Returns:
+            Lista de OFs disponibles para despacho
+        """
+        try:
+            # Obtener todas las OFs del contrato
+            ofs_contrato = self.get_ordenes_by_contrato(contrato_id)
+            ofs_disponibles = []
+            
+            for of in ofs_contrato:
+                # Verificar que la OF tenga progreso activo
+                progreso_actual = db.session.query(OrdenAreaProgreso).filter_by(
+                    orden_fabricacion_id=of.id,
+                    es_actual=True
+                ).first()
+                
+                if not progreso_actual:
+                    continue
+                    
+                # Verificar que esté en área BODEGA
+                if progreso_actual.area.tipo != TipoArea.BODEGA:
+                    continue
+                    
+                # Verificar que esté en estado 'listo_para_despacho'
+                if progreso_actual.estado.codigo != EstadoBodega.LISTO_PARA_DESPACHO.value:
+                    continue
+                    
+                # Agregar información del progreso para uso en la respuesta
+                of.progreso_actual = progreso_actual
+                of.estado_actual = progreso_actual.estado
+                ofs_disponibles.append(of)
+            
+            logger.info(f"Encontradas {len(ofs_disponibles)} OFs disponibles para despacho del contrato {contrato_id}")
+            return ofs_disponibles
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo OFs disponibles para despacho del contrato {contrato_id}: {str(e)}")
+            return []

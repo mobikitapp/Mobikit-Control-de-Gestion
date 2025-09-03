@@ -160,7 +160,8 @@ def create_system_areas():
             'orden_secuencia': 4,
             'color_hex': '#198754',
             'estados': [
-                {'codigo': 'listo_para_despacho', 'nombre': 'Listo para Despacho', 'orden': 1, 'es_inicial': True, 'es_final': True}
+                {'codigo': 'listo_para_despacho', 'nombre': 'Listo para Despacho', 'orden': 1, 'es_inicial': True, 'es_final': False},
+                {'codigo': 'programado_para_despacho', 'nombre': 'Programado para Despacho', 'orden': 2, 'es_inicial': False, 'es_final': True}
             ]
         },
         {

@@ -5,7 +5,7 @@ import logging
 from app import db
 from models import (
     OrdenFabricacion, OrdenAreaProgreso, Area, AreaEstado, 
-    TipoArea, EstadoOF, User, Proyecto
+    TipoArea, EstadoOF, User, Proyecto, EstadoBodega
 )
 from repositories.areas_repository import AreasRepository, OrdenAreaProgresoRepository
 from services.audit_service import AuditService
@@ -138,6 +138,7 @@ class AreasService:
                            responsable_id: str = None, notas: str = None) -> OrdenAreaProgreso:
         """
         Advance OrdenFabricacion to next area in sequence
+        Incluye validación especial para avance desde Bodega a Despacho
         """
         try:
 
@@ -158,6 +159,35 @@ class AreasService:
 
             if not siguiente_area:
                 raise ValueError("No hay siguiente área en la secuencia")
+
+            # VALIDACIÓN ESPECIAL: Avance desde BODEGA a DESPACHO
+            if (current_area.tipo == TipoArea.BODEGA and 
+                siguiente_area.tipo == TipoArea.DESPACHO):
+                
+                # Verificar que la OF está en estado 'programado_para_despacho'
+                if current_progress.estado.codigo != EstadoBodega.PROGRAMADO_PARA_DESPACHO.value:
+                    raise ValueError(
+                        f"OF {orden_fabricacion_id} debe estar en estado 'programado_para_despacho' "
+                        f"para avanzar a Despacho. Estado actual: {current_progress.estado.nombre}"
+                    )
+                
+                # Verificar que la OF tiene un despacho asignado
+                from models import DespachoOrdenFabricacion
+                despacho_asignado = db.session.query(DespachoOrdenFabricacion).filter_by(
+                    orden_fabricacion_id=orden_fabricacion_id
+                ).first()
+                
+                if not despacho_asignado:
+                    raise ValueError(
+                        f"OF {orden_fabricacion_id} debe estar asignada a un despacho "
+                        f"para avanzar al área de Despacho"
+                    )
+                    
+                logger.info(
+                    f"Validación Bodega→Despacho exitosa para OF {orden_fabricacion_id}: "
+                    f"Estado '{current_progress.estado.codigo}', "
+                    f"Despacho {despacho_asignado.despacho_id}"
+                )
 
             # Get initial state for next area
             estado_inicial = self.areas_repo.get_estado_inicial(siguiente_area.id)
@@ -233,6 +263,60 @@ class AreasService:
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error archivando despacho: {str(e)}")
+            raise
+
+    def add_nuevo_estado_bodega(self) -> bool:
+        """
+        Agrega el nuevo estado 'programado_para_despacho' al área de Bodega
+        y actualiza el estado existente para que no sea final
+        """
+        try:
+            # Obtener área de Bodega
+            area_bodega = self.areas_repo.get_area_by_tipo(TipoArea.BODEGA)
+            if not area_bodega:
+                raise ValueError("Área de Bodega no encontrada")
+
+            # Verificar si el estado ya existe
+            estado_existente = db.session.query(AreaEstado).filter_by(
+                area_id=area_bodega.id,
+                codigo=EstadoBodega.PROGRAMADO_PARA_DESPACHO.value
+            ).first()
+            
+            if estado_existente:
+                logger.info("Estado 'programado_para_despacho' ya existe en Bodega")
+                return True
+
+            # Actualizar estado existente para que no sea final
+            estado_listo = db.session.query(AreaEstado).filter_by(
+                area_id=area_bodega.id,
+                codigo=EstadoBodega.LISTO_PARA_DESPACHO.value
+            ).first()
+            
+            if estado_listo:
+                estado_listo.es_final = False
+                
+            # Crear nuevo estado
+            nuevo_estado = AreaEstado(
+                area_id=area_bodega.id,
+                codigo=EstadoBodega.PROGRAMADO_PARA_DESPACHO.value,
+                nombre='Programado para Despacho',
+                descripcion='OF asignada a un despacho programado',
+                orden_en_area=2,
+                es_inicial=False,
+                es_final=True,
+                activo=True,
+                color_hex='#fd7e14'  # Color naranja para diferenciar
+            )
+            
+            db.session.add(nuevo_estado)
+            db.session.commit()
+            
+            logger.info("Estado 'programado_para_despacho' agregado exitosamente al área de Bodega")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error agregando nuevo estado a Bodega: {str(e)}")
             raise
 
     def get_areas_dashboard_data(self) -> Dict[str, Any]:

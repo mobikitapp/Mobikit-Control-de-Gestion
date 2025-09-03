@@ -518,17 +518,20 @@ def eliminar(despacho_id):
 @despachos_bp.route('/api/ofs_by_contrato/<int:contrato_id>')
 @require_login
 def api_ofs_by_contrato(contrato_id):
-    """API para obtener órdenes de fabricación por contrato"""
+    """API para obtener órdenes de fabricación disponibles para despacho por contrato"""
     try:
-        ofs = fabricacion_service.get_ordenes_by_contrato(contrato_id)
+        # Obtener OFs del contrato que están disponibles para despacho
+        ofs_disponibles = fabricacion_service.get_ofs_disponibles_para_despacho(contrato_id)
         return jsonify([{
             'id': of.id,
             'codigo': of.codigo,
             'descripcion': of.descripcion,
-            'estado': of.estado_actual.nombre if of.estado_actual else 'Sin estado'
-        } for of in ofs])
+            'cantidad_total': of.cantidad_total,
+            'estado': of.estado_actual.nombre if of.estado_actual else 'Sin estado',
+            'area_actual': of.progreso_actual.area.nombre if of.progreso_actual else 'Sin área'
+        } for of in ofs_disponibles])
     except Exception as e:
-        logger.error(f"Error obteniendo OFs para contrato {contrato_id}: {str(e)}")
+        logger.error(f"Error obteniendo OFs disponibles para despacho del contrato {contrato_id}: {str(e)}")
         return jsonify([]), 500
 
 # Add the new API endpoint for hitos by contrato
