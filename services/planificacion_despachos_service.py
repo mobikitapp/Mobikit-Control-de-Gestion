@@ -81,9 +81,19 @@ class PlanificacionDespachosService:
                         'hitos_entrega': []
                     }
                 
-                # Verificar si ya tiene despacho creado
-                despacho_creado = len(hito.despachos) > 0
-                despacho_id = hito.despachos[0].id if despacho_creado else None
+                # Verificar si ya tiene despacho creado - manejar de forma segura
+                despacho_creado = False
+                despacho_id = None
+                
+                if hasattr(hito, 'despachos') and hito.despachos:
+                    despacho_creado = len(hito.despachos) > 0
+                    if despacho_creado:
+                        primer_despacho = hito.despachos[0]
+                        # Verificar si es un objeto o diccionario
+                        if hasattr(primer_despacho, 'id'):
+                            despacho_id = primer_despacho.id
+                        elif isinstance(primer_despacho, dict) and 'id' in primer_despacho:
+                            despacho_id = primer_despacho['id']
                 
                 # Obtener OFs disponibles para este hito
                 ofs_disponibles = PlanificacionDespachosService._get_ofs_disponibles_para_hito(hito.id)
@@ -103,28 +113,36 @@ class PlanificacionDespachosService:
                 
                 clientes_dict[cliente.id]['proyectos'][proyecto.id]['hitos_entrega'].append(hito_data)
             
-            # Convertir a formato de respuesta
+            # Convertir a formato de respuesta como diccionarios simples
             clientes_response = []
             for cliente_data in clientes_dict.values():
                 proyectos_response = []
                 for proyecto_data in cliente_data['proyectos'].values():
-                    proyectos_response.append(ProyectoConHitos(
-                        id=proyecto_data['id'],
-                        nombre=proyecto_data['nombre'],
-                        hitos_entrega=[HitoEntregaDespacho(**hito) for hito in proyecto_data['hitos_entrega']]
-                    ))
+                    # Convertir fecha_entrega a objeto datetime para cada hito
+                    hitos_response = []
+                    for hito in proyecto_data['hitos_entrega']:
+                        if isinstance(hito['fecha_entrega'], str):
+                            from datetime import datetime
+                            hito['fecha_entrega'] = datetime.strptime(hito['fecha_entrega'], '%Y-%m-%d').date()
+                        hitos_response.append(hito)
+                    
+                    proyectos_response.append({
+                        'id': proyecto_data['id'],
+                        'nombre': proyecto_data['nombre'],
+                        'hitos_entrega': hitos_response
+                    })
                 
-                clientes_response.append(ClienteConProyectos(
-                    id=cliente_data['id'],
-                    nombre=cliente_data['nombre'],
-                    proyectos=proyectos_response
-                ))
+                clientes_response.append({
+                    'id': cliente_data['id'],
+                    'nombre': cliente_data['nombre'],
+                    'proyectos': proyectos_response
+                })
             
-            return PlanificacionDespachosResponse(
-                clientes=clientes_response,
-                total_hitos_pendientes=total_hitos_pendientes,
-                total_hitos_proximos=total_hitos_proximos
-            )
+            return {
+                'clientes': clientes_response,
+                'total_hitos_pendientes': total_hitos_pendientes,
+                'total_hitos_proximos': total_hitos_proximos
+            }
             
         except Exception as e:
             logger.error(f"Error obteniendo vista de planificación: {str(e)}")
@@ -167,6 +185,14 @@ class PlanificacionDespachosService:
                 cantidad_disponible = cantidad_total - cantidad_despachada
                 
                 if cantidad_disponible > 0:
+                    # Manejar estado de forma segura
+                    estado_valor = 'Sin estado'
+                    if hasattr(of, 'estado') and of.estado:
+                        if hasattr(of.estado, 'value'):
+                            estado_valor = of.estado.value
+                        else:
+                            estado_valor = str(of.estado)
+                    
                     ofs_disponibles.append({
                         'id': of.id,
                         'codigo': of.codigo,
@@ -174,7 +200,7 @@ class PlanificacionDespachosService:
                         'cantidad_total': float(cantidad_total),
                         'cantidad_despachada': float(cantidad_despachada),
                         'cantidad_disponible': float(cantidad_disponible),
-                        'estado': of.estado.value,
+                        'estado': estado_valor,
                         'fecha_entrega_of': of.fecha_entrega_fabrica.isoformat() if of.fecha_entrega_fabrica else None
                     })
             

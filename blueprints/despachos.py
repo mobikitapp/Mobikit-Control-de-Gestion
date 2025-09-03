@@ -369,8 +369,8 @@ def editar(despacho_id):
         clientes = clientes_service.get_active_clientes()
         # Cargar contratos asociados al cliente del despacho, si existe
         contratos = []
-        if despacho.cliente_id:
-            contratos = contratos_service.get_contratos_by_cliente(despacho.cliente_id)
+        if despacho.proyecto and despacho.proyecto.cliente_id:
+            contratos = contratos_service.get_contratos_by_cliente(despacho.proyecto.cliente_id)
 
         # Cargar OFs asociadas al contrato del despacho, si existe
         ordenes_fabricacion = []
@@ -419,8 +419,8 @@ def actualizar(despacho_id):
         clientes = clientes_service.get_active_clientes()
         # Intentar recuperar los contratos y OFs para el formulario de edición
         contratos = []
-        if despacho.cliente_id:
-            contratos = contratos_service.get_contratos_by_cliente(despacho.cliente_id)
+        if despacho.proyecto and despacho.proyecto.cliente_id:
+            contratos = contratos_service.get_contratos_by_cliente(despacho.proyecto.cliente_id)
         ordenes_fabricacion = []
         if despacho.contrato_id:
             ordenes_fabricacion = fabricacion_service.get_ordenes_by_contrato(despacho.contrato_id)
