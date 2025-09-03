@@ -105,9 +105,6 @@
                                     aria-controls="area-{{ area_data.area.id }}" 
                                     aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
                                     style="border-color: {{ area_data.area.color_hex }};">
-                                <span class="badge me-2" style="background-color: {{ area_data.area.color_hex }}; color: white;">
-                                    {{ area_data.area.orden_secuencia }}
-                                </span>
                                 {{ area_data.area.nombre }}
                                 {% if area_data.total_count > 0 %}
                                 <span class="badge bg-secondary ms-2">{{ area_data.total_count }}</span>
