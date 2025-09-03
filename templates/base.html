@@ -42,7 +42,7 @@
                         </a>
                     </li>
 
-                    {% if current_user.rol.value in ['ADMIN', 'GENERAL', 'VENTAS', 'OPERACIONES'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="users" class="me-1"></i>
@@ -62,13 +62,13 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('proyectos.index') }}">Ver Proyectos</a></li>
-                            {% if current_user.rol.value in ['ADMIN', 'GENERAL', 'VENTAS', 'OPERACIONES'] %}
+                            {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
                             <li><a class="dropdown-item" href="{{ url_for('proyectos.nuevo') }}">Nuevo Proyecto</a></li>
                             {% endif %}
                         </ul>
                     </li>
 
-                    {% if current_user.rol.value in ['ADMIN', 'GENERAL', 'VENTAS'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'ventas'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="file-text" class="me-1"></i>
@@ -81,7 +81,7 @@
                     </li>
                     {% endif %}
 
-                    {% if current_user.rol.value in ['ADMIN', 'GENERAL', 'OPERACIONES', 'PRODUCCION'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="tool" class="me-1"></i>
@@ -94,7 +94,7 @@
                     </li>
                     {% endif %}
 
-                    {% if current_user.rol.value == 'VENTAS' %}
+                    {% if current_user.rol.value == 'ventas' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="bar-chart-2" class="me-1"></i>
@@ -118,7 +118,7 @@
                     </li>
                     {% endif %}
 
-                    {% if current_user.rol.value in ['ADMIN', 'GENERAL'] %}
+                    {% if current_user.rol.value in ['admin', 'general'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="trending-up" class="me-1"></i>
@@ -136,7 +136,7 @@
                     </li>
                     {% endif %}
 
-                    {% if current_user.rol.value in ['ADMIN', 'GENERAL', 'OPERACIONES', 'PRODUCCION', 'LOGISTICA'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion', 'logistica'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="layers" class="me-1"></i>
@@ -152,7 +152,7 @@
                     </li>
                     {% endif %}
 
-                    {% if current_user.rol.value in ['ADMIN', 'GENERAL', 'OPERACIONES', 'LOGISTICA'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="truck" class="me-1"></i>
@@ -180,7 +180,7 @@
                             <li><a class="dropdown-item" href="{{ url_for('calendario.lista_eventos') }}">
                                 <i data-feather="list" class="me-2"></i> Todos los Eventos
                             </a></li>
-                            {% if current_user.rol.value in ['ADMIN', 'GENERAL', 'OPERACIONES', 'VENTAS'] %}
+                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'ventas'] %}
                             <li><a class="dropdown-item" href="{{ url_for('calendario.nuevo_evento') }}">
                                 <i data-feather="plus" class="me-2"></i> Nuevo Evento
                             </a></li>
@@ -189,7 +189,7 @@
                     </li>
                     {% endif %}
 
-                    {% if current_user.rol.value == 'ADMIN' %}
+                    {% if current_user.rol.value == 'admin' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="settings" class="me-1"></i>
@@ -216,7 +216,7 @@
                     </li>
                     {% endif %}
 
-                    {% if current_user.rol.value in ['ADMIN', 'GENERAL', 'OPERACIONES', 'PRODUCCION'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="activity" class="me-1"></i>
