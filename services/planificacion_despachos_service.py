@@ -103,28 +103,36 @@ class PlanificacionDespachosService:
                 
                 clientes_dict[cliente.id]['proyectos'][proyecto.id]['hitos_entrega'].append(hito_data)
             
-            # Convertir a formato de respuesta
+            # Convertir a formato de respuesta como diccionarios simples
             clientes_response = []
             for cliente_data in clientes_dict.values():
                 proyectos_response = []
                 for proyecto_data in cliente_data['proyectos'].values():
-                    proyectos_response.append(ProyectoConHitos(
-                        id=proyecto_data['id'],
-                        nombre=proyecto_data['nombre'],
-                        hitos_entrega=[HitoEntregaDespacho(**hito) for hito in proyecto_data['hitos_entrega']]
-                    ))
+                    # Convertir fecha_entrega a objeto datetime para cada hito
+                    hitos_response = []
+                    for hito in proyecto_data['hitos_entrega']:
+                        if isinstance(hito['fecha_entrega'], str):
+                            from datetime import datetime
+                            hito['fecha_entrega'] = datetime.strptime(hito['fecha_entrega'], '%Y-%m-%d').date()
+                        hitos_response.append(hito)
+                    
+                    proyectos_response.append({
+                        'id': proyecto_data['id'],
+                        'nombre': proyecto_data['nombre'],
+                        'hitos_entrega': hitos_response
+                    })
                 
-                clientes_response.append(ClienteConProyectos(
-                    id=cliente_data['id'],
-                    nombre=cliente_data['nombre'],
-                    proyectos=proyectos_response
-                ))
+                clientes_response.append({
+                    'id': cliente_data['id'],
+                    'nombre': cliente_data['nombre'],
+                    'proyectos': proyectos_response
+                })
             
-            return PlanificacionDespachosResponse(
-                clientes=clientes_response,
-                total_hitos_pendientes=total_hitos_pendientes,
-                total_hitos_proximos=total_hitos_proximos
-            )
+            return {
+                'clientes': clientes_response,
+                'total_hitos_pendientes': total_hitos_pendientes,
+                'total_hitos_proximos': total_hitos_proximos
+            }
             
         except Exception as e:
             logger.error(f"Error obteniendo vista de planificación: {str(e)}")
