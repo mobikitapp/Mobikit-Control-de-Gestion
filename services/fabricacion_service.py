@@ -99,7 +99,15 @@ class FabricacionService:
             # Auto-change proyecto estado to EN_DESARROLLO
             from services.proyectos_service import ProyectosService
             proyectos_service = ProyectosService()
-            proyectos_service.actualizar_estado_automatico(proyecto_id, 'en_desarrollo')
+            try:
+                # Try to update project status if method exists
+                if hasattr(proyectos_service, 'actualizar_estado_automatico'):
+                    proyectos_service.actualizar_estado_automatico(proyecto_id, 'en_desarrollo')
+                elif hasattr(proyectos_service, 'update_status'):
+                    proyectos_service.update_status(proyecto_id, 'EN_DESARROLLO')
+            except Exception as e:
+                logger.warning(f"Could not auto-update project status: {e}")
+                # Continue execution even if status update fails
 
             # Log audit
             AuditService.log_action(
@@ -172,7 +180,15 @@ class FabricacionService:
             if contrato_id and contrato_id != of.contrato_id and contrato_id != 'None':
                 from services.contratos_service import ContratosService
                 contratos_service = ContratosService()
-                contratos_service.actualizar_estado_automatico(contrato_id, 'en_desarrollo')
+                try:
+                    # Try to update contract status if method exists
+                    if hasattr(contratos_service, 'actualizar_estado_automatico'):
+                        contratos_service.actualizar_estado_automatico(contrato_id, 'en_desarrollo')
+                    elif hasattr(contratos_service, 'update_status'):
+                        contratos_service.update_status(contrato_id, 'VIGENTE')
+                except Exception as e:
+                    logger.warning(f"Could not auto-update contract status: {e}")
+                    # Continue execution even if status update fails
 
             # Log audit
             AuditService.log_action(
