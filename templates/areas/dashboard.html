@@ -308,33 +308,17 @@
                                                         </a>
                                                         {% endif %}
 
-                                                        <!-- Cambiar estado dentro del área -->
+                                                        <!-- Avanzar inteligente (estado o área según corresponda) -->
                                                         {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
-                                                        <button class="btn btn-outline-warning btn-sm" 
-                                                                onclick="showStateChangeModal({{ order.id }}, '{{ estado_data.estado.nombre }}', '{{ area_data.area.nombre }}')" 
-                                                                data-bs-toggle="tooltip" 
-                                                                title="Cambiar estado">
-                                                            <i class="fas fa-cog"></i>
-                                                        </button>
-                                                        {% endif %}
-
-                                                        <!-- Avanzar estado directo -->
-                                                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] and not estado_data.estado.es_final %}
                                                         <button class="btn btn-outline-success btn-sm" 
-                                                                onclick="advanceStateDirectly({{ order.id }}, '{{ order.codigo }}', {{ area_data.area.id }})" 
+                                                                onclick="smartAdvanceOrder({{ order.id }}, '{{ order.codigo }}', '{{ area_data.area.nombre }}', {{ estado_data.estado.es_final|lower }})" 
                                                                 data-bs-toggle="tooltip" 
-                                                                title="Avanzar estado">
-                                                            <i class="fas fa-step-forward"></i>
-                                                        </button>
-                                                        {% endif %}
-
-                                                        <!-- Avanzar a siguiente área -->
-                                                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] and estado_data.estado.es_final %}
-                                                        <button class="btn btn-outline-success btn-sm" 
-                                                                onclick="showAdvanceAreaModal({{ order.id }}, '{{ order.codigo }}', '{{ area_data.area.nombre }}')" 
-                                                                data-bs-toggle="tooltip" 
-                                                                title="Avanzar área">
+                                                                title="{% if estado_data.estado.es_final %}Avanzar a siguiente área{% else %}Avanzar estado{% endif %}">
+                                                            {% if estado_data.estado.es_final %}
                                                             <i class="fas fa-arrow-right"></i>
+                                                            {% else %}
+                                                            <i class="fas fa-step-forward"></i>
+                                                            {% endif %}
                                                         </button>
                                                         {% endif %}
 
@@ -403,53 +387,7 @@
     </div>
 </div>
 
-<!-- Modal para cambiar estado -->
-<div class="modal fade" id="stateChangeModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Cambiar Estado</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="stateChangeForm" method="POST">
-                <div class="modal-body">
-                    <div id="stateChangeContent">
-                        <p>Cargando estados disponibles...</p>
-                    </div>
 
-                    <div class="mb-3">
-                        <label for="responsable_estado" class="form-label">Responsable (opcional)</label>
-                        <select class="form-select" id="responsable_estado" name="responsable_id">
-                            <option value="">Sin cambios</option>
-                            {% for user in users if current_user.rol.value in ['admin', 'operaciones'] or user.id == current_user.id %}
-                            <option value="{{ user.id }}">{{ user.nombre_completo }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="notas_estado" class="form-label">Notas (opcional)</label>
-                        <textarea class="form-control" id="notas_estado" name="notas" rows="3" 
-                                  placeholder="Comentarios sobre el cambio de estado"></textarea>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="tiempo_estimado" class="form-label">Tiempo Estimado (horas)</label>
-                        <input type="number" class="form-control" id="tiempo_estimado" 
-                               name="tiempo_estimado_horas" step="0.5" min="0" 
-                               placeholder="Tiempo estimado en horas">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-warning">
-                        <i class="fas fa-cog"></i> Cambiar Estado
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 <!-- Modal para avanzar a siguiente área -->
 <div class="modal fade" id="advanceAreaModal" tabindex="-1">
@@ -550,100 +488,60 @@ function refreshTooltips() {
 // Modal management functions
 let currentOrderId = null;
 
-async function advanceStateDirectly(orderId, orderCode, areaId) {
-    if (!confirm(`¿Avanzar orden ${orderCode} al siguiente estado?`)) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`/areas/api/avanzar-estado-directo`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                orden_id: orderId,
-                area_id: areaId
-            })
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            // Show success message
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
-            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-            alertDiv.innerHTML = `
-                <strong>¡Éxito!</strong> ${result.message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.body.appendChild(alertDiv);
-
-            // Auto-dismiss after 3 seconds
-            setTimeout(() => {
-                alertDiv.remove();
-            }, 3000);
-
-            // Refresh the page after a short delay
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        } else {
-            alert(`Error: ${result.message}`);
+async function smartAdvanceOrder(orderId, orderCode, areaName, isFinalState) {
+    if (isFinalState) {
+        // Final state - needs area advance with responsible approval
+        showAdvanceAreaModal(orderId, orderCode, areaName);
+    } else {
+        // Not final state - direct state advance
+        if (!confirm(`¿Avanzar orden ${orderCode} al siguiente estado?`)) {
+            return;
         }
-    } catch (error) {
-        console.error('Error advancing state:', error);
-        alert('Error de conexión');
-    }
-}
 
-async function showStateChangeModal(orderId, currentStateName, areaName) {
-    currentOrderId = orderId;
-
-    const modal = new bootstrap.Modal(document.getElementById('stateChangeModal'));
-    const form = document.getElementById('stateChangeForm');
-    const content = document.getElementById('stateChangeContent');
-
-    // Set form action
-    form.action = `/areas/orden/${orderId}/cambiar-estado`;
-
-    try {
-        // Load available states for the current area
-        const response = await fetch(`/areas/api/estados-disponibles/${orderId}`);
-        if (response.ok) {
-            const data = await response.json();
-
-            let statesHtml = `
-                <div class="mb-3">
-                    <p><strong>Orden:</strong> #${orderId}</p>
-                    <p><strong>Área Actual:</strong> ${areaName}</p>
-                    <p><strong>Estado Actual:</strong> ${currentStateName}</p>
-                </div>
-                <div class="mb-3">
-                    <label for="nuevo_estado_id" class="form-label">Nuevo Estado</label>
-                    <select class="form-select" id="nuevo_estado_id" name="nuevo_estado_id" required>
-                        <option value="">Seleccionar nuevo estado...</option>
-            `;
-
-            data.estados.forEach(estado => {
-                if (estado.nombre !== currentStateName) {
-                    statesHtml += `<option value="${estado.id}">${estado.nombre}</option>`;
-                }
+        try {
+            const response = await fetch(`/areas/api/avanzar-inteligente`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    orden_id: orderId
+                })
             });
 
-            statesHtml += `</select></div>`;
-            content.innerHTML = statesHtml;
-        } else {
-            content.innerHTML = '<div class="alert alert-danger">Error cargando estados disponibles</div>';
-        }
-    } catch (error) {
-        console.error('Error loading states:', error);
-        content.innerHTML = '<div class="alert alert-danger">Error de conexión</div>';
-    }
+            const result = await response.json();
 
-    modal.show();
+            if (response.ok) {
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                alertDiv.innerHTML = `
+                    <strong>¡Éxito!</strong> ${result.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.body.appendChild(alertDiv);
+
+                // Auto-dismiss after 3 seconds
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 3000);
+
+                // Refresh the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                alert(`Error: ${result.message}`);
+            }
+        } catch (error) {
+            console.error('Error advancing order:', error);
+            alert('Error de conexión');
+        }
+    }
 }
+
+
 
 function showAdvanceAreaModal(orderId, orderCode, currentArea) {
     currentOrderId = orderId;
