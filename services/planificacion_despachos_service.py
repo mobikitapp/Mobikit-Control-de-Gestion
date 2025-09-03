@@ -3,9 +3,9 @@ from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session, selectinload, joinedload
 from sqlalchemy import and_, or_, func, desc, asc
 from models import (
-    Cliente, Proyecto, Contrato, HitoEntrega, Despacho, 
+    Cliente, Proyecto, Contrato, HitoEntrega, Despacho,
     OrdenFabricacion, DespachoOrdenFabricacion,
-    EstadoHitoEntrega, EstadoOF, EstadoBodega, TipoDespacho
+    EstadoHitoEntrega, EstadoOF, EstadoBodega, TipoDespacho, Area, AreaEstado, TipoArea, OrdenAreaProgreso
 )
 from schemas.despachos import (
     ClienteConProyectos, ProyectoConHitos, HitoEntregaDespacho,
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class PlanificacionDespachosService:
     """Servicio para la planificación de despachos basada en hitos de entrega"""
-    
+
     @staticmethod
     def get_vista_planificacion() -> PlanificacionDespachosResponse:
         """
@@ -49,22 +49,22 @@ class PlanificacionDespachosService:
                 Proyecto.nombre,
                 HitoEntrega.fecha_programada
             ).all()
-            
+
             # Organizar datos por cliente
             clientes_dict: Dict[int, Dict[str, Any]] = {}
             total_hitos_pendientes = 0
             total_hitos_proximos = 0
             fecha_limite_proximos = date.today() + timedelta(days=7)
-            
+
             for hito in hitos_query:
                 cliente = hito.plan_entrega.contrato.proyecto.cliente
                 proyecto = hito.plan_entrega.contrato.proyecto
-                
+
                 # Contar totales
                 total_hitos_pendientes += 1
                 if hito.fecha_programada <= fecha_limite_proximos:
                     total_hitos_proximos += 1
-                
+
                 # Organizar por cliente
                 if cliente.id not in clientes_dict:
                     clientes_dict[cliente.id] = {
@@ -72,7 +72,7 @@ class PlanificacionDespachosService:
                         'nombre': cliente.nombre,
                         'proyectos': {}
                     }
-                
+
                 # Organizar por proyecto
                 if proyecto.id not in clientes_dict[cliente.id]['proyectos']:
                     clientes_dict[cliente.id]['proyectos'][proyecto.id] = {
@@ -80,11 +80,11 @@ class PlanificacionDespachosService:
                         'nombre': proyecto.nombre,
                         'hitos_entrega': []
                     }
-                
+
                 # Verificar si ya tiene despacho creado - manejar de forma segura
                 despacho_creado = False
                 despacho_id = None
-                
+
                 if hasattr(hito, 'despachos') and hito.despachos:
                     despacho_creado = len(hito.despachos) > 0
                     if despacho_creado:
@@ -94,10 +94,10 @@ class PlanificacionDespachosService:
                             despacho_id = primer_despacho.id
                         elif isinstance(primer_despacho, dict) and 'id' in primer_despacho:
                             despacho_id = primer_despacho['id']
-                
+
                 # Obtener OFs disponibles para este hito
                 ofs_disponibles = PlanificacionDespachosService._get_ofs_disponibles_para_hito(hito.id)
-                
+
                 # Crear datos del hito
                 hito_data = {
                     'id': hito.id,
@@ -110,9 +110,9 @@ class PlanificacionDespachosService:
                     'despacho_id': despacho_id,
                     'ordenes_fabricacion_disponibles': ofs_disponibles
                 }
-                
+
                 clientes_dict[cliente.id]['proyectos'][proyecto.id]['hitos_entrega'].append(hito_data)
-            
+
             # Convertir a formato de respuesta como diccionarios simples
             clientes_response = []
             for cliente_data in clientes_dict.values():
@@ -125,29 +125,29 @@ class PlanificacionDespachosService:
                             from datetime import datetime
                             hito['fecha_entrega'] = datetime.strptime(hito['fecha_entrega'], '%Y-%m-%d').date()
                         hitos_response.append(hito)
-                    
+
                     proyectos_response.append({
                         'id': proyecto_data['id'],
                         'nombre': proyecto_data['nombre'],
                         'hitos_entrega': hitos_response
                     })
-                
+
                 clientes_response.append({
                     'id': cliente_data['id'],
                     'nombre': cliente_data['nombre'],
                     'proyectos': proyectos_response
                 })
-            
+
             return {
                 'clientes': clientes_response,
                 'total_hitos_pendientes': total_hitos_pendientes,
                 'total_hitos_proximos': total_hitos_proximos
             }
-            
+
         except Exception as e:
             logger.error(f"Error obteniendo vista de planificación: {str(e)}")
             raise Exception(f"Error obteniendo vista de planificación: {str(e)}")
-    
+
     @staticmethod
     def _get_ofs_disponibles_para_hito(hito_id: int) -> List[Dict[str, Any]]:
         """
@@ -161,9 +161,8 @@ class PlanificacionDespachosService:
             ).filter_by(id=hito_id).first()
             if not hito:
                 return []
-            
+
             # Obtener OFs del proyecto que estén listas para despacho
-            from models import OrdenAreaProgreso, Area, AreaEstado, TipoArea
             ofs = db.session.query(OrdenFabricacion).join(
                 OrdenAreaProgreso, OrdenFabricacion.id == OrdenAreaProgreso.orden_fabricacion_id
             ).join(
@@ -176,14 +175,14 @@ class PlanificacionDespachosService:
                 Area.tipo == TipoArea.BODEGA,
                 AreaEstado.codigo == 'listo_para_despacho'
             ).all()
-            
+
             ofs_disponibles = []
             for of in ofs:
                 # Calcular cantidad total y cantidad ya despachada
                 cantidad_total = PlanificacionDespachosService._calcular_cantidad_total_of(of.id)
                 cantidad_despachada = PlanificacionDespachosService._calcular_cantidad_despachada_of(of.id)
                 cantidad_disponible = cantidad_total - cantidad_despachada
-                
+
                 if cantidad_disponible > 0:
                     # Manejar estado de forma segura
                     estado_valor = 'Sin estado'
@@ -192,7 +191,7 @@ class PlanificacionDespachosService:
                             estado_valor = of.estado.value
                         else:
                             estado_valor = str(of.estado)
-                    
+
                     ofs_disponibles.append({
                         'id': of.id,
                         'codigo': of.codigo,
@@ -203,13 +202,73 @@ class PlanificacionDespachosService:
                         'estado': estado_valor,
                         'fecha_entrega_of': of.fecha_entrega_fabrica.isoformat() if of.fecha_entrega_fabrica else None
                     })
-            
+
             return ofs_disponibles
-            
+
         except Exception as e:
             logger.error(f"Error obteniendo OFs disponibles para hito {hito_id}: {str(e)}")
             return []
-    
+
+    @staticmethod
+    def get_ofs_disponibles_para_contrato(contrato_id: int) -> List[Dict[str, Any]]:
+        """
+        Obtiene las órdenes de fabricación disponibles para un contrato específico
+        """
+        try:
+            # Obtener el contrato con su proyecto
+            contrato = db.session.query(Contrato).options(
+                selectinload(Contrato.proyecto)
+            ).filter_by(id=contrato_id).first()
+            if not contrato:
+                return []
+
+            # Obtener OFs del proyecto que estén listas para despacho
+            ofs = db.session.query(OrdenFabricacion).join(
+                OrdenAreaProgreso, OrdenFabricacion.id == OrdenAreaProgreso.orden_fabricacion_id
+            ).join(
+                Area, OrdenAreaProgreso.area_id == Area.id
+            ).join(
+                AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id
+            ).filter(
+                OrdenFabricacion.proyecto_id == contrato.proyecto_id,
+                OrdenAreaProgreso.es_actual == True,
+                Area.tipo == TipoArea.BODEGA,
+                AreaEstado.codigo == 'listo_para_despacho'
+            ).all()
+
+            ofs_disponibles = []
+            for of in ofs:
+                # Calcular cantidad total y cantidad ya despachada
+                cantidad_total = PlanificacionDespachosService._calcular_cantidad_total_of(of.id)
+                cantidad_despachada = PlanificacionDespachosService._calcular_cantidad_despachada_of(of.id)
+                cantidad_disponible = cantidad_total - cantidad_despachada
+
+                if cantidad_disponible > 0:
+                    # Manejar estado de forma segura
+                    estado_valor = 'Sin estado'
+                    if hasattr(of, 'estado') and of.estado:
+                        if hasattr(of.estado, 'value'):
+                            estado_valor = of.estado.value
+                        else:
+                            estado_valor = str(of.estado)
+
+                    ofs_disponibles.append({
+                        'id': of.id,
+                        'codigo': of.codigo,
+                        'descripcion': of.descripcion,
+                        'cantidad_total': float(cantidad_total),
+                        'cantidad_despachada': float(cantidad_despachada),
+                        'cantidad_disponible': float(cantidad_disponible),
+                        'estado': estado_valor,
+                        'fecha_entrega_of': of.fecha_entrega_fabrica.isoformat() if of.fecha_entrega_fabrica else None
+                    })
+
+            return ofs_disponibles
+
+        except Exception as e:
+            logger.error(f"Error obteniendo OFs disponibles para contrato {contrato_id}: {str(e)}")
+            return []
+
     @staticmethod
     def _calcular_cantidad_total_of(of_id: int) -> float:
         """Calcula la cantidad total de una OF basada en sus items"""
@@ -221,7 +280,7 @@ class PlanificacionDespachosService:
             return float(total)
         except Exception:
             return 0.0
-    
+
     @staticmethod
     def _calcular_cantidad_despachada_of(of_id: int) -> float:
         """Calcula la cantidad ya despachada de una OF"""
@@ -232,7 +291,7 @@ class PlanificacionDespachosService:
             return float(total)
         except Exception:
             return 0.0
-    
+
     @staticmethod
     def get_hitos_proximos_vencimiento(dias: int = 7) -> List[Dict[str, Any]]:
         """
@@ -240,7 +299,7 @@ class PlanificacionDespachosService:
         """
         try:
             fecha_limite = date.today() + timedelta(days=dias)
-            
+
             from models import PlanEntrega, Contrato
             hitos = db.session.query(HitoEntrega).join(
                 PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id
@@ -259,15 +318,15 @@ class PlanificacionDespachosService:
             ).order_by(
                 HitoEntrega.fecha_programada
             ).all()
-            
+
             hitos_proximos = []
             for hito in hitos:
                 dias_restantes = (hito.fecha_programada - date.today()).days
-                
+
                 # Verificar si ya tiene despacho creado - manejar de forma segura
                 despacho_creado = False
                 despacho_id = None
-                
+
                 if hasattr(hito, 'despachos') and hito.despachos:
                     despacho_creado = len(hito.despachos) > 0
                     if despacho_creado:
@@ -277,7 +336,7 @@ class PlanificacionDespachosService:
                             despacho_id = primer_despacho.id
                         elif isinstance(primer_despacho, dict) and 'id' in primer_despacho:
                             despacho_id = primer_despacho['id']
-                
+
                 hitos_proximos.append({
                     'id': hito.id,
                     'descripcion': hito.descripcion,
@@ -290,13 +349,13 @@ class PlanificacionDespachosService:
                     'despacho_id': despacho_id,
                     'urgente': dias_restantes <= 2
                 })
-            
+
             return hitos_proximos
-            
+
         except Exception as e:
             logger.error(f"Error obteniendo hitos próximos: {str(e)}")
             raise Exception(f"Error obteniendo hitos próximos: {str(e)}")
-    
+
     @staticmethod
     def get_estadisticas_planificacion() -> Dict[str, Any]:
         """
@@ -307,27 +366,26 @@ class PlanificacionDespachosService:
             total_pendientes = db.session.query(HitoEntrega).filter(
                 HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE
             ).count()
-            
+
             # Hitos atrasados
             total_atrasados = db.session.query(HitoEntrega).filter(
                 HitoEntrega.estado == EstadoHitoEntrega.ATRASADO
             ).count()
-            
+
             # Hitos próximos (7 días)
             fecha_limite = date.today() + timedelta(days=7)
             total_proximos = db.session.query(HitoEntrega).filter(
                 HitoEntrega.fecha_programada <= fecha_limite,
                 HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE
             ).count()
-            
+
             # Despachos programados este mes
             inicio_mes = date.today().replace(day=1)
             despachos_mes = db.session.query(Despacho).filter(
                 func.date(Despacho.fecha_programada) >= inicio_mes
             ).count()
-            
+
             # OFs listas para despacho (usando sistema de áreas)
-            from models import OrdenAreaProgreso, Area, AreaEstado, TipoArea
             ofs_listas = db.session.query(OrdenFabricacion).join(
                 OrdenAreaProgreso, OrdenFabricacion.id == OrdenAreaProgreso.orden_fabricacion_id
             ).join(
@@ -339,7 +397,7 @@ class PlanificacionDespachosService:
                 Area.tipo == TipoArea.BODEGA,
                 AreaEstado.codigo == 'listo_para_despacho'
             ).count()
-            
+
             return {
                 'total_hitos_pendientes': total_pendientes,
                 'total_hitos_atrasados': total_atrasados,
@@ -348,7 +406,7 @@ class PlanificacionDespachosService:
                 'ofs_listas_despacho': ofs_listas,
                 'fecha_consulta': date.today().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Error obteniendo estadísticas: {str(e)}")
             raise Exception(f"Error obteniendo estadísticas: {str(e)}")
