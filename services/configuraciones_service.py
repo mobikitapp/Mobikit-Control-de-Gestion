@@ -6,7 +6,7 @@ import secrets
 import string
 
 from app import db
-from models import User, RolUsuario
+from models import User, RolUsuario, ComisionVendedor
 
 
 class ConfiguracionesService:
@@ -423,3 +423,133 @@ class ConfiguracionesService:
             })
         
         return actividad
+
+    # Métodos para gestión de comisiones
+
+    def get_comisiones_vendedores(self):
+        """Get commission settings for all sellers"""
+        
+        # Get all active users with sales role
+        vendedores = (db.session.query(User)
+                     .filter(User.rol.in_([RolUsuario.VENTAS, RolUsuario.ADMIN]))
+                     .filter_by(activo=True)
+                     .order_by(User.first_name, User.last_name)
+                     .all())
+        
+        # Get existing commission settings
+        comisiones_existentes = {
+            c.vendedor_id: c for c in 
+            db.session.query(ComisionVendedor).filter_by(activo=True).all()
+        }
+        
+        # Build result with defaults for missing settings
+        comisiones_vendedores = []
+        for vendedor in vendedores:
+            comision = comisiones_existentes.get(vendedor.id)
+            if not comision:
+                # Create default commission record
+                comision = ComisionVendedor(
+                    vendedor_id=vendedor.id,
+                    comision_provision_pct=3.0,
+                    comision_instalacion_pct=3.0,
+                    created_by=vendedor.id
+                )
+                db.session.add(comision)
+                db.session.flush()  # Get the ID but don't commit yet
+            
+            comisiones_vendedores.append({
+                'vendedor': vendedor,
+                'comision': comision
+            })
+        
+        try:
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
+        return {
+            'comisiones_vendedores': comisiones_vendedores,
+            'total_vendedores': len(vendedores)
+        }
+
+    def actualizar_comision_vendedor(self, vendedor_id: str, comision_provision: float, 
+                                   comision_instalacion: float, updated_by: str) -> Tuple[bool, str]:
+        """Update commission settings for a seller"""
+        try:
+            # Validate that user is a seller
+            vendedor = db.session.query(User).filter_by(id=vendedor_id).first()
+            if not vendedor:
+                return False, "Vendedor no encontrado"
+            
+            if vendedor.rol not in [RolUsuario.VENTAS, RolUsuario.ADMIN]:
+                return False, "El usuario no tiene rol de vendedor"
+            
+            # Get or create commission record
+            comision = db.session.query(ComisionVendedor).filter_by(vendedor_id=vendedor_id).first()
+            if not comision:
+                comision = ComisionVendedor(vendedor_id=vendedor_id, created_by=updated_by)
+                db.session.add(comision)
+            
+            # Update values
+            comision.comision_provision_pct = comision_provision
+            comision.comision_instalacion_pct = comision_instalacion
+            comision.updated_at = datetime.now()
+            
+            db.session.commit()
+            
+            # Log the change
+            self._log_user_action('actualizar_comision', vendedor_id, updated_by, 
+                                f"Comisiones actualizadas: Provisión {comision_provision}%, Instalación {comision_instalacion}%")
+            
+            return True, "Comisiones actualizadas exitosamente"
+            
+        except Exception as e:
+            db.session.rollback()
+            return False, str(e)
+
+    def get_comision_vendedor(self, vendedor_id: str) -> Optional[ComisionVendedor]:
+        """Get commission settings for a specific seller"""
+        return db.session.query(ComisionVendedor).filter_by(vendedor_id=vendedor_id, activo=True).first()
+
+    def calcular_comision_proyecto(self, proyecto_id: int, vendedor_id: str) -> Dict[str, Any]:
+        """Calculate commission for a project"""
+        try:
+            from models import Proyecto
+            
+            proyecto = db.session.get(Proyecto, proyecto_id)
+            if not proyecto or proyecto.vendedor_id != vendedor_id:
+                return None
+            
+            comision = self.get_comision_vendedor(vendedor_id)
+            if not comision:
+                return None
+            
+            resultado = {
+                'proyecto_id': proyecto_id,
+                'vendedor_id': vendedor_id,
+                'comision_provision_pct': float(comision.comision_provision_pct),
+                'comision_instalacion_pct': float(comision.comision_instalacion_pct),
+                'monto_provision': float(proyecto.monto_provision_presupuestado or 0),
+                'monto_instalacion': float(proyecto.monto_instalacion_presupuestado or 0),
+                'comision_provision_clp': 0,
+                'comision_instalacion_clp': 0,
+                'comision_total_clp': 0
+            }
+            
+            # Calculate commissions
+            if proyecto.monto_provision_presupuestado:
+                resultado['comision_provision_clp'] = float(
+                    proyecto.monto_provision_presupuestado * comision.comision_provision_pct / 100
+                )
+            
+            if proyecto.monto_instalacion_presupuestado:
+                resultado['comision_instalacion_clp'] = float(
+                    proyecto.monto_instalacion_presupuestado * comision.comision_instalacion_pct / 100
+                )
+            
+            resultado['comision_total_clp'] = resultado['comision_provision_clp'] + resultado['comision_instalacion_clp']
+            
+            return resultado
+            
+        except Exception as e:
+            return None
