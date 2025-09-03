@@ -139,10 +139,20 @@
                                         {% endif %}
                                     </td>
                                     <td>
+                                        {% if evento.tipo_evento.value == 'hito_entrega' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-flag"></i>
+                                            Hito Entrega
+                                        </span>
+                                        {% if hasattr(evento, 'contrato_numero') and evento.contrato_numero %}
+                                        <br><small class="text-muted">OC: {{ evento.contrato_numero }}</small>
+                                        {% endif %}
+                                        {% else %}
                                         <span class="badge bg-{{ 'primary' if evento.tipo_evento.value == 'entrega' else 'info' if evento.tipo_evento.value == 'reunion' else 'warning' if evento.tipo_evento.value == 'seguimiento' else 'success' if evento.tipo_evento.value == 'hito' else 'secondary' }}">
                                             <i class="fas fa-{{ 'truck' if evento.tipo_evento.value == 'entrega' else 'users' if evento.tipo_evento.value == 'reunion' else 'eye' if evento.tipo_evento.value == 'seguimiento' else 'flag' if evento.tipo_evento.value == 'hito' else 'bell' }}"></i>
                                             {{ evento.tipo_evento.value.title() }}
                                         </span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <span class="badge bg-{{ 'warning' if evento.estado.value == 'pendiente' else 'success' if evento.estado.value == 'completado' else 'danger' }}">
