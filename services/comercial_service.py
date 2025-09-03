@@ -501,7 +501,11 @@ class ComercialService:
 
         adjudicados = (db.session.query(Proyecto)
                       .filter_by(vendedor_id=vendedor_id, activo=True)
-                      .filter(Proyecto.estado_comercial == EstadoComercial.ADJUDICADO)
+                      .filter(Proyecto.estado_comercial.in_([
+                          EstadoComercial.ADJUDICADO,
+                          EstadoComercial.EN_DESARROLLO,
+                          EstadoComercial.TERMINADO
+                      ]))
                       .count())
 
         porcentaje_exito_general = (adjudicados / total_proyectos * 100) if total_proyectos > 0 else 0
@@ -510,7 +514,11 @@ class ComercialService:
         exito_por_cliente = []
         clientes_query = (db.session.query(Cliente.id, Cliente.nombre,
                                           func.count(Proyecto.id).label('total_proyectos'),
-                                          func.sum(case((Proyecto.estado_comercial == EstadoComercial.ADJUDICADO, 1), else_=0)).label('adjudicados'))
+                                          func.sum(case((Proyecto.estado_comercial.in_([
+                                              EstadoComercial.ADJUDICADO,
+                                              EstadoComercial.EN_DESARROLLO,
+                                              EstadoComercial.TERMINADO
+                                          ]), 1), else_=0)).label('adjudicados'))
                          .join(Proyecto)
                          .filter(Proyecto.vendedor_id == vendedor_id, Proyecto.activo == True)
                          .group_by(Cliente.id, Cliente.nombre)
@@ -556,14 +564,28 @@ class ComercialService:
             proyectos_mes = (db.session.query(Proyecto)
                            .filter(
                                Proyecto.vendedor_id == vendedor_id,
-                               extract('year', Proyecto.fecha_adjudicacion) == year,
-                               extract('month', Proyecto.fecha_adjudicacion) == mes,
                                Proyecto.estado_comercial.in_([
                                    EstadoComercial.ADJUDICADO,
                                    EstadoComercial.EN_DESARROLLO,
                                    EstadoComercial.TERMINADO
                                ]),
                                Proyecto.activo == True
+                           )
+                           .filter(
+                               or_(
+                                   # Proyectos con fecha de adjudicación en este mes/año
+                                   and_(
+                                       Proyecto.fecha_adjudicacion.isnot(None),
+                                       extract('year', Proyecto.fecha_adjudicacion) == year,
+                                       extract('month', Proyecto.fecha_adjudicacion) == mes
+                                   ),
+                                   # Proyectos sin fecha de adjudicación pero en estado correcto (asignar al mes actual)
+                                   and_(
+                                       Proyecto.fecha_adjudicacion.is_(None),
+                                       mes == datetime.now().month,
+                                       year == datetime.now().year
+                                   )
+                               )
                            )
                            .all())
 
