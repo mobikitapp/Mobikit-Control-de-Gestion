@@ -120,6 +120,16 @@ class EstadoBodega(Enum):
 class EstadoDespachoArea(Enum):
     DESPACHADO = "despachado"
 
+# Enums para despachos parciales
+class TipoDespacho(Enum):
+    TOTAL = "TOTAL"
+    PARCIAL = "PARCIAL"
+
+class EstadoDespachoBodega(Enum):
+    LISTO_PARA_DESPACHO = "listo_para_despacho"
+    PARCIALMENTE_DESPACHADO = "parcialmente_despachado" 
+    COMPLETAMENTE_DESPACHADO = "completamente_despachado"
+
 # Enums para categorización de muebles
 class CategoriaMueble(Enum):
     COCINA = "cocina"
@@ -433,6 +443,7 @@ class HitoEntrega(db.Model):
     creator = db.relationship('User', foreign_keys=[created_by])
     completado_por_user = db.relationship('User', foreign_keys=[completado_por])
     evento_entrega = db.relationship('EventoEntrega', backref='hito', uselist=False)
+    despachos = db.relationship('Despacho', foreign_keys='Despacho.hito_entrega_id', backref='hito_entrega_rel', lazy=True)
 
     # Indexes
     __table_args__ = (
@@ -470,7 +481,6 @@ class OrdenFabricacion(db.Model):
 
     # Relationships
     items = db.relationship('OrdenFabricacionItem', backref='orden_fabricacion', lazy=True, cascade='all, delete-orphan')
-    despachos = db.relationship('Despacho', backref='orden_fabricacion', lazy=True)
     responsable_user = db.relationship('User', foreign_keys=[responsable])
     creator = db.relationship('User', foreign_keys=[created_by])
 
@@ -599,7 +609,7 @@ class Despacho(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
     contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=True)
-    of_id = db.Column(db.Integer, db.ForeignKey('ordenes_fabricacion.id'), nullable=True)
+    hito_entrega_id = db.Column(db.Integer, db.ForeignKey('hitos_entrega.id'), nullable=True)
     numero_despacho = db.Column(db.String(50), unique=True, nullable=False)
     estado = db.Column(db.Enum(EstadoDespacho), default=EstadoDespacho.PROGRAMADO, nullable=False)
     fecha_programada = db.Column(db.Date)
@@ -617,13 +627,14 @@ class Despacho(db.Model):
     # Relationships
     adjuntos = db.relationship('DespachoAdjunto', backref='despacho', lazy=True, cascade='all, delete-orphan')
     contrato = db.relationship('Contrato', foreign_keys=[contrato_id])
+    hito_entrega = db.relationship('HitoEntrega', foreign_keys=[hito_entrega_id], backref='despachos_hito')
     creator = db.relationship('User', foreign_keys=[created_by])
 
     # Indexes
     __table_args__ = (
         Index('idx_despacho_proyecto', 'proyecto_id'),
         Index('idx_despacho_contrato', 'contrato_id'),
-        Index('idx_despacho_of', 'of_id'),
+        Index('idx_despacho_hito', 'hito_entrega_id'),
         Index('idx_despacho_numero', 'numero_despacho'),
         Index('idx_despacho_estado', 'estado'),
         Index('idx_despacho_responsable_nombre', 'responsable_nombre'),
@@ -658,6 +669,49 @@ class DespachoAdjunto(db.Model):
 
     def __repr__(self):
         return f'<DespachoAdjunto {self.filename}>'
+
+class DespachoOrdenFabricacion(db.Model):
+    __tablename__ = 'despacho_ordenes_fabricacion'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    despacho_id = db.Column(db.Integer, db.ForeignKey('despachos.id'), nullable=False)
+    orden_fabricacion_id = db.Column(db.Integer, db.ForeignKey('ordenes_fabricacion.id'), nullable=False)
+    tipo_despacho = db.Column(db.Enum(TipoDespacho), nullable=False)
+    cantidad_despachada = db.Column(db.Numeric(10, 3), nullable=False)
+    cantidad_total = db.Column(db.Numeric(10, 3), nullable=False)
+    observaciones = db.Column(db.Text)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    despacho = db.relationship('Despacho', backref=db.backref('ordenes_fabricacion_detalle', lazy=True))
+    orden_fabricacion = db.relationship('OrdenFabricacion', backref=db.backref('despachos_detalle', lazy=True))
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_despacho_of_despacho', 'despacho_id'),
+        Index('idx_despacho_of_orden', 'orden_fabricacion_id'),
+        Index('idx_despacho_of_tipo', 'tipo_despacho'),
+        # Constraint para evitar duplicados
+        db.UniqueConstraint('despacho_id', 'orden_fabricacion_id', name='uq_despacho_orden_fabricacion'),
+    )
+    
+    @property
+    def porcentaje_despachado(self):
+        """Calcula el porcentaje despachado de esta OF en este despacho"""
+        if self.cantidad_total and self.cantidad_total > 0:
+            return (self.cantidad_despachada / self.cantidad_total) * 100
+        return 0
+    
+    @property
+    def cantidad_pendiente(self):
+        """Calcula la cantidad pendiente por despachar"""
+        return self.cantidad_total - self.cantidad_despachada
+    
+    def __repr__(self):
+        return f'<DespachoOrdenFabricacion D:{self.despacho_id} OF:{self.orden_fabricacion_id}>'
 
 class AuditLog(db.Model):
     __tablename__ = 'audit_log'
