@@ -1,0 +1,591 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Permisos por Rol - Mobikit{% endblock %}
+
+{% block head %}
+<style>
+    .permisos-matrix {
+        overflow-x: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+    }
+    
+    .permisos-table {
+        min-width: 1200px;
+        margin-bottom: 0;
+    }
+    
+    .rol-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        vertical-align: middle;
+    }
+    
+    .modulo-header {
+        background: #f8f9fa;
+        font-weight: 600;
+        border-right: 2px solid #dee2e6;
+        min-width: 200px;
+    }
+    
+    .permiso-cell {
+        text-align: center;
+        vertical-align: middle;
+        padding: 8px;
+        border: 1px solid #e9ecef;
+        background: #fff;
+        min-width: 100px;
+    }
+    
+    .permiso-switch {
+        transform: scale(1.2);
+    }
+    
+    .permiso-switch:checked {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    
+    .modulo-nombre {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .rol-column {
+        border-left: 2px solid #dee2e6;
+    }
+    
+    .stats-card {
+        border-left: 4px solid #007bff;
+    }
+    
+    .btn-action {
+        margin: 2px;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .audit-badge {
+        font-size: 0.75rem;
+        margin-left: 5px;
+    }
+    
+    .cambios-pendientes {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 0.375rem;
+        padding: 15px;
+        margin-bottom: 20px;
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i data-feather="shield" class="me-2"></i>
+                        Gestión de Permisos por Rol
+                    </h1>
+                    <p class="text-muted">Configura los permisos de Lectura, Creación, Edición y Eliminación por cada rol</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('configuraciones.ver_auditoria_permisos') }}" class="btn btn-outline-info me-2">
+                        <i data-feather="clock" class="me-1"></i>
+                        Ver Auditoría
+                    </a>
+                    <form method="POST" action="{{ url_for('configuraciones.inicializar_permisos') }}" style="display: inline;">
+                        <button type="submit" class="btn btn-warning" onclick="return confirm('¿Estás seguro de inicializar/resetear el sistema de permisos?')">
+                            <i data-feather="refresh-cw" class="me-1"></i>
+                            Inicializar Sistema
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title text-muted">Módulos</h6>
+                            <h4 class="mb-0">{{ modulos|length }}</h4>
+                        </div>
+                        <div class="text-primary">
+                            <i data-feather="grid" style="width: 24px; height: 24px;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title text-muted">Roles</h6>
+                            <h4 class="mb-0">{{ roles|length }}</h4>
+                        </div>
+                        <div class="text-success">
+                            <i data-feather="users" style="width: 24px; height: 24px;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title text-muted">Tipos de Permiso</h6>
+                            <h4 class="mb-0">{{ tipos_permiso|length }}</h4>
+                        </div>
+                        <div class="text-warning">
+                            <i data-feather="key" style="width: 24px; height: 24px;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title text-muted">Total Permisos</h6>
+                            <h4 class="mb-0">{{ (modulos|length * roles|length * tipos_permiso|length) }}</h4>
+                        </div>
+                        <div class="text-info">
+                            <i data-feather="check-circle" style="width: 24px; height: 24px;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cambios Pendientes -->
+    <div class="cambios-pendientes" id="cambiosPendientes">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i data-feather="alert-triangle" class="me-2"></i>
+                <strong>Hay cambios sin guardar:</strong> <span id="contadorCambios">0</span> permisos modificados
+            </div>
+            <div>
+                <button class="btn btn-success btn-sm me-2" onclick="guardarCambios()">
+                    <i data-feather="save" class="me-1"></i>
+                    Guardar Cambios
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="descartarCambios()">
+                    <i data-feather="x" class="me-1"></i>
+                    Descartar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controles Rápidos -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="settings" class="me-2"></i>
+                        Acciones Rápidas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Aplicar a Rol Completo:</label>
+                            <div class="input-group">
+                                <select class="form-select" id="rolSelect">
+                                    <option value="">Seleccionar rol...</option>
+                                    {% for rol in roles %}
+                                    <option value="{{ rol.codigo }}">{{ rol.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button class="btn btn-success btn-action" onclick="habilitarTodoRol()" title="Habilitar todos los permisos">
+                                    <i data-feather="check-circle"></i> Todo
+                                </button>
+                                <button class="btn btn-danger btn-action" onclick="deshabilitarTodoRol()" title="Deshabilitar todos los permisos">
+                                    <i data-feather="x-circle"></i> Nada
+                                </button>
+                                <button class="btn btn-warning btn-action" onclick="resetearRol()" title="Resetear a valores por defecto">
+                                    <i data-feather="refresh-cw"></i> Resetear
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Aplicar a Módulo Completo:</label>
+                            <div class="input-group">
+                                <select class="form-select" id="moduloSelect">
+                                    <option value="">Seleccionar módulo...</option>
+                                    {% for modulo in modulos %}
+                                    <option value="{{ modulo.codigo }}">{{ modulo.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button class="btn btn-success btn-action" onclick="habilitarTodoModulo()" title="Habilitar para todos los roles">
+                                    <i data-feather="check-circle"></i> Todo
+                                </button>
+                                <button class="btn btn-danger btn-action" onclick="deshabilitarTodoModulo()" title="Deshabilitar para todos los roles">
+                                    <i data-feather="x-circle"></i> Nada
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Matriz de Permisos -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="grid" class="me-2"></i>
+                        Matriz de Permisos
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="permisos-matrix">
+                        <table class="table permisos-table">
+                            <thead>
+                                <tr>
+                                    <th class="modulo-header">Módulo</th>
+                                    {% for rol in roles %}
+                                    <th colspan="{{ tipos_permiso|length }}" class="rol-header rol-column">
+                                        {{ rol.nombre }}
+                                        <br><small>{{ rol.codigo }}</small>
+                                    </th>
+                                    {% endfor %}
+                                </tr>
+                                <tr>
+                                    <th class="modulo-header"></th>
+                                    {% for rol in roles %}
+                                        {% for tipo_permiso in tipos_permiso %}
+                                        <th class="text-center bg-light">
+                                            <small>{{ tipo_permiso.nombre }}</small>
+                                        </th>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for modulo in modulos %}
+                                <tr>
+                                    <td class="modulo-header">
+                                        <div class="modulo-nombre">{{ modulo.nombre }}</div>
+                                        <small class="text-muted">{{ modulo.codigo }}</small>
+                                    </td>
+                                    {% for rol in roles %}
+                                        {% for tipo_permiso in tipos_permiso %}
+                                        <td class="permiso-cell">
+                                            {% set permiso_value = matriz[rol.codigo][modulo.codigo][tipo_permiso.codigo] %}
+                                            <div class="form-check form-switch d-flex justify-content-center">
+                                                <input 
+                                                    class="form-check-input permiso-switch" 
+                                                    type="checkbox"
+                                                    id="permiso_{{ rol.codigo }}_{{ modulo.codigo }}_{{ tipo_permiso.codigo }}"
+                                                    data-rol="{{ rol.codigo }}"
+                                                    data-modulo="{{ modulo.codigo }}"
+                                                    data-tipo="{{ tipo_permiso.codigo }}"
+                                                    {{ 'checked' if permiso_value else '' }}
+                                                    onchange="registrarCambio(this)"
+                                                >
+                                            </div>
+                                        </td>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="text-center text-white">
+        <div class="spinner-border mb-3" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <div>Guardando cambios...</div>
+    </div>
+</div>
+
+<script>
+let cambiosPendientes = [];
+let matrizOriginal = {{ matriz|safe }};
+
+function registrarCambio(checkbox) {
+    const rol = checkbox.dataset.rol;
+    const modulo = checkbox.dataset.modulo;
+    const tipo = checkbox.dataset.tipo;
+    const permitido = checkbox.checked;
+    
+    // Verificar si hay cambio real
+    const valorOriginal = matrizOriginal[rol][modulo][tipo];
+    
+    if (valorOriginal !== permitido) {
+        // Agregar o actualizar cambio
+        const index = cambiosPendientes.findIndex(c => 
+            c.rol === rol && c.modulo === modulo && c.tipo_permiso === tipo
+        );
+        
+        if (index >= 0) {
+            cambiosPendientes[index].permitido = permitido;
+        } else {
+            cambiosPendientes.push({
+                rol: rol,
+                modulo: modulo,
+                tipo_permiso: tipo,
+                permitido: permitido
+            });
+        }
+    } else {
+        // Remover cambio si volvió al valor original
+        cambiosPendientes = cambiosPendientes.filter(c => 
+            !(c.rol === rol && c.modulo === modulo && c.tipo_permiso === tipo)
+        );
+    }
+    
+    actualizarIndicadorCambios();
+}
+
+function actualizarIndicadorCambios() {
+    const indicador = document.getElementById('cambiosPendientes');
+    const contador = document.getElementById('contadorCambios');
+    
+    if (cambiosPendientes.length > 0) {
+        contador.textContent = cambiosPendientes.length;
+        indicador.style.display = 'block';
+    } else {
+        indicador.style.display = 'none';
+    }
+}
+
+async function guardarCambios() {
+    if (cambiosPendientes.length === 0) {
+        alert('No hay cambios pendientes para guardar');
+        return;
+    }
+    
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    
+    try {
+        const response = await fetch('{{ url_for("configuraciones.actualizar_permisos_masivo") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                updates: cambiosPendientes
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Actualizar matriz original
+            cambiosPendientes.forEach(cambio => {
+                matrizOriginal[cambio.rol][cambio.modulo][cambio.tipo_permiso] = cambio.permitido;
+            });
+            
+            cambiosPendientes = [];
+            actualizarIndicadorCambios();
+            
+            // Mostrar mensaje de éxito
+            mostrarMensaje(`Cambios guardados exitosamente: ${data.data.cambios_exitosos} permisos actualizados`, 'success');
+            
+            if (data.data.errores && data.data.errores.length > 0) {
+                console.warn('Errores durante la actualización:', data.data.errores);
+            }
+        } else {
+            mostrarMensaje(`Error al guardar cambios: ${data.message}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarMensaje('Error de conexión al guardar cambios', 'error');
+    } finally {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+}
+
+function descartarCambios() {
+    if (cambiosPendientes.length === 0) return;
+    
+    if (confirm('¿Estás seguro de descartar todos los cambios pendientes?')) {
+        // Revertir checkboxes a valores originales
+        cambiosPendientes.forEach(cambio => {
+            const checkbox = document.getElementById(`permiso_${cambio.rol}_${cambio.modulo}_${cambio.tipo_permiso}`);
+            if (checkbox) {
+                checkbox.checked = matrizOriginal[cambio.rol][cambio.modulo][cambio.tipo_permiso];
+            }
+        });
+        
+        cambiosPendientes = [];
+        actualizarIndicadorCambios();
+        mostrarMensaje('Cambios descartados', 'info');
+    }
+}
+
+function habilitarTodoRol() {
+    const rol = document.getElementById('rolSelect').value;
+    if (!rol) {
+        alert('Selecciona un rol primero');
+        return;
+    }
+    
+    aplicarACcionRol(rol, true);
+    mostrarMensaje(`Todos los permisos habilitados para el rol: ${rol}`, 'info');
+}
+
+function deshabilitarTodoRol() {
+    const rol = document.getElementById('rolSelect').value;
+    if (!rol) {
+        alert('Selecciona un rol primero');
+        return;
+    }
+    
+    aplicarACcionRol(rol, false);
+    mostrarMensaje(`Todos los permisos deshabilitados para el rol: ${rol}`, 'info');
+}
+
+function aplicarACcionRol(rol, valor) {
+    const checkboxes = document.querySelectorAll(`input[data-rol="${rol}"]`);
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked !== valor) {
+            checkbox.checked = valor;
+            registrarCambio(checkbox);
+        }
+    });
+}
+
+function habilitarTodoModulo() {
+    const modulo = document.getElementById('moduloSelect').value;
+    if (!modulo) {
+        alert('Selecciona un módulo primero');
+        return;
+    }
+    
+    aplicarAccionModulo(modulo, true);
+    mostrarMensaje(`Todos los permisos habilitados para el módulo: ${modulo}`, 'info');
+}
+
+function deshabilitarTodoModulo() {
+    const modulo = document.getElementById('moduloSelect').value;
+    if (!modulo) {
+        alert('Selecciona un módulo primero');
+        return;
+    }
+    
+    aplicarAccionModulo(modulo, false);
+    mostrarMensaje(`Todos los permisos deshabilitados para el módulo: ${modulo}`, 'info');
+}
+
+function aplicarAccionModulo(modulo, valor) {
+    const checkboxes = document.querySelectorAll(`input[data-modulo="${modulo}"]`);
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked !== valor) {
+            checkbox.checked = valor;
+            registrarCambio(checkbox);
+        }
+    });
+}
+
+async function resetearRol() {
+    const rol = document.getElementById('rolSelect').value;
+    if (!rol) {
+        alert('Selecciona un rol primero');
+        return;
+    }
+    
+    if (!confirm(`¿Estás seguro de resetear todos los permisos del rol "${rol}" a los valores por defecto?`)) {
+        return;
+    }
+    
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    
+    try {
+        const formData = new FormData();
+        formData.append('rol', rol);
+        
+        const response = await fetch('{{ url_for("configuraciones.resetear_permisos_rol") }}', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarMensaje(data.message, 'success');
+            // Recargar la página para mostrar los nuevos valores
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            mostrarMensaje(`Error: ${data.message}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarMensaje('Error de conexión al resetear permisos', 'error');
+    } finally {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+}
+
+function mostrarMensaje(mensaje, tipo) {
+    // Crear elemento de alerta
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${tipo === 'error' ? 'danger' : tipo} alert-dismissible fade show position-fixed`;
+    alert.style.cssText = 'top: 20px; right: 20px; z-index: 10000; min-width: 300px;';
+    alert.innerHTML = `
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alert);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Inicializar íconos
+document.addEventListener('DOMContentLoaded', function() {
+    feather.replace();
+});
+</script>
+{% endblock %}
