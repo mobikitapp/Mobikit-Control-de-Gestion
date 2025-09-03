@@ -18,6 +18,7 @@ from repositories.proyectos_repo import ProyectosRepository
 from repositories.contratos_repo import ContratosRepository
 from repositories.fabricacion_repo import FabricacionRepository
 import logging
+import json # Ensure json is imported
 
 logger = logging.getLogger(__name__)
 
@@ -161,12 +162,11 @@ def crear():
             if 'estado' in form_data:
                 form_data['estado'] = form_data['estado'].upper()
 
-            # Process selected_ofs into ordenes_fabricacion
-            if 'selected_ofs' in form_data:
-                import json
+            # Process selected_ofs if provided
+            ordenes_fabricacion = []
+            if 'selected_ofs' in form_data and form_data['selected_ofs']:
                 try:
                     selected_ofs = json.loads(form_data['selected_ofs'])
-                    ordenes_fabricacion = []
 
                     for of_data in selected_ofs:
                         if of_data.get('of_id'):
@@ -190,8 +190,6 @@ def crear():
                                         'observaciones': of_data.get('observaciones', '')
                                     })
 
-                    form_data['ordenes_fabricacion'] = ordenes_fabricacion
-
                     # Remove the processed selected_ofs field
                     del form_data['selected_ofs']
 
@@ -199,6 +197,10 @@ def crear():
                     logger.error(f"Error procesando selected_ofs: {e}")
                     flash('Error procesando las órdenes de fabricación seleccionadas', 'danger')
                     return redirect(url_for('despachos.nuevo'))
+
+            # Set ordenes_fabricacion (can be empty for generic dispatches)
+            form_data['ordenes_fabricacion'] = ordenes_fabricacion
+
 
             # Clean up dynamic form fields that aren't part of the schema
             fields_to_remove = []
@@ -219,12 +221,11 @@ def crear():
             if 'estado' in form_data:
                 form_data['estado'] = form_data['estado'].upper()
 
-            # Process selected_ofs into ordenes_fabricacion
-            if 'selected_ofs' in form_data:
-                import json
+            # Process selected_ofs if provided
+            ordenes_fabricacion = []
+            if 'selected_ofs' in form_data and form_data['selected_ofs']:
                 try:
                     selected_ofs = json.loads(form_data['selected_ofs'])
-                    ordenes_fabricacion = []
 
                     for of_data in selected_ofs:
                         if of_data.get('of_id'):
@@ -248,8 +249,6 @@ def crear():
                                         'observaciones': of_data.get('observaciones', '')
                                     })
 
-                    form_data['ordenes_fabricacion'] = ordenes_fabricacion
-
                     # Remove the processed selected_ofs field
                     del form_data['selected_ofs']
 
@@ -257,6 +256,10 @@ def crear():
                     logger.error(f"Error procesando selected_ofs: {e}")
                     flash('Error procesando las órdenes de fabricación seleccionadas', 'danger')
                     return redirect(url_for('despachos.nuevo'))
+
+            # Set ordenes_fabricacion (can be empty for generic dispatches)
+            form_data['ordenes_fabricacion'] = ordenes_fabricacion
+
 
             # Clean up dynamic form fields that aren't part of the schema
             fields_to_remove = []
