@@ -2,6 +2,78 @@
 {% set title = "Dashboard de Áreas" %}
 
 {% block content %}
+<style>
+/* Action buttons styling */
+.btn-group-sm .btn {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+    border-radius: 0.3rem;
+    margin: 1px;
+    min-width: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-group-sm .btn i {
+    font-size: 0.8rem;
+}
+
+.btn-group-sm .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.table th:last-child,
+.table td:last-child {
+    text-align: center;
+    vertical-align: middle;
+    min-width: 200px;
+}
+
+/* Responsive table adjustments */
+.table th,
+.table td {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.table th:nth-child(4),
+.table td:nth-child(4) {
+    max-width: 100px;
+}
+
+.table th:nth-child(6),
+.table td:nth-child(6) {
+    min-width: 90px;
+}
+
+/* Improved action buttons layout */
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    align-items: center;
+}
+
+.action-buttons .btn {
+    flex: 0 0 auto;
+}
+
+/* Modal improvements */
+.modal-body .alert {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* TV Display Optimizations */
+</style>
+
 <div class="container-fluid">
     <!-- Dashboard Stats -->
     <div class="row mb-4">
@@ -74,9 +146,6 @@
                                     aria-controls="area-{{ area_data.area.id }}" 
                                     aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
                                     style="border-color: {{ area_data.area.color_hex }};">
-                                <span class="badge me-2" style="background-color: {{ area_data.area.color_hex }}; color: white;">
-                                    {{ area_data.area.orden_secuencia }}
-                                </span>
                                 {{ area_data.area.nombre }}
                                 {% if area_data.total_count > 0 %}
                                 <span class="badge bg-secondary ms-2">{{ area_data.total_count }}</span>
@@ -122,11 +191,17 @@
                                             <th>Código</th>
                                             <th>Proyecto</th>
                                             <th>Cliente</th>
+                                            <th>Glosa</th>
                                             <th>Estado</th>
-                                            <th>Responsable</th>
+                                            <th>Entrega Contrato</th>
+                                            {% if area_data.area.tipo.value == 'fabrica' %}
+                                            <th>Entrega Fábrica</th>
+                                            {% elif area_data.area.tipo.value == 'embalaje' %}
+                                            <th>Entrega Embalaje</th>
+                                            {% endif %}
                                             <th>Fecha Ingreso</th>
                                             <th>Tiempo en Estado</th>
-                                            <th>Acciones</th>
+                                            <th width="220px">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -147,6 +222,15 @@
                                                     </span>
                                                 </td>
                                                 <td>
+                                                    {% if order.glosa %}
+                                                    <span class="text-truncate d-inline-block" style="max-width: 100px;" title="{{ order.glosa }}">
+                                                        {{ order.glosa }}
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
                                                     <span class="badge" style="background-color: {{ estado_data.estado.color_hex }}; color: white;">
                                                         {{ estado_data.estado.nombre }}
                                                     </span>
@@ -158,10 +242,32 @@
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    {% if order.responsable_nombre %}
-                                                    <small>{{ order.responsable_nombre }}</small>
+                                                    {% if order.proxima_entrega_contrato %}
+                                                    <small>
+                                                        <a href="{{ url_for('contratos.plan_entrega', contrato_id=order.contrato_id) if order.contrato_id else '#' }}" 
+                                                           class="text-decoration-none" 
+                                                           {% if not order.contrato_id %}onclick="return false;" style="color: #6c757d; cursor: default;"{% endif %}>
+                                                            {{ order.proxima_entrega_contrato.strftime('%d/%m/%Y') }}
+                                                        </a>
+                                                    </small>
                                                     {% else %}
-                                                    <span class="text-muted">Sin asignar</span>
+                                                    <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if order.fecha_entrega_dinamica %}
+                                                    <small class="{% if order.fecha_entrega_dinamica < moment_global.now().date() %}text-danger{% elif (order.fecha_entrega_dinamica - moment_global.now().date()).days <= 3 %}text-warning{% else %}text-muted{% endif %}">
+                                                        {{ order.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                                                        {% if area_data.area.tipo.value == 'fabrica' %}
+                                                        <br><span class="text-muted" style="font-size: 0.7em;">Fábrica</span>
+                                                        {% elif area_data.area.tipo.value == 'embalaje' %}
+                                                        <br><span class="text-muted" style="font-size: 0.7em;">Embalaje</span>
+                                                        {% else %}
+                                                        <br><span class="text-muted" style="font-size: 0.7em;">Contrato</span>
+                                                        {% endif %}
+                                                    </small>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
                                                     {% endif %}
                                                 </td>
                                                 <td>
@@ -169,7 +275,7 @@
                                                 </td>
                                                 <td>
                                                     {% if order.fecha_cambio_estado %}
-                                                        {% set days_diff = (moment_global().date() - order.fecha_cambio_estado.date()).days %}
+                                                        {% set days_diff = (moment_global.now().date() - order.fecha_cambio_estado.date()).days %}
                                                         <small class="{% if days_diff > 3 %}text-warning{% elif days_diff > 7 %}text-danger{% else %}text-muted{% endif %}">
                                                             {{ days_diff }} día{% if days_diff != 1 %}s{% endif %}
                                                         </small>
@@ -178,16 +284,49 @@
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    <div class="btn-group" role="group">
+                                                    <div class="action-buttons">
+                                                        <!-- Ver detalle de la orden -->
                                                         <a href="{{ url_for('fabricacion.detalle', of_id=order.id) }}" 
-                                                           class="btn btn-outline-primary btn-sm" 
-                                                           title="Ver orden completa">
+                                                           class="btn btn-info btn-sm" 
+                                                           data-bs-toggle="tooltip" 
+                                                           data-bs-placement="top"
+                                                           title="Ver detalle completo de la orden">
                                                             <i class="fas fa-eye"></i>
                                                         </a>
-                                                        <a href="{{ url_for('areas.cambiar_estado_form', orden_id=order.id) }}" 
-                                                           class="btn btn-outline-secondary btn-sm" 
-                                                           title="Cambiar estado">
-                                                            <i class="fas fa-edit"></i>
+
+                                                        <!-- Editar orden de fabricación -->
+                                                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                                        <a href="{{ url_for('fabricacion.editar', of_id=order.id) }}" 
+                                                           class="btn btn-primary btn-sm" 
+                                                           data-bs-toggle="tooltip" 
+                                                           data-bs-placement="top"
+                                                           title="Editar orden y cambiar estado">
+                                                            <i class="fas fa-pencil-alt"></i>
+                                                        </a>
+                                                        {% endif %}
+
+                                                        <!-- Avanzar inteligente (estado o área según corresponda) -->
+                                                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                                        <button class="btn btn-success btn-sm" 
+                                                                onclick="smartAdvanceOrder({{ order.id }}, '{{ order.codigo }}', '{{ area_data.area.nombre }}', {{ estado_data.estado.es_final|lower }})" 
+                                                                data-bs-toggle="tooltip" 
+                                                                data-bs-placement="top"
+                                                                title="{% if estado_data.estado.es_final %}Avanzar a siguiente área{% else %}Avanzar al siguiente estado{% endif %}">
+                                                            {% if estado_data.estado.es_final %}
+                                                            <i class="fas fa-arrow-circle-right"></i>
+                                                            {% else %}
+                                                            <i class="fas fa-chevron-right"></i>
+                                                            {% endif %}
+                                                        </button>
+                                                        {% endif %}
+
+                                                        <!-- Ver historial de áreas -->
+                                                        <a href="{{ url_for('areas.orden_history', orden_id=order.id) }}" 
+                                                           class="btn btn-secondary btn-sm" 
+                                                           data-bs-toggle="tooltip" 
+                                                           data-bs-placement="top"
+                                                           title="Ver historial de movimientos">
+                                                            <i class="fas fa-clock"></i>
                                                         </a>
                                                     </div>
                                                 </td>
@@ -247,6 +386,38 @@
     </div>
 </div>
 
+
+
+<!-- Modal para avanzar a siguiente área -->
+<div class="modal fade" id="advanceAreaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Avanzar a Siguiente Área</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="advanceAreaForm" method="POST">
+                <div class="modal-body">
+                    <div id="advanceAreaContent">
+                        <p>¿Está seguro que desea avanzar esta orden a la siguiente área?</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="advance_notas" class="form-label">Notas (opcional)</label>
+                        <textarea class="form-control" id="advance_notas" name="notas" rows="3" placeholder="Comentarios sobre el avance"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-arrow-right"></i> Avanzar Área
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function refreshDashboard() {
     // Show loading indicator
@@ -267,11 +438,154 @@ setInterval(() => {
 }, 300000);
 
 // Initialize tooltips
-document.addEventListener('DOMContentLoaded', function() {
+function initializeTooltips() {
+    // Dispose existing tooltips first
+    var existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    existingTooltips.forEach(function(element) {
+        var tooltip = bootstrap.Tooltip.getInstance(element);
+        if (tooltip) {
+            tooltip.dispose();
+        }
+    });
+
+    // Initialize new tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+            trigger: 'hover focus'
+        });
     });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeTooltips();
 });
+
+// Refresh tooltips after tab switches
+document.addEventListener('shown.bs.tab', function (e) {
+    setTimeout(initializeTooltips, 100);
+});
+
+// Modal management functions
+let currentOrderId = null;
+
+async function smartAdvanceOrder(orderId, orderCode, areaName, isFinalState) {
+    if (isFinalState) {
+        // Final state - needs area advance with responsible approval
+        showAdvanceAreaModal(orderId, orderCode, areaName);
+    } else {
+        // Not final state - direct state advance
+        if (!confirm(`¿Avanzar orden ${orderCode} al siguiente estado?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/areas/api/avanzar-inteligente`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    orden_id: orderId
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                alertDiv.innerHTML = `
+                    <strong>¡Éxito!</strong> ${result.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.body.appendChild(alertDiv);
+
+                // Auto-dismiss after 3 seconds
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 3000);
+
+                // Refresh the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                alert(`Error: ${result.message}`);
+            }
+        } catch (error) {
+            console.error('Error advancing order:', error);
+            alert('Error de conexión');
+        }
+    }
+}
+
+
+
+function showAdvanceAreaModal(orderId, orderCode, currentArea) {
+    currentOrderId = orderId;
+
+    const modal = new bootstrap.Modal(document.getElementById('advanceAreaModal'));
+    const form = document.getElementById('advanceAreaForm');
+    const content = document.getElementById('advanceAreaContent');
+
+    // Set form action
+    form.action = `/areas/orden/${orderId}/avanzar-area`;
+
+    content.innerHTML = `
+        <div class="alert alert-warning">
+            <h6><i class="fas fa-exclamation-triangle"></i> Avance de Área Requiere Aprobación</h6>
+            <p><strong>Orden:</strong> ${orderCode}</p>
+            <p><strong>Área Actual:</strong> ${currentArea}</p>
+            <p>Esta orden avanzará a la siguiente área. <strong>Debe asignar un responsable</strong> para el avance.</p>
+        </div>
+    `;
+
+    // Removed user loading call here
+    // Load users for responsable select
+    // loadUsersForAdvance(); // This line is removed
+
+    // Make responsable field required
+    // const responsableSelect = document.getElementById('responsable_area');
+    // responsableSelect.required = true; // This line is removed as the select is removed
+
+    modal.show();
+}
+
+// Removed the loadUsersForAdvance function as it's no longer needed.
+/*
+async function loadUsersForAdvance() {
+    const responsableSelect = document.getElementById('responsable_area');
+
+    try {
+        // Clear existing options except the first one
+        responsableSelect.innerHTML = '<option value="">Seleccionar responsable...</option>';
+
+        const response = await fetch('/contratos/api/users/active');
+        if (response.ok) {
+            const users = await response.json();
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = user.nombre_completo;
+                responsableSelect.appendChild(option);
+            });
+        } else {
+            console.error('Error loading users:', await response.text());
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+*/
+
+// Only log if not already initialized
+if (!window.areasDashboardInitialized) {
+    console.log('Areas Dashboard initialized');
+    window.areasDashboardInitialized = true;
+}
 </script>
 {% endblock %}

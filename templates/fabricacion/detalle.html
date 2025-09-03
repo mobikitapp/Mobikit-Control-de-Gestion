@@ -35,7 +35,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row g-4">
         <!-- Order Information -->
         <div class="col-lg-8">
@@ -56,7 +56,7 @@
                                 </a>
                             </div>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Cliente</label>
                             <div class="form-control-plaintext">
@@ -65,7 +65,7 @@
                                 </a>
                             </div>
                         </div>
-                        
+
                         {% if of.contrato %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Contrato</label>
@@ -76,7 +76,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Área / Estado</label>
                             <div class="form-control-plaintext">
@@ -91,21 +91,21 @@
                                 {% endif %}
                             </div>
                         </div>
-                        
+
                         {% if of.responsable_user %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Responsable</label>
                             <div class="form-control-plaintext">{{ of.responsable_user.nombre_completo }}</div>
                         </div>
                         {% endif %}
-                        
+
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha de Creación</label>
                             <div class="form-control-plaintext">
                                 {{ of.created_at.strftime('%d/%m/%Y %H:%M') }}
                             </div>
                         </div>
-                        
+
                         {% if of.fecha_planificada %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha Planificada</label>
@@ -115,7 +115,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if of.fecha_inicio %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha de Inicio</label>
@@ -124,7 +124,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if of.fecha_qc %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha QC</label>
@@ -133,7 +133,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if of.fecha_entrega_fabrica %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha Entrega Fábrica</label>
@@ -142,7 +142,35 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
+                        <dt class="col-sm-4">Fecha Entrega Embalaje:</dt>
+                        <dd class="col-sm-8">
+                            {% if of.fecha_entrega_embalaje %}
+                                {{ of.fecha_entrega_embalaje.strftime('%d/%m/%Y') }}
+                                {% set days_diff = (of.fecha_entrega_embalaje - moment_global().date()).days %}
+                                {% if days_diff < 0 %}
+                                    <small class="text-danger ms-2">
+                                        <i data-feather="alert-triangle" class="me-1"></i>
+                                        {{ days_diff|abs }} días vencido
+                                    </small>
+                                {% elif days_diff == 0 %}
+                                    <small class="text-warning ms-2">
+                                        <i data-feather="clock" class="me-1"></i>
+                                        Hoy
+                                    </small>
+                                {% elif days_diff <= 3 %}
+                                    <small class="text-warning ms-2">
+                                        <i data-feather="clock" class="me-1"></i>
+                                        {{ days_diff }} días
+                                    </small>
+                                {% else %}
+                                    <small class="text-muted ms-2">{{ days_diff }} días</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">No definida</span>
+                            {% endif %}
+                        </dd>
+
                         {% if of.cantidad_tableros %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Cantidad de Tableros</label>
@@ -151,7 +179,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if of.fecha_fin %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha de Finalización</label>
@@ -160,7 +188,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if of.descripcion %}
                         <div class="col-12">
                             <label class="form-label fw-medium">Descripción</label>
@@ -169,7 +197,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if of.glosa %}
                         <div class="col-12">
                             <label class="form-label fw-medium">Glosa</label>
@@ -178,7 +206,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if of.notas %}
                         <div class="col-12">
                             <label class="form-label fw-medium">Notas</label>
@@ -191,7 +219,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Control de Estados -->
         <div class="col-lg-4">
             {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] and of.area_progreso_actual %}
@@ -212,11 +240,11 @@
                             <span class="ms-2">{{ of.estado_actual.nombre }}</span>
                         </div>
                     </div>
-                    
+
                     <!-- Cambiar estado dentro del área -->
                     {% set area_estados = of.area_actual.estados|selectattr('activo')|list %}
                     {% set puede_cambiar_estado = area_estados|length > 1 %}
-                    
+
                     {% if puede_cambiar_estado %}
                     <form action="{{ url_for('fabricacion.cambiar_estado', of_id=of.id) }}" method="POST" class="mb-3">
                         <label class="form-label">Cambiar Estado</label>
@@ -234,7 +262,7 @@
                         </button>
                     </form>
                     {% endif %}
-                    
+
                     <!-- Avanzar a siguiente área -->
                     {% if of.estado_actual.es_final %}
                     <form action="{{ url_for('fabricacion.avanzar_area', of_id=of.id) }}" method="POST">
@@ -248,7 +276,7 @@
                 </div>
             </div>
             {% endif %}
-            
+
             <!-- Flujo de Producción -->
             <div class="card">
                 <div class="card-header">
@@ -266,7 +294,7 @@
                                 <small class="text-muted">{{ of.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
                             </div>
                         </div>
-                        
+
                         {% if historial_progreso %}
                             {% for progreso in historial_progreso %}
                             <div class="timeline-item {{ 'active' if progreso.es_actual else '' }}">
@@ -301,7 +329,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Quick Actions -->
             <div class="card mt-4">
                 <div class="card-header">
@@ -318,17 +346,17 @@
                             Crear Despacho
                         </a>
                         {% endif %}
-                        
+
                         <a href="{{ url_for('despachos.index') }}?of_id={{ of.id }}" class="btn btn-outline-secondary">
                             <i data-feather="truck" class="me-2"></i>
                             Ver Despachos
                         </a>
-                        
+
                         <a href="{{ url_for('proyectos.detalle', proyecto_id=of.proyecto_id) }}" class="btn btn-outline-info">
                             <i data-feather="folder" class="me-2"></i>
                             Ver Proyecto
                         </a>
-                        
+
                         {% if of.contrato %}
                         <a href="{{ url_for('contratos.detalle', contrato_id=of.contrato_id) }}" class="btn btn-outline-warning">
                             <i data-feather="file-text" class="me-2"></i>
@@ -340,7 +368,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Items Section -->
     <div class="row mt-4">
         <div class="col-12">
@@ -449,7 +477,7 @@ document.addEventListener('DOMContentLoaded', function() {
             position: relative;
             padding-left: 30px;
         }
-        
+
         .timeline::before {
             content: '';
             position: absolute;
@@ -459,12 +487,12 @@ document.addEventListener('DOMContentLoaded', function() {
             width: 2px;
             background: var(--bs-border-color);
         }
-        
+
         .timeline-item {
             position: relative;
             margin-bottom: 20px;
         }
-        
+
         .timeline-marker {
             position: absolute;
             left: -23px;
@@ -474,16 +502,16 @@ document.addEventListener('DOMContentLoaded', function() {
             border-radius: 50%;
             border: 2px solid var(--bs-body-bg);
         }
-        
+
         .timeline-item.active .timeline-marker {
             box-shadow: 0 0 0 3px var(--bs-border-color);
         }
-        
+
         .timeline-content h6 {
             margin-bottom: 4px;
             font-size: 0.9rem;
         }
-        
+
         .timeline-content small {
             font-size: 0.8rem;
         }

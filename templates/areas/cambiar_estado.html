@@ -1,178 +1,112 @@
+
 {% extends "base.html" %}
-{% set title = "Cambiar Estado - " + orden.codigo %}
+
+{% block title %}Cambiar Estado - {{ orden.codigo }}{% endblock %}
 
 {% block content %}
 <div class="container">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-md-12">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
             <div class="card">
                 <div class="card-header">
                     <h4 class="mb-0">
-                        <i class="fas fa-edit text-primary"></i>
-                        Cambiar Estado de Orden
+                        <i class="fas fa-cog text-warning"></i>
+                        Cambiar Estado de la Orden
                     </h4>
-                    <p class="mb-0 text-muted">Actualizar estado y asignar responsable</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Order Info -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">Información de la Orden</h6>
                 </div>
                 <div class="card-body">
-                    <div class="row">
+                    <!-- Order Info -->
+                    <div class="row mb-4">
                         <div class="col-md-6">
+                            <h6>Información de la Orden</h6>
                             <p><strong>Código:</strong> {{ orden.codigo }}</p>
                             <p><strong>Proyecto:</strong> {{ orden.proyecto.nombre }}</p>
                             <p><strong>Cliente:</strong> {{ orden.proyecto.cliente.nombre }}</p>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Área Actual:</strong> 
-                                <span class="badge" style="background-color: {{ current_progress.area.color_hex }}; color: white;">
+                            <h6>Estado Actual</h6>
+                            <p><strong>Área:</strong> 
+                                <span class="badge" style="background-color: {{ current_progress.area.color_hex }}">
                                     {{ current_progress.area.nombre }}
                                 </span>
                             </p>
-                            <p><strong>Estado Actual:</strong> 
-                                <span class="badge" style="background-color: {{ current_progress.estado.color_hex }}; color: white;">
+                            <p><strong>Estado:</strong> 
+                                <span class="badge" style="background-color: {{ current_progress.estado.color_hex }}">
                                     {{ current_progress.estado.nombre }}
                                 </span>
                             </p>
-                            <p><strong>Último Cambio:</strong> 
-                                <small>{{ current_progress.fecha_cambio_estado.strftime('%d/%m/%Y %H:%M') }}</small>
-                            </p>
                         </div>
                     </div>
-                    {% if orden.descripcion %}
-                    <p><strong>Descripción:</strong> {{ orden.descripcion }}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Change State Form -->
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">Cambiar Estado</h6>
-                </div>
-                <div class="card-body">
+                    <hr>
+
+                    <!-- State Change Form -->
                     <form method="POST">
-                        <div class="mb-3">
-                            <label for="nuevo_estado_id" class="form-label">Nuevo Estado *</label>
-                            <select class="form-select" id="nuevo_estado_id" name="nuevo_estado_id" required>
-                                <option value="">Seleccione un estado</option>
-                                {% for estado in estados %}
-                                <option value="{{ estado.id }}" 
-                                        {% if estado.id == current_progress.estado_id %}selected{% endif %}
-                                        style="background-color: {{ estado.color_hex }}20;">
-                                    {{ estado.nombre }}
-                                    {% if estado.es_inicial %}[Inicial]{% endif %}
-                                    {% if estado.es_final %}[Final]{% endif %}
-                                    - {{ estado.descripcion }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text text-muted">
-                                Solo puede cambiar estados dentro del área actual: {{ current_progress.area.nombre }}
-                            </small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="responsable_id" class="form-label">Responsable</label>
-                            <select class="form-select" id="responsable_id" name="responsable_id">
-                                <option value="">Sin asignar</option>
-                                {% for user in users %}
-                                <option value="{{ user.id }}" 
-                                        {% if current_progress.responsable_area == user.id %}selected{% endif %}>
-                                    {{ user.nombre_completo }} ({{ user.rol.value }})
-                                </option>
-                                {% endfor %}
-                            </select>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="nuevo_estado_id" class="form-label">Nuevo Estado <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="nuevo_estado_id" name="nuevo_estado_id" required>
+                                        <option value="">Seleccionar nuevo estado...</option>
+                                        {% for estado in estados %}
+                                            {% if estado.id != current_progress.estado_id %}
+                                            <option value="{{ estado.id }}" 
+                                                    style="color: {{ estado.color_hex }}">
+                                                {{ estado.nombre }}
+                                                {% if estado.es_inicial %}(Inicial){% endif %}
+                                                {% if estado.es_final %}(Final){% endif %}
+                                            </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="responsable_id" class="form-label">Responsable</label>
+                                    <select class="form-select" id="responsable_id" name="responsable_id">
+                                        <option value="">Sin cambios</option>
+                                        {% for user in users %}
+                                        <option value="{{ user.id }}" 
+                                                {% if current_progress.responsable_area == user.id %}selected{% endif %}>
+                                            {{ user.nombre_completo }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-3">
                             <label for="tiempo_estimado_horas" class="form-label">Tiempo Estimado (horas)</label>
-                            <input type="number" 
-                                   class="form-control" 
-                                   id="tiempo_estimado_horas" 
-                                   name="tiempo_estimado_horas"
-                                   step="0.5" 
-                                   min="0" 
-                                   max="999"
-                                   value="{{ current_progress.tiempo_estimado_horas if current_progress.tiempo_estimado_horas else '' }}">
+                            <input type="number" class="form-control" id="tiempo_estimado_horas" 
+                                   name="tiempo_estimado_horas" step="0.5" min="0" 
+                                   value="{{ current_progress.tiempo_estimado_horas or '' }}"
+                                   placeholder="Tiempo estimado en horas">
                         </div>
 
                         <div class="mb-3">
-                            <label for="notas" class="form-label">Notas</label>
-                            <textarea class="form-control" 
-                                      id="notas" 
-                                      name="notas" 
-                                      rows="3" 
-                                      placeholder="Agregar comentarios sobre el cambio de estado..."></textarea>
+                            <label for="notas" class="form-label">Notas del Cambio</label>
+                            <textarea class="form-control" id="notas" name="notas" rows="4" 
+                                      placeholder="Agregar comentarios sobre el cambio de estado"></textarea>
                         </div>
 
-                        <div class="d-flex justify-content-between">
-                            <a href="{{ url_for('areas.area_detail', area_id=current_progress.area_id) }}" 
-                               class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left"></i> Cancelar
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Guardar Cambio
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-cog"></i> Cambiar Estado
                             </button>
+                            <a href="{{ url_for('areas.dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                            <a href="{{ url_for('fabricacion.detalle', of_id=orden.id) }}" class="btn btn-outline-info">
+                                <i class="fas fa-eye"></i> Ver Detalle
+                            </a>
+                            <a href="{{ url_for('areas.orden_history', orden_id=orden.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-history"></i> Ver Historial
+                            </a>
                         </div>
                     </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <!-- Current Notes -->
-            {% if current_progress.notas_area %}
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h6 class="mb-0">Notas Actuales</h6>
-                </div>
-                <div class="card-body">
-                    <div style="max-height: 200px; overflow-y: auto;">
-                        {{ current_progress.notas_area|nl2br }}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Available Actions -->
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">Acciones Disponibles</h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{{ url_for('areas.orden_history', orden_id=orden.id) }}" 
-                           class="btn btn-outline-info btn-sm">
-                            <i class="fas fa-history"></i> Ver Historial
-                        </a>
-                        <a href="{{ url_for('fabricacion.detalle', of_id=orden.id) }}" 
-                           class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-eye"></i> Ver Orden Completa
-                        </a>
-                        
-                        {% if current_progress.estado.es_final %}
-                        <form method="POST" action="{{ url_for('areas.avanzar_area_form', orden_id=orden.id) }}" 
-                              onsubmit="return confirm('¿Está seguro de avanzar esta orden a la siguiente área?');">
-                            <button type="submit" class="btn btn-success btn-sm">
-                                <i class="fas fa-arrow-right"></i> Avanzar a Siguiente Área
-                            </button>
-                        </form>
-                        {% endif %}
-                    </div>
                 </div>
             </div>
         </div>

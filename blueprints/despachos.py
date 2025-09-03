@@ -8,6 +8,8 @@ from services.despachos_service import DespachosService
 from services.proyectos_service import ProyectosService
 from services.fabricacion_service import FabricacionService
 from services.clientes_service import ClientesService
+# Importar el servicio de contratos (asumiendo que existe)
+from services.contratos_service import ContratosService
 from schemas.despachos import (DespachoCreate, DespachoUpdate, DespachoSearchFilters, 
                              CambioEstadoDespacho)
 import logging
@@ -19,6 +21,23 @@ despachos_service = DespachosService()
 proyectos_service = ProyectosService()
 fabricacion_service = FabricacionService()
 clientes_service = ClientesService()
+contratos_service = ContratosService() # Instanciar el servicio de contratos
+
+@despachos_bp.route('/api/contratos/cliente/<int:cliente_id>')
+@require_login
+def api_contratos_by_cliente(cliente_id):
+    """API endpoint to get contratos by cliente"""
+    try:
+        contratos = contratos_service.get_contratos_by_cliente(cliente_id)
+        return jsonify([{
+            'id': c.id,
+            'numero_oc': c.numero_oc,
+            'proyecto_nombre': c.proyecto.nombre
+        } for c in contratos])
+    except Exception as e:
+        logger.error(f"Error loading contratos for cliente {cliente_id}: {str(e)}")
+        return jsonify({'error': 'Error al cargar contratos'}), 500
+
 
 @despachos_bp.route('/')
 @require_login
@@ -28,6 +47,7 @@ def index():
         # Get search parameters
         filters_data = {
             'proyecto_id': request.args.get('proyecto_id', type=int),
+            'contrato_id': request.args.get('contrato_id', type=int), # Añadir filtro por contrato
             'of_id': request.args.get('of_id', type=int),
             'numero_despacho': request.args.get('numero_despacho', ''),
             'estado': request.args.get('estado', ''),
@@ -37,33 +57,36 @@ def index():
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int)
         }
-        
+
         # Clean empty values
         filters_data = {k: v for k, v in filters_data.items() if v}
-        
+
         # Validate filters
         filters = DespachoSearchFilters(**filters_data)
-        
+
         # Search despachos
         despachos, total_count = despachos_service.search_despachos(filters)
-        
+
         # Get data for filter dropdowns
         clientes = clientes_service.get_active_clientes()
-        
+        # Obtener contratos para el filtro (se podría mejorar para filtrar por cliente si se selecciona)
+        contratos = contratos_service.get_all_contratos() 
+
         # Calculate pagination
         total_pages = (total_count + filters.per_page - 1) // filters.per_page
         has_prev = filters.page > 1
         has_next = filters.page < total_pages
-        
+
         return render_template('despachos/index.html',
                              despachos=despachos,
                              clientes=clientes,
+                             contratos=contratos, # Pasar contratos a la plantilla
                              filters=filters,
                              total_count=total_count,
                              total_pages=total_pages,
                              has_prev=has_prev,
                              has_next=has_next)
-                             
+
     except ValidationError as e:
         flash('Filtros inválidos', 'error')
         return redirect(url_for('despachos.index'))
@@ -78,9 +101,12 @@ def nuevo():
     """Formulario para nuevo despacho"""
     try:
         clientes = clientes_service.get_active_clientes()
+        # Para el formulario de creación, no es necesario cargar todos los contratos aún,
+        # se cargarán dinámicamente por cliente.
         return render_template('despachos/form.html', 
                              despacho=None, 
                              clientes=clientes,
+                             contratos=None, # Inicialmente sin contratos
                              title="Nuevo Despacho")
     except Exception as e:
         logger.error(f"Error cargando formulario nuevo despacho: {str(e)}")
@@ -92,29 +118,54 @@ def nuevo():
 def crear():
     """Crear nuevo despacho"""
     try:
-        # Validate form data
-        despacho_data = DespachoCreate(**request.form.to_dict())
+        # Validar datos del formulario
+        # Se asume que el formulario enviará 'proyecto_id' o 'contrato_id'
+        form_data = request.form.to_dict()
         
-        # Handle file uploads
+        # Lógica para determinar si se usa proyecto o contrato
+        if 'contrato_id' in form_data and form_data['contrato_id']:
+            despacho_data = DespachoCreate(**form_data)
+            # Asociar OFs seleccionadas al despacho
+            of_ids = request.form.getlist('ordenes_fabricacion')
+            despacho_data.ordenes_fabricacion_ids = [int(id) for id in of_ids]
+        elif 'proyecto_id' in form_data and form_data['proyecto_id']:
+            despacho_data = DespachoCreate(**form_data)
+            # Asociar OFs seleccionadas al despacho
+            of_ids = request.form.getlist('ordenes_fabricacion')
+            despacho_data.ordenes_fabricacion_ids = [int(id) for id in of_ids]
+        else:
+            flash('Debe seleccionar un contrato o un proyecto', 'error')
+            clientes = clientes_service.get_active_clientes()
+            return render_template('despachos/form.html', 
+                                 despacho=None, 
+                                 clientes=clientes,
+                                 contratos=None,
+                                 title="Nuevo Despacho")
+
+
+        # Manejar subida de archivos
         archivos = request.files.getlist('archivos')
-        
-        # Create despacho with files
+
+        # Crear despacho con archivos
         despacho = despachos_service.create_despacho_with_files(
             despacho_data.dict(), 
             archivos, 
             current_user.id
         )
-        
+
         flash(f'Despacho {despacho.numero_despacho} creado exitosamente', 'success')
         return redirect(url_for('despachos.detalle', despacho_id=despacho.id))
-        
+
     except ValidationError as e:
+        logger.error(f"ValidationError al crear despacho: {e.errors()}")
         for error in e.errors():
             flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
         clientes = clientes_service.get_active_clientes()
+        # Intentar recuperar los datos del formulario para volver a mostrarlos
         return render_template('despachos/form.html', 
                              despacho=None, 
                              clientes=clientes,
+                             contratos=None, # Si hubo error, limpiar contratos
                              title="Nuevo Despacho")
     except Exception as e:
         logger.error(f"Error creando despacho: {str(e)}")
@@ -123,6 +174,7 @@ def crear():
         return render_template('despachos/form.html', 
                              despacho=None, 
                              clientes=clientes,
+                             contratos=None,
                              title="Nuevo Despacho")
 
 @despachos_bp.route('/<int:despacho_id>')
@@ -134,9 +186,14 @@ def detalle(despacho_id):
         if not despacho:
             flash('Despacho no encontrado', 'error')
             return redirect(url_for('despachos.index'))
-        
+
+        # Asumiendo que el modelo Despacho tiene un campo 'responsable_usuario' que es un objeto Usuario
+        # Si solo tiene el ID, se necesitaría obtener el nombre del usuario aquí.
+        # Si 'responsable' es solo el nombre, no se necesita hacer nada.
+        # Para este ejemplo, asumimos que 'responsable' en el modelo es el nombre.
+
         return render_template('despachos/detalle.html', despacho=despacho)
-                             
+
     except Exception as e:
         logger.error(f"Error obteniendo despacho {despacho_id}: {str(e)}")
         flash('Error al cargar despacho', 'error')
@@ -151,13 +208,25 @@ def editar(despacho_id):
         if not despacho:
             flash('Despacho no encontrado', 'error')
             return redirect(url_for('despachos.index'))
-        
+
         clientes = clientes_service.get_active_clientes()
+        # Cargar contratos asociados al cliente del despacho, si existe
+        contratos = []
+        if despacho.cliente_id:
+            contratos = contratos_service.get_contratos_by_cliente(despacho.cliente_id)
+        
+        # Cargar OFs asociadas al contrato del despacho, si existe
+        ordenes_fabricacion = []
+        if despacho.contrato_id:
+            ordenes_fabricacion = fabricacion_service.get_ordenes_by_contrato(despacho.contrato_id)
+
         return render_template('despachos/form.html', 
                              despacho=despacho,
                              clientes=clientes,
+                             contratos=contratos, # Pasar contratos a la plantilla
+                             ordenes_fabricacion=ordenes_fabricacion, # Pasar OFs a la plantilla
                              title=f"Editar Despacho - {despacho.numero_despacho}")
-                             
+
     except Exception as e:
         logger.error(f"Error obteniendo despacho para editar {despacho_id}: {str(e)}")
         flash('Error al cargar despacho', 'error')
@@ -172,23 +241,38 @@ def actualizar(despacho_id):
         if not despacho:
             flash('Despacho no encontrado', 'error')
             return redirect(url_for('despachos.index'))
-        
-        # Validate form data
+
+        # Validar datos del formulario
         update_data = DespachoUpdate(**request.form.to_dict())
+
+        # Manejar la actualización de las órdenes de fabricación asociadas si es necesario
+        # Esto podría implicar eliminar las existentes y agregar las nuevas, o una lógica más compleja.
+        # Por ahora, asumimos que las OFs no se modifican directamente desde este formulario o se manejan de otra manera.
         
-        # Update despacho
+        # Actualizar despacho
         despacho_actualizado = despachos_service.update_despacho(despacho_id, update_data.dict(exclude_unset=True))
-        
+
         flash(f'Despacho {despacho_actualizado.numero_despacho} actualizado exitosamente', 'success')
         return redirect(url_for('despachos.detalle', despacho_id=despacho_id))
-        
+
     except ValidationError as e:
+        logger.error(f"ValidationError al actualizar despacho {despacho_id}: {e.errors()}")
         for error in e.errors():
             flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
         clientes = clientes_service.get_active_clientes()
+        # Intentar recuperar los contratos y OFs para el formulario de edición
+        contratos = []
+        if despacho.cliente_id:
+            contratos = contratos_service.get_contratos_by_cliente(despacho.cliente_id)
+        ordenes_fabricacion = []
+        if despacho.contrato_id:
+            ordenes_fabricacion = fabricacion_service.get_ordenes_by_contrato(despacho.contrato_id)
+            
         return render_template('despachos/form.html', 
                              despacho=despacho,
                              clientes=clientes,
+                             contratos=contratos,
+                             ordenes_fabricacion=ordenes_fabricacion,
                              title=f"Editar Despacho - {despacho.numero_despacho}")
     except Exception as e:
         logger.error(f"Error actualizando despacho {despacho_id}: {str(e)}")
@@ -200,22 +284,23 @@ def actualizar(despacho_id):
 def cambiar_estado(despacho_id):
     """Cambiar estado del despacho"""
     try:
-        # Validate request data
+        # Validar datos de la solicitud
         cambio_data = CambioEstadoDespacho(**request.form.to_dict())
-        
+
         success = despachos_service.change_despacho_status(despacho_id, cambio_data.nuevo_estado, cambio_data.observaciones)
         if success:
             flash('Estado del despacho actualizado exitosamente', 'success')
         else:
             flash('Error al cambiar estado del despacho', 'error')
-            
+
     except ValidationError as e:
+        logger.error(f"ValidationError al cambiar estado de despacho {despacho_id}: {e.errors()}")
         for error in e.errors():
             flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
     except Exception as e:
         logger.error(f"Error cambiando estado de despacho {despacho_id}: {str(e)}")
         flash('Error al cambiar estado del despacho', 'error')
-    
+
     return redirect(url_for('despachos.detalle', despacho_id=despacho_id))
 
 @despachos_bp.route('/<int:despacho_id>/adjuntos/subir', methods=['POST'])
@@ -225,18 +310,18 @@ def subir_adjunto(despacho_id):
     try:
         archivo = request.files.get('archivo')
         tipo = request.form.get('tipo', 'foto')
-        
+
         if not archivo or not archivo.filename:
             flash('Archivo requerido', 'error')
             return redirect(url_for('despachos.detalle', despacho_id=despacho_id))
-        
+
         adjunto = despachos_service.add_despacho_attachment(despacho_id, archivo, tipo, current_user.id)
         flash('Archivo subido exitosamente', 'success')
-        
+
     except Exception as e:
         logger.error(f"Error subiendo adjunto a despacho {despacho_id}: {str(e)}")
         flash('Error al subir archivo', 'error')
-    
+
     return redirect(url_for('despachos.detalle', despacho_id=despacho_id))
 
 @despachos_bp.route('/adjuntos/<int:adjunto_id>/eliminar', methods=['POST'])
@@ -247,10 +332,11 @@ def eliminar_adjunto(adjunto_id):
         despacho_id = despachos_service.delete_despacho_attachment(adjunto_id)
         flash('Archivo eliminado exitosamente', 'success')
         return redirect(url_for('despachos.detalle', despacho_id=despacho_id))
-        
+
     except Exception as e:
         logger.error(f"Error eliminando adjunto {adjunto_id}: {str(e)}")
         flash('Error al eliminar archivo', 'error')
+        # Se redirige al index si no se puede obtener el despacho_id
         return redirect(url_for('despachos.index'))
 
 @despachos_bp.route('/<int:despacho_id>/eliminar', methods=['POST'])
@@ -263,10 +349,27 @@ def eliminar(despacho_id):
             flash('Despacho eliminado exitosamente', 'success')
         else:
             flash('Error al eliminar despacho', 'error')
-            
+
     except Exception as e:
         logger.error(f"Error eliminando despacho {despacho_id}: {str(e)}")
         flash('Error al eliminar despacho', 'error')
-    
+
     return redirect(url_for('despachos.index'))
 
+
+# API routes for cascading selects
+@despachos_bp.route('/api/ordenes-fabricacion/contrato/<int:contrato_id>')
+@require_login  
+def api_ofs_by_contrato(contrato_id):
+    """API para obtener órdenes de fabricación por contrato"""
+    try:
+        ofs = fabricacion_service.get_ordenes_by_contrato(contrato_id)
+        return jsonify([{
+            'id': of.id,
+            'codigo': of.codigo,
+            'descripcion': of.descripcion,
+            'estado': of.estado_actual.nombre if of.estado_actual else 'Sin estado'
+        } for of in ofs])
+    except Exception as e:
+        logger.error(f"Error obteniendo OFs para contrato {contrato_id}: {str(e)}")
+        return jsonify([]), 500

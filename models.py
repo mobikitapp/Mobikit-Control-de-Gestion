@@ -431,7 +431,7 @@ class HitoEntrega(db.Model):
 
     # Relationships
     creator = db.relationship('User', foreign_keys=[created_by])
-    completed_by_user = db.relationship('User', foreign_keys=[completado_por])
+    completado_por_user = db.relationship('User', foreign_keys=[completado_por])
     evento_entrega = db.relationship('EventoEntrega', backref='hito', uselist=False)
 
     # Indexes
@@ -456,6 +456,7 @@ class OrdenFabricacion(db.Model):
     glosa = db.Column(db.Text)
     cantidad_tableros = db.Column(db.Integer)
     fecha_entrega_fabrica = db.Column(db.Date)
+    fecha_entrega_embalaje = db.Column(db.Date)
     fecha_planificada = db.Column(db.Date)
     fecha_inicio = db.Column(db.DateTime)
     fecha_qc = db.Column(db.DateTime)
@@ -515,6 +516,58 @@ class OrdenFabricacion(db.Model):
         except Exception:
             return None
 
+    @property
+    def fecha_entrega_dinamica(self):
+        """Obtiene la fecha de entrega apropiada según el área actual"""
+        try:
+            current_progress = self.area_progreso_actual
+            if not current_progress or not current_progress.area:
+                return self.fecha_entrega_fabrica
+                
+            area_tipo = current_progress.area.tipo.value
+            
+            if area_tipo == 'fabrica':
+                return self.fecha_entrega_fabrica
+            elif area_tipo == 'embalaje':
+                return self.fecha_entrega_embalaje
+            elif area_tipo in ['bodega', 'despacho']:
+                # Return contract delivery date
+                if self.contrato:
+                    if self.contrato.plan_entrega:
+                        from models import HitoEntrega, EstadoHitoEntrega
+                        from datetime import date
+                        
+                        next_hito = (db.session.query(HitoEntrega)
+                                   .filter_by(plan_entrega_id=self.contrato.plan_entrega.id)
+                                   .filter(HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE)
+                                   .filter(HitoEntrega.fecha_programada >= date.today())
+                                   .order_by(HitoEntrega.fecha_programada.asc())
+                                   .first())
+                        
+                        if next_hito:
+                            return next_hito.fecha_programada
+                    
+                    return self.contrato.fecha_entrega_comprometida
+                return self.fecha_entrega_fabrica
+            else:
+                return self.fecha_entrega_fabrica
+                
+        except Exception:
+            return self.fecha_entrega_fabrica
+
+    @property
+    def days_remaining_dynamic(self):
+        """Calcula días restantes usando la fecha de entrega dinámica"""
+        try:
+            fecha_entrega = self.fecha_entrega_dinamica
+            if fecha_entrega:
+                from datetime import date
+                today = date.today()
+                return (fecha_entrega - today).days
+            return None
+        except Exception:
+            return None
+
     def __repr__(self):
         return f'<OrdenFabricacion {self.codigo}>'
 
@@ -545,6 +598,7 @@ class Despacho(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
+    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=True)
     of_id = db.Column(db.Integer, db.ForeignKey('ordenes_fabricacion.id'), nullable=True)
     numero_despacho = db.Column(db.String(50), unique=True, nullable=False)
     estado = db.Column(db.Enum(EstadoDespacho), default=EstadoDespacho.PROGRAMADO, nullable=False)
@@ -554,7 +608,7 @@ class Despacho(db.Model):
     contacto_destino = db.Column(db.String(200))
     telefono_contacto = db.Column(db.String(50))
     observaciones = db.Column(db.Text)
-    responsable = db.Column(db.String, db.ForeignKey('users.id'))
+    responsable_nombre = db.Column(db.String(200))
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
@@ -562,16 +616,17 @@ class Despacho(db.Model):
 
     # Relationships
     adjuntos = db.relationship('DespachoAdjunto', backref='despacho', lazy=True, cascade='all, delete-orphan')
-    responsable_user = db.relationship('User', foreign_keys=[responsable])
+    contrato = db.relationship('Contrato', foreign_keys=[contrato_id])
     creator = db.relationship('User', foreign_keys=[created_by])
 
     # Indexes
     __table_args__ = (
         Index('idx_despacho_proyecto', 'proyecto_id'),
+        Index('idx_despacho_contrato', 'contrato_id'),
         Index('idx_despacho_of', 'of_id'),
         Index('idx_despacho_numero', 'numero_despacho'),
         Index('idx_despacho_estado', 'estado'),
-        Index('idx_despacho_responsable', 'responsable'),
+        Index('idx_despacho_responsable_nombre', 'responsable_nombre'),
         Index('idx_despacho_fechas', 'fecha_programada', 'fecha_envio'),
     )
 

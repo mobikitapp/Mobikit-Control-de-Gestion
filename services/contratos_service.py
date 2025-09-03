@@ -114,6 +114,10 @@ class ContratosService:
             self._enrich_contrato_with_next_milestone(contrato)
         return contrato
 
+    def get_contratos_by_cliente(self, cliente_id: int) -> List[Contrato]:
+        """Get all contratos for a cliente"""
+        return self.repo.get_by_cliente_id(cliente_id)
+
     def update_contrato(self, contrato_id: int, update_data: Dict[str, Any]) -> Contrato:
         """
         Update contrato with validation and audit logging
@@ -341,10 +345,16 @@ class ContratosService:
             logger.error(f"Error deleting contrato {contrato_id}: {str(e)}")
             raise
 
-    def get_contratos_by_proyecto(self, proyecto_id: int):
-        """Get all contratos for a specific proyecto"""
+    def get_contratos_by_proyecto(self, proyecto_id: int) -> List[Contrato]:
+        """Get all contratos for a proyecto"""
         try:
-            return self.repo.get_by_proyecto(proyecto_id)
+            contratos = self.repo.get_by_proyecto(proyecto_id)
+
+            # Enrich each contract with additional info
+            for contrato in contratos:
+                self._enrich_contrato_with_ofs_info(contrato)
+
+            return contratos
         except Exception as e:
             logger.error(f"Error getting contratos for proyecto {proyecto_id}: {str(e)}")
             raise
@@ -352,24 +362,24 @@ class ContratosService:
     def get_contratos_grouped_by_client(self, filters: ContratoSearchFilters) -> tuple[List[Dict], int]:
         """
         Get contratos grouped by client and project
-        
+
         Returns:
             Tuple of (grouped_data, total_count)
         """
         try:
             contratos, total_count = self.repo.search(filters)
-            
+
             # Enrich contracts with next delivery milestone info
             for contrato in contratos:
                 self._enrich_contrato_with_next_milestone(contrato)
-            
+
             # Group contracts by client and project
             grouped_data = {}
-            
+
             for contrato in contratos:
                 cliente_id = contrato.proyecto.cliente.id
                 proyecto_id = contrato.proyecto.id
-                
+
                 # Initialize client data if not exists
                 if cliente_id not in grouped_data:
                     grouped_data[cliente_id] = {
@@ -377,36 +387,36 @@ class ContratosService:
                         'proyectos': {},
                         'total_contratos': 0
                     }
-                
+
                 # Initialize project data if not exists
                 if proyecto_id not in grouped_data[cliente_id]['proyectos']:
                     grouped_data[cliente_id]['proyectos'][proyecto_id] = {
                         'proyecto': contrato.proyecto,
                         'contratos': []
                     }
-                
+
                 # Add contract to project
                 grouped_data[cliente_id]['proyectos'][proyecto_id]['contratos'].append(contrato)
                 grouped_data[cliente_id]['total_contratos'] += 1
-            
+
             # Convert to list format for template
             result = []
             for cliente_data in grouped_data.values():
                 proyectos_list = list(cliente_data['proyectos'].values())
                 # Sort projects by name
                 proyectos_list.sort(key=lambda p: p['proyecto'].nombre)
-                
+
                 result.append({
                     'cliente': cliente_data['cliente'],
                     'proyectos': proyectos_list,
                     'total_contratos': cliente_data['total_contratos']
                 })
-            
+
             # Sort clients by name
             result.sort(key=lambda c: c['cliente'].nombre)
-            
+
             return result, total_count
-            
+
         except Exception as e:
             logger.error(f"Error grouping contratos by client: {str(e)}")
             raise
@@ -418,30 +428,30 @@ class ContratosService:
         try:
             from datetime import date
             from models import EstadoHitoEntrega
-            
+
             # Initialize default values
             contrato.fecha_proxima_entrega = None
             contrato.proximo_hito = None
             contrato.dias_restantes_proxima_entrega = None
-            
+
             # Enrich with OFs information
             self._enrich_contrato_with_ofs_info(contrato)
-            
+
             if contrato.plan_entrega and contrato.plan_entrega.hitos:
                 # Get pending milestones sorted by date and order
                 hitos_pendientes = [
                     hito for hito in contrato.plan_entrega.hitos 
                     if hito.estado == EstadoHitoEntrega.PENDIENTE
                 ]
-                
+
                 if hitos_pendientes:
                     # Sort by date first, then by order
                     hitos_pendientes.sort(key=lambda x: (x.fecha_programada, x.orden))
                     proximo_hito = hitos_pendientes[0]
-                    
+
                     contrato.fecha_proxima_entrega = proximo_hito.fecha_programada
                     contrato.proximo_hito = proximo_hito
-                    
+
                     # Calculate days remaining
                     today = date.today()
                     days_diff = (proximo_hito.fecha_programada - today).days
@@ -452,7 +462,7 @@ class ContratosService:
                         hito for hito in contrato.plan_entrega.hitos 
                         if hito.estado == EstadoHitoEntrega.COMPLETADO
                     ]
-                    
+
                     if hitos_completados:
                         # All milestones completed, use the last one
                         hitos_completados.sort(key=lambda x: (x.fecha_programada, x.orden))
@@ -460,17 +470,17 @@ class ContratosService:
                         contrato.fecha_proxima_entrega = ultimo_hito.fecha_programada
                         contrato.proximo_hito = ultimo_hito
                         contrato.dias_restantes_proxima_entrega = 0  # Already completed
-            
+
             # Fallback to contract delivery date if no plan exists
             elif contrato.fecha_entrega_comprometida:
                 contrato.fecha_proxima_entrega = contrato.fecha_entrega_comprometida
                 contrato.proximo_hito = None
-                
+
                 # Calculate days remaining
                 today = date.today()
                 days_diff = (contrato.fecha_entrega_comprometida - today).days
                 contrato.dias_restantes_proxima_entrega = days_diff
-                
+
         except Exception as e:
             logger.warning(f"Error enriching contrato {contrato.id} with milestone info: {str(e)}")
             # Set default values on error
@@ -484,27 +494,27 @@ class ContratosService:
         """
         try:
             from models import OrdenFabricacion
-            
+
             # Get all manufacturing orders for this contract
             ofs = (db.session.query(OrdenFabricacion)
                    .filter_by(contrato_id=contrato.id)
                    .order_by(OrdenFabricacion.fecha_planificada.asc())
                    .all())
-            
+
             # Initialize OFs data
             contrato.ordenes_fabricacion_count = len(ofs)
             contrato.ordenes_fabricacion_list = []
-            
+
             if ofs:
                 for of in ofs:
                     # Get current area and status
                     area_actual = None
                     estado_actual = None
-                    
+
                     if of.area_progreso_actual:
                         area_actual = of.area_progreso_actual.area.nombre if of.area_progreso_actual.area else None
                         estado_actual = of.area_progreso_actual.estado.nombre if of.area_progreso_actual.estado else None
-                    
+
                     of_info = {
                         'id': of.id,
                         'codigo': of.codigo,
@@ -514,12 +524,12 @@ class ContratosService:
                         'estado_actual': estado_actual or 'Sin estado',
                         'responsable': of.responsable_user.nombre_completo if of.responsable_user else 'Sin asignar'
                     }
-                    
+
                     contrato.ordenes_fabricacion_list.append(of_info)
             else:
                 contrato.ordenes_fabricacion_count = 0
                 contrato.ordenes_fabricacion_list = []
-                
+
         except Exception as e:
             logger.warning(f"Error enriching contrato {contrato.id} with OFs info: {str(e)}")
             # Set default values on error

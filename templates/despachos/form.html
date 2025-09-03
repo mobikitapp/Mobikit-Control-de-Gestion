@@ -30,10 +30,10 @@
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('despachos.crear') if not despacho else url_for('despachos.actualizar', despacho_id=despacho.id) }}" enctype="multipart/form-data" novalidate>
                         <div class="row g-3">
-                            <!-- Cliente, Proyecto y OF -->
-                            <div class="col-md-4">
+                            <!-- Cliente, Proyecto, Contrato y OF -->
+                            <div class="col-md-3">
                                 <label for="cliente_id" class="form-label">Cliente</label>
-                                <select class="form-select" id="cliente_id" onchange="updateProyectos(); updateOFs();">
+                                <select class="form-select" id="cliente_id" onchange="updateProyectos(); updateContratos(); clearOFs();">
                                     <option value="">Seleccionar cliente</option>
                                     {% for cliente in clientes %}
                                     <option value="{{ cliente.id }}" 
@@ -44,11 +44,11 @@
                                 </select>
                             </div>
                             
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="proyecto_id" class="form-label">
                                     Proyecto <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateOFs()" required>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateContratos(); updateOFsByProyecto()" required>
                                     <option value="">Seleccionar proyecto</option>
                                     {% if despacho %}
                                     <option value="{{ despacho.proyecto_id }}" selected>{{ despacho.proyecto.nombre }}</option>
@@ -59,7 +59,17 @@
                                 </div>
                             </div>
                             
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label for="contrato_id" class="form-label">Contrato/OC (Opcional)</label>
+                                <select class="form-select" id="contrato_id" name="contrato_id" onchange="updateOFsByContrato()">
+                                    <option value="">Sin contrato asociado</option>
+                                    {% if despacho and despacho.contrato %}
+                                    <option value="{{ despacho.contrato_id }}" selected>{{ despacho.contrato.numero_oc }}</option>
+                                    {% endif %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-3">
                                 <label for="of_id" class="form-label">Orden de Fabricación (Opcional)</label>
                                 <select class="form-select" id="of_id" name="of_id">
                                     <option value="">Sin OF asociada</option>
@@ -94,12 +104,12 @@
                             
                             <!-- Responsable -->
                             <div class="col-md-6">
-                                <label for="responsable" class="form-label">Responsable</label>
-                                <input type="text" class="form-control" id="responsable" name="responsable" 
-                                       value="{{ despacho.responsable if despacho else current_user.id }}" 
-                                       placeholder="ID del usuario responsable">
+                                <label for="responsable_nombre" class="form-label">Responsable</label>
+                                <input type="text" class="form-control" id="responsable_nombre" name="responsable_nombre" 
+                                       value="{{ despacho.responsable_nombre if despacho else current_user.nombre_completo }}" 
+                                       placeholder="Nombre del responsable">
                                 <div class="form-text">
-                                    Actualmente: {{ current_user.nombre_completo }}
+                                    Usuario actual: {{ current_user.nombre_completo }}
                                 </div>
                             </div>
                             
@@ -244,17 +254,65 @@ async function updateProyectos() {
                     }
                     proyectoSelect.appendChild(option);
                 });
+            } else {
+                console.error('Error response loading proyectos:', response.status);
             }
         } catch (error) {
             console.error('Error loading proyectos:', error);
+            proyectoSelect.innerHTML = '<option value="">Error cargando proyectos</option>';
         }
     }
 }
 
-async function updateOFs() {
-    const proyectoSelect = document.getElementById('proyecto_id');
+async function updateContratos() {
+    const clienteSelect = document.getElementById('cliente_id');
+    const contratoSelect = document.getElementById('contrato_id');
+    const clienteId = clienteSelect.value;
+    
+    // Clear current options (except selected one)
+    const selectedContrato = contratoSelect.value;
+    contratoSelect.innerHTML = '<option value="">Sin contrato asociado</option>';
+    
+    if (clienteId) {
+        try {
+            const response = await fetch(`{{ url_for('despachos.api_contratos_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
+            if (response.ok) {
+                const contratos = await response.json();
+                contratos.forEach(contrato => {
+                    const option = document.createElement('option');
+                    option.value = contrato.id;
+                    option.textContent = contrato.numero_oc + ' - ' + contrato.proyecto_nombre;
+                    if (contrato.id == selectedContrato) {
+                        option.selected = true;
+                    }
+                    contratoSelect.appendChild(option);
+                });
+            } else {
+                console.error('Error response loading contratos:', response.status);
+            }
+        } catch (error) {
+            console.error('Error loading contratos:', error);
+            contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
+        }
+    }
+}
+
+function clearOFs() {
     const ofSelect = document.getElementById('of_id');
+    ofSelect.innerHTML = '<option value="">Sin OF asociada</option>';
+}
+
+async function updateOFsByProyecto() {
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const contratoSelect = document.getElementById('contrato_id');
     const proyectoId = proyectoSelect.value;
+    
+    // Si hay un contrato seleccionado, usar ese método en su lugar
+    if (contratoSelect.value) {
+        return updateOFsByContrato();
+    }
+    
+    const ofSelect = document.getElementById('of_id');
     
     // Clear current options (except selected one)
     const selectedOF = ofSelect.value;
@@ -281,14 +339,47 @@ async function updateOFs() {
     }
 }
 
+async function updateOFsByContrato() {
+    const contratoSelect = document.getElementById('contrato_id');
+    const ofSelect = document.getElementById('of_id');
+    const contratoId = contratoSelect.value;
+    
+    // Clear current options (except selected one)
+    const selectedOF = ofSelect.value;
+    ofSelect.innerHTML = '<option value="">Sin OF asociada</option>';
+    
+    if (contratoId) {
+        try {
+            const response = await fetch(`{{ url_for('despachos.api_ofs_by_contrato', contrato_id=0) }}`.replace('0', contratoId));
+            if (response.ok) {
+                const ofs = await response.json();
+                ofs.forEach(of => {
+                    const option = document.createElement('option');
+                    option.value = of.id;
+                    option.textContent = of.codigo + ' (' + of.estado + ')';
+                    if (of.id == selectedOF) {
+                        option.selected = true;
+                    }
+                    ofSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading OFs:', error);
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Cascade selects initialized');
+    
     // Form validation
     const form = document.querySelector('form');
     const clienteSelect = document.getElementById('cliente_id');
     
-    // Initialize proyectos and OFs if cliente is pre-selected
+    // Initialize proyectos, contratos and OFs if cliente is pre-selected
     if (clienteSelect.value) {
         updateProyectos();
+        updateContratos();
     }
     
     // Form submission validation

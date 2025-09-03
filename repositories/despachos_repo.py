@@ -24,8 +24,8 @@ class DespachosRepository:
         return (db.session.query(Despacho)
                 .options(
                     joinedload(Despacho.proyecto).joinedload(Proyecto.cliente),
+                    joinedload(Despacho.contrato),
                     joinedload(Despacho.orden_fabricacion),
-                    joinedload(Despacho.responsable_user),
                     joinedload(Despacho.creator),
                     joinedload(Despacho.adjuntos)
                 )
@@ -64,8 +64,8 @@ class DespachosRepository:
         query = (db.session.query(Despacho)
                 .options(
                     joinedload(Despacho.proyecto).joinedload(Proyecto.cliente),
-                    joinedload(Despacho.orden_fabricacion),
-                    joinedload(Despacho.responsable_user)
+                    joinedload(Despacho.contrato),
+                    joinedload(Despacho.orden_fabricacion)
                 ))
         
         # Apply filters
@@ -73,6 +73,9 @@ class DespachosRepository:
         
         if filters.proyecto_id:
             conditions.append(Despacho.proyecto_id == filters.proyecto_id)
+        
+        if filters.contrato_id:
+            conditions.append(Despacho.contrato_id == filters.contrato_id)
         
         if filters.of_id:
             conditions.append(Despacho.of_id == filters.of_id)
@@ -83,8 +86,8 @@ class DespachosRepository:
         if filters.estado:
             conditions.append(Despacho.estado == filters.estado)
         
-        if filters.responsable:
-            conditions.append(Despacho.responsable == filters.responsable)
+        if filters.responsable_nombre:
+            conditions.append(Despacho.responsable_nombre.ilike(f"%{filters.responsable_nombre}%"))
         
         if filters.fecha_programada_desde:
             conditions.append(Despacho.fecha_programada >= filters.fecha_programada_desde)

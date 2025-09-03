@@ -137,7 +137,7 @@ class FabricacionService:
                     if not contrato:
                         raise ValueError(f"Contrato {contrato_id} no encontrado")
 
-                    
+
                     if contrato.proyecto_id != proyecto_id:
                         raise ValueError("El contrato no pertenece al proyecto especificado")
 
@@ -316,12 +316,12 @@ class FabricacionService:
             raise
 
     def get_ordenes_by_proyecto(self, proyecto_id: int) -> List[OrdenFabricacion]:
-        """Get all OFs for a proyecto"""
-        try:
-            return self.repo.get_by_proyecto(proyecto_id)
-        except Exception as e:
-            logger.error(f"Error obteniendo OFs del proyecto {proyecto_id}: {str(e)}")
-            raise
+        """Get all ordenes for a proyecto"""
+        return self.repo.get_by_proyecto_id(proyecto_id)
+
+    def get_ordenes_by_contrato(self, contrato_id: int) -> List[OrdenFabricacion]:
+        """Get all ordenes for a contrato"""
+        return self.repo.get_by_contrato_id(contrato_id)
 
     def smart_advance_orden(self, of_id: int, created_by: str, responsable_id: str = None, notas: str = None) -> tuple[bool, str]:
         """

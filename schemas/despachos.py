@@ -16,6 +16,7 @@ class TipoAdjuntoDespachoEnum(str, Enum):
 
 class DespachoBase(BaseModel):
     proyecto_id: int = Field(..., description="ID del proyecto")
+    contrato_id: Optional[int] = Field(None, description="ID del contrato (opcional)")
     of_id: Optional[int] = Field(None, description="ID de la OF (opcional)")
     numero_despacho: str = Field(..., min_length=1, max_length=50, description="Número de despacho")
     estado: EstadoDespachoEnum = Field(EstadoDespachoEnum.PROGRAMADO, description="Estado del despacho")
@@ -25,7 +26,7 @@ class DespachoBase(BaseModel):
     contacto_destino: Optional[str] = Field(None, max_length=200, description="Contacto en destino")
     telefono_contacto: Optional[str] = Field(None, max_length=50, description="Teléfono de contacto")
     observaciones: Optional[str] = Field(None, description="Observaciones")
-    responsable: Optional[str] = Field(None, description="ID del usuario responsable")
+    responsable_nombre: Optional[str] = Field(None, max_length=200, description="Nombre del responsable")
 
     @validator('fecha_envio')
     def validate_fecha_envio(cls, v, values):
@@ -40,6 +41,7 @@ class DespachoCreate(DespachoBase):
 
 class DespachoUpdate(BaseModel):
     proyecto_id: Optional[int] = None
+    contrato_id: Optional[int] = None
     of_id: Optional[int] = None
     numero_despacho: Optional[str] = Field(None, min_length=1, max_length=50)
     estado: Optional[EstadoDespachoEnum] = None
@@ -49,7 +51,7 @@ class DespachoUpdate(BaseModel):
     contacto_destino: Optional[str] = Field(None, max_length=200)
     telefono_contacto: Optional[str] = Field(None, max_length=50)
     observaciones: Optional[str] = None
-    responsable: Optional[str] = None
+    responsable_nombre: Optional[str] = Field(None, max_length=200)
 
 class DespachoAdjuntoBase(BaseModel):
     filename: str = Field(..., description="Nombre del archivo")
@@ -76,8 +78,8 @@ class DespachoResponse(DespachoBase):
     updated_at: datetime
     created_by: Optional[str]
     proyecto_nombre: Optional[str] = None
+    contrato_numero_oc: Optional[str] = None
     of_codigo: Optional[str] = None
-    responsable_nombre: Optional[str] = None
     adjuntos: List[DespachoAdjuntoResponse] = []
 
     class Config:
@@ -85,10 +87,11 @@ class DespachoResponse(DespachoBase):
 
 class DespachoSearchFilters(BaseModel):
     proyecto_id: Optional[int] = Field(None, description="Filtrar por proyecto")
+    contrato_id: Optional[int] = Field(None, description="Filtrar por contrato")
     of_id: Optional[int] = Field(None, description="Filtrar por OF")
     numero_despacho: Optional[str] = Field(None, description="Buscar por número de despacho")
     estado: Optional[EstadoDespachoEnum] = Field(None, description="Filtrar por estado")
-    responsable: Optional[str] = Field(None, description="Filtrar por responsable")
+    responsable_nombre: Optional[str] = Field(None, description="Filtrar por responsable")
     fecha_programada_desde: Optional[date] = Field(None, description="Fecha programada desde")
     fecha_programada_hasta: Optional[date] = Field(None, description="Fecha programada hasta")
     page: int = Field(1, ge=1, description="Número de página")
