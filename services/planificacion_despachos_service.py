@@ -263,7 +263,20 @@ class PlanificacionDespachosService:
             hitos_proximos = []
             for hito in hitos:
                 dias_restantes = (hito.fecha_programada - date.today()).days
-                despacho_creado = len(hito.despachos) > 0
+                
+                # Verificar si ya tiene despacho creado - manejar de forma segura
+                despacho_creado = False
+                despacho_id = None
+                
+                if hasattr(hito, 'despachos') and hito.despachos:
+                    despacho_creado = len(hito.despachos) > 0
+                    if despacho_creado:
+                        primer_despacho = hito.despachos[0]
+                        # Verificar si es un objeto o diccionario
+                        if hasattr(primer_despacho, 'id'):
+                            despacho_id = primer_despacho.id
+                        elif isinstance(primer_despacho, dict) and 'id' in primer_despacho:
+                            despacho_id = primer_despacho['id']
                 
                 hitos_proximos.append({
                     'id': hito.id,
@@ -274,6 +287,7 @@ class PlanificacionDespachosService:
                     'proyecto_nombre': hito.plan_entrega.contrato.proyecto.nombre,
                     'contrato_numero_oc': hito.plan_entrega.contrato.numero_oc,
                     'despacho_creado': despacho_creado,
+                    'despacho_id': despacho_id,
                     'urgente': dias_restantes <= 2
                 })
             
