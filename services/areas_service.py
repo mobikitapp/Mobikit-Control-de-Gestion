@@ -291,6 +291,8 @@ class AreasService:
                                 'proxima_entrega_contrato': self._get_proxima_entrega_contrato(o.orden_fabricacion),
                                 'fecha_entrega_fabrica': o.orden_fabricacion.fecha_entrega_fabrica,
                                 'fecha_entrega_embalaje': o.orden_fabricacion.fecha_entrega_embalaje,
+                                'fecha_entrega_dinamica': self.get_dynamic_delivery_date(o.orden_fabricacion),
+                                'fecha_entrega_embalaje': o.orden_fabricacion.fecha_entrega_embalaje,
                                 'fecha_ingreso_area': o.fecha_ingreso_area,
                                 'fecha_cambio_estado': o.fecha_cambio_estado,
                                 'tiempo_estimado_horas': float(o.tiempo_estimado_horas) if o.tiempo_estimado_horas else None
@@ -421,4 +423,33 @@ class AreasService:
             
         except Exception as e:
             logger.error(f"Error getting next delivery date: {str(e)}")
+            return None
+
+    def get_dynamic_delivery_date(self, orden_fabricacion) -> Optional[date]:
+        """
+        Get the appropriate delivery date based on the current area of the order
+        """
+        try:
+            # Get current area
+            current_progress = orden_fabricacion.area_progreso_actual
+            if not current_progress or not current_progress.area:
+                return None
+                
+            area_tipo = current_progress.area.tipo.value
+            
+            if area_tipo == 'fabrica':
+                # In factory area, show factory delivery date
+                return orden_fabricacion.fecha_entrega_fabrica
+            elif area_tipo == 'embalaje':
+                # In packaging area, show packaging delivery date
+                return orden_fabricacion.fecha_entrega_embalaje
+            elif area_tipo in ['bodega', 'despacho']:
+                # In warehouse/dispatch areas, show contract delivery date
+                return self._get_proxima_entrega_contrato(orden_fabricacion)
+            else:
+                # For other areas (pendientes), show factory delivery date as fallback
+                return orden_fabricacion.fecha_entrega_fabrica
+                
+        except Exception as e:
+            logger.error(f"Error getting dynamic delivery date: {str(e)}")
             return None

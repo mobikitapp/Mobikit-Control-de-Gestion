@@ -516,6 +516,58 @@ class OrdenFabricacion(db.Model):
         except Exception:
             return None
 
+    @property
+    def fecha_entrega_dinamica(self):
+        """Obtiene la fecha de entrega apropiada según el área actual"""
+        try:
+            current_progress = self.area_progreso_actual
+            if not current_progress or not current_progress.area:
+                return self.fecha_entrega_fabrica
+                
+            area_tipo = current_progress.area.tipo.value
+            
+            if area_tipo == 'fabrica':
+                return self.fecha_entrega_fabrica
+            elif area_tipo == 'embalaje':
+                return self.fecha_entrega_embalaje
+            elif area_tipo in ['bodega', 'despacho']:
+                # Return contract delivery date
+                if self.contrato:
+                    if self.contrato.plan_entrega:
+                        from models import HitoEntrega, EstadoHitoEntrega
+                        from datetime import date
+                        
+                        next_hito = (db.session.query(HitoEntrega)
+                                   .filter_by(plan_entrega_id=self.contrato.plan_entrega.id)
+                                   .filter(HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE)
+                                   .filter(HitoEntrega.fecha_programada >= date.today())
+                                   .order_by(HitoEntrega.fecha_programada.asc())
+                                   .first())
+                        
+                        if next_hito:
+                            return next_hito.fecha_programada
+                    
+                    return self.contrato.fecha_entrega_comprometida
+                return self.fecha_entrega_fabrica
+            else:
+                return self.fecha_entrega_fabrica
+                
+        except Exception:
+            return self.fecha_entrega_fabrica
+
+    @property
+    def days_remaining_dynamic(self):
+        """Calcula días restantes usando la fecha de entrega dinámica"""
+        try:
+            fecha_entrega = self.fecha_entrega_dinamica
+            if fecha_entrega:
+                from datetime import date
+                today = date.today()
+                return (fecha_entrega - today).days
+            return None
+        except Exception:
+            return None
+
     def __repr__(self):
         return f'<OrdenFabricacion {self.codigo}>'
 

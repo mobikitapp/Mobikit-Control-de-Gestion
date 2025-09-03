@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Órdenes de Fabricación - Mobikit{% endblock %}
@@ -93,19 +92,34 @@
                                         <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
-                                    {% if orden.fecha_entrega_estimada %}
-                                        {% set fecha_entrega = orden.fecha_entrega_estimada %}
-                                        {% set dias_restantes = (fecha_entrega - fecha_hoy).days %}
-                                        {% if dias_restantes < 0 %}
-                                            <span class="badge bg-danger">{{ dias_restantes * -1 }} días atraso</span>
-                                        {% elif dias_restantes == 0 %}
+                                    {% if orden.fecha_entrega_dinamica %}
+                                        {{ orden.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                                        {% if orden.area_actual %}
+                                        <br><small class="text-muted">
+                                            {% if orden.area_actual.tipo.value == 'fabrica' %}
+                                            Fábrica
+                                            {% elif orden.area_actual.tipo.value == 'embalaje' %}
+                                            Embalaje
+                                            {% else %}
+                                            Contrato
+                                            {% endif %}
+                                        </small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if orden.days_remaining_dynamic is not none %}
+                                        {% if orden.days_remaining_dynamic < 0 %}
+                                            <span class="badge bg-danger">{{ orden.days_remaining_dynamic|abs }} días atraso</span>
+                                        {% elif orden.days_remaining_dynamic == 0 %}
                                             <span class="badge bg-warning">Hoy</span>
-                                        {% elif dias_restantes <= 3 %}
-                                            <span class="badge bg-warning">{{ dias_restantes }} días</span>
+                                        {% elif orden.days_remaining_dynamic <= 3 %}
+                                            <span class="badge bg-warning">{{ orden.days_remaining_dynamic }} días</span>
                                         {% else %}
-                                            <span class="badge bg-success">{{ dias_restantes }} días</span>
+                                            <span class="badge bg-success">{{ orden.days_remaining_dynamic }} días</span>
                                         {% endif %}
                                     {% else %}
                                         <span class="text-muted">Sin fecha</span>
@@ -196,19 +210,34 @@
                                         <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
-                                    {% if orden.fecha_entrega_estimada %}
-                                        {% set fecha_entrega = orden.fecha_entrega_estimada %}
-                                        {% set dias_restantes = (fecha_entrega - fecha_hoy).days %}
-                                        {% if dias_restantes < 0 %}
-                                            <span class="badge bg-danger">{{ dias_restantes * -1 }} días atraso</span>
-                                        {% elif dias_restantes == 0 %}
+                                    {% if orden.fecha_entrega_dinamica %}
+                                        {{ orden.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                                        {% if orden.area_actual %}
+                                        <br><small class="text-muted">
+                                            {% if orden.area_actual.tipo.value == 'fabrica' %}
+                                            Fábrica
+                                            {% elif orden.area_actual.tipo.value == 'embalaje' %}
+                                            Embalaje
+                                            {% else %}
+                                            Contrato
+                                            {% endif %}
+                                        </small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if orden.days_remaining_dynamic is not none %}
+                                        {% if orden.days_remaining_dynamic < 0 %}
+                                            <span class="badge bg-danger">{{ orden.days_remaining_dynamic|abs }} días atraso</span>
+                                        {% elif orden.days_remaining_dynamic == 0 %}
                                             <span class="badge bg-warning">Hoy</span>
-                                        {% elif dias_restantes <= 3 %}
-                                            <span class="badge bg-warning">{{ dias_restantes }} días</span>
+                                        {% elif orden.days_remaining_dynamic <= 3 %}
+                                            <span class="badge bg-warning">{{ orden.days_remaining_dynamic }} días</span>
                                         {% else %}
-                                            <span class="badge bg-success">{{ dias_restantes }} días</span>
+                                            <span class="badge bg-success">{{ orden.days_remaining_dynamic }} días</span>
                                         {% endif %}
                                     {% else %}
                                         <span class="text-muted">Sin fecha</span>
@@ -297,19 +326,34 @@
                                         <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
-                                    {% if orden.fecha_entrega_estimada %}
-                                        {% set fecha_entrega = orden.fecha_entrega_estimada %}
-                                        {% set dias_restantes = (fecha_entrega - fecha_hoy).days %}
-                                        {% if dias_restantes < 0 %}
-                                            <span class="badge bg-danger">{{ dias_restantes * -1 }} días atraso</span>
-                                        {% elif dias_restantes == 0 %}
+                                    {% if orden.fecha_entrega_dinamica %}
+                                        {{ orden.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                                        {% if orden.area_actual %}
+                                        <br><small class="text-muted">
+                                            {% if orden.area_actual.tipo.value == 'fabrica' %}
+                                            Fábrica
+                                            {% elif orden.area_actual.tipo.value == 'embalaje' %}
+                                            Embalaje
+                                            {% else %}
+                                            Contrato
+                                            {% endif %}
+                                        </small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if orden.days_remaining_dynamic is not none %}
+                                        {% if orden.days_remaining_dynamic < 0 %}
+                                            <span class="badge bg-danger">{{ orden.days_remaining_dynamic|abs }} días atraso</span>
+                                        {% elif orden.days_remaining_dynamic == 0 %}
                                             <span class="badge bg-warning">Hoy</span>
-                                        {% elif dias_restantes <= 3 %}
-                                            <span class="badge bg-warning">{{ dias_restantes }} días</span>
+                                        {% elif orden.days_remaining_dynamic <= 3 %}
+                                            <span class="badge bg-warning">{{ orden.days_remaining_dynamic }} días</span>
                                         {% else %}
-                                            <span class="badge bg-success">{{ dias_restantes }} días</span>
+                                            <span class="badge bg-success">{{ orden.days_remaining_dynamic }} días</span>
                                         {% endif %}
                                     {% else %}
                                         <span class="text-muted">Sin fecha</span>
@@ -386,19 +430,34 @@
                                 <td>
                                     <span class="badge bg-danger">Listo para Despacho</span>
                                 </td>
-                                <td>{{ orden.fecha_entrega_estimada }}</td>
                                 <td>
-                                    {% if orden.fecha_entrega_estimada %}
-                                        {% set fecha_entrega = orden.fecha_entrega_estimada %}
-                                        {% set dias_restantes = (fecha_entrega - fecha_hoy).days %}
-                                        {% if dias_restantes < 0 %}
-                                            <span class="badge bg-danger">{{ dias_restantes * -1 }} días atraso</span>
-                                        {% elif dias_restantes == 0 %}
+                                    {% if orden.fecha_entrega_dinamica %}
+                                        {{ orden.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                                        {% if orden.area_actual %}
+                                        <br><small class="text-muted">
+                                            {% if orden.area_actual.tipo.value == 'fabrica' %}
+                                            Fábrica
+                                            {% elif orden.area_actual.tipo.value == 'embalaje' %}
+                                            Embalaje
+                                            {% else %}
+                                            Contrato
+                                            {% endif %}
+                                        </small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if orden.days_remaining_dynamic is not none %}
+                                        {% if orden.days_remaining_dynamic < 0 %}
+                                            <span class="badge bg-danger">{{ orden.days_remaining_dynamic|abs }} días atraso</span>
+                                        {% elif orden.days_remaining_dynamic == 0 %}
                                             <span class="badge bg-warning">Hoy</span>
-                                        {% elif dias_restantes <= 3 %}
-                                            <span class="badge bg-warning">{{ dias_restantes }} días</span>
+                                        {% elif orden.days_remaining_dynamic <= 3 %}
+                                            <span class="badge bg-warning">{{ orden.days_remaining_dynamic }} días</span>
                                         {% else %}
-                                            <span class="badge bg-success">{{ dias_restantes }} días</span>
+                                            <span class="badge bg-success">{{ orden.days_remaining_dynamic }} días</span>
                                         {% endif %}
                                     {% else %}
                                         <span class="text-muted">Sin fecha</span>
@@ -481,7 +540,24 @@
                                         <span class="badge bg-secondary">{{ orden.estado|title }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ orden.fecha_entrega_estimada }}</td>
+                                <td>
+                                    {% if orden.fecha_entrega_dinamica %}
+                                        {{ orden.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                                        {% if orden.area_actual %}
+                                        <br><small class="text-muted">
+                                            {% if orden.area_actual.tipo.value == 'fabrica' %}
+                                            Fábrica
+                                            {% elif orden.area_actual.tipo.value == 'embalaje' %}
+                                            Embalaje
+                                            {% else %}
+                                            Contrato
+                                            {% endif %}
+                                        </small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ orden.fecha_entrega_real or 'N/A' }}</td>
                                 <td>
                                     <button class="btn btn-sm btn-outline-info" onclick="verDetalleOrden({{ orden.id }})" title="Ver Detalle">

@@ -254,27 +254,22 @@
                                                     <span class="text-muted">-</span>
                                                     {% endif %}
                                                 </td>
-                                                {% if area_data.area.tipo.value == 'fabrica' %}
                                                 <td>
-                                                    {% if order.fecha_entrega_fabrica %}
-                                                    <small class="{% if order.fecha_entrega_fabrica < moment_global.now().date() %}text-danger{% elif (order.fecha_entrega_fabrica - moment_global.now().date()).days <= 3 %}text-warning{% else %}text-muted{% endif %}">
-                                                        {{ order.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}
+                                                    {% if order.fecha_entrega_dinamica %}
+                                                    <small class="{% if order.fecha_entrega_dinamica < moment_global.now().date() %}text-danger{% elif (order.fecha_entrega_dinamica - moment_global.now().date()).days <= 3 %}text-warning{% else %}text-muted{% endif %}">
+                                                        {{ order.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                                                        {% if area_data.area.tipo.value == 'fabrica' %}
+                                                        <br><span class="text-muted" style="font-size: 0.7em;">Fábrica</span>
+                                                        {% elif area_data.area.tipo.value == 'embalaje' %}
+                                                        <br><span class="text-muted" style="font-size: 0.7em;">Embalaje</span>
+                                                        {% else %}
+                                                        <br><span class="text-muted" style="font-size: 0.7em;">Contrato</span>
+                                                        {% endif %}
                                                     </small>
                                                     {% else %}
-                                                    <span class="text-muted">-</span>
+                                                        <span class="text-muted">-</span>
                                                     {% endif %}
                                                 </td>
-                                                {% elif area_data.area.tipo.value == 'embalaje' %}
-                                                <td>
-                                                    {% if order.fecha_entrega_embalaje %}
-                                                    <small class="{% if order.fecha_entrega_embalaje < moment_global.now().date() %}text-danger{% elif (order.fecha_entrega_embalaje - moment_global.now().date()).days <= 3 %}text-warning{% else %}text-muted{% endif %}">
-                                                        {{ order.fecha_entrega_embalaje.strftime('%d/%m/%Y') }}
-                                                    </small>
-                                                    {% else %}
-                                                    <span class="text-muted">-</span>
-                                                    {% endif %}
-                                                </td>
-                                                {% endif %}
                                                 <td>
                                                     <small>{{ order.fecha_ingreso_area.strftime('%d/%m/%Y %H:%M') if order.fecha_ingreso_area else '-' }}</small>
                                                 </td>
@@ -571,11 +566,11 @@ function showAdvanceAreaModal(orderId, orderCode, currentArea) {
 
 async function loadUsersForAdvance() {
     const responsableSelect = document.getElementById('responsable_area');
-    
+
     try {
         // Clear existing options except the first one
         responsableSelect.innerHTML = '<option value="">Seleccionar responsable...</option>';
-        
+
         const response = await fetch('/contratos/api/users/active');
         if (response.ok) {
             const users = await response.json();
