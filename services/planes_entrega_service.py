@@ -209,7 +209,7 @@ class PlanesEntregaService:
     def completar_hito(self, hito_id: int, notas: str, completed_by: str) -> HitoEntrega:
         """Mark milestone as completed"""
         try:
-            hito = self.repo.get_hito_by_id(hito_id)
+            hito = self.hitos_repo.get_by_id(hito_id)
             if not hito:
                 raise ValueError(f"Hito {hito_id} no encontrado")
 
@@ -223,7 +223,7 @@ class PlanesEntregaService:
                 'completado_por': completed_by
             }
 
-            hito_actualizado = self.repo.update_hito(hito, update_data)
+            hito_actualizado = self.hitos_repo.update(hito, update_data)
 
             # Sync with calendar events
             try:
