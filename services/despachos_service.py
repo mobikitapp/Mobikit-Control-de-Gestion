@@ -51,8 +51,27 @@ class DespachosService:
             if self.repo.exists_numero(despacho_data['numero_despacho']):
                 raise ValueError(f"Ya existe un despacho con número {despacho_data['numero_despacho']}")
             
+            # Separate ordenes_fabricacion from despacho_data
+            ordenes_fabricacion = despacho_data.pop('ordenes_fabricacion', [])
+            
             # Create despacho
             despacho = self.repo.create(despacho_data, created_by)
+            
+            # Create associated DespachoOrdenFabricacion records
+            if ordenes_fabricacion:
+                from models import DespachoOrdenFabricacion, TipoDespacho
+                
+                for of_data in ordenes_fabricacion:
+                    despacho_of = DespachoOrdenFabricacion(
+                        despacho_id=despacho.id,
+                        orden_fabricacion_id=of_data['orden_fabricacion_id'],
+                        tipo_despacho=TipoDespacho(of_data['tipo_despacho']),
+                        cantidad_despachada=of_data['cantidad_despachada'],
+                        cantidad_total=of_data['cantidad_total'],
+                        observaciones=of_data.get('observaciones'),
+                        created_by=created_by
+                    )
+                    db.session.add(despacho_of)
             
             # Commit transaction
             db.session.commit()

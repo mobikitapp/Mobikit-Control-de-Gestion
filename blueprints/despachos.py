@@ -179,16 +179,15 @@ def crear():
                                 if tipo_despacho == 'TOTAL':
                                     cantidad_despachada = of.cantidad_tableros or 1
                                 else:
-                                    cantidad_despachada = float(of_data.get('cantidad', 0)) if of_data.get('cantidad') else 0
+                                    cantidad_despachada = float(of_data.get('cantidad_despachada', 1))
 
-                                if cantidad_despachada > 0:
-                                    ordenes_fabricacion.append({
-                                        'orden_fabricacion_id': int(of_data['of_id']),
-                                        'tipo_despacho': tipo_despacho,
-                                        'cantidad_despachada': cantidad_despachada,
-                                        'cantidad_total': of.cantidad_tableros or 1,
-                                        'observaciones': of_data.get('observaciones', '')
-                                    })
+                                ordenes_fabricacion.append({
+                                    'orden_fabricacion_id': of.id,
+                                    'tipo_despacho': tipo_despacho,
+                                    'cantidad_despachada': cantidad_despachada,
+                                    'cantidad_total': of.cantidad_tableros or 1,
+                                    'observaciones': of_data.get('observaciones', '')
+                                })
 
                     # Remove the processed selected_ofs field
                     del form_data['selected_ofs']
@@ -238,16 +237,15 @@ def crear():
                                 if tipo_despacho == 'TOTAL':
                                     cantidad_despachada = of.cantidad_tableros or 1
                                 else:
-                                    cantidad_despachada = float(of_data.get('cantidad', 0)) if of_data.get('cantidad') else 0
+                                    cantidad_despachada = float(of_data.get('cantidad_despachada', 1))
 
-                                if cantidad_despachada > 0:
-                                    ordenes_fabricacion.append({
-                                        'orden_fabricacion_id': int(of_data['of_id']),
-                                        'tipo_despacho': tipo_despacho,
-                                        'cantidad_despachada': cantidad_despachada,
-                                        'cantidad_total': of.cantidad_tableros or 1,
-                                        'observaciones': of_data.get('observaciones', '')
-                                    })
+                                ordenes_fabricacion.append({
+                                    'orden_fabricacion_id': of.id,
+                                    'tipo_despacho': tipo_despacho,
+                                    'cantidad_despachada': cantidad_despachada,
+                                    'cantidad_total': of.cantidad_tableros or 1,
+                                    'observaciones': of_data.get('observaciones', '')
+                                })
 
                     # Remove the processed selected_ofs field
                     del form_data['selected_ofs']
