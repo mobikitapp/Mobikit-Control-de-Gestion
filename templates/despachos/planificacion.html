@@ -202,31 +202,31 @@
                                                             <td>{{ hito['contrato_numero_oc'] }}</td>
                                                             <td>{{ hito['fecha_entrega'].strftime('%d/%m/%Y') if hito['fecha_entrega'] else 'N/A' }}</td>
                                                             <td>
-                                                                <span class="badge {% if hito['estado'] == 'PENDIENTE' %}badge-warning{% elif hito['estado'] == 'COMPLETADO' %}badge-success{% else %}badge-danger{% endif %}">
+                                                                <span class="badge {% if hito['estado'] == 'PENDIENTE' %}bg-warning text-dark{% elif hito['estado'] == 'COMPLETADO' %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
                                                                     {{ hito['estado'] }}
                                                                 </span>
                                                             </td>
                                                             <td>
                                                                 {% if hito['ordenes_fabricacion_disponibles'] %}
-                                                                    <span class="badge badge-info">
+                                                                    <span class="badge bg-info text-white">
                                                                         {{ hito['ordenes_fabricacion_disponibles']|length }} OFs
                                                                     </span>
                                                                     <button class="btn btn-sm btn-outline-info ml-1" 
-                                                                            data-toggle="collapse" 
-                                                                            data-target="#ofs-{{ hito['id'] }}">
+                                                                            data-bs-toggle="collapse" 
+                                                                            data-bs-target="#ofs-{{ hito['id'] }}">
                                                                         <i class="fas fa-eye"></i> Ver
                                                                     </button>
                                                                 {% else %}
-                                                                    <span class="text-muted">Sin OFs disponibles</span>
+                                                                    <span class="text-muted"><strong>Sin OFs disponibles</strong></span>
                                                                 {% endif %}
                                                             </td>
                                                             <td>
                                                                 {% if hito['despacho_creado'] %}
-                                                                    <span class="badge badge-success">
+                                                                    <span class="badge bg-success text-white">
                                                                         <i class="fas fa-check"></i> Despacho Creado
                                                                     </span>
                                                                 {% else %}
-                                                                    <span class="badge badge-secondary">
+                                                                    <span class="badge bg-secondary text-white">
                                                                         <i class="fas fa-clock"></i> Pendiente
                                                                     </span>
                                                                 {% endif %}
@@ -251,20 +251,20 @@
                                                         <tr>
                                                             <td colspan="7" class="p-0">
                                                                 <div class="collapse" id="ofs-{{ hito['id'] }}">
-                                                                    <div class="bg-light p-3">
-                                                                        <h6>Órdenes de Fabricación Disponibles:</h6>
+                                                                    <div class="bg-light p-3 border-top">
+                                                                        <h6 class="text-dark mb-3"><i class="fas fa-boxes text-primary"></i> Órdenes de Fabricación Disponibles:</h6>
                                                                         <div class="row">
                                                                             {% for of in hito['ordenes_fabricacion_disponibles'] %}
                                                                             <div class="col-md-6 mb-2">
-                                                                                <div class="card card-body p-2">
+                                                                                <div class="card card-body p-2 border">
                                                                                     <div class="d-flex justify-content-between">
                                                                                         <div>
-                                                                                            <strong>{{ of.codigo }}</strong><br>
-                                                                                            <small class="text-muted">{{ of.descripcion }}</small>
+                                                                                            <strong class="text-dark">{{ of['codigo'] }}</strong><br>
+                                                                                            <small class="text-muted">{{ of['descripcion'] or 'Sin descripción' }}</small>
                                                                                         </div>
                                                                                         <div class="text-end">
-                                                                                            <span class="badge bg-success text-white">{{ of.cantidad_disponible }} / {{ of.cantidad_total }}</span><br>
-                                                                                            <small class="text-muted">{{ of.estado }}</small>
+                                                                                            <span class="badge bg-primary text-white">{{ of['cantidad_disponible'] }} / {{ of['cantidad_total'] }}</span><br>
+                                                                                            <small class="text-success"><strong>{{ of['estado'] }}</strong></small>
                                                                                         </div>
                                                                                     </div>
                                                                                 </div>
@@ -314,6 +314,19 @@
 
 .badge {
     font-size: 0.85em;
+    font-weight: 600;
+}
+
+.text-muted strong {
+    color: #6c757d !important;
+}
+
+.card.border {
+    border: 1px solid #dee2e6 !important;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
 }
 
 .table th {
