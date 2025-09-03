@@ -79,13 +79,13 @@ def index():
         return redirect(url_for('index'))
 
 @clientes_bp.route('/nuevo')
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def nuevo():
     """Formulario para nuevo cliente"""
     return render_template('clientes/form.html', cliente=None, title="Nuevo Cliente")
 
 @clientes_bp.route('/crear', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def crear():
     """Crear nuevo cliente"""
     try:
@@ -127,7 +127,7 @@ def detalle(cliente_id):
         return redirect(url_for('clientes.index'))
 
 @clientes_bp.route('/<int:cliente_id>/editar')
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def editar(cliente_id):
     """Formulario de edición de cliente"""
     try:
@@ -146,7 +146,7 @@ def editar(cliente_id):
         return redirect(url_for('clientes.index'))
 
 @clientes_bp.route('/<int:cliente_id>/actualizar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def actualizar(cliente_id):
     """Actualizar cliente existente"""
     try:

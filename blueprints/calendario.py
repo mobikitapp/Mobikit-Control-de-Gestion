@@ -145,7 +145,7 @@ def detalle_evento(evento_id):
 
 @calendario_bp.route('/nuevo-evento')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
 def nuevo_evento():
     """Formulario para crear nuevo evento de entrega"""
     try:
@@ -164,7 +164,7 @@ def nuevo_evento():
 
 @calendario_bp.route('/nuevo-evento', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
 def crear_evento():
     """Crear nuevo evento de entrega"""
     try:
@@ -205,7 +205,7 @@ def crear_evento():
 
 @calendario_bp.route('/evento/<evento_id>/editar')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
 def editar_evento(evento_id):
     """Formulario para editar evento existente"""
     try:
@@ -230,7 +230,7 @@ def editar_evento(evento_id):
 
 @calendario_bp.route('/evento/<evento_id>/editar', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
 def actualizar_evento(evento_id):
     """Actualizar evento existente"""
     try:
@@ -271,7 +271,7 @@ def actualizar_evento(evento_id):
 
 @calendario_bp.route('/evento/<evento_id>/completar', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.VENTAS, RolUsuario.LOGISTICA])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS, RolUsuario.LOGISTICA])
 def completar_evento(evento_id):
     """Marcar evento como completado"""
     try:

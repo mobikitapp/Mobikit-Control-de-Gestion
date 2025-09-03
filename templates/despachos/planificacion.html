@@ -198,6 +198,11 @@
                                                         <tr>
                                                             <td>
                                                                 <strong>{{ hito['descripcion'] }}</strong>
+                                                                {% if proyecto['nombre'] %}
+                                                                <br><span class="badge bg-info text-dark">
+                                                                    <i class="fas fa-project-diagram"></i> {{ proyecto['nombre'] }}
+                                                                </span>
+                                                                {% endif %}
                                                             </td>
                                                             <td>{{ hito['contrato_numero_oc'] }}</td>
                                                             <td>{{ hito['fecha_entrega'].strftime('%d/%m/%Y') if hito['fecha_entrega'] else 'N/A' }}</td>

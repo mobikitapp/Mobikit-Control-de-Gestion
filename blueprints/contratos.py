@@ -88,7 +88,7 @@ def index():
         return redirect(url_for('index'))
 
 @contratos_bp.route('/nuevo')
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def nuevo():
     """Formulario para nuevo contrato"""
     try:
@@ -107,7 +107,7 @@ def nuevo():
         return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/crear', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def crear():
     """Crear nuevo contrato"""
     try:
@@ -221,7 +221,7 @@ def detalle(contrato_id):
         return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/<int:contrato_id>/editar')
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def editar(contrato_id):
     """Formulario de edición de contrato"""
     try:
@@ -245,7 +245,7 @@ def editar(contrato_id):
         return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/<int:contrato_id>/actualizar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def actualizar(contrato_id):
     """Actualizar contrato existente"""
     try:
@@ -325,7 +325,7 @@ def actualizar(contrato_id):
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/<int:contrato_id>/cambiar-estado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def cambiar_estado(contrato_id):
     """Cambiar estado del contrato"""
     try:
@@ -347,7 +347,7 @@ def cambiar_estado(contrato_id):
     return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/<int:contrato_id>/adjuntos/subir', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def subir_adjunto(contrato_id):
     """Subir nuevo adjunto al contrato"""
     try:
@@ -368,7 +368,7 @@ def subir_adjunto(contrato_id):
     return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/adjuntos/<int:adjunto_id>/eliminar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def eliminar_adjunto(adjunto_id):
     """Eliminar adjunto del contrato"""
     try:
@@ -412,7 +412,7 @@ def plan_entrega(contrato_id):
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/<int:contrato_id>/plan-entrega/crear', methods=['GET', 'POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def crear_plan_entrega(contrato_id):
     """Crear plan de entrega para contrato"""
     try:
@@ -471,7 +471,7 @@ def crear_plan_entrega(contrato_id):
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/hitos/<int:hito_id>/completar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
 def completar_hito(hito_id):
     """Marcar hito como completado"""
     try:
@@ -492,7 +492,7 @@ def completar_hito(hito_id):
         return redirect(request.referrer or url_for('contratos.index'))
 
 @contratos_bp.route('/planes-entrega/<int:plan_id>/hitos/agregar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def agregar_hito(plan_id):
     """Agregar nuevo hito al plan de entrega"""
     try:
@@ -613,7 +613,7 @@ def api_users_active():
         return jsonify({'error': 'Error cargando usuarios'}), 500
 
 @contratos_bp.route('/api/sincronizar-eventos-calendario', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def api_sincronizar_eventos_calendario():
     """API endpoint para sincronizar eventos del calendario desde hitos de planes de entrega"""
     try:

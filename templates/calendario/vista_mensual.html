@@ -122,10 +122,13 @@
                                             {% for evento in eventos_por_dia[dia][:3] %}
                                             <div class="event-item event-{{ evento.tipo }} event-{{ evento.estado }} event-priority-{{ evento.prioridad }}" 
                                                  data-bs-toggle="tooltip" 
-                                                 title="{{ evento.titulo }}{% if evento.hora %} - {{ evento.hora }}{% endif %}{% if evento.proyecto %} ({{ evento.proyecto }}){% endif %}">
+                                                 title="{% if evento.proyecto %}🏗️ {{ evento.proyecto }} - {% endif %}{{ evento.titulo }}{% if evento.hora %} - {{ evento.hora }}{% endif %}{% if evento.plan_entrega %} | Plan: {{ evento.plan_entrega }}{% endif %}">
                                                 <div class="event-content">
                                                     {% if evento.hora %}
                                                     <small class="event-time">{{ evento.hora }}</small>
+                                                    {% endif %}
+                                                    {% if evento.proyecto %}
+                                                    <small class="event-project">🏗️ {{ evento.proyecto[:15] }}{% if evento.proyecto|length > 15 %}...{% endif %}</small>
                                                     {% endif %}
                                                     <span class="event-title">{{ evento.titulo[:20] }}{% if evento.titulo|length > 20 %}...{% endif %}</span>
                                                 </div>
@@ -285,6 +288,13 @@
     font-weight: bold;
 }
 
+.event-project {
+    color: rgba(255,255,255,0.9);
+    font-weight: bold;
+    display: block;
+    font-size: 0.65rem;
+}
+
 .event-title {
     white-space: nowrap;
     overflow: hidden;
@@ -296,6 +306,7 @@
 .event-reunion { background-color: #6f42c1; color: white; }
 .event-seguimiento { background-color: #fd7e14; color: white; }
 .event-hito { background-color: #20c997; color: white; }
+.event-hito_entrega { background-color: #198754; color: white; }
 .event-recordatorio { background-color: #6c757d; color: white; }
 
 /* Event state modifiers */

@@ -63,6 +63,7 @@ class TipoAdjunto(Enum):
 
 class RolUsuario(Enum):
     ADMIN = "admin"
+    GENERAL = "general"
     OPERACIONES = "operaciones"
     VENTAS = "ventas"
     PRODUCCION = "produccion"
@@ -944,6 +945,35 @@ class ObjetivoMensual(db.Model):
 
     def __repr__(self):
         return f'<ObjetivoMensual {self.año}-{self.mes:02d}>'
+
+
+class ComisionVendedor(db.Model):
+    __tablename__ = 'comisiones_vendedor'
+
+    id = db.Column(db.Integer, primary_key=True)
+    vendedor_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
+    comision_provision_pct = db.Column(db.Numeric(5, 2), default=3.0, nullable=False)  # Porcentaje comisión provisión
+    comision_instalacion_pct = db.Column(db.Numeric(5, 2), default=3.0, nullable=False)  # Porcentaje comisión instalación
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    notas = db.Column(db.Text)
+
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+
+    # Relationships
+    vendedor = db.relationship('User', foreign_keys=[vendedor_id])
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint('vendedor_id', name='uq_comision_vendedor'),
+        Index('idx_comision_vendedor', 'vendedor_id'),
+        Index('idx_comision_activo', 'activo'),
+    )
+
+    def __repr__(self):
+        return f'<ComisionVendedor {self.vendedor.nombre_completo if self.vendedor else self.vendedor_id}>'
 
 
 # Modelos para calendario de eventos
