@@ -12,10 +12,12 @@
                     <h1 class="h3 mb-0">Crear Plan de Entrega</h1>
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb">
-                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('areas.dashboard') }}">Dashboard</a></li>
                             <li class="breadcrumb-item"><a href="{{ url_for('contratos.index') }}">Contratos</a></li>
                             <li class="breadcrumb-item"><a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}">{{ contrato.numero_oc }}</a></li>
                             <li class="breadcrumb-item active">Crear Plan de Entrega</li>
+                        </ol>
+                    </nav>
                         </ol>
                     </nav>
                 </div>
