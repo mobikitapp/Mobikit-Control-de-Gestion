@@ -22,7 +22,7 @@ comercial_bp = Blueprint('comercial', __name__)
 @comercial_bp.route('/')
 @comercial_bp.route('/centro-vendedores')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def centro_vendedores():
     """Centro de vendedores - Vista principal del área comercial"""
     try:
@@ -50,7 +50,7 @@ def centro_vendedores():
 
 @comercial_bp.route('/vendedores')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def lista_vendedores():
     """Lista de vendedores con estadísticas"""
     try:
@@ -97,7 +97,7 @@ def lista_vendedores():
 
 @comercial_bp.route('/vendedor/<string:vendedor_id>')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def vendedor_detalle(vendedor_id):
     """Detalle de un vendedor específico"""
     try:
@@ -121,7 +121,7 @@ def vendedor_detalle(vendedor_id):
 # Project commercial management
 @comercial_bp.route('/proyecto/<int:proyecto_id>/comercial')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def proyecto_comercial(proyecto_id):
     """Gestión comercial de un proyecto específico"""
     try:
@@ -141,7 +141,7 @@ def proyecto_comercial(proyecto_id):
 
 @comercial_bp.route('/proyecto/<int:proyecto_id>/comercial/actualizar', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def actualizar_comercial_proyecto(proyecto_id):
     """Actualizar información comercial de un proyecto"""
     try:
@@ -176,7 +176,7 @@ def actualizar_comercial_proyecto(proyecto_id):
 # Commercial tasks management
 @comercial_bp.route('/tareas')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def tareas_comerciales():
     """Lista de tareas comerciales"""
     try:
@@ -199,7 +199,7 @@ def tareas_comerciales():
 
 @comercial_bp.route('/tarea/<int:tarea_id>/completar', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def completar_tarea(tarea_id):
     """Marcar una tarea como completada"""
     try:
@@ -222,7 +222,7 @@ def completar_tarea(tarea_id):
 # Commercial planning routes
 @comercial_bp.route('/planificacion')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def planificacion_comercial():
     """Planificación comercial - Vista de matriz mensual"""
     try:
@@ -248,7 +248,7 @@ def planificacion_comercial():
 
 @comercial_bp.route('/objetivos')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def objetivos_mensuales():
     """Gestión de objetivos mensuales"""
     try:
@@ -266,7 +266,7 @@ def objetivos_mensuales():
 
 @comercial_bp.route('/objetivos/actualizar', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS])
 def actualizar_objetivos():
     """Actualizar objetivos mensuales"""
     try:
@@ -303,7 +303,7 @@ def actualizar_objetivos():
 # API routes for AJAX calls
 @comercial_bp.route('/api/proyecto/<int:proyecto_id>/crear-tarea', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def api_crear_tarea(proyecto_id):
     """API para crear una nueva tarea comercial"""
     try:
@@ -341,7 +341,7 @@ def api_crear_tarea(proyecto_id):
 
 @comercial_bp.route('/api/planificacion/<int:year>/datos')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def api_planificacion_datos(year):
     """API para obtener datos de planificación por año"""
     try:
@@ -375,7 +375,7 @@ def api_planificacion_datos(year):
 # Revenue Management Routes
 @comercial_bp.route('/revenue-management')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def revenue_management():
     """Revenue Management - Vista principal"""
     try:
@@ -404,7 +404,7 @@ def revenue_management():
 
 @comercial_bp.route('/api/revenue/meses')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def api_revenue_meses():
     """API: Get monthly revenue data"""
     try:
@@ -426,7 +426,7 @@ def api_revenue_meses():
 
 @comercial_bp.route('/api/revenue/mes', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def api_revenue_update_mes():
     """API: Update or create monthly objective"""
     try:
@@ -462,7 +462,7 @@ def api_revenue_update_mes():
 
 @comercial_bp.route('/api/revenue/simular', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def api_revenue_simular():
     """API: Simulate revenue scenario"""
     try:
@@ -498,7 +498,7 @@ def api_revenue_simular():
 
 @comercial_bp.route('/api/revenue/calcular-proyectos/<int:anio>/<int:mes>', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def api_revenue_calcular_proyectos(anio, mes):
     """API: Calculate and update revenue data from real projects for a specific month"""
     try:
@@ -553,7 +553,7 @@ def api_revenue_calcular_proyectos(anio, mes):
 
 @comercial_bp.route('/api/revenue/calcular-proyectos/<int:anio>', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def api_revenue_calcular_proyectos_año(anio):
     """API: Calculate and update revenue data from real projects for entire year"""
     try:

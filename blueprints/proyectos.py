@@ -116,7 +116,7 @@ def index():
         return redirect(url_for('index'))
 
 @proyectos_bp.route('/nuevo')
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def nuevo():
     """Formulario para nuevo proyecto"""
     try:
@@ -138,7 +138,7 @@ def nuevo():
         return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/crear', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def crear():
     """Crear nuevo proyecto"""
     try:
@@ -217,7 +217,7 @@ def detalle(proyecto_id):
         return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/<int:proyecto_id>/editar')
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def editar(proyecto_id):
     """Formulario de edición de proyecto"""
     try:
@@ -245,7 +245,7 @@ def editar(proyecto_id):
         return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/<int:proyecto_id>/actualizar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def actualizar(proyecto_id):
     """Actualizar proyecto existente"""
     try:
@@ -318,7 +318,7 @@ def api_by_cliente(cliente_id):
 
 # Add main API endpoint for testing
 @proyectos_bp.route('/<int:proyecto_id>/cambiar-estado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def cambiar_estado(proyecto_id):
     """Cambiar estado comercial de un proyecto"""
     try:

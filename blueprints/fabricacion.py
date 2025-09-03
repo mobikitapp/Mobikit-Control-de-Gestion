@@ -112,7 +112,7 @@ def index():
         return redirect(url_for('index'))
 
 @fabricacion_bp.route('/nueva')
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def nueva():
     """Formulario para nueva orden de fabricación"""
     try:
@@ -129,7 +129,7 @@ def nueva():
         return redirect(url_for('fabricacion.index'))
 
 @fabricacion_bp.route('/crear', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def crear():
     """Crear nueva orden de fabricación"""
     try:
@@ -190,7 +190,7 @@ def detalle(of_id):
         return redirect(url_for('fabricacion.index'))
 
 @fabricacion_bp.route('/<int:of_id>/editar')
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def editar(of_id):
     """Formulario de edición de orden de fabricación"""
     try:
@@ -230,7 +230,7 @@ def editar(of_id):
         return redirect(url_for('fabricacion.index'))
 
 @fabricacion_bp.route('/<int:of_id>/actualizar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def actualizar(of_id):
     """Actualizar orden de fabricación existente"""
     try:
@@ -289,7 +289,7 @@ def actualizar(of_id):
         return redirect(url_for('fabricacion.detalle', of_id=of_id))
 
 @fabricacion_bp.route('/<int:of_id>/cambiar-estado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def cambiar_estado(of_id):
     """Cambiar estado dentro del área actual"""
     try:
@@ -316,7 +316,7 @@ def cambiar_estado(of_id):
     return redirect(url_for('fabricacion.detalle', of_id=of_id))
 
 @fabricacion_bp.route('/<int:of_id>/avanzar-area', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def avanzar_area(of_id):
     """Avanzar OF al siguiente estado o área según corresponda"""
     try:

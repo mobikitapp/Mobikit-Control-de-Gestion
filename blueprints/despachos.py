@@ -147,7 +147,7 @@ def index():
         return redirect(url_for('index'))
 
 @despachos_bp.route('/nuevo')
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
 def nuevo():
     """Formulario para nuevo despacho"""
     try:
@@ -165,7 +165,7 @@ def nuevo():
         return redirect(url_for('despachos.index'))
 
 @despachos_bp.route('/crear', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
 def crear():
     """Crear nuevo despacho"""
     try:
@@ -357,7 +357,7 @@ def detalle(despacho_id):
         return redirect(url_for('despachos.index'))
 
 @despachos_bp.route('/<int:despacho_id>/editar')
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
 def editar(despacho_id):
     """Formulario de edición de despacho"""
     try:
@@ -390,7 +390,7 @@ def editar(despacho_id):
         return redirect(url_for('despachos.index'))
 
 @despachos_bp.route('/<int:despacho_id>/actualizar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
 def actualizar(despacho_id):
     """Actualizar despacho existente"""
     try:
@@ -437,7 +437,7 @@ def actualizar(despacho_id):
         return redirect(url_for('despachos.detalle', despacho_id=despacho_id))
 
 @despachos_bp.route('/<int:despacho_id>/cambiar-estado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
 def cambiar_estado(despacho_id):
     """Cambiar estado del despacho"""
     try:
@@ -461,7 +461,7 @@ def cambiar_estado(despacho_id):
     return redirect(url_for('despachos.detalle', despacho_id=despacho_id))
 
 @despachos_bp.route('/<int:despacho_id>/adjuntos/subir', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
 def subir_adjunto(despacho_id):
     """Subir nuevo adjunto al despacho"""
     try:
@@ -482,7 +482,7 @@ def subir_adjunto(despacho_id):
     return redirect(url_for('despachos.detalle', despacho_id=despacho_id))
 
 @despachos_bp.route('/adjuntos/<int:adjunto_id>/eliminar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
 def eliminar_adjunto(adjunto_id):
     """Eliminar adjunto del despacho"""
     try:

@@ -63,6 +63,7 @@ class TipoAdjunto(Enum):
 
 class RolUsuario(Enum):
     ADMIN = "admin"
+    GENERAL = "general"
     OPERACIONES = "operaciones"
     VENTAS = "ventas"
     PRODUCCION = "produccion"

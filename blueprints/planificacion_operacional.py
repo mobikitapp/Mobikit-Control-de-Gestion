@@ -20,7 +20,7 @@ planificacion_operacional_bp = Blueprint('planificacion_operacional', __name__)
 @planificacion_operacional_bp.route('/')
 @planificacion_operacional_bp.route('/matriz')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
 def matriz_operacional():
     """Matriz de planificación operacional - Conversión de montos a tableros"""
     try:
@@ -51,7 +51,7 @@ def matriz_operacional():
 
 @planificacion_operacional_bp.route('/configuracion')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def configuracion_conversion():
     """Configuración de factores de conversión"""
     try:
@@ -70,7 +70,7 @@ def configuracion_conversion():
 
 @planificacion_operacional_bp.route('/configuracion/actualizar', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def actualizar_configuracion():
     """Actualizar factores de conversión"""
     try:
@@ -100,7 +100,7 @@ def actualizar_configuracion():
 
 @planificacion_operacional_bp.route('/detalle-proyecto/<int:proyecto_id>')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
 def detalle_proyecto_operacional(proyecto_id):
     """Detalle operacional de un proyecto específico"""
     try:
@@ -123,7 +123,7 @@ def detalle_proyecto_operacional(proyecto_id):
 
 @planificacion_operacional_bp.route('/capacidad-produccion')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
 def capacidad_produccion():
     """Análisis de capacidad de producción"""
     try:
@@ -146,7 +146,7 @@ def capacidad_produccion():
 # API routes for AJAX calls
 @planificacion_operacional_bp.route('/api/calcular-tableros', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
 def api_calcular_tableros():
     """API para calcular tableros en tiempo real"""
     try:
@@ -179,7 +179,7 @@ def api_calcular_tableros():
 
 @planificacion_operacional_bp.route('/api/matriz/<int:year>/datos')
 @login_required  
-@role_required([RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
 def api_matriz_datos(year):
     """API para obtener datos de matriz operacional"""
     try:
