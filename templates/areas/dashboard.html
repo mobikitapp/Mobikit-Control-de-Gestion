@@ -31,6 +31,23 @@
     min-width: 200px;
 }
 
+/* Responsive table adjustments */
+.table th,
+.table td {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.table th:nth-child(4),
+.table td:nth-child(4) {
+    max-width: 100px;
+}
+
+.table th:nth-child(6),
+.table td:nth-child(6) {
+    min-width: 90px;
+}
+
 /* Improved action buttons layout */
 .action-buttons {
     display: flex;
@@ -174,8 +191,14 @@
                                             <th>Código</th>
                                             <th>Proyecto</th>
                                             <th>Cliente</th>
+                                            <th>Glosa</th>
                                             <th>Estado</th>
-                                            <th>Responsable</th>
+                                            <th>Entrega Contrato</th>
+                                            {% if area_data.area.tipo.value == 'fabrica' %}
+                                            <th>Entrega Fábrica</th>
+                                            {% elif area_data.area.tipo.value == 'embalaje' %}
+                                            <th>Entrega Embalaje</th>
+                                            {% endif %}
                                             <th>Fecha Ingreso</th>
                                             <th>Tiempo en Estado</th>
                                             <th width="220px">Acciones</th>
@@ -199,6 +222,15 @@
                                                     </span>
                                                 </td>
                                                 <td>
+                                                    {% if order.glosa %}
+                                                    <span class="text-truncate d-inline-block" style="max-width: 100px;" title="{{ order.glosa }}">
+                                                        {{ order.glosa }}
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
                                                     <span class="badge" style="background-color: {{ estado_data.estado.color_hex }}; color: white;">
                                                         {{ estado_data.estado.nombre }}
                                                     </span>
@@ -210,12 +242,39 @@
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    {% if order.responsable_nombre %}
-                                                    <small>{{ order.responsable_nombre }}</small>
+                                                    {% if order.proxima_entrega_contrato %}
+                                                    <small>
+                                                        <a href="{{ url_for('contratos.plan_entrega', contrato_id=order.contrato_id) if order.contrato_id else '#' }}" 
+                                                           class="text-decoration-none" 
+                                                           {% if not order.contrato_id %}onclick="return false;" style="color: #6c757d; cursor: default;"{% endif %}>
+                                                            {{ order.proxima_entrega_contrato.strftime('%d/%m/%Y') }}
+                                                        </a>
+                                                    </small>
                                                     {% else %}
-                                                    <span class="text-muted">Sin asignar</span>
+                                                    <span class="text-muted">-</span>
                                                     {% endif %}
                                                 </td>
+                                                {% if area_data.area.tipo.value == 'fabrica' %}
+                                                <td>
+                                                    {% if order.fecha_entrega_fabrica %}
+                                                    <small class="{% if order.fecha_entrega_fabrica < moment_global.now().date() %}text-danger{% elif (order.fecha_entrega_fabrica - moment_global.now().date()).days <= 3 %}text-warning{% else %}text-muted{% endif %}">
+                                                        {{ order.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}
+                                                    </small>
+                                                    {% else %}
+                                                    <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                {% elif area_data.area.tipo.value == 'embalaje' %}
+                                                <td>
+                                                    {% if order.fecha_entrega_embalaje %}
+                                                    <small class="{% if order.fecha_entrega_embalaje < moment_global.now().date() %}text-danger{% elif (order.fecha_entrega_embalaje - moment_global.now().date()).days <= 3 %}text-warning{% else %}text-muted{% endif %}">
+                                                        {{ order.fecha_entrega_embalaje.strftime('%d/%m/%Y') }}
+                                                    </small>
+                                                    {% else %}
+                                                    <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                {% endif %}
                                                 <td>
                                                     <small>{{ order.fecha_ingreso_area.strftime('%d/%m/%Y %H:%M') if order.fecha_ingreso_area else '-' }}</small>
                                                 </td>

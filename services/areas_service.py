@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import logging
 
 from app import db
@@ -286,7 +286,11 @@ class AreasService:
                                 'codigo': o.orden_fabricacion.codigo,
                                 'proyecto_nombre': o.orden_fabricacion.proyecto.nombre,
                                 'cliente_nombre': o.orden_fabricacion.proyecto.cliente.nombre,
-                                'responsable_nombre': o.responsable_user.nombre_completo if o.responsable_user else None,
+                                'glosa': o.orden_fabricacion.glosa,
+                                'contrato_id': o.orden_fabricacion.contrato_id,
+                                'proxima_entrega_contrato': self._get_proxima_entrega_contrato(o.orden_fabricacion),
+                                'fecha_entrega_fabrica': o.orden_fabricacion.fecha_entrega_fabrica,
+                                'fecha_entrega_embalaje': o.orden_fabricacion.fecha_entrega_embalaje,
                                 'fecha_ingreso_area': o.fecha_ingreso_area,
                                 'fecha_cambio_estado': o.fecha_cambio_estado,
                                 'tiempo_estimado_horas': float(o.tiempo_estimado_horas) if o.tiempo_estimado_horas else None
@@ -387,3 +391,34 @@ class AreasService:
         except Exception as e:
             logger.error(f"Error obteniendo órdenes pendientes del usuario: {str(e)}")
             raise
+
+    def _get_proxima_entrega_contrato(self, orden_fabricacion) -> Optional[date]:
+        """
+        Get the next delivery date from the contract/OC
+        """
+        try:
+            if not orden_fabricacion.contrato:
+                return None
+            
+            # Get the contract's plan de entrega
+            if orden_fabricacion.contrato.plan_entrega:
+                # Get next pending delivery milestone
+                from models import HitoEntrega, EstadoHitoEntrega
+                from datetime import date
+                
+                next_hito = (db.session.query(HitoEntrega)
+                           .filter_by(plan_entrega_id=orden_fabricacion.contrato.plan_entrega.id)
+                           .filter(HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE)
+                           .filter(HitoEntrega.fecha_programada >= date.today())
+                           .order_by(HitoEntrega.fecha_programada.asc())
+                           .first())
+                
+                if next_hito:
+                    return next_hito.fecha_programada
+            
+            # Fallback to contract delivery date
+            return orden_fabricacion.contrato.fecha_entrega_comprometida
+            
+        except Exception as e:
+            logger.error(f"Error getting next delivery date: {str(e)}")
+            return None
