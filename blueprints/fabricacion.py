@@ -27,22 +27,48 @@ user_service = UserService()
 def index():
     """Lista de órdenes de fabricación con filtros"""
     try:
-        # Get search parameters
+        # Get search parameters with proper defaults
         filters_data = {
-            'proyecto_id': request.args.get('proyecto_id', type=int),
-            'contrato_id': request.args.get('contrato_id', type=int),
-            'codigo': request.args.get('codigo', ''),
-            'area_id': request.args.get('area_id', type=int),
-            'estado_id': request.args.get('estado_id', type=int),
-            'responsable': request.args.get('responsable', ''),
-            'fecha_planificada_desde': request.args.get('fecha_planificada_desde', ''),
-            'fecha_planificada_hasta': request.args.get('fecha_planificada_hasta', ''),
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int)
         }
-
-        # Clean empty values
-        filters_data = {k: v for k, v in filters_data.items() if v}
+        
+        # Add optional filters only if they exist and are valid
+        if request.args.get('proyecto_id'):
+            try:
+                filters_data['proyecto_id'] = int(request.args.get('proyecto_id'))
+            except (ValueError, TypeError):
+                pass
+                
+        if request.args.get('contrato_id'):
+            try:
+                filters_data['contrato_id'] = int(request.args.get('contrato_id'))
+            except (ValueError, TypeError):
+                pass
+                
+        if request.args.get('area_id'):
+            try:
+                filters_data['area_id'] = int(request.args.get('area_id'))
+            except (ValueError, TypeError):
+                pass
+                
+        if request.args.get('estado_id'):
+            try:
+                filters_data['estado_id'] = int(request.args.get('estado_id'))
+            except (ValueError, TypeError):
+                pass
+                
+        if request.args.get('codigo', '').strip():
+            filters_data['codigo'] = request.args.get('codigo').strip()
+            
+        if request.args.get('responsable', '').strip():
+            filters_data['responsable'] = request.args.get('responsable').strip()
+            
+        if request.args.get('fecha_planificada_desde', '').strip():
+            filters_data['fecha_planificada_desde'] = request.args.get('fecha_planificada_desde').strip()
+            
+        if request.args.get('fecha_planificada_hasta', '').strip():
+            filters_data['fecha_planificada_hasta'] = request.args.get('fecha_planificada_hasta').strip()
 
         # Validate filters
         filters = OrdenFabricacionSearchFilters(**filters_data)

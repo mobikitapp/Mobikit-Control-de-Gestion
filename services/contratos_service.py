@@ -363,13 +363,13 @@ class ContratosService:
         """Get all contratos with basic filters"""
         try:
             from schemas.contratos import ContratoSearchFilters
-            # Use search with empty filters to get all contratos
-            filters = ContratoSearchFilters(page=1, per_page=1000)  # Large per_page to get all
+            # Use search with valid per_page limit
+            filters = ContratoSearchFilters(page=1, per_page=100)
             contratos, _ = self.repo.search(filters)
             return contratos
         except Exception as e:
             logger.error(f"Error getting all contratos: {str(e)}")
-            raise
+            return []  # Return empty list on error instead of raising
 
     def get_contratos_grouped_by_client(self, filters: ContratoSearchFilters) -> tuple[List[Dict], int]:
         """

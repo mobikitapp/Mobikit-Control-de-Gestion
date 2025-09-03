@@ -44,22 +44,45 @@ def api_contratos_by_cliente(cliente_id):
 def index():
     """Lista de despachos con filtros"""
     try:
-        # Get search parameters
+        # Get search parameters with proper defaults
         filters_data = {
-            'proyecto_id': request.args.get('proyecto_id', type=int),
-            'contrato_id': request.args.get('contrato_id', type=int), # Añadir filtro por contrato
-            'of_id': request.args.get('of_id', type=int),
-            'numero_despacho': request.args.get('numero_despacho', ''),
-            'estado': request.args.get('estado', ''),
-            'responsable': request.args.get('responsable', ''),
-            'fecha_programada_desde': request.args.get('fecha_programada_desde', ''),
-            'fecha_programada_hasta': request.args.get('fecha_programada_hasta', ''),
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int)
         }
-
-        # Clean empty values
-        filters_data = {k: v for k, v in filters_data.items() if v}
+        
+        # Add optional filters only if they exist and are valid
+        if request.args.get('proyecto_id'):
+            try:
+                filters_data['proyecto_id'] = int(request.args.get('proyecto_id'))
+            except (ValueError, TypeError):
+                pass
+                
+        if request.args.get('contrato_id'):
+            try:
+                filters_data['contrato_id'] = int(request.args.get('contrato_id'))
+            except (ValueError, TypeError):
+                pass
+                
+        if request.args.get('of_id'):
+            try:
+                filters_data['of_id'] = int(request.args.get('of_id'))
+            except (ValueError, TypeError):
+                pass
+                
+        if request.args.get('numero_despacho', '').strip():
+            filters_data['numero_despacho'] = request.args.get('numero_despacho').strip()
+            
+        if request.args.get('estado', '').strip():
+            filters_data['estado'] = request.args.get('estado').strip()
+            
+        if request.args.get('responsable_nombre', '').strip():
+            filters_data['responsable_nombre'] = request.args.get('responsable_nombre').strip()
+            
+        if request.args.get('fecha_programada_desde', '').strip():
+            filters_data['fecha_programada_desde'] = request.args.get('fecha_programada_desde').strip()
+            
+        if request.args.get('fecha_programada_hasta', '').strip():
+            filters_data['fecha_programada_hasta'] = request.args.get('fecha_programada_hasta').strip()
 
         # Validate filters
         filters = DespachoSearchFilters(**filters_data)

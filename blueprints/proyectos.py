@@ -59,20 +59,30 @@ def process_form_data(form_data, is_update=False):
 def index():
     """Lista de proyectos con filtros"""
     try:
-        # Get search parameters
+        # Get search parameters with proper defaults
         filters_data = {
-            'cliente_id': request.args.get('cliente_id', type=int),
-            'nombre': request.args.get('nombre', ''),
-            
-            'responsable': request.args.get('responsable', ''),
-            'fecha_inicio_desde': request.args.get('fecha_inicio_desde', ''),
-            'fecha_inicio_hasta': request.args.get('fecha_inicio_hasta', ''),
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int)
         }
         
-        # Clean empty values
-        filters_data = {k: v for k, v in filters_data.items() if v}
+        # Add optional filters only if they exist and are valid
+        if request.args.get('cliente_id'):
+            try:
+                filters_data['cliente_id'] = int(request.args.get('cliente_id'))
+            except (ValueError, TypeError):
+                pass
+                
+        if request.args.get('nombre', '').strip():
+            filters_data['nombre'] = request.args.get('nombre').strip()
+            
+        if request.args.get('responsable', '').strip():
+            filters_data['responsable'] = request.args.get('responsable').strip()
+            
+        if request.args.get('fecha_inicio_desde', '').strip():
+            filters_data['fecha_inicio_desde'] = request.args.get('fecha_inicio_desde').strip()
+            
+        if request.args.get('fecha_inicio_hasta', '').strip():
+            filters_data['fecha_inicio_hasta'] = request.args.get('fecha_inicio_hasta').strip()
         
         # Validate filters
         filters = ProyectoSearchFilters(**filters_data)

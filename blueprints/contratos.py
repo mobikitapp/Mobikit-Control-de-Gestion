@@ -27,20 +27,33 @@ planes_entrega_service = PlanesEntregaService()
 def index():
     """Lista de contratos con filtros"""
     try:
-        # Get search parameters
+        # Get search parameters with proper defaults
         filters_data = {
-            'proyecto_id': request.args.get('proyecto_id', type=int),
-            'numero_oc': request.args.get('numero_oc', ''),
-            'estado': request.args.get('estado', ''),
-            'moneda': request.args.get('moneda', ''),
-            'fecha_emision_desde': request.args.get('fecha_emision_desde', ''),
-            'fecha_emision_hasta': request.args.get('fecha_emision_hasta', ''),
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int)
         }
-
-        # Clean empty values
-        filters_data = {k: v for k, v in filters_data.items() if v}
+        
+        # Add optional filters only if they exist and are valid
+        if request.args.get('proyecto_id'):
+            try:
+                filters_data['proyecto_id'] = int(request.args.get('proyecto_id'))
+            except (ValueError, TypeError):
+                pass
+                
+        if request.args.get('numero_oc', '').strip():
+            filters_data['numero_oc'] = request.args.get('numero_oc').strip()
+            
+        if request.args.get('estado', '').strip():
+            filters_data['estado'] = request.args.get('estado').strip()
+            
+        if request.args.get('moneda', '').strip():
+            filters_data['moneda'] = request.args.get('moneda').strip()
+            
+        if request.args.get('fecha_emision_desde', '').strip():
+            filters_data['fecha_emision_desde'] = request.args.get('fecha_emision_desde').strip()
+            
+        if request.args.get('fecha_emision_hasta', '').strip():
+            filters_data['fecha_emision_hasta'] = request.args.get('fecha_emision_hasta').strip()
 
         # Validate filters
         filters = ContratoSearchFilters(**filters_data)
