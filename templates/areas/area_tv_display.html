@@ -105,8 +105,8 @@
         
         .order-info {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 15px;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 12px;
             align-items: center;
         }
         
@@ -298,6 +298,36 @@
                                 <div class="info-label">Proyecto</div>
                                 <div class="info-value">{{ order.orden_fabricacion.proyecto.nombre }}</div>
                                 <div style="font-size: 0.9rem; color: #6c757d;">{{ order.orden_fabricacion.proyecto.cliente.nombre }}</div>
+                            </div>
+                            
+                            <div class="info-block">
+                                <div class="info-label">Glosa</div>
+                                <div class="info-value" style="font-size: 0.95rem;">
+                                    {% if order.orden_fabricacion.glosa %}
+                                    {{ order.orden_fabricacion.glosa[:50] }}{% if order.orden_fabricacion.glosa|length > 50 %}...{% endif %}
+                                    {% else %}
+                                    <span class="text-muted">Sin glosa</span>
+                                    {% endif %}
+                                </div>
+                                {% set delivery_date = order.orden_fabricacion.fecha_entrega_dinamica %}
+                                {% set days_remaining = order.orden_fabricacion.days_remaining_dynamic if delivery_date else None %}
+                                <div style="font-size: 0.9rem; color: #6c757d;">
+                                    {% if delivery_date %}
+                                    <i class="fas fa-calendar"></i> 
+                                    {{ delivery_date.strftime('%d/%m/%Y') }}
+                                    {% if days_remaining is not none %}
+                                        {% if days_remaining > 0 %}
+                                        ({{ days_remaining }} días)
+                                        {% elif days_remaining == 0 %}
+                                        <span class="text-warning">(HOY)</span>
+                                        {% else %}
+                                        <span class="text-danger">({{ days_remaining|abs }} días atraso)</span>
+                                        {% endif %}
+                                    {% endif %}
+                                    {% else %}
+                                    Sin fecha entrega
+                                    {% endif %}
+                                </div>
                             </div>
                             
                             <div class="info-block">
