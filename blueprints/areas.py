@@ -155,6 +155,7 @@ def api_smart_advance():
     try:
         data = request.get_json()
         orden_id = data.get('orden_id')
+        notas = data.get('notas')
 
         if not orden_id:
             return error_response("Orden ID es requerido")
@@ -163,11 +164,7 @@ def api_smart_advance():
         from services.fabricacion_service import FabricacionService
         fabricacion_service = FabricacionService()
 
-        success, message = fabricacion_service.smart_advance_orden(
-            of_id=orden_id,
-            created_by=current_user.id,
-            responsable_id=current_user.id
-        )
+        success, message = fabricacion_service.smart_advance_orden(orden_id, current_user.id, notas)
 
         if success:
             return success_response({'message': message})
@@ -244,7 +241,7 @@ def api_advance_area():
         new_progress = areas_service.advance_to_next_area(
             orden_fabricacion_id=orden_id,
             created_by=current_user.id,
-            responsable_id=responsable_id,
+            responsable_id=current_user.id,
             notas=notas
         )
 
@@ -457,18 +454,12 @@ def cambiar_estado_form(orden_id):
 def avanzar_area_form(orden_id):
     """Form-based area advancement"""
     try:
-        responsable_id = request.form.get('responsable_id')
-        notas = request.form.get('notas')
+        notas = request.form.get('notas', '').strip() or None
 
-        new_progress = areas_service.advance_to_next_area(
-            orden_fabricacion_id=orden_id,
-            created_by=current_user.id,
-            responsable_id=responsable_id if responsable_id else None,
-            notas=notas
-        )
+        areas_service.advance_to_next_area(orden_id, current_user.id, current_user.id, notas)
 
-        flash(f'Orden avanzada a: {new_progress.area.nombre}', 'success')
-        return redirect(url_for('areas.area_detail', area_id=new_progress.area_id))
+        flash(f'Orden avanzada a: {areas_service.get_current_area_for_order(orden_id).nombre}', 'success')
+        return redirect(url_for('areas.area_detail', area_id=areas_service.get_current_area_for_order(orden_id).id))
 
     except ValueError as e:
         flash(str(e), 'error')

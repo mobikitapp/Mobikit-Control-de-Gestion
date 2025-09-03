@@ -403,18 +403,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="responsable_area" class="form-label">Responsable en nueva área <span class="text-danger">*</span></label>
-                        <select class="form-select" id="responsable_area" name="responsable_id" required>
-                            <option value="">Seleccionar responsable...</option>
-                            <!-- Options will be loaded dynamically -->
-                        </select>
-                        <div class="form-text">Es obligatorio asignar un responsable para avanzar de área</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="notas_avance" class="form-label">Notas de avance (opcional)</label>
-                        <textarea class="form-control" id="notas_avance" name="notas" rows="3" 
-                                  placeholder="Comentarios sobre el avance de área"></textarea>
+                        <label for="advance_notas" class="form-label">Notas (opcional)</label>
+                        <textarea class="form-control" id="advance_notas" name="notas" rows="3" placeholder="Comentarios sobre el avance"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -554,16 +544,19 @@ function showAdvanceAreaModal(orderId, orderCode, currentArea) {
         </div>
     `;
 
+    // Removed user loading call here
     // Load users for responsable select
-    loadUsersForAdvance();
+    // loadUsersForAdvance(); // This line is removed
 
     // Make responsable field required
-    const responsableSelect = document.getElementById('responsable_area');
-    responsableSelect.required = true;
+    // const responsableSelect = document.getElementById('responsable_area');
+    // responsableSelect.required = true; // This line is removed as the select is removed
 
     modal.show();
 }
 
+// Removed the loadUsersForAdvance function as it's no longer needed.
+/*
 async function loadUsersForAdvance() {
     const responsableSelect = document.getElementById('responsable_area');
 
@@ -587,6 +580,7 @@ async function loadUsersForAdvance() {
         console.error('Error loading users:', error);
     }
 }
+*/
 
 // Only log if not already initialized
 if (!window.areasDashboardInitialized) {

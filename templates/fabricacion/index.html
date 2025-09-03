@@ -303,13 +303,6 @@
                     <p>¿Está seguro que desea avanzar la orden <strong id="codigoOrden"></strong>?</p>
                     <small class="text-muted">El sistema determinará automáticamente si avanzar al siguiente estado dentro del área o a la siguiente área.</small>
                     <div class="mb-3">
-                        <label for="responsable_avance" class="form-label">Responsable (opcional)</label>
-                        <select class="form-select" id="responsable_avance" name="responsable_id">
-                            <option value="">Seleccionar responsable</option>
-                            <!-- Options will be loaded dynamically -->
-                        </select>
-                    </div>
-                    <div class="mb-3">
                         <label for="notas_avance" class="form-label">Notas (opcional)</label>
                         <textarea class="form-control" id="notas_avance" name="notas" rows="3" 
                                   placeholder="Agregar comentarios sobre el avance"></textarea>
@@ -362,23 +355,7 @@ function avanzarEstado(ofId, codigo) {
     document.getElementById('codigoOrden').textContent = codigo;
     document.getElementById('avanzarEstadoForm').action = `/fabricacion/${ofId}/avanzar-area`;
 
-    // Load responsables if not already loaded
-    const responsableSelect = document.getElementById('responsable_avance');
-    if (responsableSelect.children.length === 1) {
-        fetch('/contratos/api/users/active')
-            .then(response => response.json())
-            .then(users => {
-                users.forEach(user => {
-                    const option = document.createElement('option');
-                    option.value = user.id;
-                    option.textContent = user.nombre_completo;
-                    responsableSelect.appendChild(option);
-                });
-            })
-            .catch(error => {
-                console.error('Error loading users:', error);
-            });
-    }
+    
 
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('avanzarEstadoModal'));

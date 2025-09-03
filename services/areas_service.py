@@ -140,9 +140,6 @@ class AreasService:
         Advance OrdenFabricacion to next area in sequence
         """
         try:
-            # Validate that responsable is provided for area advance
-            if not responsable_id or responsable_id.strip() == '':
-                raise ValueError("Es obligatorio asignar un responsable para avanzar de área")
 
             # Get current progress
             current_progress = self.progreso_repo.get_current_progress(orden_fabricacion_id)
