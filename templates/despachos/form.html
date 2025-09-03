@@ -481,7 +481,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Verificar que los elementos existan
         if (!container || !placeholder || !list) {
-            console.error('Elements not found for OF loading');
+            console.error('Elements not found for OF loading:', {
+                container: !!container,
+                placeholder: !!placeholder,
+                list: !!list
+            });
             return;
         }
 
@@ -505,7 +509,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 list.innerHTML = '';
 
                 if (ofs.length === 0) {
-                    list.innerHTML = '<p class="text-muted text-center">No hay órdenes de fabricación disponibles para este proyecto.</p>';
+                    if (list) {
+                        list.innerHTML = '<p class="text-muted text-center">No hay órdenes de fabricación disponibles para este proyecto.</p>';
+                    }
                 } else {
                     let html = '<div class="row g-3">';
                     ofs.forEach(function(of) {
@@ -562,9 +568,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         `;
                     });
                     html += '</div>';
-                    list.innerHTML = html;
+                    if (list) {
+                        list.innerHTML = html;
+                        list.style.display = 'block';
+                    }
                 }
-                list.style.display = 'block';
             })
             .catch(error => {
                 console.error('Error loading OFs:', error);
@@ -631,19 +639,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (tipo) {
                 selectedOFs.push({
-                    id: ofId, // Include id for potential use in removeSelectedOf
-                    codigo: ofCodigo,
-                    descripcion: ofDescripcion,
-                    cantidad_tableros: ofCantidadTotal, // Assuming this is the correct field name from backend
-                    tipo_despacho: tipo,
-                    cantidad: tipo === 'total' ? null : parseInt(cantidad) || 0
+                    of_id: ofId,
+                    tipo_despacho: tipo.toUpperCase(),
+                    cantidad_despachada: tipo === 'total' ? ofCantidadTotal : (parseInt(cantidad) || 0),
+                    observaciones: ''
                 });
             }
         });
 
         // Crear campo hidden si no existe
         let hiddenField = document.getElementById('selected_ofs');
-        if (!hiddenField) {
+        const form = document.querySelector('form');
+        if (!hiddenField && form) {
             hiddenField = document.createElement('input');
             hiddenField.type = 'hidden';
             hiddenField.id = 'selected_ofs';
