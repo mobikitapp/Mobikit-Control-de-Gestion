@@ -5,6 +5,7 @@ from app import db
 from replit_auth import require_login, require_role
 from models import RolUsuario
 from services.despachos_service import DespachosService
+from services.planificacion_despachos_service import PlanificacionDespachosService
 from services.proyectos_service import ProyectosService
 from services.fabricacion_service import FabricacionService
 from services.clientes_service import ClientesService
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 despachos_bp = Blueprint('despachos', __name__)
 despachos_service = DespachosService()
+planificacion_service = PlanificacionDespachosService()
 proyectos_service = ProyectosService()
 fabricacion_service = FabricacionService()
 clientes_service = ClientesService()
@@ -396,3 +398,86 @@ def api_ofs_by_contrato(contrato_id):
     except Exception as e:
         logger.error(f"Error obteniendo OFs para contrato {contrato_id}: {str(e)}")
         return jsonify([]), 500
+
+# ================ NUEVAS RUTAS PARA PLANIFICACIÓN DE DESPACHOS ================
+
+@despachos_bp.route('/planificacion')
+@require_login
+def planificacion():
+    """Vista principal de planificación de despachos basada en hitos de entrega"""
+    try:
+        # Obtener vista jerárquica de planificación
+        vista_planificacion = planificacion_service.get_vista_planificacion()
+        
+        # Obtener hitos próximos a vencer
+        hitos_proximos = planificacion_service.get_hitos_proximos_vencimiento(7)
+        
+        # Obtener estadísticas
+        estadisticas = planificacion_service.get_estadisticas_planificacion()
+        
+        return render_template('despachos/planificacion.html',
+                             vista_planificacion=vista_planificacion,
+                             hitos_proximos=hitos_proximos,
+                             estadisticas=estadisticas,
+                             page_title="Planificación de Despachos")
+        
+    except Exception as e:
+        logger.error(f"Error en vista de planificación: {str(e)}")
+        flash('Error al cargar la planificación de despachos', 'error')
+        return redirect(url_for('despachos.index'))
+
+@despachos_bp.route('/api/planificacion')
+@require_login
+def api_planificacion():
+    """API endpoint para la vista de planificación (AJAX)"""
+    try:
+        vista_planificacion = planificacion_service.get_vista_planificacion()
+        
+        # Convertir a dict para JSON response
+        response_data = {
+            'clientes': [
+                {
+                    'id': cliente.id,
+                    'nombre': cliente.nombre,
+                    'proyectos': [
+                        {
+                            'id': proyecto.id,
+                            'nombre': proyecto.nombre,
+                            'hitos_entrega': [
+                                {
+                                    'id': hito.id,
+                                    'contrato_id': hito.contrato_id,
+                                    'contrato_numero_oc': hito.contrato_numero_oc,
+                                    'descripcion': hito.descripcion,
+                                    'fecha_entrega': hito.fecha_entrega.isoformat(),
+                                    'estado': hito.estado,
+                                    'despacho_creado': hito.despacho_creado,
+                                    'despacho_id': hito.despacho_id,
+                                    'ordenes_fabricacion_disponibles': hito.ordenes_fabricacion_disponibles
+                                } for hito in proyecto.hitos_entrega
+                            ]
+                        } for proyecto in cliente.proyectos
+                    ]
+                } for cliente in vista_planificacion.clientes
+            ],
+            'total_hitos_pendientes': vista_planificacion.total_hitos_pendientes,
+            'total_hitos_proximos': vista_planificacion.total_hitos_proximos
+        }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error en API planificación: {str(e)}")
+        return jsonify({'error': 'Error al cargar planificación'}), 500
+
+@despachos_bp.route('/api/estadisticas-planificacion')
+@require_login
+def api_estadisticas_planificacion():
+    """API endpoint para estadísticas de planificación"""
+    try:
+        estadisticas = planificacion_service.get_estadisticas_planificacion()
+        return jsonify(estadisticas)
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas: {str(e)}")
+        return jsonify({'error': 'Error al cargar estadísticas'}), 500
