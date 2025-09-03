@@ -372,22 +372,6 @@ def eliminar(despacho_id):
 
 
 # API routes for cascading selects
-@despachos_bp.route('/api/contratos/cliente/<int:cliente_id>')
-@require_login
-def api_contratos_by_cliente(cliente_id):
-    """API para obtener contratos por cliente"""
-    try:
-        contratos = contratos_service.get_contratos_by_cliente(cliente_id)
-        return jsonify([{
-            'id': c.id,
-            'numero_oc': c.numero_oc,
-            'proyecto_id': c.proyecto_id,
-            'proyecto_nombre': c.proyecto.nombre if c.proyecto else 'Sin Proyecto'
-        } for c in contratos])
-    except Exception as e:
-        logger.error(f"Error obteniendo contratos para cliente {cliente_id}: {str(e)}")
-        return jsonify([]), 500
-
 @despachos_bp.route('/api/ordenes-fabricacion/contrato/<int:contrato_id>')
 @require_login  
 def api_ofs_by_contrato(contrato_id):
