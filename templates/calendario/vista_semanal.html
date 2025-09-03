@@ -19,11 +19,11 @@
                             </p>
                         </div>
                         <div class="d-flex align-items-center">
-                            <a href="{{ url_for('calendario.vista_semanal', year=semana_anterior.year, month=semana_anterior.month, day=semana_anterior.day) }}" 
+                            <a href="{{ url_for('calendario.vista_semanal', year=semana_anterior.year, month=semana_anterior.month, day=semana_anterior.day) }}"
                                class="btn btn-outline-secondary me-2">
                                 <i class="fas fa-chevron-left"></i> Anterior
                             </a>
-                            <a href="{{ url_for('calendario.vista_semanal', year=semana_siguiente.year, month=semana_siguiente.month, day=semana_siguiente.day) }}" 
+                            <a href="{{ url_for('calendario.vista_semanal', year=semana_siguiente.year, month=semana_siguiente.month, day=semana_siguiente.day) }}"
                                class="btn btn-outline-secondary ms-2">
                                 Siguiente <i class="fas fa-chevron-right"></i>
                             </a>
@@ -36,11 +36,11 @@
             <div class="card">
                 <div class="card-body text-center">
                     <div class="btn-group" role="group" aria-label="Vistas del calendario">
-                        <a href="{{ url_for('calendario.vista_mensual', year=year, month=month) }}" 
+                        <a href="{{ url_for('calendario.vista_mensual', year=year, month=month) }}"
                            class="btn btn-outline-primary">
                             <i class="fas fa-calendar-alt"></i> Mensual
                         </a>
-                        <a href="{{ url_for('calendario.vista_semanal', year=year, month=month, day=day) }}" 
+                        <a href="{{ url_for('calendario.vista_semanal', year=year, month=month, day=day) }}"
                            class="btn btn-primary">
                             <i class="fas fa-calendar-week"></i> Semanal
                         </a>
@@ -108,7 +108,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-calendar-week"></i> 
+                        <i class="fas fa-calendar-week"></i>
                         Vista Semanal
                     </h5>
                 </div>
@@ -137,7 +137,7 @@
                                     {% for dia in dias_semana %}
                                     <td class="align-top p-2 {% if dia.es_hoy %}bg-light{% endif %}" style="vertical-align: top;">
                                         <div class="day-content" style="min-height: 580px;">
-                                            
+
                                             <!-- Eventos -->
                                             {% if dia.eventos %}
                                                 <div class="mb-3">
@@ -154,7 +154,11 @@
                                                                     </small>
                                                                     <div class="small text-dark fw-bold">{{ evento.titulo }}</div>
                                                                     {% if evento.proyecto %}
-                                                                        <div class="small text-muted">{{ evento.proyecto }}</div>
+                                                                    <div class="small fw-bold text-primary">
+                                                                        <i class="fas fa-project-diagram"></i> {{ evento.proyecto }}
+                                                                    </div>
+                                                                    {% else %}
+                                                                    <div class="small text-muted">Sin proyecto</div>
                                                                     {% endif %}
                                                                 </div>
                                                                 <span class="badge bg-{{ evento.color }} text-white">{{ evento.estado }}</span>

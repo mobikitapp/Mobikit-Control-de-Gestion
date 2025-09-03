@@ -123,6 +123,15 @@
                                     <td>
                                         <div>
                                             <strong>{{ evento.titulo }}</strong>
+                                            {% if hasattr(evento, 'proyecto') and evento.proyecto %}
+                                            <br><span class="badge bg-info text-white">
+                                                <i class="fas fa-project-diagram"></i> {{ evento.proyecto.nombre }}
+                                            </span>
+                                            {% elif hasattr(evento, 'plan_entrega_nombre') and evento.plan_entrega_nombre %}
+                                            <br><span class="badge bg-success text-white">
+                                                <i class="fas fa-project-diagram"></i> {{ evento.proyecto or 'Proyecto no especificado' }}
+                                            </span>
+                                            {% endif %}
                                             {% if evento.descripcion %}
                                             <br><small class="text-muted">{{ evento.descripcion[:50] }}{% if evento.descripcion|length > 50 %}...{% endif %}</small>
                                             {% endif %}
@@ -131,7 +140,7 @@
                                     <td>
                                         {% if evento.proyecto %}
                                         <a href="{{ url_for('proyectos.detalle', proyecto_id=evento.proyecto.id) }}" class="text-decoration-none">
-                                            {{ evento.proyecto.nombre }}
+                                            <strong>{{ evento.proyecto.nombre }}</strong>
                                         </a>
                                         <br><small class="text-muted">{{ evento.proyecto.cliente.nombre }}</small>
                                         {% else %}

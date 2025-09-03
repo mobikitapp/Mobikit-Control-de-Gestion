@@ -120,16 +120,20 @@
                         </div>
                         <div class="flex-grow-1">
                             <h6 class="mb-1">{{ evento.titulo }}</h6>
+                            {% if evento.proyecto %}
+                            <div class="mb-2">
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-project-diagram"></i>
+                                    {{ evento.proyecto.nombre }}
+                                </span>
+                            </div>
+                            {% endif %}
                             <small class="text-muted">
                                 <i class="fas fa-calendar"></i>
                                 {{ evento.fecha_evento.strftime('%d/%m/%Y') }}
                                 {% if evento.contrato %}
                                 <br><i class="fas fa-file-contract text-info"></i>
                                 OC: {{ evento.contrato.numero_oc }}
-                                {% endif %}
-                                {% if evento.proyecto %}
-                                <br><i class="fas fa-project-diagram text-success"></i>
-                                {{ evento.proyecto.nombre }}
                                 {% endif %}
                             </small>
                             <div class="mt-1">
