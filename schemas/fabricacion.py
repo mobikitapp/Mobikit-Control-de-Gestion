@@ -83,7 +83,41 @@ class OrdenFabricacionBase(BaseModel):
             if v < values['fecha_qc']:
                 raise ValueError('La fecha de fin debe ser posterior a la fecha de QC')
         return v
-    
+
+    @validator('contrato_id', pre=True)
+    def validate_contrato_id(cls, v):
+        # Handle empty string or None or "None" string
+        if v == '' or v is None or v == 'None':
+            return None
+        # Convert to int if it's a string
+        if isinstance(v, str):
+            try:
+                v = int(v)
+            except ValueError:
+                raise ValueError('El ID del contrato debe ser un número entero')
+        return v
+
+    @validator('fecha_entrega_embalaje', pre=True)
+    def validate_fecha_entrega_embalaje(cls, v):
+        # Handle empty string or None
+        if v == '' or v is None:
+            return None
+        return v
+
+    @validator('fecha_entrega_fabrica', pre=True)
+    def validate_fecha_entrega_fabrica(cls, v):
+        # Handle empty string or None
+        if v == '' or v is None:
+            return None
+        return v
+
+    @validator('fecha_planificada', pre=True)
+    def validate_fecha_planificada(cls, v):
+        # Handle empty string or None
+        if v == '' or v is None:
+            return None
+        return v
+
     @validator('cantidad_tableros', pre=True)
     def validate_cantidad_tableros(cls, v):
         # Handle empty string or None
@@ -102,7 +136,7 @@ class OrdenFabricacionBase(BaseModel):
 
 class OrdenFabricacionCreate(OrdenFabricacionBase):
     items: List[OrdenFabricacionItemCreate] = Field([], description="Items de la OF")
-    
+
     class Config:
         # El estado siempre será PENDIENTE_APROBACION_DISENO al crear
         schema_extra = {
@@ -129,6 +163,40 @@ class OrdenFabricacionUpdate(BaseModel):
     fecha_fin: Optional[datetime] = None
     responsable: Optional[str] = None
     notas: Optional[str] = None
+
+    @validator('contrato_id', pre=True)
+    def validate_contrato_id(cls, v):
+        # Handle empty string or None or "None" string
+        if v == '' or v is None or v == 'None':
+            return None
+        # Convert to int if it's a string
+        if isinstance(v, str):
+            try:
+                v = int(v)
+            except ValueError:
+                raise ValueError('El ID del contrato debe ser un número entero')
+        return v
+
+    @validator('fecha_entrega_embalaje', pre=True)
+    def validate_fecha_entrega_embalaje(cls, v):
+        # Handle empty string or None
+        if v == '' or v is None:
+            return None
+        return v
+
+    @validator('fecha_entrega_fabrica', pre=True)
+    def validate_fecha_entrega_fabrica(cls, v):
+        # Handle empty string or None
+        if v == '' or v is None:
+            return None
+        return v
+
+    @validator('fecha_planificada', pre=True)
+    def validate_fecha_planificada(cls, v):
+        # Handle empty string or None
+        if v == '' or v is None:
+            return None
+        return v
 
     @validator('cantidad_tableros', pre=True)
     def validate_cantidad_tableros(cls, v):
