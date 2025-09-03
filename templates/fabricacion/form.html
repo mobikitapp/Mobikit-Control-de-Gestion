@@ -334,25 +334,12 @@ async function updateContratos() {
                 // If we had a selected contrato but it's not in the new list, 
                 // preserve it as a special option (this handles edge cases)
                 if (selectedContrato && !contratoFound && selectedContrato !== '') {
-                    // First try to get contrato details
-                    try {
-                        const contratoResponse = await fetch(`{{ url_for('contratos.api_get_contrato', contrato_id=0) }}`.replace('0', selectedContrato));
-                        if (contratoResponse.ok) {
-                            const contratoData = await contratoResponse.json();
-                            const option = document.createElement('option');
-                            option.value = contratoData.id;
-                            option.selected = true;
-                            option.textContent = contratoData.numero_oc + ' - ' + (contratoData.proyecto_nombre || 'Proyecto diferente');
-                            contratoSelect.appendChild(option);
-                        }
-                    } catch (e) {
-                        // Fallback: create option with just the ID
-                        const option = document.createElement('option');
-                        option.value = selectedContrato;
-                        option.selected = true;
-                        option.textContent = `Contrato ID: ${selectedContrato} (verificar)`;
-                        contratoSelect.appendChild(option);
-                    }
+                    // Fallback: create option with just the ID since we don't have get endpoint
+                    const option = document.createElement('option');
+                    option.value = selectedContrato;
+                    option.selected = true;
+                    option.textContent = `Contrato ID: ${selectedContrato} (verificar)`;
+                    contratoSelect.appendChild(option);
                 }
             } else {
                 console.error('Error loading contratos:', response.status);
