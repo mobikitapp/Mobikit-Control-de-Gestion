@@ -480,7 +480,153 @@ class ComercialService:
         stats = self._calcular_estadisticas_centro(proyectos)
         stats['tareas_pendientes'] = tareas_pendientes
 
+        # Calcular estadísticas de éxito
+        stats_exito = self._calcular_estadisticas_exito(vendedor_id)
+        stats.update(stats_exito)
+
+        # Calcular comisiones mensuales
+        stats['comisiones_mensuales'] = self._calcular_comisiones_mensuales(vendedor_id)
+        
+        # Calcular comisiones potenciales
+        stats['comisiones_potenciales'] = self._calcular_comisiones_potenciales(vendedor_id)
+
         return stats
+
+    def _calcular_estadisticas_exito(self, vendedor_id):
+        """Calculate success statistics for a salesperson"""
+        # Estadísticas generales
+        total_proyectos = (db.session.query(Proyecto)
+                          .filter_by(vendedor_id=vendedor_id, activo=True)
+                          .count())
+
+        adjudicados = (db.session.query(Proyecto)
+                      .filter_by(vendedor_id=vendedor_id, activo=True)
+                      .filter(Proyecto.estado_comercial == EstadoComercial.ADJUDICADO)
+                      .count())
+
+        porcentaje_exito_general = (adjudicados / total_proyectos * 100) if total_proyectos > 0 else 0
+
+        # Estadísticas por cliente
+        exito_por_cliente = []
+        clientes_query = (db.session.query(Cliente.id, Cliente.nombre,
+                                          func.count(Proyecto.id).label('total_proyectos'),
+                                          func.sum(case((Proyecto.estado_comercial == EstadoComercial.ADJUDICADO, 1), else_=0)).label('adjudicados'))
+                         .join(Proyecto)
+                         .filter(Proyecto.vendedor_id == vendedor_id, Proyecto.activo == True)
+                         .group_by(Cliente.id, Cliente.nombre)
+                         .all())
+
+        for cliente_id, nombre_cliente, total, adjudicados_cliente in clientes_query:
+            porcentaje_exito_cliente = (adjudicados_cliente / total * 100) if total > 0 else 0
+            exito_por_cliente.append({
+                'cliente_id': cliente_id,
+                'nombre_cliente': nombre_cliente,
+                'total_proyectos': total,
+                'adjudicados': adjudicados_cliente,
+                'porcentaje_exito': porcentaje_exito_cliente
+            })
+
+        return {
+            'total_proyectos_vendedor': total_proyectos,
+            'adjudicados_vendedor': adjudicados,
+            'porcentaje_exito_general': porcentaje_exito_general,
+            'exito_por_cliente': exito_por_cliente
+        }
+
+    def _calcular_comisiones_mensuales(self, vendedor_id, year=None):
+        """Calculate monthly commissions for a salesperson"""
+        from services.configuraciones_service import ConfiguracionesService
+        from datetime import datetime
+        import calendar
+
+        if year is None:
+            year = datetime.now().year
+
+        config_service = ConfiguracionesService()
+        comision_config = config_service.get_comision_vendedor(vendedor_id)
+        
+        if not comision_config:
+            return []
+
+        comisiones_mensuales = []
+
+        for mes in range(1, 13):
+            # Obtener proyectos adjudicados en este mes
+            proyectos_mes = (db.session.query(Proyecto)
+                           .filter(
+                               Proyecto.vendedor_id == vendedor_id,
+                               extract('year', Proyecto.fecha_adjudicacion) == year,
+                               extract('month', Proyecto.fecha_adjudicacion) == mes,
+                               Proyecto.estado_comercial == EstadoComercial.ADJUDICADO,
+                               Proyecto.activo == True
+                           )
+                           .all())
+
+            comision_provision_mes = Decimal('0')
+            comision_instalacion_mes = Decimal('0')
+            total_proyectos_mes = len(proyectos_mes)
+
+            for proyecto in proyectos_mes:
+                if proyecto.monto_provision_presupuestado:
+                    comision_provision_mes += (proyecto.monto_provision_presupuestado * 
+                                              comision_config.comision_provision_pct / 100)
+
+                if proyecto.monto_instalacion_presupuestado:
+                    comision_instalacion_mes += (proyecto.monto_instalacion_presupuestado * 
+                                                comision_config.comision_instalacion_pct / 100)
+
+            comision_total_mes = comision_provision_mes + comision_instalacion_mes
+
+            comisiones_mensuales.append({
+                'mes': mes,
+                'mes_nombre': calendar.month_name[mes],
+                'comision_provision': float(comision_provision_mes),
+                'comision_instalacion': float(comision_instalacion_mes),
+                'comision_total': float(comision_total_mes),
+                'proyectos_adjudicados': total_proyectos_mes
+            })
+
+        return comisiones_mensuales
+
+    def _calcular_comisiones_potenciales(self, vendedor_id):
+        """Calculate potential commissions from budgeted projects"""
+        from services.configuraciones_service import ConfiguracionesService
+
+        config_service = ConfiguracionesService()
+        comision_config = config_service.get_comision_vendedor(vendedor_id)
+        
+        if not comision_config:
+            return {
+                'comision_provision_potencial': 0,
+                'comision_instalacion_potencial': 0,
+                'comision_total_potencial': 0,
+                'proyectos_presupuestados': 0
+            }
+
+        # Obtener proyectos presupuestados (no adjudicados aún)
+        proyectos_presupuestados = (db.session.query(Proyecto)
+                                  .filter_by(vendedor_id=vendedor_id, activo=True)
+                                  .filter(Proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO)
+                                  .all())
+
+        comision_provision_potencial = Decimal('0')
+        comision_instalacion_potencial = Decimal('0')
+
+        for proyecto in proyectos_presupuestados:
+            if proyecto.monto_provision_presupuestado:
+                comision_provision_potencial += (proyecto.monto_provision_presupuestado * 
+                                                comision_config.comision_provision_pct / 100)
+
+            if proyecto.monto_instalacion_presupuestado:
+                comision_instalacion_potencial += (proyecto.monto_instalacion_presupuestado * 
+                                                  comision_config.comision_instalacion_pct / 100)
+
+        return {
+            'comision_provision_potencial': float(comision_provision_potencial),
+            'comision_instalacion_potencial': float(comision_instalacion_potencial),
+            'comision_total_potencial': float(comision_provision_potencial + comision_instalacion_potencial),
+            'proyectos_presupuestados': len(proyectos_presupuestados)
+        }
 
     def _agrupar_proyectos_por_estado(self, proyectos):
         """Group projects by commercial state"""

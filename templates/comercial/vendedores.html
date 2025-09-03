@@ -26,11 +26,11 @@
                 <div class="card-header d-flex align-items-center">
                     <div class="me-3">
                         {% if vendedor_data.vendedor.profile_image_url %}
-                        <img src="{{ vendedor_data.vendedor.profile_image_url }}" 
-                             class="rounded-circle" width="40" height="40" 
+                        <img src="{{ vendedor_data.vendedor.profile_image_url }}"
+                             class="rounded-circle" width="40" height="40"
                              style="object-fit: cover;">
                         {% else %}
-                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white" 
+                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white"
                              style="width: 40px; height: 40px;">
                             {{ vendedor_data.vendedor.first_name[0] if vendedor_data.vendedor.first_name else '?' }}{{ vendedor_data.vendedor.last_name[0] if vendedor_data.vendedor.last_name else '' }}
                         </div>
@@ -96,11 +96,11 @@
                 </div>
                 <div class="card-footer">
                     <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('comercial.vendedor_detalle', vendedor_id=vendedor_data.vendedor.id) }}" 
+                        <a href="{{ url_for('comercial.vendedor_detalle', vendedor_id=vendedor_data.vendedor.id) }}"
                            class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-eye"></i> Ver Detalle
                         </a>
-                        <a href="{{ url_for('comercial.centro_vendedores', vendedor_id=vendedor_data.vendedor.id) }}" 
+                        <a href="{{ url_for('comercial.centro_vendedores', vendedor_id=vendedor_data.vendedor.id) }}"
                            class="btn btn-outline-info btn-sm">
                             <i class="fas fa-filter"></i> Filtrar Proyectos
                         </a>
@@ -124,4 +124,65 @@
         </div>
     </div>
 </div>
+
+<!-- Chart.js for commissions -->
+<div class="container-fluid mt-5">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">
+                <i class="fas fa-chart-bar text-info"></i>
+                Comisiones Adjudicadas Mensuales
+            </h4>
+        </div>
+        <div class="card-body">
+            <canvas id="monthlyCommissionsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var ctx = document.getElementById('monthlyCommissionsChart').getContext('2d');
+        var monthlyCommissionsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ meses_actual_year | tojson }},
+                datasets: [{
+                    label: 'Comisión Adjudicada Mensual',
+                    data: {{ comisiones_mensuales_adjudicadas | tojson }},
+                    backgroundColor: 'rgba(23, 162, 184, 0.6)',
+                    borderColor: 'rgba(23, 162, 184, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Comisiones Adjudicadas Mensuales'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                if (value >= 1000) {
+                                    return '$' + (value / 1000).toFixed(1) + 'K';
+                                }
+                                return '$' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
 {% endblock %}

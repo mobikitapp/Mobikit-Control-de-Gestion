@@ -223,6 +223,126 @@
         </div>
     </div>
 
+    <!-- Success Rate Statistics -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-trophy text-warning"></i>
+                        Porcentaje de Éxito
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <h2 class="text-primary">{{ "{:.1f}".format(stats.porcentaje_exito_general) }}%</h2>
+                        <p class="mb-0">Tasa de Adjudicación General</p>
+                        <small class="text-muted">{{ stats.adjudicados_vendedor }}/{{ stats.total_proyectos_vendedor }} proyectos</small>
+                    </div>
+                    
+                    {% if stats.exito_por_cliente %}
+                    <h6 class="mb-3">Por Cliente</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th class="text-center">Total</th>
+                                    <th class="text-center">Adjudicados</th>
+                                    <th class="text-center">% Éxito</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cliente_stats in stats.exito_por_cliente %}
+                                <tr>
+                                    <td>{{ cliente_stats.nombre_cliente }}</td>
+                                    <td class="text-center">{{ cliente_stats.total_proyectos }}</td>
+                                    <td class="text-center">{{ cliente_stats.adjudicados }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{{ 'success' if cliente_stats.porcentaje_exito >= 50 else ('warning' if cliente_stats.porcentaje_exito >= 25 else 'danger') }}">
+                                            {{ "{:.1f}".format(cliente_stats.porcentaje_exito) }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-dollar-sign text-success"></i>
+                        Comisiones Potenciales
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-6">
+                            <h5 class="text-success">${{ "{:,.0f}".format(stats.comisiones_potenciales.comision_provision_potencial) }}</h5>
+                            <small>Provisión Potencial</small>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="text-info">${{ "{:,.0f}".format(stats.comisiones_potenciales.comision_instalacion_potencial) }}</h5>
+                            <small>Instalación Potencial</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <h4 class="text-primary">${{ "{:,.0f}".format(stats.comisiones_potenciales.comision_total_potencial) }}</h4>
+                        <p class="mb-1">Total Comisión Potencial</p>
+                        <small class="text-muted">{{ stats.comisiones_potenciales.proyectos_presupuestados }} proyectos presupuestados</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Commissions Chart -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar text-primary"></i>
+                        Comisiones Adjudicadas Mensuales ({{ current_year or '2024' }})
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <canvas id="comisionesChart" width="400" height="200"></canvas>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Resumen del Año</h6>
+                            {% set total_provision_year = stats.comisiones_mensuales | sum(attribute='comision_provision') %}
+                            {% set total_instalacion_year = stats.comisiones_mensuales | sum(attribute='comision_instalacion') %}
+                            {% set total_year = total_provision_year + total_instalacion_year %}
+                            
+                            <div class="mb-2">
+                                <small>Total Provisión</small>
+                                <div class="h5 text-success">${{ "{:,.0f}".format(total_provision_year) }}</div>
+                            </div>
+                            <div class="mb-2">
+                                <small>Total Instalación</small>
+                                <div class="h5 text-info">${{ "{:,.0f}".format(total_instalacion_year) }}</div>
+                            </div>
+                            <div class="mb-2">
+                                <small><strong>Total Comisiones</strong></small>
+                                <div class="h4 text-primary">${{ "{:,.0f}".format(total_year) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Financial Performance -->
     {% if stats.margen_promedio_provision or stats.margen_promedio_instalacion %}
     <div class="row mt-4">
@@ -278,4 +398,78 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Datos de comisiones mensuales desde el backend
+    const comisionesData = {{ stats.comisiones_mensuales | tojson }};
+    
+    const ctx = document.getElementById('comisionesChart').getContext('2d');
+    
+    const labels = comisionesData.map(item => item.mes_nombre);
+    const dataProvision = comisionesData.map(item => item.comision_provision);
+    const dataInstalacion = comisionesData.map(item => item.comision_instalacion);
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Comisión Provisión',
+                    data: dataProvision,
+                    backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Comisión Instalación',
+                    data: dataInstalacion,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Comisiones Mensuales Adjudicadas'
+                },
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Mes'
+                    }
+                },
+                y: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Comisión (CLP)'
+                    },
+                    ticks: {
+                        callback: function(value, index, values) {
+                            return '$' + new Intl.NumberFormat('es-CL').format(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

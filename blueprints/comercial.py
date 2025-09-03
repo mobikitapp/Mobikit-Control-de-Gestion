@@ -58,11 +58,12 @@ def lista_vendedores():
         vendedores_stats = service.get_vendedores_estadisticas()
 
         return render_template('comercial/vendedores.html', 
-                             vendedores=vendedores_stats)
+                             vendedores_stats=vendedores_stats,
+                             current_year=datetime.now().year)
 
     except Exception as e:
         flash(f'Error al cargar vendedores: {str(e)}', 'error')
-        return redirect(url_for('comercial.centro_vendedores'))
+        return render_template('comercial/vendedores.html', vendedores_stats=[], current_year=datetime.now().year)
 
 
 @comercial_bp.route('/vendedor/<string:vendedor_id>')
@@ -77,6 +78,9 @@ def vendedor_detalle(vendedor_id):
         if not vendedor_data:
             flash('Vendedor no encontrado', 'error')
             return redirect(url_for('comercial.lista_vendedores'))
+
+        # Agregar año actual para el template
+        vendedor_data['current_year'] = datetime.now().year
 
         return render_template('comercial/vendedor_detalle.html', **vendedor_data)
 
