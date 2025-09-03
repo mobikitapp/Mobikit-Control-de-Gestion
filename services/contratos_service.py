@@ -345,10 +345,16 @@ class ContratosService:
             logger.error(f"Error deleting contrato {contrato_id}: {str(e)}")
             raise
 
-    def get_contratos_by_proyecto(self, proyecto_id: int):
-        """Get all contratos for a specific proyecto"""
+    def get_contratos_by_proyecto(self, proyecto_id: int) -> List[Contrato]:
+        """Get all contratos for a proyecto"""
         try:
-            return self.repo.get_by_proyecto(proyecto_id)
+            contratos = self.repo.get_by_proyecto(proyecto_id)
+
+            # Enrich each contract with additional info
+            for contrato in contratos:
+                self._enrich_contrato_with_ofs_info(contrato)
+
+            return contratos
         except Exception as e:
             logger.error(f"Error getting contratos for proyecto {proyecto_id}: {str(e)}")
             raise

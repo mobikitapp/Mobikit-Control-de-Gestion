@@ -174,6 +174,23 @@ class ContratosRepository:
         else:
             return False, f"No se puede cambiar de {current_status.value} a {new_status.value}"
 
+    @staticmethod
+    def get_by_proyecto(proyecto_id: int) -> List[Contrato]:
+        """Get all contracts for a proyecto"""
+        return (db.session.query(Contrato)
+                .filter_by(proyecto_id=proyecto_id)
+                .order_by(Contrato.created_at.desc())
+                .all())
+
+    @staticmethod
+    def get_contratos_activos_by_proyecto(proyecto_id: int) -> List[Contrato]:
+        """Get active contracts for a proyecto"""
+        return (db.session.query(Contrato)
+                .filter_by(proyecto_id=proyecto_id)
+                .filter_by(estado=EstadoContrato.VIGENTE)
+                .order_by(Contrato.created_at.desc())
+                .all())
+
 class ContratoAdjuntosRepository:
     """Repository for ContratoAdjunto operations"""
 

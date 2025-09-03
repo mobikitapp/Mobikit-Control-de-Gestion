@@ -51,9 +51,12 @@
                                 </label>
                                 <select class="form-select" id="proyecto_id" name="proyecto_id" required>
                                     <option value="">Seleccionar proyecto</option>
-                                    {% if of %}
-                                    <option value="{{ of.proyecto_id }}" selected>{{ of.proyecto.nombre }}</option>
-                                    {% endif %}
+                                    {% for proyecto in proyectos %}
+                                    <option value="{{ proyecto.id }}" 
+                                        {% if of and of.proyecto_id == proyecto.id %}selected{% endif %}>
+                                        {{ proyecto.nombre }} - {{ proyecto.cliente.nombre }}
+                                    </option>
+                                    {% endfor %}
                                 </select>
                                 <div class="invalid-feedback">
                                     Por favor selecciona un proyecto.
@@ -62,16 +65,14 @@
 
                             <!-- Contrato / OC (opcional) -->
                             <div class="col-md-6">
-                                <label for="contrato_id" class="form-label">Contrato / OC (Opcional)</label>
+                                <label for="contrato_id" class="form-label">Contrato / OC</label>
                                 <select class="form-select" id="contrato_id" name="contrato_id">
-                                    <option value="">Sin contrato/OC asociado</option>
+                                    <option value="">Sin contrato asociado</option>
                                     {% if of and of.contrato %}
-                                    <option value="{{ of.contrato_id }}" selected>{{ of.contrato.numero_oc }}</option>
+                                    <option value="{{ of.contrato.id }}" selected>{{ of.contrato.numero_oc }} - {{ of.proyecto.nombre }}</option>
                                     {% endif %}
                                 </select>
-                                <div class="form-text">
-                                    Selecciona el contrato u orden de compra asociada al proyecto.
-                                </div>
+                                <small class="form-text text-muted">Opcional - Asociar a un contrato específico</small>
                             </div>
 
                             <!-- Código OF (Solo visualización) -->
@@ -303,9 +304,11 @@ async function updateContratos() {
     const contratoSelect = document.getElementById('contrato_id');
     const proyectoId = proyectoSelect.value;
 
-    // Clear current options
+    // Store currently selected contrato
     const selectedContrato = contratoSelect.value;
-    contratoSelect.innerHTML = '<option value="">Sin contrato/OC asociado</option>';
+
+    // Clear current options
+    contratoSelect.innerHTML = '<option value="">Sin contrato asociado</option>';
 
     if (proyectoId) {
         try {
@@ -315,20 +318,51 @@ async function updateContratos() {
                 contratos.forEach(contrato => {
                     const option = document.createElement('option');
                     option.value = contrato.id;
-                    option.textContent = `${contrato.numero_oc} (${contrato.estado})`;
+                    option.textContent = contrato.numero_oc + ' - ' + (contrato.proyecto_nombre || '');
+
+                    // Restore selection if this was the previously selected contrato
                     if (contrato.id == selectedContrato) {
                         option.selected = true;
                     }
+
                     contratoSelect.appendChild(option);
                 });
+
+                // If we had a selected contrato but it's not in the new list, 
+                // try to restore it by value
+                if (selectedContrato && !contratoSelect.querySelector(`option[value="${selectedContrato}"]`)) {
+                    const option = document.createElement('option');
+                    option.value = selectedContrato;
+                    option.selected = true;
+                    option.textContent = `Contrato ID: ${selectedContrato}`;
+                    contratoSelect.appendChild(option);
+                }
+            } else {
+                console.error('Error loading contratos:', response.status);
+                contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
             }
         } catch (error) {
             console.error('Error loading contratos:', error);
+            contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
         }
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize cascade selects for both create and edit forms
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const contratoSelect = document.getElementById('contrato_id');
+
+    if (proyectoSelect) {
+        // If we're editing (proyecto already selected), load contratos immediately
+        if (proyectoSelect.value) {
+            updateContratos();
+        }
+
+        // Add change event listener
+        proyectoSelect.addEventListener('change', updateContratos);
+    }
+
     console.log('Cascade selects initialized');
 
     // Form validation
@@ -341,11 +375,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Clear contratos when cliente changes
             updateContratos();
         });
-    });
-
-    document.getElementById('proyecto_id').addEventListener('change', function() {
-        console.log('Would load contracts for proyecto:', this.value);
-        updateContratos();
     });
 
     // Initialize proyectos if cliente is pre-selected
