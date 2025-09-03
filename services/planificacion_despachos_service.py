@@ -81,9 +81,19 @@ class PlanificacionDespachosService:
                         'hitos_entrega': []
                     }
                 
-                # Verificar si ya tiene despacho creado
-                despacho_creado = len(hito.despachos) > 0
-                despacho_id = hito.despachos[0].id if despacho_creado else None
+                # Verificar si ya tiene despacho creado - manejar de forma segura
+                despacho_creado = False
+                despacho_id = None
+                
+                if hasattr(hito, 'despachos') and hito.despachos:
+                    despacho_creado = len(hito.despachos) > 0
+                    if despacho_creado:
+                        primer_despacho = hito.despachos[0]
+                        # Verificar si es un objeto o diccionario
+                        if hasattr(primer_despacho, 'id'):
+                            despacho_id = primer_despacho.id
+                        elif isinstance(primer_despacho, dict) and 'id' in primer_despacho:
+                            despacho_id = primer_despacho['id']
                 
                 # Obtener OFs disponibles para este hito
                 ofs_disponibles = PlanificacionDespachosService._get_ofs_disponibles_para_hito(hito.id)
@@ -175,6 +185,14 @@ class PlanificacionDespachosService:
                 cantidad_disponible = cantidad_total - cantidad_despachada
                 
                 if cantidad_disponible > 0:
+                    # Manejar estado de forma segura
+                    estado_valor = 'Sin estado'
+                    if hasattr(of, 'estado') and of.estado:
+                        if hasattr(of.estado, 'value'):
+                            estado_valor = of.estado.value
+                        else:
+                            estado_valor = str(of.estado)
+                    
                     ofs_disponibles.append({
                         'id': of.id,
                         'codigo': of.codigo,
@@ -182,7 +200,7 @@ class PlanificacionDespachosService:
                         'cantidad_total': float(cantidad_total),
                         'cantidad_despachada': float(cantidad_despachada),
                         'cantidad_disponible': float(cantidad_disponible),
-                        'estado': of.estado.value,
+                        'estado': estado_valor,
                         'fecha_entrega_of': of.fecha_entrega_fabrica.isoformat() if of.fecha_entrega_fabrica else None
                     })
             
