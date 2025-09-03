@@ -54,16 +54,45 @@ def centro_vendedores():
 def lista_vendedores():
     """Lista de vendedores con estadísticas"""
     try:
+        import calendar
         service = ComercialService()
         vendedores_stats = service.get_vendedores_estadisticas()
 
+        # Preparar datos para el gráfico de comisiones mensuales consolidado
+        current_year = datetime.now().year
+        meses_actual_year = [calendar.month_name[i] for i in range(1, 13)]
+        
+        # Calcular comisiones consolidadas por mes para todos los vendedores
+        comisiones_mensuales_adjudicadas = []
+        
+        for mes in range(1, 13):
+            comision_mes = 0
+            for vendedor_data in vendedores_stats:
+                comisiones_vendedor = vendedor_data['stats'].get('comisiones_mensuales', [])
+                comision_vendedor_mes = next((c['comision_total'] for c in comisiones_vendedor if c['mes'] == mes), 0)
+                comision_mes += comision_vendedor_mes
+            comisiones_mensuales_adjudicadas.append(comision_mes)
+
         return render_template('comercial/vendedores.html', 
+                             vendedores=vendedores_stats,
                              vendedores_stats=vendedores_stats,
-                             current_year=datetime.now().year)
+                             current_year=current_year,
+                             meses_actual_year=meses_actual_year,
+                             comisiones_mensuales_adjudicadas=comisiones_mensuales_adjudicadas)
 
     except Exception as e:
         flash(f'Error al cargar vendedores: {str(e)}', 'error')
-        return render_template('comercial/vendedores.html', vendedores_stats=[], current_year=datetime.now().year)
+        import calendar
+        current_year = datetime.now().year
+        meses_actual_year = [calendar.month_name[i] for i in range(1, 13)]
+        comisiones_mensuales_adjudicadas = [0] * 12
+        
+        return render_template('comercial/vendedores.html', 
+                             vendedores=[],
+                             vendedores_stats=[], 
+                             current_year=current_year,
+                             meses_actual_year=meses_actual_year,
+                             comisiones_mensuales_adjudicadas=comisiones_mensuales_adjudicadas)
 
 
 @comercial_bp.route('/vendedor/<string:vendedor_id>')
