@@ -116,6 +116,7 @@ class EstadoEmbalaje(Enum):
 
 class EstadoBodega(Enum):
     LISTO_PARA_DESPACHO = "listo_para_despacho"
+    PROGRAMADO_PARA_DESPACHO = "programado_para_despacho"
 
 class EstadoDespachoArea(Enum):
     DESPACHADO = "despachado"

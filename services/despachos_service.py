@@ -8,7 +8,10 @@ from repositories.fabricacion_repo import FabricacionRepository
 from services.audit_service import AuditService, serialize_model
 from services.storage_service import StorageService
 from schemas.despachos import DespachoSearchFilters
-from models import Despacho, DespachoAdjunto, EstadoDespacho, TipoAdjunto
+from models import (
+    Despacho, DespachoAdjunto, EstadoDespacho, TipoAdjunto,
+    TipoArea, EstadoBodega, AreaEstado, OrdenAreaProgreso
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -231,6 +234,10 @@ class DespachosService:
             # Update despacho
             despacho_actualizado = self.repo.update(despacho, update_data)
             
+            # AUTOMATIZACIÓN: Si el despacho es entregado, avanzar OFs asociadas
+            if new_status == EstadoDespacho.ENTREGADO:
+                self._avanzar_ofs_al_entregar_despacho(despacho_id, observaciones)
+            
             # Commit transaction
             db.session.commit()
             
@@ -399,4 +406,171 @@ class DespachosService:
         except Exception as e:
             logger.error(f"Error buscando despachos: {str(e)}")
             raise
+
+    def asignar_ofs_a_despacho(self, despacho_id: int, ordenes_fabricacion: List[dict], created_by: str) -> bool:
+        """
+        Asigna OFs a despacho y actualiza su estado a 'programado_para_despacho'
+        
+        Args:
+            despacho_id: ID del despacho
+            ordenes_fabricacion: Lista con {of_id, tipo_despacho, cantidad}
+            created_by: Usuario que realiza la asignación
+            
+        Returns:
+            True si la asignación fue exitosa
+        """
+        try:
+            # Validar que el despacho existe
+            despacho = self.repo.get_by_id(despacho_id)
+            if not despacho:
+                raise ValueError(f"Despacho {despacho_id} no encontrado")
+            
+            # Obtener área de Bodega y estado correspondiente
+            area_bodega = db.session.query(AreaEstado).join(AreaEstado.area).filter(
+                AreaEstado.area.has(tipo=TipoArea.BODEGA),
+                AreaEstado.codigo == EstadoBodega.PROGRAMADO_PARA_DESPACHO.value
+            ).first()
+            
+            if not area_bodega:
+                raise ValueError("Estado 'programado_para_despacho' no encontrado en área Bodega")
+            
+            from services.areas_service import AreasService
+            areas_service = AreasService()
+            
+            # Procesar cada OF
+            for of_data in ordenes_fabricacion:
+                of_id = of_data['of_id']
+                tipo_despacho = of_data['tipo_despacho']  # 'total' o 'parcial'
+                cantidad = of_data.get('cantidad', 0)
+                
+                # Validar que la OF existe y está en Bodega
+                of = self.fabricacion_repo.get_by_id(of_id)
+                if not of:
+                    raise ValueError(f"Orden de fabricación {of_id} no encontrada")
+                
+                # Verificar que la OF está en área Bodega con estado 'listo_para_despacho'
+                progreso_actual = db.session.query(OrdenAreaProgreso).filter_by(
+                    orden_fabricacion_id=of_id,
+                    es_actual=True
+                ).first()
+                
+                if not progreso_actual:
+                    raise ValueError(f"OF {of_id} no tiene progreso activo en áreas")
+                
+                if progreso_actual.area.tipo != TipoArea.BODEGA:
+                    raise ValueError(f"OF {of_id} no está en área Bodega")
+                
+                if progreso_actual.estado.codigo != EstadoBodega.LISTO_PARA_DESPACHO.value:
+                    raise ValueError(f"OF {of_id} no está en estado 'listo_para_despacho'")
+                
+                # Cambiar estado de la OF a 'programado_para_despacho'
+                areas_service.change_estado_in_area(
+                    orden_fabricacion_id=of_id,
+                    nuevo_estado_id=area_bodega.id,
+                    responsable_id=created_by,
+                    notas=f"Asignada a despacho {despacho.numero_despacho}",
+                    created_by=created_by
+                )
+                
+                # Crear registro en DespachoOrdenFabricacion si no existe
+                from models import DespachoOrdenFabricacion, TipoDespacho
+                
+                despacho_of_existente = db.session.query(DespachoOrdenFabricacion).filter_by(
+                    despacho_id=despacho_id,
+                    orden_fabricacion_id=of_id
+                ).first()
+                
+                if not despacho_of_existente:
+                    despacho_of = DespachoOrdenFabricacion(
+                        despacho_id=despacho_id,
+                        orden_fabricacion_id=of_id,
+                        tipo_despacho=TipoDespacho.TOTAL if tipo_despacho == 'total' else TipoDespacho.PARCIAL,
+                        cantidad_despachada=cantidad if tipo_despacho == 'parcial' else of.cantidad_total,
+                        cantidad_total=of.cantidad_total,
+                        observaciones=f"Asignación automática - {tipo_despacho}",
+                        created_by=created_by
+                    )
+                    db.session.add(despacho_of)
+            
+            db.session.commit()
+            
+            # Log audit
+            AuditService.log_action(
+                'despachos',
+                despacho_id,
+                'UPDATE',
+                datos_nuevos={'ofs_asignadas': [of['of_id'] for of in ordenes_fabricacion]}
+            )
+            
+            logger.info(f"OFs asignadas exitosamente al despacho {despacho_id}")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error asignando OFs a despacho {despacho_id}: {str(e)}")
+            raise
+
+    def _avanzar_ofs_al_entregar_despacho(self, despacho_id: int, observaciones: str = None) -> None:
+        """
+        Método privado que avanza automáticamente las OFs asociadas cuando 
+        el despacho cambia a estado ENTREGADO
+        
+        Args:
+            despacho_id: ID del despacho entregado
+            observaciones: Observaciones opcionales del cambio de estado
+        """
+        try:
+            # Obtener todas las OFs asociadas al despacho
+            from models import DespachoOrdenFabricacion
+            ofs_despacho = db.session.query(DespachoOrdenFabricacion).filter_by(
+                despacho_id=despacho_id
+            ).all()
+            
+            if not ofs_despacho:
+                logger.info(f"No hay OFs asociadas al despacho {despacho_id}")
+                return
+                
+            # Importar AreasService para manejar el avance
+            from services.areas_service import AreasService
+            areas_service = AreasService()
+            
+            despacho = self.repo.get_by_id(despacho_id)
+            
+            # Procesar cada OF asociada
+            for despacho_of in ofs_despacho:
+                of_id = despacho_of.orden_fabricacion_id
+                
+                try:
+                    # Verificar que la OF está en área DESPACHO
+                    progreso_actual = db.session.query(OrdenAreaProgreso).filter_by(
+                        orden_fabricacion_id=of_id,
+                        es_actual=True
+                    ).first()
+                    
+                    if not progreso_actual:
+                        logger.warning(f"OF {of_id} no tiene progreso activo - saltando")
+                        continue
+                    
+                    if progreso_actual.area.tipo != TipoArea.DESPACHO:
+                        logger.warning(f"OF {of_id} no está en área DESPACHO - saltando")
+                        continue
+                    
+                    # Archivar la OF en despachos (marcar como finalizada)
+                    success = areas_service.archive_dispatch(of_id)
+                    
+                    if success:
+                        logger.info(f"OF {of_id} archivada automáticamente al entregar despacho {despacho_id}")
+                    else:
+                        logger.warning(f"No se pudo archivar automáticamente OF {of_id}")
+                        
+                except Exception as e:
+                    logger.error(f"Error procesando OF {of_id} para despacho entregado {despacho_id}: {str(e)}")
+                    # Continuar con las demás OFs aunque una falle
+                    continue
+            
+            logger.info(f"Procesadas {len(ofs_despacho)} OFs para despacho entregado {despacho_id}")
+            
+        except Exception as e:
+            logger.error(f"Error en automatización de avance de OFs para despacho {despacho_id}: {str(e)}")
+            # No hacer raise para que no falle el cambio de estado del despacho
 
