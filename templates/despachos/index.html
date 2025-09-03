@@ -171,7 +171,7 @@
                             <td>
                                 {% if despacho.fecha_programada %}
                                     {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
-                                    {% if despacho.fecha_programada < moment().date() and despacho.estado.value == 'programado' %}
+                                    {% if despacho.fecha_programada < moment_global().date() and despacho.estado.value == 'programado' %}
                                     <br><span class="badge bg-danger">Atrasado</span>
                                     {% endif %}
                                 {% else %}

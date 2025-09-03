@@ -493,7 +493,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Cargar OFs del proyecto
-        fetch(`{{ url_for('fabricacion.api_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId))
+        fetch(`{{ url_for('despachos.api_fabricacion_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId))
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);

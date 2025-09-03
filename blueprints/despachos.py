@@ -49,6 +49,23 @@ def api_contratos_by_cliente(cliente_id):
         logger.error(f"Error loading contratos for cliente {cliente_id}: {str(e)}")
         return jsonify({'error': 'Error al cargar contratos'}), 500
 
+@despachos_bp.route('/api/fabricacion/by_proyecto/<int:proyecto_id>')
+@require_login
+def api_fabricacion_by_proyecto(proyecto_id):
+    """API endpoint to get órdenes de fabricación by proyecto"""
+    try:
+        ofs = fabricacion_service.get_by_proyecto(proyecto_id)
+        return jsonify([{
+            'id': of.id,
+            'codigo': of.codigo,
+            'descripcion': of.descripcion,
+            'cantidad_total': of.cantidad_total,
+            'estado': of.estado.value if hasattr(of.estado, 'value') else str(of.estado)
+        } for of in ofs])
+    except Exception as e:
+        logger.error(f"Error loading OFs for proyecto {proyecto_id}: {str(e)}")
+        return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
+
 
 @despachos_bp.route('/')
 @require_login

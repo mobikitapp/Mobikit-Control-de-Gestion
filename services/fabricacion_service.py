@@ -27,6 +27,22 @@ class FabricacionService:
         self.proyectos_repo = ProyectosRepository()
         self.contratos_repo = ContratosRepository()
         self.areas_service = AreasService()
+    
+    def get_by_proyecto(self, proyecto_id: int) -> List[OrdenFabricacion]:
+        """
+        Get all ordenes de fabricacion for a proyecto
+        
+        Args:
+            proyecto_id: ID of the proyecto
+            
+        Returns:
+            List of OrdenFabricacion instances
+        """
+        try:
+            return self.repo.get_by_proyecto_id(proyecto_id)
+        except Exception as e:
+            logger.error(f"Error getting OFs for proyecto {proyecto_id}: {str(e)}")
+            return []
 
     def create_orden_fabricacion(self, of_data: Dict[str, Any], created_by: str) -> OrdenFabricacion:
         """
