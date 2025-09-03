@@ -137,6 +137,11 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('despachos.index') }}">Ver Despachos</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('despachos.nuevo') }}">Nuevo Despacho</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('despachos.planificacion') }}">
+                                <i data-feather="calendar" class="me-2"></i>
+                                Planificación de Despachos
+                            </a></li>
                         </ul>
                     </li>
                     {% endif %}
