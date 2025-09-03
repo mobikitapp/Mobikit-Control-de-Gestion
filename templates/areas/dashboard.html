@@ -411,9 +411,7 @@
                         <label for="responsable_area" class="form-label">Responsable en nueva área <span class="text-danger">*</span></label>
                         <select class="form-select" id="responsable_area" name="responsable_id" required>
                             <option value="">Seleccionar responsable...</option>
-                            {% for user in users if current_user.rol.value in ['admin', 'operaciones'] or user.id == current_user.id %}
-                            <option value="{{ user.id }}">{{ user.nombre_completo }}</option>
-                            {% endfor %}
+                            <!-- Options will be loaded dynamically -->
                         </select>
                         <div class="form-text">Es obligatorio asignar un responsable para avanzar de área</div>
                     </div>
@@ -561,12 +559,38 @@ function showAdvanceAreaModal(orderId, orderCode, currentArea) {
         </div>
     `;
 
+    // Load users for responsable select
+    loadUsersForAdvance();
+
     // Make responsable field required
     const responsableSelect = document.getElementById('responsable_area');
     responsableSelect.required = true;
-    responsableSelect.parentElement.querySelector('label').innerHTML = 'Responsable en nueva área <span class="text-danger">*</span>';
 
     modal.show();
+}
+
+async function loadUsersForAdvance() {
+    const responsableSelect = document.getElementById('responsable_area');
+    
+    try {
+        // Clear existing options except the first one
+        responsableSelect.innerHTML = '<option value="">Seleccionar responsable...</option>';
+        
+        const response = await fetch('/contratos/api/users/active');
+        if (response.ok) {
+            const users = await response.json();
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = user.nombre_completo;
+                responsableSelect.appendChild(option);
+            });
+        } else {
+            console.error('Error loading users:', await response.text());
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
 }
 
 // Only log if not already initialized

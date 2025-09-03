@@ -1,11 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import current_user
+from flask_login import current_user, login_required
 from pydantic import ValidationError
 from werkzeug.utils import secure_filename
 from datetime import datetime, date
 from app import db
 from replit_auth import require_login, require_role
-from models import RolUsuario
+from models import RolUsuario, User # Import User model
 from services.contratos_service import ContratosService
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
@@ -197,8 +197,8 @@ def detalle(contrato_id):
         # Add today's date for template comparison
         today = date.today()
 
-        return render_template('contratos/detalle.html', 
-                             contrato=contrato, 
+        return render_template('contratos/detalle.html',
+                             contrato=contrato,
                              today=today,
                              current_user=current_user)
 
@@ -580,23 +580,24 @@ def api_by_proyecto(proyecto_id):
         return jsonify({'error': 'Error al cargar contratos'}), 500
 
 @contratos_bp.route('/api/users/active')
-@require_login
+@login_required
 def api_users_active():
-    """API endpoint para obtener usuarios activos"""
+    """Get active users for forms"""
     try:
-        from services.user_service import UserService
-        user_service = UserService()
-        users = user_service.get_active_users()
+        users = (db.session.query(User)
+                .filter(User.activo == True)
+                .order_by(User.first_name, User.last_name)
+                .all())
 
         return jsonify([{
             'id': u.id,
-            'nombre_completo': f"{u.nombre} {u.apellido}" if u.apellido else u.nombre,
+            'nombre_completo': u.nombre_completo,
             'email': u.email
         } for u in users])
 
     except Exception as e:
         logger.error(f"Error en API usuarios activos: {str(e)}")
-        return jsonify({'error': 'Error al cargar usuarios'}), 500
+        return jsonify({'error': 'Error cargando usuarios'}), 500
 
 @contratos_bp.route('/api/sincronizar-eventos-calendario', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
