@@ -431,7 +431,7 @@ class HitoEntrega(db.Model):
 
     # Relationships
     creator = db.relationship('User', foreign_keys=[created_by])
-    completed_by_user = db.relationship('User', foreign_keys=[completado_por])
+    completado_por_user = db.relationship('User', foreign_keys=[completado_por])
     evento_entrega = db.relationship('EventoEntrega', backref='hito', uselist=False)
 
     # Indexes
