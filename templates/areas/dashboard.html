@@ -200,7 +200,7 @@
                                                 </td>
                                                 <td>
                                                     {% if order.fecha_cambio_estado %}
-                                                        {% set days_diff = (moment_global().date() - order.fecha_cambio_estado.date()).days %}
+                                                        {% set days_diff = (moment_global.now().date() - order.fecha_cambio_estado.date()).days %}
                                                         <small class="{% if days_diff > 3 %}text-warning{% elif days_diff > 7 %}text-danger{% else %}text-muted{% endif %}">
                                                             {{ days_diff }} día{% if days_diff != 1 %}s{% endif %}
                                                         </small>

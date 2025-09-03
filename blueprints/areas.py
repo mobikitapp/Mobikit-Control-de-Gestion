@@ -20,11 +20,6 @@ fabricacion_service = FabricacionService()
 user_service = UserService()
 areas_repo = AreasRepository()
 
-# Template function
-def moment_global():
-    """Helper function for templates to get current datetime"""
-    return datetime
-
 
 @areas_bp.route('/dashboard')
 @login_required
@@ -47,7 +42,7 @@ def dashboard():
             areas=dashboard_data.get('areas', []),
             stats=stats,
             users=users,
-            moment_global=moment_global,
+            moment_global=datetime,
             title='Dashboard de Áreas'
         )
 
@@ -65,7 +60,7 @@ def dashboard():
                 'area_counts': []
             },
             users=User.query.filter_by(activo=True).all(),
-            moment_global=moment_global,
+            moment_global=datetime,
             title='Dashboard de Áreas'
         )
 
