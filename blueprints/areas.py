@@ -10,6 +10,7 @@ from repositories.areas_repository import AreasRepository
 from utils.auth import admin_required, role_required
 from utils.responses import success_response, error_response
 from utils.validators import validate_not_empty
+from models import User
 
 logger = logging.getLogger(__name__)
 areas_bp = Blueprint('areas', __name__, url_prefix='/areas')
