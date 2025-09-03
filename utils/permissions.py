@@ -63,12 +63,13 @@ PERMISSIONS = {
 ROLE_PERMISSIONS = {
     'admin': 'all',  # Acceso completo
     'general': [
-        'clients.view', 'clients.create', 'clients.edit',
-        'projects.view', 'projects.create', 'projects.edit', 'projects.archive',
-        'orders.view', 'orders.create', 'orders.edit', 'orders.approve',
+        'clients.view', 'clients.create', 'clients.edit', 'clients.delete',
+        'projects.view', 'projects.create', 'projects.edit', 'projects.delete', 'projects.archive',
+        'orders.view', 'orders.create', 'orders.edit', 'orders.delete', 'orders.approve',
         'manufacturing.view', 'manufacturing.create', 'manufacturing.edit', 'manufacturing.process',
         'dispatch.view', 'dispatch.create', 'dispatch.edit', 'dispatch.process',
-        'reports.view', 'planning.view', 'planning.edit'
+        'reports.view', 'planning.view', 'planning.edit',
+        'config.view'  # Solo ver configuraciones, no editar
     ],
     'vendedor': [
         'clients.view', 'projects.view', 'projects.create', 'projects.edit',
@@ -91,10 +92,25 @@ ROLE_PERMISSIONS = {
 def has_permission(user_role, permission):
     """
     Verifica si un rol tiene un permiso específico
+    Intenta usar el sistema dinámico primero, luego fallback al sistema estático
     """
     if user_role == 'admin':
         return True
     
+    # Intentar usar el sistema dinámico de permisos
+    try:
+        from services.permisos_service import PermisosService
+        service = PermisosService()
+        
+        # Parsear el permiso (formato: modulo.tipo_permiso)
+        if '.' in permission:
+            modulo_codigo, tipo_permiso_codigo = permission.split('.', 1)
+            return service.verificar_permiso_dinamico(user_role, modulo_codigo, tipo_permiso_codigo)
+    except Exception as e:
+        # Si falla el sistema dinámico, usar el sistema estático como fallback
+        pass
+    
+    # Sistema de permisos estático (fallback)
     if permission in PERMISSIONS:
         return user_role in PERMISSIONS[permission]
     
@@ -103,10 +119,30 @@ def has_permission(user_role, permission):
 def get_user_permissions(user_role):
     """
     Obtiene todos los permisos de un rol
+    Intenta usar el sistema dinámico primero, luego fallback al sistema estático
     """
     if user_role == 'admin':
         return list(PERMISSIONS.keys())
     
+    # Intentar usar el sistema dinámico de permisos
+    try:
+        from services.permisos_service import PermisosService
+        service = PermisosService()
+        
+        # Obtener permisos dinámicos
+        matriz = service.obtener_matriz_permisos_completa()
+        if matriz['success'] and user_role in matriz['matriz']:
+            permisos_dinamicos = []
+            for modulo_codigo, permisos_modulo in matriz['matriz'][user_role].items():
+                for tipo_permiso, permitido in permisos_modulo.items():
+                    if permitido:
+                        permisos_dinamicos.append(f"{modulo_codigo}.{tipo_permiso}")
+            return permisos_dinamicos
+    except Exception as e:
+        # Si falla el sistema dinámico, usar el sistema estático como fallback
+        pass
+    
+    # Sistema de permisos estático (fallback)
     return ROLE_PERMISSIONS.get(user_role, [])
 
 def permission_required(permission):

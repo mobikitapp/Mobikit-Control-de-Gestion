@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block title %}Auditoría de Permisos - Mobikit{% endblock %}
+
+{% block head %}
+<style>
+    .auditoria-card {
+        border-left: 4px solid #17a2b8;
+        margin-bottom: 15px;
+    }
+    
+    .accion-badge {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+    
+    .permiso-badge {
+        font-size: 0.75rem;
+        margin: 2px;
+    }
+    
+    .filtros-panel {
+        background: #f8f9fa;
+        border-radius: 0.375rem;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-left: 40px;
+        margin-bottom: 20px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 10px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #17a2b8;
+    }
+    
+    .timeline-line {
+        position: absolute;
+        left: 19px;
+        top: 25px;
+        bottom: -20px;
+        width: 2px;
+        background: #dee2e6;
+    }
+    
+    .timeline-item:last-child .timeline-line {
+        display: none;
+    }
+    
+    .cambio-detalle {
+        background: #f8f9fa;
+        border-radius: 0.25rem;
+        padding: 8px 12px;
+        margin: 8px 0;
+        font-family: monospace;
+        font-size: 0.85rem;
+    }
+    
+    .valor-anterior {
+        color: #dc3545;
+        text-decoration: line-through;
+    }
+    
+    .valor-nuevo {
+        color: #28a745;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i data-feather="clock" class="me-2"></i>
+                        Auditoría de Permisos
+                    </h1>
+                    <p class="text-muted">Historial completo de cambios en permisos por rol y módulo</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('configuraciones.gestionar_permisos') }}" class="btn btn-primary">
+                        <i data-feather="shield" class="me-1"></i>
+                        Gestionar Permisos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros-panel">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Filtrar por Rol:</label>
+                <select class="form-select" id="filtroRol" onchange="aplicarFiltros()">
+                    <option value="">Todos los roles</option>
+                    <option value="admin">Administrador</option>
+                    <option value="general">Gerente General</option>
+                    <option value="ventas">Vendedor</option>
+                    <option value="operaciones">Operaciones</option>
+                    <option value="produccion">Producción</option>
+                    <option value="logistica">Logística</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Filtrar por Módulo:</label>
+                <select class="form-select" id="filtroModulo" onchange="aplicarFiltros()">
+                    <option value="">Todos los módulos</option>
+                    <option value="clientes">Clientes</option>
+                    <option value="proyectos">Proyectos</option>
+                    <option value="contratos">Contratos</option>
+                    <option value="fabricacion">Fabricación</option>
+                    <option value="despachos">Despachos</option>
+                    <option value="comercial">Comercial</option>
+                    <option value="mi_dashboard">Mi Dashboard</option>
+                    <option value="planificacion">Planificación</option>
+                    <option value="configuraciones">Configuraciones</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Cantidad de Registros:</label>
+                <select class="form-select" id="filtroLimite" onchange="aplicarFiltros()">
+                    <option value="50">50 registros</option>
+                    <option value="100">100 registros</option>
+                    <option value="200">200 registros</option>
+                    <option value="500">500 registros</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-outline-secondary w-100" onclick="limpiarFiltros()">
+                    <i data-feather="refresh-cw" class="me-1"></i>
+                    Limpiar Filtros
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline de Auditoría -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="list" class="me-2"></i>
+                        Historial de Cambios
+                        <span class="badge bg-info ms-2" id="contadorRegistros">{{ auditorias|length }} registros</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="auditoriaContainer">
+                        {% if auditorias %}
+                            {% for auditoria in auditorias %}
+                            <div class="timeline-item auditoria-item" 
+                                 data-rol="{{ auditoria.rol }}" 
+                                 data-modulo="{{ auditoria.modulo }}">
+                                <div class="timeline-line"></div>
+                                <div class="card auditoria-card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div>
+                                                <h6 class="card-title mb-1">
+                                                    <span class="badge bg-primary permiso-badge">{{ auditoria.rol|upper }}</span>
+                                                    <span class="badge bg-secondary permiso-badge">{{ auditoria.modulo }}</span>
+                                                    <span class="badge bg-warning permiso-badge">{{ auditoria.tipo_permiso }}</span>
+                                                </h6>
+                                                <div class="cambio-detalle">
+                                                    {% if auditoria.accion == 'created' %}
+                                                        <strong>Permiso creado:</strong> 
+                                                        <span class="valor-nuevo">{{ 'Permitido' if auditoria.valor_nuevo else 'Denegado' }}</span>
+                                                    {% elif auditoria.accion == 'updated' %}
+                                                        <strong>Permiso actualizado:</strong> 
+                                                        <span class="valor-anterior">{{ 'Permitido' if auditoria.valor_anterior else 'Denegado' }}</span>
+                                                        → 
+                                                        <span class="valor-nuevo">{{ 'Permitido' if auditoria.valor_nuevo else 'Denegado' }}</span>
+                                                    {% elif auditoria.accion == 'deleted' %}
+                                                        <strong>Permiso eliminado:</strong> 
+                                                        <span class="valor-anterior">{{ 'Permitido' if auditoria.valor_anterior else 'Denegado' }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="text-end">
+                                                <span class="badge accion-badge 
+                                                    {% if auditoria.accion == 'created' %}bg-success
+                                                    {% elif auditoria.accion == 'updated' %}bg-warning
+                                                    {% elif auditoria.accion == 'deleted' %}bg-danger
+                                                    {% endif %}">
+                                                    {% if auditoria.accion == 'created' %}Creado
+                                                    {% elif auditoria.accion == 'updated' %}Actualizado  
+                                                    {% elif auditoria.accion == 'deleted' %}Eliminado
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="text-muted small">
+                                            <i data-feather="user" style="width: 14px; height: 14px;" class="me-1"></i>
+                                            {{ auditoria.usuario }}
+                                            <i data-feather="calendar" style="width: 14px; height: 14px;" class="ms-3 me-1"></i>
+                                            {{ auditoria.fecha }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i data-feather="inbox" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
+                                <p class="text-muted">No hay registros de auditoría disponibles</p>
+                                <a href="{{ url_for('configuraciones.gestionar_permisos') }}" class="btn btn-primary">
+                                    <i data-feather="shield" class="me-1"></i>
+                                    Gestionar Permisos
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Loading indicator -->
+                    <div id="loadingIndicator" class="text-center py-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="text-muted mt-2">Cargando registros...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function aplicarFiltros() {
+    const rol = document.getElementById('filtroRol').value;
+    const modulo = document.getElementById('filtroModulo').value;
+    const limit = document.getElementById('filtroLimite').value;
+    
+    // Mostrar indicador de carga
+    document.getElementById('loadingIndicator').style.display = 'block';
+    document.getElementById('auditoriaContainer').style.display = 'none';
+    
+    try {
+        const params = new URLSearchParams();
+        if (rol) params.append('rol', rol);
+        if (modulo) params.append('modulo', modulo);
+        if (limit) params.append('limit', limit);
+        
+        const response = await fetch(`{{ url_for('configuraciones.api_auditoria_permisos') }}?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderizarAuditoria(data.data);
+            document.getElementById('contadorRegistros').textContent = `${data.data.length} registros`;
+        } else {
+            mostrarError(`Error al cargar auditoría: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarError('Error de conexión al cargar datos');
+    } finally {
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('auditoriaContainer').style.display = 'block';
+    }
+}
+
+function renderizarAuditoria(auditorias) {
+    const container = document.getElementById('auditoriaContainer');
+    
+    if (auditorias.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i data-feather="search" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
+                <p class="text-muted">No se encontraron registros con los filtros aplicados</p>
+                <button class="btn btn-outline-secondary" onclick="limpiarFiltros()">
+                    <i data-feather="refresh-cw" class="me-1"></i>
+                    Limpiar Filtros
+                </button>
+            </div>
+        `;
+        feather.replace();
+        return;
+    }
+    
+    let html = '';
+    auditorias.forEach((auditoria, index) => {
+        const isLast = index === auditorias.length - 1;
+        
+        let accionTexto, accionClass;
+        switch(auditoria.accion) {
+            case 'created':
+                accionTexto = 'Creado';
+                accionClass = 'bg-success';
+                break;
+            case 'updated':
+                accionTexto = 'Actualizado';
+                accionClass = 'bg-warning';
+                break;
+            case 'deleted':
+                accionTexto = 'Eliminado';
+                accionClass = 'bg-danger';
+                break;
+        }
+        
+        let cambioDetalle;
+        if (auditoria.accion === 'created') {
+            cambioDetalle = `<strong>Permiso creado:</strong> <span class="valor-nuevo">${auditoria.valor_nuevo ? 'Permitido' : 'Denegado'}</span>`;
+        } else if (auditoria.accion === 'updated') {
+            cambioDetalle = `<strong>Permiso actualizado:</strong> <span class="valor-anterior">${auditoria.valor_anterior ? 'Permitido' : 'Denegado'}</span> → <span class="valor-nuevo">${auditoria.valor_nuevo ? 'Permitido' : 'Denegado'}</span>`;
+        } else if (auditoria.accion === 'deleted') {
+            cambioDetalle = `<strong>Permiso eliminado:</strong> <span class="valor-anterior">${auditoria.valor_anterior ? 'Permitido' : 'Denegado'}</span>`;
+        }
+        
+        html += `
+            <div class="timeline-item auditoria-item" data-rol="${auditoria.rol}" data-modulo="${auditoria.modulo}">
+                ${!isLast ? '<div class="timeline-line"></div>' : ''}
+                <div class="card auditoria-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="card-title mb-1">
+                                    <span class="badge bg-primary permiso-badge">${auditoria.rol.toUpperCase()}</span>
+                                    <span class="badge bg-secondary permiso-badge">${auditoria.modulo}</span>
+                                    <span class="badge bg-warning permiso-badge">${auditoria.tipo_permiso}</span>
+                                </h6>
+                                <div class="cambio-detalle">
+                                    ${cambioDetalle}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge accion-badge ${accionClass}">
+                                    ${accionTexto}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="text-muted small">
+                            <i data-feather="user" style="width: 14px; height: 14px;" class="me-1"></i>
+                            ${auditoria.usuario}
+                            <i data-feather="calendar" style="width: 14px; height: 14px;" class="ms-3 me-1"></i>
+                            ${auditoria.fecha}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    feather.replace();
+}
+
+function limpiarFiltros() {
+    document.getElementById('filtroRol').value = '';
+    document.getElementById('filtroModulo').value = '';
+    document.getElementById('filtroLimite').value = '50';
+    aplicarFiltros();
+}
+
+function mostrarError(mensaje) {
+    const container = document.getElementById('auditoriaContainer');
+    container.innerHTML = `
+        <div class="alert alert-danger" role="alert">
+            <i data-feather="alert-triangle" class="me-2"></i>
+            ${mensaje}
+        </div>
+    `;
+    feather.replace();
+}
+
+// Inicializar íconos al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    feather.replace();
+});
+</script>
+{% endblock %}

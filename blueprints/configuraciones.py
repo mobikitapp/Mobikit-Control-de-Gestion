@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash
 from app import db
 from models import User, RolUsuario
 from services.configuraciones_service import ConfiguracionesService
+from services.permisos_service import PermisosService
 from utils.auth import role_required
 
 # Create blueprint
@@ -399,3 +400,256 @@ def api_audit_log():
             'success': False,
             'message': f'Error: {str(e)}'
         }), 500
+
+
+# =============================================================================
+# GESTIÓN DINÁMICA DE PERMISOS
+# =============================================================================
+
+@configuraciones_bp.route('/permisos/gestionar')
+@login_required
+@role_required([RolUsuario.ADMIN])
+def gestionar_permisos():
+    """Interfaz principal para gestión dinámica de permisos"""
+    try:
+        service = PermisosService()
+        
+        # Obtener matriz completa de permisos
+        data = service.obtener_matriz_permisos_completa()
+        
+        if data['success']:
+            return render_template('configuraciones/gestionar_permisos.html', **data)
+        else:
+            flash(f'Error al cargar permisos: {data["error"]}', 'error')
+            return redirect(url_for('configuraciones.dashboard'))
+            
+    except Exception as e:
+        flash(f'Error al cargar gestión de permisos: {str(e)}', 'error')
+        return redirect(url_for('configuraciones.dashboard'))
+
+
+@configuraciones_bp.route('/permisos/inicializar', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN])
+def inicializar_permisos():
+    """Inicializa el sistema de permisos dinámicos"""
+    try:
+        service = PermisosService()
+        success, mensaje = service.inicializar_modulos_sistema(current_user.id)
+        
+        if success:
+            flash(mensaje, 'success')
+        else:
+            flash(f'Error: {mensaje}', 'error')
+            
+    except Exception as e:
+        flash(f'Error al inicializar permisos: {str(e)}', 'error')
+    
+    return redirect(url_for('configuraciones.gestionar_permisos'))
+
+
+@configuraciones_bp.route('/permisos/actualizar', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN])
+def actualizar_permiso_individual():
+    """Actualiza un permiso específico"""
+    try:
+        service = PermisosService()
+        
+        # Obtener datos del formulario
+        rol = request.form.get('rol')
+        modulo = request.form.get('modulo')
+        tipo_permiso = request.form.get('tipo_permiso')
+        permitido = request.form.get('permitido') == 'true'
+        
+        if not all([rol, modulo, tipo_permiso]):
+            return jsonify({
+                'success': False,
+                'message': 'Faltan parámetros requeridos'
+            }), 400
+        
+        success, mensaje = service.actualizar_permiso(
+            rol, modulo, tipo_permiso, permitido, current_user.id
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': mensaje
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': mensaje
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error individual: {str(e)}'
+        }), 500
+
+
+@configuraciones_bp.route('/permisos/actualizar-masivo', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN])
+def actualizar_permisos_masivo():
+    """Actualiza múltiples permisos en una sola operación"""
+    try:
+        service = PermisosService()
+        
+        # Obtener datos JSON del cuerpo de la solicitud
+        data = request.get_json()
+        if not data or 'updates' not in data:
+            return jsonify({
+                'success': False,
+                'message': 'No se recibieron datos de actualización'
+            }), 400
+        
+        updates = data['updates']
+        if not isinstance(updates, list):
+            return jsonify({
+                'success': False,
+                'message': 'Los datos de actualización deben ser una lista'
+            }), 400
+        
+        success, resultado = service.actualizar_permisos_masivo(updates, current_user.id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'data': resultado
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': str(resultado)
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error masivo: {str(e)}'
+        }), 500
+
+
+@configuraciones_bp.route('/permisos/resetear-rol', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN])
+def resetear_permisos_rol():
+    """Resetea todos los permisos de un rol a los valores por defecto"""
+    try:
+        service = PermisosService()
+        
+        rol = request.form.get('rol')
+        if not rol:
+            return jsonify({
+                'success': False,
+                'message': 'Rol requerido'
+            }), 400
+        
+        success, mensaje = service.resetear_permisos_rol(rol, current_user.id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': mensaje
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': mensaje
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error resetear: {str(e)}'
+        }), 500
+
+
+@configuraciones_bp.route('/api/permisos/matriz')
+@login_required
+@role_required([RolUsuario.ADMIN])
+def api_obtener_matriz_permisos():
+    """API para obtener la matriz completa de permisos"""
+    try:
+        service = PermisosService()
+        data = service.obtener_matriz_permisos_completa()
+        
+        if data['success']:
+            return jsonify({
+                'success': True,
+                'data': data
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': data['error']
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error matriz: {str(e)}'
+        }), 500
+
+
+@configuraciones_bp.route('/api/permisos/auditoria')
+@login_required
+@role_required([RolUsuario.ADMIN])
+def api_auditoria_permisos():
+    """API para obtener el historial de cambios en permisos"""
+    try:
+        service = PermisosService()
+        
+        # Obtener filtros
+        limit = request.args.get('limit', 50, type=int)
+        rol_filtro = request.args.get('rol')
+        modulo_filtro = request.args.get('modulo')
+        
+        data = service.obtener_auditoria_permisos(
+            limit=limit,
+            rol_filtro=rol_filtro,
+            modulo_filtro=modulo_filtro
+        )
+        
+        if data['success']:
+            return jsonify({
+                'success': True,
+                'data': data['auditorias']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': data['error']
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error auditoria: {str(e)}'
+        }), 500
+
+
+@configuraciones_bp.route('/permisos/auditoria')
+@login_required
+@role_required([RolUsuario.ADMIN])
+def ver_auditoria_permisos():
+    """Vista para el historial de cambios en permisos"""
+    try:
+        service = PermisosService()
+        
+        # Obtener historial inicial
+        data = service.obtener_auditoria_permisos(limit=50)
+        
+        if data['success']:
+            return render_template('configuraciones/auditoria_permisos.html', 
+                                 auditorias=data['auditorias'])
+        else:
+            flash(f'Error al cargar auditoría: {data["error"]}', 'error')
+            return redirect(url_for('configuraciones.dashboard'))
+            
+    except Exception as e:
+        flash(f'Error al cargar auditoría de permisos: {str(e)}', 'error')
+        return redirect(url_for('configuraciones.dashboard'))

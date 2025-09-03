@@ -356,10 +356,10 @@ class ConfiguracionesService:
                 'eliminar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional', 'areas', 'configuraciones']
             },
             RolUsuario.OPERACIONES: {
-                'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'planificacion_operacional', 'areas'],
-                'crear': ['proyectos', 'contratos', 'fabricacion', 'despachos', 'planificacion_operacional'],
-                'editar': ['proyectos', 'contratos', 'fabricacion', 'despachos', 'planificacion_operacional'],
-                'eliminar': ['fabricacion', 'despachos']
+                'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional', 'areas', 'configuraciones'],
+                'crear': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional'],
+                'editar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional', 'areas'],
+                'eliminar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial']
             },
             RolUsuario.VENTAS: {
                 'leer': ['clientes', 'proyectos', 'contratos', 'comercial'],
@@ -388,7 +388,7 @@ class ConfiguracionesService:
         
         descripciones = {
             RolUsuario.ADMIN: "Acceso completo al sistema, gestión de usuarios y configuraciones",
-            RolUsuario.OPERACIONES: "Gestión de operaciones, proyectos, contratos y planificación",
+            RolUsuario.OPERACIONES: "Acceso completo excepto edición de configuraciones y gestión de usuarios",
             RolUsuario.VENTAS: "Gestión comercial, clientes y seguimiento de ventas",
             RolUsuario.PRODUCCION: "Gestión de fabricación y control de producción",
             RolUsuario.LOGISTICA: "Gestión de despachos y logística de entrega"

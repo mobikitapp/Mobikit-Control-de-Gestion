@@ -123,6 +123,13 @@ class EstadoDespachoArea(Enum):
     DESPACHADO = "despachado"
 
 # Enums para despachos parciales
+
+# Enum para tipos de permisos
+class TipoPermiso(Enum):
+    LECTURA = "lectura"
+    CREACION = "creacion"
+    EDICION = "edicion"
+    ELIMINACION = "eliminacion"
 class TipoDespacho(Enum):
     TOTAL = "TOTAL"
     PARCIAL = "PARCIAL"
@@ -1028,3 +1035,88 @@ class EventoEntrega(db.Model):
             from datetime import timedelta
             return self.fecha_evento - timedelta(days=self.recordatorio_dias)
         return None
+
+
+# =============================================================================
+# SISTEMA DE PERMISOS DINÁMICOS
+# =============================================================================
+
+class Modulo(db.Model):
+    """Módulos del sistema para gestión de permisos"""
+    __tablename__ = 'modulos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), unique=True, nullable=False)
+    descripcion = db.Column(db.String(500))
+    codigo = db.Column(db.String(50), unique=True, nullable=False)  # ej: 'clientes', 'proyectos'
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    permisos_rol = db.relationship('PermisoRol', back_populates='modulo', cascade='all, delete-orphan')
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    def __repr__(self):
+        return f'<Modulo {self.nombre}>'
+
+
+class PermisoRol(db.Model):
+    """Permisos específicos por rol y módulo"""
+    __tablename__ = 'permisos_rol'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    rol = db.Column(db.Enum(RolUsuario), nullable=False)
+    modulo_id = db.Column(db.Integer, db.ForeignKey('modulos.id'), nullable=False)
+    tipo_permiso = db.Column(db.Enum(TipoPermiso), nullable=False)
+    permitido = db.Column(db.Boolean, default=False, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    updated_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    modulo = db.relationship('Modulo', back_populates='permisos_rol')
+    updater = db.relationship('User', foreign_keys=[updated_by])
+    
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint('rol', 'modulo_id', 'tipo_permiso', name='uk_permiso_rol_modulo_tipo'),
+        Index('idx_permiso_rol', 'rol'),
+        Index('idx_permiso_modulo', 'modulo_id'),
+        Index('idx_permiso_tipo', 'tipo_permiso'),
+    )
+    
+    def __repr__(self):
+        return f'<PermisoRol {self.rol.value}-{self.modulo.codigo if self.modulo else "None"}-{self.tipo_permiso.value}>'
+
+
+class AuditoriaPermisos(db.Model):
+    """Auditoría de cambios en permisos"""
+    __tablename__ = 'auditoria_permisos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    rol = db.Column(db.Enum(RolUsuario), nullable=False)
+    modulo_codigo = db.Column(db.String(50), nullable=False)
+    tipo_permiso = db.Column(db.Enum(TipoPermiso), nullable=False)
+    valor_anterior = db.Column(db.Boolean)
+    valor_nuevo = db.Column(db.Boolean, nullable=False)
+    accion = db.Column(db.String(50), nullable=False)  # 'created', 'updated', 'deleted'
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
+    
+    # Relationships
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_auditoria_rol', 'rol'),
+        Index('idx_auditoria_fecha', 'created_at'),
+        Index('idx_auditoria_modulo', 'modulo_codigo'),
+    )
+    
+    def __repr__(self):
+        return f'<AuditoriaPermisos {self.rol.value}-{self.modulo_codigo}-{self.tipo_permiso.value}>'
