@@ -416,12 +416,15 @@ setInterval(() => {
     window.location.reload();
 }, 300000);
 
-// Initialize tooltips
+// Initialize tooltips - only once
 document.addEventListener('DOMContentLoaded', function() {
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    if (!window.areasTooltipsInitialized) {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        window.areasTooltipsInitialized = true;
+    }
 });
 
 // Modal management functions
@@ -495,6 +498,10 @@ function showAdvanceAreaModal(orderId, orderCode, currentArea) {
     modal.show();
 }
 
-console.log('Areas Dashboard initialized');
+// Only log if not already initialized
+if (!window.areasDashboardInitialized) {
+    console.log('Areas Dashboard initialized');
+    window.areasDashboardInitialized = true;
+}
 </script>
 {% endblock %}

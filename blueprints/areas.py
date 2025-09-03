@@ -19,30 +19,54 @@ fabricacion_service = FabricacionService()
 user_service = UserService()
 areas_repo = AreasRepository()
 
+# Template function
+def moment_global():
+    """Helper function for templates to get current datetime"""
+    return datetime
 
-@areas_bp.route('/')
+
+@areas_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """Areas dashboard - shows all areas with their current orders"""
+    """Areas dashboard with all production areas"""
     try:
+        # Get dashboard data
         dashboard_data = areas_service.get_areas_dashboard_data()
+        users = User.query.filter_by(activo=True).all()
 
-        # Get users for responsable assignment
-        from services.user_service import UserService
-        user_service = UserService()
-        users = user_service.get_active_users()
+        # Ensure stats is always defined
+        stats = dashboard_data.get('stats', {
+            'total_active': 0,
+            'overdue_count': 0,
+            'area_counts': []
+        })
 
         return render_template(
             'areas/dashboard.html',
-            dashboard_data=dashboard_data,
+            areas=dashboard_data.get('areas', []),
+            stats=stats,
             users=users,
+            moment_global=moment_global,
             title='Dashboard de Áreas'
         )
 
     except Exception as e:
         logger.error(f"Error en dashboard de áreas: {str(e)}")
         flash('Error cargando el dashboard de áreas', 'error')
-        return redirect(url_for('index'))
+
+        # Return a safe fallback template with empty data
+        return render_template(
+            'areas/dashboard.html',
+            areas=[],
+            stats={
+                'total_active': 0,
+                'overdue_count': 0,
+                'area_counts': []
+            },
+            users=User.query.filter_by(activo=True).all(),
+            moment_global=moment_global,
+            title='Dashboard de Áreas'
+        )
 
 
 @areas_bp.route('/area/<int:area_id>')
@@ -84,7 +108,7 @@ def area_detail(area_id):
 
 
 @areas_bp.route('/orden/<int:orden_id>/history')
-@login_required  
+@login_required
 def orden_history(orden_id):
     """Show area transition history for an order"""
     try:
@@ -272,7 +296,7 @@ def api_assign_responsable():
 
         # Update responsible person
         updated_progress = progreso_repo.update_progress(
-            current_progress, 
+            current_progress,
             {'responsable_area': responsable_id}
         )
 
@@ -382,9 +406,9 @@ def cambiar_estado_form(orden_id):
 
             except ValueError as e:
                 flash(str(e), 'error')
-            except Exception as e_inner: 
-                 logger.error(f"Error in change_estado_in_area: {str(e_inner)}")
-                 flash('Error al actualizar estado.', 'error')
+            except Exception as e_inner:
+                logger.error(f"Error in change_estado_in_area: {str(e_inner)}")
+                flash('Error al actualizar estado.', 'error')
 
         return render_template(
             'areas/cambiar_estado.html',

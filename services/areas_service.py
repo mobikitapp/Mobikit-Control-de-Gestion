@@ -241,9 +241,21 @@ class AreasService:
         try:
             # Get all areas with their orders
             areas = self.areas_repo.get_all_areas()
+            
+            # Get stats with fallback
+            try:
+                stats = self.progreso_repo.get_dashboard_stats()
+            except Exception as e:
+                logger.error(f"Error getting dashboard stats: {str(e)}")
+                stats = {
+                    'total_active': 0,
+                    'overdue_count': 0,
+                    'area_counts': []
+                }
+            
             dashboard_data = {
                 'areas': [],
-                'stats': self.progreso_repo.get_dashboard_stats()
+                'stats': stats
             }
             
             for area in areas:
