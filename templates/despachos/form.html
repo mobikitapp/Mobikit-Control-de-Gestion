@@ -310,6 +310,11 @@ async function updateContratos() {
                     }
                     contratoSelect.appendChild(option);
                 });
+                
+                // Si hay un contrato seleccionado, actualizar hitos
+                if (selectedContrato) {
+                    updateHitosByContrato(selectedContrato);
+                }
             } else {
                 console.error('Error response loading contratos:', response.status);
             }
@@ -393,30 +398,36 @@ async function updateOFsByContrato() {
 }
 
 // Helper function to populate Hitos based on Contrato
-function updateHitosByContrato(contratoId) {
+async function updateHitosByContrato(contratoId) {
     const hitoSelect = document.getElementById('hito_entrega_id');
 
     if (!hitoSelect) return;
 
     // Clear current options
-    hitoSelect.innerHTML = '<option value="">Seleccione un hito de entrega...</option>';
+    const selectedHito = hitoSelect.value;
+    hitoSelect.innerHTML = '<option value="">Sin hito asociado</option>';
 
     if (!contratoId) return;
 
-    // Fetch hitos for the selected contrato
-    fetch(`/api/hitos_by_contrato/${contratoId}`)
-        .then(response => response.json())
-        .then(hitos => {
+    try {
+        const response = await fetch(`{{ url_for('contratos.api_hitos_by_contrato', contrato_id=0) }}`.replace('0', contratoId));
+        if (response.ok) {
+            const hitos = await response.json();
             hitos.forEach(hito => {
                 const option = document.createElement('option');
                 option.value = hito.id;
                 option.textContent = `${hito.descripcion} - ${hito.fecha_programada}`;
+                if (hito.id == selectedHito) {
+                    option.selected = true;
+                }
                 hitoSelect.appendChild(option);
             });
-        })
-        .catch(error => {
-            console.error('Error loading hitos:', error);
-        });
+        } else {
+            console.error('Error response loading hitos:', response.status);
+        }
+    } catch (error) {
+        console.error('Error loading hitos:', error);
+    }
 }
 
 
@@ -465,6 +476,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const placeholder = document.getElementById('ofs-placeholder');
         const list = document.getElementById('ofs-list');
 
+        // Verificar que los elementos existan
+        if (!container || !placeholder || !list) {
+            console.error('Elements not found for OF loading');
+            return;
+        }
+
         if (!proyectoId) {
             placeholder.style.display = 'block';
             list.style.display = 'none';
@@ -473,8 +490,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Cargar OFs del proyecto
-        fetch(`/api/fabricacion/by_proyecto/${proyectoId}`)
-            .then(response => response.json())
+        fetch(`{{ url_for('fabricacion.api_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId))
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(ofs => {
                 placeholder.style.display = 'none';
                 list.innerHTML = '';
@@ -542,10 +564,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 list.style.display = 'block';
             })
             .catch(error => {
-                console.error('Error:', error);
-                list.innerHTML = '<p class="text-danger text-center">Error al cargar las órdenes de fabricación.</p>';
-                list.style.display = 'block';
-                placeholder.style.display = 'none';
+                console.error('Error loading OFs:', error);
+                if (list) {
+                    list.innerHTML = '<p class="text-danger text-center">Error al cargar las órdenes de fabricación.</p>';
+                    list.style.display = 'block';
+                }
+                if (placeholder) {
+                    placeholder.style.display = 'none';
+                }
             });
     };
 
