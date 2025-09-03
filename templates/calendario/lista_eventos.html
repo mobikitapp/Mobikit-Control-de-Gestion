@@ -123,11 +123,11 @@
                                     <td>
                                         <div>
                                             <strong>{{ evento.titulo }}</strong>
-                                            {% if hasattr(evento, 'proyecto') and evento.proyecto %}
+                                            {% if evento.proyecto %}
                                             <br><span class="badge bg-info text-white">
                                                 <i class="fas fa-project-diagram"></i> {{ evento.proyecto.nombre }}
                                             </span>
-                                            {% elif hasattr(evento, 'plan_entrega_nombre') and evento.plan_entrega_nombre %}
+                                            {% elif evento.plan_entrega_nombre %}
                                             <br><span class="badge bg-success text-white">
                                                 <i class="fas fa-project-diagram"></i> {{ evento.proyecto or 'Proyecto no especificado' }}
                                             </span>
@@ -153,7 +153,7 @@
                                             <i class="fas fa-flag"></i>
                                             Hito Entrega
                                         </span>
-                                        {% if hasattr(evento, 'contrato_numero') and evento.contrato_numero %}
+                                        {% if evento.contrato_numero %}
                                         <br><small class="text-muted">OC: {{ evento.contrato_numero }}</small>
                                         {% endif %}
                                         {% else %}

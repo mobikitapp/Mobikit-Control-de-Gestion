@@ -113,7 +113,7 @@
                     {% for evento in entregas_proximas %}
                     <div class="d-flex align-items-center mb-3 p-2 border rounded">
                         <div class="me-3">
-                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
                                  style="width: 40px; height: 40px;">
                                 <i class="fas fa-truck"></i>
                             </div>
@@ -147,7 +147,7 @@
                             </div>
                         </div>
                         <div class="ms-3">
-                            <a href="{{ url_for('calendario.detalle_evento', evento_id=evento.id) }}" 
+                            <a href="{{ url_for('calendario.detalle_evento', evento_id=evento.id) }}"
                                class="btn btn-outline-primary btn-sm">
                                 <i class="fas fa-eye"></i>
                             </a>
@@ -183,7 +183,7 @@
                     {% for evento in entregas_vencidas %}
                     <div class="d-flex align-items-center mb-3 p-2 border rounded bg-light">
                         <div class="me-3">
-                            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" 
+                            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center"
                                  style="width: 40px; height: 40px;">
                                 <i class="fas fa-truck"></i>
                             </div>
@@ -212,11 +212,11 @@
                         </div>
                         <div class="ms-3">
                             <div class="btn-group" role="group">
-                                <a href="{{ url_for('calendario.detalle_evento', evento_id=evento.id) }}" 
+                                <a href="{{ url_for('calendario.detalle_evento', evento_id=evento.id) }}"
                                    class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <button type="button" class="btn btn-outline-success btn-sm" 
+                                <button type="button" class="btn btn-outline-success btn-sm"
                                         onclick="completarEvento('{{ evento.id }}')">
                                     <i class="fas fa-check"></i>
                                 </button>
@@ -267,7 +267,7 @@
                                 {% for contrato in contratos_con_entregas[:5] %}
                                 <tr>
                                     <td>
-                                        <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                        <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}"
                                            class="text-decoration-none">
                                             {{ contrato.numero_oc }}
                                         </a>

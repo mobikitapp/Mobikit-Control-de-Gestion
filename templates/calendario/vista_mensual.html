@@ -122,7 +122,7 @@
                                             {% for evento in eventos_por_dia[dia][:3] %}
                                             <div class="event-item event-{{ evento.tipo }} event-{{ evento.estado }} event-priority-{{ evento.prioridad }}" 
                                                  data-bs-toggle="tooltip" 
-                                                 title="{% if evento.proyecto %}🏗️ {{ evento.proyecto }} - {% endif %}{{ evento.titulo }}{% if evento.hora %} - {{ evento.hora }}{% endif %}{% if hasattr(evento, 'plan_entrega') and evento.plan_entrega %} | Plan: {{ evento.plan_entrega }}{% endif %}">
+                                                 title="{% if evento.proyecto %}🏗️ {{ evento.proyecto }} - {% endif %}{{ evento.titulo }}{% if evento.hora %} - {{ evento.hora }}{% endif %}{% if evento.plan_entrega %} | Plan: {{ evento.plan_entrega }}{% endif %}">
                                                 <div class="event-content">
                                                     {% if evento.hora %}
                                                     <small class="event-time">{{ evento.hora }}</small>
