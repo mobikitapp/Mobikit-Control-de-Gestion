@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Proyectos - Dashboard Personal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Mis Proyectos</h1>
+            <p class="text-muted">Gestiona tus proyectos y su progreso</p>
+        </div>
+        <div>
+            <a href="{{ url_for('mi_dashboard.index') }}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-arrow-left me-1"></i>Volver al Dashboard
+            </a>
+            <a href="{{ url_for('proyectos.crear') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Nuevo Proyecto
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado del Proyecto</label>
+                    <select class="form-select" id="estado" name="estado">
+                        <option value="todos" {% if estado_actual == 'todos' %}selected{% endif %}>Todos los estados</option>
+                        <option value="PLANIFICACION" {% if estado_actual == 'PLANIFICACION' %}selected{% endif %}>Planificación</option>
+                        <option value="EN_DESARROLLO" {% if estado_actual == 'EN_DESARROLLO' %}selected{% endif %}>En Desarrollo</option>
+                        <option value="EN_PRODUCCION" {% if estado_actual == 'EN_PRODUCCION' %}selected{% endif %}>En Producción</option>
+                        <option value="COMPLETADO" {% if estado_actual == 'COMPLETADO' %}selected{% endif %}>Completado</option>
+                        <option value="CANCELADO" {% if estado_actual == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="periodo" class="form-label">Período</label>
+                    <select class="form-select" id="periodo" name="periodo">
+                        <option value="actual" {% if periodo_actual == 'actual' %}selected{% endif %}>Este mes</option>
+                        <option value="trimestre" {% if periodo_actual == 'trimestre' %}selected{% endif %}>Último trimestre</option>
+                        <option value="todos" {% if periodo_actual == 'todos' %}selected{% endif %}>Todos los períodos</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter me-1"></i>Filtrar
+                        </button>
+                    </div>
+                </div>
+                {% if estado_actual != 'todos' or periodo_actual != 'actual' %}
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <a href="{{ url_for('mi_dashboard.mis_proyectos') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Limpiar
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Lista de Proyectos -->
+    <div class="card">
+        <div class="card-header bg-white border-0">
+            <h5 class="mb-0">
+                <i class="fas fa-project-diagram me-2"></i>Lista de Proyectos
+                <span class="badge bg-primary ms-2">{{ proyectos|length }}</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if proyectos %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Proyecto</th>
+                                <th>Cliente</th>
+                                <th>Estado</th>
+                                <th>Progreso</th>
+                                <th>Fecha Creación</th>
+                                <th>Fecha Entrega</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for proyecto in proyectos %}
+                            <tr>
+                                <td>
+                                    <div>
+                                        <div class="fw-semibold">{{ proyecto.nombre }}</div>
+                                        <div class="text-muted small">ID: {{ proyecto.id }}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                             style="width: 32px; height: 32px; font-size: 12px;">
+                                            {{ proyecto.cliente[0].upper() if proyecto.cliente else '?' }}
+                                        </div>
+                                        <span>{{ proyecto.cliente or 'Sin cliente' }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if proyecto.estado == 'PLANIFICACION' %}secondary{% elif proyecto.estado == 'EN_DESARROLLO' %}primary{% elif proyecto.estado == 'EN_PRODUCCION' %}warning{% elif proyecto.estado == 'COMPLETADO' %}success{% elif proyecto.estado == 'CANCELADO' %}danger{% else %}light{% endif %}">
+                                        {{ proyecto.estado.replace('_', ' ').title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress me-2" style="width: 80px; height: 8px;">
+                                            <div class="progress-bar bg-{% if proyecto.progreso < 30 %}danger{% elif proyecto.progreso < 70 %}warning{% else %}success{% endif %}" 
+                                                 role="progressbar" style="width: {{ proyecto.progreso }}%"></div>
+                                        </div>
+                                        <span class="small">{{ proyecto.progreso }}%</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="small">
+                                        {{ moment(proyecto.fecha_creacion).format('DD/MM/YYYY') }}
+                                        <div class="text-muted">{{ moment(proyecto.fecha_creacion).fromNow() }}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if proyecto.fecha_entrega_estimada %}
+                                        <div class="small">
+                                            {{ moment(proyecto.fecha_entrega_estimada).format('DD/MM/YYYY') }}
+                                            {% set dias_restantes = (proyecto.fecha_entrega_estimada - moment().date()) %}
+                                            {% if dias_restantes.days < 0 %}
+                                                <div class="text-danger">Atrasado</div>
+                                            {% elif dias_restantes.days <= 7 %}
+                                                <div class="text-warning">{{ dias_restantes.days }} días</div>
+                                            {% else %}
+                                                <div class="text-muted">{{ dias_restantes.days }} días</div>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted small">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                                                data-bs-toggle="dropdown">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('proyectos.detalle', id=proyecto.id) }}">
+                                                    <i class="fas fa-eye me-2"></i>Ver Detalle
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('proyectos.editar', id=proyecto.id) }}">
+                                                    <i class="fas fa-edit me-2"></i>Editar
+                                                </a>
+                                            </li>
+                                            {% if proyecto.estado != 'COMPLETADO' and proyecto.estado != 'CANCELADO' %}
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('contratos.crear') }}?proyecto_id={{ proyecto.id }}">
+                                                    <i class="fas fa-file-contract me-2"></i>Crear Contrato
+                                                </a>
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-project-diagram fs-1 text-muted mb-3"></i>
+                    <h5 class="text-muted">No se encontraron proyectos</h5>
+                    {% if estado_actual != 'todos' or periodo_actual != 'actual' %}
+                        <p class="text-muted">Prueba ajustando los filtros de búsqueda</p>
+                        <a href="{{ url_for('mi_dashboard.mis_proyectos') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Limpiar Filtros
+                        </a>
+                    {% else %}
+                        <p class="text-muted">Aún no tienes proyectos asignados este mes</p>
+                        <a href="{{ url_for('proyectos.crear') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Crear Proyecto
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Resumen por Estado -->
+    {% if proyectos %}
+    <div class="row mt-4">
+        {% set estados_resumen = proyectos | groupby('estado') %}
+        {% for estado, lista_proyectos in estados_resumen %}
+        <div class="col-md-2 mb-3">
+            <div class="card border-0 bg-light h-100">
+                <div class="card-body text-center">
+                    <div class="fs-5 fw-bold text-{% if estado == 'PLANIFICACION' %}secondary{% elif estado == 'EN_DESARROLLO' %}primary{% elif estado == 'EN_PRODUCCION' %}warning{% elif estado == 'COMPLETADO' %}success{% elif estado == 'CANCELADO' %}danger{% else %}dark{% endif %}">
+                        {{ lista_proyectos | list | length }}
+                    </div>
+                    <div class="text-muted small">{{ estado.replace('_', ' ').title() }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Progreso Promedio -->
+        <div class="col-md-2 mb-3">
+            <div class="card border-0 bg-light h-100">
+                <div class="card-body text-center">
+                    {% set progreso_promedio = (proyectos | sum(attribute='progreso')) / (proyectos | length) if proyectos else 0 %}
+                    <div class="fs-5 fw-bold text-info">{{ "%.0f"|format(progreso_promedio) }}%</div>
+                    <div class="text-muted small">Progreso Promedio</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Enlaces Rápidos -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="mb-3">Acciones Rápidas</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{{ url_for('proyectos.crear') }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus me-1"></i>Nuevo Proyecto
+                        </a>
+                        <a href="{{ url_for('mi_dashboard.mis_clientes') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-users me-1"></i>Mis Clientes
+                        </a>
+                        <a href="{{ url_for('mi_dashboard.estadisticas') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-chart-bar me-1"></i>Ver Estadísticas
+                        </a>
+                        <a href="{{ url_for('contratos.lista') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-file-contract me-1"></i>Mis Contratos
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

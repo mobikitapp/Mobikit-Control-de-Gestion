@@ -39,6 +39,7 @@ from blueprints.comercial import comercial_bp
 from blueprints.planificacion_operacional import planificacion_operacional_bp
 from blueprints.configuraciones import configuraciones_bp
 from blueprints.calendario import calendario_bp
+from blueprints.mi_dashboard import mi_dashboard_bp
 from models import EstadoOF
 
 # Register auth blueprint
@@ -55,6 +56,7 @@ app.register_blueprint(comercial_bp, url_prefix="/comercial")
 app.register_blueprint(planificacion_operacional_bp, url_prefix="/planificacion-operacional")
 app.register_blueprint(configuraciones_bp, url_prefix="/configuraciones")
 app.register_blueprint(calendario_bp, url_prefix="/calendario")
+app.register_blueprint(mi_dashboard_bp)
 
 # Make session permanent
 @app.before_request

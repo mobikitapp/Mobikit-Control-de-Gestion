@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Clientes - Dashboard Personal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Mis Clientes</h1>
+            <p class="text-muted">Gestiona tus clientes y su actividad comercial</p>
+        </div>
+        <div>
+            <a href="{{ url_for('mi_dashboard.index') }}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-arrow-left me-1"></i>Volver al Dashboard
+            </a>
+            <a href="{{ url_for('clientes.crear') }}" class="btn btn-primary">
+                <i class="fas fa-user-plus me-1"></i>Nuevo Cliente
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="busqueda" class="form-label">Buscar cliente</label>
+                    <input type="text" class="form-control" id="busqueda" name="busqueda" 
+                           value="{{ busqueda_actual }}" placeholder="Nombre o email del cliente">
+                </div>
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado</label>
+                    <select class="form-select" id="estado" name="estado">
+                        <option value="todos" {% if estado_actual == 'todos' %}selected{% endif %}>Todos</option>
+                        <option value="activo" {% if estado_actual == 'activo' %}selected{% endif %}>Activos</option>
+                        <option value="inactivo" {% if estado_actual == 'inactivo' %}selected{% endif %}>Inactivos</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i>Filtrar
+                        </button>
+                    </div>
+                </div>
+                {% if busqueda_actual or estado_actual != 'todos' %}
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <a href="{{ url_for('mi_dashboard.mis_clientes') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Limpiar
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Lista de Clientes -->
+    <div class="card">
+        <div class="card-header bg-white border-0">
+            <h5 class="mb-0">
+                <i class="fas fa-users me-2"></i>Lista de Clientes
+                <span class="badge bg-primary ms-2">{{ clientes|length }}</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if clientes %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Contacto</th>
+                                <th>Proyectos</th>
+                                <th>Último Proyecto</th>
+                                <th>Última Actividad</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cliente in clientes %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                             style="width: 36px; height: 36px; font-size: 14px;">
+                                            {{ cliente.nombre[0].upper() }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">{{ cliente.nombre }}</div>
+                                            <div class="text-muted small">ID: {{ cliente.id }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        {% if cliente.email %}
+                                            <div class="small">
+                                                <i class="fas fa-envelope me-1"></i>{{ cliente.email }}
+                                            </div>
+                                        {% endif %}
+                                        {% if cliente.telefono %}
+                                            <div class="small">
+                                                <i class="fas fa-phone me-1"></i>{{ cliente.telefono }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">
+                                        {{ cliente.total_proyectos }} proyecto{{ 's' if cliente.total_proyectos != 1 else '' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if cliente.ultimo_proyecto %}
+                                        <div class="fw-semibold">{{ cliente.ultimo_proyecto }}</div>
+                                    {% else %}
+                                        <span class="text-muted">Sin proyectos</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if cliente.fecha_ultimo_proyecto %}
+                                        <span class="small">{{ moment(cliente.fecha_ultimo_proyecto).fromNow() }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">Sin actividad</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                                                data-bs-toggle="dropdown">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('clientes.detalle', id=cliente.id) }}">
+                                                    <i class="fas fa-eye me-2"></i>Ver Detalle
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('clientes.editar', id=cliente.id) }}">
+                                                    <i class="fas fa-edit me-2"></i>Editar
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('proyectos.crear') }}?cliente_id={{ cliente.id }}">
+                                                    <i class="fas fa-plus me-2"></i>Nuevo Proyecto
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-user-friends fs-1 text-muted mb-3"></i>
+                    <h5 class="text-muted">No se encontraron clientes</h5>
+                    {% if busqueda_actual or estado_actual != 'todos' %}
+                        <p class="text-muted">Prueba ajustando los filtros de búsqueda</p>
+                        <a href="{{ url_for('mi_dashboard.mis_clientes') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Limpiar Filtros
+                        </a>
+                    {% else %}
+                        <p class="text-muted">Aún no tienes clientes asignados</p>
+                        <a href="{{ url_for('clientes.crear') }}" class="btn btn-primary">
+                            <i class="fas fa-user-plus me-1"></i>Agregar Cliente
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Resumen rápido -->
+    {% if clientes %}
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                    <div class="fs-4 fw-bold text-primary">{{ clientes|length }}</div>
+                    <div class="text-muted small">Total Clientes</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                    <div class="fs-4 fw-bold text-success">{{ clientes|sum(attribute='total_proyectos') }}</div>
+                    <div class="text-muted small">Total Proyectos</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                    <div class="fs-4 fw-bold text-info">{{ (clientes|selectattr('fecha_ultimo_proyecto')|list)|length }}</div>
+                    <div class="text-muted small">Con Actividad</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                    <div class="fs-4 fw-bold text-warning">{{ (clientes|rejectattr('fecha_ultimo_proyecto')|list)|length }}</div>
+                    <div class="text-muted small">Sin Actividad</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
