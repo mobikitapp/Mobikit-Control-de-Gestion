@@ -51,38 +51,38 @@ def index():
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int)
         }
-        
+
         # Add optional filters only if they exist and are valid
         if request.args.get('proyecto_id'):
             try:
                 filters_data['proyecto_id'] = int(request.args.get('proyecto_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('contrato_id'):
             try:
                 filters_data['contrato_id'] = int(request.args.get('contrato_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('of_id'):
             try:
                 filters_data['of_id'] = int(request.args.get('of_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('numero_despacho', '').strip():
             filters_data['numero_despacho'] = request.args.get('numero_despacho').strip()
-            
+
         if request.args.get('estado', '').strip():
             filters_data['estado'] = request.args.get('estado').strip()
-            
+
         if request.args.get('responsable_nombre', '').strip():
             filters_data['responsable_nombre'] = request.args.get('responsable_nombre').strip()
-            
+
         if request.args.get('fecha_programada_desde', '').strip():
             filters_data['fecha_programada_desde'] = request.args.get('fecha_programada_desde').strip()
-            
+
         if request.args.get('fecha_programada_hasta', '').strip():
             filters_data['fecha_programada_hasta'] = request.args.get('fecha_programada_hasta').strip()
 
@@ -146,7 +146,7 @@ def crear():
         # Validar datos del formulario
         # Se asume que el formulario enviará 'proyecto_id' o 'contrato_id'
         form_data = request.form.to_dict()
-        
+
         # Lógica para determinar si se usa proyecto o contrato
         if 'contrato_id' in form_data and form_data['contrato_id']:
             despacho_data = DespachoCreate(**form_data)
@@ -239,7 +239,7 @@ def editar(despacho_id):
         contratos = []
         if despacho.cliente_id:
             contratos = contratos_service.get_contratos_by_cliente(despacho.cliente_id)
-        
+
         # Cargar OFs asociadas al contrato del despacho, si existe
         ordenes_fabricacion = []
         if despacho.contrato_id:
@@ -273,7 +273,7 @@ def actualizar(despacho_id):
         # Manejar la actualización de las órdenes de fabricación asociadas si es necesario
         # Esto podría implicar eliminar las existentes y agregar las nuevas, o una lógica más compleja.
         # Por ahora, asumimos que las OFs no se modifican directamente desde este formulario o se manejan de otra manera.
-        
+
         # Actualizar despacho
         despacho_actualizado = despachos_service.update_despacho(despacho_id, update_data.dict(exclude_unset=True))
 
@@ -292,7 +292,7 @@ def actualizar(despacho_id):
         ordenes_fabricacion = []
         if despacho.contrato_id:
             ordenes_fabricacion = fabricacion_service.get_ordenes_by_contrato(despacho.contrato_id)
-            
+
         return render_template('despachos/form.html', 
                              despacho=despacho,
                              clientes=clientes,
@@ -383,7 +383,7 @@ def eliminar(despacho_id):
 
 
 # API routes for cascading selects
-@despachos_bp.route('/api/ordenes-fabricacion/contrato/<int:contrato_id>')
+@despachos_bp.route('/api/ofs_by_contrato/<int:contrato_id>')
 @require_login  
 def api_ofs_by_contrato(contrato_id):
     """API para obtener órdenes de fabricación por contrato"""
@@ -399,6 +399,31 @@ def api_ofs_by_contrato(contrato_id):
         logger.error(f"Error obteniendo OFs para contrato {contrato_id}: {str(e)}")
         return jsonify([]), 500
 
+# Add the new API endpoint for hitos by contrato
+@despachos_bp.route('/api/hitos_by_contrato/<int:contrato_id>')
+@require_login
+def api_hitos_by_contrato(contrato_id):
+    """API para obtener hitos de entrega por contrato"""
+    try:
+        from models import HitoEntrega, PlanEntrega, EstadoHitoEntrega
+
+        hitos = db.session.query(HitoEntrega).join(
+            PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id
+        ).filter(
+            PlanEntrega.contrato_id == contrato_id,
+            HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE
+        ).order_by(HitoEntrega.fecha_programada).all()
+
+        return jsonify([{
+            'id': hito.id,
+            'descripcion': hito.descripcion or hito.titulo,
+            'fecha_programada': hito.fecha_programada.isoformat()
+        } for hito in hitos])
+
+    except Exception as e:
+        logger.error(f"Error obteniendo hitos para contrato {contrato_id}: {str(e)}")
+        return jsonify([]), 500
+
 # ================ NUEVAS RUTAS PARA PLANIFICACIÓN DE DESPACHOS ================
 
 @despachos_bp.route('/planificacion')
@@ -408,19 +433,19 @@ def planificacion():
     try:
         # Obtener vista jerárquica de planificación
         vista_planificacion = planificacion_service.get_vista_planificacion()
-        
+
         # Obtener hitos próximos a vencer
         hitos_proximos = planificacion_service.get_hitos_proximos_vencimiento(7)
-        
+
         # Obtener estadísticas
         estadisticas = planificacion_service.get_estadisticas_planificacion()
-        
+
         return render_template('despachos/planificacion.html',
                              vista_planificacion=vista_planificacion,
                              hitos_proximos=hitos_proximos,
                              estadisticas=estadisticas,
                              page_title="Planificación de Despachos")
-        
+
     except Exception as e:
         logger.error(f"Error en vista de planificación: {str(e)}")
         flash('Error al cargar la planificación de despachos', 'error')
@@ -432,7 +457,7 @@ def api_planificacion():
     """API endpoint para la vista de planificación (AJAX)"""
     try:
         vista_planificacion = planificacion_service.get_vista_planificacion()
-        
+
         # Convertir a dict para JSON response
         response_data = {
             'clientes': [
@@ -463,9 +488,9 @@ def api_planificacion():
             'total_hitos_pendientes': vista_planificacion.total_hitos_pendientes,
             'total_hitos_proximos': vista_planificacion.total_hitos_proximos
         }
-        
+
         return jsonify(response_data)
-        
+
     except Exception as e:
         logger.error(f"Error en API planificación: {str(e)}")
         return jsonify({'error': 'Error al cargar planificación'}), 500
@@ -477,7 +502,7 @@ def api_estadisticas_planificacion():
     try:
         estadisticas = planificacion_service.get_estadisticas_planificacion()
         return jsonify(estadisticas)
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo estadísticas: {str(e)}")
         return jsonify({'error': 'Error al cargar estadísticas'}), 500
