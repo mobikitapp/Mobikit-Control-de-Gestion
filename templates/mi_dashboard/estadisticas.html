@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Estadísticas - Dashboard Personal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Mis Estadísticas</h1>
+            <p class="text-muted">Análisis detallado de tu desempeño comercial</p>
+        </div>
+        <div>
+            <a href="{{ url_for('mi_dashboard.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Volver al Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtro de Período -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="periodo" class="form-label">Período de Análisis</label>
+                    <select class="form-select" id="periodo" name="periodo">
+                        <option value="3meses" {% if periodo_actual == '3meses' %}selected{% endif %}>Últimos 3 meses</option>
+                        <option value="6meses" {% if periodo_actual == '6meses' %}selected{% endif %}>Últimos 6 meses</option>
+                        <option value="1ano" {% if periodo_actual == '1ano' %}selected{% endif %}>Último año</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-chart-line me-1"></i>Actualizar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if estadisticas %}
+    <!-- Gráficos Principales -->
+    <div class="row mb-4">
+        <!-- Proyectos por Mes -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Proyectos por Mes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="proyectosChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ventas por Mes -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0">
+                        <i class="fas fa-dollar-sign me-2"></i>Ventas por Mes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="ventasChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Segunda Fila -->
+    <div class="row mb-4">
+        <!-- Contratos por Estado -->
+        <div class="col-lg-4 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Contratos por Estado
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if estadisticas.contratos_por_estado %}
+                        <canvas id="contratosChart" width="300" height="300"></canvas>
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-file-contract fs-1 mb-3"></i>
+                            <p>No hay datos de contratos en este período</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumen Numérico -->
+        <div class="col-lg-8">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="card border-0 bg-primary text-white h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-project-diagram fs-1 mb-3"></i>
+                            <div class="fs-3 fw-bold">{{ estadisticas.proyectos_por_mes | length or 0 }}</div>
+                            <div>Meses con Actividad</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card border-0 bg-success text-white h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-handshake fs-1 mb-3"></i>
+                            <div class="fs-3 fw-bold">{{ (estadisticas.contratos_por_estado | selectattr('estado', 'equalto', 'CONFIRMADO') | sum(attribute='cantidad')) or 0 }}</div>
+                            <div>Contratos Confirmados</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card border-0 bg-warning text-white h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-clock fs-1 mb-3"></i>
+                            <div class="fs-3 fw-bold">{{ (estadisticas.contratos_por_estado | selectattr('estado', 'equalto', 'BORRADOR') | sum(attribute='cantidad')) or 0 }}</div>
+                            <div>Contratos Pendientes</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card border-0 bg-info text-white h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-chart-line fs-1 mb-3"></i>
+                            {% set total_ventas = estadisticas.ventas_por_mes | sum(attribute='valor') %}
+                            <div class="fs-3 fw-bold">${{ "{:,.0f}".format(total_ventas) }}</div>
+                            <div>Total en Ventas</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla Detallada -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table me-2"></i>Detalle Mensual
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mes</th>
+                                    <th class="text-center">Proyectos Creados</th>
+                                    <th class="text-center">Contratos Confirmados</th>
+                                    <th class="text-end">Valor de Ventas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set meses_unicos = (estadisticas.proyectos_por_mes + estadisticas.ventas_por_mes) | map(attribute='mes') | unique | sort %}
+                                {% for mes in meses_unicos %}
+                                    {% set proyectos_mes = estadisticas.proyectos_por_mes | selectattr('mes', 'equalto', mes) | first %}
+                                    {% set ventas_mes = estadisticas.ventas_por_mes | selectattr('mes', 'equalto', mes) | first %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ moment(mes + '-01').format('MMMM YYYY').title() }}</strong>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary">{{ proyectos_mes.cantidad if proyectos_mes else 0 }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <!-- Aproximación: asumimos 1 contrato por venta -->
+                                            <span class="badge bg-success">{{ 1 if ventas_mes and ventas_mes.valor > 0 else 0 }}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <strong>${{ "{:,.0f}".format(ventas_mes.valor if ventas_mes else 0) }}</strong>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                {% if not meses_unicos %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">
+                                            No hay datos disponibles para el período seleccionado
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Sin Datos -->
+    <div class="text-center py-5">
+        <i class="fas fa-chart-bar fs-1 text-muted mb-4"></i>
+        <h4 class="text-muted">No hay estadísticas disponibles</h4>
+        <p class="text-muted">Aún no tienes suficientes datos para generar estadísticas en el período seleccionado.</p>
+        <a href="{{ url_for('proyectos.crear') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Crear tu primer proyecto
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Scripts para gráficos -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if estadisticas and estadisticas.proyectos_por_mes %}
+    // Gráfico de Proyectos por Mes
+    const proyectosCtx = document.getElementById('proyectosChart').getContext('2d');
+    new Chart(proyectosCtx, {
+        type: 'line',
+        data: {
+            labels: {{ estadisticas.proyectos_por_mes | map(attribute='mes') | map('moment', 'YYYY-MM') | map('format', 'MMM YYYY') | list | tojson }},
+            datasets: [{
+                label: 'Proyectos Creados',
+                data: {{ estadisticas.proyectos_por_mes | map(attribute='cantidad') | list | tojson }},
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    {% if estadisticas and estadisticas.ventas_por_mes %}
+    // Gráfico de Ventas por Mes
+    const ventasCtx = document.getElementById('ventasChart').getContext('2d');
+    new Chart(ventasCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ estadisticas.ventas_por_mes | map(attribute='mes') | map('moment', 'YYYY-MM') | map('format', 'MMM YYYY') | list | tojson }},
+            datasets: [{
+                label: 'Valor de Ventas ($)',
+                data: {{ estadisticas.ventas_por_mes | map(attribute='valor') | list | tojson }},
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    {% if estadisticas and estadisticas.contratos_por_estado %}
+    // Gráfico de Contratos por Estado
+    const contratosCtx = document.getElementById('contratosChart').getContext('2d');
+    new Chart(contratosCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ estadisticas.contratos_por_estado | map(attribute='estado') | list | tojson }},
+            datasets: [{
+                data: {{ estadisticas.contratos_por_estado | map(attribute='cantidad') | list | tojson }},
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.5)',
+                    'rgba(54, 162, 235, 0.5)',
+                    'rgba(255, 205, 86, 0.5)',
+                    'rgba(75, 192, 192, 0.5)',
+                    'rgba(153, 102, 255, 0.5)'
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 205, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(153, 102, 255, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

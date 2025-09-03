@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Mi Dashboard - Sistema de Gestión{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado del Dashboard -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Mi Dashboard Personal</h1>
+            <p class="text-muted">Bienvenido, {{ current_user.first_name }}. Aquí tienes un resumen de tu actividad comercial.</p>
+        </div>
+        <div class="text-end">
+            <small class="text-muted">Última actualización: {{ moment().format('DD/MM/YYYY HH:mm') }}</small>
+        </div>
+    </div>
+
+    <!-- Métricas Principales -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-project-diagram text-primary fs-2"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fs-4 fw-bold">{{ metricas.proyectos_mes or 0 }}</div>
+                            <div class="text-muted small">Proyectos este mes</div>
+                            {% if metricas.crecimiento_proyectos %}
+                                <div class="small {% if metricas.crecimiento_proyectos > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    <i class="fas fa-arrow-{% if metricas.crecimiento_proyectos > 0 %}up{% else %}down{% endif %}"></i>
+                                    {{ metricas.crecimiento_proyectos }}%
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-file-contract text-success fs-2"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fs-4 fw-bold">{{ metricas.contratos_mes or 0 }}</div>
+                            <div class="text-muted small">Contratos confirmados</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-dollar-sign text-warning fs-2"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fs-4 fw-bold">${{ "{:,.0f}".format(metricas.valor_total_mes or 0) }}</div>
+                            <div class="text-muted small">Valor total mes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-users text-info fs-2"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fs-4 fw-bold">{{ metricas.clientes_activos or 0 }}</div>
+                            <div class="text-muted small">Clientes activos</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Segunda fila: Proyectos y Clientes -->
+    <div class="row mb-4">
+        <!-- Proyectos Activos -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tasks me-2"></i>Mis Proyectos Activos
+                    </h5>
+                    <a href="{{ url_for('mi_dashboard.mis_proyectos') }}" class="btn btn-sm btn-outline-primary">
+                        Ver todos
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if proyectos_activos %}
+                        {% for proyecto in proyectos_activos %}
+                            <div class="d-flex align-items-center mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold">{{ proyecto.nombre }}</div>
+                                    <div class="text-muted small">{{ proyecto.cliente }}</div>
+                                    <div class="mt-1">
+                                        <span class="badge bg-{% if proyecto.estado == 'PLANIFICACION' %}secondary{% elif proyecto.estado == 'EN_DESARROLLO' %}primary{% elif proyecto.estado == 'EN_PRODUCCION' %}warning{% endif %}">
+                                            {{ proyecto.estado.replace('_', ' ').title() }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex-shrink-0 text-end">
+                                    <div class="small text-muted">{{ proyecto.progreso }}% completado</div>
+                                    <div class="progress mt-1" style="width: 80px; height: 4px;">
+                                        <div class="progress-bar" role="progressbar" style="width: {{ proyecto.progreso }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fs-1 mb-3"></i>
+                            <p>No tienes proyectos activos en este momento</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Clientes Recientes -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-tie me-2"></i>Clientes Recientes
+                    </h5>
+                    <a href="{{ url_for('mi_dashboard.mis_clientes') }}" class="btn btn-sm btn-outline-primary">
+                        Ver todos
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if clientes_recientes %}
+                        {% for cliente in clientes_recientes %}
+                            <div class="d-flex align-items-center mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
+                                <div class="flex-shrink-0 me-3">
+                                    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                        {{ cliente.nombre[0].upper() }}
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold">{{ cliente.nombre }}</div>
+                                    <div class="text-muted small">{{ cliente.email }}</div>
+                                    {% if cliente.ultimo_contacto %}
+                                        <div class="text-muted small">
+                                            Último contacto: {{ moment(cliente.ultimo_contacto).fromNow() }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% if cliente.estado_ultimo_proyecto %}
+                                    <div class="flex-shrink-0">
+                                        <span class="badge bg-light text-dark">{{ cliente.estado_ultimo_proyecto.replace('_', ' ').title() }}</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-user-friends fs-1 mb-3"></i>
+                            <p>No hay clientes recientes</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tercera fila: Tareas Pendientes y Estado de Proyectos -->
+    <div class="row">
+        <!-- Tareas Pendientes -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bell me-2"></i>Tareas Pendientes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if tareas_pendientes %}
+                        {% for tarea in tareas_pendientes %}
+                            <div class="d-flex align-items-start mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
+                                <div class="flex-shrink-0 me-3 mt-1">
+                                    <i class="fas fa-{% if tarea.tipo == 'seguimiento' %}clock{% elif tarea.tipo == 'contrato' %}file-signature{% else %}exclamation{% endif %} text-{% if tarea.prioridad == 'alta' %}danger{% elif tarea.prioridad == 'media' %}warning{% else %}info{% endif %}"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold">{{ tarea.descripcion }}</div>
+                                    {% if tarea.dias_pendientes %}
+                                        <div class="text-muted small">Pendiente hace {{ tarea.dias_pendientes }} días</div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-shrink-0">
+                                    <span class="badge bg-{% if tarea.prioridad == 'alta' %}danger{% elif tarea.prioridad == 'media' %}warning{% else %}info{% endif %}">
+                                        {{ tarea.prioridad.title() }}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-check-circle fs-1 mb-3 text-success"></i>
+                            <p>¡Excelente! No tienes tareas pendientes</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Estado de Proyectos -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Estado de Mis Proyectos
+                    </h5>
+                    <a href="{{ url_for('mi_dashboard.estadisticas') }}" class="btn btn-sm btn-outline-primary">
+                        Ver estadísticas
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if metricas.proyectos_por_estado %}
+                        {% for estado, cantidad in metricas.proyectos_por_estado.items() %}
+                            {% if cantidad > 0 %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="badge bg-{% if estado == 'PLANIFICACION' %}secondary{% elif estado == 'EN_DESARROLLO' %}primary{% elif estado == 'EN_PRODUCCION' %}warning{% elif estado == 'COMPLETADO' %}success{% else %}light{% endif %} me-2"></div>
+                                        <span>{{ estado.replace('_', ' ').title() }}</span>
+                                    </div>
+                                    <span class="fw-bold">{{ cantidad }}</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-chart-pie fs-1 mb-3"></i>
+                            <p>No hay datos de proyectos disponibles</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enlaces rápidos -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="mb-3">Acciones Rápidas</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{{ url_for('proyectos.crear') }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus me-1"></i>Nuevo Proyecto
+                        </a>
+                        <a href="{{ url_for('clientes.crear') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-user-plus me-1"></i>Nuevo Cliente
+                        </a>
+                        <a href="{{ url_for('mi_dashboard.mis_proyectos') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-list me-1"></i>Mis Proyectos
+                        </a>
+                        <a href="{{ url_for('mi_dashboard.mis_clientes') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-users me-1"></i>Mis Clientes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
