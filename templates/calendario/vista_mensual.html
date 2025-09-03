@@ -34,12 +34,24 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body text-center">
-                    <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-success me-2">
-                        <i class="fas fa-plus"></i> Nuevo Contrato
-                    </a>
-                    <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-chart-bar"></i> Dashboard
-                    </a>
+                    <div class="btn-group mb-3" role="group" aria-label="Vistas del calendario">
+                        <a href="{{ url_for('calendario.vista_mensual', year=year, month=month) }}" 
+                           class="btn btn-primary">
+                            <i class="fas fa-calendar-alt"></i> Mensual
+                        </a>
+                        <a href="{{ url_for('calendario.vista_semanal', year=year, month=month, day=now.day) }}" 
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-calendar-week"></i> Semanal
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-success me-2">
+                            <i class="fas fa-plus"></i> Nuevo Contrato
+                        </a>
+                        <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-chart-bar"></i> Dashboard
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
