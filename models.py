@@ -353,7 +353,6 @@ class Contrato(db.Model):
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
 
     # Relationships
-    proyecto = db.relationship('Proyecto', backref='contratos', lazy=True)
     adjuntos = db.relationship('ContratoAdjunto', backref='contrato', lazy=True, cascade='all, delete-orphan')
     ordenes_fabricacion = db.relationship('OrdenFabricacion', backref='contrato', lazy=True)
     plan_entrega = db.relationship('PlanEntrega', backref='contrato', uselist=False, cascade='all, delete-orphan')
