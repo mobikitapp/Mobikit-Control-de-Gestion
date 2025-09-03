@@ -314,7 +314,7 @@
                                                     data-rol="{{ rol.codigo }}"
                                                     data-modulo="{{ modulo.codigo }}"
                                                     data-tipo="{{ tipo_permiso.codigo }}"
-                                                    {{ 'checked' if permiso_value else '' }}
+                                                    {% if permiso_value %}checked{% endif %}
                                                     onchange="registrarCambio(this)"
                                                 >
                                             </div>
@@ -344,7 +344,7 @@
 
 <script>
 let cambiosPendientes = [];
-let matrizOriginal = {{ matriz|safe }};
+let matrizOriginal = {{ matriz_json|safe }};
 
 function registrarCambio(checkbox) {
     const rol = checkbox.dataset.rol;

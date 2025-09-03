@@ -4,6 +4,17 @@
 
 A comprehensive management system for manufacturing companies that centralizes administration of clients, projects, contracts, manufacturing orders, and dispatches. The system provides complete tracking from initial client contact through project completion and delivery, with integrated document management, quality assurance workflows, and multi-role user access controls.
 
+## Recent Changes
+
+**[2025-09-03] Sistema de Gestión de Permisos Dinámicos**
+- Implementado sistema completo de gestión de permisos por rol y módulo 
+- Interfaz administrativa para configurar permisos granulares (Lectura, Creación, Edición, Eliminación)
+- Sistema de auditoría completo que registra todos los cambios de permisos
+- Inicialización automática de 9 módulos del sistema con 216 combinaciones de permisos
+- Integración con sistema de permisos estático existente como fallback
+- Nuevas tablas: modulos, permisos_rol, auditoria_permisos
+- Nuevas rutas: /configuraciones/permisos/gestionar, /configuraciones/permisos/auditoria
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

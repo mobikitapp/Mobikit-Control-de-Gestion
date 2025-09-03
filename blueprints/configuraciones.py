@@ -418,6 +418,9 @@ def gestionar_permisos():
         data = service.obtener_matriz_permisos_completa()
         
         if data['success']:
+            # Convertir la matriz para JavaScript
+            import json
+            data['matriz_json'] = json.dumps(data['matriz'])
             return render_template('configuraciones/gestionar_permisos.html', **data)
         else:
             flash(f'Error al cargar permisos: {data["error"]}', 'error')
