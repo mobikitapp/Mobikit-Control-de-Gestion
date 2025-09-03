@@ -359,6 +359,18 @@ class ContratosService:
             logger.error(f"Error getting contratos for proyecto {proyecto_id}: {str(e)}")
             raise
 
+    def get_all_contratos(self) -> List[Contrato]:
+        """Get all contratos with basic filters"""
+        try:
+            from schemas.contratos import ContratoSearchFilters
+            # Use search with empty filters to get all contratos
+            filters = ContratoSearchFilters(page=1, per_page=1000)  # Large per_page to get all
+            contratos, _ = self.repo.search(filters)
+            return contratos
+        except Exception as e:
+            logger.error(f"Error getting all contratos: {str(e)}")
+            raise
+
     def get_contratos_grouped_by_client(self, filters: ContratoSearchFilters) -> tuple[List[Dict], int]:
         """
         Get contratos grouped by client and project
