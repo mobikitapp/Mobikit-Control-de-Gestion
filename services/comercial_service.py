@@ -551,13 +551,18 @@ class ComercialService:
         comisiones_mensuales = []
 
         for mes in range(1, 13):
-            # Obtener proyectos adjudicados en este mes
+            # Obtener proyectos que generan comisiones adjudicadas
+            # Estados: ADJUDICADO, EN_DESARROLLO, TERMINADO
             proyectos_mes = (db.session.query(Proyecto)
                            .filter(
                                Proyecto.vendedor_id == vendedor_id,
                                extract('year', Proyecto.fecha_adjudicacion) == year,
                                extract('month', Proyecto.fecha_adjudicacion) == mes,
-                               Proyecto.estado_comercial == EstadoComercial.ADJUDICADO,
+                               Proyecto.estado_comercial.in_([
+                                   EstadoComercial.ADJUDICADO,
+                                   EstadoComercial.EN_DESARROLLO,
+                                   EstadoComercial.TERMINADO
+                               ]),
                                Proyecto.activo == True
                            )
                            .all())
