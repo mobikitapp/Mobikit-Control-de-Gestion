@@ -11,12 +11,31 @@
                     <i data-feather="truck" class="me-2"></i>
                     Despachos
                 </h1>
-                {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
-                <a href="{{ url_for('despachos.nuevo') }}" class="btn btn-primary">
-                    <i data-feather="plus-circle" class="me-2"></i>
-                    Nuevo Despacho
-                </a>
-                {% endif %}
+                <div class="btn-group">
+                    <a href="{{ url_for('despachos.planificacion') }}" class="btn btn-success">
+                        <i data-feather="calendar" class="me-2"></i>
+                        Planificación de Despachos
+                    </a>
+                    {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                    <a href="{{ url_for('despachos.nuevo') }}" class="btn btn-primary">
+                        <i data-feather="plus-circle" class="me-2"></i>
+                        Nuevo Despacho
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Nueva Funcionalidad Alert -->
+            <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+                <div class="d-flex align-items-center">
+                    <i data-feather="info" class="me-2"></i>
+                    <div>
+                        <strong>¡Nueva funcionalidad!</strong> Ahora puedes gestionar despachos desde los hitos de entrega.
+                        <a href="{{ url_for('despachos.planificacion') }}" class="alert-link">Ver Planificación de Despachos</a>
+                        para organizar por cliente, proyecto y fechas de entrega.
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         </div>
     </div>
@@ -42,14 +61,14 @@
                 </div>
                 <div class="col-md-3">
                     <label for="proyecto_id" class="form-label">Proyecto</label>
-                    <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateOFsFilter()">
+                    <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateHitosFilter()">
                         <option value="">Todos los proyectos</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label for="of_id" class="form-label">Orden de Fabricación</label>
-                    <select class="form-select" id="of_id" name="of_id">
-                        <option value="">Todas las OF</option>
+                    <label for="hito_entrega_id" class="form-label">Hito de Entrega</label>
+                    <select class="form-select" id="hito_entrega_id" name="hito_entrega_id">
+                        <option value="">Todos los hitos</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -130,8 +149,8 @@
                         <tr>
                             <td>
                                 <div class="fw-medium">{{ despacho.numero_despacho }}</div>
-                                {% if despacho.orden_fabricacion %}
-                                <small class="text-muted">OF: {{ despacho.orden_fabricacion.codigo }}</small>
+                                {% if despacho.hito_entrega %}
+                                <small class="text-muted">Hito: {{ despacho.hito_entrega.descripcion }}</small>
                                 {% endif %}
                             </td>
                             <td>
