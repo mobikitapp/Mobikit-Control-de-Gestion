@@ -254,9 +254,12 @@ async function updateProyectos() {
                     }
                     proyectoSelect.appendChild(option);
                 });
+            } else {
+                console.error('Error response loading proyectos:', response.status);
             }
         } catch (error) {
             console.error('Error loading proyectos:', error);
+            proyectoSelect.innerHTML = '<option value="">Error cargando proyectos</option>';
         }
     }
 }
@@ -284,9 +287,12 @@ async function updateContratos() {
                     }
                     contratoSelect.appendChild(option);
                 });
+            } else {
+                console.error('Error response loading contratos:', response.status);
             }
         } catch (error) {
             console.error('Error loading contratos:', error);
+            contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
         }
     }
 }
@@ -364,6 +370,8 @@ async function updateOFsByContrato() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Cascade selects initialized');
+    
     // Form validation
     const form = document.querySelector('form');
     const clienteSelect = document.getElementById('cliente_id');
