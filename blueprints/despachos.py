@@ -23,8 +23,112 @@ fabricacion_service = FabricacionService()
 clientes_service = ClientesService()
 contratos_service = ContratosService() # Instanciar el servicio de contratos
 
+@despachos_bp.route('/api/contratos/cliente/<int:cliente_id>')
+@require_login
+def api_contratos_by_cliente(cliente_id):
+    """API endpoint to get contratos by cliente"""
+    try:
+        contratos = contratos_service.get_contratos_by_cliente(cliente_id)
+        return jsonify([{
+            'id': c.id,
+            'numero_oc': c.numero_oc,
+            'proyecto_nombre': c.proyecto.nombre
+        } for c in contratos])
+    except Exception as e:
+        logger.error(f"Error loading contratos for cliente {cliente_id}: {str(e)}")
+        return jsonify({'error': 'Error al cargar contratos'}), 500
+
+@despachos_bp.route('/api/ofs/contrato/<int:contrato_id>')
+@require_login  
+def api_ofs_by_contrato(contrato_id):
+    """API endpoint to get OFs by contrato"""
+    try:
+        ofs = fabrication_service.get_ordenes_by_contrato(contrato_id)
+        return jsonify([{
+            'id': of.id,
+            'codigo': of.codigo,
+            'estado': of.estado_actual.value if of.estado_actual else 'Sin estado'
+        } for of in ofs])
+    except Exception as e:
+        logger.error(f"Error loading OFs for contrato {contrato_id}: {str(e)}")
+        return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
+
 @despachos_bp.route('/')
 @require_login
+def index():
+    """Lista de despachos con filtros"""
+    try:
+        # Get filter parameters
+        filters_data = {
+            'proyecto_id': request.args.get('proyecto_id', type=int),
+            'contrato_id': request.args.get('contrato_id', type=int),
+            'of_id': request.args.get('of_id', type=int),
+            'numero_despacho': request.args.get('numero_despacho'),
+            'estado': request.args.get('estado'),
+            'responsable_nombre': request.args.get('responsable'),
+            'fecha_programada_desde': request.args.get('fecha_programada_desde'),
+            'fecha_programada_hasta': request.args.get('fecha_programada_hasta'),
+            'page': request.args.get('page', 1, type=int),
+            'per_page': 20
+        }
+
+        # Parse date filters
+        if filters_data['fecha_programada_desde']:
+            try:
+                from datetime import datetime
+                filters_data['fecha_programada_desde'] = datetime.strptime(
+                    filters_data['fecha_programada_desde'], '%Y-%m-%d'
+                ).date()
+            except ValueError:
+                filters_data['fecha_programada_desde'] = None
+
+        if filters_data['fecha_programada_hasta']:
+            try:
+                from datetime import datetime
+                filters_data['fecha_programada_hasta'] = datetime.strptime(
+                    filters_data['fecha_programada_hasta'], '%Y-%m-%d'
+                ).date()
+            except ValueError:
+                filters_data['fecha_programada_hasta'] = None
+
+        # Clean None values
+        filters_data = {k: v for k, v in filters_data.items() if v is not None}
+        
+        filters = DespachoSearchFilters(**filters_data)
+        despachos, total_count = despachos_service.search_despachos(filters)
+        
+        # Calculate pagination
+        total_pages = (total_count + filters.per_page - 1) // filters.per_page
+        has_prev = filters.page > 1
+        has_next = filters.page < total_pages
+        
+        # Get data for filters
+        clientes = clientes_service.get_active_clientes()
+        
+        return render_template('despachos/index.html',
+                             despachos=despachos,
+                             total_count=total_count,
+                             total_pages=total_pages,
+                             has_prev=has_prev,
+                             has_next=has_next,
+                             filters=filters,
+                             clientes=clientes)
+    
+    except ValidationError as e:
+        flash('Filtros inválidos', 'error')
+        return redirect(url_for('despachos.index'))
+    
+    except Exception as e:
+        logger.error(f"Error en lista de despachos: {str(e)}")
+        flash('Error al cargar despachos', 'error')
+        return render_template('despachos/index.html',
+                             despachos=[],
+                             total_count=0,
+                             total_pages=1,
+                             has_prev=False,
+                             has_next=False,
+                             filters=DespachoSearchFilters(),
+                             clientes=[])
 def index():
     """Lista de despachos con filtros"""
     try:
