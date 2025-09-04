@@ -153,16 +153,15 @@ class AreasService:
 
             # Get next area
             current_area = current_progress.area
-            siguiente_area = (db.session.query(Area)
-                            .filter_by(orden_secuencia=current_area.orden_secuencia + 1, activo=True)
-                            .first())
+            next_area_id = current_area.orden_secuencia + 1
+            next_area = self.areas_repo.get_area_by_id(next_area_id)
 
-            if not siguiente_area:
+            if not next_area:
                 raise ValueError("No hay siguiente área en la secuencia")
 
             # VALIDACIÓN ESPECIAL: Avance desde BODEGA a DESPACHO
             if (current_area.tipo == TipoArea.BODEGA and 
-                siguiente_area.tipo == TipoArea.DESPACHO):
+                next_area.tipo == TipoArea.DESPACHO):
 
                 # Verificar que la OF está en estado 'programado_para_despacho'
                 if current_progress.estado.codigo != EstadoBodega.PROGRAMADO_PARA_DESPACHO.value:
@@ -190,9 +189,9 @@ class AreasService:
                 )
 
             # Get initial state for next area
-            estado_inicial = self.areas_repo.get_estado_inicial(siguiente_area.id)
+            estado_inicial = self.areas_repo.get_estado_inicial(next_area.id)
             if not estado_inicial:
-                raise ValueError(f"Estado inicial no encontrado para área {siguiente_area.nombre}")
+                raise ValueError(f"Estado inicial no encontrado para área {next_area.nombre}")
 
             # Mark current progress as not current (for history)
             current_progress.es_actual = False
@@ -201,7 +200,7 @@ class AreasService:
             now = datetime.now()
             new_progress_data = {
                 'orden_fabricacion_id': orden_fabricacion_id,
-                'area_id': siguiente_area.id,
+                'area_id': next_area.id,
                 'estado_id': estado_inicial.id,
                 'fecha_ingreso_area': now,
                 'fecha_cambio_estado': now,
@@ -222,7 +221,7 @@ class AreasService:
                 datos_nuevos=serialize_model(new_progress)
             )
 
-            logger.info(f"Orden {orden_fabricacion_id} avanzada a área {siguiente_area.nombre}")
+            logger.info(f"Orden {orden_fabricacion_id} avanzada a área {next_area.nombre}")
             return new_progress
 
         except Exception as e:
@@ -538,7 +537,7 @@ class AreasService:
     def get_next_area_in_sequence(self, current_area_id: int) -> Optional[Area]:
         """Get the next area in the production sequence"""
         try:
-            current_area = self.areas_repo.get_by_id(current_area_id)
+            current_area = self.areas_repo.get_area_by_id(current_area_id)
             if not current_area:
                 return None
 

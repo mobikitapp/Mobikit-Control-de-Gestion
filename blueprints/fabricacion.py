@@ -358,7 +358,7 @@ def archivar_orden(of_id):
     """Archivar orden despachada"""
     try:
         # Verify order exists and is in dispatched state
-        orden = fabricacion_service.get_orden_by_id(of_id)
+        orden = fabricacion_service.get_orden_fabricacion_by_id(of_id)
         if not orden:
             flash('Orden no encontrada', 'danger')
             return redirect(url_for('fabricacion.index'))
