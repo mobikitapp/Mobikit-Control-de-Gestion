@@ -144,22 +144,7 @@
                     </li>
                     {% endif %}
 
-                    <!-- 7. Áreas -->
-                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion', 'logistica'] %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="layers" class="me-1"></i>
-                            Áreas
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('areas.dashboard') }}">Dashboard Áreas</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('areas.mis_pendientes') }}">Mis Pendientes</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Workflow de Producción</h6></li>
-                            <li><small class="dropdown-item-text text-muted">1. Pendientes → 2. Fábrica → 3. Embalaje → 4. Bodega → 5. Despacho</small></li>
-                        </ul>
-                    </li>
-                    {% endif %}
+                    
 
                     <!-- 8. Planificación Operacional -->
                     {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
