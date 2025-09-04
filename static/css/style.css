@@ -854,7 +854,7 @@ footer {
     }
 }
 
-/* Responsive Design */
+/* Mobile-First Responsive Design */
 @media (max-width: 768px) {
     .container-fluid {
         padding: 1rem;
@@ -866,15 +866,243 @@ footer {
 
     .navbar {
         padding: 0.5rem 1rem;
+        height: auto;
+    }
+
+    .mobile-logo {
+        max-height: 40px !important;
+        width: auto;
     }
 
     h1 {
-        font-size: 2rem;
+        font-size: 1.75rem;
     }
 
     h2 {
         font-size: 1.5rem;
     }
+
+    /* Optimize tables for mobile */
+    .table-responsive {
+        font-size: 0.8rem;
+        border: none;
+        border-radius: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table th, .table td {
+        padding: 0.5rem 0.25rem;
+        white-space: nowrap;
+    }
+
+    /* Mobile-friendly buttons */
+    .btn {
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        min-height: 44px; /* Apple's recommended touch target size */
+    }
+
+    .btn-group-sm .btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+        min-height: 38px;
+    }
+
+    /* Mobile dropdowns */
+    .dropdown-menu {
+        max-height: 60vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        font-size: 0.9rem;
+    }
+
+    .dropdown-item {
+        padding: 0.75rem 1rem;
+        line-height: 1.4;
+    }
+
+    /* Mobile forms */
+    .form-control, .form-select {
+        padding: 0.75rem;
+        font-size: 1rem; /* Prevent zoom on iOS */
+        border-radius: 8px;
+        min-height: 44px;
+    }
+
+    .form-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Card improvements for mobile */
+    .card {
+        margin-bottom: 1rem;
+        border-radius: 12px;
+    }
+
+    .card-header {
+        padding: 1rem;
+        font-size: 1rem;
+    }
+
+    /* Accordion improvements for mobile */
+    .accordion-button {
+        padding: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .accordion-body {
+        padding: 1rem;
+    }
+
+    /* Badge improvements for mobile */
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.6rem;
+    }
+
+    /* Filter improvements for mobile */
+    .row.g-3 {
+        gap: 1rem !important;
+    }
+
+    .col-md-3, .col-md-2 {
+        margin-bottom: 1rem;
+    }
+
+    /* Navigation improvements for mobile */
+    .navbar-nav {
+        padding: 1rem 0;
+        text-align: center;
+    }
+
+    .nav-item {
+        margin-bottom: 0.5rem;
+    }
+
+    .nav-link {
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem;
+        border-radius: 8px;
+        margin: 0.25rem 0;
+    }
+
+    /* Dashboard cards for mobile */
+    .dashboard-card {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+
+    .dashboard-card h3 {
+        font-size: 2rem;
+    }
+
+    /* Modal improvements for mobile */
+    .modal-dialog {
+        margin: 1rem;
+        max-width: calc(100% - 2rem);
+    }
+
+    .modal-content {
+        border-radius: 12px;
+    }
+
+    .modal-header, .modal-body, .modal-footer {
+        padding: 1rem;
+    }
+
+    /* Alert improvements for mobile */
+    .alert {
+        margin-bottom: 1rem;
+        padding: 1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+
+    /* Footer for mobile */
+    footer {
+        padding: 1.5rem 0;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    /* Extra small devices optimizations */
+    .container, .container-fluid {
+        padding: 0.75rem;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    .btn {
+        width: 100%;
+        margin-bottom: 0.75rem;
+    }
+
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .btn-group .btn {
+        border-radius: 6px !important;
+        margin-bottom: 0.5rem;
+    }
+
+    .table-responsive {
+        font-size: 0.75rem;
+        margin: 0 -0.75rem;
+        border-radius: 0;
+    }
+
+    .card {
+        margin: 0 -0.75rem 1rem -0.75rem;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+}
+
+/* Touch-friendly improvements */
+@media (pointer: coarse) {
+    /* Increase touch targets for touch devices */
+    .btn, .form-control, .form-select, .nav-link, .dropdown-item {
+        min-height: 44px;
+    }
+
+    /* Better spacing for touch */
+    .table td, .table th {
+        padding: 0.75rem 0.5rem;
+    }
+
+    /* Larger clickable areas */
+    .accordion-button {
+        min-height: 50px;
+    }
+}
+
+/* Loading states for mobile */
+.loading-mobile {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
 /* Loading states */
