@@ -559,6 +559,34 @@ def api_hitos_by_contrato(contrato_id):
         logger.error(f"Error obteniendo hitos para contrato {contrato_id}: {str(e)}")
         return jsonify([]), 500
 
+@despachos_bp.route('/api/generate_numero', methods=['POST'])
+@require_login
+def api_generate_numero():
+    """API para generar número de despacho automáticamente"""
+    try:
+        data = request.get_json()
+        proyecto_id = data.get('proyecto_id')
+        contrato_id = data.get('contrato_id')
+        
+        if not proyecto_id:
+            return jsonify({'error': 'proyecto_id es requerido'}), 400
+            
+        # Get proyecto to obtain cliente_id
+        proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
+        if not proyecto:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            
+        # Generate dispatch number
+        numero_despacho = DespachosRepository.generate_next_numero_despacho(
+            contrato_id, proyecto.cliente_id
+        )
+        
+        return jsonify({'numero_despacho': numero_despacho})
+        
+    except Exception as e:
+        logger.error(f"Error generando número de despacho: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
 # ================ NUEVAS RUTAS PARA PLANIFICACIÓN DE DESPACHOS ================
 
 @despachos_bp.route('/planificacion')

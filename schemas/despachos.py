@@ -65,6 +65,7 @@ class DespachoBase(BaseModel):
     telefono_contacto: Optional[str] = Field(None, max_length=50, description="Teléfono de contacto")
     observaciones: Optional[str] = Field(None, description="Observaciones")
     responsable_nombre: Optional[str] = Field(None, max_length=200, description="Nombre del responsable")
+    numero_guias_despacho: Optional[str] = Field(None, max_length=255, description="Número de guías de despacho (opcional)")
 
     @validator('fecha_envio')
     def validate_fecha_envio(cls, v, values):
@@ -90,6 +91,7 @@ class DespachoUpdate(BaseModel):
     telefono_contacto: Optional[str] = Field(None, max_length=50)
     observaciones: Optional[str] = None
     responsable_nombre: Optional[str] = Field(None, max_length=200)
+    numero_guias_despacho: Optional[str] = Field(None, max_length=255)
     ordenes_fabricacion: Optional[List[DespachoOrdenFabricacionCreate]] = None
 
 class DespachoAdjuntoBase(BaseModel):

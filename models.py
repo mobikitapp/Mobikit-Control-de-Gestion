@@ -645,6 +645,7 @@ class Despacho(db.Model):
     telefono_contacto = db.Column(db.String(50))
     observaciones = db.Column(db.Text)
     responsable_nombre = db.Column(db.String(200))
+    numero_guias_despacho = db.Column(db.String(255), nullable=True)
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)

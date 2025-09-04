@@ -48,7 +48,7 @@
                                 <label for="proyecto_id" class="form-label">
                                     Proyecto <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateContratos(); updateOFsByProyecto()" required>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateContratos(); updateOFsByProyecto(); updateDespachoNumber()" required>
                                     <option value="">Seleccionar proyecto</option>
                                     {% if despacho %}
                                     <option value="{{ despacho.proyecto_id }}" selected>{{ despacho.proyecto.nombre }}</option>
@@ -61,7 +61,7 @@
 
                             <div class="col-md-3">
                                 <label for="contrato_id" class="form-label">Contrato/OC (Opcional)</label>
-                                <select class="form-select" id="contrato_id" name="contrato_id" onchange="updateHitosByContrato(this.value)">
+                                <select class="form-select" id="contrato_id" name="contrato_id" onchange="updateHitosByContrato(this.value); updateDespachoNumber()">
                                     <option value="">Sin contrato asociado</option>
                                     {% if despacho and despacho.contrato %}
                                     <option value="{{ despacho.contrato_id }}" selected>{{ despacho.contrato.numero_oc }}</option>
@@ -108,9 +108,29 @@
                                     Número de Despacho <span class="text-danger">*</span>
                                 </label>
                                 <input type="text" class="form-control" id="numero_despacho" name="numero_despacho" 
-                                       value="{{ despacho.numero_despacho if despacho else '' }}" required>
+                                       value="{{ despacho.numero_despacho if despacho else '' }}" 
+                                       {% if not despacho %}readonly placeholder="Se generará automáticamente"{% endif %}
+                                       required>
+                                <div class="form-text">
+                                    {% if not despacho %}
+                                    El número se generará automáticamente basado en el contrato seleccionado
+                                    {% endif %}
+                                </div>
                                 <div class="invalid-feedback">
                                     Por favor ingresa el número de despacho.
+                                </div>
+                            </div>
+
+                            <!-- Número de Guías de Despacho -->
+                            <div class="col-md-6">
+                                <label for="numero_guias_despacho" class="form-label">
+                                    Número de Guías de Despacho (Opcional)
+                                </label>
+                                <input type="text" class="form-control" id="numero_guias_despacho" name="numero_guias_despacho" 
+                                       value="{{ despacho.numero_guias_despacho if despacho else '' }}" 
+                                       placeholder="Ej: 001234, 001235">
+                                <div class="form-text">
+                                    Números de las guías de despacho asociadas
                                 </div>
                             </div>
 
@@ -322,6 +342,51 @@ async function updateContratos() {
             console.error('Error loading contratos:', error);
             contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
         }
+    }
+    
+    // Update dispatch number when contract changes
+    updateDespachoNumber();
+}
+
+async function updateDespachoNumber() {
+    const contratoSelect = document.getElementById('contrato_id');
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const numeroDespachoInput = document.getElementById('numero_despacho');
+    
+    // Only update if this is a new dispatch (readonly field)
+    if (!numeroDespachoInput.readOnly || numeroDespachoInput.value) {
+        return;
+    }
+    
+    const contratoId = contratoSelect.value || null;
+    const proyectoId = proyectoSelect.value;
+    
+    if (!proyectoId) {
+        numeroDespachoInput.placeholder = "Se generará automáticamente";
+        return;
+    }
+    
+    try {
+        const url = `{{ url_for('despachos.api_generate_numero') }}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contrato_id: contratoId,
+                proyecto_id: parseInt(proyectoId)
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            numeroDespachoInput.placeholder = data.numero_despacho;
+        } else {
+            console.error('Error generating dispatch number:', response.status);
+        }
+    } catch (error) {
+        console.error('Error generating dispatch number:', error);
     }
 }
 

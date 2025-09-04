@@ -16,7 +16,7 @@ run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 deploymentTarget = "autoscale"
 
 [workflows]
-runButton = "Start Flask App"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Run Mobikit"
@@ -37,24 +37,6 @@ task = "shell.exec"
 args = "python -u main.py"
 
 [[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
-waitForPort = 5000
-
-[[workflows.workflow]]
 name = "Run Stable Server"
 author = 45176243
 mode = "sequential"
@@ -72,13 +54,30 @@ mode = "sequential"
 task = "shell.exec"
 args = "python main.py"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3000
 
 [objectStorage]
 defaultBucketID = "replit-objstore-18a58625-bff7-44cb-bbf9-e8b65ac6622c"

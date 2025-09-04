@@ -50,9 +50,16 @@ class DespachosService:
                 if not hito:
                     raise ValueError(f"Hito de entrega {despacho_data['hito_entrega_id']} no encontrado")
             
-            # Check if numero_despacho already exists
-            if self.repo.exists_numero(despacho_data['numero_despacho']):
-                raise ValueError(f"Ya existe un despacho con número {despacho_data['numero_despacho']}")
+            # Generate numero_despacho automatically if not provided or empty
+            if not despacho_data.get('numero_despacho') or despacho_data['numero_despacho'].strip() == '':
+                despacho_data['numero_despacho'] = self.repo.generate_next_numero_despacho(
+                    despacho_data.get('contrato_id'), 
+                    proyecto.cliente_id
+                )
+            else:
+                # Check if numero_despacho already exists
+                if self.repo.exists_numero(despacho_data['numero_despacho']):
+                    raise ValueError(f"Ya existe un despacho con número {despacho_data['numero_despacho']}")
             
             # Separate ordenes_fabricacion from despacho_data
             ordenes_fabricacion = despacho_data.pop('ordenes_fabricacion', [])
