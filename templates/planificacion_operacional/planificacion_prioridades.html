@@ -578,7 +578,31 @@ Días restantes: {{ hito.dias_restantes }}">
                                                             <small class="text-info">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
                                                             {% endif %}
                                                         {% endif %}
-                                                        <div><small class="text-muted"><strong>Tiempo:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small></div>
+                                                        <div>
+                                                            <small class="text-muted"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
+                                                            {% if of_info.tiempo_real_fabrica is not none %}
+                                                                <small class="ms-2">
+                                                                    <strong>Real:</strong> {{ of_info.tiempo_real_fabrica }}d
+                                                                    {% if of_info.desviacion_fabrica is not none %}
+                                                                        {% if of_info.porcentaje_desviacion_fabrica is not none %}
+                                                                            {% if of_info.porcentaje_desviacion_fabrica > 50 %}
+                                                                                <span class="badge bg-danger ms-1">+{{ of_info.desviacion_fabrica }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
+                                                                            {% elif of_info.porcentaje_desviacion_fabrica > 20 %}
+                                                                                <span class="badge bg-warning ms-1">+{{ of_info.desviacion_fabrica }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
+                                                                            {% elif of_info.porcentaje_desviacion_fabrica < -20 %}
+                                                                                <span class="badge bg-success ms-1">{{ of_info.desviacion_fabrica }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
+                                                                            {% elif of_info.desviacion_fabrica == 0 %}
+                                                                                <span class="badge bg-info ms-1">exacto</span>
+                                                                            {% else %}
+                                                                                <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_fabrica) }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
+                                                                            {% endif %}
+                                                                        {% else %}
+                                                                            <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_fabrica) }}d</span>
+                                                                        {% endif %}
+                                                                    {% endif %}
+                                                                </small>
+                                                            {% endif %}
+                                                        </div>
                                                     </td>
                                                     <td>
                                                         {% if of_info.of.fecha_entrega_embalaje %}
@@ -596,7 +620,31 @@ Días restantes: {{ hito.dias_restantes }}">
                                                             <small class="text-info">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
                                                             {% endif %}
                                                         {% endif %}
-                                                        <div><small class="text-muted"><strong>Tiempo:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small></div>
+                                                        <div>
+                                                            <small class="text-muted"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
+                                                            {% if of_info.tiempo_real_embalaje is not none %}
+                                                                <small class="ms-2">
+                                                                    <strong>Real:</strong> {{ of_info.tiempo_real_embalaje }}d
+                                                                    {% if of_info.desviacion_embalaje is not none %}
+                                                                        {% if of_info.porcentaje_desviacion_embalaje is not none %}
+                                                                            {% if of_info.porcentaje_desviacion_embalaje > 50 %}
+                                                                                <span class="badge bg-danger ms-1">+{{ of_info.desviacion_embalaje }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
+                                                                            {% elif of_info.porcentaje_desviacion_embalaje > 20 %}
+                                                                                <span class="badge bg-warning ms-1">+{{ of_info.desviacion_embalaje }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
+                                                                            {% elif of_info.porcentaje_desviacion_embalaje < -20 %}
+                                                                                <span class="badge bg-success ms-1">{{ of_info.desviacion_embalaje }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
+                                                                            {% elif of_info.desviacion_embalaje == 0 %}
+                                                                                <span class="badge bg-info ms-1">exacto</span>
+                                                                            {% else %}
+                                                                                <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_embalaje) }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
+                                                                            {% endif %}
+                                                                        {% else %}
+                                                                            <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_embalaje) }}d</span>
+                                                                        {% endif %}
+                                                                    {% endif %}
+                                                                </small>
+                                                            {% endif %}
+                                                        </div>
                                                     </td>
                                                     <td>
                                                         {% if of_info.dias_hasta_entrega is not none %}
@@ -675,7 +723,12 @@ Días restantes: {{ hito.dias_restantes }}">
                             <span class="badge bg-success">Normal</span>
                         </div>
                         <div class="col-md-3">
-                            <small><strong>Estimaciones:</strong> Basadas en factores de tiempo configurables por tablero</small>
+                            <small><strong>Desviaciones de Tiempo:</strong></small><br>
+                            <span class="badge bg-danger">&gt;50% tarde</span>
+                            <span class="badge bg-warning">&gt;20% tarde</span>
+                            <span class="badge bg-success">&gt;20% antes</span>
+                            <span class="badge bg-info">Exacto</span>
+                            <span class="badge bg-secondary">Normal ±20%</span>
                         </div>
                     </div>
                 </div>
