@@ -109,7 +109,7 @@
                             <thead class="table-dark">
                                 <tr>
                                     <th style="width: 180px;">Proyecto</th>
-                                    <th style="width: 80px;">OFs</th>
+                                    <th style="width: 120px;">Órdenes de Fabricación</th>
                                     <th style="width: 80px;">Tableros</th>
                                     <!-- Cronograma de 6 semanas unificado -->
                                     <th colspan="1" class="text-center bg-light" style="width: 420px;">
@@ -122,12 +122,16 @@
                                             <small><strong>F</strong>=Fabricación | <strong>E</strong>=Embalaje | <span class="text-danger fw-bold">|</span>=Hoy | <span style="color: #ffd700; font-weight: bold;">|</span>=Hitos</small>
                                         </div>
                                     </th>
-                                    <th style="width: 100px;" class="text-center bg-info text-white">
-                                        <strong>Total</strong>
+                                    <th style="width: 100px;" class="text-center bg-info text-white align-middle">
+                                        <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <strong>Total</strong>
+                                        </div>
                                     </th>
-                                    <th style="width: 90px;" class="text-center bg-warning text-dark">
-                                        <strong>Días</strong><br>
-                                        <small>Próximo Hito</small>
+                                    <th style="width: 90px;" class="text-center bg-warning text-dark align-middle">
+                                        <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <strong>Días</strong>
+                                            <small>Próximo Hito</small>
+                                        </div>
                                     </th>
                                 </tr>
                             </thead>
@@ -139,7 +143,50 @@
                                         <small class="text-muted">{{ proyecto.cliente_nombre[:15] }}{% if proyecto.cliente_nombre|length > 15 %}...{% endif %}</small>
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge bg-primary">{{ proyecto.ofs_activas }}</span>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="dropdownOFs{{ loop.index }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                {{ proyecto.ofs_activas }} OFs
+                                            </button>
+                                            <ul class="dropdown-menu" aria-labelledby="dropdownOFs{{ loop.index }}" style="max-height: 300px; overflow-y: auto;">
+                                                {% for of_info in proyecto.ofs %}
+                                                <li>
+                                                    <div class="dropdown-item-text px-3 py-2" style="white-space: nowrap;">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <strong>{{ of_info.of.codigo }}</strong>
+                                                                <br>
+                                                                <small class="text-muted">
+                                                                    P{{ of_info.of.prioridad_numerica or 99 }}
+                                                                    {% if of_info.of.prioridad %}
+                                                                        ({{ of_info.of.prioridad.value }})
+                                                                    {% endif %}
+                                                                </small>
+                                                            </div>
+                                                            <div class="text-end">
+                                                                {% if of_info.of.fecha_entrega_embalaje %}
+                                                                    <small class="badge bg-success">{{ of_info.of.fecha_entrega_embalaje.strftime('%d/%m') }}</small>
+                                                                {% elif of_info.of.fecha_entrega_fabrica %}
+                                                                    <small class="badge bg-warning text-dark">{{ of_info.of.fecha_entrega_fabrica.strftime('%d/%m') }}</small>
+                                                                {% elif of_info.of.fecha_planificada %}
+                                                                    <small class="badge bg-info">{{ of_info.of.fecha_planificada.strftime('%d/%m') }}</small>
+                                                                {% else %}
+                                                                    <small class="badge bg-secondary">Sin fecha</small>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                        {% if of_info.of.numero_tableros %}
+                                                            <div class="mt-1">
+                                                                <small class="text-info">{{ of_info.of.numero_tableros }} tableros</small>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </li>
+                                                {% if not loop.last %}
+                                                    <li><hr class="dropdown-divider"></li>
+                                                {% endif %}
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
                                     </td>
                                     <td class="text-center">
                                         <span class="badge bg-info">{{ proyecto.total_tableros }}</span>
