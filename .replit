@@ -16,7 +16,7 @@ run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 deploymentTarget = "autoscale"
 
 [workflows]
-runButton = "Project"
+runButton = "Start Flask App"
 
 [[workflows.workflow]]
 name = "Run Mobikit"
@@ -56,6 +56,15 @@ waitForPort = 5000
 
 [[workflows.workflow]]
 name = "Run Stable Server"
+author = 45176243
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+
+[[workflows.workflow]]
+name = "Start Flask App"
 author = 45176243
 mode = "sequential"
 

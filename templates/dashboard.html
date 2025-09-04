@@ -12,12 +12,24 @@
         </button>
         {% endif %}
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" id="vistaPorAreas" onclick="mostrarVistaPorAreas()">
-                <i class="fas fa-tasks"></i> Por Áreas
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-tachometer-alt"></i> Vistas
             </button>
-            <button type="button" class="btn btn-outline-secondary" id="vistaCalendario" onclick="mostrarVistaCalendario()">
-                <i class="fas fa-calendar"></i> Calendario
-            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" id="vistaPorAreas" onclick="mostrarVistaPorAreas()">
+                    <i class="fas fa-tasks me-2"></i> Por Áreas
+                </a></li>
+                <li><a class="dropdown-item" href="#" id="vistaAreasDetalle" onclick="mostrarVistaAreasDetalle()">
+                    <i class="fas fa-layers me-2"></i> Dashboard Áreas
+                </a></li>
+                <li><a class="dropdown-item" href="#" id="vistaCalendario" onclick="mostrarVistaCalendario()">
+                    <i class="fas fa-calendar me-2"></i> Calendario
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('areas.dashboard') }}">
+                    <i class="fas fa-external-link-alt me-2"></i> Ir a Dashboard Áreas
+                </a></li>
+            </ul>
         </div>
     </div>
 </div>
@@ -175,22 +187,86 @@
     </div>
 </div>
 
-<!-- Vista Calendario (Oculta por defecto) -->
-<div id="contenido-calendario" class="dashboard-content" style="display: none;">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-calendar"></i> Calendario de Entregas y Producción
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div id="calendar"></div>
+<!-- Vista Dashboard de Áreas -->
+    <div id="contenido-areas-detalle" class="dashboard-content" style="display: none;">
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4><i class="fas fa-layers"></i> Dashboard de Áreas de Producción</h4>
+                    <div class="btn-group">
+                        <a href="{{ url_for('areas.mis_pendientes') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-user-clock"></i> Mis Pendientes
+                        </a>
+                        <button class="btn btn-outline-info btn-sm" onclick="refreshAreasDashboard()">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
+        
+        <!-- Estadísticas de Áreas -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card dashboard-stat-card border-primary">
+                    <div class="card-body text-center">
+                        <i class="fas fa-tasks fa-2x text-primary mb-2"></i>
+                        <h4 class="text-primary mb-1" id="areas-total-activas">0</h4>
+                        <small class="text-muted">Órdenes Activas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-stat-card border-warning">
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                        <h4 class="text-warning mb-1" id="areas-vencidas">0</h4>
+                        <small class="text-muted">Vencidas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-stat-card border-info">
+                    <div class="card-body text-center">
+                        <i class="fas fa-clock fa-2x text-info mb-2"></i>
+                        <h4 class="text-info mb-1" id="areas-por-vencer">0</h4>
+                        <small class="text-muted">Por Vencer (3 días)</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-stat-card border-success">
+                    <div class="card-body text-center">
+                        <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                        <h4 class="text-success mb-1" id="areas-completadas-hoy">0</h4>
+                        <small class="text-muted">Completadas Hoy</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenedor para las áreas de producción -->
+        <div id="areas-production-container">
+            <!-- Se cargará dinámicamente -->
+        </div>
     </div>
+
+    <!-- Vista Calendario (Oculta por defecto) -->
+    <div id="contenido-calendario" class="dashboard-content" style="display: none;">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar"></i> Calendario de Entregas y Producción
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="calendar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     <!-- Próximas Entregas -->
     <div class="row mt-4">
@@ -283,22 +359,40 @@ function inicializarDashboard() {
 
 function mostrarVistaPorAreas() {
     document.getElementById('contenido-areas').style.display = 'block';
+    document.getElementById('contenido-areas-detalle').style.display = 'none';
     document.getElementById('contenido-calendario').style.display = 'none';
 
-    document.getElementById('vistaPorAreas').classList.add('btn-primary');
-    document.getElementById('vistaPorAreas').classList.remove('btn-outline-secondary');
-    document.getElementById('vistaCalendario').classList.add('btn-outline-secondary');
-    document.getElementById('vistaCalendario').classList.remove('btn-primary');
+    // Update dropdown menu items
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.getElementById('vistaPorAreas').classList.add('active');
+}
+
+function mostrarVistaAreasDetalle() {
+    document.getElementById('contenido-areas').style.display = 'none';
+    document.getElementById('contenido-areas-detalle').style.display = 'block';
+    document.getElementById('contenido-calendario').style.display = 'none';
+
+    // Update dropdown menu items
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.getElementById('vistaAreasDetalle').classList.add('active');
+
+    cargarDashboardAreas();
 }
 
 function mostrarVistaCalendario() {
     document.getElementById('contenido-areas').style.display = 'none';
+    document.getElementById('contenido-areas-detalle').style.display = 'none';
     document.getElementById('contenido-calendario').style.display = 'block';
 
-    document.getElementById('vistaCalendario').classList.add('btn-primary');
-    document.getElementById('vistaCalendario').classList.remove('btn-outline-secondary');
-    document.getElementById('vistaPorAreas').classList.add('btn-outline-secondary');
-    document.getElementById('vistaPorAreas').classList.remove('btn-primary');
+    // Update dropdown menu items
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.getElementById('vistaCalendario').classList.add('active');
 
     if (calendar) {
         calendar.render();
@@ -797,6 +891,218 @@ function terminarOrden(ordenId) {
             showNotification('Error al terminar orden', 'error');
         });
     }
+}
+
+function cargarDashboardAreas() {
+    // Cargar datos del dashboard de áreas
+    fetch('/areas/api/dashboard-stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                actualizarEstadisticasAreas(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando estadísticas de áreas:', error);
+        });
+
+    // Cargar las áreas de producción
+    fetch('/api/areas_dashboard_data')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderizarAreasProduccion(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando áreas de producción:', error);
+            // Fallback: cargar directamente desde el endpoint de áreas
+            cargarAreasProduccionFallback();
+        });
+}
+
+function cargarAreasProduccionFallback() {
+    // Cargar directamente el HTML del dashboard de áreas como fallback
+    fetch('/areas/dashboard')
+        .then(response => response.text())
+        .then(html => {
+            // Extraer solo el contenido de las áreas del HTML completo
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const areasContent = doc.querySelector('.container-fluid');
+            
+            if (areasContent) {
+                document.getElementById('areas-production-container').innerHTML = areasContent.innerHTML;
+            }
+        })
+        .catch(error => {
+            console.error('Error en fallback de áreas:', error);
+            document.getElementById('areas-production-container').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    No se pudo cargar el dashboard de áreas. 
+                    <a href="/areas/dashboard" class="btn btn-sm btn-outline-primary ms-2">
+                        <i class="fas fa-external-link-alt"></i> Ir al Dashboard de Áreas
+                    </a>
+                </div>
+            `;
+        });
+}
+
+function actualizarEstadisticasAreas(stats) {
+    // Actualizar las estadísticas del dashboard de áreas
+    const totalActivas = document.getElementById('areas-total-activas');
+    const vencidas = document.getElementById('areas-vencidas');
+    const porVencer = document.getElementById('areas-por-vencer');
+    const completadasHoy = document.getElementById('areas-completadas-hoy');
+    
+    if (totalActivas) totalActivas.textContent = stats.total_active || 0;
+    if (vencidas) vencidas.textContent = stats.overdue_count || 0;
+    if (porVencer) porVencer.textContent = stats.due_soon_count || 0;
+    if (completadasHoy) completadasHoy.textContent = stats.completed_today || 0;
+}
+
+function renderizarAreasProduccion(areasData) {
+    const container = document.getElementById('areas-production-container');
+    
+    if (!container) {
+        console.warn('Container areas-production-container not found');
+        return;
+    }
+    
+    if (!areasData || !areasData.areas) {
+        container.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                No hay datos de áreas disponibles.
+            </div>
+        `;
+        return;
+    }
+    
+    // Continue with the existing logic'areas-production-container');
+    
+    if (!areasData.areas || areasData.areas.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-2x mb-2"></i>
+                <h5>No hay áreas configuradas</h5>
+                <p>Configure las áreas de producción desde el panel de administración.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Crear pestañas para las áreas
+    let tabsHTML = '<ul class="nav nav-tabs mb-3" id="areasProductionTabs" role="tablist">';
+    let contentHTML = '<div class="tab-content" id="areasProductionTabsContent">';
+
+    areasData.areas.forEach((areaData, index) => {
+        const isActive = index === 0 ? 'active' : '';
+        const isSelected = index === 0 ? 'true' : 'false';
+
+        // Tab header
+        tabsHTML += `
+            <li class="nav-item" role="presentation">
+                <button class="nav-link ${isActive}" id="area-${areaData.area.id}-tab" 
+                        data-bs-toggle="tab" data-bs-target="#area-${areaData.area.id}" 
+                        type="button" role="tab" aria-controls="area-${areaData.area.id}" 
+                        aria-selected="${isSelected}" style="border-color: ${areaData.area.color_hex};">
+                    ${areaData.area.nombre}
+                    ${areaData.total_count > 0 ? `<span class="badge bg-secondary ms-2">${areaData.total_count}</span>` : ''}
+                </button>
+            </li>
+        `;
+
+        // Tab content
+        contentHTML += `
+            <div class="tab-pane fade ${isActive ? 'show active' : ''}" id="area-${areaData.area.id}" 
+                 role="tabpanel" aria-labelledby="area-${areaData.area.id}-tab">
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <p class="text-muted mb-0">${areaData.area.descripcion}</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <span class="badge bg-info">${areaData.total_count} órdenes</span>
+                        <a href="/areas/area/${areaData.area.id}" class="btn btn-sm btn-outline-primary ms-2">
+                            <i class="fas fa-eye"></i> Ver Detalle
+                        </a>
+                    </div>
+                </div>
+        `;
+
+        if (areaData.total_count === 0) {
+            contentHTML += `
+                <div class="text-center py-5">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h5 class="text-success">Área despejada</h5>
+                    <p class="text-muted">No hay órdenes de fabricación en esta área actualmente.</p>
+                </div>
+            `;
+        } else {
+            // Mostrar estados con órdenes
+            areaData.estados.forEach(estadoData => {
+                if (estadoData.orders && estadoData.orders.length > 0) {
+                    contentHTML += `
+                        <div class="card mb-3">
+                            <div class="card-header" style="background-color: ${estadoData.estado.color_hex}20;">
+                                <h6 class="mb-0" style="color: ${estadoData.estado.color_hex};">
+                                    ${estadoData.estado.nombre} 
+                                    <span class="badge" style="background-color: ${estadoData.estado.color_hex};">
+                                        ${estadoData.orders.length}
+                                    </span>
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Código</th>
+                                                <th>Proyecto</th>
+                                                <th>Fecha Entrega</th>
+                                                <th>Responsable</th>
+                                                <th>Tiempo en Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                    `;
+                    
+                    estadoData.orders.forEach(order => {
+                        contentHTML += `
+                            <tr>
+                                <td><strong>${order.codigo}</strong></td>
+                                <td>${order.proyecto_nombre || 'Sin proyecto'}</td>
+                                <td>${order.fecha_entrega || 'Sin fecha'}</td>
+                                <td>${order.responsable_nombre || 'Sin asignar'}</td>
+                                <td><span class="text-muted">-</span></td>
+                            </tr>
+                        `;
+                    });
+                    
+                    contentHTML += `
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        contentHTML += '</div>';
+    });
+
+    tabsHTML += '</ul>';
+    contentHTML += '</div>';
+
+    container.innerHTML = tabsHTML + contentHTML;
+}
+
+function refreshAreasDashboard() {
+    showNotification('Actualizando dashboard de áreas...', 'info');
+    cargarDashboardAreas();
 }
 
 function showNotification(message, type = 'info') {
