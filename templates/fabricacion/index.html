@@ -129,9 +129,6 @@
                         <tr>
                             <td>
                                 <div class="fw-medium">{{ of.codigo }}</div>
-                                {% if of.descripcion %}
-                                <small class="text-muted">{{ of.descripcion[:50] }}{% if of.descripcion|length > 50 %}...{% endif %}</small>
-                                {% endif %}
                             </td>
                             <td>
                                 <a href="{{ url_for('proyectos.detalle', proyecto_id=of.proyecto.id) }}" class="text-decoration-none">
