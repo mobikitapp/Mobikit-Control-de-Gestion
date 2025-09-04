@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import current_user
+from flask_login import current_user, login_required
 from pydantic import ValidationError
 from app import db
 from replit_auth import require_login, require_role
@@ -9,6 +9,7 @@ from services.proyectos_service import ProyectosService
 from services.contratos_service import ContratosService
 from services.clientes_service import ClientesService
 from services.user_service import UserService
+from services.areas_service import AreasService  # Import added
 from schemas.fabricacion import (OrdenFabricacionCreate, OrdenFabricacionUpdate, 
                                 OrdenFabricacionSearchFilters)
 import logging
@@ -21,6 +22,7 @@ proyectos_service = ProyectosService()
 contratos_service = ContratosService()
 clientes_service = ClientesService()
 user_service = UserService()
+areas_service = AreasService() # Instance created
 
 @fabricacion_bp.route('/')
 @require_login
@@ -32,41 +34,41 @@ def index():
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 20, type=int)
         }
-        
+
         # Add optional filters only if they exist and are valid
         if request.args.get('proyecto_id'):
             try:
                 filters_data['proyecto_id'] = int(request.args.get('proyecto_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('contrato_id'):
             try:
                 filters_data['contrato_id'] = int(request.args.get('contrato_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('area_id'):
             try:
                 filters_data['area_id'] = int(request.args.get('area_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('estado_id'):
             try:
                 filters_data['estado_id'] = int(request.args.get('estado_id'))
             except (ValueError, TypeError):
                 pass
-                
+
         if request.args.get('codigo', '').strip():
             filters_data['codigo'] = request.args.get('codigo').strip()
-            
+
         if request.args.get('responsable', '').strip():
             filters_data['responsable'] = request.args.get('responsable').strip()
-            
+
         if request.args.get('fecha_planificada_desde', '').strip():
             filters_data['fecha_planificada_desde'] = request.args.get('fecha_planificada_desde').strip()
-            
+
         if request.args.get('fecha_planificada_hasta', '').strip():
             filters_data['fecha_planificada_hasta'] = request.args.get('fecha_planificada_hasta').strip()
 
@@ -75,7 +77,7 @@ def index():
 
         # Search OFs
         ofs, total_count = fabricacion_service.search_ordenes_fabricacion(filters)
-        
+
         # Add days remaining calculation
         from datetime import date
         today = date.today()
@@ -181,9 +183,9 @@ def detalle(of_id):
         historial_progreso = progreso_repo.get_progress_history(of_id)
 
         # Import areas service for action descriptions
-        from services.areas_service import AreasService
-        areas_service = AreasService()
-        
+        # from services.areas_service import AreasService # Already imported
+        # areas_service = AreasService() # Already instantiated
+
         return render_template('fabricacion/detalle.html', 
                              of=of, 
                              historial_progreso=historial_progreso,
@@ -321,26 +323,120 @@ def cambiar_estado(of_id):
     return redirect(url_for('fabricacion.detalle', of_id=of_id))
 
 @fabricacion_bp.route('/<int:of_id>/avanzar-area', methods=['POST'])
+@require_login
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def avanzar_area(of_id):
-    """Avanzar OF al siguiente estado o área según corresponda"""
+    """Avanzar orden a siguiente área"""
     try:
-        responsable_id = request.form.get('responsable_id')
-        notas = request.form.get('notas')
+        notas = request.form.get('notas', '')
 
-        success, message = fabricacion_service.smart_advance_orden(
-            of_id, current_user.id, responsable_id=responsable_id, notas=notas
+        # Get next action description for this order
+        next_action = fabrication_service.get_next_action_description(of_id)
+
+        # Advance to next area
+        new_progress = areas_service.advance_to_next_area(
+            orden_fabricacion_id=of_id,
+            created_by=current_user.id,
+            responsable_id=current_user.id,
+            notas=notas
         )
-        if success:
-            flash(message, 'success')
-        else:
-            flash(f'Error: {message}', 'error')
 
+        flash(f'Orden avanzada exitosamente: {next_action}', 'success')
+
+    except ValueError as e:
+        flash(f'Error: {str(e)}', 'danger')
     except Exception as e:
-        logger.error(f"Error avanzando OF {of_id}: {str(e)}")
-        flash(f'Error: {str(e)}', 'error')
+        logger.error(f"Error avanzando área para OF {of_id}: {str(e)}")
+        flash('Error al avanzar la orden', 'danger')
 
     return redirect(url_for('fabricacion.index'))
+
+@fabricacion_bp.route('/<int:of_id>/archivar', methods=['POST'])
+@login_required
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.LOGISTICA)
+def archivar_orden(of_id):
+    """Archivar orden despachada"""
+    try:
+        # Verify order exists and is in dispatched state
+        orden = fabricacion_service.get_orden_by_id(of_id)
+        if not orden:
+            flash('Orden no encontrada', 'danger')
+            return redirect(url_for('fabricacion.index'))
+
+        # Check if order is in DESPACHO area with DESPACHADO state
+        progreso_actual = orden.area_progreso_actual
+        if not progreso_actual or progreso_actual.area.tipo.value != 'despacho':
+            flash('Solo se pueden archivar órdenes en el área de Despacho', 'danger')
+            return redirect(url_for('fabricacion.index'))
+
+        # Archive the order
+        success = areas_service.archive_dispatch(of_id)
+
+        if success:
+            flash(f'Orden {orden.codigo} archivada exitosamente', 'success')
+        else:
+            flash('Error al archivar la orden', 'danger')
+
+    except Exception as e:
+        logger.error(f"Error archivando orden {of_id}: {str(e)}")
+        flash('Error al archivar la orden', 'danger')
+
+    return redirect(url_for('fabricacion.index'))
+
+
+@fabricacion_bp.route('/archivos')
+@login_required
+def archivos():
+    """Vista de órdenes archivadas"""
+    try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+
+        # Get filter parameters
+        cliente_id = request.args.get('cliente_id', type=int)
+        proyecto_id = request.args.get('proyecto_id', type=int)
+        codigo = request.args.get('codigo', '').strip()
+
+        # Get archived orders with filters
+        archived_orders, total_count = fabricacion_service.get_archived_orders(
+            page=page,
+            per_page=per_page,
+            cliente_id=cliente_id,
+            proyecto_id=proyecto_id,
+            codigo=codigo
+        )
+
+        # Get clients for filter
+        clientes = clientes_service.get_all_active()
+
+        # Calculate pagination info
+        total_pages = (total_count + per_page - 1) // per_page
+        has_prev = page > 1
+        has_next = page < total_pages
+
+        return render_template(
+            'fabricacion/archivos.html',
+            archived_orders=archived_orders,
+            total_count=total_count,
+            total_pages=total_pages,
+            has_prev=has_prev,
+            has_next=has_next,
+            page=page,
+            per_page=per_page,
+            clientes=clientes,
+            filters={
+                'cliente_id': cliente_id,
+                'proyecto_id': proyecto_id,
+                'codigo': codigo
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error cargando archivos: {str(e)}")
+        flash('Error cargando órdenes archivadas', 'danger')
+        return redirect(url_for('fabricacion.index'))
+
 
 @fabricacion_bp.route('/<int:of_id>/eliminar', methods=['POST'])
 @require_role(RolUsuario.ADMIN)

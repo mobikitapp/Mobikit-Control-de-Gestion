@@ -12,12 +12,18 @@
                     <i data-feather="tool" class="me-2"></i>
                     Órdenes de Fabricación
                 </h1>
-                {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
-                <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-primary">
-                    <i data-feather="plus-circle" class="me-2"></i>
-                    Nueva Orden
-                </a>
-                {% endif %}
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('fabricacion.archivos') }}" class="btn btn-outline-secondary">
+                        <i data-feather="archive" class="me-2"></i>
+                        Ver Archivos
+                    </a>
+                    {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                    <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-primary">
+                        <i data-feather="plus-circle" class="me-2"></i>
+                        Nueva Orden
+                    </a>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -205,12 +211,26 @@
                                        class="btn btn-outline-secondary" title="Editar">
                                         <i data-feather="edit"></i>
                                     </a>
-                                    <button type="button" class="btn btn-outline-success btn-sm" 
-                                            title="Avanzar estado/área" 
-                                            onclick="avanzarEstado({{ of.id }}, '{{ of.codigo }}', '{{ of.next_action_description|default("Avanzar") }}')">
-                                        <i data-feather="arrow-right" class="me-1"></i>
-                                        <span class="d-none d-md-inline">{{ of.next_action_description|default("Avanzar") }}</span>
-                                    </button>
+                                    {% endif %}
+                                    
+                                    {% if of.area_actual and of.area_actual.tipo.value == 'despacho' and of.estado_actual and of.estado_actual.codigo == 'despachado' %}
+                                        {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                                        <button type="button" class="btn btn-outline-warning btn-sm" 
+                                                title="Archivar orden" 
+                                                onclick="archivarOrden({{ of.id }}, '{{ of.codigo }}')">
+                                            <i data-feather="archive" class="me-1"></i>
+                                            <span class="d-none d-md-inline">Archivar</span>
+                                        </button>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                        <button type="button" class="btn btn-outline-success btn-sm" 
+                                                title="Avanzar estado/área" 
+                                                onclick="avanzarEstado({{ of.id }}, '{{ of.codigo }}', '{{ of.next_action_description|default("Avanzar") }}')">
+                                            <i data-feather="arrow-right" class="me-1"></i>
+                                            <span class="d-none d-md-inline">{{ of.next_action_description|default("Avanzar") }}</span>
+                                        </button>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </td>
@@ -306,6 +326,39 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para archivar orden -->
+<div class="modal fade" id="archivarOrdenModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Archivar Orden Despachada</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="archivarOrdenForm" method="POST">
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i data-feather="archive" class="text-warning" style="width: 48px; height: 48px;"></i>
+                    </div>
+                    <p class="text-center">¿Está seguro que desea archivar la orden <strong id="codigoOrdenArchivar"></strong>?</p>
+                    <div class="alert alert-info">
+                        <small>
+                            <i data-feather="info" class="me-1"></i>
+                            La orden se moverá a la sección de archivos y ya no aparecerá en la lista de órdenes activas.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i data-feather="archive" class="me-2"></i>
+                        Archivar Orden
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -358,6 +411,21 @@ function avanzarEstado(ofId, codigo, actionDescription) {
 
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('avanzarEstadoModal'));
+    modal.show();
+}
+
+// Function to archive order
+function archivarOrden(ofId, codigo) {
+    document.getElementById('codigoOrdenArchivar').textContent = codigo;
+    document.getElementById('archivarOrdenForm').action = `/fabricacion/${ofId}/archivar`;
+    
+    // Refresh feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('archivarOrdenModal'));
     modal.show();
 }
 
