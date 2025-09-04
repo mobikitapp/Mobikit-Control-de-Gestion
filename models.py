@@ -94,6 +94,29 @@ class EstadoEvento(Enum):
     COMPLETADO = "completado"
     CANCELADO = "cancelado"
 
+class PrioridadOrden(Enum):
+    # Formato tradicional
+    BAJA = "baja"
+    MEDIA = "media" 
+    ALTA = "alta"
+    URGENTE = "urgente"
+    # Formato numérico
+    P1 = "P1"
+    P2 = "P2"
+    P3 = "P3"
+    P4 = "P4"
+    
+    @classmethod
+    def get_orden_valor(cls, prioridad):
+        """Obtiene el valor numérico para ordenamiento (menor = mayor prioridad)"""
+        orden_map = {
+            cls.P1: 1, cls.URGENTE: 1,
+            cls.P2: 2, cls.ALTA: 2,
+            cls.P3: 3, cls.MEDIA: 3,
+            cls.P4: 4, cls.BAJA: 4
+        }
+        return orden_map.get(prioridad, 99)
+
 class PrioridadEvento(Enum):
     BAJA = "baja"
     MEDIA = "media"
@@ -491,6 +514,7 @@ class OrdenFabricacion(db.Model):
     descripcion = db.Column(db.Text)
     glosa = db.Column(db.Text)
     cantidad_tableros = db.Column(db.Integer)
+    prioridad = db.Column(db.Enum(PrioridadOrden), default=PrioridadOrden.MEDIA, nullable=False)
     fecha_entrega_fabrica = db.Column(db.Date)
     fecha_entrega_embalaje = db.Column(db.Date)
     fecha_planificada = db.Column(db.Date)

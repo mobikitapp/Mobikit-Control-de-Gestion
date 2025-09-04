@@ -3,6 +3,7 @@ from typing import Optional, List
 from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
+from models import PrioridadOrden
 
 class EstadoOFEnum(str, Enum):
     # Estados de Pendientes de Fabricación - using exact values from database
@@ -54,6 +55,7 @@ class OrdenFabricacionBase(BaseModel):
     descripcion: Optional[str] = Field(None, description="Descripción de la OF")
     glosa: Optional[str] = Field(None, description="Glosa de la OF")
     cantidad_tableros: Optional[int] = Field(None, description="Cantidad de tableros")
+    prioridad: Optional[PrioridadOrden] = Field(PrioridadOrden.MEDIA, description="Prioridad de la orden")
     fecha_entrega_fabrica: Optional[date] = Field(None, description="Fecha de entrega de fábrica")
     fecha_entrega_embalaje: Optional[date] = Field(None, description="Fecha de entrega de embalaje")
     fecha_planificada: Optional[date] = Field(None, description="Fecha planificada")

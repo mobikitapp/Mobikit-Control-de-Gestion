@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+{% set title = "Planificación y Prioridades" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-project-diagram text-primary"></i>
+                        Planificación y Prioridades
+                    </h4>
+                    <p class="mb-0 text-muted">Matriz de planificación tipo Gantt para gestión de cola de producción</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas generales -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ estadisticas.total_ofs }}</h3>
+                    <small>OFs en Producción</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h3>{{ estadisticas.ofs_sin_fecha_planificada }}</h3>
+                    <small>Sin Fecha Planificada</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h3>{{ estadisticas.ofs_con_prioridad_alta }}</h3>
+                    <small>Prioridad Alta</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ estadisticas.total_tableros }}</h3>
+                    <small>Tableros Totales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:.1f}".format(estadisticas.tiempo_total_fabrica) }}</h3>
+                    <small>Días Fábrica</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:.1f}".format(estadisticas.tiempo_total_embalaje) }}</h3>
+                    <small>Días Embalaje</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Matriz de Planificación -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Matriz de Planificación y Prioridades</h6>
+                    <div>
+                        <small class="text-muted">Actualizado: {{ fecha_actualizacion.strftime('%d/%m/%Y %H:%M') }}</small>
+                        <button class="btn btn-sm btn-primary ms-2" onclick="location.reload()">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 15%">Proyecto/OF</th>
+                                    <th style="width: 8%">Cliente</th>
+                                    <th style="width: 6%">Prioridad</th>
+                                    <th style="width: 6%">Tableros</th>
+                                    <th style="width: 8%">Estado</th>
+                                    <th style="width: 10%">Fecha Planificada</th>
+                                    <th style="width: 10%">Fecha Fab.</th>
+                                    <th style="width: 10%">Fecha Embalaje</th>
+                                    <th style="width: 8%">Tiempo Est.</th>
+                                    <th style="width: 6%">Días Rest.</th>
+                                    <th style="width: 13%">Cronograma Visual</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for proyecto in proyectos %}
+                                <!-- Encabezado del Proyecto -->
+                                <tr class="table-light">
+                                    <td colspan="11">
+                                        <div class="d-flex align-items-center">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-folder text-primary"></i>
+                                                {{ proyecto.proyecto.nombre }}
+                                            </h6>
+                                            <span class="badge bg-secondary ms-2">{{ proyecto.cliente.nombre }}</span>
+                                            {% if proyecto.prioridad_maxima %}
+                                            <span class="badge ms-2 
+                                                {% if proyecto.prioridad_maxima.value in ['P1', 'urgente'] %}bg-danger
+                                                {% elif proyecto.prioridad_maxima.value in ['P2', 'alta'] %}bg-warning
+                                                {% elif proyecto.prioridad_maxima.value in ['P3', 'media'] %}bg-info
+                                                {% else %}bg-success{% endif %}">
+                                                {{ proyecto.prioridad_maxima.value.upper() }}
+                                            </span>
+                                            {% endif %}
+                                            <small class="text-muted ms-2">
+                                                {{ proyecto.ofs|length }} OFs | 
+                                                {{ proyecto.total_tableros }} tableros |
+                                                {{ "{:.1f}".format(proyecto.tiempo_total_fabrica) }}d fáb. |
+                                                {{ "{:.1f}".format(proyecto.tiempo_total_embalaje) }}d emb.
+                                            </small>
+                                            {% if proyecto.fecha_entrega_mas_proxima %}
+                                            <small class="text-danger ms-2">
+                                                <i class="fas fa-clock"></i> 
+                                                Entrega: {{ proyecto.fecha_entrega_mas_proxima.strftime('%d/%m/%Y') }}
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <!-- OFs del Proyecto -->
+                                {% for of_info in proyecto.ofs %}
+                                <tr>
+                                    <td>
+                                        <div class="ms-3">
+                                            <strong>{{ of_info.of.codigo }}</strong>
+                                            {% if of_info.of.descripcion %}
+                                            <br><small class="text-muted">{{ of_info.of.descripcion[:40] }}{% if of_info.of.descripcion|length > 40 %}...{% endif %}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small>{{ of_info.cliente.nombre[:15] }}{% if of_info.cliente.nombre|length > 15 %}...{% endif %}</small>
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm prioridad-select" 
+                                                data-of-id="{{ of_info.of.id }}" 
+                                                data-original="{{ of_info.of.prioridad.value }}">
+                                            <option value="P1" {% if of_info.of.prioridad.value == 'P1' %}selected{% endif %}>P1</option>
+                                            <option value="P2" {% if of_info.of.prioridad.value == 'P2' %}selected{% endif %}>P2</option>
+                                            <option value="P3" {% if of_info.of.prioridad.value == 'P3' %}selected{% endif %}>P3</option>
+                                            <option value="P4" {% if of_info.of.prioridad.value == 'P4' %}selected{% endif %}>P4</option>
+                                            <option value="urgente" {% if of_info.of.prioridad.value == 'urgente' %}selected{% endif %}>Urgente</option>
+                                            <option value="alta" {% if of_info.of.prioridad.value == 'alta' %}selected{% endif %}>Alta</option>
+                                            <option value="media" {% if of_info.of.prioridad.value == 'media' %}selected{% endif %}>Media</option>
+                                            <option value="baja" {% if of_info.of.prioridad.value == 'baja' %}selected{% endif %}>Baja</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ of_info.of.cantidad_tableros or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            <strong>{{ of_info.progreso_actual.area.nombre }}</strong><br>
+                                            <span class="text-muted">{{ of_info.progreso_actual.estado.estado }}</span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if of_info.of.fecha_planificada %}
+                                            <input type="date" class="form-control form-control-sm fecha-input" 
+                                                   data-of-id="{{ of_info.of.id }}" 
+                                                   data-field="fecha_planificada"
+                                                   value="{{ of_info.of.fecha_planificada }}"
+                                                   data-original="{{ of_info.of.fecha_planificada }}">
+                                        {% else %}
+                                            <input type="date" class="form-control form-control-sm fecha-input" 
+                                                   data-of-id="{{ of_info.of.id }}" 
+                                                   data-field="fecha_planificada"
+                                                   placeholder="Sin fecha"
+                                                   data-original="">
+                                            <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Falta fecha</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if of_info.of.fecha_entrega_fabrica %}
+                                            <input type="date" class="form-control form-control-sm fecha-input" 
+                                                   data-of-id="{{ of_info.of.id }}" 
+                                                   data-field="fecha_entrega_fabrica"
+                                                   value="{{ of_info.of.fecha_entrega_fabrica }}"
+                                                   data-original="{{ of_info.of.fecha_entrega_fabrica }}">
+                                        {% else %}
+                                            <input type="date" class="form-control form-control-sm fecha-input" 
+                                                   data-of-id="{{ of_info.of.id }}" 
+                                                   data-field="fecha_entrega_fabrica"
+                                                   data-original="">
+                                            {% if of_info.fecha_estimada_fabricacion %}
+                                            <small class="text-info">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if of_info.of.fecha_entrega_embalaje %}
+                                            <input type="date" class="form-control form-control-sm fecha-input" 
+                                                   data-of-id="{{ of_info.of.id }}" 
+                                                   data-field="fecha_entrega_embalaje"
+                                                   value="{{ of_info.of.fecha_entrega_embalaje }}"
+                                                   data-original="{{ of_info.of.fecha_entrega_embalaje }}">
+                                        {% else %}
+                                            <input type="date" class="form-control form-control-sm fecha-input" 
+                                                   data-of-id="{{ of_info.of.id }}" 
+                                                   data-field="fecha_entrega_embalaje"
+                                                   data-original="">
+                                            {% if of_info.fecha_estimada_embalaje %}
+                                            <small class="text-info">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>
+                                            <strong>Fáb:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d<br>
+                                            <strong>Emb:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if of_info.dias_hasta_entrega is not none %}
+                                            {% if of_info.dias_hasta_entrega < 0 %}
+                                            <span class="badge bg-danger">{{ of_info.dias_hasta_entrega }} días</span>
+                                            {% elif of_info.dias_hasta_entrega < 7 %}
+                                            <span class="badge bg-warning">{{ of_info.dias_hasta_entrega }} días</span>
+                                            {% else %}
+                                            <span class="badge bg-success">{{ of_info.dias_hasta_entrega }} días</span>
+                                            {% endif %}
+                                        {% else %}
+                                        <small class="text-muted">-</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <!-- Cronograma visual básico -->
+                                        <div class="cronograma-visual" style="position: relative; height: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 3px;">
+                                            {% if of_info.of.fecha_planificada and of_info.fecha_estimada_embalaje %}
+                                            {% set total_days = (of_info.fecha_estimada_embalaje - of_info.of.fecha_planificada).days %}
+                                            {% set fab_percentage = (of_info.tiempo_estimado_fabrica / (of_info.tiempo_estimado_fabrica + of_info.tiempo_estimado_embalaje)) * 100 %}
+                                            
+                                            <div style="position: absolute; left: 0; top: 0; height: 100%; width: {{ fab_percentage }}%; background-color: #0d6efd; border-radius: 3px 0 0 3px;"></div>
+                                            <div style="position: absolute; left: {{ fab_percentage }}%; top: 0; height: 100%; width: {{ 100 - fab_percentage }}%; background-color: #6c757d; border-radius: 0 3px 3px 0;"></div>
+                                            
+                                            <small style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 10px; font-weight: bold;">
+                                                {{ total_days }}d
+                                            </small>
+                                            {% else %}
+                                            <small class="text-muted" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">Sin fechas</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <!-- Espaciador entre proyectos -->
+                                <tr><td colspan="11" style="height: 10px; background-color: #f8f9fa;"></td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leyenda -->
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6><i class="fas fa-info-circle"></i> Leyenda:</h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <small><strong>Prioridades:</strong></small><br>
+                            <span class="badge bg-danger">P1/Urgente</span>
+                            <span class="badge bg-warning">P2/Alta</span>
+                            <span class="badge bg-info">P3/Media</span>
+                            <span class="badge bg-success">P4/Baja</span>
+                        </div>
+                        <div class="col-md-3">
+                            <small><strong>Cronograma:</strong></small><br>
+                            <div style="display: inline-block; width: 20px; height: 15px; background-color: #0d6efd; margin-right: 5px;"></div> Fabricación
+                            <div style="display: inline-block; width: 20px; height: 15px; background-color: #6c757d; margin-left: 5px;"></div> Embalaje
+                        </div>
+                        <div class="col-md-3">
+                            <small><strong>Días Restantes:</strong></small><br>
+                            <span class="badge bg-danger">Vencido</span>
+                            <span class="badge bg-warning">&lt; 7 días</span>
+                            <span class="badge bg-success">Normal</span>
+                        </div>
+                        <div class="col-md-3">
+                            <small><strong>Estimaciones:</strong> Basadas en factores de tiempo configurables por tablero</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script>
+// Actualizar prioridad
+document.querySelectorAll('.prioridad-select').forEach(select => {
+    select.addEventListener('change', function() {
+        const ofId = this.dataset.ofId;
+        const nuevaPrioridad = this.value;
+        const original = this.dataset.original;
+        
+        if (nuevaPrioridad !== original) {
+            actualizarPrioridad(ofId, nuevaPrioridad, this);
+        }
+    });
+});
+
+// Actualizar fechas
+document.querySelectorAll('.fecha-input').forEach(input => {
+    input.addEventListener('change', function() {
+        const ofId = this.dataset.ofId;
+        const field = this.dataset.field;
+        const nuevaFecha = this.value;
+        const original = this.dataset.original;
+        
+        if (nuevaFecha !== original) {
+            actualizarFecha(ofId, field, nuevaFecha, this);
+        }
+    });
+});
+
+function actualizarPrioridad(ofId, prioridad, selectElement) {
+    const originalValue = selectElement.dataset.original;
+    
+    fetch('/planificacion-operacional/api/actualizar-prioridad-of', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            of_id: parseInt(ofId),
+            prioridad: prioridad
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            selectElement.dataset.original = prioridad;
+            selectElement.style.borderColor = '#28a745';
+            setTimeout(() => {
+                selectElement.style.borderColor = '';
+            }, 2000);
+        } else {
+            selectElement.value = originalValue;
+            alert('Error al actualizar prioridad: ' + data.message);
+        }
+    })
+    .catch(error => {
+        selectElement.value = originalValue;
+        console.error('Error:', error);
+        alert('Error de conexión al actualizar prioridad');
+    });
+}
+
+function actualizarFecha(ofId, field, fecha, inputElement) {
+    const originalValue = inputElement.dataset.original;
+    
+    const requestData = {
+        of_id: parseInt(ofId)
+    };
+    requestData[field] = fecha;
+    
+    fetch('/planificacion-operacional/api/actualizar-fechas-of', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            inputElement.dataset.original = fecha;
+            inputElement.style.borderColor = '#28a745';
+            setTimeout(() => {
+                inputElement.style.borderColor = '';
+            }, 2000);
+        } else {
+            inputElement.value = originalValue;
+            alert('Error al actualizar fecha: ' + data.message);
+        }
+    })
+    .catch(error => {
+        inputElement.value = originalValue;
+        console.error('Error:', error);
+        alert('Error de conexión al actualizar fecha');
+    });
+}
+</script>
+
+<style>
+.cronograma-visual {
+    min-height: 20px;
+    overflow: hidden;
+}
+
+.table td {
+    vertical-align: middle;
+    padding: 8px !important;
+}
+
+.fecha-input, .prioridad-select {
+    font-size: 11px;
+}
+
+.table-sm th, .table-sm td {
+    padding: 0.4rem !important;
+}
+
+@media print {
+    .btn, .form-control, .form-select { 
+        display: none !important; 
+    }
+    .table td {
+        font-size: 0.7rem;
+    }
+}
+</style>
+{% endblock %}

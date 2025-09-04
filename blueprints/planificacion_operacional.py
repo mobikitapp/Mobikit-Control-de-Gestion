@@ -12,6 +12,7 @@ from models import (
     EstadoComercial, RolUsuario
 )
 from services.planificacion_operacional_service import PlanificacionOperacionalService
+from services.planificacion_prioridades_service import PlanificacionPrioridadesService
 from utils.auth import role_required
 
 # Create blueprint
@@ -66,6 +67,90 @@ def configuracion_conversion():
     except Exception as e:
         flash(f'Error al cargar configuración: {str(e)}', 'error')
         return redirect(url_for('planificacion_operacional.matriz_operacional'))
+
+
+@planificacion_operacional_bp.route('/planificacion-prioridades')
+@login_required  
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+def planificacion_prioridades():
+    """Planificación y Prioridades - Matriz tipo Gantt para gestión de cola de producción"""
+    try:
+        service = PlanificacionPrioridadesService()
+        
+        # Obtener datos de la matriz de planificación
+        datos_matriz = service.get_matriz_planificacion_prioridades()
+        
+        return render_template('planificacion_operacional/planificacion_prioridades.html', 
+                             calendar=calendar, **datos_matriz)
+        
+    except Exception as e:
+        flash(f'Error al cargar planificación y prioridades: {str(e)}', 'error')
+        return redirect(url_for('planificacion_operacional.matriz_operacional'))
+
+
+@planificacion_operacional_bp.route('/api/actualizar-fechas-of', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+def actualizar_fechas_of():
+    """API endpoint para actualizar fechas de una OF"""
+    try:
+        data = request.get_json()
+        service = PlanificacionPrioridadesService()
+        
+        of_id = data.get('of_id')
+        fecha_planificada = data.get('fecha_planificada')
+        fecha_entrega_fabrica = data.get('fecha_entrega_fabrica')
+        fecha_entrega_embalaje = data.get('fecha_entrega_embalaje')
+        
+        # Convertir fechas string a objetos date
+        if fecha_planificada:
+            fecha_planificada = datetime.strptime(fecha_planificada, '%Y-%m-%d').date()
+        if fecha_entrega_fabrica:
+            fecha_entrega_fabrica = datetime.strptime(fecha_entrega_fabrica, '%Y-%m-%d').date()
+        if fecha_entrega_embalaje:
+            fecha_entrega_embalaje = datetime.strptime(fecha_entrega_embalaje, '%Y-%m-%d').date()
+        
+        exito = service.actualizar_fechas_of(
+            of_id=of_id,
+            fecha_planificada=fecha_planificada,
+            fecha_entrega_fabrica=fecha_entrega_fabrica,
+            fecha_entrega_embalaje=fecha_entrega_embalaje
+        )
+        
+        if exito:
+            return jsonify({'success': True, 'message': 'Fechas actualizadas correctamente'})
+        else:
+            return jsonify({'success': False, 'message': 'Error al actualizar fechas'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+
+@planificacion_operacional_bp.route('/api/actualizar-prioridad-of', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+def actualizar_prioridad_of():
+    """API endpoint para actualizar prioridad de una OF"""
+    try:
+        from models import PrioridadOrden
+        data = request.get_json()
+        service = PlanificacionPrioridadesService()
+        
+        of_id = data.get('of_id')
+        nueva_prioridad = data.get('prioridad')
+        
+        # Convertir string a enum
+        prioridad_enum = PrioridadOrden(nueva_prioridad)
+        
+        exito = service.actualizar_prioridad_of(of_id, prioridad_enum)
+        
+        if exito:
+            return jsonify({'success': True, 'message': 'Prioridad actualizada correctamente'})
+        else:
+            return jsonify({'success': False, 'message': 'Error al actualizar prioridad'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
 
 
 @planificacion_operacional_bp.route('/configuracion/actualizar', methods=['POST'])
