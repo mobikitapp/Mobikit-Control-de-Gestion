@@ -204,22 +204,14 @@
                                             <tr>
                                                 <td>
                                                     <div class="fw-medium">{{ order.codigo }}</div>
-                                                    {% if order.contrato %}
-                                                    <small class="text-muted">OC: {{ order.contrato.numero_oc }}</small>
-                                                    {% endif %}
                                                 </td>
                                                 <td>
-                                                    <a href="{{ url_for('proyectos.detalle', proyecto_id=order.proyecto_id) }}" class="text-decoration-none">
-                                                        {{ order.proyecto_nombre }}
-                                                    </a>
+                                                    <div class="fw-medium">{{ order.proyecto_nombre }}</div>
                                                     <br><small class="text-muted">{{ order.cliente_nombre }}</small>
                                                 </td>
                                                 <td>
                                                     {% if order.glosa %}
-                                                    <div class="text-info mb-1"><strong>Glosa:</strong> {{ order.glosa[:40] }}{% if order.glosa|length > 40 %}...{% endif %}</div>
-                                                    {% endif %}
-                                                    {% if order.cantidad_tableros %}
-                                                    <div class="text-success"><strong>Tableros:</strong> {{ order.cantidad_tableros }}</div>
+                                                    <div class="text-info">{{ order.glosa[:40] }}{% if order.glosa|length > 40 %}...{% endif %}</div>
                                                     {% else %}
                                                     <small class="text-muted">-</small>
                                                     {% endif %}
@@ -230,45 +222,13 @@
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    {% if order.fecha_entrega_dinamica %}
-                                                        {{ order.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
-                                                        {% if area_data.area.tipo.value == 'fabrica' %}
-                                                        <br><small class="text-muted">Fábrica</small>
-                                                        {% elif area_data.area.tipo.value == 'embalaje' %}
-                                                        <br><small class="text-muted">Embalaje</small>
-                                                        {% else %}
-                                                        <br><small class="text-muted">Contrato</small>
-                                                        {% endif %}
-                                                    {% else %}
-                                                        -
-                                                    {% endif %}
+                                                    <small class="text-muted">-</small>
                                                 </td>
                                                 <td>
-                                                    {% if order.days_remaining_dynamic is not none %}
-                                                        {% if order.days_remaining_dynamic < 0 %}
-                                                            <span class="badge bg-danger">{{ order.days_remaining_dynamic|abs }} días vencido</span>
-                                                        {% elif order.days_remaining_dynamic == 0 %}
-                                                            <span class="badge bg-warning">Hoy</span>
-                                                        {% elif order.days_remaining_dynamic <= 7 %}
-                                                            <span class="badge bg-warning">{{ order.days_remaining_dynamic }} días</span>
-                                                        {% elif order.days_remaining_dynamic <= 30 %}
-                                                            <span class="badge bg-info">{{ order.days_remaining_dynamic }} días</span>
-                                                        {% else %}
-                                                            <span class="badge bg-secondary">{{ order.days_remaining_dynamic }} días</span>
-                                                        {% endif %}
-                                                    {% else %}
-                                                        -
-                                                    {% endif %}
+                                                    <small class="text-muted">-</small>
                                                 </td>
                                                 <td>
-                                                    {% if order.fecha_cambio_estado %}
-                                                        {% set days_diff = (moment_global.now().date() - order.fecha_cambio_estado.date()).days %}
-                                                        <small class="{% if days_diff > 3 %}text-warning{% elif days_diff > 7 %}text-danger{% else %}text-muted{% endif %}">
-                                                            {{ days_diff }} día{% if days_diff != 1 %}s{% endif %}
-                                                        </small>
-                                                    {% else %}
-                                                        <small class="text-muted">-</small>
-                                                    {% endif %}
+                                                    <small class="text-muted">-</small>
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
@@ -296,9 +256,9 @@
                                                             {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
                                                             <button type="button" class="btn btn-outline-success btn-sm" 
                                                                     title="Avanzar estado/área" 
-                                                                    onclick="avanzarEstado({{ order.id }}, '{{ order.codigo }}', '{{ order.next_action_description|default("Avanzar") }}')">
+                                                                    onclick="avanzarEstado({{ order.id }}, '{{ order.codigo }}', 'Avanzar')">
                                                                 <i data-feather="arrow-right" class="me-1"></i>
-                                                                <span class="d-none d-md-inline">{{ order.next_action_description|default("Avanzar") }}</span>
+                                                                <span class="d-none d-md-inline">Avanzar</span>
                                                             </button>
                                                             {% endif %}
                                                         {% endif %}
