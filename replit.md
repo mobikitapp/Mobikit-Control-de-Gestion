@@ -20,6 +20,11 @@ A comprehensive management system for manufacturing companies that centralizes a
 - Cálculo automático de posicionamiento de hitos dentro del rango temporal de 6 semanas
 - Tooltips informativos en líneas de hitos con título, fecha y días restantes
 - Leyenda actualizada incluyendo explicación de líneas amarillas de hitos
+- **LISTA DESPLEGABLE DE OFs**: Reemplazo de contador simple por dropdown interactivo
+- Dropdown de Órdenes de Fabricación muestra código, prioridad y fechas de cada OF
+- Vista detallada con código completo, prioridad numérica/textual y fechas codificadas por colores
+- Información de tableros por OF y separadores visuales entre elementos
+- Centrado mejorado de títulos de columnas "Total" y "Días Próximo Hito"
 
 **[2025-09-03] Sistema de Gestión de Permisos Dinámicos**
 - Implementado sistema completo de gestión de permisos por rol y módulo 
