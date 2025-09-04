@@ -30,7 +30,214 @@
         </div>
     </div>
 
-    <div class="row g-4">
+    <!-- Activity Tabs - Moved to top as requested -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="activityTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="contratos-tab" data-bs-toggle="tab" data-bs-target="#contratos" type="button" role="tab">
+                                <i data-feather="file-text" class="me-1"></i>
+                                Contratos ({{ proyecto.contratos|length }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="fabricacion-tab" data-bs-toggle="tab" data-bs-target="#fabricacion" type="button" role="tab">
+                                <i data-feather="tool" class="me-1"></i>
+                                Órdenes de Fabricación ({{ proyecto.ordenes_fabricacion|length }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="despachos-tab" data-bs-toggle="tab" data-bs-target="#despachos" type="button" role="tab">
+                                <i data-feather="truck" class="me-1"></i>
+                                Despachos ({{ proyecto.despachos|length }})
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="activityTabContent">
+                        <!-- Contratos Tab -->
+                        <div class="tab-pane fade show active" id="contratos" role="tabpanel">
+                            {% if proyecto.contratos %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Número OC</th>
+                                            <th>Estado</th>
+                                            <th>Monto</th>
+                                            <th>Fecha Emisión</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for contrato in proyecto.contratos %}
+                                        <tr>
+                                            <td>
+                                                <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" class="text-decoration-none fw-medium">
+                                                    {{ contrato.numero_oc }}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if contrato.estado and contrato.estado.value == 'VIGENTE' else 'warning' if contrato.estado and contrato.estado.value == 'BORRADOR' else 'secondary' }}">
+                                                    {{ contrato.estado.value|title if contrato.estado else 'N/A' }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if contrato.monto_total %}
+                                                    {{ contrato.moneda }} {{ "{:,.0f}".format(contrato.monto_total) }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if contrato.fecha_emision %}
+                                                    {{ contrato.fecha_emision.strftime('%d/%m/%Y') }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i data-feather="eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i data-feather="file-text" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                                <p class="text-muted">No hay contratos registrados para este proyecto.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Fabricación Tab -->
+                        <div class="tab-pane fade" id="fabricacion" role="tabpanel">
+                            {% if proyecto.ordenes_fabricacion %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Código</th>
+                                            <th>Estado</th>
+                                            <th>Fecha Planificada</th>
+                                            <th>Responsable</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for of in proyecto.ordenes_fabricacion %}
+                                        <tr>
+                                            <td>
+                                                <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" class="text-decoration-none fw-medium">
+                                                    {{ of.codigo }}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ 'warning' if of.estado and of.estado.value == 'planificada' else 'info' if of.estado and of.estado.value == 'en_produccion' else 'primary' if of.estado and of.estado.value == 'qa' else 'success' }}">
+                                                    {{ of.estado.value|title if of.estado else 'N/A' }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if of.fecha_planificada %}
+                                                    {{ of.fecha_planificada.strftime('%d/%m/%Y') }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if of.responsable_user %}
+                                                    {{ of.responsable_user.nombre_completo }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i data-feather="eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i data-feather="tool" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                                <p class="text-muted">No hay órdenes de fabricación registradas para este proyecto.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Despachos Tab -->
+                        <div class="tab-pane fade" id="despachos" role="tabpanel">
+                            {% if proyecto.despachos %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Número</th>
+                                            <th>Estado</th>
+                                            <th>Fecha Programada</th>
+                                            <th>Destino</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for despacho in proyecto.despachos %}
+                                        <tr>
+                                            <td>
+                                                <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" class="text-decoration-none fw-medium">
+                                                    {{ despacho.numero_despacho }}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ 'warning' if despacho.estado and despacho.estado.value == 'programado' else 'info' if despacho.estado and despacho.estado.value == 'en_transporte' else 'success' if despacho.estado and despacho.estado.value == 'entregado' else 'danger' }}">
+                                                    {{ despacho.estado.value|title if despacho.estado else 'N/A' }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if despacho.fecha_programada %}
+                                                    {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ despacho.destino[:50] if despacho.destino else '' }}{% if despacho.destino and despacho.destino|length > 50 %}...{% endif %}</td>
+                                            <td>
+                                                <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i data-feather="eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i data-feather="truck" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                                <p class="text-muted">No hay despachos registrados para este proyecto.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-4">
         <!-- Project Information -->
         <div class="col-lg-8">
             <div class="card">
@@ -301,212 +508,6 @@
         </div>
     </div>
 
-    <!-- Recent Activity Tabs -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <ul class="nav nav-tabs card-header-tabs" id="activityTab" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="contratos-tab" data-bs-toggle="tab" data-bs-target="#contratos" type="button" role="tab">
-                                <i data-feather="file-text" class="me-1"></i>
-                                Contratos ({{ proyecto.contratos|length }})
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="fabricacion-tab" data-bs-toggle="tab" data-bs-target="#fabricacion" type="button" role="tab">
-                                <i data-feather="tool" class="me-1"></i>
-                                Órdenes de Fabricación ({{ proyecto.ordenes_fabricacion|length }})
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="despachos-tab" data-bs-toggle="tab" data-bs-target="#despachos" type="button" role="tab">
-                                <i data-feather="truck" class="me-1"></i>
-                                Despachos ({{ proyecto.despachos|length }})
-                            </button>
-                        </li>
-                    </ul>
-                </div>
-                <div class="card-body">
-                    <div class="tab-content" id="activityTabContent">
-                        <!-- Contratos Tab -->
-                        <div class="tab-pane fade show active" id="contratos" role="tabpanel">
-                            {% if proyecto.contratos %}
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Número OC</th>
-                                            <th>Estado</th>
-                                            <th>Monto</th>
-                                            <th>Fecha Emisión</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for contrato in proyecto.contratos %}
-                                        <tr>
-                                            <td>
-                                                <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" class="text-decoration-none fw-medium">
-                                                    {{ contrato.numero_oc }}
-                                                </a>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-{{ 'success' if contrato.estado and contrato.estado.value == 'VIGENTE' else 'warning' if contrato.estado and contrato.estado.value == 'BORRADOR' else 'secondary' }}">
-                                                    {{ contrato.estado.value|title if contrato.estado else 'N/A' }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {% if contrato.monto_total %}
-                                                    {{ contrato.moneda }} {{ "{:,.0f}".format(contrato.monto_total) }}
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if contrato.fecha_emision %}
-                                                    {{ contrato.fecha_emision.strftime('%d/%m/%Y') }}
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
-                                                   class="btn btn-sm btn-outline-primary">
-                                                    <i data-feather="eye"></i>
-                                                </a>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                            {% else %}
-                            <div class="text-center py-4">
-                                <i data-feather="file-text" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
-                                <p class="text-muted">No hay contratos registrados para este proyecto.</p>
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Fabricación Tab -->
-                        <div class="tab-pane fade" id="fabricacion" role="tabpanel">
-                            {% if proyecto.ordenes_fabricacion %}
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Código</th>
-                                            <th>Estado</th>
-                                            <th>Fecha Planificada</th>
-                                            <th>Responsable</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for of in proyecto.ordenes_fabricacion %}
-                                        <tr>
-                                            <td>
-                                                <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" class="text-decoration-none fw-medium">
-                                                    {{ of.codigo }}
-                                                </a>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-{{ 'warning' if of.estado and of.estado.value == 'planificada' else 'info' if of.estado and of.estado.value == 'en_produccion' else 'primary' if of.estado and of.estado.value == 'qa' else 'success' }}">
-                                                    {{ of.estado.value|title if of.estado else 'N/A' }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {% if of.fecha_planificada %}
-                                                    {{ of.fecha_planificada.strftime('%d/%m/%Y') }}
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if of.responsable_user %}
-                                                    {{ of.responsable_user.nombre_completo }}
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" 
-                                                   class="btn btn-sm btn-outline-primary">
-                                                    <i data-feather="eye"></i>
-                                                </a>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                            {% else %}
-                            <div class="text-center py-4">
-                                <i data-feather="tool" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
-                                <p class="text-muted">No hay órdenes de fabricación registradas para este proyecto.</p>
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Despachos Tab -->
-                        <div class="tab-pane fade" id="despachos" role="tabpanel">
-                            {% if proyecto.despachos %}
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Número</th>
-                                            <th>Estado</th>
-                                            <th>Fecha Programada</th>
-                                            <th>Destino</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for despacho in proyecto.despachos %}
-                                        <tr>
-                                            <td>
-                                                <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" class="text-decoration-none fw-medium">
-                                                    {{ despacho.numero_despacho }}
-                                                </a>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-{{ 'warning' if despacho.estado and despacho.estado.value == 'programado' else 'info' if despacho.estado and despacho.estado.value == 'en_transporte' else 'success' if despacho.estado and despacho.estado.value == 'entregado' else 'danger' }}">
-                                                    {{ despacho.estado.value|title if despacho.estado else 'N/A' }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {% if despacho.fecha_programada %}
-                                                    {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                            <td>{{ despacho.destino[:50] if despacho.destino else '' }}{% if despacho.destino and despacho.destino|length > 50 %}...{% endif %}</td>
-                                            <td>
-                                                <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" 
-                                                   class="btn btn-sm btn-outline-primary">
-                                                    <i data-feather="eye"></i>
-                                                </a>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                            {% else %}
-                            <div class="text-center py-4">
-                                <i data-feather="truck" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
-                                <p class="text-muted">No hay despachos registrados para este proyecto.</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
