@@ -3,6 +3,8 @@
 
 {% block title %}Órdenes de Fabricación - Sistema de Manufactura{% endblock %}
 
+{% set moment = moment() %}
+
 {% block content %}
 <div class="container">
     <div class="row">
@@ -160,25 +162,37 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if of.fecha_entrega_dinamica %}
-                                    {{ of.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
-                                    {% if of.area_actual %}
-                                    <br><small class="text-muted">
-                                        {% if of.area_actual.tipo.value == 'fabrica' %}
-                                        Fábrica
-                                        {% elif of.area_actual.tipo.value == 'embalaje' %}
-                                        Embalaje
-                                        {% else %}
-                                        Contrato
-                                        {% endif %}
-                                    </small>
+                                {% if of.contrato and of.contrato.fecha_entrega_comprometida %}
+                                    <div class="fw-medium">{{ of.contrato.fecha_entrega_comprometida.strftime('%d/%m/%Y') }}</div>
+                                    <small class="text-muted">Contrato</small>
+                                    {% if of.fecha_entrega_fabrica %}
+                                    <br><small class="text-info">Fábrica: {{ of.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}</small>
                                     {% endif %}
+                                    {% if of.fecha_entrega_embalaje %}
+                                    <br><small class="text-success">Embalaje: {{ of.fecha_entrega_embalaje.strftime('%d/%m/%Y') }}</small>
+                                    {% endif %}
+                                {% elif of.fecha_entrega_dinamica %}
+                                    {{ of.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                                    <br><small class="text-muted">Sin contrato</small>
                                 {% else %}
                                     -
                                 {% endif %}
                             </td>
                             <td>
-                                {% if of.days_remaining_dynamic is not none %}
+                                {% if of.contrato and of.contrato.fecha_entrega_comprometida %}
+                                    {% set contract_days = (of.contrato.fecha_entrega_comprometida - moment().date()).days %}
+                                    {% if contract_days < 0 %}
+                                        <span class="badge bg-danger">{{ contract_days|abs }} días vencido</span>
+                                    {% elif contract_days == 0 %}
+                                        <span class="badge bg-warning">Hoy</span>
+                                    {% elif contract_days <= 7 %}
+                                        <span class="badge bg-warning">{{ contract_days }} días</span>
+                                    {% elif contract_days <= 30 %}
+                                        <span class="badge bg-info">{{ contract_days }} días</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ contract_days }} días</span>
+                                    {% endif %}
+                                {% elif of.days_remaining_dynamic is not none %}
                                     {% if of.days_remaining_dynamic < 0 %}
                                         <span class="badge bg-danger">{{ of.days_remaining_dynamic|abs }} días vencido</span>
                                     {% elif of.days_remaining_dynamic == 0 %}
