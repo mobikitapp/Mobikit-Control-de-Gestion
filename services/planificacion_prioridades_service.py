@@ -62,19 +62,9 @@ class PlanificacionPrioridadesService:
             if incluir_solo_con_fechas:
                 query = query.filter(OrdenFabricacion.fecha_planificada.isnot(None))
             
-            # Ordenar por prioridad y fecha planificada
+            # Ordenar por prioridad numérica (1=mayor prioridad) y fecha planificada
             query = query.order_by(
-                case(
-                    (OrdenFabricacion.prioridad == PrioridadOrden.P1, 1),
-                    (OrdenFabricacion.prioridad == PrioridadOrden.URGENTE, 1),
-                    (OrdenFabricacion.prioridad == PrioridadOrden.P2, 2),
-                    (OrdenFabricacion.prioridad == PrioridadOrden.ALTA, 2),
-                    (OrdenFabricacion.prioridad == PrioridadOrden.P3, 3),
-                    (OrdenFabricacion.prioridad == PrioridadOrden.MEDIA, 3),
-                    (OrdenFabricacion.prioridad == PrioridadOrden.P4, 4),
-                    (OrdenFabricacion.prioridad == PrioridadOrden.BAJA, 4),
-                    else_=5
-                ).asc(),
+                OrdenFabricacion.prioridad_numerica.asc().nullslast(),
                 OrdenFabricacion.fecha_planificada.asc().nullslast(),
                 OrdenFabricacion.created_at.asc()
             )
@@ -165,6 +155,7 @@ class PlanificacionPrioridadesService:
                         'tiempo_total_fabrica': 0,
                         'tiempo_total_embalaje': 0,
                         'prioridad_maxima': PrioridadOrden.P4,  # Menor prioridad por defecto
+                        'prioridad_numerica_min': 99,  # Menor prioridad numérica por defecto
                         'fecha_entrega_mas_proxima': None
                     }
                 
@@ -179,7 +170,10 @@ class PlanificacionPrioridadesService:
                 proyectos_agrupados[proyecto_id]['tiempo_total_embalaje'] += of_info['tiempo_estimado_embalaje']
                 
                 # Actualizar prioridad máxima del proyecto (menor número = mayor prioridad)
-                if PrioridadOrden.get_orden_valor(of_info['of'].prioridad) < PrioridadOrden.get_orden_valor(proyectos_agrupados[proyecto_id]['prioridad_maxima']):
+                prioridad_actual = of_info['of'].prioridad_numerica or 99
+                prioridad_proyecto = proyectos_agrupados[proyecto_id]['prioridad_numerica_min'] or 99
+                if prioridad_actual < prioridad_proyecto:
+                    proyectos_agrupados[proyecto_id]['prioridad_numerica_min'] = prioridad_actual
                     proyectos_agrupados[proyecto_id]['prioridad_maxima'] = of_info['of'].prioridad
                 
                 # Actualizar fecha de entrega más próxima del proyecto
@@ -192,7 +186,9 @@ class PlanificacionPrioridadesService:
                 if not of_info['of'].fecha_planificada:
                     estadisticas['ofs_sin_fecha_planificada'] += 1
                     
-                if of_info['of'].prioridad in [PrioridadOrden.P1, PrioridadOrden.P2, PrioridadOrden.URGENTE, PrioridadOrden.ALTA]:
+                # Contar prioridades altas (P1-P5 o equivalentes legacy)
+                prioridad_num = of_info['of'].prioridad_numerica or 99
+                if prioridad_num <= 5 or of_info['of'].prioridad in [PrioridadOrden.P1, PrioridadOrden.P2, PrioridadOrden.URGENTE, PrioridadOrden.ALTA]:
                     estadisticas['ofs_con_prioridad_alta'] += 1
                     
                 if of_info['of'].cantidad_tableros:
@@ -205,7 +201,7 @@ class PlanificacionPrioridadesService:
             proyectos_ordenados = sorted(
                 proyectos_agrupados.values(),
                 key=lambda p: (
-                    PrioridadOrden.get_orden_valor(p['prioridad_maxima']),
+                    p['prioridad_numerica_min'] or 99,
                     p['fecha_entrega_mas_proxima'] or date(2099, 12, 31)
                 )
             )
@@ -259,16 +255,157 @@ class PlanificacionPrioridadesService:
             print(f"Error actualizando fechas de OF {of_id}: {str(e)}")
             return False
     
-    def actualizar_prioridad_of(self, of_id: int, nueva_prioridad: PrioridadOrden) -> bool:
+    def asignar_prioridades_automaticas(self) -> Dict[str, Any]:
         """
-        Actualiza la prioridad de una Orden de Fabricación
+        Asigna prioridades automáticamente a todas las OFs en producción
+        desde P1 hasta P{cantidad_total} basado en orden actual
+        """
+        try:
+            # Obtener todas las OFs en producción ordenadas por criterio actual
+            ofs_en_produccion = (db.session.query(OrdenFabricacion)
+                               .join(OrdenAreaProgreso, 
+                                     and_(OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                                          OrdenAreaProgreso.es_actual == True))
+                               .join(Area, OrdenAreaProgreso.area_id == Area.id)
+                               .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
+                               .filter(
+                                   or_(
+                                       and_(Area.tipo == 'PENDIENTES_FABRICACION',
+                                            AreaEstado.codigo.in_(['pendiente_aprobacion_diseño', 'aprobado'])),
+                                       and_(Area.tipo == 'FABRICA',
+                                            AreaEstado.codigo.in_(['enviado_a_fabricacion']))
+                                   )
+                               )
+                               .order_by(
+                                   OrdenFabricacion.prioridad_numerica.asc().nullslast(),
+                                   OrdenFabricacion.fecha_planificada.asc().nullslast(),
+                                   OrdenFabricacion.created_at.asc()
+                               )
+                               .all())
+            
+            # Asignar prioridades de P1 a P{total}
+            total_actualizadas = 0
+            for i, of in enumerate(ofs_en_produccion, 1):
+                if of.prioridad_numerica != i:
+                    of.prioridad_numerica = i
+                    total_actualizadas += 1
+            
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'total_ofs': len(ofs_en_produccion),
+                'total_actualizadas': total_actualizadas,
+                'rango_prioridades': f"P1 - P{len(ofs_en_produccion)}"
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': str(e)}
+
+    def actualizar_prioridades_al_pasar_bodega(self, of_id: int) -> Dict[str, Any]:
+        """
+        Actualiza las prioridades cuando una OF pasa a bodega
+        P2→P1, P3→P2, P4→P3, etc.
+        """
+        try:
+            # Obtener la OF que pasó a bodega
+            of_completada = db.session.query(OrdenFabricacion).filter_by(id=of_id).first()
+            if not of_completada or not of_completada.prioridad_numerica:
+                return {'success': False, 'message': 'OF no encontrada o sin prioridad'}
+            
+            prioridad_completada = of_completada.prioridad_numerica
+            
+            # Obtener todas las OFs con prioridad mayor (números más altos)
+            ofs_a_actualizar = (db.session.query(OrdenFabricacion)
+                              .join(OrdenAreaProgreso, 
+                                    and_(OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                                         OrdenAreaProgreso.es_actual == True))
+                              .join(Area, OrdenAreaProgreso.area_id == Area.id)
+                              .filter(
+                                  and_(
+                                      Area.tipo.in_(['PENDIENTES_FABRICACION', 'FABRICA']),
+                                      OrdenFabricacion.prioridad_numerica > prioridad_completada
+                                  )
+                              )
+                              .all())
+            
+            # Reducir en 1 la prioridad de cada OF (mejor prioridad = número menor)
+            total_actualizadas = 0
+            for of in ofs_a_actualizar:
+                of.prioridad_numerica -= 1
+                total_actualizadas += 1
+            
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'of_completada': of_completada.codigo,
+                'total_actualizadas': total_actualizadas
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': str(e)}
+
+    def get_rango_prioridades_disponible(self) -> Dict[str, Any]:
+        """
+        Obtiene el rango de prioridades disponible basado en la cantidad actual de OFs
+        """
+        try:
+            from models import Area, AreaEstado
+            
+            total_ofs = (db.session.query(OrdenFabricacion)
+                        .join(OrdenAreaProgreso, 
+                              and_(OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                                   OrdenAreaProgreso.es_actual == True))
+                        .join(Area, OrdenAreaProgreso.area_id == Area.id)
+                        .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
+                        .filter(
+                            or_(
+                                and_(Area.tipo == 'PENDIENTES_FABRICACION',
+                                     AreaEstado.codigo.in_(['pendiente_aprobacion_diseño', 'aprobado'])),
+                                and_(Area.tipo == 'FABRICA',
+                                     AreaEstado.codigo.in_(['enviado_a_fabricacion']))
+                            )
+                        )
+                        .count())
+            
+            max_prioridad = max(total_ofs, 1)  # Mínimo P1
+            
+            return {
+                'success': True,
+                'total_ofs': total_ofs,
+                'rango_min': 1,
+                'rango_max': max_prioridad,
+                'opciones_prioridad': [f"P{i}" for i in range(1, max_prioridad + 1)]
+            }
+            
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
+
+    def actualizar_prioridad_of(self, of_id: int, nueva_prioridad_numerica: int) -> bool:
+        """
+        Actualiza la prioridad numérica de una Orden de Fabricación
         """
         try:
             of = db.session.get(OrdenFabricacion, of_id)
             if not of:
                 return False
             
-            of.prioridad = nueva_prioridad
+            of.prioridad_numerica = nueva_prioridad_numerica
+            # Mantener compatibilidad con enum legacy
+            if nueva_prioridad_numerica == 1:
+                of.prioridad = PrioridadOrden.P1
+            elif nueva_prioridad_numerica == 2:
+                of.prioridad = PrioridadOrden.P2
+            elif nueva_prioridad_numerica == 3:
+                of.prioridad = PrioridadOrden.P3
+            elif nueva_prioridad_numerica == 4:
+                of.prioridad = PrioridadOrden.P4
+            else:
+                of.prioridad = PrioridadOrden.MEDIA
+            
             db.session.commit()
             return True
             

@@ -70,17 +70,149 @@
         </div>
     </div>
 
-    <!-- Matriz de Planificación -->
+    <!-- Gantt de Proyectos por Semanas -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-gantt text-info"></i>
+                        Gantt de Proyectos - Vista Semanal
+                    </h6>
+                    <div>
+                        <button class="btn btn-sm btn-success" onclick="asignarPrioridadesAutomaticas()">
+                            <i class="fas fa-magic"></i> Asignar P1-P{N} Automático
+                        </button>
+                        <button class="btn btn-sm btn-primary ms-2" onclick="location.reload()">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 25%">Proyecto</th>
+                                    <th style="width: 8%">Cliente</th>
+                                    <th style="width: 6%">Prioridad</th>
+                                    <th style="width: 6%">OFs</th>
+                                    <th style="width: 55%">Cronograma Semanal (Próximas 12 Semanas)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for proyecto in proyectos %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ proyecto.proyecto.nombre }}</strong>
+                                            {% if proyecto.fecha_entrega_mas_proxima %}
+                                            <br><small class="text-danger">
+                                                <i class="fas fa-clock"></i> 
+                                                Entrega: {{ proyecto.fecha_entrega_mas_proxima.strftime('%d/%m/%Y') }}
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small>{{ proyecto.cliente.nombre[:20] }}{% if proyecto.cliente.nombre|length > 20 %}...{% endif %}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if proyecto.prioridad_numerica_min <= 3 %}bg-danger
+                                            {% elif proyecto.prioridad_numerica_min <= 7 %}bg-warning
+                                            {% elif proyecto.prioridad_numerica_min <= 15 %}bg-info
+                                            {% else %}bg-success{% endif %}">
+                                            P{{ proyecto.prioridad_numerica_min or 99 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ proyecto.ofs|length }}</span>
+                                    </td>
+                                    <td>
+                                        <!-- Cronograma visual por semanas -->
+                                        <div class="gantt-timeline" style="position: relative; height: 30px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+                                            {% set hoy = momento_actual().date() %}
+                                            {% set semana_inicio = hoy - timedelta(days=hoy.weekday()) %}
+                                            {% set duracion_total = 84 %} <!-- 12 semanas en días -->
+                                            
+                                            {% for of_info in proyecto.ofs %}
+                                                {% if of_info.of.fecha_planificada and of_info.fecha_estimada_embalaje %}
+                                                    {% set dias_desde_inicio = (of_info.of.fecha_planificada - semana_inicio).days %}
+                                                    {% set duracion_of = (of_info.fecha_estimada_embalaje - of_info.of.fecha_planificada).days %}
+                                                    
+                                                    {% if dias_desde_inicio >= 0 and dias_desde_inicio < duracion_total %}
+                                                        {% set left_percent = (dias_desde_inicio / duracion_total) * 100 %}
+                                                        {% set width_percent = (duracion_of / duracion_total) * 100 %}
+                                                        {% if width_percent > 0 %}
+                                                            <div class="gantt-bar" 
+                                                                 style="position: absolute; 
+                                                                        left: {{ left_percent }}%; 
+                                                                        width: {{ width_percent }}%; 
+                                                                        height: 20px; 
+                                                                        background-color: 
+                                                                        {% if of_info.of.prioridad_numerica <= 3 %}#dc3545
+                                                                        {% elif of_info.of.prioridad_numerica <= 7 %}#ffc107
+                                                                        {% elif of_info.of.prioridad_numerica <= 15 %}#0dcaf0
+                                                                        {% else %}#198754{% endif %};
+                                                                        top: 5px; 
+                                                                        border-radius: 2px; 
+                                                                        opacity: 0.8;
+                                                                        border: 1px solid #fff;"
+                                                                 title="{{ of_info.of.codigo }} - P{{ of_info.of.prioridad_numerica }}">
+                                                                <small style="color: white; font-size: 10px; padding: 2px;">
+                                                                    {{ of_info.of.codigo[:6] }}
+                                                                </small>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            
+                                            <!-- Marcadores de semana -->
+                                            {% for semana in range(12) %}
+                                                {% set left_semana = (semana * 7 / duracion_total) * 100 %}
+                                                <div style="position: absolute; 
+                                                           left: {{ left_semana }}%; 
+                                                           top: 0; 
+                                                           height: 100%; 
+                                                           width: 1px; 
+                                                           background-color: #ccc;
+                                                           opacity: 0.5;">
+                                                </div>
+                                                {% if semana % 2 == 0 %}
+                                                <small style="position: absolute; 
+                                                             left: {{ left_semana + 1 }}%; 
+                                                             top: -18px; 
+                                                             font-size: 9px; 
+                                                             color: #666;">
+                                                    Sem {{ semana + 1 }}
+                                                </small>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Matriz Detallada de OFs -->
     <div class="row">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">Matriz de Planificación y Prioridades</h6>
+                    <h6 class="mb-0">
+                        <i class="fas fa-list-ul text-secondary"></i>
+                        Matriz Detallada de Órdenes de Fabricación
+                    </h6>
                     <div>
                         <small class="text-muted">Actualizado: {{ fecha_actualizacion.strftime('%d/%m/%Y %H:%M') }}</small>
-                        <button class="btn btn-sm btn-primary ms-2" onclick="location.reload()">
-                            <i class="fas fa-sync-alt"></i> Actualizar
-                        </button>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -154,15 +286,8 @@
                                     <td>
                                         <select class="form-select form-select-sm prioridad-select" 
                                                 data-of-id="{{ of_info.of.id }}" 
-                                                data-original="{{ of_info.of.prioridad.value }}">
-                                            <option value="P1" {% if of_info.of.prioridad.value == 'P1' %}selected{% endif %}>P1</option>
-                                            <option value="P2" {% if of_info.of.prioridad.value == 'P2' %}selected{% endif %}>P2</option>
-                                            <option value="P3" {% if of_info.of.prioridad.value == 'P3' %}selected{% endif %}>P3</option>
-                                            <option value="P4" {% if of_info.of.prioridad.value == 'P4' %}selected{% endif %}>P4</option>
-                                            <option value="urgente" {% if of_info.of.prioridad.value == 'urgente' %}selected{% endif %}>Urgente</option>
-                                            <option value="alta" {% if of_info.of.prioridad.value == 'alta' %}selected{% endif %}>Alta</option>
-                                            <option value="media" {% if of_info.of.prioridad.value == 'media' %}selected{% endif %}>Media</option>
-                                            <option value="baja" {% if of_info.of.prioridad.value == 'baja' %}selected{% endif %}>Baja</option>
+                                                data-original="{{ of_info.of.prioridad_numerica or 3 }}">
+                                            <!-- Opciones dinámicas serán cargadas por JavaScript -->
                                         </select>
                                     </td>
                                     <td>
@@ -311,32 +436,112 @@
 
 <!-- Scripts -->
 <script>
-// Actualizar prioridad
-document.querySelectorAll('.prioridad-select').forEach(select => {
-    select.addEventListener('change', function() {
-        const ofId = this.dataset.ofId;
-        const nuevaPrioridad = this.value;
-        const original = this.dataset.original;
-        
-        if (nuevaPrioridad !== original) {
-            actualizarPrioridad(ofId, nuevaPrioridad, this);
-        }
-    });
+// Cargar opciones de prioridad dinámicamente al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    cargarOpcionesPrioridad();
 });
 
-// Actualizar fechas
-document.querySelectorAll('.fecha-input').forEach(input => {
-    input.addEventListener('change', function() {
-        const ofId = this.dataset.ofId;
-        const field = this.dataset.field;
-        const nuevaFecha = this.value;
-        const original = this.dataset.original;
-        
-        if (nuevaFecha !== original) {
-            actualizarFecha(ofId, field, nuevaFecha, this);
+function cargarOpcionesPrioridad() {
+    fetch('/planificacion-operacional/api/rango-prioridades')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Actualizar opciones en todos los selects de prioridad
+            document.querySelectorAll('.prioridad-select').forEach(select => {
+                const valorActual = parseInt(select.dataset.original);
+                select.innerHTML = '';
+                
+                // Agregar opciones P1-P{total}
+                for (let i = 1; i <= data.rango_max; i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = `P${i}`;
+                    if (i === valorActual) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                }
+            });
+            
+            // Actualizar botón de asignación automática
+            const btnAutoAsignar = document.querySelector('button[onclick="asignarPrioridadesAutomaticas()"]');
+            if (btnAutoAsignar) {
+                btnAutoAsignar.innerHTML = `<i class="fas fa-magic"></i> Asignar P1-P${data.rango_max} Automático`;
+            }
+            
+            // Agregar event listeners después de cargar opciones
+            setupEventListeners();
         }
+    })
+    .catch(error => {
+        console.error('Error cargando opciones de prioridad:', error);
     });
-});
+}
+
+function setupEventListeners() {
+    // Actualizar prioridad
+    document.querySelectorAll('.prioridad-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const ofId = this.dataset.ofId;
+            const nuevaPrioridad = parseInt(this.value);
+            const original = parseInt(this.dataset.original);
+            
+            if (nuevaPrioridad !== original) {
+                actualizarPrioridad(ofId, nuevaPrioridad, this);
+            }
+        });
+    });
+
+    // Actualizar fechas
+    document.querySelectorAll('.fecha-input').forEach(input => {
+        input.addEventListener('change', function() {
+            const ofId = this.dataset.ofId;
+            const field = this.dataset.field;
+            const nuevaFecha = this.value;
+            const original = this.dataset.original;
+            
+            if (nuevaFecha !== original) {
+                actualizarFecha(ofId, field, nuevaFecha, this);
+            }
+        });
+    });
+}
+
+function asignarPrioridadesAutomaticas() {
+    if (!confirm('¿Estás seguro de que deseas reorganizar automáticamente las prioridades de todas las OFs desde P1 hasta P{total}?')) {
+        return;
+    }
+    
+    // Mostrar loading
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Asignando...';
+    btn.disabled = true;
+    
+    fetch('/planificacion-operacional/api/asignar-prioridades-automaticas', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`¡Éxito! Se actualizaron ${data.total_actualizadas} de ${data.total_ofs} OFs. Rango: ${data.rango_prioridades}`);
+            location.reload(); // Recargar para mostrar los cambios
+        } else {
+            alert('Error al asignar prioridades: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error de conexión al asignar prioridades');
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
 
 function actualizarPrioridad(ofId, prioridad, selectElement) {
     const originalValue = selectElement.dataset.original;
