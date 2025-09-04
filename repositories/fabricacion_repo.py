@@ -68,7 +68,12 @@ class FabricacionRepository:
                     joinedload(OrdenFabricacion.proyecto).joinedload(Proyecto.cliente),
                     joinedload(OrdenFabricacion.contrato),
                     joinedload(OrdenFabricacion.responsable_user)
-                ))
+                )
+                .join(OrdenAreaProgreso, and_(
+                    OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                    OrdenAreaProgreso.es_actual == True,
+                    OrdenAreaProgreso.archivado == False
+                )))
 
         # Apply filters
         conditions = []
@@ -83,14 +88,9 @@ class FabricacionRepository:
             conditions.append(OrdenFabricacion.codigo.ilike(f"%{filters.codigo}%"))
 
         if hasattr(filters, 'area_id') and filters.area_id:
-            # Join with OrdenAreaProgreso to filter by area
-            query = query.join(OrdenAreaProgreso)
             conditions.append(OrdenAreaProgreso.area_id == filters.area_id)
 
         if hasattr(filters, 'estado_id') and filters.estado_id:
-            # Join with OrdenAreaProgreso if not already joined
-            if not hasattr(filters, 'area_id') or not filters.area_id:
-                query = query.join(OrdenAreaProgreso)
             conditions.append(OrdenAreaProgreso.estado_id == filters.estado_id)
 
         if filters.responsable:

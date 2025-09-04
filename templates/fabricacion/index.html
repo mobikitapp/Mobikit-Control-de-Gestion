@@ -212,7 +212,7 @@
                                         <i data-feather="edit"></i>
                                     </a>
                                     {% endif %}
-                                    
+
                                     {% if of.area_actual and of.area_actual.tipo.value == 'despacho' and of.estado_actual and of.estado_actual.codigo == 'despachado' %}
                                         {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
                                         <button type="button" class="btn btn-outline-warning btn-sm" 
@@ -394,16 +394,16 @@ async function updateProyectosFilter() {
 function avanzarEstado(ofId, codigo, actionDescription) {
     document.getElementById('codigoOrden').textContent = codigo;
     document.getElementById('avanzarEstadoForm').action = `/fabricacion/${ofId}/avanzar-area`;
-    
+
     // Update modal title and button text with specific action
     const modalTitle = document.querySelector('#avanzarEstadoModal .modal-title');
     const submitButton = document.querySelector('#avanzarEstadoModal .btn-success');
     const modalText = document.querySelector('#avanzarEstadoModal .modal-body p');
-    
+
     modalTitle.textContent = actionDescription || 'Avanzar Estado';
     submitButton.innerHTML = `<i data-feather="arrow-right" class="me-2"></i>${actionDescription || 'Avanzar Estado'}`;
     modalText.innerHTML = `¿Está seguro que desea <strong>${actionDescription?.toLowerCase() || 'avanzar'}</strong> la orden <strong>${codigo}</strong>?`;
-    
+
     // Refresh feather icons
     if (typeof feather !== 'undefined') {
         feather.replace();
@@ -418,7 +418,7 @@ function avanzarEstado(ofId, codigo, actionDescription) {
 function archivarOrden(ofId, codigo) {
     document.getElementById('codigoOrdenArchivar').textContent = codigo;
     document.getElementById('archivarOrdenForm').action = `/fabricacion/${ofId}/archivar`;
-    
+
     // Refresh feather icons
     if (typeof feather !== 'undefined') {
         feather.replace();
@@ -442,6 +442,20 @@ document.addEventListener('DOMContentLoaded', function() {
         option.value = proyectoId;
         option.selected = true;
         proyectoSelect.appendChild(option);
+    }
+
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+
+    // Fix potential null element errors
+    try {
+        // Add any element-specific initialization here with null checks
+        console.log('Fabricación index page initialized');
+    } catch (error) {
+        console.warn('Error in fabricación page initialization:', error);
     }
 });
 </script>

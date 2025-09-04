@@ -490,3 +490,58 @@ class FabricacionService:
         except Exception as e:
             logger.error(f"Error obteniendo OFs disponibles para despacho del contrato {contrato_id}: {str(e)}")
             return []
+
+    def get_archived_orders(self, page: int = 1, per_page: int = 20, 
+                           cliente_id: int = None, proyecto_id: int = None, 
+                           codigo: str = None) -> tuple[List[OrdenFabricacion], int]:
+        """
+        Get archived orders with pagination and filters
+        """
+        try:
+            from models import OrdenFabricacion, OrdenAreaProgreso, Proyecto, Cliente
+            from sqlalchemy import and_, desc
+            from sqlalchemy.orm import joinedload
+
+            # Base query for archived orders
+            query = (db.session.query(OrdenFabricacion)
+                    .join(OrdenAreaProgreso, and_(
+                        OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                        OrdenAreaProgreso.archivado == True,
+                        OrdenAreaProgreso.es_actual == True
+                    ))
+                    .options(
+                        joinedload(OrdenFabricacion.proyecto).joinedload(Proyecto.cliente),
+                        joinedload(OrdenFabricacion.contrato),
+                        joinedload(OrdenFabricacion.area_progresos)
+                    ))
+
+            # Apply filters
+            conditions = []
+
+            if cliente_id:
+                query = query.join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
+                conditions.append(Proyecto.cliente_id == cliente_id)
+
+            if proyecto_id:
+                conditions.append(OrdenFabricacion.proyecto_id == proyecto_id)
+
+            if codigo:
+                conditions.append(OrdenFabricacion.codigo.ilike(f"%{codigo}%"))
+
+            if conditions:
+                query = query.filter(and_(*conditions))
+
+            # Get total count
+            total_count = query.count()
+
+            # Apply pagination and ordering
+            orders = (query.order_by(desc(OrdenFabricacion.updated_at))
+                     .offset((page - 1) * per_page)
+                     .limit(per_page)
+                     .all())
+
+            return orders, total_count
+
+        except Exception as e:
+            logger.error(f"Error getting archived orders: {str(e)}")
+            return [], 0
