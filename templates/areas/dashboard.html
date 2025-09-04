@@ -413,9 +413,9 @@
                                                             {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
                                                             <button type="button" class="btn btn-outline-success btn-sm" 
                                                                     title="Avanzar estado/área" 
-                                                                    onclick="avanzarEstado({{ order.id }}, '{{ order.codigo }}', 'Avanzar')">
+                                                                    onclick="avanzarEstado({{ order.id }}, '{{ order.codigo }}', '{{ order.next_action_description|default("Avanzar") }}')">
                                                                 <i data-feather="arrow-right" class="me-1"></i>
-                                                                <span class="d-none d-md-inline">Avanzar</span>
+                                                                <span class="d-none d-md-inline">{{ order.next_action_description|default("Avanzar") }}</span>
                                                             </button>
                                                             {% endif %}
                                                         {% endif %}

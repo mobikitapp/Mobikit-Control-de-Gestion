@@ -180,18 +180,14 @@ class AreasService:
             if not next_area:
                 raise ValueError("No hay siguiente área en la secuencia")
 
-            # VALIDACIÓN ESPECIAL: Avance desde BODEGA a DESPACHO
+            # VALIDACIÓN ESPECIAL: Avance AUTOMÁTICO desde BODEGA a DESPACHO
+            # Solo aplica cuando la OF está en estado PROGRAMADO_PARA_DESPACHO
+            # Para avances manuales normales, no aplicar esta validación estricta
             if (current_area.tipo == TipoArea.BODEGA and 
-                next_area.tipo == TipoArea.DESPACHO):
+                next_area.tipo == TipoArea.DESPACHO and
+                current_progress.estado.codigo == EstadoBodega.PROGRAMADO_PARA_DESPACHO.value):
 
-                # Verificar que la OF está en estado 'programado_para_despacho'
-                if current_progress.estado.codigo != EstadoBodega.PROGRAMADO_PARA_DESPACHO.value:
-                    raise ValueError(
-                        f"OF {orden_fabricacion_id} debe estar en estado 'programado_para_despacho' "
-                        f"para avanzar a Despacho. Estado actual: {current_progress.estado.nombre}"
-                    )
-
-                # Verificar que la OF tiene un despacho asignado
+                # Para OFs en estado PROGRAMADO_PARA_DESPACHO, verificar que tienen despacho asignado
                 from models import DespachoOrdenFabricacion
                 despacho_asignado = db.session.query(DespachoOrdenFabricacion).filter_by(
                     orden_fabricacion_id=orden_fabricacion_id
@@ -200,12 +196,11 @@ class AreasService:
                 if not despacho_asignado:
                     raise ValueError(
                         f"OF {orden_fabricacion_id} debe estar asignada a un despacho "
-                        f"para avanzar al área de Despacho"
+                        f"para avanzar al área de Despacho desde estado programado"
                     )
 
                 logger.info(
-                    f"Validación Bodega→Despacho exitosa para OF {orden_fabricacion_id}: "
-                    f"Estado '{current_progress.estado.codigo}', "
+                    f"Validación Bodega→Despacho (programado) exitosa para OF {orden_fabricacion_id}: "
                     f"Despacho {despacho_asignado.despacho_id}"
                 )
 
@@ -396,7 +391,8 @@ class AreasService:
                                 'fecha_entrega_embalaje': o.orden_fabricacion.fecha_entrega_embalaje,
                                 'fecha_ingreso_area': o.fecha_ingreso_area,
                                 'fecha_cambio_estado': o.fecha_cambio_estado,
-                                'tiempo_estimado_horas': float(o.tiempo_estimado_horas) if o.tiempo_estimado_horas else None
+                                'tiempo_estimado_horas': float(o.tiempo_estimado_horas) if o.tiempo_estimado_horas else None,
+                                'next_action_description': self.get_next_action_description(o.orden_fabricacion.id)
                             }
                             for o in orders_in_state
                         ]
