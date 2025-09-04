@@ -7,7 +7,7 @@ from app import db
 from models import (
     OrdenFabricacion, Proyecto, Cliente, User, OrdenAreaProgreso, 
     Area, AreaEstado, TipoArea, EstadoPendientesFabricacion, EstadoFabrica,
-    PrioridadOrden
+    PrioridadOrden, Contrato, PlanEntrega, HitoEntrega, EstadoHitoEntrega
 )
 from services.planificacion_operacional_service import PlanificacionOperacionalService
 
@@ -17,6 +17,63 @@ class PlanificacionPrioridadesService:
 
     def __init__(self):
         self.planificacion_service = PlanificacionOperacionalService()
+
+    def get_hitos_entrega_proyecto(self, proyecto_id: int) -> Dict[str, Any]:
+        """
+        Obtiene todos los hitos de entrega de un proyecto a través de sus contratos
+        """
+        try:
+            # Obtener contratos del proyecto con sus planes de entrega y hitos
+            contratos = (db.session.query(Contrato)
+                        .filter(Contrato.proyecto_id == proyecto_id)
+                        .join(PlanEntrega, Contrato.id == PlanEntrega.contrato_id, isouter=True)
+                        .join(HitoEntrega, PlanEntrega.id == HitoEntrega.plan_entrega_id, isouter=True)
+                        .all())
+
+            hitos_pendientes = []
+            hitos_todos = []
+            hoy = date.today()
+
+            # Obtener todos los hitos del proyecto
+            for contrato in contratos:
+                if contrato.plan_entrega and contrato.plan_entrega.hitos:
+                    for hito in contrato.plan_entrega.hitos:
+                        hito_data = {
+                            'id': hito.id,
+                            'titulo': hito.titulo,
+                            'fecha_programada': hito.fecha_programada,
+                            'estado': hito.estado,
+                            'contrato': contrato,
+                            'dias_restantes': (hito.fecha_programada - hoy).days if hito.fecha_programada >= hoy else 0
+                        }
+                        
+                        hitos_todos.append(hito_data)
+                        
+                        # Solo agregar hitos pendientes futuros o de hoy
+                        if hito.estado == EstadoHitoEntrega.PENDIENTE and hito.fecha_programada >= hoy:
+                            hitos_pendientes.append(hito_data)
+
+            # Ordenar hitos pendientes por fecha
+            hitos_pendientes.sort(key=lambda x: x['fecha_programada'])
+            
+            # Encontrar próximo hito
+            proximo_hito = hitos_pendientes[0] if hitos_pendientes else None
+
+            return {
+                'hitos_todos': sorted(hitos_todos, key=lambda x: x['fecha_programada']),
+                'hitos_pendientes': hitos_pendientes,
+                'proximo_hito': proximo_hito,
+                'dias_proximo_hito': proximo_hito['dias_restantes'] if proximo_hito else None
+            }
+
+        except Exception as e:
+            print(f"Error obteniendo hitos de entrega del proyecto {proyecto_id}: {str(e)}")
+            return {
+                'hitos_todos': [],
+                'hitos_pendientes': [],
+                'proximo_hito': None,
+                'dias_proximo_hito': None
+            }
 
     def get_ofs_en_produccion(self, incluir_solo_con_fechas: bool = False) -> List[Dict[str, Any]]:
         """
@@ -146,6 +203,9 @@ class PlanificacionPrioridadesService:
 
                 # Inicializar proyecto si no existe
                 if proyecto_id not in proyectos_agrupados:
+                    # Obtener hitos de entrega del proyecto
+                    hitos_info = self.get_hitos_entrega_proyecto(proyecto_id)
+                    
                     proyectos_agrupados[proyecto_id] = {
                         'proyecto': of_info['proyecto'],
                         'cliente': of_info['cliente'],
@@ -155,7 +215,11 @@ class PlanificacionPrioridadesService:
                         'tiempo_total_embalaje': 0,
                         'prioridad_maxima': PrioridadOrden.P4,  # Menor prioridad por defecto
                         'prioridad_numerica_min': 99,  # Menor prioridad numérica por defecto
-                        'fecha_entrega_mas_proxima': None
+                        'fecha_entrega_mas_proxima': None,
+                        'hitos_entrega': hitos_info['hitos_todos'],
+                        'hitos_pendientes': hitos_info['hitos_pendientes'],
+                        'proximo_hito': hitos_info['proximo_hito'],
+                        'dias_proximo_hito': hitos_info['dias_proximo_hito']
                     }
 
                 # Agregar OF al proyecto
@@ -207,13 +271,34 @@ class PlanificacionPrioridadesService:
 
             # Crear datos para el gantt de proyectos (simplificado usando los mismos datos)
             proyectos_gantt = []
+            hoy = date.today()
+            fecha_fin_gantt = hoy + timedelta(weeks=6)
+            
             for proyecto_data in proyectos_ordenados:
+                # Filtrar hitos que caen dentro del rango de 6 semanas del gantt
+                hitos_en_gantt = []
+                for hito in proyecto_data['hitos_entrega']:
+                    if hoy <= hito['fecha_programada'] <= fecha_fin_gantt:
+                        # Calcular posición porcentual dentro del rango de 6 semanas
+                        dias_desde_inicio = (hito['fecha_programada'] - hoy).days
+                        posicion_porcentual = (dias_desde_inicio / (6 * 7)) * 100  # 6 semanas = 42 días
+                        
+                        hitos_en_gantt.append({
+                            'titulo': hito['titulo'],
+                            'fecha_programada': hito['fecha_programada'],
+                            'dias_restantes': hito['dias_restantes'],
+                            'posicion_porcentual': max(0, min(100, posicion_porcentual)),  # Clamp 0-100%
+                            'contrato': hito['contrato']
+                        })
+                
                 gantt_proyecto = {
                     'nombre': proyecto_data['proyecto'].nombre,
                     'cliente_nombre': proyecto_data['cliente'].nombre,
                     'ofs_activas': len(proyecto_data['ofs']),
                     'total_tableros': proyecto_data['total_tableros'],
-                    'ofs': proyecto_data['ofs']
+                    'ofs': proyecto_data['ofs'],
+                    'hitos_entrega': hitos_en_gantt,
+                    'dias_proximo_hito': proyecto_data['dias_proximo_hito']
                 }
                 proyectos_gantt.append(gantt_proyecto)
 

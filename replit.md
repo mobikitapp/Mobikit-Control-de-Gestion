@@ -13,6 +13,13 @@ A comprehensive management system for manufacturing companies that centralizes a
 - Implementadas funciones JavaScript que ocultan automáticamente secciones irrelevantes al imprimir
 - Corregida ruta del blueprint de planificación operacional a `/prioridades`
 - Eliminado código duplicado que causaba errores de startup del servidor
+- **NUEVOS HITOS DE ENTREGA**: Integración completa de hitos de contratos en Gantt de proyectos
+- Líneas verticales amarillas que muestran fechas de hitos de entrega en cronograma de 6 semanas
+- Nueva columna "Días Restantes" que muestra días hasta próximo hito de entrega por proyecto
+- Método `get_hitos_entrega_proyecto()` para obtener hitos de entrega de contratos asociados
+- Cálculo automático de posicionamiento de hitos dentro del rango temporal de 6 semanas
+- Tooltips informativos en líneas de hitos con título, fecha y días restantes
+- Leyenda actualizada incluyendo explicación de líneas amarillas de hitos
 
 **[2025-09-03] Sistema de Gestión de Permisos Dinámicos**
 - Implementado sistema completo de gestión de permisos por rol y módulo 
