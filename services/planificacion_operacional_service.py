@@ -11,6 +11,7 @@ from models import (
     Proyecto, Cliente, User, OrdenFabricacion,
     EstadoComercial, RolUsuario
 )
+from services.configuraciones_service import ConfiguracionesService
 
 
 class PlanificacionOperacionalService:
@@ -36,21 +37,32 @@ class PlanificacionOperacionalService:
     AREA_TABLERO_ESTANDAR = 2.98  # 1.22m x 2.44m = 2.98 m²
     FACTOR_DESPERDICIO = 1.15  # 15% waste factor
     
-    # Time factors for production planning (days per board)
-    FACTOR_TIEMPO_FABRICA = 0.025  # 0.025 días por tablero en fábrica
-    FACTOR_TIEMPO_EMBALAJE = 0.01  # 0.01 días por tablero en embalaje
+    # Time factors - now loaded from configuration
+    def _get_factores_tiempo(self):
+        """Get time factors from configuration service"""
+        try:
+            config_service = ConfiguracionesService()
+            return config_service.get_factores_tiempo()
+        except Exception as e:
+            # Fallback to default values if configuration service fails
+            return {
+                'factor_tiempo_fabrica': 0.025,  # 0.025 días por tablero en fábrica
+                'factor_tiempo_embalaje': 0.01   # 0.01 días por tablero en embalaje
+            }
 
     def calcular_tiempo_estimado_fabrica(self, cantidad_tableros: int) -> float:
         """Calcula tiempo estimado en fábrica basado en cantidad de tableros"""
         if not cantidad_tableros or cantidad_tableros <= 0:
             return 0.0
-        return cantidad_tableros * self.FACTOR_TIEMPO_FABRICA
+        factores = self._get_factores_tiempo()
+        return cantidad_tableros * factores['factor_tiempo_fabrica']
     
     def calcular_tiempo_estimado_embalaje(self, cantidad_tableros: int) -> float:
         """Calcula tiempo estimado en embalaje basado en cantidad de tableros"""
         if not cantidad_tableros or cantidad_tableros <= 0:
             return 0.0
-        return cantidad_tableros * self.FACTOR_TIEMPO_EMBALAJE
+        factores = self._get_factores_tiempo()
+        return cantidad_tableros * factores['factor_tiempo_embalaje']
 
     def get_matriz_operacional(self, año, mes_inicio=1, mes_fin=12, cliente_id=None, tipo_material='melamina'):
         """Get operational planning matrix with board calculations"""

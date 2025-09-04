@@ -260,6 +260,47 @@ def configuracion_sistema():
         return redirect(url_for('configuraciones.dashboard'))
 
 
+@configuraciones_bp.route('/actualizar-factores', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN])
+def actualizar_factores():
+    """Actualizar factores de tiempo de configuración"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No se recibieron datos'}), 400
+            
+        factor_fabrica = data.get('factor_tiempo_fabrica')
+        factor_embalaje = data.get('factor_tiempo_embalaje')
+        
+        # Validate inputs
+        if factor_fabrica is None or factor_embalaje is None:
+            return jsonify({'error': 'Faltan datos requeridos'}), 400
+            
+        if not (0 <= factor_fabrica <= 1) or not (0 <= factor_embalaje <= 1):
+            return jsonify({'error': 'Los factores deben estar entre 0 y 1'}), 400
+        
+        service = ConfiguracionesService()
+        success = service.actualizar_factores_tiempo(
+            factor_fabrica=factor_fabrica,
+            factor_embalaje=factor_embalaje,
+            usuario_id=current_user.id
+        )
+        
+        if success:
+            return jsonify({
+                'message': 'Factores de tiempo actualizados correctamente',
+                'factor_tiempo_fabrica': factor_fabrica,
+                'factor_tiempo_embalaje': factor_embalaje
+            })
+        else:
+            return jsonify({'error': 'Error interno al actualizar factores'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'Error al actualizar factores: {str(e)}'}), 500
+
+
 # Routes for commission configuration
 @configuraciones_bp.route('/comisiones')
 @login_required
