@@ -207,11 +207,14 @@ class PlanificacionOperacionalService:
                 'descripcion': data['descripcion']
             }
         
+        # Get time factors from configuration
+        factores_tiempo = self._get_factores_tiempo()
+        
         factores['configuracion'] = {
             'area_tablero_estandar': self.AREA_TABLERO_ESTANDAR,
             'factor_desperdicio': self.FACTOR_DESPERDICIO,
-            'factor_tiempo_fabrica': self.FACTOR_TIEMPO_FABRICA,
-            'factor_tiempo_embalaje': self.FACTOR_TIEMPO_EMBALAJE
+            'factor_tiempo_fabrica': factores_tiempo['factor_tiempo_fabrica'],
+            'factor_tiempo_embalaje': factores_tiempo['factor_tiempo_embalaje']
         }
         
         return factores
