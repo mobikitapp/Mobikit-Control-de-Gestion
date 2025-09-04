@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 from app import db
 from models import (
     OrdenFabricacion, Proyecto, Cliente, User, OrdenAreaProgreso, 
-    TipoArea, EstadoPendientesFabricacion, EstadoFabrica,
+    Area, AreaEstado, TipoArea, EstadoPendientesFabricacion, EstadoFabrica,
     PrioridadOrden
 )
 from services.planificacion_operacional_service import PlanificacionOperacionalService
@@ -14,10 +14,10 @@ from services.planificacion_operacional_service import PlanificacionOperacionalS
 
 class PlanificacionPrioridadesService:
     """Servicio para la planificación y gestión de prioridades de producción"""
-    
+
     def __init__(self):
         self.planificacion_service = PlanificacionOperacionalService()
-    
+
     def get_ofs_en_produccion(self, incluir_solo_con_fechas: bool = False) -> List[Dict[str, Any]]:
         """
         Obtiene todas las OFs que están en estados de 'Pendiente de Fabricación' o 'Enviado a Fabricar'
@@ -32,7 +32,7 @@ class PlanificacionPrioridadesService:
             estados_fabrica = [
                 'enviado_a_fabricacion'
             ]
-            
+
             # Query principal para obtener OFs con su progreso actual
             query = (db.session.query(OrdenFabricacion, OrdenAreaProgreso, Proyecto, Cliente)
                     .join(OrdenAreaProgreso, 
@@ -41,12 +41,11 @@ class PlanificacionPrioridadesService:
                     .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
                     .join(Cliente, Proyecto.cliente_id == Cliente.id)
                     )
-            
+
             # Filtrar por áreas y estados específicos usando joins explícitos
-            from models import Area, AreaEstado
             query = query.join(Area, OrdenAreaProgreso.area_id == Area.id) \
                          .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
-            
+
             query = query.filter(
                 or_(
                     # Pendientes de Fabricación
@@ -57,20 +56,20 @@ class PlanificacionPrioridadesService:
                          AreaEstado.codigo.in_(estados_fabrica))
                 )
             )
-            
+
             # Si solo queremos OFs con fechas planificadas
             if incluir_solo_con_fechas:
                 query = query.filter(OrdenFabricacion.fecha_planificada.isnot(None))
-            
+
             # Ordenar por prioridad numérica (1=mayor prioridad) y fecha planificada
             query = query.order_by(
                 OrdenFabricacion.prioridad_numerica.asc().nullslast(),
                 OrdenFabricacion.fecha_planificada.asc().nullslast(),
                 OrdenFabricacion.created_at.asc()
             )
-            
+
             resultados = query.all()
-            
+
             # Procesar resultados y calcular información adicional
             ofs_procesadas = []
             for of, progreso, proyecto, cliente in resultados:
@@ -81,22 +80,22 @@ class PlanificacionPrioridadesService:
                 tiempo_embalaje = self.planificacion_service.calcular_tiempo_estimado_embalaje(
                     of.cantidad_tableros or 0
                 )
-                
+
                 # Calcular fechas estimadas si hay fecha planificada
                 fecha_estimada_fabricacion = None
                 fecha_estimada_embalaje = None
-                
+
                 if of.fecha_planificada:
                     # Fecha estimada de finalización de fabricación
                     fecha_estimada_fabricacion = of.fecha_planificada + timedelta(days=int(tiempo_fabrica))
                     # Fecha estimada de finalización de embalaje
                     fecha_estimada_embalaje = fecha_estimada_fabricacion + timedelta(days=int(tiempo_embalaje))
-                
+
                 # Calcular días hasta entrega
                 dias_hasta_entrega = None
                 if of.fecha_entrega_embalaje:
                     dias_hasta_entrega = (of.fecha_entrega_embalaje - date.today()).days
-                
+
                 of_data = {
                     'of': of,
                     'progreso_actual': progreso,
@@ -113,15 +112,15 @@ class PlanificacionPrioridadesService:
                         of.fecha_entrega_embalaje
                     ])
                 }
-                
+
                 ofs_procesadas.append(of_data)
-            
+
             return ofs_procesadas
-            
+
         except Exception as e:
             print(f"Error obteniendo OFs en producción: {str(e)}")
             return []
-    
+
     def get_matriz_planificacion_prioridades(self) -> Dict[str, Any]:
         """
         Genera la matriz completa para la vista de planificación y prioridades
@@ -130,7 +129,7 @@ class PlanificacionPrioridadesService:
         try:
             # Obtener todas las OFs en producción
             ofs_data = self.get_ofs_en_produccion()
-            
+
             # Agrupar por proyecto
             proyectos_agrupados = {}
             estadisticas = {
@@ -141,10 +140,10 @@ class PlanificacionPrioridadesService:
                 'tiempo_total_fabrica': 0,
                 'tiempo_total_embalaje': 0
             }
-            
+
             for of_info in ofs_data:
                 proyecto_id = of_info['proyecto'].id
-                
+
                 # Inicializar proyecto si no existe
                 if proyecto_id not in proyectos_agrupados:
                     proyectos_agrupados[proyecto_id] = {
@@ -158,45 +157,45 @@ class PlanificacionPrioridadesService:
                         'prioridad_numerica_min': 99,  # Menor prioridad numérica por defecto
                         'fecha_entrega_mas_proxima': None
                     }
-                
+
                 # Agregar OF al proyecto
                 proyectos_agrupados[proyecto_id]['ofs'].append(of_info)
-                
+
                 # Actualizar totales del proyecto
                 if of_info['of'].cantidad_tableros:
                     proyectos_agrupados[proyecto_id]['total_tableros'] += of_info['of'].cantidad_tableros
-                    
+
                 proyectos_agrupados[proyecto_id]['tiempo_total_fabrica'] += of_info['tiempo_estimado_fabrica']
                 proyectos_agrupados[proyecto_id]['tiempo_total_embalaje'] += of_info['tiempo_estimado_embalaje']
-                
+
                 # Actualizar prioridad máxima del proyecto (menor número = mayor prioridad)
                 prioridad_actual = of_info['of'].prioridad_numerica or 99
                 prioridad_proyecto = proyectos_agrupados[proyecto_id]['prioridad_numerica_min'] or 99
                 if prioridad_actual < prioridad_proyecto:
                     proyectos_agrupados[proyecto_id]['prioridad_numerica_min'] = prioridad_actual
                     proyectos_agrupados[proyecto_id]['prioridad_maxima'] = of_info['of'].prioridad
-                
+
                 # Actualizar fecha de entrega más próxima del proyecto
                 if of_info['of'].fecha_entrega_embalaje:
                     if (proyectos_agrupados[proyecto_id]['fecha_entrega_mas_proxima'] is None or 
                         of_info['of'].fecha_entrega_embalaje < proyectos_agrupados[proyecto_id]['fecha_entrega_mas_proxima']):
                         proyectos_agrupados[proyecto_id]['fecha_entrega_mas_proxima'] = of_info['of'].fecha_entrega_embalaje
-                
+
                 # Actualizar estadísticas generales
                 if not of_info['of'].fecha_planificada:
                     estadisticas['ofs_sin_fecha_planificada'] += 1
-                    
+
                 # Contar prioridades altas (P1-P5 o equivalentes legacy)
                 prioridad_num = of_info['of'].prioridad_numerica or 99
                 if prioridad_num <= 5 or of_info['of'].prioridad in [PrioridadOrden.P1, PrioridadOrden.P2, PrioridadOrden.URGENTE, PrioridadOrden.ALTA]:
                     estadisticas['ofs_con_prioridad_alta'] += 1
-                    
+
                 if of_info['of'].cantidad_tableros:
                     estadisticas['total_tableros'] += of_info['of'].cantidad_tableros
-                    
+
                 estadisticas['tiempo_total_fabrica'] += of_info['tiempo_estimado_fabrica']
                 estadisticas['tiempo_total_embalaje'] += of_info['tiempo_estimado_embalaje']
-            
+
             # Ordenar proyectos por prioridad máxima y fecha de entrega
             proyectos_ordenados = sorted(
                 proyectos_agrupados.values(),
@@ -205,17 +204,32 @@ class PlanificacionPrioridadesService:
                     p['fecha_entrega_mas_proxima'] or date(2099, 12, 31)
                 )
             )
-            
+
+            # Crear datos para el gantt de proyectos (simplificado usando los mismos datos)
+            proyectos_gantt = []
+            for proyecto_data in proyectos_ordenados:
+                gantt_proyecto = {
+                    'nombre': proyecto_data['proyecto'].nombre,
+                    'cliente_nombre': proyecto_data['cliente'].nombre,
+                    'ofs_activas': len(proyecto_data['ofs']),
+                    'total_tableros': proyecto_data['total_tableros'],
+                    'ofs': proyecto_data['ofs']
+                }
+                proyectos_gantt.append(gantt_proyecto)
+
             return {
                 'proyectos': proyectos_ordenados,
+                'proyectos_gantt': proyectos_gantt,
                 'estadisticas': estadisticas,
-                'fecha_actualizacion': datetime.now()
+                'fecha_actualizacion': datetime.now(),
+                'timedelta': timedelta  # Para usar en template
             }
-            
+
         except Exception as e:
             print(f"Error generando matriz de planificación: {str(e)}")
             return {
                 'proyectos': [],
+                'proyectos_gantt': [],
                 'estadisticas': {
                     'total_ofs': 0,
                     'ofs_sin_fecha_planificada': 0,
@@ -224,9 +238,10 @@ class PlanificacionPrioridadesService:
                     'tiempo_total_fabrica': 0,
                     'tiempo_total_embalaje': 0
                 },
-                'fecha_actualizacion': datetime.now()
+                'fecha_actualizacion': datetime.now(),
+                'timedelta': timedelta
             }
-    
+
     def actualizar_fechas_of(self, of_id: int, fecha_planificada: Optional[date] = None, 
                             fecha_entrega_fabrica: Optional[date] = None, 
                             fecha_entrega_embalaje: Optional[date] = None) -> bool:
@@ -237,24 +252,24 @@ class PlanificacionPrioridadesService:
             of = db.session.get(OrdenFabricacion, of_id)
             if not of:
                 return False
-            
+
             if fecha_planificada:
                 of.fecha_planificada = fecha_planificada
-                
+
             if fecha_entrega_fabrica:
                 of.fecha_entrega_fabrica = fecha_entrega_fabrica
-                
+
             if fecha_entrega_embalaje:
                 of.fecha_entrega_embalaje = fecha_entrega_embalaje
-            
+
             db.session.commit()
             return True
-            
+
         except Exception as e:
             db.session.rollback()
             print(f"Error actualizando fechas de OF {of_id}: {str(e)}")
             return False
-    
+
     def asignar_prioridades_automaticas(self) -> Dict[str, Any]:
         """
         Asigna prioridades automáticamente a todas las OFs en producción
@@ -282,23 +297,23 @@ class PlanificacionPrioridadesService:
                                    OrdenFabricacion.created_at.asc()
                                )
                                .all())
-            
+
             # Asignar prioridades de P1 a P{total}
             total_actualizadas = 0
             for i, of in enumerate(ofs_en_produccion, 1):
                 if of.prioridad_numerica != i:
                     of.prioridad_numerica = i
                     total_actualizadas += 1
-            
+
             db.session.commit()
-            
+
             return {
                 'success': True,
                 'total_ofs': len(ofs_en_produccion),
                 'total_actualizadas': total_actualizadas,
                 'rango_prioridades': f"P1 - P{len(ofs_en_produccion)}"
             }
-            
+
         except Exception as e:
             db.session.rollback()
             return {'success': False, 'message': str(e)}
@@ -313,9 +328,9 @@ class PlanificacionPrioridadesService:
             of_completada = db.session.query(OrdenFabricacion).filter_by(id=of_id).first()
             if not of_completada or not of_completada.prioridad_numerica:
                 return {'success': False, 'message': 'OF no encontrada o sin prioridad'}
-            
+
             prioridad_completada = of_completada.prioridad_numerica
-            
+
             # Obtener todas las OFs con prioridad mayor (números más altos)
             ofs_a_actualizar = (db.session.query(OrdenFabricacion)
                               .join(OrdenAreaProgreso, 
@@ -329,21 +344,21 @@ class PlanificacionPrioridadesService:
                                   )
                               )
                               .all())
-            
+
             # Reducir en 1 la prioridad de cada OF (mejor prioridad = número menor)
             total_actualizadas = 0
             for of in ofs_a_actualizar:
                 of.prioridad_numerica -= 1
                 total_actualizadas += 1
-            
+
             db.session.commit()
-            
+
             return {
                 'success': True,
                 'of_completada': of_completada.codigo,
                 'total_actualizadas': total_actualizadas
             }
-            
+
         except Exception as e:
             db.session.rollback()
             return {'success': False, 'message': str(e)}
@@ -353,8 +368,6 @@ class PlanificacionPrioridadesService:
         Obtiene el rango de prioridades disponible basado en la cantidad actual de OFs
         """
         try:
-            from models import Area, AreaEstado
-            
             total_ofs = (db.session.query(OrdenFabricacion)
                         .join(OrdenAreaProgreso, 
                               and_(OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
@@ -370,9 +383,9 @@ class PlanificacionPrioridadesService:
                             )
                         )
                         .count())
-            
+
             max_prioridad = max(total_ofs, 1)  # Mínimo P1
-            
+
             return {
                 'success': True,
                 'total_ofs': total_ofs,
@@ -380,7 +393,7 @@ class PlanificacionPrioridadesService:
                 'rango_max': max_prioridad,
                 'opciones_prioridad': [f"P{i}" for i in range(1, max_prioridad + 1)]
             }
-            
+
         except Exception as e:
             return {'success': False, 'message': str(e)}
 
@@ -392,7 +405,7 @@ class PlanificacionPrioridadesService:
             of = db.session.get(OrdenFabricacion, of_id)
             if not of:
                 return False
-            
+
             of.prioridad_numerica = nueva_prioridad_numerica
             # Mantener compatibilidad con enum legacy
             if nueva_prioridad_numerica == 1:
@@ -405,10 +418,10 @@ class PlanificacionPrioridadesService:
                 of.prioridad = PrioridadOrden.P4
             else:
                 of.prioridad = PrioridadOrden.MEDIA
-            
+
             db.session.commit()
             return True
-            
+
         except Exception as e:
             db.session.rollback()
             print(f"Error actualizando prioridad de OF {of_id}: {str(e)}")
