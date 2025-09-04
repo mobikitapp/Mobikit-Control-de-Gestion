@@ -135,6 +135,12 @@
                                     {{ of.proyecto.nombre }}
                                 </a>
                                 <br><small class="text-muted">{{ of.proyecto.cliente.nombre }}</small>
+                                {% if of.glosa %}
+                                <br><small class="text-info"><strong>Glosa:</strong> {{ of.glosa[:40] }}{% if of.glosa|length > 40 %}...{% endif %}</small>
+                                {% endif %}
+                                {% if of.cantidad_tableros %}
+                                <br><small class="text-success"><strong>Tableros:</strong> {{ of.cantidad_tableros }}</small>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if of.area_actual and of.estado_actual %}
