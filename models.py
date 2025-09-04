@@ -515,6 +515,7 @@ class OrdenFabricacion(db.Model):
     glosa = db.Column(db.Text)
     cantidad_tableros = db.Column(db.Integer)
     prioridad = db.Column(db.Enum(PrioridadOrden), default=PrioridadOrden.MEDIA, nullable=False)
+    prioridad_numerica = db.Column(db.Integer, default=3)  # Sistema dinámico P1-P50
     fecha_entrega_fabrica = db.Column(db.Date)
     fecha_entrega_embalaje = db.Column(db.Date)
     fecha_planificada = db.Column(db.Date)

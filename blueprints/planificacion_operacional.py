@@ -139,10 +139,16 @@ def actualizar_prioridad_of():
         of_id = data.get('of_id')
         nueva_prioridad = data.get('prioridad')
         
-        # Convertir string a enum
-        prioridad_enum = PrioridadOrden(nueva_prioridad)
+        # Si viene como string "P5", extraer el número
+        if isinstance(nueva_prioridad, str) and nueva_prioridad.startswith('P'):
+            try:
+                prioridad_numerica = int(nueva_prioridad[1:])
+            except ValueError:
+                return jsonify({'success': False, 'message': f'Formato de prioridad inválido: {nueva_prioridad}'})
+        else:
+            prioridad_numerica = int(nueva_prioridad)
         
-        exito = service.actualizar_prioridad_of(of_id, prioridad_enum)
+        exito = service.actualizar_prioridad_of(of_id, prioridad_numerica)
         
         if exito:
             return jsonify({'success': True, 'message': 'Prioridad actualizada correctamente'})
@@ -152,6 +158,45 @@ def actualizar_prioridad_of():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
 
+
+@planificacion_operacional_bp.route('/api/asignar-prioridades-automaticas', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+def asignar_prioridades_automaticas():
+    """API para asignar prioridades automáticamente P1-P{total}"""
+    try:
+        service = PlanificacionPrioridadesService()
+        resultado = service.asignar_prioridades_automaticas()
+        return jsonify(resultado)
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@planificacion_operacional_bp.route('/api/rango-prioridades', methods=['GET'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+def rango_prioridades():
+    """API para obtener el rango de prioridades disponible"""
+    try:
+        service = PlanificacionPrioridadesService()
+        resultado = service.get_rango_prioridades_disponible()
+        return jsonify(resultado)
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@planificacion_operacional_bp.route('/api/actualizar-prioridades-bodega/<int:of_id>', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+def actualizar_prioridades_bodega(of_id):
+    """API para actualizar prioridades cuando una OF pasa a bodega"""
+    try:
+        service = PlanificacionPrioridadesService()
+        resultado = service.actualizar_prioridades_al_pasar_bodega(of_id)
+        return jsonify(resultado)
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 @planificacion_operacional_bp.route('/configuracion/actualizar', methods=['POST'])
 @login_required
