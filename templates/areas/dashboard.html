@@ -679,10 +679,10 @@ if (!window.areasDashboardInitialized) {
     window.areasDashboardInitialized = true;
 }
 
-// Functions for action buttons (replicated from main fabrication table)
+// Functions for action buttons (specific for areas dashboard)
 function avanzarEstado(ofId, codigo, actionDescription) {
     document.getElementById('codigoOrden').textContent = codigo;
-    document.getElementById('avanzarEstadoForm').action = `/fabricacion/${ofId}/avanzar-area`;
+    document.getElementById('avanzarEstadoForm').action = `/areas/orden/${ofId}/avanzar-area`;
 
     // Update modal title and button text with specific action
     const modalTitle = document.querySelector('#avanzarEstadoModal .modal-title');

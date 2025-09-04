@@ -478,7 +478,7 @@ def avanzar_area_form(orden_id):
         areas_service.advance_to_next_area(orden_id, current_user.id, current_user.id, notas)
 
         flash(f'Orden avanzada a: {areas_service.get_current_area_for_order(orden_id).nombre}', 'success')
-        return redirect(url_for('areas.area_detail', area_id=areas_service.get_current_area_for_order(orden_id).id))
+        return redirect(url_for('areas.dashboard'))
 
     except ValueError as e:
         flash(str(e), 'error')
