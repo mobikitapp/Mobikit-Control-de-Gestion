@@ -70,6 +70,7 @@ class ProyectosRepository:
                 .options(
                     joinedload(Proyecto.cliente),
                     joinedload(Proyecto.responsable_user),
+                    joinedload(Proyecto.vendedor_user),
                     joinedload(Proyecto.contratos)
                 )
                 .outerjoin(contrato_count_subquery, Proyecto.id == contrato_count_subquery.c.proyecto_id))
@@ -83,8 +84,8 @@ class ProyectosRepository:
         if filters.nombre:
             conditions.append(Proyecto.nombre.ilike(f"%{filters.nombre}%"))
 
-        if filters.responsable:
-            conditions.append(Proyecto.responsable == filters.responsable)
+        if filters.vendedor_id:
+            conditions.append(Proyecto.vendedor_id == filters.vendedor_id)
 
         if filters.fecha_inicio_desde:
             conditions.append(Proyecto.fecha_inicio >= filters.fecha_inicio_desde)

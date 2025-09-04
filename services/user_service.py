@@ -79,19 +79,28 @@ class UserService:
             RolUsuario.ADMIN,
             RolUsuario.LOGISTICA
         ]
-from typing import List
-from models import User
-import logging
-
-logger = logging.getLogger(__name__)
-
-class UserService:
-    """Service layer for User operations"""
-
-    def get_active_users(self) -> List[User]:
-        """Get all active users"""
+    
+    @staticmethod
+    def get_users_by_roles(roles: List[str]) -> List[User]:
+        """Get users by multiple roles"""
         try:
-            return User.query.filter_by(activo=True).all()
+            # Convert string roles to RolUsuario enums
+            role_enums = []
+            for role in roles:
+                try:
+                    role_enums.append(RolUsuario(role))
+                except ValueError:
+                    logger.warning(f"Invalid role: {role}")
+                    continue
+            
+            if not role_enums:
+                return []
+            
+            return (db.session.query(User)
+                    .filter(User.rol.in_(role_enums))
+                    .filter_by(activo=True)
+                    .order_by(User.first_name, User.last_name)
+                    .all())
         except Exception as e:
-            logger.error(f"Error getting active users: {str(e)}")
-            raise
+            logger.error(f"Error getting users by roles {roles}: {str(e)}")
+            return []
