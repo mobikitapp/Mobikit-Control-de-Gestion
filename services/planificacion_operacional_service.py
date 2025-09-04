@@ -35,6 +35,22 @@ class PlanificacionOperacionalService:
     # Standard board dimensions (meters)
     AREA_TABLERO_ESTANDAR = 2.98  # 1.22m x 2.44m = 2.98 m²
     FACTOR_DESPERDICIO = 1.15  # 15% waste factor
+    
+    # Time factors for production planning (days per board)
+    FACTOR_TIEMPO_FABRICA = 0.025  # 0.025 días por tablero en fábrica
+    FACTOR_TIEMPO_EMBALAJE = 0.01  # 0.01 días por tablero en embalaje
+
+    def calcular_tiempo_estimado_fabrica(self, cantidad_tableros: int) -> float:
+        """Calcula tiempo estimado en fábrica basado en cantidad de tableros"""
+        if not cantidad_tableros or cantidad_tableros <= 0:
+            return 0.0
+        return cantidad_tableros * self.FACTOR_TIEMPO_FABRICA
+    
+    def calcular_tiempo_estimado_embalaje(self, cantidad_tableros: int) -> float:
+        """Calcula tiempo estimado en embalaje basado en cantidad de tableros"""
+        if not cantidad_tableros or cantidad_tableros <= 0:
+            return 0.0
+        return cantidad_tableros * self.FACTOR_TIEMPO_EMBALAJE
 
     def get_matriz_operacional(self, año, mes_inicio=1, mes_fin=12, cliente_id=None, tipo_material='melamina'):
         """Get operational planning matrix with board calculations"""
@@ -181,7 +197,9 @@ class PlanificacionOperacionalService:
         
         factores['configuracion'] = {
             'area_tablero_estandar': self.AREA_TABLERO_ESTANDAR,
-            'factor_desperdicio': self.FACTOR_DESPERDICIO
+            'factor_desperdicio': self.FACTOR_DESPERDICIO,
+            'factor_tiempo_fabrica': self.FACTOR_TIEMPO_FABRICA,
+            'factor_tiempo_embalaje': self.FACTOR_TIEMPO_EMBALAJE
         }
         
         return factores
