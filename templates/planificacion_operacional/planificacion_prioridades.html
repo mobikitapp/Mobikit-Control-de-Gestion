@@ -85,11 +85,17 @@
                         <i class="fas fa-chart-gantt text-info"></i>
                         Gantt de Proyectos - Vista Semanal (6 Semanas)
                     </h6>
-                    <div>
-                        <button class="btn btn-sm btn-success" onclick="asignarPrioridadesAutomaticas()">
+                    <div class="d-flex align-items-center">
+                        <div class="me-4">
+                            <small><strong>Leyenda:</strong></small>
+                            <span class="badge bg-primary me-1">F</span>Fabricación
+                            <span class="badge bg-secondary me-1 ms-2">E</span>Embalaje  
+                            <span class="text-danger fw-bold ms-2">|</span>Hoy
+                        </div>
+                        <button class="btn btn-sm btn-success me-2" onclick="asignarPrioridadesAutomaticas()">
                             <i class="fas fa-magic"></i> Asignar P1-P{N} Automático
                         </button>
-                        <button class="btn btn-sm btn-primary ms-2" onclick="location.reload()">
+                        <button class="btn btn-sm btn-primary" onclick="location.reload()">
                             <i class="fas fa-sync-alt"></i> Actualizar
                         </button>
                     </div>
@@ -102,18 +108,17 @@
                                     <th style="width: 180px;">Proyecto</th>
                                     <th style="width: 80px;">OFs</th>
                                     <th style="width: 80px;">Tableros</th>
-                                    {% set today = fecha_actualizacion.date() %}
-                                    {% for week in range(6) %}
-                                        {% set week_start = today + timedelta(weeks=week) %}
-                                        {% set week_start = week_start - timedelta(days=week_start.weekday()) %}
-                                        {% set week_end = week_start + timedelta(days=6) %}
-                                        <th style="width: 120px;" class="text-center">
-                                            <div class="week-header">
-                                                <strong>Semana {{ week + 1 }}</strong><br>
-                                                <small>{{ week_start.strftime('%d/%m') }} - {{ week_end.strftime('%d/%m') }}</small>
-                                            </div>
-                                        </th>
-                                    {% endfor %}
+                                    <!-- Cronograma de 6 semanas unificado -->
+                                    <th colspan="1" class="text-center bg-light" style="width: 420px;">
+                                        <strong>Cronograma de Producción (6 Semanas)</strong><br>
+                                        {% set today = fecha_actualizacion.date() %}
+                                        <small class="text-muted">
+                                            {{ today.strftime('%d/%m/%Y') }} - {{ (today + timedelta(weeks=6)).strftime('%d/%m/%Y') }}
+                                        </small><br>
+                                        <div class="mt-1">
+                                            <small><strong>F</strong>=Fabricación | <strong>E</strong>=Embalaje | <span class="text-danger fw-bold">|</span>=Hoy</small>
+                                        </div>
+                                    </th>
                                     <th style="width: 100px;" class="text-center bg-info text-white">
                                         <strong>Total</strong>
                                     </th>
@@ -132,52 +137,108 @@
                                     <td class="text-center">
                                         <span class="badge bg-info">{{ proyecto.total_tableros }}</span>
                                     </td>
-                                    {% for week in range(6) %}
-                                        <td class="text-center align-middle" style="padding: 8px;">
-                                            <div class="gantt-week-cell" style="min-height: 40px; position: relative;">
-                                                {% set week_start = today + timedelta(weeks=week) %}
-                                                {% set week_start = week_start - timedelta(days=week_start.weekday()) %}
-                                                {% set week_end = week_start + timedelta(days=6) %}
-                                                {% set week_ofs = [] %}
-                                                {% for of_info in proyecto.ofs %}
-                                                    {% if of_info.of.fecha_planificada and 
-                                                         of_info.of.fecha_planificada >= week_start and 
-                                                         of_info.of.fecha_planificada <= week_end %}
-                                                        {% set _ = week_ofs.append(of_info) %}
-                                                    {% endif %}
-                                                {% endfor %}
+                                    <!-- Cronograma de 6 semanas con barras continuas -->
+                                    <td colspan="6" style="padding: 4px; position: relative;">
+                                        <div class="gantt-timeline-container" style="position: relative; height: 60px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+                                            <!-- Grid de semanas -->
+                                            {% for week in range(6) %}
+                                                {% set week_percent = (week / 6) * 100 %}
+                                                <div style="position: absolute; left: {{ week_percent }}%; top: 0; height: 100%; width: 1px; background-color: #ddd; opacity: 0.6;"></div>
+                                                {% if week < 5 %}
+                                                    <small style="position: absolute; left: {{ week_percent + 1 }}%; top: -16px; font-size: 8px; color: #666;">Sem {{ week + 1 }}</small>
+                                                {% endif %}
+                                            {% endfor %}
 
-                                                {% if week_ofs %}
-                                                    <div class="week-ofs-container" style="display: flex; flex-wrap: wrap; gap: 2px; justify-content: center;">
-                                                        {% for of_info in week_ofs[:4] %}
-                                                            <div class="gantt-item-week" 
-                                                                 style="padding: 2px 4px; border-radius: 3px; font-size: 8px; color: white; min-width: 25px; text-align: center;
+                                            {% set gantt_start = today %}
+                                            {% set gantt_end = today + timedelta(weeks=6) %}
+                                            {% set gantt_days = 42 %}
+                                            
+                                            <!-- Barras de OFs -->
+                                            {% for of_info in proyecto.ofs %}
+                                                {% if of_info.of.fecha_planificada %}
+                                                    {% set of_start = of_info.of.fecha_planificada %}
+                                                    {% set fabrica_days = of_info.tiempo_estimado_fabrica or 5 %}
+                                                    {% set embalaje_days = of_info.tiempo_estimado_embalaje or 3 %}
+                                                    {% set fabrica_end = of_start + timedelta(days=fabrica_days) %}
+                                                    {% set embalaje_end = fabrica_end + timedelta(days=embalaje_days) %}
+                                                    
+                                                    {% if of_start <= gantt_end and embalaje_end >= gantt_start %}
+                                                        {% set start_days_from_today = (of_start - gantt_start).days %}
+                                                        {% set fabrica_start_percent = max(0, (start_days_from_today / gantt_days) * 100) %}
+                                                        {% set fabrica_width_percent = min(100 - fabrica_start_percent, (fabrica_days / gantt_days) * 100) %}
+                                                        {% set embalaje_start_percent = max(0, ((start_days_from_today + fabrica_days) / gantt_days) * 100) %}
+                                                        {% set embalaje_width_percent = min(100 - embalaje_start_percent, (embalaje_days / gantt_days) * 100) %}
+                                                        
+                                                        {% if fabrica_width_percent > 0 %}
+                                                            <!-- Barra de Fabricación -->
+                                                            <div class="gantt-bar-fabrica" 
+                                                                 style="position: absolute; 
+                                                                        left: {{ fabrica_start_percent }}%; 
+                                                                        width: {{ fabrica_width_percent }}%; 
+                                                                        height: 14px; 
+                                                                        top: 8px;
                                                                         background-color: 
                                                                         {% if of_info.of.prioridad_numerica <= 3 %}#dc3545
-                                                                        {% elif of_info.of.prioridad_numerica <= 7 %}#ffc107; color: #000;
+                                                                        {% elif of_info.of.prioridad_numerica <= 7 %}#fd7e14
                                                                         {% elif of_info.of.prioridad_numerica <= 15 %}#0dcaf0
-                                                                        {% else %}#198754{% endif %};"
-                                                                 title="{{ of_info.of.codigo }} - P{{ of_info.of.prioridad_numerica or 99 }}
-Fecha: {{ of_info.of.fecha_planificada.strftime('%d/%m/%Y') if of_info.of.fecha_planificada }}
-Tableros: {{ of_info.of.numero_tableros or 0 }}">
+                                                                        {% else %}#198754{% endif %};
+                                                                        border-radius: 2px; 
+                                                                        border: 1px solid #fff;
+                                                                        display: flex; align-items: center; justify-content: center;"
+                                                                 title="FABRICACIÓN: {{ of_info.of.codigo }} - P{{ of_info.of.prioridad_numerica or 99 }}
+Inicio: {{ of_start.strftime('%d/%m/%Y') }}
+Duración: {{ fabrica_days }} días">
+                                                                <small style="color: white; font-size: 9px; font-weight: bold;">F</small>
+                                                            </div>
+                                                        {% endif %}
+                                                        
+                                                        {% if embalaje_width_percent > 0 %}
+                                                            <!-- Barra de Embalaje -->
+                                                            <div class="gantt-bar-embalaje" 
+                                                                 style="position: absolute; 
+                                                                        left: {{ embalaje_start_percent }}%; 
+                                                                        width: {{ embalaje_width_percent }}%; 
+                                                                        height: 14px; 
+                                                                        top: 30px;
+                                                                        background-color: 
+                                                                        {% if of_info.of.prioridad_numerica <= 3 %}#dc3545
+                                                                        {% elif of_info.of.prioridad_numerica <= 7 %}#fd7e14
+                                                                        {% elif of_info.of.prioridad_numerica <= 15 %}#0dcaf0
+                                                                        {% else %}#198754{% endif %};
+                                                                        opacity: 0.7;
+                                                                        border-radius: 2px; 
+                                                                        border: 1px solid #fff;
+                                                                        display: flex; align-items: center; justify-content: center;"
+                                                                 title="EMBALAJE: {{ of_info.of.codigo }} - P{{ of_info.of.prioridad_numerica or 99 }}
+Inicio: {{ fabrica_end.strftime('%d/%m/%Y') }}
+Duración: {{ embalaje_days }} días">
+                                                                <small style="color: white; font-size: 9px; font-weight: bold;">E</small>
+                                                            </div>
+                                                        {% endif %}
+                                                        
+                                                        <!-- Etiqueta del código OF (solo si la fabricación está visible) -->
+                                                        {% if fabrica_width_percent > 5 %}
+                                                            <div style="position: absolute; 
+                                                                       left: {{ fabrica_start_percent + 1 }}%; 
+                                                                       top: 46px; 
+                                                                       font-size: 7px; 
+                                                                       color: #333; 
+                                                                       background: rgba(255,255,255,0.8); 
+                                                                       padding: 1px 2px; 
+                                                                       border-radius: 2px;">
                                                                 {{ of_info.of.codigo[:6] }}
                                                             </div>
-                                                        {% endfor %}
-                                                        {% if week_ofs|length > 4 %}
-                                                            <small style="color: #666; font-size: 8px;">+{{ week_ofs|length - 4 }}</small>
                                                         {% endif %}
-                                                    </div>
-                                                    <div class="week-summary mt-1">
-                                                        <span class="badge badge-sm bg-secondary">
-                                                            {{ week_ofs|length }} OFs
-                                                        </span>
-                                                    </div>
-                                                {% else %}
-                                                    <div class="text-muted" style="font-size: 10px;">Sin OFs</div>
+                                                    {% endif %}
                                                 {% endif %}
-                                            </div>
-                                        </td>
-                                    {% endfor %}
+                                            {% endfor %}
+                                            
+                                            <!-- Línea del día actual -->
+                                            {% set today_percent = 0 %} <!-- Hoy es el inicio de la vista -->
+                                            <div style="position: absolute; left: {{ today_percent }}%; top: 0; height: 100%; width: 2px; background-color: #e74c3c; z-index: 10;"></div>
+                                            <small style="position: absolute; left: {{ today_percent + 0.5 }}%; top: -16px; font-size: 8px; color: #e74c3c; font-weight: bold;">HOY</small>
+                                        </div>
+                                    </td>
                                     <td class="text-center align-middle bg-light">
                                         <div class="project-totals">
                                             <strong class="text-primary">{{ proyecto.ofs_activas }}</strong><br>
