@@ -10,7 +10,7 @@ from services.storage_service import StorageService
 from schemas.despachos import DespachoSearchFilters
 from models import (
     Despacho, DespachoAdjunto, EstadoDespacho, TipoAdjunto,
-    TipoArea, EstadoBodega, AreaEstado, OrdenAreaProgreso
+    TipoArea, EstadoBodega, EstadoDespachoArea, AreaEstado, OrdenAreaProgreso
 )
 import logging
 
@@ -513,7 +513,10 @@ class DespachosService:
     def _avanzar_ofs_al_entregar_despacho(self, despacho_id: int, observaciones: str = None) -> None:
         """
         Método privado que avanza automáticamente las OFs asociadas cuando 
-        el despacho cambia a estado ENTREGADO
+        el despacho cambia a estado ENTREGADO:
+        - Mueve OFs desde BODEGA[PROGRAMADO_PARA_DESPACHO] → DESPACHO[DESPACHADO]
+        - Elimina registros de OFs que ya estén en área DESPACHO
+        - Maneja despachos parciales vs totales
         
         Args:
             despacho_id: ID del despacho entregado
@@ -530,13 +533,140 @@ class DespachosService:
                 logger.info(f"No hay OFs asociadas al despacho {despacho_id}")
                 return
                 
-            # Importar AreasService para manejar el avance
+            # Importar modelos y servicios necesarios
             from services.areas_service import AreasService
             areas_service = AreasService()
             
+            # No necesitamos obtener área y estado manualmente - advance_to_next_area lo maneja
+            
             despacho = self.repo.get_by_id(despacho_id)
+            ofs_procesadas = 0
+            ofs_ya_en_despacho = 0
+            ofs_movidas = 0
             
             # Procesar cada OF asociada
+            for despacho_of in ofs_despacho:
+                of_id = despacho_of.orden_fabricacion_id
+                
+                try:
+                    # Obtener progreso actual de la OF
+                    progreso_actual = db.session.query(OrdenAreaProgreso).filter_by(
+                        orden_fabricacion_id=of_id,
+                        es_actual=True
+                    ).first()
+                    
+                    if not progreso_actual:
+                        logger.warning(f"OF {of_id} no tiene progreso activo - saltando")
+                        continue
+                    
+                    # CASO 1: OF ya está en área DESPACHO → Eliminar registro (según requerimiento)
+                    if progreso_actual.area.tipo == TipoArea.DESPACHO:
+                        logger.info(f"OF {of_id} ya está en área DESPACHO - eliminando registro del despacho")
+                        db.session.delete(despacho_of)
+                        ofs_ya_en_despacho += 1
+                        continue
+                    
+                    # CASO 2: OF está en BODEGA con estado PROGRAMADO_PARA_DESPACHO
+                    if (progreso_actual.area.tipo == TipoArea.BODEGA and 
+                        progreso_actual.estado.codigo == EstadoBodega.PROGRAMADO_PARA_DESPACHO.value):
+                        
+                        # Mover a área DESPACHO usando advance_to_next_area (BODEGA→DESPACHO)
+                        progreso_nuevo = areas_service.advance_to_next_area(
+                            orden_fabricacion_id=of_id,
+                            created_by="sistema_automatico",
+                            notas=f"Avance automático: Despacho {despacho.numero_despacho} entregado"
+                        )
+                        success = progreso_nuevo is not None
+                        
+                        if success:
+                            logger.info(f"OF {of_id} movida automáticamente: BODEGA[PROGRAMADO] → DESPACHO[DESPACHADO]")
+                            ofs_movidas += 1
+                            
+                            # Para despachos PARCIALES, conservar registro con info del parcial
+                            # Para despachos TOTALES, la OF está completamente despachada
+                            if despacho_of.tipo_despacho.value == 'TOTAL':
+                                # Marcar como despachado totalmente
+                                logger.info(f"OF {of_id} despachada TOTALMENTE")
+                            else:
+                                # Despacho parcial - conservar registro para tracking
+                                logger.info(f"OF {of_id} despachada PARCIALMENTE: {despacho_of.cantidad_despachada}/{despacho_of.cantidad_total}")
+                        else:
+                            logger.error(f"Error moviendo OF {of_id} a área DESPACHO")
+                    
+                    # CASO 3: OF en otro estado/área - solo informar
+                    else:
+                        logger.warning(f"OF {of_id} está en {progreso_actual.area.tipo.value}[{progreso_actual.estado.codigo}] - no se puede procesar automáticamente")
+                    
+                    ofs_procesadas += 1
+                        
+                except Exception as e:
+                    logger.error(f"Error procesando OF {of_id} para despacho entregado {despacho_id}: {str(e)}")
+                    # Continuar con las demás OFs aunque una falle
+                    continue
+            
+            # Registrar auditoría de la automatización
+            AuditService.log_action(
+                'despachos',
+                despacho_id,
+                'AUTO_ADVANCE_OFS',
+                datos_nuevos={
+                    'ofs_procesadas': ofs_procesadas,
+                    'ofs_movidas': ofs_movidas,
+                    'ofs_ya_en_despacho': ofs_ya_en_despacho,
+                    'trigger': 'despacho_entregado'
+                }
+            )
+            
+            logger.info(f"Automatización completada para despacho {despacho_id}: {ofs_procesadas} OFs procesadas, {ofs_movidas} movidas a DESPACHO, {ofs_ya_en_despacho} ya estaban en DESPACHO")
+            
+        except Exception as e:
+            logger.error(f"Error en automatización de avance de OFs para despacho {despacho_id}: {str(e)}")
+            # No hacer raise para que no falle el cambio de estado del despacho
+    
+    def revertir_automatizacion_admin(self, despacho_id: int, admin_user_id: str, observaciones: str = None) -> bool:
+        """
+        Permite a un admin revertir la automatización de OFs cuando un despacho 
+        vuelve de ENTREGADO a un estado anterior
+        
+        SOLO DISPONIBLE PARA ADMIN
+        
+        Args:
+            despacho_id: ID del despacho
+            admin_user_id: ID del usuario admin que realiza la reversión
+            observaciones: Observaciones de la reversión
+            
+        Returns:
+            True si la reversión fue exitosa
+        """
+        try:
+            # Verificar permisos de admin
+            from models import User
+            admin_user = db.session.query(User).filter_by(id=admin_user_id).first()
+            if not admin_user or admin_user.rol.value != 'admin':
+                raise PermissionError("Solo administradores pueden revertir automatizaciones")
+            
+            # Obtener despacho
+            despacho = self.repo.get_by_id(despacho_id)
+            if not despacho:
+                raise ValueError(f"Despacho {despacho_id} no encontrado")
+            
+            # Obtener OFs asociadas al despacho que están en área DESPACHO
+            from models import DespachoOrdenFabricacion
+            ofs_despacho = db.session.query(DespachoOrdenFabricacion).filter_by(
+                despacho_id=despacho_id
+            ).all()
+            
+            if not ofs_despacho:
+                logger.info(f"No hay OFs asociadas al despacho {despacho_id} para revertir")
+                return True
+            
+            # Importar AreasService
+            from services.areas_service import AreasService
+            areas_service = AreasService()
+            
+            ofs_revertidas = 0
+            
+            # Procesar cada OF
             for despacho_of in ofs_despacho:
                 of_id = despacho_of.orden_fabricacion_id
                 
@@ -552,25 +682,68 @@ class DespachosService:
                         continue
                     
                     if progreso_actual.area.tipo != TipoArea.DESPACHO:
-                        logger.warning(f"OF {of_id} no está en área DESPACHO - saltando")
+                        logger.info(f"OF {of_id} no está en área DESPACHO - no requiere reversión")
                         continue
                     
-                    # Archivar la OF en despachos (marcar como finalizada)
-                    success = areas_service.archive_dispatch(of_id)
+                    # Revertir: mover de DESPACHO de vuelta a BODEGA[PROGRAMADO_PARA_DESPACHO]
+                    # Obtener área Bodega
+                    area_bodega = areas_service.areas_repo.get_area_by_tipo(TipoArea.BODEGA)
+                    if not area_bodega:
+                        raise ValueError("Área BODEGA no encontrada")
                     
-                    if success:
-                        logger.info(f"OF {of_id} archivada automáticamente al entregar despacho {despacho_id}")
-                    else:
-                        logger.warning(f"No se pudo archivar automáticamente OF {of_id}")
-                        
+                    # Buscar estado PROGRAMADO_PARA_DESPACHO
+                    estado_programado = None
+                    for estado in area_bodega.estados:
+                        if estado.codigo == EstadoBodega.PROGRAMADO_PARA_DESPACHO.value:
+                            estado_programado = estado
+                            break
+                    
+                    if not estado_programado:
+                        raise ValueError("Estado PROGRAMADO_PARA_DESPACHO no encontrado")
+                    
+                    # Mover manualmente de DESPACHO → BODEGA
+                    # Cerrar progreso actual
+                    progreso_actual.es_actual = False
+                    progreso_actual.fecha_fin = datetime.now()
+                    
+                    # Crear nuevo progreso en BODEGA
+                    nuevo_progreso = OrdenAreaProgreso(
+                        orden_fabricacion_id=of_id,
+                        area_id=area_bodega.id,
+                        estado_id=estado_programado.id,
+                        fecha_ingreso_area=datetime.now(),
+                        es_actual=True,
+                        notas=f"Reversión admin: {observaciones or 'Sin observaciones'}"
+                    )
+                    db.session.add(nuevo_progreso)
+                    
+                    logger.info(f"OF {of_id} revertida por admin: DESPACHO → BODEGA[PROGRAMADO_PARA_DESPACHO]")
+                    ofs_revertidas += 1
+                    
                 except Exception as e:
-                    logger.error(f"Error procesando OF {of_id} para despacho entregado {despacho_id}: {str(e)}")
-                    # Continuar con las demás OFs aunque una falle
+                    logger.error(f"Error revirtiendo OF {of_id}: {str(e)}")
                     continue
             
-            logger.info(f"Procesadas {len(ofs_despacho)} OFs para despacho entregado {despacho_id}")
+            db.session.commit()
+            
+            # Registrar auditoría de reversión
+            AuditService.log_action(
+                'despachos',
+                despacho_id,
+                'ADMIN_REVERT_AUTOMATION',
+                datos_nuevos={
+                    'ofs_revertidas': ofs_revertidas,
+                    'admin_user': admin_user_id,
+                    'observaciones': observaciones,
+                    'despacho_numero': despacho.numero_despacho
+                }
+            )
+            
+            logger.info(f"Reversión admin completada para despacho {despacho_id}: {ofs_revertidas} OFs revertidas por {admin_user.username}")
+            return True
             
         except Exception as e:
-            logger.error(f"Error en automatización de avance de OFs para despacho {despacho_id}: {str(e)}")
-            # No hacer raise para que no falle el cambio de estado del despacho
+            db.session.rollback()
+            logger.error(f"Error en reversión admin para despacho {despacho_id}: {str(e)}")
+            raise
 
