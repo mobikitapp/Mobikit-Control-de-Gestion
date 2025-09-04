@@ -3,7 +3,7 @@ from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload
 from app import db
 from models import (Despacho, DespachoAdjunto, Proyecto, OrdenFabricacion, 
-                   Cliente, User, EstadoDespacho)
+                   Cliente, User, EstadoDespacho, Contrato)
 from schemas.despachos import DespachoSearchFilters
 
 class DespachosRepository:
@@ -179,6 +179,32 @@ class DespachosRepository:
             return True, ""
         else:
             return False, f"No se puede cambiar de {current_status.value} a {new_status.value}"
+    
+    @staticmethod
+    def generate_next_numero_despacho(contrato_id: Optional[int], cliente_id: int) -> str:
+        """
+        Generate next dispatch number with format 'N° Contrato/OC - XXX'
+        If no contract, use format 'Cliente - XXX'
+        """
+        if contrato_id:
+            # Get contract info
+            contrato = db.session.query(Contrato).filter_by(id=contrato_id).first()
+            if contrato:
+                prefix = f"N° {contrato.numero_oc}"
+                # Count existing dispatches for this contract
+                count = db.session.query(Despacho).filter_by(contrato_id=contrato_id).count()
+            else:
+                # Fallback if contract not found
+                prefix = f"Cliente {cliente_id}"
+                count = db.session.query(Despacho).join(Proyecto).filter(Proyecto.cliente_id == cliente_id).filter(Despacho.contrato_id.is_(None)).count()
+        else:
+            # No contract, use client-based numbering
+            prefix = f"Cliente {cliente_id}"
+            count = db.session.query(Despacho).join(Proyecto).filter(Proyecto.cliente_id == cliente_id).filter(Despacho.contrato_id.is_(None)).count()
+        
+        # Generate next number (starting from 001)
+        next_number = count + 1
+        return f"{prefix} - {next_number:03d}"
 
 class DespachoAdjuntosRepository:
     """Repository for DespachoAdjunto operations"""
