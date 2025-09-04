@@ -833,8 +833,21 @@ function actualizarFecha(ofId, field, fecha, inputElement) {
 
 // Funciones de impresión
 function imprimirTabla() {
-    // Agregar clase no-print a elementos que no se deben imprimir
-    const elementosNoImprimir = document.querySelectorAll('.btn, .form-control, .form-select, .alert');
+    // Abrir todos los dropdowns de OFs antes de imprimir
+    const dropdowns = document.querySelectorAll('.dropdown-ofs .dropdown-toggle');
+    const dropdownsAbiertos = [];
+    
+    dropdowns.forEach((toggle, index) => {
+        const menu = toggle.nextElementSibling;
+        if (menu && !menu.classList.contains('show')) {
+            toggle.classList.add('show');
+            menu.classList.add('show');
+            dropdownsAbiertos.push({toggle, menu});
+        }
+    });
+    
+    // Agregar clase no-print a elementos que no se deben imprimir (excepto dropdowns abiertos)
+    const elementosNoImprimir = document.querySelectorAll('.btn:not(.dropdown-toggle), .form-control, .form-select, .alert');
     elementosNoImprimir.forEach(el => el.classList.add('no-print'));
     
     // Crear header para impresión
@@ -853,6 +866,13 @@ function imprimirTabla() {
     setTimeout(() => {
         document.title = originalTitle;
         elementosNoImprimir.forEach(el => el.classList.remove('no-print'));
+        
+        // Cerrar dropdowns que estaban cerrados
+        dropdownsAbiertos.forEach(({toggle, menu}) => {
+            toggle.classList.remove('show');
+            menu.classList.remove('show');
+        });
+        
         if (matrizDetallada) {
             matrizDetallada.style.display = 'block';
         }
@@ -915,7 +935,7 @@ function imprimirMatrizDetallada() {
 
 @media print {
     @page {
-        size: A4 landscape;
+        size: letter;
         margin: 0.5in;
     }
     
@@ -989,6 +1009,48 @@ function imprimirMatrizDetallada() {
     
     .estadisticas-row {
         page-break-after: avoid;
+    }
+    
+    /* Repetir títulos en cada página */
+    .table thead tr {
+        page-break-inside: avoid;
+        page-break-after: avoid;
+    }
+    
+    .table thead {
+        display: table-header-group;
+    }
+    
+    .table tbody {
+        display: table-row-group;
+    }
+    
+    .table tfoot {
+        display: table-footer-group;
+    }
+    
+    /* Asegurar que dropdowns abiertos se vean correctamente en impresión */
+    .dropdown-menu.show {
+        display: block !important;
+        position: static !important;
+        float: none !important;
+        width: auto !important;
+        margin: 0 !important;
+        background-color: #fff !important;
+        border: 1px solid #000 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+    
+    .dropdown-toggle {
+        display: inline-block !important;
+        background-color: transparent !important;
+        border: 1px solid #000 !important;
+        color: #000 !important;
+    }
+    
+    .dropdown-toggle::after {
+        display: none !important;
     }
 }
 </style>

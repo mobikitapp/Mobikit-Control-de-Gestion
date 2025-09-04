@@ -6,7 +6,15 @@ A comprehensive management system for manufacturing companies that centralizes a
 
 ## Recent Changes
 
-**[2025-09-04] Mejoras en Planificación y Prioridades**
+**[2025-09-04] Mejoras en Planificación y Prioridades - Actualización de Impresión**
+- **FORMATO CARTA**: Configuración de impresión cambiada de A4 horizontal a formato carta (8.5"x11")
+- **DROPDOWNS ABIERTOS**: Implementación automática de apertura de todos los dropdowns de OFs al imprimir
+- **TÍTULOS REPETIDOS**: Configuración CSS para repetir títulos de columnas en cada cambio de página
+- **ESTILOS DE IMPRESIÓN**: Optimización de estilos para dropdowns y elementos de tabla en impresión
+- JavaScript mejorado que gestiona estado de dropdowns antes y después de imprimir
+- CSS específico para display: table-header-group que asegura repetición de thead
+
+**[2025-09-04] Mejoras en Planificación y Prioridades - Primera Implementación**
 - Corregida la fila de totales en Gantt de proyectos para coincidir con el cronograma unificado de 6 semanas
 - Implementada funcionalidad completa de impresión con botones separados para Gantt y matriz detallada
 - Agregados estilos CSS optimizados para impresión en formato A4 horizontal
