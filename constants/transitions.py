@@ -37,7 +37,7 @@ DESPACHO_TRANSITIONS = {
 
 # Estados que requieren validaciones especiales
 OF_SPECIAL_VALIDATIONS = {
-    "SECCIONANDO": {
+    "seccionando": {
         "required_fields": ["cantidad_tableros"],
         "validation_message": "La cantidad de tableros es obligatoria para cambiar a estado SECCIONANDO"
     }
