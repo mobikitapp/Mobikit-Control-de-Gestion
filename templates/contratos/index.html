@@ -555,10 +555,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (isCollapsed) {
                     target.classList.remove('show');
-                    icon.setAttribute('data-feather', 'chevron-right');
+                    if (icon) {
+                        icon.setAttribute('data-feather', 'chevron-right');
+                    }
                 } else {
                     target.classList.add('show');
-                    icon.setAttribute('data-feather', 'chevron-down');
+                    if (icon) {
+                        icon.setAttribute('data-feather', 'chevron-down');
+                    }
                 }
                 
                 // Re-render feather icons

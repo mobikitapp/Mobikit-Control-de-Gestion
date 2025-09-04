@@ -9,7 +9,9 @@ const ManufacturingApp = {
     config: {
         animationDuration: 300,
         notificationTimeout: 5000,
-        debounceDelay: 300
+        debounceDelay: 300,
+        isMobile: window.innerWidth <= 768,
+        isTouch: 'ontouchstart' in window
     },
 
     // Initialize the application
@@ -18,6 +20,42 @@ const ManufacturingApp = {
         this.initializeComponents();
         this.setupFormValidation();
         this.initializeNotifications();
+        this.optimizeForMobile();
+    },
+
+    // Mobile-specific optimizations
+    optimizeForMobile() {
+        if (this.config.isMobile) {
+            // Reduce debounce delay for mobile for better responsiveness
+            this.config.debounceDelay = 150;
+            
+            // Add mobile-specific CSS class
+            document.body.classList.add('mobile-device');
+            
+            // Optimize scroll performance
+            document.addEventListener('touchstart', function() {}, {passive: true});
+            document.addEventListener('touchmove', function() {}, {passive: true});
+            
+            // Handle orientation changes
+            window.addEventListener('orientationchange', () => {
+                setTimeout(() => {
+                    this.handleOrientationChange();
+                }, 100);
+            });
+        }
+        
+        if (this.config.isTouch) {
+            document.body.classList.add('touch-device');
+        }
+    },
+
+    // Handle orientation changes
+    handleOrientationChange() {
+        // Trigger window resize event to update components
+        window.dispatchEvent(new Event('resize'));
+        
+        // Re-initialize tooltips and popovers after orientation change
+        this.initializeBootstrapComponents();
     },
 
     // Bind global event handlers
