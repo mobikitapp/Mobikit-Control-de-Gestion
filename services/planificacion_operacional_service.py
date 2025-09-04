@@ -221,10 +221,24 @@ class PlanificacionOperacionalService:
 
     def actualizar_factores_conversion(self, factores_data, user_id):
         """Update conversion factors (future: store in database)"""
-        # For now, this is a placeholder
-        # In a real implementation, you would store these in a configuration table
         try:
-            # Log the update (could be stored in an audit table)
+            # Update time factors if provided
+            factor_tiempo_fabrica = factores_data.get('factor_tiempo_fabrica')
+            factor_tiempo_embalaje = factores_data.get('factor_tiempo_embalaje')
+            
+            if factor_tiempo_fabrica is not None and factor_tiempo_embalaje is not None:
+                # Update time factors through configuration service
+                config_service = ConfiguracionesService()
+                config_success = config_service.actualizar_factores_tiempo(
+                    factor_fabrica=factor_tiempo_fabrica,
+                    factor_embalaje=factor_tiempo_embalaje,
+                    usuario_id=user_id
+                )
+                
+                if not config_success:
+                    print(f"Warning: Could not update time factors for user {user_id}")
+            
+            # Log all updates (could be stored in an audit table)
             print(f"User {user_id} updated conversion factors: {factores_data}")
             return True
         except Exception as e:

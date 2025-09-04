@@ -213,6 +213,8 @@ def actualizar_configuracion():
             'factor_madera_m2': request.form.get('factor_madera_m2', type=float),
             'area_tablero_estandar': request.form.get('area_tablero_estandar', type=float),
             'factor_desperdicio': request.form.get('factor_desperdicio', type=float),
+            'factor_tiempo_fabrica': request.form.get('factor_tiempo_fabrica', type=float),
+            'factor_tiempo_embalaje': request.form.get('factor_tiempo_embalaje', type=float),
         }
         
         success = service.actualizar_factores_conversion(factores_data, current_user.id)
