@@ -75,6 +75,18 @@
                                 <small class="form-text text-muted">Opcional - Asociar a un contrato específico</small>
                             </div>
 
+                            <!-- Glosa (Obligatorio) -->
+                            <div class="col-12">
+                                <label for="glosa" class="form-label">
+                                    Glosa <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" id="glosa" name="glosa" rows="2" 
+                                          placeholder="Glosa o comentarios principales sobre la orden" required>{{ of.glosa if of else '' }}</textarea>
+                                <div class="invalid-feedback">
+                                    Por favor ingresa una glosa para la orden.
+                                </div>
+                            </div>
+
                             <!-- Código OF (Solo visualización) -->
                             {% if of %}
                             <div class="col-md-6">
@@ -184,13 +196,6 @@
                                 <label for="descripcion" class="form-label">Descripción</label>
                                 <textarea class="form-control" id="descripcion" name="descripcion" rows="3" 
                                           placeholder="Descripción de los trabajos a realizar">{{ of.descripcion if of else '' }}</textarea>
-                            </div>
-
-                            <!-- Glosa -->
-                            <div class="col-12">
-                                <label for="glosa" class="form-label">Glosa</label>
-                                <textarea class="form-control" id="glosa" name="glosa" rows="2" 
-                                          placeholder="Glosa o comentarios adicionales sobre la orden">{{ of.glosa if of else '' }}</textarea>
                             </div>
 
                             <!-- Notas -->
@@ -431,7 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
 
         // Validate required fields
-        const requiredFields = ['proyecto_id'];
+        const requiredFields = ['proyecto_id', 'glosa'];
         requiredFields.forEach(fieldName => {
             const field = document.getElementById(fieldName);
             if (!field.value.trim()) {

@@ -17,7 +17,7 @@
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/branding/app-icon.png') }}">
 
@@ -96,8 +96,12 @@
                             Fabricación
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.index') }}">Ver Órdenes</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.nueva') }}">Nueva Orden</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.index') }}">
+                                <i data-feather="tool" class="me-2"></i>Órdenes de Fabricación</a>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.archivos') }}">
+                                <i data-feather="archive" class="me-2"></i>Órdenes Archivadas</a>
+                            </li>
                         </ul>
                     </li>
                     {% endif %}

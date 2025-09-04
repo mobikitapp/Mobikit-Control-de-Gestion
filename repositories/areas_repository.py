@@ -17,18 +17,14 @@ class AreasRepository:
     def get_all_areas() -> List[Area]:
         """Get all areas ordered by sequence"""
         return (db.session.query(Area)
-                .options(joinedload(Area.estados))
                 .filter_by(activo=True)
                 .order_by(Area.orden_secuencia.asc())
                 .all())
 
     @staticmethod
     def get_area_by_id(area_id: int) -> Optional[Area]:
-        """Get area by ID with states"""
-        return (db.session.query(Area)
-                .options(joinedload(Area.estados))
-                .filter_by(id=area_id, activo=True)
-                .first())
+        """Get area by ID"""
+        return db.session.get(Area, area_id)
 
     @staticmethod
     def get_area_by_tipo(tipo: TipoArea) -> Optional[Area]:
@@ -154,7 +150,7 @@ class OrdenAreaProgresoRepository:
             progress_data['responsable_area'] = None
         if 'notas_area' in progress_data and progress_data['notas_area'] == '':
             progress_data['notas_area'] = None
-            
+
         progress = OrdenAreaProgreso(**progress_data)
         db.session.add(progress)
         db.session.flush()
@@ -168,7 +164,7 @@ class OrdenAreaProgresoRepository:
             update_data['responsable_area'] = None
         if 'notas_area' in update_data and update_data['notas_area'] == '':
             update_data['notas_area'] = None
-            
+
         for key, value in update_data.items():
             if hasattr(progress, key):
                 setattr(progress, key, value)

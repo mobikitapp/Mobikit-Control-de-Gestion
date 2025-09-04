@@ -153,36 +153,35 @@ class AreasService:
 
             # Get next area
             current_area = current_progress.area
-            siguiente_area = (db.session.query(Area)
-                            .filter_by(orden_secuencia=current_area.orden_secuencia + 1, activo=True)
-                            .first())
+            next_area_id = current_area.orden_secuencia + 1
+            next_area = self.areas_repo.get_area_by_id(next_area_id)
 
-            if not siguiente_area:
+            if not next_area:
                 raise ValueError("No hay siguiente área en la secuencia")
 
             # VALIDACIÓN ESPECIAL: Avance desde BODEGA a DESPACHO
             if (current_area.tipo == TipoArea.BODEGA and 
-                siguiente_area.tipo == TipoArea.DESPACHO):
-                
+                next_area.tipo == TipoArea.DESPACHO):
+
                 # Verificar que la OF está en estado 'programado_para_despacho'
                 if current_progress.estado.codigo != EstadoBodega.PROGRAMADO_PARA_DESPACHO.value:
                     raise ValueError(
                         f"OF {orden_fabricacion_id} debe estar en estado 'programado_para_despacho' "
                         f"para avanzar a Despacho. Estado actual: {current_progress.estado.nombre}"
                     )
-                
+
                 # Verificar que la OF tiene un despacho asignado
                 from models import DespachoOrdenFabricacion
                 despacho_asignado = db.session.query(DespachoOrdenFabricacion).filter_by(
                     orden_fabricacion_id=orden_fabricacion_id
                 ).first()
-                
+
                 if not despacho_asignado:
                     raise ValueError(
                         f"OF {orden_fabricacion_id} debe estar asignada a un despacho "
                         f"para avanzar al área de Despacho"
                     )
-                    
+
                 logger.info(
                     f"Validación Bodega→Despacho exitosa para OF {orden_fabricacion_id}: "
                     f"Estado '{current_progress.estado.codigo}', "
@@ -190,9 +189,9 @@ class AreasService:
                 )
 
             # Get initial state for next area
-            estado_inicial = self.areas_repo.get_estado_inicial(siguiente_area.id)
+            estado_inicial = self.areas_repo.get_estado_inicial(next_area.id)
             if not estado_inicial:
-                raise ValueError(f"Estado inicial no encontrado para área {siguiente_area.nombre}")
+                raise ValueError(f"Estado inicial no encontrado para área {next_area.nombre}")
 
             # Mark current progress as not current (for history)
             current_progress.es_actual = False
@@ -201,7 +200,7 @@ class AreasService:
             now = datetime.now()
             new_progress_data = {
                 'orden_fabricacion_id': orden_fabricacion_id,
-                'area_id': siguiente_area.id,
+                'area_id': next_area.id,
                 'estado_id': estado_inicial.id,
                 'fecha_ingreso_area': now,
                 'fecha_cambio_estado': now,
@@ -222,7 +221,7 @@ class AreasService:
                 datos_nuevos=serialize_model(new_progress)
             )
 
-            logger.info(f"Orden {orden_fabricacion_id} avanzada a área {siguiente_area.nombre}")
+            logger.info(f"Orden {orden_fabricacion_id} avanzada a área {next_area.nombre}")
             return new_progress
 
         except Exception as e:
@@ -281,7 +280,7 @@ class AreasService:
                 area_id=area_bodega.id,
                 codigo=EstadoBodega.PROGRAMADO_PARA_DESPACHO.value
             ).first()
-            
+
             if estado_existente:
                 logger.info("Estado 'programado_para_despacho' ya existe en Bodega")
                 return True
@@ -291,10 +290,10 @@ class AreasService:
                 area_id=area_bodega.id,
                 codigo=EstadoBodega.LISTO_PARA_DESPACHO.value
             ).first()
-            
+
             if estado_listo:
                 estado_listo.es_final = False
-                
+
             # Crear nuevo estado
             nuevo_estado = AreaEstado(
                 area_id=area_bodega.id,
@@ -307,13 +306,13 @@ class AreasService:
                 activo=True,
                 color_hex='#fd7e14'  # Color naranja para diferenciar
             )
-            
+
             db.session.add(nuevo_estado)
             db.session.commit()
-            
+
             logger.info("Estado 'programado_para_despacho' agregado exitosamente al área de Bodega")
             return True
-            
+
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error agregando nuevo estado a Bodega: {str(e)}")
@@ -482,26 +481,26 @@ class AreasService:
         try:
             if not orden_fabricacion.contrato:
                 return None
-            
+
             # Get the contract's plan de entrega
             if orden_fabricacion.contrato.plan_entrega:
                 # Get next pending delivery milestone
                 from models import HitoEntrega, EstadoHitoEntrega
                 from datetime import date
-                
+
                 next_hito = (db.session.query(HitoEntrega)
                            .filter_by(plan_entrega_id=orden_fabricacion.contrato.plan_entrega.id)
                            .filter(HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE)
                            .filter(HitoEntrega.fecha_programada >= date.today())
                            .order_by(HitoEntrega.fecha_programada.asc())
                            .first())
-                
+
                 if next_hito:
                     return next_hito.fecha_programada
-            
+
             # Fallback to contract delivery date
             return orden_fabricacion.contrato.fecha_entrega_comprometida
-            
+
         except Exception as e:
             logger.error(f"Error getting next delivery date: {str(e)}")
             return None
@@ -515,9 +514,9 @@ class AreasService:
             current_progress = orden_fabricacion.area_progreso_actual
             if not current_progress or not current_progress.area:
                 return None
-                
+
             area_tipo = current_progress.area.tipo.value
-            
+
             if area_tipo == 'fabrica':
                 # In factory area, show factory delivery date
                 return orden_fabricacion.fecha_entrega_fabrica
@@ -530,7 +529,82 @@ class AreasService:
             else:
                 # For other areas (pendientes), show factory delivery date as fallback
                 return orden_fabricacion.fecha_entrega_fabrica
-                
+
         except Exception as e:
             logger.error(f"Error getting dynamic delivery date: {str(e)}")
             return None
+
+    def get_next_area_in_sequence(self, current_area_id: int) -> Optional[Area]:
+        """Get the next area in the production sequence"""
+        try:
+            current_area = self.areas_repo.get_area_by_id(current_area_id)
+            if not current_area:
+                return None
+
+            next_area = (db.session.query(Area)
+                        .filter(Area.orden_secuencia == current_area.orden_secuencia + 1)
+                        .filter(Area.activo == True)
+                        .first())
+
+            return next_area
+        except Exception as e:
+            logger.error(f"Error getting next area: {str(e)}")
+            return None
+
+    def get_next_action_description(self, of_id: int) -> str:
+        """Get description of next action for an OF based on current state"""
+        try:
+            current_progress = self.progreso_repo.get_current_progress(of_id)
+            if not current_progress:
+                return "Iniciar Proceso"
+
+            current_estado = current_progress.estado
+            current_area = current_progress.area
+
+            # If current state is final for the area, next action is to advance to next area
+            if current_estado.es_final:
+                next_area = self.get_next_area_in_sequence(current_area.id)
+                if next_area:
+                    if next_area.tipo.value == 'fabrica':
+                        return "Enviar a Fabricación"
+                    elif next_area.tipo.value == 'embalaje':
+                        return "Enviar a Embalaje"
+                    elif next_area.tipo.value == 'bodega':
+                        return "Enviar a Bodega"
+                    elif next_area.tipo.value == 'despacho':
+                        return "Marcar como Despachado"
+                    else:
+                        return f"Avanzar a {next_area.nombre}"
+                else:
+                    return "Proceso Completo"
+            else:
+                # Next action is to advance state within current area
+                estados_area = self.areas_repo.get_estados_by_area(current_area.id)
+                next_estado = next(
+                    (e for e in estados_area if e.orden_en_area == current_estado.orden_en_area + 1),
+                    None
+                )
+
+                if next_estado:
+                    # Custom action descriptions based on state transitions
+                    action_map = {
+                        'pendiente_aprobacion_diseño': 'Aprobar Diseño',
+                        'aprobado': 'Enviar a Fabricación',
+                        'enviado_a_fabricacion': 'Iniciar Seccionado',
+                        'seccionando': 'Iniciar Enchapado',
+                        'enchapando': 'Iniciar Mecanizado',
+                        'mecanizando': 'Completar Fabricación',
+                        'fabricacion_completa': 'Enviar a Embalaje',
+                        'pendiente_de_embalar': 'Iniciar Embalaje',
+                        'embalando': 'Completar Embalaje',
+                        'embalaje_listo': 'Enviar a Bodega',
+                        'listo_para_despacho': 'Despachar'
+                    }
+
+                    return action_map.get(current_estado.codigo, f"Cambiar a {next_estado.nombre}")
+                else:
+                    return "Sin acción disponible"
+
+        except Exception as e:
+            logger.error(f"Error getting next action description for OF {of_id}: {str(e)}")
+            return "Avanzar"
