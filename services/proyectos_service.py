@@ -19,6 +19,7 @@ class ProyectosService:
         # Assuming contratos_repo is available, as it's used in the change
         from repositories.contratos_repo import ContratosRepository
         self.contratos_repo = ContratosRepository()
+        from models import EstadoContrato  # Import here to avoid circular imports
 
 
     def create_proyecto(self, proyecto_data: Dict[str, Any], created_by: str) -> Proyecto:
@@ -118,7 +119,11 @@ class ProyectosService:
                 'ordenes_por_estado': self._get_ordenes_por_estado_safe(ordenes),
                 'progreso_fabricacion': self._calcular_progreso_fabricacion_safe(ordenes),
                 'contratos_asociados': self._get_contratos_count(proyecto_id),
-                'despachos_realizados': self._get_despachos_count(proyecto_id)
+                'despachos_realizados': self._get_despachos_count(proyecto_id),
+                # New financial KPIs
+                'kpi_financiero': self._calcular_kpi_financiero(proyecto),
+                # New efficiency metrics by area
+                'eficiencia_por_area': self._calcular_eficiencia_por_area(proyecto_id)
             }
 
             return {
@@ -138,7 +143,9 @@ class ProyectosService:
                         'ordenes_por_estado': {},
                         'progreso_fabricacion': 0,
                         'contratos_asociados': 0,
-                        'despachos_realizados': 0
+                        'despachos_realizados': 0,
+                        'kpi_financiero': {'avance_porcentaje': 0, 'estado': 'sin_datos'},
+                        'eficiencia_por_area': {}
                     }
                 }
             return None
@@ -531,3 +538,129 @@ class ProyectosService:
         except Exception as e:
             logger.error(f"Error contando contratos activos del proyecto {proyecto_id}: {str(e)}")
             return 0
+
+    def _calcular_kpi_financiero(self, proyecto) -> Dict[str, Any]:
+        """Calculate financial KPI: Contracts vs Budget Provision"""
+        try:
+            from models import Contrato, EstadoContrato
+            from decimal import Decimal
+
+            if not proyecto:
+                return {'avance_porcentaje': 0, 'estado': 'sin_proyecto'}
+
+            # Get total amount from active contracts
+            monto_contratado = Decimal('0')
+            contratos_vigentes = (db.session.query(Contrato)
+                                .filter_by(proyecto_id=proyecto.id)
+                                .filter_by(estado=EstadoContrato.VIGENTE)
+                                .all())
+            
+            for contrato in contratos_vigentes:
+                if contrato.monto_total:
+                    monto_contratado += contrato.monto_total
+
+            # Get budget provision
+            provision_presupuestada = proyecto.monto_provision_presupuestado or Decimal('0')
+
+            # Calculate percentage and status
+            if provision_presupuestada > 0:
+                avance_porcentaje = float((monto_contratado / provision_presupuestada) * 100)
+                
+                if avance_porcentaje <= 100:
+                    estado = 'dentro_presupuesto'
+                elif avance_porcentaje <= 110:
+                    estado = 'alerta'
+                else:
+                    estado = 'sobre_presupuesto'
+            else:
+                avance_porcentaje = 0
+                estado = 'sin_provision' if monto_contratado > 0 else 'sin_datos'
+
+            return {
+                'monto_contratado': float(monto_contratado),
+                'provision_presupuestada': float(provision_presupuestada),
+                'avance_porcentaje': round(avance_porcentaje, 1),
+                'estado': estado,
+                'diferencia': float(monto_contratado - provision_presupuestada)
+            }
+
+        except Exception as e:
+            logger.error(f"Error calculando KPI financiero: {str(e)}")
+            return {'avance_porcentaje': 0, 'estado': 'error'}
+
+    def _calcular_eficiencia_por_area(self, proyecto_id: int) -> Dict[str, Any]:
+        """Calculate efficiency metrics by area: Pendientes, Fábrica, Embalaje, Bodega"""
+        try:
+            from models import OrdenAreaProgreso, Area, TipoArea
+            from sqlalchemy import func
+            from datetime import datetime, timedelta
+
+            # Get all area progress for this project's orders
+            progresos = (db.session.query(OrdenAreaProgreso)
+                        .join(OrdenAreaProgreso.orden_fabricacion)
+                        .filter(OrdenAreaProgreso.orden_fabricacion.has(proyecto_id=proyecto_id))
+                        .join(Area)
+                        .all())
+
+            if not progresos:
+                return {}
+
+            # Group by area type and calculate metrics
+            areas_metricas = {}
+            area_tipos = {
+                'PENDIENTES_FABRICACION': 'Pendientes Fabricación',
+                'FABRICA': 'Fábrica', 
+                'EMBALAJE': 'Embalaje',
+                'BODEGA': 'Bodega'
+            }
+
+            for tipo_key, nombre_area in area_tipos.items():
+                try:
+                    # Get all progress records for this area type
+                    area_progresos = [p for p in progresos 
+                                    if hasattr(p.area, 'tipo') and 
+                                       p.area.tipo and 
+                                       p.area.tipo.value == tipo_key]
+                    
+                    if not area_progresos:
+                        areas_metricas[nombre_area] = {
+                            'tiempo_promedio_horas': 0,
+                            'ordenes_procesadas': 0,
+                            'ordenes_actualmente': 0
+                        }
+                        continue
+
+                    # Calculate average time in area (completed ones)
+                    tiempos_completados = []
+                    ordenes_actuales = 0
+                    
+                    for progreso in area_progresos:
+                        if progreso.es_actual:
+                            ordenes_actuales += 1
+                        
+                        # For completed area progress, calculate time spent
+                        if not progreso.es_actual and progreso.fecha_ingreso_area and progreso.fecha_cambio_estado:
+                            tiempo_en_area = progreso.fecha_cambio_estado - progreso.fecha_ingreso_area
+                            tiempos_completados.append(tiempo_en_area.total_seconds() / 3600)  # Convert to hours
+
+                    tiempo_promedio = sum(tiempos_completados) / len(tiempos_completados) if tiempos_completados else 0
+
+                    areas_metricas[nombre_area] = {
+                        'tiempo_promedio_horas': round(tiempo_promedio, 1),
+                        'ordenes_procesadas': len(tiempos_completados),
+                        'ordenes_actualmente': ordenes_actuales
+                    }
+                    
+                except Exception as area_e:
+                    logger.warning(f"Error calculando métricas para área {nombre_area}: {str(area_e)}")
+                    areas_metricas[nombre_area] = {
+                        'tiempo_promedio_horas': 0,
+                        'ordenes_procesadas': 0,
+                        'ordenes_actualmente': 0
+                    }
+
+            return areas_metricas
+
+        except Exception as e:
+            logger.error(f"Error calculando eficiencia por área: {str(e)}")
+            return {}
