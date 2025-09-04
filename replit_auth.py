@@ -169,6 +169,11 @@ def require_login(f):
             session["next_url"] = get_next_navigation_url(request)
             return redirect(url_for('replit_auth.login'))
 
+        # Check if token exists before accessing it
+        if not replit.token:
+            session["next_url"] = get_next_navigation_url(request)
+            return redirect(url_for('replit_auth.login'))
+
         expires_in = replit.token.get('expires_in', 0)
         if expires_in < 0:
             refresh_token_url = ISSUER_URL + "/token"
