@@ -50,11 +50,11 @@ class PlanificacionPrioridadesService:
             query = query.filter(
                 or_(
                     # Pendientes de Fabricación
-                    and_(Area.tipo == 'pendientes_fabricacion',
-                         AreaEstado.estado.in_(estados_pendientes)),
+                    and_(Area.tipo == 'PENDIENTES_FABRICACION',
+                         AreaEstado.codigo.in_(estados_pendientes)),
                     # En Fábrica - Enviado a Fabricar
-                    and_(Area.tipo == 'fabrica',
-                         AreaEstado.estado.in_(estados_fabrica))
+                    and_(Area.tipo == 'FABRICA',
+                         AreaEstado.codigo.in_(estados_fabrica))
                 )
             )
             
