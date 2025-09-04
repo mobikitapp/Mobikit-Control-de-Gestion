@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% set title = "Planificación y Prioridades" %}
 
+{% block head %}
+<!-- Moment.js library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/es.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Header -->
@@ -96,14 +102,15 @@
                                     <th style="width: 180px;">Proyecto</th>
                                     <th style="width: 80px;">OFs</th>
                                     <th style="width: 80px;">Tableros</th>
-                                    {% set today = moment() %}
+                                    {% set today = fecha_actualizacion.date() %}
                                     {% for week in range(6) %}
-                                        {% set week_start = today.add(weeks=week).start_of('week') %}
-                                        {% set week_end = week_start.add(days=6) %}
+                                        {% set week_start = today + timedelta(weeks=week) %}
+                                        {% set week_start = week_start - timedelta(days=week_start.weekday()) %}
+                                        {% set week_end = week_start + timedelta(days=6) %}
                                         <th style="width: 120px;" class="text-center">
                                             <div class="week-header">
                                                 <strong>Semana {{ week + 1 }}</strong><br>
-                                                <small>{{ week_start.format('DD/MM') }} - {{ week_end.format('DD/MM') }}</small>
+                                                <small>{{ week_start.strftime('%d/%m') }} - {{ week_end.strftime('%d/%m') }}</small>
                                             </div>
                                         </th>
                                     {% endfor %}
@@ -128,13 +135,14 @@
                                     {% for week in range(6) %}
                                         <td class="text-center align-middle" style="padding: 8px;">
                                             <div class="gantt-week-cell" style="min-height: 40px; position: relative;">
-                                                {% set week_start = today.add(weeks=week).start_of('week') %}
-                                                {% set week_end = week_start.add(days=6) %}
+                                                {% set week_start = today + timedelta(weeks=week) %}
+                                                {% set week_start = week_start - timedelta(days=week_start.weekday()) %}
+                                                {% set week_end = week_start + timedelta(days=6) %}
                                                 {% set week_ofs = [] %}
                                                 {% for of_info in proyecto.ofs %}
                                                     {% if of_info.of.fecha_planificada and 
-                                                         of_info.of.fecha_planificada >= week_start.date() and 
-                                                         of_info.of.fecha_planificada <= week_end.date() %}
+                                                         of_info.of.fecha_planificada >= week_start and 
+                                                         of_info.of.fecha_planificada <= week_end %}
                                                         {% set _ = week_ofs.append(of_info) %}
                                                     {% endif %}
                                                 {% endfor %}
@@ -192,15 +200,16 @@ Tableros: {{ of_info.of.numero_tableros or 0 }}">
                                     </td>
                                     {% for week in range(6) %}
                                         <td class="text-center">
-                                            {% set week_start = today.add(weeks=week).start_of('week') %}
-                                            {% set week_end = week_start.add(days=6) %}
+                                            {% set week_start = today + timedelta(weeks=week) %}
+                                            {% set week_start = week_start - timedelta(days=week_start.weekday()) %}
+                                            {% set week_end = week_start + timedelta(days=6) %}
                                             {% set week_total_ofs = 0 %}
                                             {% set week_total_tableros = 0 %}
                                             {% for proyecto in proyectos_gantt %}
                                                 {% for of_info in proyecto.ofs %}
                                                     {% if of_info.of.fecha_planificada and 
-                                                         of_info.of.fecha_planificada >= week_start.date() and 
-                                                         of_info.of.fecha_planificada <= week_end.date() %}
+                                                         of_info.of.fecha_planificada >= week_start and 
+                                                         of_info.of.fecha_planificada <= week_end %}
                                                         {% set week_total_ofs = week_total_ofs + 1 %}
                                                         {% set week_total_tableros = week_total_tableros + (of_info.of.numero_tableros or 0) %}
                                                     {% endif %}
@@ -242,7 +251,7 @@ Tableros: {{ of_info.of.numero_tableros or 0 }}">
                         </div>
                         <div class="col-md-4 text-end">
                             <small class="text-muted">
-                                <i class="fas fa-calendar-week"></i> Vista de 6 semanas desde {{ today.format('DD/MM/YYYY') }}
+                                <i class="fas fa-calendar-week"></i> Vista de 6 semanas desde {{ today.strftime('%d/%m/%Y') }}
                             </small>
                         </div>
                     </div>

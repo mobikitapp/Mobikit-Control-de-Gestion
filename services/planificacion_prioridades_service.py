@@ -205,16 +205,31 @@ class PlanificacionPrioridadesService:
                 )
             )
 
+            # Crear datos para el gantt de proyectos (simplificado usando los mismos datos)
+            proyectos_gantt = []
+            for proyecto_data in proyectos_ordenados:
+                gantt_proyecto = {
+                    'nombre': proyecto_data['proyecto'].nombre,
+                    'cliente_nombre': proyecto_data['cliente'].nombre,
+                    'ofs_activas': len(proyecto_data['ofs']),
+                    'total_tableros': proyecto_data['total_tableros'],
+                    'ofs': proyecto_data['ofs']
+                }
+                proyectos_gantt.append(gantt_proyecto)
+
             return {
                 'proyectos': proyectos_ordenados,
+                'proyectos_gantt': proyectos_gantt,
                 'estadisticas': estadisticas,
-                'fecha_actualizacion': datetime.now()
+                'fecha_actualizacion': datetime.now(),
+                'timedelta': timedelta  # Para usar en template
             }
 
         except Exception as e:
             print(f"Error generando matriz de planificación: {str(e)}")
             return {
                 'proyectos': [],
+                'proyectos_gantt': [],
                 'estadisticas': {
                     'total_ofs': 0,
                     'ofs_sin_fecha_planificada': 0,
@@ -223,7 +238,8 @@ class PlanificacionPrioridadesService:
                     'tiempo_total_fabrica': 0,
                     'tiempo_total_embalaje': 0
                 },
-                'fecha_actualizacion': datetime.now()
+                'fecha_actualizacion': datetime.now(),
+                'timedelta': timedelta
             }
 
     def actualizar_fechas_of(self, of_id: int, fecha_planificada: Optional[date] = None, 
