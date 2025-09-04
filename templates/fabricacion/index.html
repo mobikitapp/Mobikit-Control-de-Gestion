@@ -117,10 +117,8 @@
                             <th>Proyecto</th>
                             <th>Cliente</th>
                             <th>Área / Estado</th>
-                            <th>Fecha Planificada</th>
                             <th>Fecha Entrega</th>
                             <th>Días Restantes</th>
-                            <th>Responsable</th>
                             <th width="150">Acciones</th>
                         </tr>
                     </thead>
@@ -156,14 +154,6 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if of.fecha_planificada %}
-                                    {{ of.fecha_planificada.strftime('%d/%m/%Y') }}
-                                    {# Comparación de fechas se hace en el servidor, no en el template #}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
                                 {% if of.fecha_entrega_dinamica %}
                                     {{ of.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
                                     {% if of.area_actual %}
@@ -194,13 +184,6 @@
                                     {% else %}
                                         <span class="badge bg-secondary">{{ of.days_remaining_dynamic }} días</span>
                                     {% endif %}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if of.responsable_user %}
-                                    {{ of.responsable_user.nombre_completo }}
                                 {% else %}
                                     -
                                 {% endif %}
