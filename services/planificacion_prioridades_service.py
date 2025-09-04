@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 from app import db
 from models import (
     OrdenFabricacion, Proyecto, Cliente, User, OrdenAreaProgreso, 
-    TipoArea, EstadoPendientesFabricacion, EstadoFabrica,
+    Area, AreaEstado, TipoArea, EstadoPendientesFabricacion, EstadoFabrica,
     PrioridadOrden
 )
 from services.planificacion_operacional_service import PlanificacionOperacionalService
@@ -43,7 +43,6 @@ class PlanificacionPrioridadesService:
                     )
             
             # Filtrar por áreas y estados específicos usando joins explícitos
-            from models import Area, AreaEstado
             query = query.join(Area, OrdenAreaProgreso.area_id == Area.id) \
                          .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
             
@@ -353,8 +352,6 @@ class PlanificacionPrioridadesService:
         Obtiene el rango de prioridades disponible basado en la cantidad actual de OFs
         """
         try:
-            from models import Area, AreaEstado
-            
             total_ofs = (db.session.query(OrdenFabricacion)
                         .join(OrdenAreaProgreso, 
                               and_(OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
