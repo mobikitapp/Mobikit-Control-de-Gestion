@@ -76,19 +76,7 @@
                                 </select>
                             </div>
 
-                            <!-- Responsable -->
-                            <div class="col-md-6">
-                                <label for="responsable" class="form-label">Responsable</label>
-                                <select class="form-select" id="responsable" name="responsable">
-                                    <option value="">Seleccionar responsable</option>
-                                    {% for usuario in usuarios %}
-                                    <option value="{{ usuario.id }}" 
-                                            {% if (proyecto and proyecto.responsable == usuario.id) or (not proyecto and usuario.id == current_user.id) %}selected{% endif %}>
-                                        {{ usuario.nombre_completo }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
+                            
 
                             <!-- Vendedor -->
                             <div class="col-md-6">
