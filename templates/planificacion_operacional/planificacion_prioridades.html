@@ -130,66 +130,30 @@
                                         <span class="badge bg-secondary">{{ proyecto.ofs|length }}</span>
                                     </td>
                                     <td>
-                                        <!-- Cronograma visual por semanas -->
+                                        <!-- Cronograma visual simplificado -->
                                         <div class="gantt-timeline" style="position: relative; height: 30px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
-                                            {% set hoy = momento_actual().date() %}
-                                            {% set semana_inicio = hoy - timedelta(days=hoy.weekday()) %}
-                                            {% set duracion_total = 84 %} <!-- 12 semanas en días -->
-                                            
-                                            {% for of_info in proyecto.ofs %}
-                                                {% if of_info.of.fecha_planificada and of_info.fecha_estimada_embalaje %}
-                                                    {% set dias_desde_inicio = (of_info.of.fecha_planificada - semana_inicio).days %}
-                                                    {% set duracion_of = (of_info.fecha_estimada_embalaje - of_info.of.fecha_planificada).days %}
-                                                    
-                                                    {% if dias_desde_inicio >= 0 and dias_desde_inicio < duracion_total %}
-                                                        {% set left_percent = (dias_desde_inicio / duracion_total) * 100 %}
-                                                        {% set width_percent = (duracion_of / duracion_total) * 100 %}
-                                                        {% if width_percent > 0 %}
-                                                            <div class="gantt-bar" 
-                                                                 style="position: absolute; 
-                                                                        left: {{ left_percent }}%; 
-                                                                        width: {{ width_percent }}%; 
-                                                                        height: 20px; 
-                                                                        background-color: 
-                                                                        {% if of_info.of.prioridad_numerica <= 3 %}#dc3545
-                                                                        {% elif of_info.of.prioridad_numerica <= 7 %}#ffc107
-                                                                        {% elif of_info.of.prioridad_numerica <= 15 %}#0dcaf0
-                                                                        {% else %}#198754{% endif %};
-                                                                        top: 5px; 
-                                                                        border-radius: 2px; 
-                                                                        opacity: 0.8;
-                                                                        border: 1px solid #fff;"
-                                                                 title="{{ of_info.of.codigo }} - P{{ of_info.of.prioridad_numerica }}">
-                                                                <small style="color: white; font-size: 10px; padding: 2px;">
-                                                                    {{ of_info.of.codigo[:6] }}
-                                                                </small>
-                                                            </div>
-                                                        {% endif %}
-                                                    {% endif %}
+                                            <!-- Indicador de carga del proyecto -->
+                                            <div style="display: flex; align-items: center; height: 100%; padding: 0 8px;">
+                                                {% for of_info in proyecto.ofs %}
+                                                    <div class="gantt-item" 
+                                                         style="margin-right: 2px; padding: 2px 4px; border-radius: 2px; font-size: 9px; color: white;
+                                                                background-color: 
+                                                                {% if of_info.of.prioridad_numerica <= 3 %}#dc3545
+                                                                {% elif of_info.of.prioridad_numerica <= 7 %}#ffc107
+                                                                {% elif of_info.of.prioridad_numerica <= 15 %}#0dcaf0
+                                                                {% else %}#198754{% endif %};"
+                                                         title="{{ of_info.of.codigo }} - P{{ of_info.of.prioridad_numerica or 99 }}
+{% if of_info.of.fecha_planificada %}
+Inicio: {{ of_info.of.fecha_planificada.strftime('%d/%m') }}
+{% endif %}">
+                                                        {{ of_info.of.codigo[:4] }}
+                                                    </div>
+                                                    {% if loop.index > 8 %}...{% break %}{% endif %}
+                                                {% endfor %}
+                                                {% if proyecto.ofs|length > 8 %}
+                                                    <small style="color: #666; font-size: 10px;">+{{ proyecto.ofs|length - 8 }}</small>
                                                 {% endif %}
-                                            {% endfor %}
-                                            
-                                            <!-- Marcadores de semana -->
-                                            {% for semana in range(12) %}
-                                                {% set left_semana = (semana * 7 / duracion_total) * 100 %}
-                                                <div style="position: absolute; 
-                                                           left: {{ left_semana }}%; 
-                                                           top: 0; 
-                                                           height: 100%; 
-                                                           width: 1px; 
-                                                           background-color: #ccc;
-                                                           opacity: 0.5;">
-                                                </div>
-                                                {% if semana % 2 == 0 %}
-                                                <small style="position: absolute; 
-                                                             left: {{ left_semana + 1 }}%; 
-                                                             top: -18px; 
-                                                             font-size: 9px; 
-                                                             color: #666;">
-                                                    Sem {{ semana + 1 }}
-                                                </small>
-                                                {% endif %}
-                                            {% endfor %}
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
