@@ -25,7 +25,7 @@
     </div>
 
     <!-- Estadísticas generales -->
-    <div class="row mb-4">
+    <div class="row mb-4 estadisticas-row">
         <div class="col-md-2">
             <div class="card bg-primary text-white">
                 <div class="card-body text-center">
@@ -77,7 +77,7 @@
     </div>
 
     <!-- Gantt de Proyectos por Semanas -->
-    <div class="row mb-4">
+    <div class="row mb-4 gantt-proyectos-section">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -94,6 +94,9 @@
                         </div>
                         <button class="btn btn-sm btn-success me-2" onclick="asignarPrioridadesAutomaticas()">
                             <i class="fas fa-magic"></i> Asignar P1-P{N} Automático
+                        </button>
+                        <button class="btn btn-sm btn-info me-2" onclick="imprimirTabla()">
+                            <i class="fas fa-print"></i> Imprimir
                         </button>
                         <button class="btn btn-sm btn-primary" onclick="location.reload()">
                             <i class="fas fa-sync-alt"></i> Actualizar
@@ -259,31 +262,23 @@ Duración: {{ embalaje_days }} días">
                                     <td class="text-center">
                                         <span class="badge bg-info">{{ proyectos_gantt|sum(attribute='total_tableros') }}</span>
                                     </td>
-                                    {% for week in range(6) %}
-                                        <td class="text-center">
-                                            {% set week_start = today + timedelta(weeks=week) %}
-                                            {% set week_start = week_start - timedelta(days=week_start.weekday()) %}
-                                            {% set week_end = week_start + timedelta(days=6) %}
-                                            {% set week_total_ofs = 0 %}
-                                            {% set week_total_tableros = 0 %}
-                                            {% for proyecto in proyectos_gantt %}
-                                                {% for of_info in proyecto.ofs %}
-                                                    {% if of_info.of.fecha_planificada and 
-                                                         of_info.of.fecha_planificada >= week_start and 
-                                                         of_info.of.fecha_planificada <= week_end %}
-                                                        {% set week_total_ofs = week_total_ofs + 1 %}
-                                                        {% set week_total_tableros = week_total_tableros + (of_info.of.numero_tableros or 0) %}
-                                                    {% endif %}
-                                                {% endfor %}
-                                            {% endfor %}
-                                            <div class="week-totals">
-                                                <strong class="text-primary">{{ week_total_ofs }}</strong><br>
-                                                <small>OFs</small><br>
-                                                <strong class="text-info">{{ week_total_tableros }}</strong><br>
-                                                <small>Tableros</small>
+                                    <!-- Resumen de carga total en cronograma -->
+                                    <td class="text-center bg-light" style="padding: 8px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <strong class="text-primary">{{ proyectos_gantt|sum(attribute='ofs_activas') }}</strong>
+                                                <small class="text-muted"> OFs Totales</small>
                                             </div>
-                                        </td>
-                                    {% endfor %}
+                                            <div class="text-center">
+                                                <span class="badge bg-success">{{ proyectos_gantt|length }}</span>
+                                                <small class="text-muted"> Proyectos</small>
+                                            </div>
+                                            <div>
+                                                <strong class="text-info">{{ proyectos_gantt|sum(attribute='total_tableros') }}</strong>
+                                                <small class="text-muted"> Tableros</small>
+                                            </div>
+                                        </div>
+                                    </td>
                                     <td class="text-center bg-primary text-white">
                                         <div class="grand-totals">
                                             <strong>{{ proyectos_gantt|sum(attribute='ofs_activas') }}</strong><br>
@@ -322,7 +317,7 @@ Duración: {{ embalaje_days }} días">
     </div>
 
     <!-- Matriz Detallada de OFs -->
-    <div class="row">
+    <div class="row matriz-detallada-section">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -332,6 +327,9 @@ Duración: {{ embalaje_days }} días">
                     </h6>
                     <div>
                         <small class="text-muted">Actualizado: {{ fecha_actualizacion.strftime('%d/%m/%Y %H:%M') }}</small>
+                        <button class="btn btn-sm btn-info ms-2" onclick="imprimirMatrizDetallada()">
+                            <i class="fas fa-print"></i> Imprimir Detalle
+                        </button>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -729,6 +727,68 @@ function actualizarFecha(ofId, field, fecha, inputElement) {
         alert('Error de conexión al actualizar fecha');
     });
 }
+
+// Funciones de impresión
+function imprimirTabla() {
+    // Agregar clase no-print a elementos que no se deben imprimir
+    const elementosNoImprimir = document.querySelectorAll('.btn, .form-control, .form-select, .alert');
+    elementosNoImprimir.forEach(el => el.classList.add('no-print'));
+    
+    // Crear header para impresión
+    const originalTitle = document.title;
+    document.title = 'Planificación y Prioridades - Gantt de Proyectos - ' + new Date().toLocaleDateString();
+    
+    // Ocultar matriz detallada al imprimir gantt
+    const matrizDetallada = document.querySelector('.matriz-detallada-section');
+    if (matrizDetallada) {
+        matrizDetallada.style.display = 'none';
+    }
+    
+    window.print();
+    
+    // Restaurar después de imprimir
+    setTimeout(() => {
+        document.title = originalTitle;
+        elementosNoImprimir.forEach(el => el.classList.remove('no-print'));
+        if (matrizDetallada) {
+            matrizDetallada.style.display = 'block';
+        }
+    }, 1000);
+}
+
+function imprimirMatrizDetallada() {
+    // Agregar clase no-print a elementos que no se deben imprimir
+    const elementosNoImprimir = document.querySelectorAll('.btn, .form-control, .form-select, .alert');
+    elementosNoImprimir.forEach(el => el.classList.add('no-print'));
+    
+    // Crear header para impresión
+    const originalTitle = document.title;
+    document.title = 'Planificación y Prioridades - Matriz Detallada - ' + new Date().toLocaleDateString();
+    
+    // Ocultar gantt de proyectos al imprimir matriz detallada
+    const ganttProyectos = document.querySelector('.gantt-proyectos-section');
+    const estadisticas = document.querySelector('.estadisticas-row');
+    if (ganttProyectos) {
+        ganttProyectos.style.display = 'none';
+    }
+    if (estadisticas) {
+        estadisticas.style.display = 'none';
+    }
+    
+    window.print();
+    
+    // Restaurar después de imprimir
+    setTimeout(() => {
+        document.title = originalTitle;
+        elementosNoImprimir.forEach(el => el.classList.remove('no-print'));
+        if (ganttProyectos) {
+            ganttProyectos.style.display = 'block';
+        }
+        if (estadisticas) {
+            estadisticas.style.display = 'block';
+        }
+    }, 1000);
+}
 </script>
 
 <style>
@@ -751,11 +811,81 @@ function actualizarFecha(ofId, field, fecha, inputElement) {
 }
 
 @media print {
+    @page {
+        size: A4 landscape;
+        margin: 0.5in;
+    }
+    
     .btn, .form-control, .form-select { 
         display: none !important; 
     }
-    .table td {
-        font-size: 0.7rem;
+    
+    .no-print {
+        display: none !important;
+    }
+    
+    body {
+        background-color: white !important;
+        font-size: 10px;
+    }
+    
+    .card {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa !important;
+        border-bottom: 2px solid #000 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    .table {
+        font-size: 8px !important;
+        border-collapse: collapse !important;
+    }
+    
+    .table th, .table td {
+        padding: 3px !important;
+        border: 1px solid #000 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    .table-dark th {
+        background-color: #343a40 !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    .badge {
+        background-color: #f8f9fa !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    .gantt-timeline-container {
+        border: 2px solid #000 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    .gantt-bar-fabrica,
+    .gantt-bar-embalaje {
+        border: 1px solid #000 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    .print-header {
+        text-align: center;
+        margin-bottom: 20px;
+        border-bottom: 3px solid #000;
+        padding-bottom: 15px;
+        page-break-after: avoid;
+    }
+    
+    .estadisticas-row {
+        page-break-after: avoid;
     }
 }
 </style>
