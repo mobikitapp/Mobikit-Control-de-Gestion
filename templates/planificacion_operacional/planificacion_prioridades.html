@@ -135,6 +135,7 @@
                                             <!-- Indicador de carga del proyecto -->
                                             <div style="display: flex; align-items: center; height: 100%; padding: 0 8px;">
                                                 {% for of_info in proyecto.ofs %}
+                                                    {% if loop.index <= 8 %}
                                                     <div class="gantt-item" 
                                                          style="margin-right: 2px; padding: 2px 4px; border-radius: 2px; font-size: 9px; color: white;
                                                                 background-color: 
@@ -148,10 +149,10 @@ Inicio: {{ of_info.of.fecha_planificada.strftime('%d/%m') }}
 {% endif %}">
                                                         {{ of_info.of.codigo[:4] }}
                                                     </div>
-                                                    {% if loop.index > 8 %}...{% break %}{% endif %}
+                                                    {% endif %}
                                                 {% endfor %}
                                                 {% if proyecto.ofs|length > 8 %}
-                                                    <small style="color: #666; font-size: 10px;">+{{ proyecto.ofs|length - 8 }}</small>
+                                                    <small style="color: #666; font-size: 10px; margin-left: 4px;">+{{ proyecto.ofs|length - 8 }}</small>
                                                 {% endif %}
                                             </div>
                                         </div>
