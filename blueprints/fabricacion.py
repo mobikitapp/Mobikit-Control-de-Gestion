@@ -330,9 +330,6 @@ def avanzar_area(of_id):
     try:
         notas = request.form.get('notas', '')
 
-        # Get next action description for this order
-        next_action = fabricacion_service.get_next_action_description(of_id)
-
         # Advance to next area
         new_progress = areas_service.advance_to_next_area(
             orden_fabricacion_id=of_id,
@@ -341,7 +338,7 @@ def avanzar_area(of_id):
             notas=notas
         )
 
-        flash(f'Orden avanzada exitosamente: {next_action}', 'success')
+        flash('Orden avanzada exitosamente', 'success')
 
     except ValueError as e:
         flash(f'Error: {str(e)}', 'danger')
