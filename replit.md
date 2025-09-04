@@ -6,6 +6,14 @@ A comprehensive management system for manufacturing companies that centralizes a
 
 ## Recent Changes
 
+**[2025-09-04] Mejoras en Planificación y Prioridades**
+- Corregida la fila de totales en Gantt de proyectos para coincidir con el cronograma unificado de 6 semanas
+- Implementada funcionalidad completa de impresión con botones separados para Gantt y matriz detallada
+- Agregados estilos CSS optimizados para impresión en formato A4 horizontal
+- Implementadas funciones JavaScript que ocultan automáticamente secciones irrelevantes al imprimir
+- Corregida ruta del blueprint de planificación operacional a `/prioridades`
+- Eliminado código duplicado que causaba errores de startup del servidor
+
 **[2025-09-03] Sistema de Gestión de Permisos Dinámicos**
 - Implementado sistema completo de gestión de permisos por rol y módulo 
 - Interfaz administrativa para configurar permisos granulares (Lectura, Creación, Edición, Eliminación)
