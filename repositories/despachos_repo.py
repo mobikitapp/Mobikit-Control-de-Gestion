@@ -195,12 +195,12 @@ class DespachosRepository:
                 count = db.session.query(Despacho).filter_by(contrato_id=contrato_id).count()
             else:
                 # Fallback if contract not found
-                prefix = f"Cliente {cliente_id}"
-                count = db.session.query(Despacho).join(Proyecto).filter(Proyecto.cliente_id == cliente_id).filter(Despacho.contrato_id.is_(None)).count()
+                prefix = "DESP"
+                count = db.session.query(Despacho).filter(Despacho.contrato_id.is_(None)).count()
         else:
-            # No contract, use client-based numbering
-            prefix = f"Cliente {cliente_id}"
-            count = db.session.query(Despacho).join(Proyecto).filter(Proyecto.cliente_id == cliente_id).filter(Despacho.contrato_id.is_(None)).count()
+            # No contract, use generic dispatch numbering
+            prefix = "DESP"
+            count = db.session.query(Despacho).filter(Despacho.contrato_id.is_(None)).count()
         
         # Generate next number (starting from 001)
         next_number = count + 1
