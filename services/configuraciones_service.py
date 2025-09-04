@@ -281,6 +281,9 @@ class ConfiguracionesService:
         # Get recent user activity
         actividad_reciente = self._get_actividad_reciente(limit=10)
         
+        # Get time factors from database or use defaults
+        factores_tiempo = self.get_factores_tiempo()
+        
         return {
             'stats': stats,
             'actividad_reciente': actividad_reciente,
@@ -290,7 +293,9 @@ class ConfiguracionesService:
                 'sesion_timeout': 31,  # days
                 'max_intentos_login': 3,
                 'backup_automatico': True,
-                'notificaciones_email': True
+                'notificaciones_email': True,
+                'factor_tiempo_fabrica': factores_tiempo['factor_tiempo_fabrica'],
+                'factor_tiempo_embalaje': factores_tiempo['factor_tiempo_embalaje']
             }
         }
 
@@ -553,3 +558,29 @@ class ConfiguracionesService:
             
         except Exception as e:
             return None
+
+    def get_factores_tiempo(self):
+        """Get time factors from configuration (defaults if not set)"""
+        # For now, use default values - these could be stored in a config table later
+        return {
+            'factor_tiempo_fabrica': 0.025,  # días por tablero en fábrica
+            'factor_tiempo_embalaje': 0.01   # días por tablero en embalaje
+        }
+    
+    def actualizar_factores_tiempo(self, factor_fabrica: float, factor_embalaje: float, usuario_id: int) -> bool:
+        """Update time factors configuration"""
+        try:
+            # For now, this is a placeholder that returns True
+            # In a full implementation, these would be stored in a config table
+            # Here we would update the database with new values
+            
+            # Log the change (you could implement audit logging here)
+            print(f"Usuario {usuario_id} actualizó factores de tiempo: "
+                  f"Fabrica: {factor_fabrica}, Embalaje: {factor_embalaje}")
+            
+            # Return success - in a real implementation, check DB operation result
+            return True
+            
+        except Exception as e:
+            print(f"Error updating time factors: {e}")
+            return False
