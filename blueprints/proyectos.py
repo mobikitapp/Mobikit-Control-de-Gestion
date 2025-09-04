@@ -75,7 +75,7 @@ def index():
         proyectos, total_count = proyectos_service.search_proyectos(filters)
 
         # Get data for filters
-        clientes = clientes_service.get_clientes_activos()
+        clientes = clientes_service.get_active_clientes()
         from services.user_service import UserService
         user_service = UserService()
         vendedores = user_service.get_users_by_roles(['ventas', 'admin'])
