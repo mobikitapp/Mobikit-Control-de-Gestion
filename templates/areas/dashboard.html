@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros.html' import moment %}
 {% set title = "Dashboard de Áreas" %}
 
 {% block content %}
@@ -222,13 +223,48 @@
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <small class="text-muted">-</small>
+                                                    {% if order.fecha_entrega_dinamica %}
+                                                        {{ order.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                                                        {% if area_data.area.tipo.value == 'fabrica' %}
+                                                        <br><small class="text-muted">Fábrica</small>
+                                                        {% elif area_data.area.tipo.value == 'embalaje' %}
+                                                        <br><small class="text-muted">Embalaje</small>
+                                                        {% else %}
+                                                        <br><small class="text-muted">Contrato</small>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <small class="text-muted">-</small>
+                                                    {% endif %}
                                                 </td>
                                                 <td>
-                                                    <small class="text-muted">-</small>
+                                                    {% if order.fecha_entrega_dinamica %}
+                                                        {% set today = moment_global.now().date() %}
+                                                        {% set days_remaining = (order.fecha_entrega_dinamica - today).days %}
+                                                        {% if days_remaining < 0 %}
+                                                            <span class="badge bg-danger">{{ days_remaining|abs }} días vencido</span>
+                                                        {% elif days_remaining == 0 %}
+                                                            <span class="badge bg-warning">Hoy</span>
+                                                        {% elif days_remaining <= 7 %}
+                                                            <span class="badge bg-warning">{{ days_remaining }} días</span>
+                                                        {% elif days_remaining <= 30 %}
+                                                            <span class="badge bg-info">{{ days_remaining }} días</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">{{ days_remaining }} días</span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <small class="text-muted">-</small>
+                                                    {% endif %}
                                                 </td>
                                                 <td>
-                                                    <small class="text-muted">-</small>
+                                                    {% if order.fecha_cambio_estado %}
+                                                        {% set today = moment_global.now().date() %}
+                                                        {% set days_diff = (today - order.fecha_cambio_estado.date()).days %}
+                                                        <small class="{% if days_diff > 7 %}text-danger{% elif days_diff > 3 %}text-warning{% else %}text-muted{% endif %}">
+                                                            {{ days_diff }} día{% if days_diff != 1 %}s{% endif %}
+                                                        </small>
+                                                    {% else %}
+                                                        <small class="text-muted">-</small>
+                                                    {% endif %}
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
@@ -623,4 +659,12 @@ function archivarOrden(ofId, codigo) {
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script>
+// Make moment available globally
+window.moment_global = moment;
+</script>
 {% endblock %}
