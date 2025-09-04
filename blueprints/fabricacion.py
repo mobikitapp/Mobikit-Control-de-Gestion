@@ -329,16 +329,55 @@ def avanzar_area(of_id):
     """Avanzar orden a siguiente área"""
     try:
         notas = request.form.get('notas', '')
-
-        # Advance to next area
-        new_progress = areas_service.advance_to_next_area(
-            orden_fabricacion_id=of_id,
-            created_by=current_user.id,
-            responsable_id=current_user.id,
-            notas=notas
-        )
-
-        flash('Orden avanzada exitosamente', 'success')
+        
+        # Try to advance to next area first (this will fail if not in final state)
+        # If it fails, we'll try to get next state within current area
+        try:
+            new_progress = areas_service.advance_to_next_area(
+                orden_fabricacion_id=of_id,
+                created_by=current_user.id,
+                responsable_id=current_user.id,
+                notas=notas
+            )
+            flash('Orden avanzada a la siguiente área exitosamente', 'success')
+            
+        except ValueError as ve:
+            # If advance to next area failed because not in final state,
+            # try to find next state in current area
+            if "completar el estado final" in str(ve):
+                # Get orden to find current area and state
+                orden = fabricacion_service.get_orden_fabricacion_by_id(of_id)
+                if not orden or not hasattr(orden, 'area_progreso_actual') or not orden.area_progreso_actual:
+                    raise ValueError("No se pudo obtener el estado actual de la orden")
+                
+                current_progress = orden.area_progreso_actual
+                current_area = current_progress.area
+                current_estado = current_progress.estado
+                
+                # Find next state in same area (order by orden_en_area)
+                from models import AreaEstado
+                next_state = (db.session.query(AreaEstado)
+                             .filter_by(area_id=current_area.id)
+                             .filter(AreaEstado.orden_en_area > current_estado.orden_en_area)
+                             .order_by(AreaEstado.orden_en_area.asc())
+                             .first())
+                
+                if next_state:
+                    # Change to next state within same area
+                    new_progress = areas_service.change_estado_in_area(
+                        orden_fabricacion_id=of_id,
+                        nuevo_estado_id=next_state.id,
+                        created_by=current_user.id,
+                        responsable_id=current_user.id,
+                        notas=notas
+                    )
+                    flash(f'Estado actualizado a: {next_state.nombre}', 'success')
+                else:
+                    # No more states in current area, but not in final state?
+                    flash('No hay más estados disponibles en esta área', 'warning')
+            else:
+                # Different error, re-raise it
+                raise ve
 
     except ValueError as e:
         flash(f'Error: {str(e)}', 'danger')
