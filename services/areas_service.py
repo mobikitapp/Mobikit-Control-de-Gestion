@@ -151,10 +151,11 @@ class AreasService:
             if not current_progress.estado.es_final:
                 raise ValueError(f"La orden debe completar el estado final del área actual antes de avanzar")
 
-            # Get next area
+            # Get next area by orden_secuencia
             current_area = current_progress.area
-            next_area_id = current_area.orden_secuencia + 1
-            next_area = self.areas_repo.get_area_by_id(next_area_id)
+            next_orden_secuencia = current_area.orden_secuencia + 1
+            from models import Area
+            next_area = db.session.query(Area).filter_by(orden_secuencia=next_orden_secuencia).first()
 
             if not next_area:
                 raise ValueError("No hay siguiente área en la secuencia")
