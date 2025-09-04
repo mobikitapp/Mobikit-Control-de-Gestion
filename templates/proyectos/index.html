@@ -127,9 +127,6 @@
                         <tr>
                             <td>
                                 <div class="fw-medium">{{ proyecto.nombre }}</div>
-                                {% if proyecto.descripcion %}
-                                <small class="text-muted">{{ proyecto.descripcion[:50] }}{% if proyecto.descripcion|length > 50 %}...{% endif %}</small>
-                                {% endif %}
                             </td>
                             <td>
                                 <a href="{{ url_for('clientes.detalle', cliente_id=proyecto.cliente.id) }}" class="text-decoration-none">
