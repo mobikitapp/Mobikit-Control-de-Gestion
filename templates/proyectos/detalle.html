@@ -237,6 +237,149 @@
         </div>
     </div>
 
+    <!-- Financial KPIs and Efficiency Metrics -->
+    {% if stats %}
+    <div class="row g-4 mt-4">
+        <!-- Financial KPI -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="dollar-sign" class="me-2"></i>
+                        KPI Financiero
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% set kpi = stats.kpi_financiero or {} %}
+                    {% if kpi and kpi.estado != 'sin_datos' %}
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-medium">Avance Financiero</span>
+                                <span class="badge bg-{{
+                                    'success' if kpi.estado == 'dentro_presupuesto' else
+                                    'warning' if kpi.estado == 'alerta' else
+                                    'danger' if kpi.estado == 'sobre_presupuesto' else
+                                    'secondary'
+                                }}">{{ kpi.avance_porcentaje }}%</span>
+                            </div>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-{{
+                                    'success' if kpi.estado == 'dentro_presupuesto' else
+                                    'warning' if kpi.estado == 'alerta' else
+                                    'danger'
+                                }}" role="progressbar" 
+                                     style="width: {{ min(100, kpi.avance_porcentaje) }}%">
+                                    <small class="fw-bold">{{ kpi.avance_porcentaje }}%</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-center p-2 bg-light rounded">
+                                <div class="fw-bold text-primary">${{ "{:,.0f}".format(kpi.monto_contratado or 0) }}</div>
+                                <small class="text-muted">Monto Contratado</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-center p-2 bg-light rounded">
+                                <div class="fw-bold text-secondary">${{ "{:,.0f}".format(kpi.provision_presupuestada or 0) }}</div>
+                                <small class="text-muted">Presupuesto</small>
+                            </div>
+                        </div>
+                        {% if kpi.diferencia != 0 %}
+                        <div class="col-12">
+                            <div class="alert alert-{{
+                                'success' if kpi.diferencia <= 0 else
+                                'warning' if kpi.diferencia <= (kpi.provision_presupuestada * 0.1) else
+                                'danger'
+                            }} mb-0 py-2">
+                                <i data-feather="{{
+                                    'check-circle' if kpi.diferencia <= 0 else
+                                    'alert-triangle' if kpi.diferencia <= (kpi.provision_presupuestada * 0.1) else
+                                    'x-circle'
+                                }}" class="me-1"></i>
+                                {% if kpi.diferencia > 0 %}
+                                    Sobrepasa presupuesto en ${{ "{:,.0f}".format(kpi.diferencia) }}
+                                {% else %}
+                                    Dentro del presupuesto (ahorro de ${{ "{:,.0f}".format(-kpi.diferencia) }})
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i data-feather="dollar-sign" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted mb-0">No hay datos financieros suficientes</p>
+                        <small class="text-muted">
+                            {% if kpi.estado == 'sin_provision' %}
+                                Falta configurar monto de provisión presupuestado
+                            {% else %}
+                                Falta información de contratos o provisión
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Efficiency by Area -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="clock" class="me-2"></i>
+                        Eficiencia por Área
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% set eficiencia = stats.eficiencia_por_area or {} %}
+                    {% if eficiencia %}
+                    <div class="row g-2">
+                        {% for area_nombre, metricas in eficiencia.items() %}
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                                <div>
+                                    <div class="fw-medium">{{ area_nombre }}</div>
+                                    <small class="text-muted">
+                                        {{ metricas.ordenes_procesadas }} procesadas
+                                        {% if metricas.ordenes_actualmente > 0 %}
+                                            | {{ metricas.ordenes_actualmente }} actuales
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-primary">
+                                        {% if metricas.tiempo_promedio_horas > 0 %}
+                                            {% if metricas.tiempo_promedio_horas >= 24 %}
+                                                {{ (metricas.tiempo_promedio_horas / 24) | round(1) }} días
+                                            {% else %}
+                                                {{ metricas.tiempo_promedio_horas | round(1) }} hrs
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">promedio</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i data-feather="clock" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted mb-0">No hay datos de eficiencia disponibles</p>
+                        <small class="text-muted">Se requieren órdenes de fabricación procesadas</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row g-4 mt-4">
         <!-- Project Information -->
         <div class="col-lg-8">
@@ -391,7 +534,7 @@
             {% endif %}
         </div>
 
-        <!-- Statistics -->
+        <!-- Basic Statistics -->
         <div class="col-lg-4">
             <div class="card">
                 <div class="card-header">
