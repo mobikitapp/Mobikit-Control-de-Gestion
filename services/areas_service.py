@@ -10,6 +10,7 @@ from models import (
 from repositories.areas_repository import AreasRepository, OrdenAreaProgresoRepository
 from services.audit_service import AuditService
 from services.audit_service import serialize_model
+from constants.transitions import OF_SPECIAL_VALIDATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,25 @@ class AreasService:
             # Validate state belongs to current area
             if nuevo_estado.area_id != current_progress.area_id:
                 raise ValueError("El estado no pertenece al área actual")
+
+            # Check if the target state requires special validations (e.g., cantidad_tableros for SECCIONANDO)
+            if nuevo_estado.codigo in OF_SPECIAL_VALIDATIONS:
+                validations = OF_SPECIAL_VALIDATIONS[nuevo_estado.codigo]
+                if "required_fields" in validations:
+                    # Get the OF to check required fields
+                    from repositories.fabricacion_repo import FabricacionRepository
+                    fabricacion_repo = FabricacionRepository()
+                    of = fabricacion_repo.get_by_id(orden_fabricacion_id)
+                    
+                    if not of:
+                        raise ValueError(f"Orden de fabricación {orden_fabricacion_id} no encontrada")
+                    
+                    # Check each required field
+                    for field in validations["required_fields"]:
+                        field_value = getattr(of, field, None)
+                        if field_value is None or (isinstance(field_value, (int, float)) and field_value <= 0):
+                            validation_message = validations.get("validation_message", f"El campo {field} es obligatorio")
+                            raise ValueError(validation_message)
 
             # Store original data for audit
             datos_anteriores = serialize_model(current_progress)

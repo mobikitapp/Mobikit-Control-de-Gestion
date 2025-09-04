@@ -10,6 +10,7 @@ from schemas.fabricacion import OrdenFabricacionSearchFilters
 from models import (
     OrdenFabricacion, OrdenAreaProgreso, AreaEstado, TipoArea, EstadoBodega
 )
+from constants.transitions import OF_SPECIAL_VALIDATIONS
 import logging
 
 from typing import TYPE_CHECKING
@@ -423,6 +424,17 @@ class FabricacionService:
 
                 if not next_estado:
                     return False, "No hay siguiente estado en el área actual"
+
+                # Check if the target state requires special validations (e.g., cantidad_tableros for SECCIONANDO)
+                if next_estado.codigo in OF_SPECIAL_VALIDATIONS:
+                    validations = OF_SPECIAL_VALIDATIONS[next_estado.codigo]
+                    if "required_fields" in validations:
+                        # Check each required field in the OF
+                        for field in validations["required_fields"]:
+                            field_value = getattr(of, field, None)
+                            if field_value is None or (isinstance(field_value, (int, float)) and field_value <= 0):
+                                validation_message = validations.get("validation_message", f"El campo {field} es obligatorio")
+                                return False, validation_message
 
                 self.areas_service.change_estado_in_area(
                     of_id, 
