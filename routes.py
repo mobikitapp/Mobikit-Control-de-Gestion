@@ -39,6 +39,9 @@ def login_required_with_test_mode(func):
 
 # Replace the original login_required with our wrapper
 flask_login.login_required = login_required_with_test_mode
+
+# Import login_required for use in this module
+from flask_login import login_required
 from blueprints.clientes import clientes_bp
 from blueprints.proyectos import proyectos_bp
 from blueprints.contratos import contratos_bp
