@@ -623,6 +623,7 @@ class Despacho(db.Model):
     estado = db.Column(db.Enum(EstadoDespacho), default=EstadoDespacho.PROGRAMADO, nullable=False)
     fecha_programada = db.Column(db.Date)
     fecha_envio = db.Column(db.DateTime)
+    fecha_entrega = db.Column(db.DateTime)
     destino = db.Column(db.Text, nullable=False)
     contacto_destino = db.Column(db.String(200))
     telefono_contacto = db.Column(db.String(50))

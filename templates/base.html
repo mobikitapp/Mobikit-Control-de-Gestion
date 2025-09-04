@@ -35,6 +35,7 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <!-- 1. Dashboard -->
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}">
                             <i data-feather="home" class="me-1"></i>
@@ -42,6 +43,7 @@
                         </a>
                     </li>
 
+                    <!-- 2. Clientes -->
                     {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -55,6 +57,7 @@
                     </li>
                     {% endif %}
 
+                    <!-- 3. Proyectos -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="folder" class="me-1"></i>
@@ -68,6 +71,7 @@
                         </ul>
                     </li>
 
+                    <!-- 4. Contratos / OC -->
                     {% if current_user.rol.value in ['admin', 'general', 'ventas'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -81,6 +85,7 @@
                     </li>
                     {% endif %}
 
+                    <!-- 5. Fabricación -->
                     {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -94,64 +99,7 @@
                     </li>
                     {% endif %}
 
-                    {% if current_user.rol.value == 'ventas' %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="bar-chart-2" class="me-1"></i>
-                            Mi Dashboard
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.index') }}">
-                                <i data-feather="home" class="me-2"></i>Panel Principal
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.mis_clientes') }}">
-                                <i data-feather="users" class="me-2"></i>Mis Clientes
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.mis_proyectos') }}">
-                                <i data-feather="folder" class="me-2"></i>Mis Proyectos
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.estadisticas') }}">
-                                <i data-feather="trending-up" class="me-2"></i>Mis Estadísticas
-                            </a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-
-                    {% if current_user.rol.value in ['admin', 'general'] %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="trending-up" class="me-1"></i>
-                            Comercial
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('comercial.centro_vendedores') }}">Centro de Vendedores</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('comercial.lista_vendedores') }}">Vendedores</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('comercial.tareas_comerciales') }}">Tareas Comerciales</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('comercial.planificacion_comercial') }}">Planificación</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('comercial.objetivos_mensuales') }}">Objetivos</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('comercial.revenue_management') }}">Revenue Management</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-
-                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion', 'logistica'] %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="layers" class="me-1"></i>
-                            Áreas
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('areas.dashboard') }}">Dashboard Áreas</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('areas.mis_pendientes') }}">Mis Pendientes</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Workflow de Producción</h6></li>
-                            <li><small class="dropdown-item-text text-muted">1. Pendientes → 2. Fábrica → 3. Embalaje → 4. Bodega → 5. Despacho</small></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-
+                    <!-- 6. Despachos -->
                     {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -189,6 +137,59 @@
                     </li>
                     {% endif %}
 
+                    <!-- 7. Áreas -->
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion', 'logistica'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i data-feather="layers" class="me-1"></i>
+                            Áreas
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('areas.dashboard') }}">Dashboard Áreas</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('areas.mis_pendientes') }}">Mis Pendientes</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Workflow de Producción</h6></li>
+                            <li><small class="dropdown-item-text text-muted">1. Pendientes → 2. Fábrica → 3. Embalaje → 4. Bodega → 5. Despacho</small></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    <!-- 8. Planificación Operacional -->
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i data-feather="activity" class="me-1"></i>
+                            Planificación Operacional
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('planificacion_operacional.matriz_operacional') }}">Matriz Operacional</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('planificacion_operacional.capacidad_produccion') }}">Capacidad de Producción</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('planificacion_operacional.configuracion_conversion') }}">Configurar Factores</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    <!-- 9. Comercial -->
+                    {% if current_user.rol.value in ['admin', 'general'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i data-feather="trending-up" class="me-1"></i>
+                            Comercial
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.centro_vendedores') }}">Centro de Vendedores</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.lista_vendedores') }}">Vendedores</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.tareas_comerciales') }}">Tareas Comerciales</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.planificacion_comercial') }}">Planificación</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.objetivos_mensuales') }}">Objetivos</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('comercial.revenue_management') }}">Revenue Management</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    <!-- 10. Configuraciones (solo admin) -->
                     {% if current_user.rol.value == 'admin' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -216,17 +217,27 @@
                     </li>
                     {% endif %}
 
-                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
+                    <!-- Mi Dashboard (solo para ventas) -->
+                    {% if current_user.rol.value == 'ventas' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="activity" class="me-1"></i>
-                            Planificación Operacional
+                            <i data-feather="bar-chart-2" class="me-1"></i>
+                            Mi Dashboard
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('planificacion_operacional.matriz_operacional') }}">Matriz Operacional</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('planificacion_operacional.capacidad_produccion') }}">Capacidad de Producción</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.index') }}">
+                                <i data-feather="home" class="me-2"></i>Panel Principal
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('planificacion_operacional.configuracion_conversion') }}">Configurar Factores</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.mis_clientes') }}">
+                                <i data-feather="users" class="me-2"></i>Mis Clientes
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.mis_proyectos') }}">
+                                <i data-feather="folder" class="me-2"></i>Mis Proyectos
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.estadisticas') }}">
+                                <i data-feather="trending-up" class="me-2"></i>Mis Estadísticas
+                            </a></li>
                         </ul>
                     </li>
                     {% endif %}
