@@ -104,19 +104,3 @@ class UserService:
         except Exception as e:
             logger.error(f"Error getting users by roles {roles}: {str(e)}")
             return []
-from typing import List
-from models import User
-import logging
-
-logger = logging.getLogger(__name__)
-
-class UserService:
-    """Service layer for User operations"""
-
-    def get_active_users(self) -> List[User]:
-        """Get all active users"""
-        try:
-            return User.query.filter_by(activo=True).all()
-        except Exception as e:
-            logger.error(f"Error getting active users: {str(e)}")
-            raise

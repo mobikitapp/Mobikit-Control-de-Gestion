@@ -77,8 +77,7 @@ def index():
         # Get data for filters
         clientes = clientes_service.get_active_clientes()
         from services.user_service import UserService
-        user_service = UserService()
-        vendedores = user_service.get_users_by_roles(['ventas', 'admin'])
+        vendedores = UserService.get_users_by_roles(['VENTAS', 'ADMIN'])
 
         return render_template('proyectos/index.html',
                              proyectos=proyectos,
