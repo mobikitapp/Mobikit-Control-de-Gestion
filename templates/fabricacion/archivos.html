@@ -255,6 +255,11 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if filters.cliente_id %}
     updateProyectosFilter();
     {% endif %}
+    
+    // Initialize feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
 });
 </script>
 {% endblock %}

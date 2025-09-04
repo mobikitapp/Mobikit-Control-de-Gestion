@@ -408,7 +408,7 @@ def archivos():
         )
 
         # Get clients for filter
-        clientes = clientes_service.get_all_active()
+        clientes = clientes_service.get_all()
 
         # Calculate pagination info
         total_pages = (total_count + per_page - 1) // per_page
