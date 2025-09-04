@@ -202,10 +202,8 @@ def api_areas():
 def api_calendar_events():
     """API endpoint for calendar events"""
     try:
-        from services.calendario_service import CalendarioService
-        calendario_service = CalendarioService()
-        events = calendario_service.get_calendar_events()
-        return jsonify(events)
+        # TODO: Implement calendar events functionality
+        return jsonify([])
     except Exception as e:
         logger.error(f"Error obteniendo eventos calendario: {str(e)}")
         return jsonify([]), 500

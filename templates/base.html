@@ -39,11 +39,21 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <!-- 1. Dashboard -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="home" class="me-1"></i>
                             Dashboard
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('index') }}">
+                                <i data-feather="grid" class="me-2"></i> Dashboard Principal
+                            </a></li>
+                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
+                            <li><a class="dropdown-item" href="{{ url_for('areas.dashboard') }}">
+                                <i data-feather="activity" class="me-2"></i> Dashboard de Áreas
+                            </a></li>
+                            {% endif %}
+                        </ul>
                     </li>
 
                     <!-- 2. Clientes -->
