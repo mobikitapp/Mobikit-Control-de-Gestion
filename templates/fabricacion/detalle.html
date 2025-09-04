@@ -369,62 +369,7 @@
         </div>
     </div>
 
-    <!-- Items Section -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i data-feather="package" class="me-2"></i>
-                        Items de la Orden ({{ of.items|length }})
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% if of.items %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>SKU/Código</th>
-                                    <th>Descripción</th>
-                                    <th>Cantidad</th>
-                                    <th>Unidad</th>
-                                    <th>Notas</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in of.items %}
-                                <tr>
-                                    <td>
-                                        <code>{{ item.sku_codigo }}</code>
-                                    </td>
-                                    <td>{{ item.descripcion }}</td>
-                                    <td>
-                                        <span class="fw-medium">{{ item.cantidad }}</span>
-                                    </td>
-                                    <td>{{ item.unidad }}</td>
-                                    <td>
-                                        {% if item.notas %}
-                                            {{ item.notas }}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i data-feather="package" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
-                        <p class="text-muted">No hay items registrados para esta orden</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
+    
 </div>
 
 <!-- Status Change Modal -->
