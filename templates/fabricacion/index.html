@@ -1,9 +1,5 @@
 {% extends "base.html" %}
-{% from 'macros.html' import moment %}
-
 {% block title %}Órdenes de Fabricación - Sistema de Manufactura{% endblock %}
-
-{% set moment = moment() %}
 
 {% block content %}
 <div class="container">
@@ -180,7 +176,7 @@
                             </td>
                             <td>
                                 {% if of.contrato and of.contrato.fecha_entrega_comprometida %}
-                                    {% set contract_days = (of.contrato.fecha_entrega_comprometida - moment().date()).days %}
+                                    {% set contract_days = (of.contrato.fecha_entrega_comprometida - now().date()).days %}
                                     {% if contract_days < 0 %}
                                         <span class="badge bg-danger">{{ contract_days|abs }} días vencido</span>
                                     {% elif contract_days == 0 %}
