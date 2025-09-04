@@ -205,10 +205,11 @@
                                        class="btn btn-outline-secondary" title="Editar">
                                         <i data-feather="edit"></i>
                                     </a>
-                                    <button type="button" class="btn btn-outline-success" 
+                                    <button type="button" class="btn btn-outline-success btn-sm" 
                                             title="Avanzar estado/área" 
-                                            onclick="avanzarEstado({{ of.id }}, '{{ of.codigo }}')">
-                                        <i data-feather="arrow-right"></i>
+                                            onclick="avanzarEstado({{ of.id }}, '{{ of.codigo }}', '{{ of.next_action_description|default("Avanzar") }}')">
+                                        <i data-feather="arrow-right" class="me-1"></i>
+                                        <span class="d-none d-md-inline">{{ of.next_action_description|default("Avanzar") }}</span>
                                     </button>
                                     {% endif %}
                                 </div>
@@ -287,7 +288,7 @@
             <form id="avanzarEstadoForm" method="POST">
                 <div class="modal-body">
                     <p>¿Está seguro que desea avanzar la orden <strong id="codigoOrden"></strong>?</p>
-                    <small class="text-muted">El sistema determinará automáticamente si avanzar al siguiente estado dentro del área o a la siguiente área.</small>
+                    <small class="text-muted">Esta acción actualizará el estado de la orden según el flujo de producción.</small>
                     <div class="mb-3">
                         <label for="notas_avance" class="form-label">Notas (opcional)</label>
                         <textarea class="form-control" id="notas_avance" name="notas" rows="3" 
@@ -337,11 +338,23 @@ async function updateProyectosFilter() {
 }
 
 // Function to advance state
-function avanzarEstado(ofId, codigo) {
+function avanzarEstado(ofId, codigo, actionDescription) {
     document.getElementById('codigoOrden').textContent = codigo;
     document.getElementById('avanzarEstadoForm').action = `/fabricacion/${ofId}/avanzar-area`;
-
     
+    // Update modal title and button text with specific action
+    const modalTitle = document.querySelector('#avanzarEstadoModal .modal-title');
+    const submitButton = document.querySelector('#avanzarEstadoModal .btn-success');
+    const modalText = document.querySelector('#avanzarEstadoModal .modal-body p');
+    
+    modalTitle.textContent = actionDescription || 'Avanzar Estado';
+    submitButton.innerHTML = `<i data-feather="arrow-right" class="me-2"></i>${actionDescription || 'Avanzar Estado'}`;
+    modalText.innerHTML = `¿Está seguro que desea <strong>${actionDescription?.toLowerCase() || 'avanzar'}</strong> la orden <strong>${codigo}</strong>?`;
+    
+    // Refresh feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
 
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('avanzarEstadoModal'));

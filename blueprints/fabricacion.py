@@ -180,9 +180,14 @@ def detalle(of_id):
         progreso_repo = OrdenAreaProgresoRepository()
         historial_progreso = progreso_repo.get_progress_history(of_id)
 
+        # Import areas service for action descriptions
+        from services.areas_service import AreasService
+        areas_service = AreasService()
+        
         return render_template('fabricacion/detalle.html', 
                              of=of, 
-                             historial_progreso=historial_progreso)
+                             historial_progreso=historial_progreso,
+                             areas_service=areas_service)
 
     except Exception as e:
         logger.error(f"Error obteniendo OF {of_id}: {str(e)}")

@@ -269,7 +269,9 @@
                         <label class="form-label">Avanzar a Siguiente Área</label>
                         <textarea name="notas" class="form-control form-control-sm mb-2" placeholder="Notas (opcional)" rows="2"></textarea>
                         <button type="submit" class="btn btn-sm btn-success w-100">
-                            <i data-feather="arrow-right" class="me-1"></i> Avanzar a Siguiente Área
+                            <i data-feather="arrow-right" class="me-1"></i> 
+                            {% set next_action = areas_service.get_next_action_description(of.id) if areas_service else 'Avanzar a Siguiente Área' %}
+                            {{ next_action }}
                         </button>
                     </form>
                     {% endif %}

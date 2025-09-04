@@ -344,7 +344,17 @@ class FabricacionService:
             Tuple of (ofs_list, total_count)
         """
         try:
-            return self.repo.search(filters)
+            ofs_list, total_count = self.repo.search(filters)
+            
+            # Add next action description to each OF
+            for of in ofs_list:
+                try:
+                    of.next_action_description = self.areas_service.get_next_action_description(of.id)
+                except Exception as e:
+                    logger.warning(f"Error getting next action for OF {of.id}: {str(e)}")
+                    of.next_action_description = "Avanzar"
+            
+            return ofs_list, total_count
         except Exception as e:
             logger.error(f"Error buscando OFs: {str(e)}")
             raise
