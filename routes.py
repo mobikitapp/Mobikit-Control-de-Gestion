@@ -47,7 +47,7 @@ from blueprints.proyectos import proyectos_bp
 from blueprints.contratos import contratos_bp
 from blueprints.fabricacion import fabricacion_bp
 from blueprints.despachos import despachos_bp
-# Removed: from blueprints.areas import areas_bp # Areas removed from main navigation
+from blueprints.areas import areas_bp
 from blueprints.comercial import comercial_bp
 from blueprints.planificacion_operacional import planificacion_operacional_bp
 from blueprints.configuraciones import configuraciones_bp
@@ -64,7 +64,7 @@ app.register_blueprint(proyectos_bp, url_prefix="/proyectos")
 app.register_blueprint(contratos_bp, url_prefix="/contratos")
 app.register_blueprint(fabricacion_bp, url_prefix="/fabricacion")
 app.register_blueprint(despachos_bp, url_prefix="/despachos")
-# Removed: app.register_blueprint(areas_bp, url_prefix="/areas") # Areas removed from main navigation
+app.register_blueprint(areas_bp, url_prefix="/areas")
 app.register_blueprint(comercial_bp, url_prefix="/comercial")
 app.register_blueprint(planificacion_operacional_bp, url_prefix="/planificacion-operacional")
 app.register_blueprint(configuraciones_bp, url_prefix="/configuraciones")

@@ -945,14 +945,36 @@ function cargarAreasProduccionFallback() {
 
 function actualizarEstadisticasAreas(stats) {
     // Actualizar las estadísticas del dashboard de áreas
-    document.getElementById('areas-total-activas').textContent = stats.total_active || 0;
-    document.getElementById('areas-vencidas').textContent = stats.overdue_count || 0;
-    document.getElementById('areas-por-vencer').textContent = stats.due_soon_count || 0;
-    document.getElementById('areas-completadas-hoy').textContent = stats.completed_today || 0;
+    const totalActivas = document.getElementById('areas-total-activas');
+    const vencidas = document.getElementById('areas-vencidas');
+    const porVencer = document.getElementById('areas-por-vencer');
+    const completadasHoy = document.getElementById('areas-completadas-hoy');
+    
+    if (totalActivas) totalActivas.textContent = stats.total_active || 0;
+    if (vencidas) vencidas.textContent = stats.overdue_count || 0;
+    if (porVencer) porVencer.textContent = stats.due_soon_count || 0;
+    if (completadasHoy) completadasHoy.textContent = stats.completed_today || 0;
 }
 
 function renderizarAreasProduccion(areasData) {
     const container = document.getElementById('areas-production-container');
+    
+    if (!container) {
+        console.warn('Container areas-production-container not found');
+        return;
+    }
+    
+    if (!areasData || !areasData.areas) {
+        container.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                No hay datos de áreas disponibles.
+            </div>
+        `;
+        return;
+    }
+    
+    // Continue with the existing logic'areas-production-container');
     
     if (!areasData.areas || areasData.areas.length === 0) {
         container.innerHTML = `
