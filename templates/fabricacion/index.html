@@ -115,7 +115,6 @@
                         <tr>
                             <th>Código</th>
                             <th>Proyecto</th>
-                            <th>Cliente</th>
                             <th>Área / Estado</th>
                             <th>Fecha Entrega</th>
                             <th>Días Restantes</th>
@@ -127,19 +126,15 @@
                         <tr>
                             <td>
                                 <div class="fw-medium">{{ of.codigo }}</div>
+                                {% if of.contrato %}
+                                <small class="text-muted">OC: {{ of.contrato.numero_oc }}</small>
+                                {% endif %}
                             </td>
                             <td>
                                 <a href="{{ url_for('proyectos.detalle', proyecto_id=of.proyecto.id) }}" class="text-decoration-none">
                                     {{ of.proyecto.nombre }}
                                 </a>
-                                {% if of.contrato %}
-                                <br><small class="text-muted">OC: {{ of.contrato.numero_oc }}</small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{{ url_for('clientes.detalle', cliente_id=of.proyecto.cliente.id) }}" class="text-decoration-none">
-                                    {{ of.proyecto.cliente.nombre }}
-                                </a>
+                                <br><small class="text-muted">{{ of.proyecto.cliente.nombre }}</small>
                             </td>
                             <td>
                                 {% if of.area_actual and of.estado_actual %}
