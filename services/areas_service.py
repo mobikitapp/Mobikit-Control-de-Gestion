@@ -167,9 +167,10 @@ class AreasService:
             if not current_progress:
                 raise ValueError(f"Orden {orden_fabricacion_id} no encontrada en sistema de áreas")
 
-            # Check if current state is final for the area
+            # This validation should only apply for direct calls to advance_to_next_area
+            # For smart_advance, this logic is handled there
             if not current_progress.estado.es_final:
-                raise ValueError(f"La orden debe completar el estado final del área actual antes de avanzar")
+                raise ValueError(f"La orden debe completar el estado final del área actual antes de avanzar área. Use smart_advance para avance automático.")
 
             # Get next area by orden_secuencia
             current_area = current_progress.area
@@ -567,6 +568,68 @@ class AreasService:
         except Exception as e:
             logger.error(f"Error getting next area: {str(e)}")
             return None
+
+    def get_current_area_for_order(self, orden_id: int):
+        """Get current area for an order"""
+        try:
+            current_progress = self.progreso_repo.get_current_progress(orden_id)
+            if current_progress and current_progress.area:
+                return current_progress.area
+            return None
+        except Exception as e:
+            logger.error(f"Error getting current area for order {orden_id}: {str(e)}")
+            return None
+
+    def smart_advance_orden(self, orden_fabricacion_id: int, created_by: str, 
+                           responsable_id: str = None, notas: str = None) -> OrdenAreaProgreso:
+        """
+        Intelligent advancement: determines whether to advance state within area 
+        or advance to next area based on current state
+        """
+        try:
+            # Get current progress
+            current_progress = self.progreso_repo.get_current_progress(orden_fabricacion_id)
+            if not current_progress:
+                raise ValueError(f"Orden {orden_fabricacion_id} no encontrada en sistema de áreas")
+
+            current_estado = current_progress.estado
+            current_area = current_progress.area
+
+            # If current state is final for the area, advance to next area
+            if current_estado.es_final:
+                logger.info(f"OF {orden_fabricacion_id} en estado final '{current_estado.nombre}' - avanzando a siguiente área")
+                return self.advance_to_next_area(
+                    orden_fabricacion_id=orden_fabricacion_id,
+                    created_by=created_by,
+                    responsable_id=responsable_id,
+                    notas=notas
+                )
+            else:
+                # Not in final state, advance to next state within same area
+                logger.info(f"OF {orden_fabricacion_id} en estado intermedio '{current_estado.nombre}' - avanzando a siguiente estado")
+                
+                # Find next state in the same area
+                next_estado = None
+                for estado in current_area.estados:
+                    if estado.orden_en_area > current_estado.orden_en_area:
+                        if not next_estado or estado.orden_en_area < next_estado.orden_en_area:
+                            next_estado = estado
+
+                if not next_estado:
+                    raise ValueError(f"No hay siguiente estado disponible en el área {current_area.nombre}")
+
+                # Advance to next state within same area
+                return self.change_estado_in_area(
+                    orden_fabricacion_id=orden_fabricacion_id,
+                    nuevo_estado_id=next_estado.id,
+                    responsable_id=responsable_id,
+                    notas=notas,
+                    tiempo_estimado_horas=None
+                )
+
+        except Exception as e:
+            logger.error(f"Error en smart advance para orden {orden_fabricacion_id}: {str(e)}")
+            raise
 
     def get_next_action_description(self, of_id: int) -> str:
         """Get description of next action for an OF based on current state"""

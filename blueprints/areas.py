@@ -471,20 +471,26 @@ def cambiar_estado_form(orden_id):
 @areas_bp.route('/orden/<int:orden_id>/avanzar-area', methods=['POST'])
 @login_required
 def avanzar_area_form(orden_id):
-    """Form-based area advancement"""
+    """Form-based intelligent advancement (state or area)"""
     try:
         notas = request.form.get('notas', '').strip() or None
 
-        areas_service.advance_to_next_area(orden_id, current_user.id, current_user.id, notas)
-
-        flash(f'Orden avanzada a: {areas_service.get_current_area_for_order(orden_id).nombre}', 'success')
+        # Use smart advance to automatically determine whether to advance state or area
+        updated_progress = areas_service.smart_advance_orden(orden_id, current_user.id, current_user.id, notas)
+        
+        current_area = areas_service.get_current_area_for_order(orden_id)
+        if current_area:
+            flash(f'Orden avanzada exitosamente en {current_area.nombre}', 'success')
+        else:
+            flash('Orden avanzada exitosamente', 'success')
+            
         return redirect(url_for('areas.dashboard'))
 
     except ValueError as e:
         flash(str(e), 'error')
         return redirect(url_for('areas.dashboard'))
     except Exception as e:
-        logger.error(f"Error avanzando área (form): {str(e)}")
+        logger.error(f"Error avanzando orden (form): {str(e)}")
         flash('Error procesando solicitud', 'error')
         return redirect(url_for('areas.dashboard'))
 
