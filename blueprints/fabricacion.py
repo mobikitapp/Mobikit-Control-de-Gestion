@@ -367,7 +367,6 @@ def avanzar_area(of_id):
                     new_progress = areas_service.change_estado_in_area(
                         orden_fabricacion_id=of_id,
                         nuevo_estado_id=next_state.id,
-                        created_by=current_user.id,
                         responsable_id=current_user.id,
                         notas=notas
                     )
