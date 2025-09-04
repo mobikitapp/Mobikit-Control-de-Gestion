@@ -12,15 +12,24 @@
         </button>
         {% endif %}
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" id="vistaPorAreas" onclick="mostrarVistaPorAreas()">
-                <i class="fas fa-tasks"></i> Por Áreas
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-tachometer-alt"></i> Vistas
             </button>
-            <button type="button" class="btn btn-outline-secondary" id="vistaAreasDetalle" onclick="mostrarVistaAreasDetalle()">
-                <i class="fas fa-layers"></i> Dashboard Áreas
-            </button>
-            <button type="button" class="btn btn-outline-secondary" id="vistaCalendario" onclick="mostrarVistaCalendario()">
-                <i class="fas fa-calendar"></i> Calendario
-            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" id="vistaPorAreas" onclick="mostrarVistaPorAreas()">
+                    <i class="fas fa-tasks me-2"></i> Por Áreas
+                </a></li>
+                <li><a class="dropdown-item" href="#" id="vistaAreasDetalle" onclick="mostrarVistaAreasDetalle()">
+                    <i class="fas fa-layers me-2"></i> Dashboard Áreas
+                </a></li>
+                <li><a class="dropdown-item" href="#" id="vistaCalendario" onclick="mostrarVistaCalendario()">
+                    <i class="fas fa-calendar me-2"></i> Calendario
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('areas.dashboard') }}">
+                    <i class="fas fa-external-link-alt me-2"></i> Ir a Dashboard Áreas
+                </a></li>
+            </ul>
         </div>
     </div>
 </div>
@@ -353,12 +362,11 @@ function mostrarVistaPorAreas() {
     document.getElementById('contenido-areas-detalle').style.display = 'none';
     document.getElementById('contenido-calendario').style.display = 'none';
 
-    document.getElementById('vistaPorAreas').classList.add('btn-primary');
-    document.getElementById('vistaPorAreas').classList.remove('btn-outline-secondary');
-    document.getElementById('vistaAreasDetalle').classList.add('btn-outline-secondary');
-    document.getElementById('vistaAreasDetalle').classList.remove('btn-primary');
-    document.getElementById('vistaCalendario').classList.add('btn-outline-secondary');
-    document.getElementById('vistaCalendario').classList.remove('btn-primary');
+    // Update dropdown menu items
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.getElementById('vistaPorAreas').classList.add('active');
 }
 
 function mostrarVistaAreasDetalle() {
@@ -366,12 +374,11 @@ function mostrarVistaAreasDetalle() {
     document.getElementById('contenido-areas-detalle').style.display = 'block';
     document.getElementById('contenido-calendario').style.display = 'none';
 
-    document.getElementById('vistaPorAreas').classList.add('btn-outline-secondary');
-    document.getElementById('vistaPorAreas').classList.remove('btn-primary');
-    document.getElementById('vistaAreasDetalle').classList.add('btn-primary');
-    document.getElementById('vistaAreasDetalle').classList.remove('btn-outline-secondary');
-    document.getElementById('vistaCalendario').classList.add('btn-outline-secondary');
-    document.getElementById('vistaCalendario').classList.remove('btn-primary');
+    // Update dropdown menu items
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.getElementById('vistaAreasDetalle').classList.add('active');
 
     cargarDashboardAreas();
 }
@@ -381,12 +388,11 @@ function mostrarVistaCalendario() {
     document.getElementById('contenido-areas-detalle').style.display = 'none';
     document.getElementById('contenido-calendario').style.display = 'block';
 
-    document.getElementById('vistaPorAreas').classList.add('btn-outline-secondary');
-    document.getElementById('vistaPorAreas').classList.remove('btn-primary');
-    document.getElementById('vistaAreasDetalle').classList.add('btn-outline-secondary');
-    document.getElementById('vistaAreasDetalle').classList.remove('btn-primary');
-    document.getElementById('vistaCalendario').classList.add('btn-primary');
-    document.getElementById('vistaCalendario').classList.remove('btn-outline-secondary');
+    // Update dropdown menu items
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.getElementById('vistaCalendario').classList.add('active');
 
     if (calendar) {
         calendar.render();
