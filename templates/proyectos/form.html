@@ -218,6 +218,63 @@
                                           placeholder="Observaciones comerciales, condiciones especiales, etc.">{{ proyecto.notas_comerciales if proyecto else '' }}</textarea>
                             </div>
 
+                            <!-- Información Adicional del Proyecto -->
+                            <div class="col-12 mt-4">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">
+                                            <i data-feather="info" class="me-2"></i>
+                                            Información Adicional (Opcional)
+                                        </h6>
+                                        <small class="text-muted">Información complementaria para vendedores</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3">
+                                            <!-- Tipo de Proyecto -->
+                                            <div class="col-md-6">
+                                                <label for="tipo_proyecto" class="form-label">Tipo de Proyecto</label>
+                                                <select class="form-select" id="tipo_proyecto" name="tipo_proyecto">
+                                                    <option value="">Seleccionar tipo</option>
+                                                    <option value="SOCIAL" {% if proyecto and proyecto.tipo_proyecto and proyecto.tipo_proyecto.value == 'SOCIAL' %}selected{% endif %}>Social</option>
+                                                    <option value="ESTANDAR" {% if proyecto and proyecto.tipo_proyecto and proyecto.tipo_proyecto.value == 'ESTANDAR' %}selected{% endif %}>Estándar</option>
+                                                    <option value="ESPECIAL" {% if proyecto and proyecto.tipo_proyecto and proyecto.tipo_proyecto.value == 'ESPECIAL' %}selected{% endif %}>Especial</option>
+                                                </select>
+                                                <small class="text-muted">Clasificación del proyecto según su naturaleza</small>
+                                            </div>
+
+                                            <!-- Tipo de Vivienda -->
+                                            <div class="col-md-6">
+                                                <label for="tipo_vivienda" class="form-label">Tipo de Vivienda</label>
+                                                <select class="form-select" id="tipo_vivienda" name="tipo_vivienda">
+                                                    <option value="">Seleccionar tipo</option>
+                                                    <option value="CASA" {% if proyecto and proyecto.tipo_vivienda and proyecto.tipo_vivienda.value == 'CASA' %}selected{% endif %}>Casa</option>
+                                                    <option value="DEPARTAMENTO" {% if proyecto and proyecto.tipo_vivienda and proyecto.tipo_vivienda.value == 'DEPARTAMENTO' %}selected{% endif %}>Departamento</option>
+                                                </select>
+                                                <small class="text-muted">Tipo de construcción objetivo</small>
+                                            </div>
+
+                                            <!-- Número de Viviendas -->
+                                            <div class="col-md-6">
+                                                <label for="numero_viviendas" class="form-label">Número de Viviendas</label>
+                                                <input type="number" class="form-control" id="numero_viviendas" name="numero_viviendas" 
+                                                       min="1" value="{{ proyecto.numero_viviendas if proyecto and proyecto.numero_viviendas else '' }}"
+                                                       placeholder="Ej: 12">
+                                                <small class="text-muted">Cantidad total de unidades de vivienda</small>
+                                            </div>
+
+                                            <!-- Ubicación de la Obra -->
+                                            <div class="col-md-6">
+                                                <label for="ubicacion_obra" class="form-label">Ubicación de la Obra</label>
+                                                <input type="text" class="form-control" id="ubicacion_obra" name="ubicacion_obra" 
+                                                       maxlength="500" value="{{ proyecto.ubicacion_obra if proyecto and proyecto.ubicacion_obra else '' }}"
+                                                       placeholder="Ej: Las Condes, Santiago">
+                                                <small class="text-muted">Dirección o zona donde se realizará el proyecto</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Notas -->
                             <div class="col-12">
                                 <label for="notas" class="form-label">Notas</label>

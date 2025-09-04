@@ -125,6 +125,63 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Información Adicional del Proyecto -->
+            {% if proyecto.tipo_proyecto or proyecto.tipo_vivienda or proyecto.numero_viviendas or proyecto.ubicacion_obra %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="layers" class="me-2"></i>
+                        Información Adicional
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% if proyecto.tipo_proyecto %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Tipo de Proyecto</label>
+                            <div class="form-control-plaintext">
+                                <span class="badge bg-{{ 'success' if proyecto.tipo_proyecto.value == 'SOCIAL' else 'primary' if proyecto.tipo_proyecto.value == 'ESTANDAR' else 'warning' }}">
+                                    {{ 'Social' if proyecto.tipo_proyecto.value == 'SOCIAL' else 'Estándar' if proyecto.tipo_proyecto.value == 'ESTANDAR' else 'Especial' }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if proyecto.tipo_vivienda %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Tipo de Vivienda</label>
+                            <div class="form-control-plaintext">
+                                <span class="badge bg-info">
+                                    {{ 'Casa' if proyecto.tipo_vivienda.value == 'CASA' else 'Departamento' }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if proyecto.numero_viviendas %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Número de Viviendas</label>
+                            <div class="form-control-plaintext">
+                                <span class="fs-5 fw-bold">{{ proyecto.numero_viviendas }}</span>
+                                <small class="text-muted">unidades</small>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if proyecto.ubicacion_obra %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Ubicación de la Obra</label>
+                            <div class="form-control-plaintext">
+                                <i data-feather="map-pin" class="me-1"></i>
+                                {{ proyecto.ubicacion_obra }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Statistics -->

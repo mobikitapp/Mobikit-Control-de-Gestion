@@ -31,6 +31,12 @@ class ProyectoBase(BaseModel):
     fecha_presupuesto: Optional[date] = Field(None, description="Fecha del presupuesto")
     fecha_adjudicacion: Optional[date] = Field(None, description="Fecha de adjudicación")
     notas_comerciales: Optional[str] = Field(None, description="Notas comerciales")
+    
+    # Campos adicionales opcionales para vendedores
+    tipo_proyecto: Optional[str] = Field(None, description="Tipo de proyecto (Social, Estándar, Especial)")
+    tipo_vivienda: Optional[str] = Field(None, description="Tipo de vivienda (Casa, Departamento)")
+    numero_viviendas: Optional[int] = Field(None, description="Número de viviendas", gt=0)
+    ubicacion_obra: Optional[str] = Field(None, description="Ubicación de la obra", max_length=500)
 
     @validator('fecha_fin_estimada')
     def validate_fecha_fin_estimada(cls, v, values):
@@ -68,6 +74,12 @@ class ProyectoUpdate(BaseModel):
     fecha_presupuesto: Optional[date] = None
     fecha_adjudicacion: Optional[date] = None
     notas_comerciales: Optional[str] = None
+    
+    # Campos adicionales opcionales para vendedores
+    tipo_proyecto: Optional[str] = None
+    tipo_vivienda: Optional[str] = None
+    numero_viviendas: Optional[int] = Field(None, gt=0)
+    ubicacion_obra: Optional[str] = Field(None, max_length=500)
 
 class ProyectoResponse(ProyectoBase):
     id: int

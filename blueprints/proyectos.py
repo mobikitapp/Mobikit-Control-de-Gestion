@@ -35,6 +35,8 @@ def process_form_data(form_data, is_update=False):
         elif key in ['monto_provision_presupuestado', 'margen_venta_provision', 
                      'monto_instalacion_presupuestado', 'margen_venta_instalacion']:
             processed[key] = Decimal(str(value)) if value else None
+        elif key == 'numero_viviendas':
+            processed[key] = int(value) if value else None
         elif key in ['fecha_inicio', 'fecha_fin_estimada', 'fecha_fin_real', 
                      'fecha_presupuesto', 'fecha_adjudicacion']:
             try:
@@ -77,7 +79,7 @@ def index():
         # Get data for filters
         clientes = clientes_service.get_active_clientes()
         from services.user_service import UserService
-        vendedores = UserService.get_users_by_roles(['VENTAS', 'ADMIN'])
+        vendedores = UserService.get_users_by_roles(['ventas', 'admin'])
 
         return render_template('proyectos/index.html',
                              proyectos=proyectos,

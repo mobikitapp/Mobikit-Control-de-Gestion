@@ -73,8 +73,15 @@ class EstadoComercial(Enum):
     PENDIENTE_PRESUPUESTO = "PENDIENTE_PRESUPUESTO"
     PRESUPUESTADO = "PRESUPUESTADO"
     ADJUDICADO = "ADJUDICADO"
-    EN_DESARROLLO = "EN_DESARROLLO"
-    TERMINADO = "TERMINADO"
+
+class TipoProyecto(Enum):
+    SOCIAL = "SOCIAL"
+    ESTANDAR = "ESTANDAR"
+    ESPECIAL = "ESPECIAL"
+
+class TipoVivienda(Enum):
+    CASA = "CASA"
+    DEPARTAMENTO = "DEPARTAMENTO"
 
 # Enums para eventos de calendario
 class TipoEvento(Enum):
@@ -255,6 +262,13 @@ class Proyecto(db.Model):
     fecha_presupuesto = db.Column(db.Date)
     fecha_adjudicacion = db.Column(db.Date)
     notas_comerciales = db.Column(db.Text)
+    
+    # Campos adicionales opcionales para vendedores
+    tipo_proyecto = db.Column(db.Enum(TipoProyecto))  # Social, Estándar, Especial
+    tipo_vivienda = db.Column(db.Enum(TipoVivienda))  # Casa, Departamento
+    numero_viviendas = db.Column(db.Integer)  # Número de viviendas
+    ubicacion_obra = db.Column(db.String(500))  # Ubicación de la obra (se relaciona con direcciones de despacho)
+    
     activo = db.Column(db.Boolean, default=True, nullable=False)
 
     created_at = db.Column(db.DateTime, default=utc_now)
