@@ -153,6 +153,26 @@ class PlanificacionPrioridadesService:
                 if of.fecha_entrega_embalaje:
                     dias_hasta_entrega = (of.fecha_entrega_embalaje - date.today()).days
 
+                # Calcular tiempos reales si hay fechas definidas
+                tiempo_real_fabrica = None
+                tiempo_real_embalaje = None
+                desviacion_fabrica = None
+                desviacion_embalaje = None
+                porcentaje_desviacion_fabrica = None
+                porcentaje_desviacion_embalaje = None
+
+                if of.fecha_planificada and of.fecha_entrega_fabrica:
+                    tiempo_real_fabrica = (of.fecha_entrega_fabrica - of.fecha_planificada).days
+                    desviacion_fabrica = tiempo_real_fabrica - tiempo_fabrica
+                    if tiempo_fabrica > 0:
+                        porcentaje_desviacion_fabrica = (desviacion_fabrica / tiempo_fabrica) * 100
+
+                if of.fecha_entrega_fabrica and of.fecha_entrega_embalaje:
+                    tiempo_real_embalaje = (of.fecha_entrega_embalaje - of.fecha_entrega_fabrica).days
+                    desviacion_embalaje = tiempo_real_embalaje - tiempo_embalaje
+                    if tiempo_embalaje > 0:
+                        porcentaje_desviacion_embalaje = (desviacion_embalaje / tiempo_embalaje) * 100
+
                 of_data = {
                     'of': of,
                     'progreso_actual': progreso,
@@ -160,6 +180,12 @@ class PlanificacionPrioridadesService:
                     'cliente': cliente,
                     'tiempo_estimado_fabrica': tiempo_fabrica,
                     'tiempo_estimado_embalaje': tiempo_embalaje,
+                    'tiempo_real_fabrica': tiempo_real_fabrica,
+                    'tiempo_real_embalaje': tiempo_real_embalaje,
+                    'desviacion_fabrica': desviacion_fabrica,
+                    'desviacion_embalaje': desviacion_embalaje,
+                    'porcentaje_desviacion_fabrica': porcentaje_desviacion_fabrica,
+                    'porcentaje_desviacion_embalaje': porcentaje_desviacion_embalaje,
                     'fecha_estimada_fabricacion': fecha_estimada_fabricacion,
                     'fecha_estimada_embalaje': fecha_estimada_embalaje,
                     'dias_hasta_entrega': dias_hasta_entrega,

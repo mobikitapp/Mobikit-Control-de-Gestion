@@ -6,6 +6,15 @@ A comprehensive management system for manufacturing companies that centralizes a
 
 ## Recent Changes
 
+**[2025-09-04] Comparación Tiempo Real vs Estimado - Análisis de Rendimiento**
+- **CÁLCULO TIEMPO REAL**: Automatización de tiempo real de fabricación (fecha planificada → fecha fab)  
+- **TIEMPO REAL EMBALAJE**: Cálculo automático de tiempo real de embalaje (fecha fab → fecha embalaje)
+- **COMPARACIÓN VISUAL**: Indicadores de desviación tiempo real vs estimado con porcentajes
+- **BADGES INTELIGENTES**: Sistema de colores por nivel de desviación (>50% rojo, >20% amarillo, >20% antes verde)
+- **LEYENDA ACTUALIZADA**: Explicación completa de indicadores de desviación temporal
+- Datos para ajuste de factores de cálculo de estimaciones de tiempo
+- Análisis de rendimiento para mejorar precisión de planificación futura
+
 **[2025-09-04] Mejoras en Matriz Detallada - Nueva Funcionalidad de Dropdowns y Ordenación**
 - **DROPDOWNS DE PROYECTOS**: Implementación de lista desplegable para detalles de cada proyecto
 - **HITOS DE ENTREGA**: Nueva columna de próximo hito de entrega con días restantes
