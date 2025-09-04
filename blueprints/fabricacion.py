@@ -331,7 +331,7 @@ def avanzar_area(of_id):
         notas = request.form.get('notas', '')
 
         # Get next action description for this order
-        next_action = fabrication_service.get_next_action_description(of_id)
+        next_action = fabricacion_service.get_next_action_description(of_id)
 
         # Advance to next area
         new_progress = areas_service.advance_to_next_area(
