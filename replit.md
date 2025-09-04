@@ -6,6 +6,17 @@ A comprehensive management system for manufacturing companies that centralizes a
 
 ## Recent Changes
 
+**[2025-09-04] Mejoras en Matriz Detallada - Nueva Funcionalidad de Dropdowns y Ordenación**
+- **DROPDOWNS DE PROYECTOS**: Implementación de lista desplegable para detalles de cada proyecto
+- **HITOS DE ENTREGA**: Nueva columna de próximo hito de entrega con días restantes
+- **ORDENACIÓN POR DÍAS**: Proyectos ordenados por días restantes según sus OFs (menor a mayor)
+- **ELIMINACIÓN CRONOGRAMA VISUAL**: Removido campo cronograma visual para optimizar espacio
+- **TIEMPO ESTIMADO REORGANIZADO**: Tiempo estimado ahora aparece debajo de fechas de fabricación y embalaje
+- Funcionalidad colapsable con iconos + / - para cada proyecto
+- Impresión mejorada que abre automáticamente todos los dropdowns
+- JavaScript actualizado para manejar eventos de apertura/cierre de dropdowns
+- Cálculo inteligente de días restantes usando mínimo entre OFs y hitos de entrega
+
 **[2025-09-04] Mejoras en Planificación y Prioridades - Actualización de Impresión**
 - **FORMATO CARTA**: Configuración de impresión cambiada de A4 horizontal a formato carta (8.5"x11")
 - **DROPDOWNS ABIERTOS**: Implementación automática de apertura de todos los dropdowns de OFs al imprimir

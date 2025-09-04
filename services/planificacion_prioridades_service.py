@@ -260,13 +260,23 @@ class PlanificacionPrioridadesService:
                 estadisticas['tiempo_total_fabrica'] += of_info['tiempo_estimado_fabrica']
                 estadisticas['tiempo_total_embalaje'] += of_info['tiempo_estimado_embalaje']
 
-            # Ordenar proyectos por prioridad máxima y fecha de entrega
+            # Calcular días restantes mínimos por proyecto basado en sus OFs
+            for proyecto_id, proyecto_data in proyectos_agrupados.items():
+                dias_restantes_ofs = []
+                for of_info in proyecto_data['ofs']:
+                    if of_info['dias_hasta_entrega'] is not None:
+                        dias_restantes_ofs.append(of_info['dias_hasta_entrega'])
+                
+                # Si hay OFs con días hasta entrega, usar el mínimo, sino usar días próximo hito
+                if dias_restantes_ofs:
+                    proyecto_data['dias_restantes_min'] = min(dias_restantes_ofs)
+                else:
+                    proyecto_data['dias_restantes_min'] = proyecto_data['dias_proximo_hito'] or 999
+
+            # Ordenar proyectos por días restantes mínimos (menor a mayor)
             proyectos_ordenados = sorted(
                 proyectos_agrupados.values(),
-                key=lambda p: (
-                    p['prioridad_numerica_min'] or 99,
-                    p['fecha_entrega_mas_proxima'] or date(2099, 12, 31)
-                )
+                key=lambda p: p['dias_restantes_min']
             )
 
             # Crear datos para el gantt de proyectos (simplificado usando los mismos datos)
