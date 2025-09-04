@@ -33,3 +33,5 @@ sqlalchemy
 python-dateutil
 pytest
 requests
+pendulum
+pendulum

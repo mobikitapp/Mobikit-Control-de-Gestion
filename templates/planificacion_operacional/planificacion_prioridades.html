@@ -77,7 +77,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">
                         <i class="fas fa-chart-gantt text-info"></i>
-                        Gantt de Proyectos - Vista Semanal
+                        Gantt de Proyectos - Vista Semanal (6 Semanas)
                     </h6>
                     <div>
                         <button class="btn btn-sm btn-success" onclick="asignarPrioridadesAutomaticas()">
@@ -90,77 +90,161 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-sm mb-0">
+                        <table class="table table-bordered mb-0">
                             <thead class="table-dark">
                                 <tr>
-                                    <th style="width: 25%">Proyecto</th>
-                                    <th style="width: 8%">Cliente</th>
-                                    <th style="width: 6%">Prioridad</th>
-                                    <th style="width: 6%">OFs</th>
-                                    <th style="width: 55%">Cronograma Semanal (Próximas 12 Semanas)</th>
+                                    <th style="width: 180px;">Proyecto</th>
+                                    <th style="width: 80px;">OFs</th>
+                                    <th style="width: 80px;">Tableros</th>
+                                    {% set today = moment() %}
+                                    {% for week in range(6) %}
+                                        {% set week_start = today.add(weeks=week).start_of('week') %}
+                                        {% set week_end = week_start.add(days=6) %}
+                                        <th style="width: 120px;" class="text-center">
+                                            <div class="week-header">
+                                                <strong>Semana {{ week + 1 }}</strong><br>
+                                                <small>{{ week_start.format('DD/MM') }} - {{ week_end.format('DD/MM') }}</small>
+                                            </div>
+                                        </th>
+                                    {% endfor %}
+                                    <th style="width: 100px;" class="text-center bg-info text-white">
+                                        <strong>Total</strong>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for proyecto in proyectos %}
+                                {% for proyecto in proyectos_gantt %}
                                 <tr>
                                     <td>
-                                        <div>
-                                            <strong>{{ proyecto.proyecto.nombre }}</strong>
-                                            {% if proyecto.fecha_entrega_mas_proxima %}
-                                            <br><small class="text-danger">
-                                                <i class="fas fa-clock"></i> 
-                                                Entrega: {{ proyecto.fecha_entrega_mas_proxima.strftime('%d/%m/%Y') }}
-                                            </small>
-                                            {% endif %}
-                                        </div>
+                                        <strong>{{ proyecto.nombre[:20] }}{% if proyecto.nombre|length > 20 %}...{% endif %}</strong><br>
+                                        <small class="text-muted">{{ proyecto.cliente_nombre[:15] }}{% if proyecto.cliente_nombre|length > 15 %}...{% endif %}</small>
                                     </td>
-                                    <td>
-                                        <small>{{ proyecto.cliente.nombre[:20] }}{% if proyecto.cliente.nombre|length > 20 %}...{% endif %}</small>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ proyecto.ofs_activas }}</span>
                                     </td>
-                                    <td>
-                                        <span class="badge 
-                                            {% if proyecto.prioridad_numerica_min <= 3 %}bg-danger
-                                            {% elif proyecto.prioridad_numerica_min <= 7 %}bg-warning
-                                            {% elif proyecto.prioridad_numerica_min <= 15 %}bg-info
-                                            {% else %}bg-success{% endif %}">
-                                            P{{ proyecto.prioridad_numerica_min or 99 }}
-                                        </span>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ proyecto.total_tableros }}</span>
                                     </td>
-                                    <td>
-                                        <span class="badge bg-secondary">{{ proyecto.ofs|length }}</span>
-                                    </td>
-                                    <td>
-                                        <!-- Cronograma visual simplificado -->
-                                        <div class="gantt-timeline" style="position: relative; height: 30px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
-                                            <!-- Indicador de carga del proyecto -->
-                                            <div style="display: flex; align-items: center; height: 100%; padding: 0 8px;">
+                                    {% for week in range(6) %}
+                                        <td class="text-center align-middle" style="padding: 8px;">
+                                            <div class="gantt-week-cell" style="min-height: 40px; position: relative;">
+                                                {% set week_start = today.add(weeks=week).start_of('week') %}
+                                                {% set week_end = week_start.add(days=6) %}
+                                                {% set week_ofs = [] %}
                                                 {% for of_info in proyecto.ofs %}
-                                                    {% if loop.index <= 8 %}
-                                                    <div class="gantt-item" 
-                                                         style="margin-right: 2px; padding: 2px 4px; border-radius: 2px; font-size: 9px; color: white;
-                                                                background-color: 
-                                                                {% if of_info.of.prioridad_numerica <= 3 %}#dc3545
-                                                                {% elif of_info.of.prioridad_numerica <= 7 %}#ffc107
-                                                                {% elif of_info.of.prioridad_numerica <= 15 %}#0dcaf0
-                                                                {% else %}#198754{% endif %};"
-                                                         title="{{ of_info.of.codigo }} - P{{ of_info.of.prioridad_numerica or 99 }}
-{% if of_info.of.fecha_planificada %}
-Inicio: {{ of_info.of.fecha_planificada.strftime('%d/%m') }}
-{% endif %}">
-                                                        {{ of_info.of.codigo[:4] }}
-                                                    </div>
+                                                    {% if of_info.of.fecha_planificada and 
+                                                         of_info.of.fecha_planificada >= week_start.date() and 
+                                                         of_info.of.fecha_planificada <= week_end.date() %}
+                                                        {% set _ = week_ofs.append(of_info) %}
                                                     {% endif %}
                                                 {% endfor %}
-                                                {% if proyecto.ofs|length > 8 %}
-                                                    <small style="color: #666; font-size: 10px; margin-left: 4px;">+{{ proyecto.ofs|length - 8 }}</small>
+
+                                                {% if week_ofs %}
+                                                    <div class="week-ofs-container" style="display: flex; flex-wrap: wrap; gap: 2px; justify-content: center;">
+                                                        {% for of_info in week_ofs[:4] %}
+                                                            <div class="gantt-item-week" 
+                                                                 style="padding: 2px 4px; border-radius: 3px; font-size: 8px; color: white; min-width: 25px; text-align: center;
+                                                                        background-color: 
+                                                                        {% if of_info.of.prioridad_numerica <= 3 %}#dc3545
+                                                                        {% elif of_info.of.prioridad_numerica <= 7 %}#ffc107; color: #000;
+                                                                        {% elif of_info.of.prioridad_numerica <= 15 %}#0dcaf0
+                                                                        {% else %}#198754{% endif %};"
+                                                                 title="{{ of_info.of.codigo }} - P{{ of_info.of.prioridad_numerica or 99 }}
+Fecha: {{ of_info.of.fecha_planificada.strftime('%d/%m/%Y') if of_info.of.fecha_planificada }}
+Tableros: {{ of_info.of.numero_tableros or 0 }}">
+                                                                {{ of_info.of.codigo[:6] }}
+                                                            </div>
+                                                        {% endfor %}
+                                                        {% if week_ofs|length > 4 %}
+                                                            <small style="color: #666; font-size: 8px;">+{{ week_ofs|length - 4 }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="week-summary mt-1">
+                                                        <span class="badge badge-sm bg-secondary">
+                                                            {{ week_ofs|length }} OFs
+                                                        </span>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="text-muted" style="font-size: 10px;">Sin OFs</div>
                                                 {% endif %}
                                             </div>
+                                        </td>
+                                    {% endfor %}
+                                    <td class="text-center align-middle bg-light">
+                                        <div class="project-totals">
+                                            <strong class="text-primary">{{ proyecto.ofs_activas }}</strong><br>
+                                            <small class="text-muted">OFs Total</small><br>
+                                            <strong class="text-info">{{ proyecto.total_tableros }}</strong><br>
+                                            <small class="text-muted">Tableros</small>
                                         </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
+
+                                <!-- Fila de Totales -->
+                                <tr class="table-primary fw-bold">
+                                    <td><strong>TOTALES GENERALES</strong></td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ proyectos_gantt|sum(attribute='ofs_activas') }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ proyectos_gantt|sum(attribute='total_tableros') }}</span>
+                                    </td>
+                                    {% for week in range(6) %}
+                                        <td class="text-center">
+                                            {% set week_start = today.add(weeks=week).start_of('week') %}
+                                            {% set week_end = week_start.add(days=6) %}
+                                            {% set week_total_ofs = 0 %}
+                                            {% set week_total_tableros = 0 %}
+                                            {% for proyecto in proyectos_gantt %}
+                                                {% for of_info in proyecto.ofs %}
+                                                    {% if of_info.of.fecha_planificada and 
+                                                         of_info.of.fecha_planificada >= week_start.date() and 
+                                                         of_info.of.fecha_planificada <= week_end.date() %}
+                                                        {% set week_total_ofs = week_total_ofs + 1 %}
+                                                        {% set week_total_tableros = week_total_tableros + (of_info.of.numero_tableros or 0) %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endfor %}
+                                            <div class="week-totals">
+                                                <strong class="text-primary">{{ week_total_ofs }}</strong><br>
+                                                <small>OFs</small><br>
+                                                <strong class="text-info">{{ week_total_tableros }}</strong><br>
+                                                <small>Tableros</small>
+                                            </div>
+                                        </td>
+                                    {% endfor %}
+                                    <td class="text-center bg-primary text-white">
+                                        <div class="grand-totals">
+                                            <strong>{{ proyectos_gantt|sum(attribute='ofs_activas') }}</strong><br>
+                                            <small>Total OFs</small><br>
+                                            <strong>{{ proyectos_gantt|sum(attribute='total_tableros') }}</strong><br>
+                                            <small>Total Tableros</small>
+                                        </div>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Leyenda -->
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6><i class="fas fa-info-circle"></i> Leyenda de Prioridades:</h6>
+                            <div class="d-flex gap-3">
+                                <span class="badge" style="background-color: #dc3545;">P1-P3 (Alta)</span>
+                                <span class="badge" style="background-color: #ffc107; color: #000;">P4-P7 (Media)</span>
+                                <span class="badge" style="background-color: #0dcaf0;">P8-P15 (Normal)</span>
+                                <span class="badge" style="background-color: #198754;">P16+ (Baja)</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar-week"></i> Vista de 6 semanas desde {{ today.format('DD/MM/YYYY') }}
+                            </small>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -233,7 +317,7 @@ Inicio: {{ of_info.of.fecha_planificada.strftime('%d/%m') }}
                                         </div>
                                     </td>
                                 </tr>
-                                
+
                                 <!-- OFs del Proyecto -->
                                 {% for of_info in proyecto.ofs %}
                                 <tr>
@@ -339,10 +423,10 @@ Inicio: {{ of_info.of.fecha_planificada.strftime('%d/%m') }}
                                             {% if of_info.of.fecha_planificada and of_info.fecha_estimada_embalaje %}
                                             {% set total_days = (of_info.fecha_estimada_embalaje - of_info.of.fecha_planificada).days %}
                                             {% set fab_percentage = (of_info.tiempo_estimado_fabrica / (of_info.tiempo_estimado_fabrica + of_info.tiempo_estimado_embalaje)) * 100 %}
-                                            
+
                                             <div style="position: absolute; left: 0; top: 0; height: 100%; width: {{ fab_percentage }}%; background-color: #0d6efd; border-radius: 3px 0 0 3px;"></div>
                                             <div style="position: absolute; left: {{ fab_percentage }}%; top: 0; height: 100%; width: {{ 100 - fab_percentage }}%; background-color: #6c757d; border-radius: 0 3px 3px 0;"></div>
-                                            
+
                                             <small style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 10px; font-weight: bold;">
                                                 {{ total_days }}d
                                             </small>
@@ -415,7 +499,7 @@ function cargarOpcionesPrioridad() {
             document.querySelectorAll('.prioridad-select').forEach(select => {
                 const valorActual = parseInt(select.dataset.original);
                 select.innerHTML = '';
-                
+
                 // Agregar opciones P1-P{total}
                 for (let i = 1; i <= data.rango_max; i++) {
                     const option = document.createElement('option');
@@ -427,13 +511,13 @@ function cargarOpcionesPrioridad() {
                     select.appendChild(option);
                 }
             });
-            
+
             // Actualizar botón de asignación automática
             const btnAutoAsignar = document.querySelector('button[onclick="asignarPrioridadesAutomaticas()"]');
             if (btnAutoAsignar) {
                 btnAutoAsignar.innerHTML = `<i class="fas fa-magic"></i> Asignar P1-P${data.rango_max} Automático`;
             }
-            
+
             // Agregar event listeners después de cargar opciones
             setupEventListeners();
         }
@@ -450,7 +534,7 @@ function setupEventListeners() {
             const ofId = this.dataset.ofId;
             const nuevaPrioridad = parseInt(this.value);
             const original = parseInt(this.dataset.original);
-            
+
             if (nuevaPrioridad !== original) {
                 actualizarPrioridad(ofId, nuevaPrioridad, this);
             }
@@ -464,7 +548,7 @@ function setupEventListeners() {
             const field = this.dataset.field;
             const nuevaFecha = this.value;
             const original = this.dataset.original;
-            
+
             if (nuevaFecha !== original) {
                 actualizarFecha(ofId, field, nuevaFecha, this);
             }
@@ -476,13 +560,13 @@ function asignarPrioridadesAutomaticas() {
     if (!confirm('¿Estás seguro de que deseas reorganizar automáticamente las prioridades de todas las OFs desde P1 hasta P{total}?')) {
         return;
     }
-    
+
     // Mostrar loading
     const btn = event.target;
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Asignando...';
     btn.disabled = true;
-    
+
     fetch('/planificacion-operacional/api/asignar-prioridades-automaticas', {
         method: 'POST',
         headers: {
@@ -510,7 +594,7 @@ function asignarPrioridadesAutomaticas() {
 
 function actualizarPrioridad(ofId, prioridad, selectElement) {
     const originalValue = selectElement.dataset.original;
-    
+
     fetch('/planificacion-operacional/api/actualizar-prioridad-of', {
         method: 'POST',
         headers: {
@@ -543,12 +627,12 @@ function actualizarPrioridad(ofId, prioridad, selectElement) {
 
 function actualizarFecha(ofId, field, fecha, inputElement) {
     const originalValue = inputElement.dataset.original;
-    
+
     const requestData = {
         of_id: parseInt(ofId)
     };
     requestData[field] = fecha;
-    
+
     fetch('/planificacion-operacional/api/actualizar-fechas-of', {
         method: 'POST',
         headers: {
