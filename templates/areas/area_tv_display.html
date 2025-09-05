@@ -319,9 +319,9 @@
                             
                             <div class="info-block">
                                 <div class="info-label">Glosa</div>
-                                <div class="info-value" style="font-size: 0.95rem;">
-                                    {% if order.glosa %}
-                                    {{ order.glosa[:50] }}{% if order.glosa|length > 50 %}...{% endif %}
+                                <div class="info-value" style="font-size: 0.95rem; line-height: 1.2;">
+                                    {% if order.glosa and order.glosa != 'Sin glosa especificada' %}
+                                    <span title="{{ order.glosa }}">{{ order.glosa[:60] }}{% if order.glosa|length > 60 %}...{% endif %}</span>
                                     {% else %}
                                     <span class="text-muted">Sin glosa</span>
                                     {% endif %}

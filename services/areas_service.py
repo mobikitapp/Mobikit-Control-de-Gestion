@@ -405,7 +405,7 @@ class AreasService:
                                 'codigo': o.orden_fabricacion.codigo,
                                 'proyecto_nombre': o.orden_fabricacion.proyecto.nombre,
                                 'cliente_nombre': o.orden_fabricacion.proyecto.cliente.nombre,
-                                'glosa': o.orden_fabricacion.glosa or '',
+                                'glosa': o.orden_fabricacion.glosa or 'Sin glosa especificada',
                                 'contrato_id': o.orden_fabricacion.contrato_id,
                                 'proxima_entrega_contrato': self._get_proxima_entrega_contrato(o.orden_fabricacion),
                                 'fecha_entrega_fabrica': o.orden_fabricacion.fecha_entrega_fabrica,
