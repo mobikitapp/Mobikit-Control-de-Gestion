@@ -192,7 +192,7 @@
                                                                 <td>
                                                                     <small>
                                                                         <strong>{{ of_info.progreso_actual.area.nombre[:8] }}{% if of_info.progreso_actual.area.nombre|length > 8 %}...{% endif %}</strong><br>
-                                                                        <span class="text-muted" style="font-size: 9px;">{{ of_info.progreso_actual.estado.estado[:10] }}{% if of_info.progreso_actual.estado.estado|length > 10 %}...{% endif %}</span>
+                                                                        <span class="text-muted" style="font-size: 9px;">{{ of_info.progreso_actual.estado.nombre[:10] }}{% if of_info.progreso_actual.estado.nombre|length > 10 %}...{% endif %}</span>
                                                                     </small>
                                                                 </td>
                                                                 <td>
@@ -589,7 +589,7 @@ Días restantes: {{ hito.dias_restantes }}">
                                                     <td>
                                                         <small>
                                                             <strong>{{ of_info.progreso_actual.area.nombre }}</strong><br>
-                                                            <span class="text-muted">{{ of_info.progreso_actual.estado.estado }}</span>
+                                                            <span class="text-muted">{{ of_info.progreso_actual.estado.nombre }}</span>
                                                         </small>
                                                     </td>
                                                     <td>
