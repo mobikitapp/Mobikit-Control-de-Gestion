@@ -6,7 +6,7 @@ A comprehensive management system for manufacturing companies that centralizes a
 
 ## Recent Changes
 
-**[2025-09-05] Sistema de Tipos de Proyectos con Factores Específicos**
+**[2025-09-05] Sistema de Tipos de Proyectos con Factores Específicos - FINALIZADO**
 - **TIPOS DE PROYECTO**: Implementación completa de enum TipoProyecto (Social/Estandar/Especial)
 - **FACTORES POR TIPO**: Cada tipo tiene factores únicos de CLP/tablero y tiempos de fabricación/embalaje
   - SOCIAL: $180K/tablero, 0.040d fábrica, 0.015d embalaje
@@ -15,6 +15,8 @@ A comprehensive management system for manufacturing companies that centralizes a
 - **SIMPLIFICACIÓN MELAMINA**: Sistema enfocado únicamente en Melamina, eliminados MDF y Madera
 - **NUEVA FÓRMULA**: Cálculo mejorado con margen: (Monto × (1-margen)) ÷ Factor_CLP_Tablero × Desperdicio
 - **INTEGRACIÓN COMPLETA**: Todos los servicios actualizados para usar factores según tipo de proyecto
+- **CONFIGURACIÓN DINÁMICA**: Factores de tiempo modificables por tipo de proyecto en interfaz web
+- **FUNCIONALIDAD GUARDAR**: Sistema completo de actualización de factores con validación y logging
 - Cálculos de capacidad mensual consideran tipo específico para estimaciones precisas
 - Análisis de productividad incorpora diferencias por tipo de proyecto
 

@@ -57,27 +57,81 @@
 
                         <h6 class="text-primary mb-3 mt-4">
                             <i class="fas fa-clock text-warning me-2"></i>
-                            Factores de Tiempo de Producción
+                            Factores de Tiempo de Producción por Tipo de Proyecto
                         </h6>
                         
+                        <!-- Social Project Time Factors -->
                         <div class="row mb-3">
+                            <div class="col-12 mb-2">
+                                <h6 class="text-info"><i class="fas fa-home me-2"></i>Proyectos Sociales</h6>
+                            </div>
                             <div class="col-md-6">
                                 <label class="form-label">
                                     <i class="fas fa-industry text-primary me-2"></i>
                                     Factor Tiempo Fabricación (días/tablero)
                                 </label>
-                                <input type="number" class="form-control" name="factor_tiempo_fabrica" 
-                                       value="{{ factores.configuracion.factor_tiempo_fabrica }}" step="0.001" min="0" max="1" required>
-                                <small class="text-muted">Tiempo estimado de fabricación por tablero</small>
+                                <input type="number" class="form-control" name="factor_tiempo_fabrica_social" 
+                                       value="{{ factores.SOCIAL.factor_tiempo_fabrica }}" step="0.001" min="0" max="1" required>
+                                <small class="text-muted">Tiempo estimado de fabricación por tablero - Social</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">
                                     <i class="fas fa-box text-success me-2"></i>
                                     Factor Tiempo Embalaje (días/tablero)
                                 </label>
-                                <input type="number" class="form-control" name="factor_tiempo_embalaje" 
-                                       value="{{ factores.configuracion.factor_tiempo_embalaje }}" step="0.001" min="0" max="1" required>
-                                <small class="text-muted">Tiempo estimado de embalaje por tablero</small>
+                                <input type="number" class="form-control" name="factor_tiempo_embalaje_social" 
+                                       value="{{ factores.SOCIAL.factor_tiempo_embalaje }}" step="0.001" min="0" max="1" required>
+                                <small class="text-muted">Tiempo estimado de embalaje por tablero - Social</small>
+                            </div>
+                        </div>
+
+                        <!-- Estandar Project Time Factors -->
+                        <div class="row mb-3">
+                            <div class="col-12 mb-2">
+                                <h6 class="text-primary"><i class="fas fa-building me-2"></i>Proyectos Estándar</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-industry text-primary me-2"></i>
+                                    Factor Tiempo Fabricación (días/tablero)
+                                </label>
+                                <input type="number" class="form-control" name="factor_tiempo_fabrica_estandar" 
+                                       value="{{ factores.ESTANDAR.factor_tiempo_fabrica }}" step="0.001" min="0" max="1" required>
+                                <small class="text-muted">Tiempo estimado de fabricación por tablero - Estándar</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-box text-success me-2"></i>
+                                    Factor Tiempo Embalaje (días/tablero)
+                                </label>
+                                <input type="number" class="form-control" name="factor_tiempo_embalaje_estandar" 
+                                       value="{{ factores.ESTANDAR.factor_tiempo_embalaje }}" step="0.001" min="0" max="1" required>
+                                <small class="text-muted">Tiempo estimado de embalaje por tablero - Estándar</small>
+                            </div>
+                        </div>
+
+                        <!-- Especial Project Time Factors -->
+                        <div class="row mb-3">
+                            <div class="col-12 mb-2">
+                                <h6 class="text-success"><i class="fas fa-star me-2"></i>Proyectos Especiales</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-industry text-primary me-2"></i>
+                                    Factor Tiempo Fabricación (días/tablero)
+                                </label>
+                                <input type="number" class="form-control" name="factor_tiempo_fabrica_especial" 
+                                       value="{{ factores.ESPECIAL.factor_tiempo_fabrica }}" step="0.001" min="0" max="1" required>
+                                <small class="text-muted">Tiempo estimado de fabricación por tablero - Especial</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-box text-success me-2"></i>
+                                    Factor Tiempo Embalaje (días/tablero)
+                                </label>
+                                <input type="number" class="form-control" name="factor_tiempo_embalaje_especial" 
+                                       value="{{ factores.ESPECIAL.factor_tiempo_embalaje }}" step="0.001" min="0" max="1" required>
+                                <small class="text-muted">Tiempo estimado de embalaje por tablero - Especial</small>
                             </div>
                         </div>
                         
@@ -128,18 +182,23 @@
                         <div class="col-12">
                             <h6 class="text-warning mb-3">
                                 <i class="fas fa-clock me-2"></i>
-                                Cálculos de Tiempo de Producción
+                                Cálculos de Tiempo de Producción (100 tableros)
                             </h6>
                         </div>
-                        <div class="col-md-6">
-                            <h6 class="text-primary">Tiempo de Fabricación</h6>
-                            <p>100 tableros × {{ factores.configuracion.factor_tiempo_fabrica }} días/tablero</p>
-                            <p><strong>= {{ "{:.1f}".format(100 * factores.configuracion.factor_tiempo_fabrica) }} días</strong></p>
+                        <div class="col-md-4">
+                            <h6 class="text-info">Proyecto Social</h6>
+                            <p><strong>Fabricación:</strong><br>100 × {{ factores.SOCIAL.factor_tiempo_fabrica }} = {{ "{:.1f}".format(100 * factores.SOCIAL.factor_tiempo_fabrica) }} días</p>
+                            <p><strong>Embalaje:</strong><br>100 × {{ factores.SOCIAL.factor_tiempo_embalaje }} = {{ "{:.1f}".format(100 * factores.SOCIAL.factor_tiempo_embalaje) }} días</p>
                         </div>
-                        <div class="col-md-6">
-                            <h6 class="text-success">Tiempo de Embalaje</h6>
-                            <p>100 tableros × {{ factores.configuracion.factor_tiempo_embalaje }} días/tablero</p>
-                            <p><strong>= {{ "{:.1f}".format(100 * factores.configuracion.factor_tiempo_embalaje) }} días</strong></p>
+                        <div class="col-md-4">
+                            <h6 class="text-primary">Proyecto Estándar</h6>
+                            <p><strong>Fabricación:</strong><br>100 × {{ factores.ESTANDAR.factor_tiempo_fabrica }} = {{ "{:.1f}".format(100 * factores.ESTANDAR.factor_tiempo_fabrica) }} días</p>
+                            <p><strong>Embalaje:</strong><br>100 × {{ factores.ESTANDAR.factor_tiempo_embalaje }} = {{ "{:.1f}".format(100 * factores.ESTANDAR.factor_tiempo_embalaje) }} días</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-success">Proyecto Especial</h6>
+                            <p><strong>Fabricación:</strong><br>100 × {{ factores.ESPECIAL.factor_tiempo_fabrica }} = {{ "{:.1f}".format(100 * factores.ESPECIAL.factor_tiempo_fabrica) }} días</p>
+                            <p><strong>Embalaje:</strong><br>100 × {{ factores.ESPECIAL.factor_tiempo_embalaje }} = {{ "{:.1f}".format(100 * factores.ESPECIAL.factor_tiempo_embalaje) }} días</p>
                         </div>
                     </div>
                 </div>
