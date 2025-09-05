@@ -56,6 +56,8 @@ class TipoAdjunto(Enum):
     CONTRATO = "contrato"
     PLANO = "plano"
     ESPECIFICACION = "especificacion"
+    PRESUPUESTO = "presupuesto"
+    EETT = "eett"
     GUIA = "guia"
     ACTA = "acta"
     FOTO = "foto"
@@ -962,6 +964,35 @@ class TareaComercial(db.Model):
 
     def __repr__(self):
         return f'<TareaComercial {self.titulo}>'
+
+
+class ProyectoAdjunto(db.Model):
+    __tablename__ = 'proyecto_adjuntos'
+
+    id = db.Column(db.Integer, primary_key=True)
+    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
+    storage_key = db.Column(db.String(500), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    mime_type = db.Column(db.String(100), nullable=False)
+    size_bytes = db.Column(db.Integer, nullable=False)
+    tipo = db.Column(db.Enum(TipoAdjunto), default=TipoAdjunto.ESPECIFICACION, nullable=False)
+    descripcion = db.Column(db.Text)
+
+    created_at = db.Column(db.DateTime, default=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+
+    # Relationships
+    proyecto = db.relationship('Proyecto', backref='adjuntos')
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_proyecto_adjunto_proyecto', 'proyecto_id'),
+        Index('idx_proyecto_adjunto_tipo', 'tipo'),
+    )
+
+    def __repr__(self):
+        return f'<ProyectoAdjunto {self.filename}>'
 
 
 class ObjetivoMensual(db.Model):

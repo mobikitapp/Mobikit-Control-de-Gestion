@@ -54,6 +54,12 @@
                                 Despachos ({{ proyecto.despachos|length }})
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="documentos-tab" data-bs-toggle="tab" data-bs-target="#documentos" type="button" role="tab">
+                                <i data-feather="file-text" class="me-1"></i>
+                                Documentos
+                            </button>
+                        </li>
                     </ul>
                 </div>
                 <div class="card-body">
@@ -230,6 +236,27 @@
                                 <p class="text-muted">No hay despachos registrados para este proyecto.</p>
                             </div>
                             {% endif %}
+                        </div>
+
+                        <!-- Documentos Tab -->
+                        <div class="tab-pane fade" id="documentos" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Documentos del Proyecto</h6>
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalSubirDocumento">
+                                    <i data-feather="upload" class="me-1"></i>
+                                    Subir Documento
+                                </button>
+                            </div>
+                            
+                            <div id="documentos-lista">
+                                <!-- Los documentos se cargarán aquí via JavaScript -->
+                                <div class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                    <p class="text-muted mt-2">Cargando documentos...</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -653,6 +680,53 @@
 
 </div>
 
+<!-- Modal Subir Documento -->
+<div class="modal fade" id="modalSubirDocumento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Subir Documento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formSubirDocumento" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="tipo" class="form-label">Tipo de Documento</label>
+                        <select class="form-select" id="tipo" name="tipo" required>
+                            <option value="presupuesto">Presupuesto</option>
+                            <option value="eett">EETT (Especificaciones Técnicas)</option>
+                            <option value="plano">Plano</option>
+                            <option value="especificacion">Especificación</option>
+                            <option value="contrato">Contrato</option>
+                            <option value="foto">Foto</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="archivo" class="form-label">Seleccionar Archivo</label>
+                        <input type="file" class="form-control" id="archivo" name="archivo" required
+                               accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif">
+                        <small class="form-text text-muted">
+                            Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, JPEG, GIF (máx. 25MB)
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción (opcional)</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="2" 
+                                  placeholder="Descripción del documento"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="upload" class="me-1"></i>
+                        Subir Documento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     // This script addresses the JavaScript error "Uncaught TypeError: Cannot read properties of null (reading 'closest')"
     // It ensures that elements are checked for existence before calling .closest()
@@ -680,7 +754,212 @@
 
         // If the error is specifically related to the "Ver Detalle" action, ensure that the links are correctly generated and that the target elements exist.
         // For example, if the 'Ver Detalle' link is supposed to open a modal or navigate, ensure those targets are valid.
+        
+        // Initialize document management
+        initDocumentManagement();
     });
+
+    function initDocumentManagement() {
+        // Load documents when documentos tab is shown
+        const documentosTab = document.getElementById('documentos-tab');
+        if (documentosTab) {
+            documentosTab.addEventListener('shown.bs.tab', function () {
+                cargarDocumentosProyecto();
+            });
+        }
+
+        // Handle upload form
+        const formSubir = document.getElementById('formSubirDocumento');
+        if (formSubir) {
+            formSubir.addEventListener('submit', function(e) {
+                e.preventDefault();
+                subirDocumento();
+            });
+        }
+    }
+
+    function cargarDocumentosProyecto() {
+        const documentosLista = document.getElementById('documentos-lista');
+        if (!documentosLista) return;
+
+        fetch(`/proyectos/{{ proyecto.id }}/adjuntos`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarDocumentos(data.adjuntos);
+                } else {
+                    documentosLista.innerHTML = '<div class="alert alert-danger">Error al cargar documentos</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                documentosLista.innerHTML = '<div class="alert alert-warning">No se pudieron cargar los documentos</div>';
+            });
+    }
+
+    function mostrarDocumentos(documentos) {
+        const contenedor = document.getElementById('documentos-lista');
+        if (!contenedor) return;
+
+        if (documentos.length === 0) {
+            contenedor.innerHTML = `
+                <div class="text-center py-4">
+                    <i data-feather="file-text" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                    <p class="text-muted">No hay documentos subidos para este proyecto.</p>
+                </div>
+            `;
+            feather.replace();
+            return;
+        }
+
+        let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr>';
+        html += '<th>Archivo</th><th>Tipo</th><th>Tamaño</th><th>Subido por</th><th>Fecha</th><th>Acciones</th>';
+        html += '</tr></thead><tbody>';
+
+        documentos.forEach(doc => {
+            const tipoLabels = {
+                'presupuesto': 'Presupuesto',
+                'eett': 'EETT',
+                'plano': 'Plano',
+                'especificacion': 'Especificación',
+                'contrato': 'Contrato',
+                'foto': 'Foto',
+                'qa': 'QA'
+            };
+
+            const tipoBadges = {
+                'presupuesto': 'bg-success',
+                'eett': 'bg-info',
+                'plano': 'bg-warning',
+                'especificacion': 'bg-primary',
+                'contrato': 'bg-danger',
+                'foto': 'bg-secondary',
+                'qa': 'bg-dark'
+            };
+
+            html += `<tr>
+                <td>
+                    <div>
+                        <i data-feather="file" class="me-1"></i>
+                        <strong>${doc.filename}</strong>
+                        ${doc.descripcion ? `<br><small class="text-muted">${doc.descripcion}</small>` : ''}
+                    </div>
+                </td>
+                <td>
+                    <span class="badge ${tipoBadges[doc.tipo] || 'bg-secondary'}">
+                        ${tipoLabels[doc.tipo] || doc.tipo}
+                    </span>
+                </td>
+                <td>${doc.size_mb} MB</td>
+                <td>${doc.created_by}</td>
+                <td>${doc.created_at}</td>
+                <td>
+                    <a href="/proyectos/adjuntos/${doc.id}/descargar" class="btn btn-sm btn-outline-primary me-1" title="Descargar">
+                        <i data-feather="download"></i>
+                    </a>
+                    <button onclick="eliminarDocumento(${doc.id})" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                        <i data-feather="trash-2"></i>
+                    </button>
+                </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        contenedor.innerHTML = html;
+        feather.replace();
+    }
+
+    function subirDocumento() {
+        const form = document.getElementById('formSubirDocumento');
+        const formData = new FormData(form);
+
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Subiendo...';
+        submitBtn.disabled = true;
+
+        fetch(`/proyectos/{{ proyecto.id }}/adjuntos`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalSubirDocumento'));
+                modal.hide();
+                
+                // Reset form
+                form.reset();
+                
+                // Show success message
+                showAlert('success', 'Documento subido exitosamente');
+                
+                // Reload documents
+                cargarDocumentosProyecto();
+            } else {
+                showAlert('danger', data.message || 'Error al subir documento');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'Error al subir documento');
+        })
+        .finally(() => {
+            // Restore button
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        });
+    }
+
+    function eliminarDocumento(adjuntoId) {
+        if (!confirm('¿Estás seguro de que deseas eliminar este documento?')) {
+            return;
+        }
+
+        fetch(`/proyectos/adjuntos/${adjuntoId}/eliminar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Documento eliminado exitosamente');
+                cargarDocumentosProyecto(); // Reload documents
+            } else {
+                showAlert('danger', data.message || 'Error al eliminar documento');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'Error al eliminar documento');
+        });
+    }
+
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Insert at the top of the container
+        const container = document.querySelector('.container');
+        if (container) {
+            container.insertBefore(alertDiv, container.firstChild);
+        }
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
 </script>
 
 {% endblock %}
