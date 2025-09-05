@@ -207,35 +207,30 @@ def actualizar_configuracion():
         service = PlanificacionOperacionalService()
         
         # Get form data for new project-type based factors
-        factores_data = {
-            # Project type tablero factors
-            'factor_social_tablero': request.form.get('factor_social_tablero', type=float),
-            'factor_estandar_tablero': request.form.get('factor_estandar_tablero', type=float), 
-            'factor_especial_tablero': request.form.get('factor_especial_tablero', type=float),
-            
-            # General configuration
-            'area_tablero_estandar': request.form.get('area_tablero_estandar', type=float),
-            'factor_desperdicio': request.form.get('factor_desperdicio', type=float),
-            
-            # Time factors by project type
-            'factor_tiempo_fabrica_social': request.form.get('factor_tiempo_fabrica_social', type=float),
-            'factor_tiempo_embalaje_social': request.form.get('factor_tiempo_embalaje_social', type=float),
-            'factor_tiempo_fabrica_estandar': request.form.get('factor_tiempo_fabrica_estandar', type=float),
-            'factor_tiempo_embalaje_estandar': request.form.get('factor_tiempo_embalaje_estandar', type=float),
-            'factor_tiempo_fabrica_especial': request.form.get('factor_tiempo_fabrica_especial', type=float),
-            'factor_tiempo_embalaje_especial': request.form.get('factor_tiempo_embalaje_especial', type=float),
-            
-            # Capacity configuration
-            'capacidad_maxima_tableros_mes': request.form.get('capacidad_maxima_tableros_mes', type=int),
-            'capacidad_maxima_tableros_semana': request.form.get('capacidad_maxima_tableros_semana', type=int),
-            'horas_disponibles_mes': request.form.get('horas_disponibles_mes', type=int),
-            'horas_disponibles_semana': request.form.get('horas_disponibles_semana', type=int),
-            
-            # Productivity factors
-            'horas_por_tablero_social': request.form.get('horas_por_tablero_social', type=float),
-            'horas_por_tablero_estandar': request.form.get('horas_por_tablero_estandar', type=float),
-            'horas_por_tablero_especial': request.form.get('horas_por_tablero_especial', type=float),
-        }
+        factores_data = {}
+        
+        # Only include non-None values to avoid overwriting with None
+        form_fields = [
+            'factor_social_tablero', 'factor_estandar_tablero', 'factor_especial_tablero',
+            'area_tablero_estandar', 'factor_desperdicio',
+            'factor_tiempo_fabrica_social', 'factor_tiempo_embalaje_social',
+            'factor_tiempo_fabrica_estandar', 'factor_tiempo_embalaje_estandar',
+            'factor_tiempo_fabrica_especial', 'factor_tiempo_embalaje_especial',
+            'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
+            'horas_disponibles_mes', 'horas_disponibles_semana',
+            'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+        ]
+        
+        for field in form_fields:
+            value = request.form.get(field)
+            if value is not None and value != '':
+                if field in ['capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana', 
+                           'horas_disponibles_mes', 'horas_disponibles_semana']:
+                    factores_data[field] = int(value)
+                else:
+                    factores_data[field] = float(value)
+        
+        print(f"Datos recibidos del formulario: {factores_data}")
         
         success = service.actualizar_factores_conversion(factores_data, current_user.id)
         
@@ -245,6 +240,7 @@ def actualizar_configuracion():
             flash('Error al actualizar configuración de planificación operacional', 'error')
         
     except Exception as e:
+        print(f"Error en actualizar_configuracion: {e}")
         flash(f'Error: {str(e)}', 'error')
     
     return redirect(url_for('planificacion_operacional.configuracion_conversion'))
