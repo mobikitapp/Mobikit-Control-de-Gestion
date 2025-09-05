@@ -247,7 +247,7 @@
                                     Subir Documento
                                 </button>
                             </div>
-                            
+
                             <div id="documentos-lista">
                                 <!-- Los documentos se cargarán aquí via JavaScript -->
                                 <div class="text-center py-4">
@@ -280,9 +280,30 @@
                     {% set kpi = stats.kpi_financiero or {} %}
                     {% if kpi and kpi.estado != 'sin_datos' %}
                     <div class="row g-3">
+                        <!-- Budget Information -->
+                        <div class="col-md-4">
+                            <div class="text-center p-2 bg-light rounded">
+                                <div class="fw-bold text-primary">${{ "{:,.0f}".format(kpi.presupuesto_total or 0) }}</div>
+                                <small class="text-muted">Presupuesto Total</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-2 bg-light rounded">
+                                <div class="fw-bold text-success">${{ "{:,.0f}".format(kpi.monto_contratado or 0) }}</div>
+                                <small class="text-muted">Monto Contratado</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-2 bg-light rounded">
+                                <div class="fw-bold text-info">${{ "{:,.0f}".format(kpi.monto_pagado or 0) }}</div>
+                                <small class="text-muted">Monto Cobrado</small>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bars -->
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="fw-medium">Avance Financiero</span>
+                                <span class="fw-medium">Avance Contratación</span>
                                 <span class="badge bg-{{
                                     'success' if kpi.estado == 'dentro_presupuesto' else
                                     'warning' if kpi.estado == 'alerta' else
@@ -301,38 +322,69 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="text-center p-2 bg-light rounded">
-                                <div class="fw-bold text-primary">${{ "{:,.0f}".format(kpi.monto_contratado or 0) }}</div>
-                                <small class="text-muted">Monto Contratado</small>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="text-center p-2 bg-light rounded">
-                                <div class="fw-bold text-secondary">${{ "{:,.0f}".format(kpi.provision_presupuestada or 0) }}</div>
-                                <small class="text-muted">Presupuesto</small>
-                            </div>
-                        </div>
-                        {% if kpi.diferencia != 0 %}
+
                         <div class="col-12">
-                            <div class="alert alert-{{
-                                'success' if kpi.diferencia <= 0 else
-                                'warning' if kpi.diferencia <= (kpi.provision_presupuestada * 0.1) else
-                                'danger'
-                            }} mb-0 py-2">
-                                <i data-feather="{{
-                                    'check-circle' if kpi.diferencia <= 0 else
-                                    'alert-triangle' if kpi.diferencia <= (kpi.provision_presupuestada * 0.1) else
-                                    'x-circle'
-                                }}" class="me-1"></i>
-                                {% if kpi.diferencia > 0 %}
-                                    Sobrepasa presupuesto en ${{ "{:,.0f}".format(kpi.diferencia) }}
-                                {% else %}
-                                    Dentro del presupuesto (ahorro de ${{ "{:,.0f}".format(-kpi.diferencia) }})
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-medium">Avance Cobranza</span>
+                                <span class="badge bg-{{
+                                    'success' if kpi.porcentaje_cobrado >= 80 else
+                                    'warning' if kpi.porcentaje_cobrado >= 50 else
+                                    'danger'
+                                }}">{{ kpi.porcentaje_cobrado }}%</span>
+                            </div>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-{{
+                                    'success' if kpi.porcentaje_cobrado >= 80 else
+                                    'warning' if kpi.porcentaje_cobrado >= 50 else
+                                    'danger'
+                                }}" role="progressbar" 
+                                     style="width: {{ kpi.porcentaje_cobrado }}%">
+                                    <small class="fw-bold">{{ kpi.porcentaje_cobrado }}%</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Summary -->
+                        {% if kpi.monto_pendiente > 0 or kpi.monto_parcial > 0 %}
+                        <div class="col-12">
+                            <div class="row g-2 mt-2">
+                                {% if kpi.monto_pendiente > 0 %}
+                                <div class="col-6">
+                                    <div class="text-center p-2 bg-warning bg-opacity-10 rounded">
+                                        <div class="fw-bold text-warning">${{ "{:,.0f}".format(kpi.monto_pendiente) }}</div>
+                                        <small class="text-muted">Pendiente</small>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if kpi.monto_parcial > 0 %}
+                                <div class="col-6">
+                                    <div class="text-center p-2 bg-info bg-opacity-10 rounded">
+                                        <div class="fw-bold text-info">${{ "{:,.0f}".format(kpi.monto_parcial) }}</div>
+                                        <small class="text-muted">Parcial</small>
+                                    </div>
+                                </div>
                                 {% endif %}
                             </div>
                         </div>
                         {% endif %}
+
+                        <!-- Payment States Management -->
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <h6 class="mb-0">Estados de Pago</h6>
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoEstadoPago">
+                                    <i data-feather="plus" class="me-1"></i>Nuevo Estado
+                                </button>
+                            </div>
+                            <div id="estadosPagoContainer" class="mt-2">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                    <p class="text-muted mt-2">Cargando estados de pago...</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     {% else %}
                     <div class="text-center py-4">
@@ -727,239 +779,472 @@
     </div>
 </div>
 
+<!-- Modal Nuevo Estado de Pago -->
+<div class="modal fade" id="modalNuevoEstadoPago" tabindex="-1" aria-labelledby="modalNuevoEstadoPagoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalNuevoEstadoPagoLabel">Nuevo Estado de Pago</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formNuevoEstadoPago">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="tipoEstadoPago" class="form-label">Tipo</label>
+                        <select class="form-select" id="tipoEstadoPago" name="tipo" required>
+                            <option value="orden_compra">Orden de Compra</option>
+                            <option value="estado_pago_contrato">Estado de Pago (Contrato)</option>
+                        </select>
+                    </div>
+
+                    <div id="camposOrdenCompra">
+                        <div class="mb-3">
+                            <label for="contratoSelect" class="form-label">Orden de Compra Asociada</label>
+                            <select class="form-select" id="contratoSelect" name="orden_compra_id">
+                                <option value="">Seleccionar contrato (opcional)...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="monto_oc" class="form-label">Monto Neto OC</label>
+                            <input type="number" class="form-control" id="monto_oc" name="monto" step="0.01" placeholder="Monto Neto de la OC">
+                        </div>
+                        <div class="mb-3">
+                            <label for="fecha_emision_oc" class="form-label">Fecha Emisión OC</label>
+                            <input type="date" class="form-control" id="fecha_emision_oc" name="fecha_emision">
+                        </div>
+                    </div>
+
+                    <div id="camposEstadoPagoContrato" style="display: none;">
+                        <div class="mb-3">
+                            <label for="titulo_estado_pago" class="form-label">Título / Descripción</label>
+                            <input type="text" class="form-control" id="titulo_estado_pago" name="titulo" placeholder="Ej: Avance 30%, Hito 1, etc." required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="monto_estado_pago" class="form-label">Monto</label>
+                            <input type="number" class="form-control" id="monto_estado_pago" name="monto" step="0.01" placeholder="Monto asociado al estado de pago" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fecha_programada_estado_pago" class="form-label">Fecha Programada</label>
+                            <input type="date" class="form-control" id="fecha_programada_estado_pago" name="fecha_programada">
+                        </div>
+                        <div class="mb-3">
+                            <label for="observaciones_estado_pago" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observaciones_estado_pago" name="observaciones" rows="2" placeholder="Notas adicionales"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Estado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
-    // This script addresses the JavaScript error "Uncaught TypeError: Cannot read properties of null (reading 'closest')"
-    // It ensures that elements are checked for existence before calling .closest()
-    document.addEventListener('DOMContentLoaded', (event) => {
-        // Add null checks to any JavaScript code that might be causing this error.
-        // For instance, if you're manipulating DOM elements based on user interaction or data loading.
-        
-        // Example for potential data loading issues or event listeners:
-        const elementsToProcess = document.querySelectorAll('.process-me'); // Replace with actual selectors
-        elementsToProcess.forEach(element => {
-            if (element && element.parentNode) {
-                // Safely process the element, e.g., attach event listeners
-                const closestContainer = element.closest('.container-class'); // Replace with actual selector
-                if (closestContainer) {
-                    // Perform actions that depend on the closest parent
-                    // console.log('Processing element within:', closestContainer);
-                } else {
-                    // Handle cases where the closest parent is not found
-                    // console.log('Element found, but no specific container.');
-                }
-            } else {
-                console.warn("Element or its parent is null, skipping processing.");
-            }
+        // Feather icons
+        feather.replace();
+
+        // Load documents and payment states when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDocuments();
+            loadEstadosPago();
+            loadContratos();
         });
 
-        // If the error is specifically related to the "Ver Detalle" action, ensure that the links are correctly generated and that the target elements exist.
-        // For example, if the 'Ver Detalle' link is supposed to open a modal or navigate, ensure those targets are valid.
-        
-        // Initialize document management
-        initDocumentManagement();
-    });
+        function loadDocuments() {
+            const container = document.getElementById('documentos-lista'); // Changed ID to match the target div
+            if (!container) return;
 
-    function initDocumentManagement() {
-        // Load documents when documentos tab is shown
-        const documentosTab = document.getElementById('documentos-tab');
-        if (documentosTab) {
-            documentosTab.addEventListener('shown.bs.tab', function () {
-                cargarDocumentosProyecto();
-            });
+            fetch(`/proyectos/{{ proyecto.id }}/adjuntos`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderDocuments(data.adjuntos);
+                    } else {
+                        showError('Error al cargar documentos: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('Error al cargar documentos');
+                });
         }
 
-        // Handle upload form
-        const formSubir = document.getElementById('formSubirDocumento');
-        if (formSubir) {
-            formSubir.addEventListener('submit', function(e) {
-                e.preventDefault();
-                subirDocumento();
-            });
-        }
-    }
+        function loadEstadosPago() {
+            const container = document.getElementById('estadosPagoContainer');
+            if (!container) return;
 
-    function cargarDocumentosProyecto() {
-        const documentosLista = document.getElementById('documentos-lista');
-        if (!documentosLista) return;
-
-        fetch(`/proyectos/{{ proyecto.id }}/adjuntos`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    mostrarDocumentos(data.adjuntos);
-                } else {
-                    documentosLista.innerHTML = '<div class="alert alert-danger">Error al cargar documentos</div>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                documentosLista.innerHTML = '<div class="alert alert-warning">No se pudieron cargar los documentos</div>';
-            });
-    }
-
-    function mostrarDocumentos(documentos) {
-        const contenedor = document.getElementById('documentos-lista');
-        if (!contenedor) return;
-
-        if (documentos.length === 0) {
-            contenedor.innerHTML = `
-                <div class="text-center py-4">
-                    <i data-feather="file-text" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
-                    <p class="text-muted">No hay documentos subidos para este proyecto.</p>
-                </div>
-            `;
-            feather.replace();
-            return;
+            fetch(`/proyectos/{{ proyecto.id }}/estados-pago`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderEstadosPago(data.estados_pago);
+                    } else {
+                        showError('Error al cargar estados de pago: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('Error al cargar estados de pago');
+                });
         }
 
-        let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr>';
-        html += '<th>Archivo</th><th>Tipo</th><th>Tamaño</th><th>Subido por</th><th>Fecha</th><th>Acciones</th>';
-        html += '</tr></thead><tbody>';
+        function loadContratos() {
+            fetch(`/proyectos/api/{{ proyecto.id }}/contratos-activos`)
+                .then(response => response.json())
+                .then(contratos => {
+                    const select = document.getElementById('contratoSelect');
+                    select.innerHTML = '<option value="">Seleccionar contrato (opcional)...</option>';
 
-        documentos.forEach(doc => {
+                    contratos.forEach(contrato => {
+                        const option = document.createElement('option');
+                        option.value = contrato.id;
+                        option.textContent = `${contrato.numero_oc} - $${contrato.monto_total.toLocaleString()}`;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading contratos:', error);
+                });
+        }
+
+        function renderDocuments(adjuntos) {
+            const container = document.getElementById('documentos-lista');
+
+            if (adjuntos.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i data-feather="file" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted mb-0">No hay documentos subidos</p>
+                        <small class="text-muted">Sube documentos como presupuestos, especificaciones técnicas, etc.</small>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+
             const tipoLabels = {
                 'presupuesto': 'Presupuesto',
                 'eett': 'EETT',
-                'plano': 'Plano',
                 'especificacion': 'Especificación',
+                'plano': 'Plano',
                 'contrato': 'Contrato',
                 'foto': 'Foto',
                 'qa': 'QA'
             };
 
-            const tipoBadges = {
-                'presupuesto': 'bg-success',
-                'eett': 'bg-info',
-                'plano': 'bg-warning',
-                'especificacion': 'bg-primary',
-                'contrato': 'bg-danger',
-                'foto': 'bg-secondary',
-                'qa': 'bg-dark'
+            const tipoColors = {
+                'presupuesto': 'success',
+                'eett': 'info',
+                'especificacion': 'primary',
+                'plano': 'warning',
+                'contrato': 'danger',
+                'foto': 'secondary',
+                'qa': 'dark'
             };
 
-            html += `<tr>
-                <td>
-                    <div>
-                        <i data-feather="file" class="me-1"></i>
-                        <strong>${doc.filename}</strong>
-                        ${doc.descripcion ? `<br><small class="text-muted">${doc.descripcion}</small>` : ''}
+            container.innerHTML = `
+                <div class="list-group">
+                    ${adjuntos.map(adj => `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-${tipoColors[adj.tipo] || 'secondary'} me-2">
+                                    ${tipoLabels[adj.tipo] || adj.tipo}
+                                </span>
+                                <div>
+                                    <h6 class="mb-1">${adj.filename}</h6>
+                                    <small class="text-muted">
+                                        ${adj.size_mb} MB • ${adj.created_at} • ${adj.created_by}
+                                        ${adj.descripcion ? `<br><em>${adj.descripcion}</em>` : ''}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <a href="/proyectos/adjuntos/${adj.id}/descargar" class="btn btn-outline-primary">
+                                    <i data-feather="download"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" onclick="deleteDocument(${adj.id})">
+                                    <i data-feather="trash-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            feather.replace();
+        }
+
+        function renderEstadosPago(estadosPago) {
+            const container = document.getElementById('estadosPagoContainer');
+
+            if (estadosPago.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i data-feather="credit-card" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted mb-0">No hay estados de pago registrados</p>
+                        <small class="text-muted">Crea estados de pago para hacer seguimiento financiero</small>
                     </div>
-                </td>
-                <td>
-                    <span class="badge ${tipoBadges[doc.tipo] || 'bg-secondary'}">
-                        ${tipoLabels[doc.tipo] || doc.tipo}
-                    </span>
-                </td>
-                <td>${doc.size_mb} MB</td>
-                <td>${doc.created_by}</td>
-                <td>${doc.created_at}</td>
-                <td>
-                    <a href="/proyectos/adjuntos/${doc.id}/descargar" class="btn btn-sm btn-outline-primary me-1" title="Descargar">
-                        <i data-feather="download"></i>
-                    </a>
-                    <button onclick="eliminarDocumento(${doc.id})" class="btn btn-sm btn-outline-danger" title="Eliminar">
-                        <i data-feather="trash-2"></i>
-                    </button>
-                </td>
-            </tr>`;
-        });
-
-        html += '</tbody></table></div>';
-        contenedor.innerHTML = html;
-        feather.replace();
-    }
-
-    function subirDocumento() {
-        const form = document.getElementById('formSubirDocumento');
-        const formData = new FormData(form);
-
-        // Show loading state
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Subiendo...';
-        submitBtn.disabled = true;
-
-        fetch(`/proyectos/{{ proyecto.id }}/adjuntos`, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('modalSubirDocumento'));
-                modal.hide();
-                
-                // Reset form
-                form.reset();
-                
-                // Show success message
-                showAlert('success', 'Documento subido exitosamente');
-                
-                // Reload documents
-                cargarDocumentosProyecto();
-            } else {
-                showAlert('danger', data.message || 'Error al subir documento');
+                `;
+                feather.replace();
+                return;
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('danger', 'Error al subir documento');
-        })
-        .finally(() => {
-            // Restore button
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-        });
-    }
 
-    function eliminarDocumento(adjuntoId) {
-        if (!confirm('¿Estás seguro de que deseas eliminar este documento?')) {
-            return;
+            const estadoColors = {
+                'pendiente': 'warning',
+                'pagado': 'success',
+                'parcial': 'info',
+                'vencido': 'danger'
+            };
+
+            const estadoLabels = {
+                'pendiente': 'Pendiente',
+                'pagado': 'Pagado',
+                'parcial': 'Parcial',
+                'vencido': 'Vencido'
+            };
+
+            const tipoLabels = {
+                'orden_compra': 'OC',
+                'estado_pago_contrato': 'Contrato'
+            };
+
+            container.innerHTML = `
+                <div class="list-group">
+                    ${estadosPago.map(ep => `
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="d-flex align-items-start">
+                                    <span class="badge bg-secondary me-2">${tipoLabels[ep.tipo]}</span>
+                                    <div>
+                                        <h6 class="mb-1">${ep.titulo}</h6>
+                                        <p class="mb-1 fw-bold text-primary">$${ep.monto.toLocaleString()}</p>
+                                        <small class="text-muted">
+                                            ${ep.fecha_programada ? `Programado: ${ep.fecha_programada}` : ''}
+                                            ${ep.fecha_pago ? `• Pagado: ${ep.fecha_pago}` : ''}
+                                            ${ep.observaciones ? `<br><em>${ep.observaciones}</em>` : ''}
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-${estadoColors[ep.estado]} me-2">
+                                        ${estadoLabels[ep.estado]}
+                                    </span>
+                                    <div class="btn-group btn-group-sm">
+                                        ${ep.estado === 'pendiente' ? `
+                                            <button type="button" class="btn btn-outline-success" onclick="marcarComoPagado(${ep.id})">
+                                                <i data-feather="check"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button type="button" class="btn btn-outline-danger" onclick="deleteEstadoPago(${ep.id})">
+                                            <i data-feather="trash-2"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            feather.replace();
         }
 
-        fetch(`/proyectos/adjuntos/${adjuntoId}/eliminar`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert('success', 'Documento eliminado exitosamente');
-                cargarDocumentosProyecto(); // Reload documents
-            } else {
-                showAlert('danger', data.message || 'Error al eliminar documento');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('danger', 'Error al eliminar documento');
+        // Handle payment state form submission
+        document.getElementById('formNuevoEstadoPago').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+
+            fetch(`/proyectos/{{ proyecto.id }}/estados-pago`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess('Estado de pago creado exitosamente');
+                    this.reset();
+                    loadEstadosPago(); // Reload payment states
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoEstadoPago'));
+                    modal.hide();
+                    // Reload page to update KPI
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showError('Error al crear estado de pago: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Error al crear estado de pago');
+            });
         });
-    }
 
-    function showAlert(type, message) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        
-        // Insert at the top of the container
-        const container = document.querySelector('.container');
-        if (container) {
-            container.insertBefore(alertDiv, container.firstChild);
-        }
-        
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
+        // Handle tipo change to show/hide fields
+        document.getElementById('tipoEstadoPago').addEventListener('change', function() {
+            const tipo = this.value;
+            const camposOC = document.getElementById('camposOrdenCompra');
+            const camposContrato = document.getElementById('camposEstadoPagoContrato');
+
+            if (tipo === 'orden_compra') {
+                camposOC.style.display = 'block';
+                camposContrato.style.display = 'none';
+                // Set required fields
+                camposOC.querySelectorAll('input, select').forEach(input => input.required = true);
+                camposContrato.querySelectorAll('input, select').forEach(input => input.required = false);
+            } else if (tipo === 'estado_pago_contrato') {
+                camposOC.style.display = 'none';
+                camposContrato.style.display = 'block';
+                // Set required fields
+                camposOC.querySelectorAll('input, select').forEach(input => input.required = false);
+                camposContrato.querySelector('input[name="titulo"]').required = true;
+                camposContrato.querySelector('input[name="monto"]').required = true;
+            } else {
+                camposOC.style.display = 'none';
+                camposContrato.style.display = 'none';
+                // Remove required fields
+                camposOC.querySelectorAll('input, select').forEach(input => input.required = false);
+                camposContrato.querySelectorAll('input, select').forEach(input => input.required = false);
             }
-        }, 5000);
-    }
-</script>
+        });
 
+        function marcarComoPagado(estadoPagoId) {
+            const fechaPago = prompt('Fecha de pago (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+            if (!fechaPago) return;
+
+            const observaciones = prompt('Observaciones (opcional):');
+
+            fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    fecha_pago: fechaPago,
+                    observaciones: observaciones
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess('Estado de pago marcado como pagado');
+                    loadEstadosPago();
+                    // Reload page to update KPI
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showError('Error al marcar como pagado: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Error al marcar como pagado');
+            });
+        }
+
+        function deleteEstadoPago(estadoPagoId) {
+            if (!confirm('¿Estás seguro de que deseas eliminar este estado de pago?')) {
+                return;
+            }
+
+            fetch(`/proyectos/estados-pago/${estadoPagoId}`, {
+                method: 'DELETE',
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess('Estado de pago eliminado exitosamente');
+                    loadEstadosPago();
+                    // Reload page to update KPI
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showError('Error al eliminar estado de pago: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Error al eliminar estado de pago');
+            });
+        }
+
+        function deleteDocument(adjuntoId) {
+            if (!confirm('¿Estás seguro de que deseas eliminar este documento?')) {
+                return;
+            }
+
+            fetch(`/proyectos/adjuntos/${adjuntoId}/eliminar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess('Documento eliminado exitosamente');
+                    loadDocuments(); // Reload documents
+                } else {
+                    showError('Error al eliminar documento: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Error al eliminar documento');
+            });
+        }
+
+        // Handle file upload
+        document.getElementById('formSubirDocumento').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Subiendo...';
+
+            fetch(`/proyectos/{{ proyecto.id }}/adjuntos`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess('Documento subido exitosamente');
+                    this.reset();
+                    loadDocuments(); // Reload documents
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalSubirDocumento'));
+                    modal.hide();
+                } else {
+                    showError('Error al subir documento: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Error al subir documento');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            });
+        });
+
+        function showSuccess(message) {
+            // Simple alert, you can replace with toast notifications
+            alert(message);
+        }
+
+        function showError(message) {
+            // Simple alert, you can replace with toast notifications
+            alert(message);
+        }
+    </script>
 {% endblock %}

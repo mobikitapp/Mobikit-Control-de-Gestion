@@ -173,6 +173,16 @@ class EstadoDespachoBodega(Enum):
     PARCIALMENTE_DESPACHADO = "parcialmente_despachado" 
     COMPLETAMENTE_DESPACHADO = "completamente_despachado"
 
+class TipoEstadoPago(Enum):
+    ORDEN_COMPRA = "orden_compra"
+    ESTADO_PAGO_CONTRATO = "estado_pago_contrato"
+
+class EstadoPagoContrato(Enum):
+    PENDIENTE = "pendiente"
+    PAGADO = "pagado"
+    PARCIAL = "parcial"
+    VENCIDO = "vencido"
+
 # Enums para categorización de muebles
 class CategoriaMueble(Enum):
     COCINA = "cocina"
@@ -1110,6 +1120,72 @@ class EventoEntrega(db.Model):
             from datetime import timedelta
             return self.fecha_evento - timedelta(days=self.recordatorio_dias)
         return None
+
+
+class EstadoPago(db.Model):
+    """Estados de pago para seguimiento financiero de proyectos"""
+    __tablename__ = 'estados_pago'
+
+    id = db.Column(db.Integer, primary_key=True)
+    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
+    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=True)
+    tipo = db.Column(db.Enum(TipoEstadoPago), nullable=False)
+    
+    # Para Órdenes de Compra
+    numero_oc = db.Column(db.String(100), nullable=True)  # Número de OC
+    monto_neto = db.Column(db.Numeric(15, 2), nullable=True)  # Monto neto de la OC
+    
+    # Para Estados de Pago de Contrato
+    descripcion = db.Column(db.String(500), nullable=True)  # Descripción del estado de pago
+    porcentaje_avance = db.Column(db.Numeric(5, 2), nullable=True)  # % de avance de obra
+    monto_estado_pago = db.Column(db.Numeric(15, 2), nullable=True)  # Monto de este estado de pago
+    
+    # Campos comunes
+    estado = db.Column(db.Enum(EstadoPagoContrato), default=EstadoPagoContrato.PENDIENTE, nullable=False)
+    fecha_programada = db.Column(db.Date, nullable=True)  # Fecha programada de pago
+    fecha_pago = db.Column(db.Date, nullable=True)  # Fecha real de pago
+    observaciones = db.Column(db.Text)
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+
+    # Relationships
+    proyecto = db.relationship('Proyecto', backref='estados_pago')
+    contrato = db.relationship('Contrato', backref='estados_pago')
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_estado_pago_proyecto', 'proyecto_id'),
+        Index('idx_estado_pago_contrato', 'contrato_id'),
+        Index('idx_estado_pago_tipo', 'tipo'),
+        Index('idx_estado_pago_estado', 'estado'),
+        Index('idx_estado_pago_fecha', 'fecha_programada'),
+    )
+
+    def __repr__(self):
+        if self.tipo == TipoEstadoPago.ORDEN_COMPRA:
+            return f'<EstadoPago OC:{self.numero_oc}>'
+        else:
+            return f'<EstadoPago Contrato:{self.contrato_id} - {self.descripcion}>'
+
+    @property
+    def monto_efectivo(self):
+        """Monto efectivo según el tipo de estado de pago"""
+        if self.tipo == TipoEstadoPago.ORDEN_COMPRA:
+            return self.monto_neto or 0
+        else:
+            return self.monto_estado_pago or 0
+
+    @property
+    def titulo_display(self):
+        """Título para mostrar en UI"""
+        if self.tipo == TipoEstadoPago.ORDEN_COMPRA:
+            return f"OC {self.numero_oc}" if self.numero_oc else "OC Sin Número"
+        else:
+            return self.descripcion or f"Estado Pago {self.porcentaje_avance}%"
 
 
 # =============================================================================
