@@ -322,10 +322,10 @@ class PlanificacionOperacionalService:
             capacidad_config = config_service.get_configuracion_capacidad()
         except:
             capacidad_config = {
-                'capacidad_maxima_tableros_mes': 500,
-                'capacidad_maxima_tableros_semana': 125,
-                'horas_disponibles_mes': 160,
-                'horas_disponibles_semana': 40,
+                'capacidad_maxima_tableros_mes': 1500,
+                'capacidad_maxima_tableros_semana': 330,
+                'horas_disponibles_mes': 200,
+                'horas_disponibles_semana': 45,
                 'horas_por_tablero_social': 0.6,
                 'horas_por_tablero_estandar': 0.5,
                 'horas_por_tablero_especial': 0.4,
@@ -623,8 +623,8 @@ class PlanificacionOperacionalService:
             HORAS_POR_TABLERO_ESPECIAL = capacidad_config['horas_por_tablero_especial']
         except:
             # Fallback to default values
-            TABLEROS_MAXIMOS_MES = 500
-            HORAS_DISPONIBLES_MES = 160
+            TABLEROS_MAXIMOS_MES = 1500
+            HORAS_DISPONIBLES_MES = 200
             HORAS_POR_TABLERO_SOCIAL = 0.6
             HORAS_POR_TABLERO_ESTANDAR = 0.5
             HORAS_POR_TABLERO_ESPECIAL = 0.4

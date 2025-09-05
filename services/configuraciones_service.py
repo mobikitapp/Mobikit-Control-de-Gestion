@@ -566,10 +566,10 @@ class ConfiguracionesService:
         """Get capacity configuration settings"""
         # For now, use default values - these could be stored in a config table later
         return {
-            'capacidad_maxima_tableros_mes': 500,
-            'capacidad_maxima_tableros_semana': 125,  # 500/4 weeks
-            'horas_disponibles_mes': 160,  # 20 days × 8 hours
-            'horas_disponibles_semana': 40,  # 5 days × 8 hours
+            'capacidad_maxima_tableros_mes': 1500,
+            'capacidad_maxima_tableros_semana': 330,
+            'horas_disponibles_mes': 200,
+            'horas_disponibles_semana': 45,
             'horas_por_tablero_social': 0.6,  # 36 minutes per board for social projects
             'horas_por_tablero_estandar': 0.5,  # 30 minutes per board for standard projects
             'horas_por_tablero_especial': 0.4,  # 24 minutes per board for special projects
