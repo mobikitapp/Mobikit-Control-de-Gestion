@@ -206,15 +206,24 @@ def actualizar_configuracion():
     try:
         service = PlanificacionOperacionalService()
         
-        # Get form data
+        # Get form data for new project-type based factors
         factores_data = {
-            'factor_melamina_m2': request.form.get('factor_melamina_m2', type=float),
-            'factor_mdf_m2': request.form.get('factor_mdf_m2', type=float),
-            'factor_madera_m2': request.form.get('factor_madera_m2', type=float),
+            # Project type tablero factors
+            'factor_social_tablero': request.form.get('factor_social_tablero', type=float),
+            'factor_estandar_tablero': request.form.get('factor_estandar_tablero', type=float), 
+            'factor_especial_tablero': request.form.get('factor_especial_tablero', type=float),
+            
+            # General configuration
             'area_tablero_estandar': request.form.get('area_tablero_estandar', type=float),
             'factor_desperdicio': request.form.get('factor_desperdicio', type=float),
-            'factor_tiempo_fabrica': request.form.get('factor_tiempo_fabrica', type=float),
-            'factor_tiempo_embalaje': request.form.get('factor_tiempo_embalaje', type=float),
+            
+            # Time factors by project type
+            'factor_tiempo_fabrica_social': request.form.get('factor_tiempo_fabrica_social', type=float),
+            'factor_tiempo_embalaje_social': request.form.get('factor_tiempo_embalaje_social', type=float),
+            'factor_tiempo_fabrica_estandar': request.form.get('factor_tiempo_fabrica_estandar', type=float),
+            'factor_tiempo_embalaje_estandar': request.form.get('factor_tiempo_embalaje_estandar', type=float),
+            'factor_tiempo_fabrica_especial': request.form.get('factor_tiempo_fabrica_especial', type=float),
+            'factor_tiempo_embalaje_especial': request.form.get('factor_tiempo_embalaje_especial', type=float),
         }
         
         success = service.actualizar_factores_conversion(factores_data, current_user.id)
@@ -299,12 +308,14 @@ def api_calcular_tableros():
         
         data = request.get_json()
         monto_provision = data.get('monto_provision', 0)
-        tipo_material = data.get('tipo_material', 'melamina')
+        tipo_proyecto = data.get('tipo_proyecto', 'ESTANDAR')
+        margen_venta_provision = data.get('margen_venta_provision')
         
         # Calculate boards
         resultado = service.calcular_tableros_aproximados(
             monto_provision=monto_provision,
-            tipo_material=tipo_material
+            tipo_proyecto=tipo_proyecto,
+            margen_venta_provision=margen_venta_provision
         )
         
         return jsonify({

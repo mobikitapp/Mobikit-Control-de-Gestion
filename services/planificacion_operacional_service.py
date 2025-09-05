@@ -332,27 +332,65 @@ class PlanificacionOperacionalService:
         return factores
 
     def actualizar_factores_conversion(self, factores_data, user_id):
-        """Update conversion factors (future: store in database)"""
+        """Update conversion factors (project-type based)"""
         try:
-            # Update time factors if provided
-            factor_tiempo_fabrica = factores_data.get('factor_tiempo_fabrica')
-            factor_tiempo_embalaje = factores_data.get('factor_tiempo_embalaje')
+            updated_factors = []
             
-            if factor_tiempo_fabrica is not None and factor_tiempo_embalaje is not None:
-                # Update time factors through configuration service
-                config_service = ConfiguracionesService()
-                config_success = config_service.actualizar_factores_tiempo(
-                    factor_fabrica=factor_tiempo_fabrica,
-                    factor_embalaje=factor_tiempo_embalaje,
-                    usuario_id=user_id
-                )
+            # Update tablero factors by project type
+            if factores_data.get('factor_social_tablero') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['SOCIAL']['factor_clp_tablero'] = factores_data['factor_social_tablero']
+                updated_factors.append(f"Social CLP/tablero: {factores_data['factor_social_tablero']:,}")
                 
-                if not config_success:
-                    print(f"Warning: Could not update time factors for user {user_id}")
+            if factores_data.get('factor_estandar_tablero') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR']['factor_clp_tablero'] = factores_data['factor_estandar_tablero']
+                updated_factors.append(f"Estándar CLP/tablero: {factores_data['factor_estandar_tablero']:,}")
+                
+            if factores_data.get('factor_especial_tablero') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['ESPECIAL']['factor_clp_tablero'] = factores_data['factor_especial_tablero']
+                updated_factors.append(f"Especial CLP/tablero: {factores_data['factor_especial_tablero']:,}")
             
-            # Log all updates (could be stored in an audit table)
-            print(f"User {user_id} updated conversion factors: {factores_data}")
-            return True
+            # Update time factors by project type
+            if factores_data.get('factor_tiempo_fabrica_social') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['SOCIAL']['factor_tiempo_fabrica'] = factores_data['factor_tiempo_fabrica_social']
+                updated_factors.append(f"Social tiempo fábrica: {factores_data['factor_tiempo_fabrica_social']}")
+                
+            if factores_data.get('factor_tiempo_embalaje_social') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['SOCIAL']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_social']
+                updated_factors.append(f"Social tiempo embalaje: {factores_data['factor_tiempo_embalaje_social']}")
+                
+            if factores_data.get('factor_tiempo_fabrica_estandar') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR']['factor_tiempo_fabrica'] = factores_data['factor_tiempo_fabrica_estandar']
+                updated_factors.append(f"Estándar tiempo fábrica: {factores_data['factor_tiempo_fabrica_estandar']}")
+                
+            if factores_data.get('factor_tiempo_embalaje_estandar') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_estandar']
+                updated_factors.append(f"Estándar tiempo embalaje: {factores_data['factor_tiempo_embalaje_estandar']}")
+                
+            if factores_data.get('factor_tiempo_fabrica_especial') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['ESPECIAL']['factor_tiempo_fabrica'] = factores_data['factor_tiempo_fabrica_especial']
+                updated_factors.append(f"Especial tiempo fábrica: {factores_data['factor_tiempo_fabrica_especial']}")
+                
+            if factores_data.get('factor_tiempo_embalaje_especial') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['ESPECIAL']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_especial']
+                updated_factors.append(f"Especial tiempo embalaje: {factores_data['factor_tiempo_embalaje_especial']}")
+            
+            # Update general configuration constants if provided
+            if factores_data.get('area_tablero_estandar') is not None:
+                self.AREA_TABLERO_ESTANDAR = factores_data['area_tablero_estandar']
+                updated_factors.append(f"Área tablero estándar: {factores_data['area_tablero_estandar']}")
+                
+            if factores_data.get('factor_desperdicio') is not None:
+                self.FACTOR_DESPERDICIO = factores_data['factor_desperdicio']
+                updated_factors.append(f"Factor desperdicio: {factores_data['factor_desperdicio']}")
+            
+            # Log all updates
+            if updated_factors:
+                print(f"Usuario {user_id} actualizó factores: {', '.join(updated_factors)}")
+                return True
+            else:
+                print(f"Usuario {user_id} no proporcionó factores válidos para actualizar")
+                return False
+                
         except Exception as e:
             print(f"Error updating factors: {e}")
             return False
