@@ -638,49 +638,16 @@ class ProyectosService:
             return 0
 
     def _calcular_kpi_financiero(self, proyecto) -> Dict[str, Any]:
-        """Calculate financial KPI: Contracts vs Budget Provision"""
+        """Calculate financial KPI using new payment tracking system"""
         try:
-            from models import Contrato, EstadoContrato
-            from decimal import Decimal
-
+            from services.estados_pago_service import EstadosPagoService
+            
             if not proyecto:
                 return {'avance_porcentaje': 0, 'estado': 'sin_proyecto'}
 
-            # Get total amount from active contracts
-            monto_contratado = Decimal('0')
-            contratos_vigentes = (db.session.query(Contrato)
-                                .filter_by(proyecto_id=proyecto.id)
-                                .filter_by(estado=EstadoContrato.VIGENTE)
-                                .all())
-            
-            for contrato in contratos_vigentes:
-                if contrato.monto_total:
-                    monto_contratado += contrato.monto_total
-
-            # Get budget provision
-            provision_presupuestada = proyecto.monto_provision_presupuestado or Decimal('0')
-
-            # Calculate percentage and status
-            if provision_presupuestada > 0:
-                avance_porcentaje = float((monto_contratado / provision_presupuestada) * 100)
-                
-                if avance_porcentaje <= 100:
-                    estado = 'dentro_presupuesto'
-                elif avance_porcentaje <= 110:
-                    estado = 'alerta'
-                else:
-                    estado = 'sobre_presupuesto'
-            else:
-                avance_porcentaje = 0
-                estado = 'sin_provision' if monto_contratado > 0 else 'sin_datos'
-
-            return {
-                'monto_contratado': float(monto_contratado),
-                'provision_presupuestada': float(provision_presupuestada),
-                'avance_porcentaje': round(avance_porcentaje, 1),
-                'estado': estado,
-                'diferencia': float(monto_contratado - provision_presupuestada)
-            }
+            # Use new payment tracking service
+            estados_pago_service = EstadosPagoService()
+            return estados_pago_service.calcular_kpi_financiero_proyecto(proyecto.id)
 
         except Exception as e:
             logger.error(f"Error calculando KPI financiero: {str(e)}")

@@ -12,6 +12,7 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 import math
+import services.estados_pago_service_extension  # Load extension methods
 
 logger = logging.getLogger(__name__)
 
@@ -492,3 +493,221 @@ def api_contratos_activos(proyecto_id):
     except Exception as e:
         logger.error(f"Error en API contratos activos: {str(e)}")
         return jsonify({'error': 'Error al cargar contratos'}), 500
+
+# Estados de Pago endpoints
+@proyectos_bp.route('/<int:proyecto_id>/estados-pago', methods=['GET'])
+@require_login
+def get_estados_pago(proyecto_id):
+    """Get project payment states"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        estados_pago_service = EstadosPagoService()
+        
+        estados_pago = estados_pago_service.get_estados_pago_by_proyecto(proyecto_id)
+        
+        return jsonify({
+            'success': True,
+            'estados_pago': [{
+                'id': ep.id,
+                'tipo': ep.tipo.value,
+                'titulo': ep.titulo_display,
+                'monto': float(ep.monto_efectivo),
+                'estado': ep.estado.value,
+                'fecha_programada': ep.fecha_programada.strftime('%d/%m/%Y') if ep.fecha_programada else None,
+                'fecha_pago': ep.fecha_pago.strftime('%d/%m/%Y') if ep.fecha_pago else None,
+                'observaciones': ep.observaciones,
+                'created_at': ep.created_at.strftime('%d/%m/%Y %H:%M')
+            } for ep in estados_pago]
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting estados pago for proyecto {proyecto_id}: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error al cargar estados de pago'}), 500
+
+@proyectos_bp.route('/<int:proyecto_id>/estados-pago', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def crear_estado_pago(proyecto_id):
+    """Create payment state for project"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        from models import TipoEstadoPago
+        from decimal import Decimal
+        
+        data = request.get_json()
+        estados_pago_service = EstadosPagoService()
+        
+        tipo = data.get('tipo')
+        
+        if tipo == TipoEstadoPago.ORDEN_COMPRA.value:
+            # Create Orden de Compra
+            estado_pago = estados_pago_service.create_orden_compra(
+                proyecto_id=proyecto_id,
+                numero_oc=data.get('numero_oc'),
+                monto_neto=Decimal(str(data.get('monto_neto', 0))),
+                fecha_programada=datetime.strptime(data.get('fecha_programada'), '%Y-%m-%d').date() if data.get('fecha_programada') else None,
+                observaciones=data.get('observaciones'),
+                created_by=current_user.id
+            )
+        else:
+            # Create Contract Payment State
+            estado_pago = estados_pago_service.create_estado_pago_contrato(
+                proyecto_id=proyecto_id,
+                contrato_id=data.get('contrato_id'),
+                descripcion=data.get('descripcion'),
+                porcentaje_avance=Decimal(str(data.get('porcentaje_avance', 0))),
+                monto_estado_pago=Decimal(str(data.get('monto_estado_pago', 0))),
+                fecha_programada=datetime.strptime(data.get('fecha_programada'), '%Y-%m-%d').date() if data.get('fecha_programada') else None,
+                observaciones=data.get('observaciones'),
+                created_by=current_user.id
+            )
+
+        return jsonify({
+            'success': True,
+            'message': 'Estado de pago creado exitosamente',
+            'estado_pago': {
+                'id': estado_pago.id,
+                'titulo': estado_pago.titulo_display,
+                'monto': float(estado_pago.monto_efectivo),
+                'estado': estado_pago.estado.value
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error creating estado pago for proyecto {proyecto_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al crear estado de pago: {str(e)}'}), 500
+
+@proyectos_bp.route('/estados-pago/<int:estado_pago_id>/marcar-pagado', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def marcar_estado_pago_pagado(estado_pago_id):
+    """Mark payment state as paid"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        
+        data = request.get_json()
+        estados_pago_service = EstadosPagoService()
+        
+        fecha_pago = None
+        if data.get('fecha_pago'):
+            fecha_pago = datetime.strptime(data.get('fecha_pago'), '%Y-%m-%d').date()
+        
+        estado_pago = estados_pago_service.marcar_como_pagado(
+            estado_pago_id=estado_pago_id,
+            fecha_pago=fecha_pago,
+            observaciones=data.get('observaciones')
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Estado de pago marcado como pagado',
+            'estado_pago': {
+                'id': estado_pago.id,
+                'estado': estado_pago.estado.value,
+                'fecha_pago': estado_pago.fecha_pago.strftime('%d/%m/%Y') if estado_pago.fecha_pago else None
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error marking estado pago as paid {estado_pago_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al marcar como pagado: {str(e)}'}), 500
+
+@proyectos_bp.route('/estados-pago')
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def estados_pago_index():
+    """Estados de Pago - Lista de proyectos agrupados por cliente"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        estados_pago_service = EstadosPagoService()
+        
+        # Get all projects with payment states grouped by client
+        proyectos_por_cliente = estados_pago_service.get_proyectos_con_estados_pago_por_cliente()
+        
+        return render_template('proyectos/estados_pago_index.html', 
+                             proyectos_por_cliente=proyectos_por_cliente,
+                             title="Estados de Pago")
+        
+    except Exception as e:
+        logger.error(f"Error loading estados pago index: {str(e)}")
+        flash('Error al cargar estados de pago', 'error')
+        return redirect(url_for('proyectos.index'))
+
+@proyectos_bp.route('/estados-pago/<int:proyecto_id>')
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def estados_pago_detalle(proyecto_id):
+    """Estados de Pago - Detalle de un proyecto específico"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        estados_pago_service = EstadosPagoService()
+        
+        # Get project data
+        proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
+        if not proyecto:
+            flash('Proyecto no encontrado', 'error')
+            return redirect(url_for('proyectos.estados_pago_index'))
+        
+        # Get payment states for this project
+        estados_pago = estados_pago_service.get_estados_pago_by_proyecto(proyecto_id)
+        contratos = [c for c in proyecto.contratos if c.activo]
+        
+        return render_template('proyectos/estados_pago_detalle.html',
+                             proyecto=proyecto,
+                             estados_pago=estados_pago,
+                             contratos=contratos,
+                             title=f"Estados de Pago - {proyecto.nombre}")
+        
+    except Exception as e:
+        logger.error(f"Error loading estados pago detalle for proyecto {proyecto_id}: {str(e)}")
+        flash('Error al cargar detalle de estados de pago', 'error')
+        return redirect(url_for('proyectos.estados_pago_index'))
+
+@proyectos_bp.route('/estados-pago/<int:estado_pago_id>/marcar-facturado', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def marcar_facturado(estado_pago_id):
+    """Mark payment state as invoiced"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        from datetime import datetime
+        
+        data = request.get_json()
+        estados_pago_service = EstadosPagoService()
+        
+        # Mark as invoiced
+        estado_pago = estados_pago_service.marcar_como_facturado(
+            estado_pago_id=estado_pago_id,
+            numero_factura=data.get('numero_factura'),
+            fecha_facturacion=datetime.strptime(data.get('fecha_facturacion'), '%Y-%m-%d').date() if data.get('fecha_facturacion') else None,
+            observaciones=data.get('observaciones')
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Estado marcado como facturado exitosamente',
+            'estado_pago': {
+                'id': estado_pago.id,
+                'facturado': estado_pago.facturado,
+                'numero_factura': estado_pago.numero_factura,
+                'fecha_facturacion': estado_pago.fecha_facturacion.strftime('%d/%m/%Y') if estado_pago.fecha_facturacion else None
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error marking estado pago as invoiced {estado_pago_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al marcar como facturado: {str(e)}'}), 500
+
+@proyectos_bp.route('/estados-pago/<int:estado_pago_id>', methods=['DELETE'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def eliminar_estado_pago(estado_pago_id):
+    """Delete payment state"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        estados_pago_service = EstadosPagoService()
+        
+        success = estados_pago_service.delete_estado_pago(estado_pago_id)
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Estado de pago eliminado exitosamente'})
+        else:
+            return jsonify({'success': False, 'message': 'Error al eliminar estado de pago'}), 500
+
+    except Exception as e:
+        logger.error(f"Error deleting estado pago {estado_pago_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al eliminar estado de pago: {str(e)}'}), 500
