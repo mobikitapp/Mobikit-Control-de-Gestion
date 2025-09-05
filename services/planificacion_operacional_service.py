@@ -88,8 +88,8 @@ class PlanificacionOperacionalService:
         # Get clients for filtering
         clientes = db.session.query(Cliente).filter_by(activo=True).order_by(Cliente.nombre).all()
         
-        # Get conversion factor info
-        factor_info = self._get_factor_info(tipo_material)
+        # Get conversion factor info (now using ESTANDAR as default)
+        factor_info = self._get_factor_info('ESTANDAR')
         
         return {
             'año': año,
@@ -101,7 +101,7 @@ class PlanificacionOperacionalService:
             'proyectos': proyectos,
             'clientes': clientes,
             'factor_info': factor_info,
-            'tipos_material': list(self.DEFAULT_FACTORS.keys()),
+            'tipos_proyecto': list(self.DEFAULT_FACTORS_BY_TYPE.keys()),
             'filtros': {
                 'cliente_id': cliente_id,
                 'tipo_material': tipo_material
@@ -310,10 +310,13 @@ class PlanificacionOperacionalService:
         # For now, return default factors with current configuration
         factores = {}
         
-        for material, data in self.DEFAULT_FACTORS.items():
-            factores[material] = {
+        for tipo_proyecto, data in self.DEFAULT_FACTORS_BY_TYPE.items():
+            factores[tipo_proyecto] = {
                 'factor_m2': data['factor_m2'],
-                'descripcion': data['descripcion']
+                'factor_clp_tablero': data['factor_clp_tablero'],
+                'descripcion': data['descripcion'],
+                'factor_tiempo_fabrica': data['factor_tiempo_fabrica'],
+                'factor_tiempo_embalaje': data['factor_tiempo_embalaje']
             }
         
         # Get time factors from configuration
@@ -421,9 +424,13 @@ class PlanificacionOperacionalService:
                         monto_mes = proyecto.monto_provision_presupuestado / meses_duracion
                     
                     # Calculate boards for this month
+                    # Get project type, default to ESTANDAR
+                    tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                    
                     tableros_resultado = self.calcular_tableros_aproximados(
                         monto_provision=float(monto_mes),
-                        tipo_material=tipo_material
+                        tipo_proyecto=tipo_proyecto,
+                        margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
                     )
                     
                     proyecto_mes = {
