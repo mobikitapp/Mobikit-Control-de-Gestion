@@ -330,6 +330,159 @@ function updateSummaryCards(data) {
     document.getElementById('total-embalados').textContent = data.total_embalados_año || 0;
 }
 
+function createEmbalajeChart(analisisMensual) {
+    const ctx = document.getElementById('embalajeChart');
+    if (!ctx) return;
+    
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const tablerosEmbalados = [];
+    const tablerosEstimados = [];
+    
+    // Check if analisisMensual exists and has data
+    if (!analisisMensual || typeof analisisMensual !== 'object') {
+        console.warn('analisisMensual is not valid for embalaje chart:', analisisMensual);
+        return;
+    }
+    
+    for (let i = 1; i <= 12; i++) {
+        const mesData = analisisMensual[i];
+        if (mesData) {
+            tablerosEmbalados.push(mesData.tableros_embalados || 0);
+            tablerosEstimados.push(mesData.tableros_estimados || 0);
+        } else {
+            tablerosEmbalados.push(0);
+            tablerosEstimados.push(0);
+        }
+    }
+    
+    new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [{
+                label: 'Tableros Embalados',
+                data: tablerosEmbalados,
+                backgroundColor: 'rgba(23, 162, 184, 0.8)',
+                borderColor: 'rgba(23, 162, 184, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Tableros Estimados',
+                data: tablerosEstimados,
+                backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                borderColor: 'rgba(255, 193, 7, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Cantidad de Tableros'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Productividad Embalaje - Mensual'
+                },
+                legend: {
+                    display: true
+                }
+            }
+        }
+    });
+}
+
+function createRendimientoChart(analisisMensual) {
+    const ctx = document.getElementById('rendimientoChart');
+    if (!ctx) return;
+    
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const rendimientoFabrica = [];
+    const rendimientoEmbalaje = [];
+    
+    // Check if analisisMensual exists and has data
+    if (!analisisMensual || typeof analisisMensual !== 'object') {
+        console.warn('analisisMensual is not valid for rendimiento chart:', analisisMensual);
+        return;
+    }
+    
+    for (let i = 1; i <= 12; i++) {
+        const mesData = analisisMensual[i];
+        if (mesData) {
+            rendimientoFabrica.push(mesData.rendimiento_fabrica || 0);
+            rendimientoEmbalaje.push(mesData.rendimiento_embalaje || 0);
+        } else {
+            rendimientoFabrica.push(0);
+            rendimientoEmbalaje.push(0);
+        }
+    }
+    
+    new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: meses,
+            datasets: [{
+                label: 'Rendimiento Fábrica (%)',
+                data: rendimientoFabrica,
+                backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                borderColor: 'rgba(40, 167, 69, 1)',
+                borderWidth: 2,
+                fill: false
+            }, {
+                label: 'Rendimiento Embalaje (%)',
+                data: rendimientoEmbalaje,
+                backgroundColor: 'rgba(23, 162, 184, 0.2)',
+                borderColor: 'rgba(23, 162, 184, 1)',
+                borderWidth: 2,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 150,
+                    title: {
+                        display: true,
+                        text: 'Porcentaje (%)'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Rendimiento vs Estimado - Mensual'
+                },
+                legend: {
+                    display: true
+                }
+            }
+        }
+    });
+}
+
+function showErrorMessage(message) {
+    // Create or update error alert
+    let alertDiv = document.getElementById('error-alert');
+    if (!alertDiv) {
+        alertDiv = document.createElement('div');
+        alertDiv.id = 'error-alert';
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <strong>Error:</strong> <span id="error-message"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
+    }
+    document.getElementById('error-message').textContent = message;
+}
+
 function createFabricaChart(analisisMensual) {
     const ctx = document.getElementById('fabricaChart').getContext('2d');
     
@@ -337,7 +490,64 @@ function createFabricaChart(analisisMensual) {
     const tablerosFabricados = [];
     const tablerosEstimados = [];
     
+    // Check if analisisMensual exists and has data
+    if (!analisisMensual || typeof analisisMensual !== 'object') {
+        console.warn('analisisMensual is not valid:', analisisMensual);
+        return;
+    }
+    
     for (let i = 1; i <= 12; i++) {
+        const mesData = analisisMensual[i];
+        if (mesData) {
+            tablerosFabricados.push(mesData.tableros_fabricados || 0);
+            tablerosEstimados.push(mesData.tableros_estimados || 0);
+        } else {
+            tablerosFabricados.push(0);
+            tablerosEstimados.push(0);
+        }
+    }
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [{
+                label: 'Tableros Fabricados',
+                data: tablerosFabricados,
+                backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                borderColor: 'rgba(40, 167, 69, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Tableros Estimados',
+                data: tablerosEstimados,
+                backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                borderColor: 'rgba(255, 193, 7, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Cantidad de Tableros'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Productividad Fábrica - Mensual'
+                },
+                legend: {
+                    display: true
+                }
+            }
+        }
+    });
+}2; i++) {
         const data = analisisMensual[i];
         tablerosFabricados.push(data.tableros_fabricados);
         tablerosEstimados.push(data.tableros_estimados);
