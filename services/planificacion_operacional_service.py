@@ -20,19 +20,19 @@ class PlanificacionOperacionalService:
     # Default conversion factors by project type (Chilean Pesos)
     DEFAULT_FACTORS_BY_TYPE = {
         'SOCIAL': {
-            'factor_m2': 8053,  # Calculated from 24000 / 2.98
+            'factor_m2': 5246,  # Calculated from 24000 / 4.575
             'factor_clp_tablero': 24000,  # $24,000 por tablero for social projects
             'factor_tiempo_fabrica': 0.02,  # 0.02 días por tablero
             'factor_tiempo_embalaje': 0.008  # 0.008 días por tablero
         },
         'ESTANDAR': {
-            'factor_m2': 10067,  # Calculated from 30000 / 2.98
+            'factor_m2': 6557,  # Calculated from 30000 / 4.575
             'factor_clp_tablero': 30000,  # $30,000 por tablero for standard projects
             'factor_tiempo_fabrica': 0.025,  # 0.025 días por tablero
             'factor_tiempo_embalaje': 0.01  # 0.01 días por tablero
         },
         'ESPECIAL': {
-            'factor_m2': 15101,  # Calculated from 45000 / 2.98
+            'factor_m2': 9836,  # Calculated from 45000 / 4.575
             'factor_clp_tablero': 45000,  # $45,000 por tablero for special projects
             'factor_tiempo_fabrica': 0.03,  # 0.03 días por tablero
             'factor_tiempo_embalaje': 0.012  # 0.012 días por tablero
@@ -40,8 +40,8 @@ class PlanificacionOperacionalService:
     }
     
     # Standard board dimensions (meters)
-    AREA_TABLERO_ESTANDAR = 2.98  # 1.22m x 2.44m = 2.98 m²
-    FACTOR_DESPERDICIO = 1.15  # 15% waste factor
+    AREA_TABLERO_ESTANDAR = 4.575  # Standard board area in m²
+    FACTOR_DESPERDICIO = 1.1  # Waste factor
     
     # Time factors - now loaded from configuration
     def _get_factores_tiempo(self):
