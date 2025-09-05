@@ -209,8 +209,8 @@ def actualizar_configuracion():
         # Get form data for new project-type based factors
         factores_data = {}
         
-        # Only include non-None values to avoid overwriting with None
-        form_fields = [
+        # Process conversion factors
+        conversion_fields = [
             'factor_social_tablero', 'factor_estandar_tablero', 'factor_especial_tablero',
             'area_tablero_estandar', 'factor_desperdicio',
             'factor_tiempo_fabrica_social', 'factor_tiempo_embalaje_social',
@@ -221,7 +221,7 @@ def actualizar_configuracion():
             'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
         ]
         
-        for field in form_fields:
+        for field in conversion_fields:
             value = request.form.get(field)
             if value is not None and value != '':
                 if field in ['capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana', 
@@ -230,14 +230,43 @@ def actualizar_configuracion():
                 else:
                     factores_data[field] = float(value)
         
+        # Process operational parameters
+        from services.configuraciones_service import ConfiguracionesService
+        config_service = ConfiguracionesService()
+        
+        parametros_operacionales = {}
+        operational_fields = [
+            'numero_maquinas', 'turnos_por_dia', 'horas_por_turno', 'dias_laborables_mes', 'oee',
+            'horizonte_planificacion', 'umbral_sobrecarga',
+            'factor_horas_extra', 'max_subcontrato', 'mejora_oee_objetivo'
+        ]
+        
+        for field in operational_fields:
+            value = request.form.get(field)
+            if value is not None and value != '':
+                if field in ['numero_maquinas', 'turnos_por_dia', 'dias_laborables_mes', 
+                           'horizonte_planificacion', 'umbral_sobrecarga', 'max_subcontrato']:
+                    parametros_operacionales[field] = int(value)
+                else:
+                    parametros_operacionales[field] = float(value)
+        
         print(f"Datos recibidos del formulario: {factores_data}")
         
-        success = service.actualizar_factores_conversion(factores_data, current_user.id)
+        # Update both conversion factors and operational parameters
+        success_factors = service.actualizar_factores_conversion(factores_data, current_user.id)
+        success_params = True
         
-        if success:
-            flash('Configuración de planificación operacional actualizada exitosamente', 'success')
+        if parametros_operacionales:
+            success_params = config_service.actualizar_parametros_operacionales(parametros_operacionales, current_user.id)
+        
+        if success_factors and success_params:
+            flash('Parámetros operacionales actualizados exitosamente', 'success')
+        elif success_factors:
+            flash('Factores actualizados exitosamente, pero algunos parámetros operacionales no se pudieron actualizar', 'warning')
+        elif success_params:
+            flash('Parámetros operacionales actualizados exitosamente, pero algunos factores no se pudieron actualizar', 'warning')
         else:
-            flash('Error al actualizar configuración de planificación operacional', 'error')
+            flash('Error al actualizar parámetros operacionales', 'error')
         
     except Exception as e:
         print(f"Error en actualizar_configuracion: {e}")
@@ -286,16 +315,31 @@ def detalle_proyecto_operacional(proyecto_id):
 @login_required
 @role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
 def capacidad_produccion():
-    """Análisis de capacidad de producción"""
+    """Análisis estratégico de capacidad de producción"""
     try:
+        from services.configuraciones_service import ConfiguracionesService
         service = PlanificacionOperacionalService()
         
         # Get filters
         año = request.args.get('año', type=int) or datetime.now().year
-        vista = request.args.get('vista', default='mensual')  # mensual, semanal
+        vista = request.args.get('vista', default='estrategico')  # estrategico, mensual, semanal
+        horizonte_meses = request.args.get('horizonte', type=int) or 6
         
-        # Get capacity analysis
-        data = service.get_analisis_capacidad(año=año, vista=vista)
+        # Get strategic capacity analysis data
+        if vista == 'estrategico':
+            # New strategic capacity planning data
+            data = {
+                'año': año,
+                'vista': vista,
+                'horizonte_meses': horizonte_meses,
+                'resumen_capacidad': service.get_resumen_capacidad_estrategica(),
+                'demanda_jerarquica': service.calcular_demanda_mensual_jerarquica(año, horizonte_meses),
+                'rolling_plan': service.calcular_rolling_plan_con_backlog(año, horizonte_meses),
+                'escenarios_deficit': ConfiguracionesService().get_escenarios_deficit()
+            }
+        else:
+            # Legacy capacity analysis for backward compatibility
+            data = service.get_analisis_capacidad(año=año, vista=vista)
         
         return render_template('planificacion_operacional/capacidad.html', calendar=calendar, **data)
         
@@ -375,3 +419,4 @@ def api_matriz_datos(year):
             'success': False,
             'message': f'Error: {str(e)}'
         }), 500
+

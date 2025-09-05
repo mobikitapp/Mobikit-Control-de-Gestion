@@ -322,10 +322,10 @@ class PlanificacionOperacionalService:
             capacidad_config = config_service.get_configuracion_capacidad()
         except:
             capacidad_config = {
-                'capacidad_maxima_tableros_mes': 500,
-                'capacidad_maxima_tableros_semana': 125,
-                'horas_disponibles_mes': 160,
-                'horas_disponibles_semana': 40,
+                'capacidad_maxima_tableros_mes': 1500,
+                'capacidad_maxima_tableros_semana': 330,
+                'horas_disponibles_mes': 200,
+                'horas_disponibles_semana': 45,
                 'horas_por_tablero_social': 0.6,
                 'horas_por_tablero_estandar': 0.5,
                 'horas_por_tablero_especial': 0.4,
@@ -444,71 +444,704 @@ class PlanificacionOperacionalService:
                 
         except Exception as e:
             print(f"Error updating conversion factors: {e}")
-            return Falsefactor_tiempo_fabrica_social']
-                updated_factors.append(f"Social tiempo fábrica: {factores_data['factor_tiempo_fabrica_social']}")
-                
-            if factores_data.get('factor_tiempo_embalaje_social') is not None:
-                self.DEFAULT_FACTORS_BY_TYPE['SOCIAL']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_social']
-                updated_factors.append(f"Social tiempo embalaje: {factores_data['factor_tiempo_embalaje_social']}")
-                
-            if factores_data.get('factor_tiempo_fabrica_estandar') is not None:
-                self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR']['factor_tiempo_fabrica'] = factores_data['factor_tiempo_fabrica_estandar']
-                updated_factors.append(f"Estándar tiempo fábrica: {factores_data['factor_tiempo_fabrica_estandar']}")
-                
-            if factores_data.get('factor_tiempo_embalaje_estandar') is not None:
-                self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_estandar']
-                updated_factors.append(f"Estándar tiempo embalaje: {factores_data['factor_tiempo_embalaje_estandar']}")
-                
-            if factores_data.get('factor_tiempo_fabrica_especial') is not None:
-                self.DEFAULT_FACTORS_BY_TYPE['ESPECIAL']['factor_tiempo_fabrica'] = factores_data['factor_tiempo_fabrica_especial']
-                updated_factors.append(f"Especial tiempo fábrica: {factores_data['factor_tiempo_fabrica_especial']}")
-                
-            if factores_data.get('factor_tiempo_embalaje_especial') is not None:
-                self.DEFAULT_FACTORS_BY_TYPE['ESPECIAL']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_especial']
-                updated_factors.append(f"Especial tiempo embalaje: {factores_data['factor_tiempo_embalaje_especial']}")
-            
-            # Update general configuration constants if provided
-            if factores_data.get('area_tablero_estandar') is not None:
-                self.AREA_TABLERO_ESTANDAR = factores_data['area_tablero_estandar']
-                updated_factors.append(f"Área tablero estándar: {factores_data['area_tablero_estandar']}")
-                
-            if factores_data.get('factor_desperdicio') is not None:
-                self.FACTOR_DESPERDICIO = factores_data['factor_desperdicio']
-                updated_factors.append(f"Factor desperdicio: {factores_data['factor_desperdicio']}")
-            
-            # Update capacity configuration if provided
-            capacity_fields = [
-                'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
-                'horas_disponibles_mes', 'horas_disponibles_semana',
-                'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
-            ]
-            
-            capacity_data = {}
-            for field in capacity_fields:
-                if factores_data.get(field) is not None:
-                    capacity_data[field] = factores_data[field]
-                    updated_factors.append(f"{field}: {factores_data[field]}")
-            
-            # Update capacity configuration using configuration service
-            if capacity_data:
-                try:
-                    from services.configuraciones_service import ConfiguracionesService
-                    config_service = ConfiguracionesService()
-                    config_service.actualizar_configuracion_capacidad(capacity_data, user_id)
-                except Exception as e:
-                    print(f"Error updating capacity configuration: {e}")
-            
-            # Log all updates
-            if updated_factors:
-                print(f"Usuario {user_id} actualizó factores: {', '.join(updated_factors)}")
-                return True
-            else:
-                print(f"Usuario {user_id} no proporcionó factores válidos para actualizar")
-                return False
-                
-        except Exception as e:
-            print(f"Error updating factors: {e}")
             return False
+
+    # ==========================================
+    # STRATEGIC CAPACITY PLANNING CALCULATIONS
+    # ==========================================
+
+    def calcular_horas_nominales_mensuales(self) -> float:
+        """
+        Calcula las horas nominales mensuales usando la fórmula:
+        Horas Nominales = Máquinas × Turnos/día × Horas/turno × Días laborables/mes
+        """
+        try:
+            config_service = ConfiguracionesService()
+            config = config_service.get_parametros_operacionales()
+            
+            numero_maquinas = config.get('numero_maquinas', 2)
+            turnos_por_dia = config.get('turnos_por_dia', 1)
+            horas_por_turno = config.get('horas_por_turno', 8)
+            dias_laborables_mes = config.get('dias_laborables_mes', 22)
+            
+            horas_nominales = numero_maquinas * turnos_por_dia * horas_por_turno * dias_laborables_mes
+            return float(horas_nominales)
+            
+        except Exception as e:
+            print(f"Error calculando horas nominales: {e}")
+            # Valores por defecto si hay error
+            return 2 * 1 * 8 * 22  # 352 horas
+
+    def calcular_horas_efectivas_mensuales(self) -> float:
+        """
+        Calcula las horas efectivas mensuales usando la fórmula:
+        Horas Efectivas = Horas Nominales × OEE
+        """
+        try:
+            config_service = ConfiguracionesService()
+            config = config_service.get_parametros_operacionales()
+            
+            horas_nominales = self.calcular_horas_nominales_mensuales()
+            oee = config.get('oee', 0.70)
+            
+            horas_efectivas = horas_nominales * oee
+            return float(horas_efectivas)
+            
+        except Exception as e:
+            print(f"Error calculando horas efectivas: {e}")
+            return 352 * 0.70  # 246.4 horas
+
+    def calcular_capacidad_teorica_tableros(self, tipo_proyecto: str = 'ESTANDAR') -> float:
+        """
+        Calcula la capacidad teórica en tableros usando la fórmula:
+        Capacidad = Horas Efectivas / Tiempo por tablero
+        """
+        try:
+            config_service = ConfiguracionesService()
+            config = config_service.get_parametros_operacionales()
+            
+            horas_efectivas = self.calcular_horas_efectivas_mensuales()
+            
+            # Obtener tiempo por tablero según tipo de proyecto
+            tiempo_por_tablero_map = {
+                'SOCIAL': config.get('horas_por_tablero_social', 0.6),
+                'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
+                'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
+            }
+            
+            tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
+            
+            if tiempo_por_tablero <= 0:
+                return 0.0
+                
+            capacidad_tableros = horas_efectivas / tiempo_por_tablero
+            return float(capacidad_tableros)
+            
+        except Exception as e:
+            print(f"Error calculando capacidad teórica: {e}")
+            return 246.4 / 0.5  # 492.8 tableros
+
+    def calcular_utilizacion_capacidad(self, horas_requeridas: float) -> Dict[str, float]:
+        """
+        Calcula la utilización de capacidad y brecha
+        """
+        try:
+            horas_efectivas = self.calcular_horas_efectivas_mensuales()
+            
+            utilizacion = (horas_requeridas / horas_efectivas) * 100 if horas_efectivas > 0 else 0
+            brecha_horas = horas_efectivas - horas_requeridas
+            brecha_porcentaje = (brecha_horas / horas_efectivas) * 100 if horas_efectivas > 0 else 0
+            
+            return {
+                'horas_efectivas': horas_efectivas,
+                'horas_requeridas': horas_requeridas,
+                'utilizacion_porcentaje': utilizacion,
+                'brecha_horas': brecha_horas,
+                'brecha_porcentaje': brecha_porcentaje,
+                'sobrecarga': utilizacion > 100
+            }
+            
+        except Exception as e:
+            print(f"Error calculando utilización: {e}")
+            return {
+                'horas_efectivas': 0.0,
+                'horas_requeridas': horas_requeridas,
+                'utilizacion_porcentaje': 0.0,
+                'brecha_horas': 0.0,
+                'brecha_porcentaje': 0.0,
+                'sobrecarga': False
+            }
+
+    def get_resumen_capacidad_estrategica(self) -> Dict[str, Any]:
+        """
+        Obtiene resumen completo de capacidad estratégica con todos los cálculos clave
+        """
+        try:
+            config_service = ConfiguracionesService()
+            config = config_service.get_parametros_operacionales()
+            
+            # Cálculos básicos
+            horas_nominales = self.calcular_horas_nominales_mensuales()
+            horas_efectivas = self.calcular_horas_efectivas_mensuales()
+            
+            # Capacidad por tipo de proyecto
+            capacidad_social = self.calcular_capacidad_teorica_tableros('SOCIAL')
+            capacidad_estandar = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+            capacidad_especial = self.calcular_capacidad_teorica_tableros('ESPECIAL')
+            
+            return {
+                'parametros_operacionales': {
+                    'numero_maquinas': config.get('numero_maquinas', 2),
+                    'turnos_por_dia': config.get('turnos_por_dia', 1),
+                    'horas_por_turno': config.get('horas_por_turno', 8),
+                    'dias_laborables_mes': config.get('dias_laborables_mes', 22),
+                    'oee': config.get('oee', 0.70)
+                },
+                'calculos_capacidad': {
+                    'horas_nominales_mes': horas_nominales,
+                    'horas_efectivas_mes': horas_efectivas,
+                    'eficiencia_global': config.get('oee', 0.70) * 100
+                },
+                'capacidad_teorica_tableros': {
+                    'social': round(capacidad_social, 1),
+                    'estandar': round(capacidad_estandar, 1),
+                    'especial': round(capacidad_especial, 1)
+                },
+                'tiempos_por_tablero': {
+                    'social': config.get('horas_por_tablero_social', 0.6),
+                    'estandar': config.get('horas_por_tablero_estandar', 0.5),
+                    'especial': config.get('horas_por_tablero_especial', 0.4)
+                },
+                'escenarios_disponibles': config_service.get_escenarios_deficit() if hasattr(config_service, 'get_escenarios_deficit') else {}
+            }
+            
+        except Exception as e:
+            print(f"Error obteniendo resumen de capacidad estratégica: {e}")
+            return {
+                'error': str(e),
+                'parametros_operacionales': {},
+                'calculos_capacidad': {},
+                'capacidad_teorica_tableros': {},
+                'tiempos_por_tablero': {},
+                'escenarios_disponibles': {}
+            }
+
+    # ==========================================
+    # HIERARCHICAL DEMAND STRUCTURE
+    # ==========================================
+
+    def calcular_demanda_mensual_jerarquica(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
+        """
+        Calcula la demanda mensual estructurada jerárquicamente: mes → proyecto → cliente
+        Incluye tanto proyectos activos como órdenes de fabricación planificadas
+        """
+        try:
+            from datetime import datetime
+            from dateutil.relativedelta import relativedelta
+            
+            # Calcular rango de fechas para el horizonte
+            fecha_inicio = datetime(año, 1, 1).date()
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            
+            # Estructura de demanda jerárquica
+            demanda_jerarquica = {}
+            
+            # Inicializar estructura para cada mes en el horizonte
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                mes_key = f"{fecha_mes.year}-{fecha_mes.month:02d}"
+                demanda_jerarquica[mes_key] = {
+                    'mes': fecha_mes.month,
+                    'año': fecha_mes.year,
+                    'nombre_mes': fecha_mes.strftime('%B %Y'),
+                    'proyectos': {},
+                    'totales_mes': {
+                        'total_tableros': 0,
+                        'total_horas_requeridas': 0,
+                        'proyectos_count': 0,
+                        'clientes_count': 0
+                    }
+                }
+            
+            # Obtener órdenes de fabricación planificadas en el horizonte
+            ofs_query = db.session.query(OrdenFabricacion).join(Proyecto).join(Cliente).filter(
+                and_(
+                    OrdenFabricacion.fecha_planificada.between(fecha_inicio, fecha_fin),
+                    OrdenFabricacion.fecha_planificada.isnot(None)
+                )
+            ).all()
+            
+            # Procesar cada OF
+            for of in ofs_query:
+                fecha_of = of.fecha_planificada
+                mes_key = f"{fecha_of.year}-{fecha_of.month:02d}"
+                
+                if mes_key not in demanda_jerarquica:
+                    continue
+                
+                proyecto = of.proyecto
+                cliente = proyecto.cliente
+                
+                # Clave única por proyecto
+                proyecto_key = f"proyecto_{proyecto.id}"
+                
+                # Inicializar proyecto si no existe
+                if proyecto_key not in demanda_jerarquica[mes_key]['proyectos']:
+                    demanda_jerarquica[mes_key]['proyectos'][proyecto_key] = {
+                        'id': proyecto.id,
+                        'codigo': proyecto.codigo_interno or f"PROY-{proyecto.id}",
+                        'nombre': proyecto.nombre_proyecto,
+                        'tipo_proyecto': proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR',
+                        'cliente': {
+                            'id': cliente.id,
+                            'nombre': cliente.nombre_cliente,
+                            'tipo': 'Persona' if cliente.tipo_cliente.value == 'PERSONA' else 'Empresa'
+                        },
+                        'ordenes_fabricacion': [],
+                        'totales_proyecto': {
+                            'total_tableros': 0,
+                            'total_horas_fabricacion': 0,
+                            'total_horas_embalaje': 0,
+                            'total_horas_requeridas': 0,
+                            'ofs_count': 0
+                        }
+                    }
+                
+                # Calcular tableros y horas para esta OF
+                tableros_of = of.cantidad_tableros or 0
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                
+                # Obtener tiempos por tablero según tipo de proyecto
+                config_service = ConfiguracionesService()
+                config = config_service.get_parametros_operacionales()
+                
+                tiempo_por_tablero_map = {
+                    'SOCIAL': config.get('horas_por_tablero_social', 0.6),
+                    'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
+                    'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
+                }
+                
+                tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
+                horas_fabricacion = tableros_of * tiempo_por_tablero
+                horas_embalaje = tableros_of * (tiempo_por_tablero * 0.3)  # Embalaje = 30% de fabricación
+                horas_totales = horas_fabricacion + horas_embalaje
+                
+                # Agregar OF al proyecto
+                of_data = {
+                    'id': of.id,
+                    'codigo': of.codigo,
+                    'fecha_planificada': fecha_of.isoformat(),
+                    'cantidad_tableros': tableros_of,
+                    'horas_fabricacion': round(horas_fabricacion, 2),
+                    'horas_embalaje': round(horas_embalaje, 2),
+                    'horas_totales': round(horas_totales, 2),
+                    'estado': of.estado.value if of.estado else 'planificada'
+                }
+                
+                demanda_jerarquica[mes_key]['proyectos'][proyecto_key]['ordenes_fabricacion'].append(of_data)
+                
+                # Actualizar totales del proyecto
+                proyecto_totales = demanda_jerarquica[mes_key]['proyectos'][proyecto_key]['totales_proyecto']
+                proyecto_totales['total_tableros'] += tableros_of
+                proyecto_totales['total_horas_fabricacion'] += horas_fabricacion
+                proyecto_totales['total_horas_embalaje'] += horas_embalaje
+                proyecto_totales['total_horas_requeridas'] += horas_totales
+                proyecto_totales['ofs_count'] += 1
+                
+                # Actualizar totales del mes
+                mes_totales = demanda_jerarquica[mes_key]['totales_mes']
+                mes_totales['total_tableros'] += tableros_of
+                mes_totales['total_horas_requeridas'] += horas_totales
+            
+            # Calcular totales finales por mes (proyectos únicos y clientes únicos)
+            for mes_key in demanda_jerarquica:
+                mes_data = demanda_jerarquica[mes_key]
+                mes_data['totales_mes']['proyectos_count'] = len(mes_data['proyectos'])
+                
+                # Contar clientes únicos en el mes
+                clientes_unicos = set()
+                for proyecto in mes_data['proyectos'].values():
+                    clientes_unicos.add(proyecto['cliente']['id'])
+                mes_data['totales_mes']['clientes_count'] = len(clientes_unicos)
+            
+            return {
+                'periodo': {
+                    'año': año,
+                    'horizonte_meses': horizonte_meses,
+                    'fecha_inicio': fecha_inicio.isoformat(),
+                    'fecha_fin': fecha_fin.isoformat()
+                },
+                'demanda_por_mes': demanda_jerarquica,
+                'resumen_general': self._calcular_resumen_demanda_general(demanda_jerarquica)
+            }
+            
+        except Exception as e:
+            print(f"Error calculando demanda mensual jerárquica: {e}")
+            return {
+                'error': str(e),
+                'periodo': {},
+                'demanda_por_mes': {},
+                'resumen_general': {}
+            }
+
+    def _calcular_resumen_demanda_general(self, demanda_jerarquica: Dict) -> Dict[str, Any]:
+        """Calcula resumen general de la demanda para todos los meses"""
+        try:
+            resumen = {
+                'total_tableros_horizonte': 0,
+                'total_horas_requeridas_horizonte': 0,
+                'total_proyectos_unicos': 0,
+                'total_clientes_unicos': 0,
+                'total_ofs': 0,
+                'pico_demanda_mes': '',
+                'valle_demanda_mes': '',
+                'promedio_mensual': {
+                    'tableros': 0,
+                    'horas': 0
+                }
+            }
+            
+            if not demanda_jerarquica:
+                return resumen
+            
+            # Calcular totales
+            proyectos_unicos = set()
+            clientes_unicos = set()
+            max_horas_mes = 0
+            min_horas_mes = float('inf')
+            pico_mes = ''
+            valle_mes = ''
+            
+            for mes_key, mes_data in demanda_jerarquica.items():
+                totales_mes = mes_data['totales_mes']
+                
+                # Acumular totales
+                resumen['total_tableros_horizonte'] += totales_mes['total_tableros']
+                resumen['total_horas_requeridas_horizonte'] += totales_mes['total_horas_requeridas']
+                resumen['total_ofs'] += sum(p['totales_proyecto']['ofs_count'] for p in mes_data['proyectos'].values())
+                
+                # Rastrear picos y valles
+                horas_mes = totales_mes['total_horas_requeridas']
+                if horas_mes > max_horas_mes:
+                    max_horas_mes = horas_mes
+                    pico_mes = mes_data['nombre_mes']
+                
+                if horas_mes < min_horas_mes:
+                    min_horas_mes = horas_mes
+                    valle_mes = mes_data['nombre_mes']
+                
+                # Recopilar proyectos y clientes únicos
+                for proyecto in mes_data['proyectos'].values():
+                    proyectos_unicos.add(proyecto['id'])
+                    clientes_unicos.add(proyecto['cliente']['id'])
+            
+            # Finalizar resumen
+            resumen['total_proyectos_unicos'] = len(proyectos_unicos)
+            resumen['total_clientes_unicos'] = len(clientes_unicos)
+            resumen['pico_demanda_mes'] = pico_mes
+            resumen['valle_demanda_mes'] = valle_mes
+            
+            # Calcular promedios
+            num_meses = len(demanda_jerarquica)
+            if num_meses > 0:
+                resumen['promedio_mensual']['tableros'] = round(resumen['total_tableros_horizonte'] / num_meses, 1)
+                resumen['promedio_mensual']['horas'] = round(resumen['total_horas_requeridas_horizonte'] / num_meses, 1)
+            
+            return resumen
+            
+        except Exception as e:
+            print(f"Error calculando resumen general de demanda: {e}")
+            return {
+                'total_tableros_horizonte': 0,
+                'total_horas_requeridas_horizonte': 0,
+                'total_proyectos_unicos': 0,
+                'total_clientes_unicos': 0,
+                'total_ofs': 0,
+                'pico_demanda_mes': '',
+                'valle_demanda_mes': '',
+                'promedio_mensual': {'tableros': 0, 'horas': 0}
+            }
+
+    # ==========================================
+    # BACKLOG AND ROLLING PLAN LOGIC
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
+        """
+        Calcula el rolling plan con análisis de backlog acumulado y redistribución de carga
+        """
+        try:
+            # Obtener demanda mensual jerárquica
+            demanda_data = self.calcular_demanda_mensual_jerarquica(año, horizonte_meses)
+            demanda_por_mes = demanda_data['demanda_por_mes']
+            
+            # Obtener capacidad efectiva mensual
+            horas_efectivas_mes = self.calcular_horas_efectivas_mensuales()
+            
+            # Estructura del rolling plan
+            rolling_plan = {}
+            backlog_acumulado = 0  # Horas acumuladas que no se pueden satisfacer
+            
+            # Procesar cada mes en orden cronológico
+            meses_ordenados = sorted(demanda_por_mes.keys())
+            
+            for i, mes_key in enumerate(meses_ordenados):
+                mes_data = demanda_por_mes[mes_key]
+                horas_demanda_mes = mes_data['totales_mes']['total_horas_requeridas']
+                
+                # Agregar backlog del mes anterior
+                horas_demanda_total = horas_demanda_mes + backlog_acumulado
+                
+                # Calcular capacidad vs demanda
+                utilizacion_capacidad = self.calcular_utilizacion_capacidad(horas_demanda_total)
+                
+                # Determinar qué se puede producir este mes
+                horas_a_producir = min(horas_demanda_total, horas_efectivas_mes)
+                horas_restantes = max(0, horas_demanda_total - horas_efectivas_mes)
+                
+                # Actualizar backlog para el próximo mes
+                backlog_acumulado = horas_restantes
+                
+                # Calcular métricas del mes
+                exceso_capacidad = max(0, horas_efectivas_mes - horas_demanda_total)
+                deficit_capacidad = max(0, horas_demanda_total - horas_efectivas_mes)
+                
+                rolling_plan[mes_key] = {
+                    'mes_info': {
+                        'mes': mes_data['mes'],
+                        'año': mes_data['año'],
+                        'nombre_mes': mes_data['nombre_mes'],
+                        'orden_secuencial': i + 1
+                    },
+                    'demanda': {
+                        'horas_demanda_original': horas_demanda_mes,
+                        'backlog_heredado': horas_demanda_total - horas_demanda_mes,
+                        'horas_demanda_total': horas_demanda_total,
+                        'proyectos_count': mes_data['totales_mes']['proyectos_count'],
+                        'tableros_demandados': mes_data['totales_mes']['total_tableros']
+                    },
+                    'capacidad': {
+                        'horas_efectivas_disponibles': horas_efectivas_mes,
+                        'horas_a_producir': horas_a_producir,
+                        'utilizacion_porcentaje': (horas_a_producir / horas_efectivas_mes) * 100,
+                        'exceso_capacidad': exceso_capacidad,
+                        'deficit_capacidad': deficit_capacidad
+                    },
+                    'backlog': {
+                        'backlog_fin_mes': backlog_acumulado,
+                        'backlog_en_tableros': self._convertir_horas_a_tableros(backlog_acumulado),
+                        'variacion_backlog': backlog_acumulado - (horas_demanda_total - horas_demanda_mes)
+                    },
+                    'estado_mes': self._determinar_estado_mes(utilizacion_capacidad['utilizacion_porcentaje']),
+                    'oportunidades_optimizacion': self._identificar_oportunidades_optimizacion(
+                        utilizacion_capacidad['utilizacion_porcentaje'], 
+                        deficit_capacidad, 
+                        exceso_capacidad
+                    )
+                }
+            
+            # Calcular resumen del rolling plan
+            resumen_rolling_plan = self._calcular_resumen_rolling_plan(rolling_plan)
+            
+            return {
+                'rolling_plan_por_mes': rolling_plan,
+                'resumen_rolling_plan': resumen_rolling_plan,
+                'parametros_plan': {
+                    'año': año,
+                    'horizonte_meses': horizonte_meses,
+                    'capacidad_mensual_horas': horas_efectivas_mes,
+                    'fecha_generacion': datetime.now().isoformat()
+                },
+                'recomendaciones_estrategicas': self._generar_recomendaciones_estrategicas(rolling_plan)
+            }
+            
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            return {
+                'error': str(e),
+                'rolling_plan_por_mes': {},
+                'resumen_rolling_plan': {},
+                'parametros_plan': {},
+                'recomendaciones_estrategicas': []
+            }
+
+    def _convertir_horas_a_tableros(self, horas: float, tipo_proyecto: str = 'ESTANDAR') -> float:
+        """Convierte horas a tableros aproximados según tipo de proyecto"""
+        try:
+            config_service = ConfiguracionesService()
+            config = config_service.get_parametros_operacionales()
+            
+            tiempo_por_tablero_map = {
+                'SOCIAL': config.get('horas_por_tablero_social', 0.6),
+                'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
+                'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
+            }
+            
+            tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
+            
+            if tiempo_por_tablero <= 0:
+                return 0.0
+                
+            return round(horas / tiempo_por_tablero, 1)
+            
+        except Exception as e:
+            print(f"Error convirtiendo horas a tableros: {e}")
+            return 0.0
+
+    def _determinar_estado_mes(self, utilizacion_porcentaje: float) -> Dict[str, str]:
+        """Determina el estado del mes basado en utilización"""
+        if utilizacion_porcentaje <= 70:
+            return {
+                'codigo': 'BAJA_UTILIZACION',
+                'descripcion': 'Utilización baja - Capacidad excedente',
+                'color': 'success'
+            }
+        elif utilizacion_porcentaje <= 90:
+            return {
+                'codigo': 'UTILIZACION_OPTIMA',
+                'descripcion': 'Utilización óptima',
+                'color': 'primary'
+            }
+        elif utilizacion_porcentaje <= 110:
+            return {
+                'codigo': 'SOBRECARGA_MODERADA',
+                'descripcion': 'Sobrecarga moderada - Requiere atención',
+                'color': 'warning'
+            }
+        else:
+            return {
+                'codigo': 'SOBRECARGA_CRITICA',
+                'descripcion': 'Sobrecarga crítica - Requiere intervención',
+                'color': 'danger'
+            }
+
+    def _identificar_oportunidades_optimizacion(self, utilizacion: float, deficit: float, exceso: float) -> List[Dict[str, str]]:
+        """Identifica oportunidades de optimización para el mes"""
+        oportunidades = []
+        
+        if exceso > 50:  # Más de 50 horas de exceso
+            oportunidades.append({
+                'tipo': 'ADELANTAR_PRODUCCION',
+                'descripcion': f'Oportunidad para adelantar {self._convertir_horas_a_tableros(exceso)} tableros del mes siguiente',
+                'impacto': 'Reducir backlog futuro'
+            })
+        
+        if deficit > 50:  # Más de 50 horas de déficit
+            config_service = ConfiguracionesService()
+            escenarios = config_service.get_escenarios_deficit() if hasattr(config_service, 'get_escenarios_deficit') else {}
+            
+            if deficit <= 100:
+                oportunidades.append({
+                    'tipo': 'HORAS_EXTRA',
+                    'descripcion': f'Considerar {round(deficit/8, 1)} días de horas extra',
+                    'impacto': 'Eliminar déficit con costo adicional'
+                })
+            else:
+                oportunidades.append({
+                    'tipo': 'TURNO_ADICIONAL',
+                    'descripcion': 'Evaluar turno adicional temporal',
+                    'impacto': 'Aumentar capacidad significativamente'
+                })
+        
+        if 80 <= utilizacion <= 95:
+            oportunidades.append({
+                'tipo': 'MEJORAR_OEE',
+                'descripcion': 'Optimizar OEE para aumentar capacidad efectiva',
+                'impacto': 'Mejora continua sin costos adicionales'
+            })
+        
+        return oportunidades
+
+    def _calcular_resumen_rolling_plan(self, rolling_plan: Dict) -> Dict[str, Any]:
+        """Calcula resumen ejecutivo del rolling plan"""
+        try:
+            if not rolling_plan:
+                return {}
+            
+            total_horas_demanda = sum(mes['demanda']['horas_demanda_total'] for mes in rolling_plan.values())
+            total_horas_capacidad = sum(mes['capacidad']['horas_efectivas_disponibles'] for mes in rolling_plan.values())
+            total_deficit = sum(mes['capacidad']['deficit_capacidad'] for mes in rolling_plan.values())
+            total_exceso = sum(mes['capacidad']['exceso_capacidad'] for mes in rolling_plan.values())
+            
+            # Backlog máximo en el horizonte
+            backlog_maximo = max(mes['backlog']['backlog_fin_mes'] for mes in rolling_plan.values())
+            
+            # Meses con problemas
+            meses_con_sobrecarga = len([mes for mes in rolling_plan.values() 
+                                      if mes['capacidad']['utilizacion_porcentaje'] > 100])
+            
+            meses_con_baja_utilizacion = len([mes for mes in rolling_plan.values() 
+                                            if mes['capacidad']['utilizacion_porcentaje'] < 70])
+            
+            return {
+                'totales_horizonte': {
+                    'total_horas_demanda': round(total_horas_demanda, 1),
+                    'total_horas_capacidad': round(total_horas_capacidad, 1),
+                    'utilizacion_promedio': round((total_horas_demanda / total_horas_capacidad) * 100, 1),
+                    'total_deficit_horas': round(total_deficit, 1),
+                    'total_exceso_horas': round(total_exceso, 1)
+                },
+                'analisis_backlog': {
+                    'backlog_maximo_horas': round(backlog_maximo, 1),
+                    'backlog_maximo_tableros': self._convertir_horas_a_tableros(backlog_maximo),
+                    'backlog_final_horizonte': round(list(rolling_plan.values())[-1]['backlog']['backlog_fin_mes'], 1)
+                },
+                'distribucion_utilizacion': {
+                    'meses_sobrecarga': meses_con_sobrecarga,
+                    'meses_baja_utilizacion': meses_con_baja_utilizacion,
+                    'meses_optimos': len(rolling_plan) - meses_con_sobrecarga - meses_con_baja_utilizacion
+                },
+                'recomendacion_general': self._generar_recomendacion_general(
+                    (total_horas_demanda / total_horas_capacidad) * 100,
+                    meses_con_sobrecarga,
+                    backlog_maximo
+                )
+            }
+            
+        except Exception as e:
+            print(f"Error calculando resumen rolling plan: {e}")
+            return {}
+
+    def _generar_recomendaciones_estrategicas(self, rolling_plan: Dict) -> List[Dict[str, str]]:
+        """Genera recomendaciones estratégicas basadas en el rolling plan"""
+        recomendaciones = []
+        
+        try:
+            if not rolling_plan:
+                return recomendaciones
+            
+            # Analizar patrones en el plan
+            meses_data = list(rolling_plan.values())
+            
+            # Recomendación sobre backlog
+            backlog_final = meses_data[-1]['backlog']['backlog_fin_mes']
+            if backlog_final > 100:
+                recomendaciones.append({
+                    'prioridad': 'ALTA',
+                    'categoria': 'CAPACIDAD',
+                    'titulo': 'Déficit de Capacidad Crítico',
+                    'descripcion': f'Backlog acumulado de {round(backlog_final, 1)} horas al final del horizonte',
+                    'accion_recomendada': 'Evaluar expansión de capacidad o subcontratación estratégica'
+                })
+            
+            # Recomendación sobre utilización desbalanceada
+            utilizaciones = [mes['capacidad']['utilizacion_porcentaje'] for mes in meses_data]
+            if max(utilizaciones) - min(utilizaciones) > 50:
+                recomendaciones.append({
+                    'prioridad': 'MEDIA',
+                    'categoria': 'NIVELACION',
+                    'titulo': 'Desbalance en Utilización',
+                    'descripcion': 'Gran variación en utilización mensual de capacidad',
+                    'accion_recomendada': 'Implementar estrategia de nivelación de producción'
+                })
+            
+            # Recomendación sobre oportunidades de mejora
+            excesos_significativos = [mes for mes in meses_data if mes['capacidad']['exceso_capacidad'] > 80]
+            if len(excesos_significativos) >= 2:
+                recomendaciones.append({
+                    'prioridad': 'BAJA',
+                    'categoria': 'OPTIMIZACION',
+                    'titulo': 'Oportunidades de Adelanto',
+                    'descripcion': f'{len(excesos_significativos)} meses con capacidad excedente significativa',
+                    'accion_recomendada': 'Considerar adelantar producción para reducir backlog futuro'
+                })
+            
+            return recomendaciones
+            
+        except Exception as e:
+            print(f"Error generando recomendaciones estratégicas: {e}")
+            return []
+
+    def _generar_recomendacion_general(self, utilizacion_promedio: float, meses_sobrecarga: int, backlog_maximo: float) -> str:
+        """Genera recomendación general del rolling plan"""
+        if utilizacion_promedio > 110 and meses_sobrecarga >= 3:
+            return "CRÍTICO: Capacidad insuficiente. Requiere expansión inmediata o subcontratación."
+        elif utilizacion_promedio > 95 and backlog_maximo > 200:
+            return "ALERTA: Riesgo de incumplimiento. Evaluar medidas de incremento de capacidad."
+        elif utilizacion_promedio < 70:
+            return "OPORTUNIDAD: Capacidad subutilizada. Evaluar nuevos proyectos o reducción de costos."
+        else:
+            return "BALANCEADO: Capacidad y demanda en equilibrio general."
 
     # Private helper methods
     
@@ -687,8 +1320,8 @@ class PlanificacionOperacionalService:
             HORAS_POR_TABLERO_ESPECIAL = capacidad_config['horas_por_tablero_especial']
         except:
             # Fallback to default values
-            TABLEROS_MAXIMOS_MES = 500
-            HORAS_DISPONIBLES_MES = 160
+            TABLEROS_MAXIMOS_MES = 1500
+            HORAS_DISPONIBLES_MES = 200
             HORAS_POR_TABLERO_SOCIAL = 0.6
             HORAS_POR_TABLERO_ESTANDAR = 0.5
             HORAS_POR_TABLERO_ESPECIAL = 0.4
