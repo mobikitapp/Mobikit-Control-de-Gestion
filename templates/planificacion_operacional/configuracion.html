@@ -15,26 +15,26 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('planificacion_operacional.actualizar_configuracion') }}">
-                        <h6 class="text-primary mb-3">Factores por Material (CLP/m²)</h6>
+                        <h6 class="text-primary mb-3">Factores por Tipo de Proyecto (CLP/Tablero)</h6>
                         
                         <div class="row mb-3">
                             <div class="col-md-4">
-                                <label class="form-label">Melamina (CLP/m²)</label>
-                                <input type="number" class="form-control" name="factor_melamina_m2" 
-                                       value="{{ factores.melamina.factor_m2 }}" step="1000" required>
-                                <small class="text-muted">{{ factores.melamina.descripcion }}</small>
+                                <label class="form-label">Social (CLP/Tablero)</label>
+                                <input type="number" class="form-control" name="factor_social_tablero" 
+                                       value="{{ factores.SOCIAL.factor_clp_tablero }}" step="1000" required>
+                                <small class="text-muted">{{ factores.SOCIAL.descripcion }}</small>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">MDF (CLP/m²)</label>
-                                <input type="number" class="form-control" name="factor_mdf_m2" 
-                                       value="{{ factores.mdf.factor_m2 }}" step="1000" required>
-                                <small class="text-muted">{{ factores.mdf.descripcion }}</small>
+                                <label class="form-label">Estándar (CLP/Tablero)</label>
+                                <input type="number" class="form-control" name="factor_estandar_tablero" 
+                                       value="{{ factores.ESTANDAR.factor_clp_tablero }}" step="1000" required>
+                                <small class="text-muted">{{ factores.ESTANDAR.descripcion }}</small>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Madera (CLP/m²)</label>
-                                <input type="number" class="form-control" name="factor_madera_m2" 
-                                       value="{{ factores.madera.factor_m2 }}" step="1000" required>
-                                <small class="text-muted">{{ factores.madera.descripcion }}</small>
+                                <label class="form-label">Especial (CLP/Tablero)</label>
+                                <input type="number" class="form-control" name="factor_especial_tablero" 
+                                       value="{{ factores.ESPECIAL.factor_clp_tablero }}" step="1000" required>
+                                <small class="text-muted">{{ factores.ESPECIAL.descripcion }}</small>
                             </div>
                         </div>
                         
@@ -107,19 +107,19 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4">
-                            <h6 class="text-primary">Melamina</h6>
-                            <p>$1,000,000 ÷ ${{ "{:,}".format(factores.melamina.factor_m2) }}/m² × {{ factores.configuracion.factor_desperdicio }} ÷ {{ factores.configuracion.area_tablero_estandar }}m²</p>
-                            <p><strong>= {{ "{:.0f}".format((1000000 / factores.melamina.factor_m2) * factores.configuracion.factor_desperdicio / factores.configuracion.area_tablero_estandar) }} tableros</strong></p>
+                            <h6 class="text-primary">Proyecto Social</h6>
+                            <p>$1,000,000 ÷ ${{ "{:,}".format(factores.SOCIAL.factor_clp_tablero) }}/tablero × {{ factores.configuracion.factor_desperdicio }}</p>
+                            <p><strong>= {{ "{:.0f}".format((1000000 / factores.SOCIAL.factor_clp_tablero) * factores.configuracion.factor_desperdicio) }} tableros</strong></p>
                         </div>
                         <div class="col-md-4">
-                            <h6 class="text-primary">MDF</h6>
-                            <p>$1,000,000 ÷ ${{ "{:,}".format(factores.mdf.factor_m2) }}/m² × {{ factores.configuracion.factor_desperdicio }} ÷ {{ factores.configuracion.area_tablero_estandar }}m²</p>
-                            <p><strong>= {{ "{:.0f}".format((1000000 / factores.mdf.factor_m2) * factores.configuracion.factor_desperdicio / factores.configuracion.area_tablero_estandar) }} tableros</strong></p>
+                            <h6 class="text-primary">Proyecto Estándar</h6>
+                            <p>$1,000,000 ÷ ${{ "{:,}".format(factores.ESTANDAR.factor_clp_tablero) }}/tablero × {{ factores.configuracion.factor_desperdicio }}</p>
+                            <p><strong>= {{ "{:.0f}".format((1000000 / factores.ESTANDAR.factor_clp_tablero) * factores.configuracion.factor_desperdicio) }} tableros</strong></p>
                         </div>
                         <div class="col-md-4">
-                            <h6 class="text-primary">Madera</h6>
-                            <p>$1,000,000 ÷ ${{ "{:,}".format(factores.madera.factor_m2) }}/m² × {{ factores.configuracion.factor_desperdicio }} ÷ {{ factores.configuracion.area_tablero_estandar }}m²</p>
-                            <p><strong>= {{ "{:.0f}".format((1000000 / factores.madera.factor_m2) * factores.configuracion.factor_desperdicio / factores.configuracion.area_tablero_estandar) }} tableros</strong></p>
+                            <h6 class="text-primary">Proyecto Especial</h6>
+                            <p>$1,000,000 ÷ ${{ "{:,}".format(factores.ESPECIAL.factor_clp_tablero) }}/tablero × {{ factores.configuracion.factor_desperdicio }}</p>
+                            <p><strong>= {{ "{:.0f}".format((1000000 / factores.ESPECIAL.factor_clp_tablero) * factores.configuracion.factor_desperdicio) }} tableros</strong></p>
                         </div>
                     </div>
                     
