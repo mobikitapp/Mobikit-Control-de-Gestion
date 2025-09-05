@@ -252,8 +252,8 @@ class ComercialService:
             db.session.rollback()
             raise e
 
-    def get_planificacion_comercial(self, año, cliente_id=None, estado_filter='todos'):
-        """Get commercial planning matrix by year"""
+    def get_planificacion_comercial(self, año, mes_inicio=1, cliente_id=None, estado_filter='todos'):
+        """Get commercial planning matrix by year or 12-month rolling period"""
 
         # Build query for projects with proper joins and eager loading
         query = (db.session.query(Proyecto)
@@ -264,9 +264,27 @@ class ComercialService:
                 .join(Cliente)
                 .filter(Proyecto.activo == True))
 
-        # Filter by year (projects with dates in the year)
-        fecha_inicio = date(año, 1, 1)
-        fecha_fin = date(año, 12, 31)
+        # Calculate date range for 12 months starting from mes_inicio
+        if mes_inicio == 1:
+            # Traditional year view (January to December)
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = date(año, 12, 31)
+        else:
+            # Rolling 12-month view
+            fecha_inicio = date(año, mes_inicio, 1)
+            # Calculate end date (12 months from start)
+            if mes_inicio <= 12:
+                if mes_inicio + 11 <= 12:
+                    fecha_fin = date(año, mes_inicio + 11, calendar.monthrange(año, mes_inicio + 11)[1])
+                else:
+                    # Cross into next year
+                    mes_fin = (mes_inicio + 11) % 12
+                    if mes_fin == 0:
+                        mes_fin = 12
+                    año_fin = año + 1 if mes_inicio + 11 > 12 else año
+                    fecha_fin = date(año_fin, mes_fin, calendar.monthrange(año_fin, mes_fin)[1])
+            else:
+                fecha_fin = date(año + 1, mes_inicio - 1, calendar.monthrange(año + 1, mes_inicio - 1)[1])
 
         query = query.filter(
             or_(
@@ -318,14 +336,14 @@ class ComercialService:
         
         print(f"DEBUG: Final proyectos count: {len(proyectos)}, types: {[type(p) for p in proyectos[:3]]}")
 
-        # Build monthly matrix
-        matriz = self._construir_matriz_mensual(proyectos, año)
+        # Build monthly matrix for 12-month period
+        matriz = self._construir_matriz_mensual_periodo(proyectos, año, mes_inicio)
 
         # Calculate totals per month
         totales_mes = self._calcular_totales_mensuales(matriz)
 
-        # Get monthly objectives
-        objetivos = self._get_objetivos_año(año)
+        # Get monthly objectives for the period
+        objetivos = self._get_objetivos_periodo(año, mes_inicio)
 
         # Get filter options
         clientes = db.session.query(Cliente).filter_by(activo=True).order_by(Cliente.nombre).all()
@@ -335,6 +353,7 @@ class ComercialService:
 
         return {
             'año': año,
+            'mes_inicio': mes_inicio,
             'matriz': matriz,
             'totales_mes': totales_mes,
             'objetivos': objetivos,
@@ -692,6 +711,115 @@ class ComercialService:
                 tarea.created_by = user_id
                 db.session.add(tarea)
 
+    def _construir_matriz_mensual_periodo(self, proyectos, año, mes_inicio=1):
+        """Build monthly matrix with project data for 12-month period"""
+        matriz = {}
+        
+        # Build 12 months starting from mes_inicio
+        for i in range(12):
+            mes_actual = mes_inicio + i
+            año_actual = año
+            
+            # Handle year rollover
+            if mes_actual > 12:
+                mes_actual = mes_actual - 12
+                año_actual = año + 1
+                
+            matriz[f"{año_actual}-{mes_actual:02d}"] = {
+                'mes': mes_actual,
+                'año': año_actual,
+                'mes_nombre': calendar.month_name[mes_actual],
+                'periodo_label': f"{calendar.month_name[mes_actual][:3]} {año_actual}",
+                'proyectos': [],
+                'valor_provision': Decimal('0'),
+                'valor_instalacion': Decimal('0'),
+                'margen_ponderado': Decimal('0'),
+                'ganancias': Decimal('0')
+            }
+        
+        for proyecto in proyectos:
+            # Ensure we have a proper Proyecto object
+            if not isinstance(proyecto, Proyecto):
+                continue
+                
+            if not hasattr(proyecto, 'monto_provision_presupuestado'):
+                continue
+                
+            # Get days for this project in the 12-month period
+            dias_proyecto = self._obtener_dias_proyecto_periodo(proyecto, año, mes_inicio)
+
+            for dia_info in dias_proyecto:
+                periodo_key = dia_info['periodo_key']
+                dias_en_mes = dia_info['dias']
+                total_dias = sum(d['dias'] for d in dias_proyecto)
+
+                if periodo_key in matriz and total_dias > 0:
+                    # Calculate daily proration factor
+                    factor_prorreo = Decimal(str(dias_en_mes)) / Decimal(str(total_dias))
+
+                    valor_provision_mes = Decimal('0')
+                    valor_instalacion_mes = Decimal('0')
+                    ganancia_provision_mes = Decimal('0')
+                    ganancia_instalacion_mes = Decimal('0')
+
+                    if proyecto.monto_provision_presupuestado:
+                        valor_provision_mes = proyecto.monto_provision_presupuestado * factor_prorreo
+                        if proyecto.margen_venta_provision:
+                            ganancia_provision_mes = valor_provision_mes * (proyecto.margen_venta_provision / Decimal('100'))
+
+                    if proyecto.monto_instalacion_presupuestado:
+                        valor_instalacion_mes = proyecto.monto_instalacion_presupuestado * factor_prorreo
+                        if proyecto.margen_venta_instalacion:
+                            ganancia_instalacion_mes = valor_instalacion_mes * (proyecto.margen_venta_instalacion / Decimal('100'))
+
+                    ganancia_total_mes = ganancia_provision_mes + ganancia_instalacion_mes
+
+                    proyecto_mes = {
+                        'proyecto': proyecto,
+                        'valor_provision_mes': valor_provision_mes,
+                        'valor_instalacion_mes': valor_instalacion_mes,
+                        'ganancia_provision_mes': ganancia_provision_mes,
+                        'ganancia_instalacion_mes': ganancia_instalacion_mes,
+                        'ganancia_total_mes': ganancia_total_mes,
+                        'margen_provision': proyecto.margen_venta_provision or Decimal('0'),
+                        'margen_instalacion': proyecto.margen_venta_instalacion or Decimal('0'),
+                        'dias_en_mes': dias_en_mes,
+                        'factor_prorreo': factor_prorreo
+                    }
+
+                    matriz[periodo_key]['proyectos'].append(proyecto_mes)
+                    matriz[periodo_key]['valor_provision'] += valor_provision_mes
+                    matriz[periodo_key]['valor_instalacion'] += valor_instalacion_mes
+                    matriz[periodo_key]['ganancias'] += ganancia_total_mes
+
+        # Calculate weighted average margin per month
+        for periodo_key in matriz:
+            valor_total_mes = matriz[periodo_key]['valor_provision'] + matriz[periodo_key]['valor_instalacion']
+            if valor_total_mes > 0:
+                # Calculate weighted margin based on value proportions
+                margen_ponderado = Decimal('0')
+                for proyecto_mes in matriz[periodo_key]['proyectos']:
+                    valor_proyecto_mes = proyecto_mes['valor_provision_mes'] + proyecto_mes['valor_instalacion_mes']
+                    peso = valor_proyecto_mes / valor_total_mes
+                    
+                    # Calculate weighted average of provision and installation margins for this project
+                    valor_prov = proyecto_mes['valor_provision_mes']
+                    valor_inst = proyecto_mes['valor_instalacion_mes']
+                    valor_total_proyecto = valor_prov + valor_inst
+                    
+                    if valor_total_proyecto > 0:
+                        margen_proyecto = Decimal('0')
+                        if valor_prov > 0:
+                            margen_proyecto += (valor_prov / valor_total_proyecto) * proyecto_mes['margen_provision']
+                        if valor_inst > 0:
+                            margen_proyecto += (valor_inst / valor_total_proyecto) * proyecto_mes['margen_instalacion']
+                        
+                        margen_ponderado += peso * margen_proyecto
+                
+                matriz[periodo_key]['margen_ponderado'] = margen_ponderado
+
+        return matriz
+
     def _construir_matriz_mensual(self, proyectos, año):
         """Build monthly matrix with project data"""
         matriz = {}
@@ -926,6 +1054,133 @@ class ComercialService:
         for obj in objetivos:
             objetivos_dict[obj.mes] = obj
 
+        return objetivos_dict
+
+    def _obtener_dias_proyecto_periodo(self, proyecto, año, mes_inicio=1):
+        """Get days affected by a project in a 12-month period, grouped by month"""
+        
+        # Calculate the 12-month period
+        periodo_inicio = date(año, mes_inicio, 1)
+        if mes_inicio + 11 <= 12:
+            periodo_fin = date(año, mes_inicio + 11, calendar.monthrange(año, mes_inicio + 11)[1])
+        else:
+            año_fin = año + 1
+            mes_fin = (mes_inicio + 11) % 12
+            if mes_fin == 0:
+                mes_fin = 12
+            periodo_fin = date(año_fin, mes_fin, calendar.monthrange(año_fin, mes_fin)[1])
+        
+        # If project has both start and end dates, use them
+        if proyecto.fecha_inicio and proyecto.fecha_fin_estimada:
+            # Limit dates to the specified period
+            inicio = max(proyecto.fecha_inicio, periodo_inicio)
+            fin = min(proyecto.fecha_fin_estimada, periodo_fin)
+
+            if inicio > periodo_fin or fin < periodo_inicio:
+                return []
+
+            dias_por_mes = []
+            fecha_actual = inicio
+
+            while fecha_actual <= fin:
+                mes = fecha_actual.month
+                año_actual = fecha_actual.year
+                
+                # Calculate days in this month for the project
+                inicio_mes = max(fecha_actual, date(año_actual, mes, 1))
+                fin_mes = min(fin, date(año_actual, mes, calendar.monthrange(año_actual, mes)[1]))
+                
+                dias_en_mes = (fin_mes - inicio_mes).days + 1
+                periodo_key = f"{año_actual}-{mes:02d}"
+                
+                # Check if we already have this month
+                mes_existente = next((d for d in dias_por_mes if d['periodo_key'] == periodo_key), None)
+                if mes_existente:
+                    mes_existente['dias'] += dias_en_mes
+                else:
+                    dias_por_mes.append({
+                        'periodo_key': periodo_key,
+                        'mes': mes,
+                        'año': año_actual,
+                        'dias': dias_en_mes
+                    })
+
+                # Move to next month
+                if fecha_actual.month == 12:
+                    fecha_actual = date(fecha_actual.year + 1, 1, 1)
+                else:
+                    fecha_actual = date(fecha_actual.year, fecha_actual.month + 1, 1)
+
+            return dias_por_mes
+        
+        # If project has only start date, assign 30 days to that month if within period
+        elif proyecto.fecha_inicio:
+            if periodo_inicio <= proyecto.fecha_inicio <= periodo_fin:
+                return [{
+                    'periodo_key': f"{proyecto.fecha_inicio.year}-{proyecto.fecha_inicio.month:02d}",
+                    'mes': proyecto.fecha_inicio.month,
+                    'año': proyecto.fecha_inicio.year,
+                    'dias': 30
+                }]
+            else:
+                return []
+        
+        # If project has commercial data but no dates, distribute equally across period
+        elif (proyecto.monto_provision_presupuestado or 
+              proyecto.monto_instalacion_presupuestado):
+            dias_por_mes = []
+            
+            # Distribute across the 12-month period
+            for i in range(12):
+                mes_actual = mes_inicio + i
+                año_actual = año
+                
+                if mes_actual > 12:
+                    mes_actual = mes_actual - 12
+                    año_actual = año + 1
+                
+                dias_en_mes = calendar.monthrange(año_actual, mes_actual)[1]
+                dias_por_mes.append({
+                    'periodo_key': f"{año_actual}-{mes_actual:02d}",
+                    'mes': mes_actual,
+                    'año': año_actual,
+                    'dias': dias_en_mes
+                })
+            return dias_por_mes
+        
+        # If no dates and no commercial data, assign to current month if within period
+        else:
+            now = datetime.now()
+            if periodo_inicio <= now.date() <= periodo_fin:
+                return [{
+                    'periodo_key': f"{now.year}-{now.month:02d}",
+                    'mes': now.month,
+                    'año': now.year,
+                    'dias': 30
+                }]
+            else:
+                return []
+
+    def _get_objetivos_periodo(self, año, mes_inicio=1):
+        """Get objectives for 12-month period"""
+        objetivos_dict = {}
+        
+        # Get objectives for the 12-month period
+        for i in range(12):
+            mes_actual = mes_inicio + i
+            año_actual = año
+            
+            if mes_actual > 12:
+                mes_actual = mes_actual - 12
+                año_actual = año + 1
+            
+            objetivo = (db.session.query(ObjetivoMensual)
+                       .filter_by(año=año_actual, mes=mes_actual)
+                       .first())
+            
+            if objetivo:
+                objetivos_dict[f"{año_actual}-{mes_actual:02d}"] = objetivo
+        
         return objetivos_dict
 
     def _calcular_gran_totales(self, matriz, objetivos):

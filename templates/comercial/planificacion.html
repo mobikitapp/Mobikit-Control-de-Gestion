@@ -35,6 +35,16 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Mes Inicio</label>
+                            <select class="form-select" name="mes_inicio" onchange="this.form.submit()">
+                                {% for m in range(1, 13) %}
+                                <option value="{{ m }}" {% if mes_inicio == m %}selected{% endif %}>
+                                    {{ calendar.month_name[m] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
                         <div class="col-md-3">
                             <label class="form-label">Cliente</label>
                             <select class="form-select" name="cliente_id">
@@ -105,25 +115,23 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for mes in range(1, 13) %}
-                                {% set mes_data = matriz[mes] %}
-                                {% set objetivo_mes = objetivos.get(mes) %}
+                                {% for periodo_key, mes_data in matriz.items() %}
+                                {% set objetivo_mes = objetivos.get(periodo_key) %}
                                 {% set objetivo_provision = objetivo_mes.objetivo_provision if objetivo_mes else 0 %}
                                 {% set porcentaje_objetivo = (mes_data.valor_provision / objetivo_provision * 100) if objetivo_provision else 0 %}
 
                                 <tr class="{% if porcentaje_objetivo >= 100 %}table-success{% elif porcentaje_objetivo >= 80 %}table-warning{% elif objetivo_provision and porcentaje_objetivo < 50 %}table-danger{% endif %}" 
-                                    id="mes-row-{{ mes }}">
+                                    id="mes-row-{{ loop.index }}">
                                     <td>
-                                        <strong>{{ mes_data.mes_nombre[:3] }}</strong>
-                                        <br><small class="text-muted">{{ año }}</small>
+                                        <strong>{{ mes_data.periodo_label }}</strong>
                                     </td>
                                     <td>
                                         {% if mes_data.proyectos|length > 0 %}
                                         <div class="d-flex align-items-center">
                                             <button class="btn btn-sm btn-outline-primary me-2" 
-                                                    onclick="toggleProyectosMes({{ mes }})" 
-                                                    id="toggle-btn-{{ mes }}">
-                                                <i class="fas fa-chevron-down" id="icon-{{ mes }}"></i>
+                                                    onclick="toggleProyectosMes('{{ periodo_key }}')" 
+                                                    id="toggle-btn-{{ periodo_key }}">
+                                                <i class="fas fa-chevron-down" id="icon-{{ periodo_key }}"></i>
                                             </button>
                                             <span class="badge bg-primary">{{ mes_data.proyectos|length }}</span>
                                         </div>
@@ -171,11 +179,11 @@
                                 
                                 <!-- Expandable projects row for this month -->
                                 {% if mes_data.proyectos|length > 0 %}
-                                <tr id="proyectos-mes-{{ mes }}" class="proyectos-detail" style="display: none;">
+                                <tr id="proyectos-mes-{{ periodo_key }}" class="proyectos-detail" style="display: none;">
                                     <td colspan="8" class="p-0">
                                         <div class="bg-light border-top">
                                             <div class="p-3">
-                                                <h6 class="mb-3">Proyectos en {{ mes_data.mes_nombre }} {{ año }}</h6>
+                                                <h6 class="mb-3">Proyectos en {{ mes_data.periodo_label }}</h6>
                                                 <div class="row">
                                                     {% for proyecto_mes in mes_data.proyectos %}
                                                     <div class="col-md-6 col-lg-4 mb-3">
@@ -378,10 +386,10 @@
 </style>
 
 <script>
-function toggleProyectosMes(mes) {
-    const row = document.getElementById('proyectos-mes-' + mes);
-    const icon = document.getElementById('icon-' + mes);
-    const btn = document.getElementById('toggle-btn-' + mes);
+function toggleProyectosMes(periodoKey) {
+    const row = document.getElementById('proyectos-mes-' + periodoKey);
+    const icon = document.getElementById('icon-' + periodoKey);
+    const btn = document.getElementById('toggle-btn-' + periodoKey);
     
     if (row.style.display === 'none' || row.style.display === '') {
         row.style.display = 'table-row';
