@@ -457,7 +457,7 @@ class PlanificacionOperacionalService:
         """
         try:
             config_service = ConfiguracionesService()
-            config = config_service.get_parametros_operacionales()
+            config = config_service.get_configuracion_capacidad()
             
             numero_maquinas = config.get('numero_maquinas', 2)
             turnos_por_dia = config.get('turnos_por_dia', 1)
@@ -479,7 +479,7 @@ class PlanificacionOperacionalService:
         """
         try:
             config_service = ConfiguracionesService()
-            config = config_service.get_parametros_operacionales()
+            config = config_service.get_configuracion_capacidad()
             
             horas_nominales = self.calcular_horas_nominales_mensuales()
             oee = config.get('oee', 0.70)
@@ -498,7 +498,7 @@ class PlanificacionOperacionalService:
         """
         try:
             config_service = ConfiguracionesService()
-            config = config_service.get_parametros_operacionales()
+            config = config_service.get_configuracion_capacidad()
             
             horas_efectivas = self.calcular_horas_efectivas_mensuales()
             
@@ -558,7 +558,7 @@ class PlanificacionOperacionalService:
         """
         try:
             config_service = ConfiguracionesService()
-            config = config_service.get_parametros_operacionales()
+            config = config_service.get_configuracion_capacidad()
             
             # Cálculos básicos
             horas_nominales = self.calcular_horas_nominales_mensuales()
@@ -693,7 +693,7 @@ class PlanificacionOperacionalService:
                 
                 # Obtener tiempos por tablero según tipo de proyecto
                 config_service = ConfiguracionesService()
-                config = config_service.get_parametros_operacionales()
+                config = config_service.get_configuracion_capacidad()
                 
                 tiempo_por_tablero_map = {
                     'SOCIAL': config.get('horas_por_tablero_social', 0.6),
@@ -949,7 +949,7 @@ class PlanificacionOperacionalService:
         """Convierte horas a tableros aproximados según tipo de proyecto"""
         try:
             config_service = ConfiguracionesService()
-            config = config_service.get_parametros_operacionales()
+            config = config_service.get_configuracion_capacidad()
             
             tiempo_por_tablero_map = {
                 'SOCIAL': config.get('horas_por_tablero_social', 0.6),
