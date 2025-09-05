@@ -523,10 +523,10 @@ Días restantes: {{ hito.dias_restantes }}">
                                 <tr class="table-light">
                                     <td colspan="10">
                                         <div class="d-flex align-items-center">
-                                            <button class="btn btn-sm btn-outline-primary me-2 proyecto-toggle-btn" 
-                                                    type="button" 
-                                                    data-bs-toggle="collapse" 
-                                                    data-bs-target="#proyecto-detalle-{{ proyecto.proyecto.id }}" 
+                                            <button class="btn btn-sm btn-outline-primary me-2 proyecto-toggle-btn"
+                                                    type="button"
+                                                    data-bs-toggle="collapse"
+                                                    data-bs-target="#proyecto-detalle-{{ proyecto.proyecto.id }}"
                                                     aria-expanded="false">
                                                 <i class="fas fa-plus" id="icon-proyecto-detalle-{{ proyecto.proyecto.id }}"></i>
                                             </button>
@@ -911,7 +911,7 @@ function setupDropdownListeners() {
             let projectId = this.id.replace('proyecto-', '');
             projectId = projectId.replace('proyecto-gantt-', '');
             projectId = projectId.replace('proyecto-detalle-', '');
-            
+
             const icon = document.getElementById('icon-proyecto-' + projectId) ||
                          document.getElementById('icon-proyecto-gantt-' + projectId) ||
                          document.getElementById('icon-proyecto-detalle-' + projectId);
@@ -925,7 +925,7 @@ function setupDropdownListeners() {
             let projectId = this.id.replace('proyecto-', '');
             projectId = projectId.replace('proyecto-gantt-', '');
             projectId = projectId.replace('proyecto-detalle-', '');
-            
+
             const icon = document.getElementById('icon-proyecto-' + projectId) ||
                          document.getElementById('icon-proyecto-gantt-' + projectId) ||
                          document.getElementById('icon-proyecto-detalle-' + projectId);
@@ -940,7 +940,7 @@ function setupDropdownListeners() {
 // Funciones para expandir/colapsar todos los proyectos en la matriz detallada
 function expandirTodos() {
     const collapseElements = document.querySelectorAll('#proyecto-detalle-\\5B 0-9\\5D +, [id^="proyecto-detalle-"]');
-    
+
     collapseElements.forEach(element => {
         if (element.classList.contains('collapse') && !element.classList.contains('show')) {
             const bsCollapse = new bootstrap.Collapse(element, {show: true});
@@ -950,7 +950,7 @@ function expandirTodos() {
 
 function colapsarTodos() {
     const collapseElements = document.querySelectorAll('#proyecto-detalle-\\5B 0-9\\5D +, [id^="proyecto-detalle-"]');
-    
+
     collapseElements.forEach(element => {
         if (element.classList.contains('collapse') && element.classList.contains('show')) {
             const bsCollapse = new bootstrap.Collapse(element, {hide: true});
