@@ -314,14 +314,13 @@ Días restantes: {{ hito.dias_restantes }}">
                                             <table class="table table-sm mb-0" style="font-size: 11px;">
                                                 <thead class="table-secondary">
                                                     <tr>
-                                                        <th style="width: 18%;">OF/Descripción</th>
-                                                        <th style="width: 12%;">Cliente</th>
+                                                        <th style="width: 20%;">OF/Descripción</th>
                                                         <th style="width: 8%;">Prioridad</th>
                                                         <th style="width: 8%;">Tableros</th>
-                                                        <th style="width: 12%;">Estado</th>
+                                                        <th style="width: 16%;">Estado</th>
                                                         <th style="width: 12%;">Fecha Planificada</th>
-                                                        <th style="width: 15%;">Fecha Fab.</th>
-                                                        <th style="width: 15%;">Fecha Embalaje</th>
+                                                        <th style="width: 18%;">Fecha Fab.</th>
+                                                        <th style="width: 18%;">Fecha Embalaje</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -331,12 +330,9 @@ Días restantes: {{ hito.dias_restantes }}">
                                                             <div>
                                                                 <strong>{{ of_info.of.codigo }}</strong>
                                                                 {% if of_info.of.descripcion %}
-                                                                <br><small class="text-muted">{{ of_info.of.descripcion[:40] }}{% if of_info.of.descripcion|length > 40 %}...{% endif %}</small>
+                                                                <br><small class="text-muted">{{ of_info.of.descripcion[:50] }}{% if of_info.of.descripcion|length > 50 %}...{% endif %}</small>
                                                                 {% endif %}
                                                             </div>
-                                                        </td>
-                                                        <td>
-                                                            <small>{{ of_info.cliente.nombre[:15] }}{% if of_info.cliente.nombre|length > 15 %}...{% endif %}</small>
                                                         </td>
                                                         <td>
                                                             <span class="badge
@@ -352,10 +348,10 @@ Días restantes: {{ hito.dias_restantes }}">
                                                             <span class="badge bg-info" style="font-size: 9px;">{{ of_info.of.cantidad_tableros or 0 }}</span>
                                                         </td>
                                                         <td>
-                                                            <small>
-                                                                <strong>{{ of_info.progreso_actual.area.nombre[:8] }}{% if of_info.progreso_actual.area.nombre|length > 8 %}...{% endif %}</strong><br>
-                                                                <span class="text-muted" style="font-size: 9px;">{{ of_info.progreso_actual.estado.nombre[:10] }}{% if of_info.progreso_actual.estado.nombre|length > 10 %}...{% endif %}</span>
-                                                            </small>
+                                                            <div style="font-size: 10px;">
+                                                                <strong class="text-primary">{{ of_info.progreso_actual.area.nombre }}</strong><br>
+                                                                <span class="text-muted">{{ of_info.progreso_actual.estado.nombre }}</span>
+                                                            </div>
                                                         </td>
                                                         <td>
                                                             {% if of_info.of.fecha_planificada %}
@@ -374,7 +370,11 @@ Días restantes: {{ hito.dias_restantes }}">
                                                                 {% endif %}
                                                             {% endif %}
                                                             <br>
-                                                            <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
+                                                            {% if of_info.tiempo_real_fabrica is not none %}
+                                                                <small class="text-success" style="font-size: 8px;"><strong>Real:</strong> {{ of_info.tiempo_real_fabrica }}d</small>
+                                                            {% else %}
+                                                                <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
+                                                            {% endif %}
                                                         </td>
                                                         <td>
                                                             {% if of_info.of.fecha_entrega_embalaje %}
@@ -386,7 +386,11 @@ Días restantes: {{ hito.dias_restantes }}">
                                                                 {% endif %}
                                                             {% endif %}
                                                             <br>
-                                                            <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
+                                                            {% if of_info.tiempo_real_embalaje is not none %}
+                                                                <small class="text-success" style="font-size: 8px;"><strong>Real:</strong> {{ of_info.tiempo_real_embalaje }}d</small>
+                                                            {% else %}
+                                                                <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
+                                                            {% endif %}
                                                         </td>
                                                     </tr>
                                                     {% endfor %}
