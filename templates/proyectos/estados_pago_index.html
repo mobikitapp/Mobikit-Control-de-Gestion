@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Estados de Pago - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="dollar-sign" class="me-2"></i>
+                    Estados de Pago
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('proyectos.index') }}" class="btn btn-outline-secondary">
+                        <i data-feather="arrow-left" class="me-2"></i>
+                        Volver a Proyectos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="filtroCliente" class="form-label">Cliente</label>
+                            <select class="form-select" id="filtroCliente">
+                                <option value="">Todos los clientes</option>
+                                {% for cliente_nombre in proyectos_por_cliente.keys() %}
+                                <option value="{{ cliente_nombre }}">{{ cliente_nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filtroEstado" class="form-label">Estado de Pago</label>
+                            <select class="form-select" id="filtroEstado">
+                                <option value="">Todos los estados</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="pagado">Pagado</option>
+                                <option value="parcial">Parcial</option>
+                                <option value="vencido">Vencido</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filtroFacturado" class="form-label">Estado de Facturación</label>
+                            <select class="form-select" id="filtroFacturado">
+                                <option value="">Todos</option>
+                                <option value="facturado">Facturado</option>
+                                <option value="no_facturado">No Facturado</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects by Client -->
+    <div class="row">
+        <div class="col-12">
+            {% if proyectos_por_cliente %}
+            {% for cliente_nombre, data in proyectos_por_cliente.items() %}
+            <div class="card mb-4 cliente-grupo" data-cliente="{{ cliente_nombre }}">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i data-feather="user" class="me-2"></i>
+                            {{ cliente_nombre }}
+                        </h5>
+                        <span class="badge bg-info">
+                            {{ data.proyectos|length }} proyecto{{ 's' if data.proyectos|length != 1 else '' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if data.proyectos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Proyecto</th>
+                                    <th>Estados de Pago</th>
+                                    <th>Monto Total</th>
+                                    <th>Pagado</th>
+                                    <th>Facturado</th>
+                                    <th>% Avance</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for proyecto_data in data.proyectos %}
+                                {% set proyecto = proyecto_data.proyecto %}
+                                {% set resumen = proyecto_data.resumen %}
+                                <tr class="proyecto-row" 
+                                    data-proyecto-id="{{ proyecto.id }}"
+                                    data-cliente="{{ cliente_nombre }}"
+                                    data-monto="{{ resumen.total_monto }}"
+                                    data-pagado="{{ resumen.total_pagado }}"
+                                    data-facturado="{{ resumen.total_facturado }}">
+                                    <td>
+                                        <div class="fw-medium">{{ proyecto.nombre }}</div>
+                                        <small class="text-muted">
+                                            Estado: 
+                                            <span class="badge bg-{{ 'success' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' }}">
+                                                {{ proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto.estado_comercial else 'N/A' }}
+                                            </span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ proyecto_data.estados_pago|length }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">${{ "{:,.0f}".format(resumen.total_monto) }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="text-success fw-medium">${{ "{:,.0f}".format(resumen.total_pagado) }}</div>
+                                        <small class="text-muted">{{ "%.1f"|format(resumen.porcentaje_pagado) }}%</small>
+                                    </td>
+                                    <td>
+                                        <div class="text-info fw-medium">${{ "{:,.0f}".format(resumen.total_facturado) }}</div>
+                                        <small class="text-muted">{{ "%.1f"|format(resumen.porcentaje_facturado) }}%</small>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-success" style="width: {{ resumen.porcentaje_pagado }}%"></div>
+                                            <div class="progress-bar bg-info" style="width: {{ resumen.porcentaje_facturado - resumen.porcentaje_pagado }}%"></div>
+                                        </div>
+                                        <small class="text-muted">Pagado: {{ "%.1f"|format(resumen.porcentaje_pagado) }}% | Facturado: {{ "%.1f"|format(resumen.porcentaje_facturado) }}%</small>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('proyectos.estados_pago_detalle', proyecto_id=proyecto.id) }}" 
+                                           class="btn btn-sm btn-primary">
+                                            <i data-feather="eye" class="me-1"></i>
+                                            Ver Detalle
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i data-feather="inbox" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted">No hay proyectos para este cliente.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i data-feather="inbox" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
+                    <h4 class="text-muted">No hay proyectos con estados de pago</h4>
+                    <p class="text-muted">Los proyectos con contratos y estados de pago aparecerán aquí.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filtroCliente = document.getElementById('filtroCliente');
+    const filtroEstado = document.getElementById('filtroEstado');
+    const filtroFacturado = document.getElementById('filtroFacturado');
+    
+    function aplicarFiltros() {
+        const clienteSeleccionado = filtroCliente.value;
+        const estadoSeleccionado = filtroEstado.value;
+        const facturadoSeleccionado = filtroFacturado.value;
+        
+        // Filter client groups
+        const clienteGrupos = document.querySelectorAll('.cliente-grupo');
+        clienteGrupos.forEach(grupo => {
+            const clienteNombre = grupo.dataset.cliente;
+            const deberíaMostrar = !clienteSeleccionado || clienteNombre === clienteSeleccionado;
+            grupo.style.display = deberíaMostrar ? 'block' : 'none';
+        });
+        
+        // Additional filtering could be implemented here for estado and facturado
+        // This would require additional data attributes on the proyecto rows
+    }
+    
+    filtroCliente.addEventListener('change', aplicarFiltros);
+    filtroEstado.addEventListener('change', aplicarFiltros);
+    filtroFacturado.addEventListener('change', aplicarFiltros);
+    
+    // Initialize icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+});
+</script>
+{% endblock %}

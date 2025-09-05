@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}{{ proyecto.nombre }} - Estados de Pago - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="dollar-sign" class="me-2"></i>
+                    Estados de Pago - {{ proyecto.nombre }}
+                </h1>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoEstadoPago">
+                        <i data-feather="plus" class="me-2"></i>
+                        Nuevo Estado de Pago
+                    </button>
+                    <a href="{{ url_for('proyectos.estados_pago_index') }}" class="btn btn-outline-secondary">
+                        <i data-feather="arrow-left" class="me-2"></i>
+                        Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Summary -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="info" class="me-2"></i>
+                        Información del Proyecto
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Cliente:</dt>
+                                <dd class="col-sm-8">{{ proyecto.cliente.nombre }}</dd>
+                                <dt class="col-sm-4">Estado:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-{{ 'success' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' }}">
+                                        {{ proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto.estado_comercial else 'N/A' }}
+                                    </span>
+                                </dd>
+                                <dt class="col-sm-4">Responsable:</dt>
+                                <dd class="col-sm-8">{{ proyecto.responsable_user.nombre_completo if proyecto.responsable_user else 'No asignado' }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Presupuesto:</dt>
+                                <dd class="col-sm-8">
+                                    {% if proyecto.monto_provision_presupuestado %}
+                                        ${{ "{:,.0f}".format(proyecto.monto_provision_presupuestado) }}
+                                    {% else %}
+                                        No definido
+                                    {% endif %}
+                                </dd>
+                                <dt class="col-sm-4">Fecha Inicio:</dt>
+                                <dd class="col-sm-8">{{ proyecto.fecha_inicio.strftime('%d/%m/%Y') if proyecto.fecha_inicio else 'No definida' }}</dd>
+                                <dt class="col-sm-4">Contratos:</dt>
+                                <dd class="col-sm-8">{{ contratos|length }} contrato{{ 's' if contratos|length != 1 else '' }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment States -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="credit-card" class="me-2"></i>
+                        Estados de Pago ({{ estados_pago|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if estados_pago %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Descripción</th>
+                                    <th>Monto</th>
+                                    <th>Estado</th>
+                                    <th>Facturado</th>
+                                    <th>Fecha Programada</th>
+                                    <th>Fecha Pago</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ep in estados_pago %}
+                                <tr data-estado-pago-id="{{ ep.id }}">
+                                    <td>
+                                        <span class="badge bg-{{ 'primary' if ep.tipo.value == 'orden_compra' else 'info' }}">
+                                            {{ 'OC' if ep.tipo.value == 'orden_compra' else 'Contrato' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">{{ ep.titulo_display }}</div>
+                                        {% if ep.observaciones %}
+                                        <small class="text-muted">{{ ep.observaciones[:100] }}{% if ep.observaciones|length > 100 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">${{ "{:,.0f}".format(ep.monto_efectivo) }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if ep.estado.value == 'pagado' else 'warning' if ep.estado.value == 'pendiente' else 'info' if ep.estado.value == 'parcial' else 'danger' }}">
+                                            {{ ep.estado.value|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if ep.facturado %}
+                                        <div class="d-flex align-items-center">
+                                            <i data-feather="check-circle" class="text-success me-1" style="width: 16px; height: 16px;"></i>
+                                            <div>
+                                                <small class="text-success fw-medium">Facturado</small>
+                                                {% if ep.numero_factura %}
+                                                <br><small class="text-muted">{{ ep.numero_factura }}</small>
+                                                {% endif %}
+                                                {% if ep.fecha_facturacion %}
+                                                <br><small class="text-muted">{{ ep.fecha_facturacion.strftime('%d/%m/%Y') }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted">
+                                            <i data-feather="x-circle" class="me-1" style="width: 16px; height: 16px;"></i>
+                                            No facturado
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ ep.fecha_programada.strftime('%d/%m/%Y') if ep.fecha_programada else '-' }}
+                                    </td>
+                                    <td>
+                                        {{ ep.fecha_pago.strftime('%d/%m/%Y') if ep.fecha_pago else '-' }}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            {% if ep.estado.value == 'pendiente' or ep.estado.value == 'parcial' %}
+                                            <button type="button" class="btn btn-sm btn-outline-success" 
+                                                    onclick="marcarComoPagado({{ ep.id }})">
+                                                <i data-feather="check"></i>
+                                            </button>
+                                            {% endif %}
+                                            {% if not ep.facturado %}
+                                            <button type="button" class="btn btn-sm btn-outline-info"
+                                                    onclick="marcarComoFacturado({{ ep.id }})">
+                                                <i data-feather="file-text"></i>
+                                            </button>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    onclick="eliminarEstadoPago({{ ep.id }})">
+                                                <i data-feather="trash-2"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i data-feather="credit-card" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
+                        <h4 class="text-muted">No hay estados de pago registrados</h4>
+                        <p class="text-muted">Comience creando un nuevo estado de pago para este proyecto.</p>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoEstadoPago">
+                            <i data-feather="plus" class="me-2"></i>
+                            Crear Primer Estado de Pago
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Nuevo Estado de Pago -->
+<div class="modal fade" id="modalNuevoEstadoPago" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo Estado de Pago</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNuevoEstadoPago">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="tipoEstado" class="form-label">Tipo de Estado</label>
+                            <select class="form-select" id="tipoEstado" name="tipo" required>
+                                <option value="">Seleccione tipo</option>
+                                <option value="orden_compra">Orden de Compra</option>
+                                <option value="estado_pago_contrato">Estado de Pago de Contrato</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="contratoId" class="form-label">Contrato (opcional)</label>
+                            <select class="form-select" id="contratoId" name="contrato_id">
+                                <option value="">Sin contrato asociado</option>
+                                {% for contrato in contratos %}
+                                <option value="{{ contrato.id }}">{{ contrato.numero_oc }} - ${{ "{:,.0f}".format(contrato.monto_total) if contrato.monto_total else '0' }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- OC Fields -->
+                        <div class="col-md-6 oc-field" style="display: none;">
+                            <label for="numeroOc" class="form-label">Número OC</label>
+                            <input type="text" class="form-control" id="numeroOc" name="numero_oc">
+                        </div>
+                        <div class="col-md-6 oc-field" style="display: none;">
+                            <label for="montoNeto" class="form-label">Monto Neto</label>
+                            <input type="number" class="form-control" id="montoNeto" name="monto_neto" step="0.01">
+                        </div>
+                        
+                        <!-- Contract Fields -->
+                        <div class="col-md-12 contrato-field" style="display: none;">
+                            <label for="descripcion" class="form-label">Descripción</label>
+                            <input type="text" class="form-control" id="descripcion" name="descripcion">
+                        </div>
+                        <div class="col-md-6 contrato-field" style="display: none;">
+                            <label for="porcentajeAvance" class="form-label">% Avance</label>
+                            <input type="number" class="form-control" id="porcentajeAvance" name="porcentaje_avance" step="0.01" min="0" max="100">
+                        </div>
+                        <div class="col-md-6 contrato-field" style="display: none;">
+                            <label for="montoEstadoPago" class="form-label">Monto Estado de Pago</label>
+                            <input type="number" class="form-control" id="montoEstadoPago" name="monto_estado_pago" step="0.01">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="fechaProgramada" class="form-label">Fecha Programada</label>
+                            <input type="date" class="form-control" id="fechaProgramada" name="fecha_programada">
+                        </div>
+                        <div class="col-md-12">
+                            <label for="observaciones" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarEstadoPago()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Marcar como Facturado -->
+<div class="modal fade" id="modalMarcarFacturado" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Marcar como Facturado</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formMarcarFacturado">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="numeroFactura" class="form-label">Número de Factura</label>
+                            <input type="text" class="form-control" id="numeroFactura" name="numero_factura" required>
+                        </div>
+                        <div class="col-12">
+                            <label for="fechaFacturacion" class="form-label">Fecha de Facturación</label>
+                            <input type="date" class="form-control" id="fechaFacturacion" name="fecha_facturacion" required>
+                        </div>
+                        <div class="col-12">
+                            <label for="observacionesFactura" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observacionesFactura" name="observaciones" rows="3"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmarFacturado()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let estadoPagoParaFacturar = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle form fields based on tipo
+    document.getElementById('tipoEstado').addEventListener('change', function() {
+        const tipo = this.value;
+        const ocFields = document.querySelectorAll('.oc-field');
+        const contratoFields = document.querySelectorAll('.contrato-field');
+        
+        if (tipo === 'orden_compra') {
+            ocFields.forEach(field => field.style.display = 'block');
+            contratoFields.forEach(field => field.style.display = 'none');
+        } else if (tipo === 'estado_pago_contrato') {
+            ocFields.forEach(field => field.style.display = 'none');
+            contratoFields.forEach(field => field.style.display = 'block');
+        } else {
+            ocFields.forEach(field => field.style.display = 'none');
+            contratoFields.forEach(field => field.style.display = 'none');
+        }
+    });
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('fechaProgramada').value = today;
+    document.getElementById('fechaFacturacion').value = today;
+    
+    // Initialize icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+});
+
+function guardarEstadoPago() {
+    const form = document.getElementById('formNuevoEstadoPago');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    fetch(`/proyectos/{{ proyecto.id }}/estados-pago`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al guardar estado de pago');
+    });
+}
+
+function marcarComoPagado(estadoPagoId) {
+    const fechaPago = prompt('Fecha de pago (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    if (!fechaPago) return;
+    
+    const observaciones = prompt('Observaciones (opcional):');
+    
+    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            fecha_pago: fechaPago,
+            observaciones: observaciones
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al marcar como pagado');
+    });
+}
+
+function marcarComoFacturado(estadoPagoId) {
+    estadoPagoParaFacturar = estadoPagoId;
+    const modal = new bootstrap.Modal(document.getElementById('modalMarcarFacturado'));
+    modal.show();
+}
+
+function confirmarFacturado() {
+    const form = document.getElementById('formMarcarFacturado');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    fetch(`/proyectos/estados-pago/${estadoPagoParaFacturar}/marcar-facturado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al marcar como facturado');
+    });
+}
+
+function eliminarEstadoPago(estadoPagoId) {
+    if (!confirm('¿Está seguro de que desea eliminar este estado de pago?')) {
+        return;
+    }
+    
+    fetch(`/proyectos/estados-pago/${estadoPagoId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al eliminar estado de pago');
+    });
+}
+</script>
+{% endblock %}

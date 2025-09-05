@@ -81,6 +81,12 @@
                             {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
                             <li><a class="dropdown-item" href="{{ url_for('proyectos.nuevo') }}">Nuevo Proyecto</a></li>
                             {% endif %}
+                            {% if current_user.rol.value in ['admin', 'general'] %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('proyectos.estados_pago_index') }}">
+                                <i data-feather="dollar-sign" class="me-2"></i>Estados de Pago
+                            </a></li>
+                            {% endif %}
                         </ul>
                     </li>
 

@@ -2,104 +2,7 @@
 
 ## Overview
 
-A comprehensive management system for manufacturing companies that centralizes administration of clients, projects, contracts, manufacturing orders, and dispatches. The system provides complete tracking from initial client contact through project completion and delivery, with integrated document management, quality assurance workflows, and multi-role user access controls.
-
-## Recent Changes
-
-**[2025-09-05] Sistema de Seguimiento de Tiempos de Procesamiento por Área - FINALIZADO**
-- **REGISTRO DE TIEMPOS DINÁMICO**: Sistema completo de tracking de tiempo de procesamiento por área sin modificaciones de schema
-- **CÁLCULO EN TIEMPO REAL**: Tiempos calculados dinámicamente basados en fecha_ingreso_area y transiciones entre áreas
-- **HISTÓRICO COMPLETO**: Tracking completo del recorrido de cada OF por todas las áreas con duración en cada una
-- **ESTADÍSTICAS INTEGRALES**: Promedios, máximos y mínimos de tiempo de procesamiento por tipo de área
-- **INTEGRACIÓN PLANIFICACIÓN**: Información de tiempos incluida en matriz de planificación y prioridades
-- **ÁREA ACTUAL**: Identificación automática de área y estado actual con tiempo transcurrido en progreso
-- **FILTRADO INTELIGENTE**: Exclusión automática de OFs que han llegado a área de Bodega
-- Sistema mantiene compatibilidad total con estructura de base de datos existente sin requerir migraciones
-
-**[2025-09-05] Sistema de Planificación Estratégica de Capacidad - FINALIZADO**
-- **ANÁLISIS ESTRATÉGICO COMPLETO**: Sistema integral de planificación de capacidad con horizonte de 3-12 meses
-- **PARÁMETROS OPERACIONALES**: Configuración completa de máquinas, turnos, OEE, días laborables 
-- **CÁLCULOS AVANZADOS**: Fórmulas específicas (horas nominales = máquinas × turnos × horas × días, horas efectivas = nominales × OEE)
-- **DEMANDA JERÁRQUICA**: Estructura mes → proyecto → cliente → órdenes con cálculo automático de horas requeridas
-- **ROLLING PLAN CON BACKLOG**: Lógica de acumulación de demanda no satisfecha y redistribución inteligente
-- **ESCENARIOS DE DÉFICIT**: 7 estrategias de respuesta (horas extra, turnos adicionales, subcontratación, mejora OEE, combinados)
-- **ANÁLISIS DE BRECHAS**: Identificación automática de déficits y excesos de capacidad por mes
-- **RECOMENDACIONES ESTRATÉGICAS**: Sistema inteligente de sugerencias basado en patrones de utilización
-- **INTERFAZ ESTRATÉGICA**: Dashboard completo con métricas ejecutivas, rolling plan visual y escenarios interactivos
-- **INTEGRACIÓN COMPLETA**: Uso de datos existentes de proyectos/OFs para planificación estratégica
-- Sistema permite análisis de capacidad vs demanda, identificación de cuellos de botella y planificación de expansión
-- Compatible con sistema legacy manteniendo vistas mensual/semanal existentes
-
-**[2025-09-05] Sistema de Tipos de Proyectos con Factores Específicos - FINALIZADO**
-- **TIPOS DE PROYECTO**: Implementación completa de enum TipoProyecto (Social/Estandar/Especial)
-- **FACTORES POR TIPO**: Cada tipo tiene factores únicos de CLP/tablero y tiempos de fabricación/embalaje
-  - SOCIAL: $180K/tablero, 0.040d fábrica, 0.015d embalaje
-  - ESTANDAR: $210K/tablero, 0.030d fábrica, 0.012d embalaje (por defecto)
-  - ESPECIAL: $280K/tablero, 0.025d fábrica, 0.010d embalaje
-- **SIMPLIFICACIÓN MELAMINA**: Sistema enfocado únicamente en Melamina, eliminados MDF y Madera
-- **NUEVA FÓRMULA**: Cálculo mejorado con margen: (Monto × (1-margen)) ÷ Factor_CLP_Tablero × Desperdicio
-- **INTEGRACIÓN COMPLETA**: Todos los servicios actualizados para usar factores según tipo de proyecto
-- **CONFIGURACIÓN DINÁMICA**: Factores de tiempo modificables por tipo de proyecto en interfaz web
-- **FUNCIONALIDAD GUARDAR**: Sistema completo de actualización de factores con validación y logging
-- Cálculos de capacidad mensual consideran tipo específico para estimaciones precisas
-- Análisis de productividad incorpora diferencias por tipo de proyecto
-
-**[2025-09-04] Comparación Tiempo Real vs Estimado - Análisis de Rendimiento**
-- **CÁLCULO TIEMPO REAL**: Automatización de tiempo real de fabricación (fecha planificada → fecha fab)  
-- **TIEMPO REAL EMBALAJE**: Cálculo automático de tiempo real de embalaje (fecha fab → fecha embalaje)
-- **COMPARACIÓN VISUAL**: Indicadores de desviación tiempo real vs estimado con porcentajes
-- **BADGES INTELIGENTES**: Sistema de colores por nivel de desviación (>50% rojo, >20% amarillo, >20% antes verde)
-- **LEYENDA ACTUALIZADA**: Explicación completa de indicadores de desviación temporal
-- Datos para ajuste de factores de cálculo de estimaciones de tiempo
-- Análisis de rendimiento para mejorar precisión de planificación futura
-
-**[2025-09-04] Mejoras en Matriz Detallada - Nueva Funcionalidad de Dropdowns y Ordenación**
-- **DROPDOWNS DE PROYECTOS**: Implementación de lista desplegable para detalles de cada proyecto
-- **HITOS DE ENTREGA**: Nueva columna de próximo hito de entrega con días restantes
-- **ORDENACIÓN POR DÍAS**: Proyectos ordenados por días restantes según sus OFs (menor a mayor)
-- **ELIMINACIÓN CRONOGRAMA VISUAL**: Removido campo cronograma visual para optimizar espacio
-- **TIEMPO ESTIMADO REORGANIZADO**: Tiempo estimado ahora aparece debajo de fechas de fabricación y embalaje
-- Funcionalidad colapsable con iconos + / - para cada proyecto
-- Impresión mejorada que abre automáticamente todos los dropdowns
-- JavaScript actualizado para manejar eventos de apertura/cierre de dropdowns
-- Cálculo inteligente de días restantes usando mínimo entre OFs y hitos de entrega
-
-**[2025-09-04] Mejoras en Planificación y Prioridades - Actualización de Impresión**
-- **FORMATO CARTA**: Configuración de impresión cambiada de A4 horizontal a formato carta (8.5"x11")
-- **DROPDOWNS ABIERTOS**: Implementación automática de apertura de todos los dropdowns de OFs al imprimir
-- **TÍTULOS REPETIDOS**: Configuración CSS para repetir títulos de columnas en cada cambio de página
-- **ESTILOS DE IMPRESIÓN**: Optimización de estilos para dropdowns y elementos de tabla en impresión
-- JavaScript mejorado que gestiona estado de dropdowns antes y después de imprimir
-- CSS específico para display: table-header-group que asegura repetición de thead
-
-**[2025-09-04] Mejoras en Planificación y Prioridades - Primera Implementación**
-- Corregida la fila de totales en Gantt de proyectos para coincidir con el cronograma unificado de 6 semanas
-- Implementada funcionalidad completa de impresión con botones separados para Gantt y matriz detallada
-- Agregados estilos CSS optimizados para impresión en formato A4 horizontal
-- Implementadas funciones JavaScript que ocultan automáticamente secciones irrelevantes al imprimir
-- Corregida ruta del blueprint de planificación operacional a `/prioridades`
-- Eliminado código duplicado que causaba errores de startup del servidor
-- **NUEVOS HITOS DE ENTREGA**: Integración completa de hitos de contratos en Gantt de proyectos
-- Líneas verticales amarillas que muestran fechas de hitos de entrega en cronograma de 6 semanas
-- Nueva columna "Días Restantes" que muestra días hasta próximo hito de entrega por proyecto
-- Método `get_hitos_entrega_proyecto()` para obtener hitos de entrega de contratos asociados
-- Cálculo automático de posicionamiento de hitos dentro del rango temporal de 6 semanas
-- Tooltips informativos en líneas de hitos con título, fecha y días restantes
-- Leyenda actualizada incluyendo explicación de líneas amarillas de hitos
-- **LISTA DESPLEGABLE DE OFs**: Reemplazo de contador simple por dropdown interactivo
-- Dropdown de Órdenes de Fabricación muestra código, prioridad y fechas de cada OF
-- Vista detallada con código completo, prioridad numérica/textual y fechas codificadas por colores
-- Información de tableros por OF y separadores visuales entre elementos
-- Centrado mejorado de títulos de columnas "Total" y "Días Próximo Hito"
-
-**[2025-09-03] Sistema de Gestión de Permisos Dinámicos**
-- Implementado sistema completo de gestión de permisos por rol y módulo 
-- Interfaz administrativa para configurar permisos granulares (Lectura, Creación, Edición, Eliminación)
-- Sistema de auditoría completo que registra todos los cambios de permisos
-- Inicialización automática de 9 módulos del sistema con 216 combinaciones de permisos
-- Integración con sistema de permisos estático existente como fallback
-- Nuevas tablas: modulos, permisos_rol, auditoria_permisos
-- Nuevas rutas: /configuraciones/permisos/gestionar, /configuraciones/permisos/auditoria
+A comprehensive management system for manufacturing companies that centralizes the administration of clients, projects, contracts, manufacturing orders, and dispatches. The system provides complete tracking from initial client contact through project completion and delivery, with integrated document management, quality assurance workflows, and multi-role user access controls. Its purpose is to streamline operations, improve tracking, and enhance decision-making in a manufacturing environment. Key capabilities include financial payment status management, processing time tracking by area, strategic capacity planning, and project type customization with specific factors.
 
 ## User Preferences
 
@@ -108,84 +11,70 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Core Technology Stack
-- **Backend Framework**: Flask (Python) with SQLAlchemy ORM for database operations
-- **Database**: PostgreSQL with Alembic migrations via Flask-Migrate
-- **Authentication**: Replit Auth integration with Flask-Login for session management
-- **File Storage**: Replit Object Storage for document and media files
-- **Data Validation**: Pydantic v2 for request/response validation
+- **Backend Framework**: Flask (Python) with SQLAlchemy ORM
+- **Database**: PostgreSQL with Alembic migrations
+- **Authentication**: Replit Auth integration with Flask-Login
+- **File Storage**: Replit Object Storage
+- **Data Validation**: Pydantic v2
 - **Frontend**: Server-side rendered Jinja2 templates with responsive design
 
 ### Application Structure
-The system follows a modular blueprint architecture with clear separation of concerns:
-
-- **Blueprints**: Domain-specific modules (clientes, proyectos, contratos, fabricacion, despachos)
-- **Services**: Business logic layer handling complex operations and workflows
-- **Repositories**: Data access layer abstracting database operations
-- **Models**: SQLAlchemy entity definitions with enum-based status management
-- **Schemas**: Pydantic models for data validation and serialization
-- **Adapters**: External service integrations (storage, notifications)
+The system follows a modular blueprint architecture with clear separation of concerns, utilizing blueprints for domain-specific modules, services for business logic, repositories for data access, and Pydantic models for data validation.
 
 ### Business Domain Architecture
-
-**Client Management**: Complete client master records with commercial information, contact tracking, and project history. Supports both individual and corporate clients with configurable commercial terms.
-
-**Project Lifecycle**: End-to-end project management from initial planning through completion. Projects are linked to clients and can have multiple contracts/purchase orders. State management covers planning, development, production phases, and final delivery.
-
-**Contract & Purchase Order Management**: Handles both contract-based and purchase order-based projects with flexible document attachment system. Supports multiple currencies, payment terms, and delivery milestones with comprehensive audit trails.
-
-**Manufacturing Orders (OF)**: Production workflow management with states: planificada → en_producción → QA → terminada → entregada. Includes material tracking, responsible party assignment, and quality control checkpoints.
-
-**Dispatch Management**: Logistics coordination with states: programado → en_transporte → entregado → observado. Integrates delivery documentation (guides, delivery receipts) and evidence collection (photos, signatures).
+- **Client Management**: Complete client master records with commercial information, contact tracking, and project history.
+- **Project Lifecycle**: End-to-end project management from initial planning through completion, linked to clients, supporting multiple contracts, and state management across phases. Includes specific project types (Social, Estandar, Especial) with unique cost and time factors.
+- **Contract & Purchase Order Management**: Handles contract/PO-based projects with document attachment, multi-currency support, payment terms, and delivery milestones.
+- **Manufacturing Orders (OF)**: Production workflow management (planificada → en_producción → QA → terminada → entregada) with material tracking and quality control. Includes real-time vs. estimated time comparison for performance analysis.
+- **Dispatch Management**: Logistics coordination (programado → en_transporte → entregado → observado) with delivery documentation and evidence collection.
+- **Payment Status System**: Comprehensive financial management of payment statuses nested under projects, grouped by client, with invoicing functionality and specialized methods for financial analysis.
+- **Processing Time Tracking**: Dynamic real-time tracking of processing time per area for manufacturing orders, providing historical data and statistics without schema modifications.
+- **Strategic Capacity Planning**: Integral system for capacity planning (3-12 months horizon) based on operational parameters (machines, shifts, OEE) and hierarchical demand, including backlog logic, deficit scenarios, and gap analysis.
 
 ### Authentication & Authorization
-- **Multi-role System**: Admin, Operations, Sales, Production, Logistics with granular permissions
-- **Session Management**: Persistent sessions with 31-day lifetime
-- **Access Control**: Role-based access to features and data with audit logging
+- **Multi-role System**: Admin, Operations, Sales, Production, Logistics with granular permissions.
+- **Dynamic Permission Management**: Granular permissions by role and module (Read, Create, Edit, Delete) with administrative interface and audit trail.
+- **Session Management**: Persistent sessions with 31-day lifetime.
 
 ### Storage & File Management
-- **Standardized Paths**: Organized storage structure following Cliente/Proyecto hierarchy:
-  - `Cliente-{id}/Proyecto-{id}/Contratos/{contrato_id}/{docs|evidencias}/`
-  - `Cliente-{id}/Proyecto-{id}/Despachos/{despacho_id}/{docs|evidencias}/`
-- **Multiple File Types**: Support for contracts, delivery documentation, and QA evidence
-- **Size Limits**: Configurable upload limits (default 25MB) with MIME type validation
-- **Audit Trail**: Complete tracking of file uploads, downloads, and modifications
-- **Backward Compatibility**: Legacy structure still supported for existing files
+- **Standardized Paths**: Organized storage structure (Client/Project hierarchy).
+- **Multiple File Types**: Support for contracts, delivery documentation, and QA evidence.
+- **Size Limits**: Configurable upload limits with MIME type validation.
+- **Audit Trail**: Tracking of file operations.
 
 ### Database Design
-- **Relational Structure**: Normalized schema with proper foreign key constraints
-- **Audit Fields**: Created/updated timestamps and user tracking on all entities
-- **State Management**: Enum-based status fields with database constraints
-- **Indexing**: Strategic indexes on frequently queried fields (client search, project filtering)
-- **Transactions**: ACID compliance for critical business operations
+- **Relational Structure**: Normalized schema with foreign key constraints.
+- **Audit Fields**: Created/updated timestamps and user tracking.
+- **State Management**: Enum-based status fields.
 
-### Search & Filtering
-- **Full-text Search**: Cross-entity search capabilities for clients, projects, and documents
-- **Advanced Filtering**: Date ranges, status filters, responsible party filters
-- **Pagination**: Efficient pagination for large datasets
-- **Export Capabilities**: Data export functionality for reporting and analysis
+### UI/UX Decisions & Features
+- **Responsive Design**: Server-side rendered Jinja2 templates.
+- **Detailed Matrix Improvements**: Dropdowns for project details, next delivery milestone column, and order by days remaining.
+- **Gantt Chart Enhancements**: Integration of contract milestones as vertical lines, and interactive dropdowns for Manufacturing Orders (OFs).
+- **Print Optimization**: Configured for A4 horizontal and letter format, with automatic expansion of dropdowns and repeating column titles.
+- **Visual Indicators**: Progress bars, status badges, and color-coded indicators for financial progress and time deviation analysis.
 
 ## External Dependencies
 
 ### Core Infrastructure
-- **PostgreSQL Database**: Primary data store with ACID transactions and full-text search
-- **Replit Object Storage**: File storage service for documents, images, and attachments
-- **Replit Auth**: Authentication provider with OAuth2 integration
+- **PostgreSQL Database**: Primary data store.
+- **Replit Object Storage**: File storage service.
+- **Replit Auth**: Authentication provider.
 
 ### Python Libraries
-- **Flask Ecosystem**: Flask, Flask-SQLAlchemy, Flask-Migrate, Flask-Login, Flask-Dance
-- **Database**: psycopg2-binary for PostgreSQL connectivity
-- **Validation**: Pydantic v2 for data validation and serialization
-- **Security**: Werkzeug for secure filename handling and password utilities
-- **Timezone**: pytz for Santiago/Chile timezone management
-- **Image Processing**: Pillow for image handling and optimization
+- **Flask Ecosystem**: Flask, Flask-SQLAlchemy, Flask-Migrate, Flask-Login, Flask-Dance.
+- **Database**: psycopg2-binary.
+- **Validation**: Pydantic v2.
+- **Security**: Werkzeug.
+- **Timezone**: pytz.
+- **Image Processing**: Pillow.
 
 ### Development Tools
-- **WSGI Server**: Gunicorn for production deployment
-- **Proxy Handling**: ProxyFix middleware for proper HTTPS URL generation
-- **Environment**: python-dotenv for configuration management
-- **Logging**: Built-in Python logging with configurable levels
+- **WSGI Server**: Gunicorn.
+- **Proxy Handling**: ProxyFix.
+- **Environment**: python-dotenv.
+- **Logging**: Built-in Python logging.
 
 ### File Format Support
-- **Documents**: PDF files for contracts and official documents
-- **Images**: JPEG, PNG for photos and visual evidence
-- **MIME Validation**: Configurable allowed file types with server-side validation
+- **Documents**: PDF.
+- **Images**: JPEG, PNG.

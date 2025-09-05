@@ -1144,6 +1144,12 @@ class EstadoPago(db.Model):
     estado = db.Column(db.Enum(EstadoPagoContrato), default=EstadoPagoContrato.PENDIENTE, nullable=False)
     fecha_programada = db.Column(db.Date, nullable=True)  # Fecha programada de pago
     fecha_pago = db.Column(db.Date, nullable=True)  # Fecha real de pago
+    
+    # Campo para facturación
+    facturado = db.Column(db.Boolean, default=False, nullable=False)  # Si ha sido facturado
+    fecha_facturacion = db.Column(db.Date, nullable=True)  # Fecha de facturación
+    numero_factura = db.Column(db.String(100), nullable=True)  # Número de factura
+    
     observaciones = db.Column(db.Text)
     activo = db.Column(db.Boolean, default=True, nullable=False)
     
@@ -1163,6 +1169,7 @@ class EstadoPago(db.Model):
         Index('idx_estado_pago_tipo', 'tipo'),
         Index('idx_estado_pago_estado', 'estado'),
         Index('idx_estado_pago_fecha', 'fecha_programada'),
+        Index('idx_estado_pago_facturado', 'facturado'),
     )
 
     def __repr__(self):
