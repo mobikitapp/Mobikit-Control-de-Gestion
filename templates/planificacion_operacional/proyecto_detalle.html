@@ -67,26 +67,35 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h6 class="mb-0">Cálculo de Tableros por Material</h6>
+                    <h6 class="mb-0">Cálculo de Tableros ({{ tipo_proyecto }})</h6>
                 </div>
                 <div class="card-body">
                     {% if tableros_por_material %}
                     <div class="row">
                         {% for material, resultado in tableros_por_material.items() %}
-                        <div class="col-md-4 mb-3">
-                            <div class="card border-{{ 'primary' if material == 'melamina' else 'info' if material == 'mdf' else 'success' }}">
-                                <div class="card-header bg-{{ 'primary' if material == 'melamina' else 'info' if material == 'mdf' else 'success' }} text-white">
-                                    <h6 class="mb-0">{{ material.title() }}</h6>
+                        <div class="col-md-12 mb-3">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">Melamina ({{ tipo_proyecto }})</h6>
                                 </div>
                                 <div class="card-body">
-                                    <h4 class="text-{{ 'primary' if material == 'melamina' else 'info' if material == 'mdf' else 'success' }}">
-                                        {{ resultado.tableros_aproximados }} tableros
-                                    </h4>
-                                    <hr>
-                                    <p><strong>Factor:</strong> ${{ "{:,}".format(resultado.factor_usado) }}/m²</p>
-                                    <p><strong>Área total:</strong> {{ "{:.1f}".format(resultado.area_total_m2) }} m²</p>
-                                    <p><strong>Con desperdicio:</strong> {{ "{:.1f}".format(resultado.area_con_desperdicio) }} m²</p>
-                                    <small class="text-muted">{{ resultado.detalles.descripcion_material }}</small>
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <h4 class="text-primary">
+                                                {{ resultado.tableros_aproximados }} tableros
+                                            </h4>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <p><strong>Factor CLP/Tablero:</strong><br>${{ "{:,}".format(resultado.factor_clp_por_tablero) }}</p>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <p><strong>Área total:</strong><br>{{ "{:.1f}".format(resultado.area_total_m2) }} m²</p>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <p><strong>Fórmula:</strong><br>{{ resultado.formula_usada|title }}</p>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">{{ resultado.detalles.descripcion_proyecto }}</small>
                                 </div>
                             </div>
                         </div>
