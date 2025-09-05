@@ -6,6 +6,18 @@ A comprehensive management system for manufacturing companies that centralizes a
 
 ## Recent Changes
 
+**[2025-09-05] Sistema de Tipos de Proyectos con Factores Específicos**
+- **TIPOS DE PROYECTO**: Implementación completa de enum TipoProyecto (Social/Estandar/Especial)
+- **FACTORES POR TIPO**: Cada tipo tiene factores únicos de CLP/tablero y tiempos de fabricación/embalaje
+  - SOCIAL: $180K/tablero, 0.040d fábrica, 0.015d embalaje
+  - ESTANDAR: $210K/tablero, 0.030d fábrica, 0.012d embalaje (por defecto)
+  - ESPECIAL: $280K/tablero, 0.025d fábrica, 0.010d embalaje
+- **SIMPLIFICACIÓN MELAMINA**: Sistema enfocado únicamente en Melamina, eliminados MDF y Madera
+- **NUEVA FÓRMULA**: Cálculo mejorado con margen: (Monto × (1-margen)) ÷ Factor_CLP_Tablero × Desperdicio
+- **INTEGRACIÓN COMPLETA**: Todos los servicios actualizados para usar factores según tipo de proyecto
+- Cálculos de capacidad mensual consideran tipo específico para estimaciones precisas
+- Análisis de productividad incorpora diferencias por tipo de proyecto
+
 **[2025-09-04] Comparación Tiempo Real vs Estimado - Análisis de Rendimiento**
 - **CÁLCULO TIEMPO REAL**: Automatización de tiempo real de fabricación (fecha planificada → fecha fab)  
 - **TIEMPO REAL EMBALAJE**: Cálculo automático de tiempo real de embalaje (fecha fab → fecha embalaje)
