@@ -639,12 +639,16 @@ class ConfiguracionesService:
             print(f"Error updating time factors: {e}")
             return False
 
+    def get_parametros_operacionales(self):
+        """Alias for get_configuracion_capacidad for consistency"""
+        return self.get_configuracion_capacidad()
+
     def get_escenarios_deficit(self) -> Dict[str, Any]:
         """
         Obtiene los escenarios disponibles para responder a déficits de capacidad
         """
         try:
-            config = self.get_parametros_operacionales()
+            config = self.get_configuracion_capacidad()
             
             # Calcular capacidad base
             horas_nominales = (config.get('numero_maquinas', 2) * 
@@ -918,7 +922,7 @@ class ConfiguracionesService:
             print(f"Error calculating theoretical capacity: {e}")
             return None
 
-    def get_escenarios_deficit(self, deficit_horas: float, parametros=None):
+    def calcular_escenarios_deficit_especifico(self, deficit_horas: float, parametros=None):
         """Calculate scenarios to handle capacity deficit"""
         if parametros is None:
             parametros = self.get_configuracion_capacidad()
