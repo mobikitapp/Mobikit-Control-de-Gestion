@@ -314,7 +314,7 @@ Días restantes: {{ hito.dias_restantes }}">
                                             <table class="table table-sm mb-0" style="font-size: 11px;">
                                                 <thead class="table-secondary">
                                                     <tr>
-                                                        <th style="width: 20%;">OF/Descripción</th>
+                                                        <th style="width: 20%;">OF/Glosa</th>
                                                         <th style="width: 8%;">Prioridad</th>
                                                         <th style="width: 8%;">Tableros</th>
                                                         <th style="width: 16%;">Estado</th>
@@ -329,7 +329,9 @@ Días restantes: {{ hito.dias_restantes }}">
                                                         <td>
                                                             <div>
                                                                 <strong>{{ of_info.of.codigo }}</strong>
-                                                                {% if of_info.of.descripcion %}
+                                                                {% if of_info.of.glosa %}
+                                                                <br><small class="text-muted">{{ of_info.of.glosa[:50] }}{% if of_info.of.glosa|length > 50 %}...{% endif %}</small>
+                                                                {% elif of_info.of.descripcion %}
                                                                 <br><small class="text-muted">{{ of_info.of.descripcion[:50] }}{% if of_info.of.descripcion|length > 50 %}...{% endif %}</small>
                                                                 {% endif %}
                                                             </div>
