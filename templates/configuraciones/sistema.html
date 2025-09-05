@@ -103,213 +103,22 @@
         </div>
     </div>
 
-    <!-- Time Configuration Factors -->
-    <div class="row mb-4">
+    <!-- System Configuration Note -->
+    <div class="row mt-4">
         <div class="col-md-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">
-                        <i class="fas fa-clock text-warning me-2"></i>
-                        Factores de Tiempo para Planificación
-                    </h6>
-                    <button class="btn btn-outline-primary btn-sm" onclick="toggleEditMode()">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                </div>
-                <div class="card-body">
-                    <form id="factorsForm" onsubmit="updateFactors(event)">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-industry text-primary me-2"></i>
-                                        Factor Tiempo Fabricación
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="factor_fabrica" 
-                                               name="factor_tiempo_fabrica" 
-                                               value="{{ '%.3f'|format(configuraciones.factor_tiempo_fabrica) }}" 
-                                               step="0.001" min="0" max="1" readonly>
-                                        <span class="input-group-text">días/tablero</span>
-                                    </div>
-                                    <small class="form-text text-muted">
-                                        Tiempo estimado de fabricación por tablero (actualmente: {{ '%.3f'|format(configuraciones.factor_tiempo_fabrica) }} días)
-                                    </small>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-box text-success me-2"></i>
-                                        Factor Tiempo Embalaje
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="factor_embalaje" 
-                                               name="factor_tiempo_embalaje" 
-                                               value="{{ '%.3f'|format(configuraciones.factor_tiempo_embalaje) }}" 
-                                               step="0.001" min="0" max="1" readonly>
-                                        <span class="input-group-text">días/tablero</span>
-                                    </div>
-                                    <small class="form-text text-muted">
-                                        Tiempo estimado de embalaje por tablero (actualmente: {{ '%.3f'|format(configuraciones.factor_tiempo_embalaje) }} días)
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row d-none" id="editActions">
-                            <div class="col-12">
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    <strong>Atención:</strong> Los cambios en estos factores afectarán a todos los cálculos futuros de tiempo estimado.
-                                </div>
-                                <div class="text-end">
-                                    <button type="button" class="btn btn-secondary me-2" onclick="cancelEdit()">
-                                        Cancelar
-                                    </button>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-save me-2"></i>Guardar Cambios
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Capacity Configuration Factors -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">
-                        <i class="fas fa-chart-line text-info me-2"></i>
-                        Factores de Capacidad y Productividad
-                    </h6>
-                    <button class="btn btn-outline-info btn-sm" onclick="toggleCapacityEditMode()">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                </div>
-                <div class="card-body">
-                    <form id="capacityFactorsForm" onsubmit="updateCapacityFactors(event)">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6 class="mb-3">Capacidad Máxima</h6>
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-calendar-alt text-primary me-2"></i>
-                                        Capacidad Mensual (Tableros)
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="capacidad_maxima_tableros_mes" 
-                                               name="capacidad_maxima_tableros_mes" 
-                                               value="{{ configuraciones.capacidad_maxima_tableros_mes }}" 
-                                               readonly>
-                                        <span class="input-group-text">tableros/mes</span>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-calendar-week text-success me-2"></i>
-                                        Capacidad Semanal (Tableros)
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="capacidad_maxima_tableros_semana" 
-                                               name="capacidad_maxima_tableros_semana" 
-                                               value="{{ configuraciones.capacidad_maxima_tableros_semana }}" 
-                                               readonly>
-                                        <span class="input-group-text">tableros/semana</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <h6 class="mb-3">Horas Disponibles y por Tablero</h6>
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-clock text-secondary me-2"></i>
-                                        Horas Disponibles Mensuales
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="horas_disponibles_mes" 
-                                               name="horas_disponibles_mes" 
-                                               value="{{ configuraciones.horas_disponibles_mes }}" 
-                                               readonly>
-                                        <span class="input-group-text">horas/mes</span>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-clock text-info me-2"></i>
-                                        Horas Disponibles Semanales
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="horas_disponibles_semana" 
-                                               name="horas_disponibles_semana" 
-                                               value="{{ configuraciones.horas_disponibles_semana }}" 
-                                               readonly>
-                                        <span class="input-group-text">horas/semana</span>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-project-diagram text-purple me-2"></i>
-                                        Horas por Tablero (Estándar)
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="horas_por_tablero_estandar" 
-                                               name="horas_por_tablero_estandar" 
-                                               value="{{ configuraciones.horas_por_tablero_estandar }}" 
-                                               readonly>
-                                        <span class="input-group-text">horas/tablero</span>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-users text-orange me-2"></i>
-                                        Horas por Tablero (Social)
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="horas_por_tablero_social" 
-                                               name="horas_por_tablero_social" 
-                                               value="{{ configuraciones.horas_por_tablero_social }}" 
-                                               readonly>
-                                        <span class="input-group-text">horas/tablero</span>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-star text-gold me-2"></i>
-                                        Horas por Tablero (Especial)
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="horas_por_tablero_especial" 
-                                               name="horas_por_tablero_especial" 
-                                               value="{{ configuraciones.horas_por_tablero_especial }}" 
-                                               readonly>
-                                        <span class="input-group-text">horas/tablero</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row d-none" id="capacityEditActions">
-                            <div class="col-12">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Información:</strong> Los cambios en estos factores afectarán a la planificación de capacidad.
-                                </div>
-                                <div class="text-end">
-                                    <button type="button" class="btn btn-secondary me-2" onclick="cancelCapacityEdit()">
-                                        Cancelar
-                                    </button>
-                                    <button type="submit" class="btn btn-info">
-                                        <i class="fas fa-save me-2"></i>Guardar Cambios
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
+            <div class="alert alert-info">
+                <h6 class="alert-heading">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Configuraciones de Planificación Operacional
+                </h6>
+                <p class="mb-2">Los factores de tiempo de producción y configuración de capacidad se han movido a:</p>
+                <a href="{{ url_for('planificacion_operacional.configuracion_conversion') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-cogs"></i> Planificación Operacional → Configurar Factores
+                </a>
+                <hr>
+                <p class="mb-0 small">
+                    Esto incluye: factores de tiempo por tipo de proyecto, capacidad mensual/semanal, y factores de productividad.
+                </p>
             </div>
         </div>
     </div>

@@ -281,12 +281,6 @@ class ConfiguracionesService:
         # Get recent user activity
         actividad_reciente = self._get_actividad_reciente(limit=10)
         
-        # Get time factors from database or use defaults
-        factores_tiempo = self.get_factores_tiempo()
-        
-        # Get capacity configuration
-        capacidad_config = self.get_configuracion_capacidad()
-        
         return {
             'stats': stats,
             'actividad_reciente': actividad_reciente,
@@ -296,11 +290,7 @@ class ConfiguracionesService:
                 'sesion_timeout': 31,  # days
                 'max_intentos_login': 3,
                 'backup_automatico': True,
-                'notificaciones_email': True,
-                'factor_tiempo_fabrica': factores_tiempo['factor_tiempo_fabrica'],
-                'factor_tiempo_embalaje': factores_tiempo['factor_tiempo_embalaje'],
-                # Add capacity configuration
-                **capacidad_config
+                'notificaciones_email': True
             }
         }
 

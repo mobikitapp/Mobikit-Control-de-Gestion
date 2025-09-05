@@ -301,7 +301,7 @@ class PlanificacionOperacionalService:
         }
 
     def get_factores_conversion(self):
-        """Get current conversion factors"""
+        """Get current conversion factors including time and capacity settings"""
         # In the future, these could be stored in database
         # For now, return default factors with current configuration
         factores = {}
@@ -317,17 +317,35 @@ class PlanificacionOperacionalService:
         # Get time factors from configuration
         factores_tiempo = self._get_factores_tiempo()
         
+        # Get capacity configuration
+        try:
+            from services.configuraciones_service import ConfiguracionesService
+            config_service = ConfiguracionesService()
+            capacidad_config = config_service.get_configuracion_capacidad()
+        except:
+            capacidad_config = {
+                'capacidad_maxima_tableros_mes': 500,
+                'capacidad_maxima_tableros_semana': 125,
+                'horas_disponibles_mes': 160,
+                'horas_disponibles_semana': 40,
+                'horas_por_tablero_social': 0.6,
+                'horas_por_tablero_estandar': 0.5,
+                'horas_por_tablero_especial': 0.4,
+            }
+        
         factores['configuracion'] = {
             'area_tablero_estandar': self.AREA_TABLERO_ESTANDAR,
             'factor_desperdicio': self.FACTOR_DESPERDICIO,
             'factor_tiempo_fabrica': factores_tiempo['factor_tiempo_fabrica'],
-            'factor_tiempo_embalaje': factores_tiempo['factor_tiempo_embalaje']
+            'factor_tiempo_embalaje': factores_tiempo['factor_tiempo_embalaje'],
+            # Add capacity configuration
+            **capacidad_config
         }
         
         return factores
 
     def actualizar_factores_conversion(self, factores_data, user_id):
-        """Update conversion factors (project-type based)"""
+        """Update conversion factors including time and capacity settings"""
         try:
             updated_factors = []
             
@@ -377,6 +395,28 @@ class PlanificacionOperacionalService:
             if factores_data.get('factor_desperdicio') is not None:
                 self.FACTOR_DESPERDICIO = factores_data['factor_desperdicio']
                 updated_factors.append(f"Factor desperdicio: {factores_data['factor_desperdicio']}")
+            
+            # Update capacity configuration if provided
+            capacity_fields = [
+                'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
+                'horas_disponibles_mes', 'horas_disponibles_semana',
+                'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+            ]
+            
+            capacity_data = {}
+            for field in capacity_fields:
+                if factores_data.get(field) is not None:
+                    capacity_data[field] = factores_data[field]
+                    updated_factors.append(f"{field}: {factores_data[field]}")
+            
+            # Update capacity configuration using configuration service
+            if capacity_data:
+                try:
+                    from services.configuraciones_service import ConfiguracionesService
+                    config_service = ConfiguracionesService()
+                    config_service.actualizar_configuracion_capacidad(capacity_data, user_id)
+                except Exception as e:
+                    print(f"Error updating capacity configuration: {e}")
             
             # Log all updates
             if updated_factors:

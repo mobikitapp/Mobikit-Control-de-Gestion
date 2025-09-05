@@ -202,7 +202,7 @@ def actualizar_prioridades_bodega(of_id):
 @login_required
 @role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def actualizar_configuracion():
-    """Actualizar factores de conversión"""
+    """Actualizar factores de conversión, tiempo y capacidad"""
     try:
         service = PlanificacionOperacionalService()
         
@@ -224,14 +224,25 @@ def actualizar_configuracion():
             'factor_tiempo_embalaje_estandar': request.form.get('factor_tiempo_embalaje_estandar', type=float),
             'factor_tiempo_fabrica_especial': request.form.get('factor_tiempo_fabrica_especial', type=float),
             'factor_tiempo_embalaje_especial': request.form.get('factor_tiempo_embalaje_especial', type=float),
+            
+            # Capacity configuration
+            'capacidad_maxima_tableros_mes': request.form.get('capacidad_maxima_tableros_mes', type=int),
+            'capacidad_maxima_tableros_semana': request.form.get('capacidad_maxima_tableros_semana', type=int),
+            'horas_disponibles_mes': request.form.get('horas_disponibles_mes', type=int),
+            'horas_disponibles_semana': request.form.get('horas_disponibles_semana', type=int),
+            
+            # Productivity factors
+            'horas_por_tablero_social': request.form.get('horas_por_tablero_social', type=float),
+            'horas_por_tablero_estandar': request.form.get('horas_por_tablero_estandar', type=float),
+            'horas_por_tablero_especial': request.form.get('horas_por_tablero_especial', type=float),
         }
         
         success = service.actualizar_factores_conversion(factores_data, current_user.id)
         
         if success:
-            flash('Factores de conversión actualizados exitosamente', 'success')
+            flash('Configuración de planificación operacional actualizada exitosamente', 'success')
         else:
-            flash('Error al actualizar factores de conversión', 'error')
+            flash('Error al actualizar configuración de planificación operacional', 'error')
         
     except Exception as e:
         flash(f'Error: {str(e)}', 'error')
