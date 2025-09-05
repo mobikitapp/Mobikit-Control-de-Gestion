@@ -1,3 +1,5 @@
+tags.
+```<replit_final_file>
 {% extends "base.html" %}
 {% set title = "Planificación y Prioridades" %}
 
@@ -142,102 +144,21 @@
                                         <strong>{{ proyecto.nombre[:20] }}{% if proyecto.nombre|length > 20 %}...{% endif %}</strong><br>
                                         <small class="text-muted">{{ proyecto.cliente_nombre[:15] }}{% if proyecto.cliente_nombre|length > 15 %}...{% endif %}</small>
                                     </td>
+                                    <!-- REPLACED CONTENT: Original dropdown replaced with collapse button -->
                                     <td class="text-center">
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="dropdownOFs{{ loop.index }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                                {{ proyecto.ofs_activas }} OFs
-                                            </button>
-                                            <div class="dropdown-menu p-0" aria-labelledby="dropdownOFs{{ loop.index }}" style="min-width: 800px; max-height: 400px; overflow-y: auto;">
-                                                <div class="table-responsive">
-                                                    <table class="table table-sm mb-0" style="font-size: 11px;">
-                                                        <thead class="table-secondary">
-                                                            <tr>
-                                                                <th style="width: 18%;">OF/Descripción</th>
-                                                                <th style="width: 12%;">Cliente</th>
-                                                                <th style="width: 8%;">Prioridad</th>
-                                                                <th style="width: 8%;">Tableros</th>
-                                                                <th style="width: 12%;">Estado</th>
-                                                                <th style="width: 12%;">Fecha Planificada</th>
-                                                                <th style="width: 15%;">Fecha Fab.</th>
-                                                                <th style="width: 15%;">Fecha Embalaje</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {% for of_info in proyecto.ofs %}
-                                                            <tr>
-                                                                <td>
-                                                                    <div>
-                                                                        <strong>{{ of_info.of.codigo }}</strong>
-                                                                        {% if of_info.of.descripcion %}
-                                                                        <br><small class="text-muted">{{ of_info.of.descripcion[:30] }}{% if of_info.of.descripcion|length > 30 %}...{% endif %}</small>
-                                                                        {% endif %}
-                                                                    </div>
-                                                                </td>
-                                                                <td>
-                                                                    <small>{{ of_info.cliente.nombre[:12] }}{% if of_info.cliente.nombre|length > 12 %}...{% endif %}</small>
-                                                                </td>
-                                                                <td>
-                                                                    <span class="badge 
-                                                                        {% if of_info.of.prioridad_numerica <= 3 %}bg-danger
-                                                                        {% elif of_info.of.prioridad_numerica <= 7 %}bg-warning
-                                                                        {% elif of_info.of.prioridad_numerica <= 15 %}bg-info
-                                                                        {% else %}bg-success{% endif %}" 
-                                                                        style="font-size: 9px;">
-                                                                        P{{ of_info.of.prioridad_numerica or 99 }}
-                                                                    </span>
-                                                                </td>
-                                                                <td>
-                                                                    <span class="badge bg-info" style="font-size: 9px;">{{ of_info.of.cantidad_tableros or 0 }}</span>
-                                                                </td>
-                                                                <td>
-                                                                    <small>
-                                                                        <strong>{{ of_info.progreso_actual.area.nombre[:8] }}{% if of_info.progreso_actual.area.nombre|length > 8 %}...{% endif %}</strong><br>
-                                                                        <span class="text-muted" style="font-size: 9px;">{{ of_info.progreso_actual.estado.nombre[:10] }}{% if of_info.progreso_actual.estado.nombre|length > 10 %}...{% endif %}</span>
-                                                                    </small>
-                                                                </td>
-                                                                <td>
-                                                                    {% if of_info.of.fecha_planificada %}
-                                                                        <small class="badge bg-primary" style="font-size: 9px;">{{ of_info.of.fecha_planificada.strftime('%d/%m/%Y') }}</small>
-                                                                    {% else %}
-                                                                        <small class="badge bg-secondary" style="font-size: 9px;">Sin fecha</small>
-                                                                    {% endif %}
-                                                                </td>
-                                                                <td>
-                                                                    {% if of_info.of.fecha_entrega_fabrica %}
-                                                                        <small class="badge bg-warning text-dark" style="font-size: 9px;">{{ of_info.of.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}</small>
-                                                                    {% else %}
-                                                                        <small class="text-muted" style="font-size: 9px;">Sin fecha</small>
-                                                                        {% if of_info.fecha_estimada_fabricacion %}
-                                                                        <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
-                                                                        {% endif %}
-                                                                    {% endif %}
-                                                                    <br>
-                                                                    <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
-                                                                </td>
-                                                                <td>
-                                                                    {% if of_info.of.fecha_entrega_embalaje %}
-                                                                        <small class="badge bg-success" style="font-size: 9px;">{{ of_info.of.fecha_entrega_embalaje.strftime('%d/%m/%Y') }}</small>
-                                                                    {% else %}
-                                                                        <small class="text-muted" style="font-size: 9px;">Sin fecha</small>
-                                                                        {% if of_info.fecha_estimada_embalaje %}
-                                                                        <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
-                                                                        {% endif %}
-                                                                    {% endif %}
-                                                                    <br>
-                                                                    <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
-                                                                </td>
-                                                            </tr>
-                                                            {% endfor %}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <button class="btn btn-sm btn-primary"
+                                                type="button"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#proyecto-gantt-{{ loop.index }}"
+                                                aria-expanded="false">
+                                            <i class="fas fa-plus" id="icon-proyecto-gantt-{{ loop.index }}"></i>
+                                            {{ proyecto.ofs_activas }} OFs
+                                        </button>
                                     </td>
                                     <td class="text-center">
                                         <span class="badge bg-info">{{ proyecto.total_tableros }}</span>
                                     </td>
-                                    <!-- Cronograma de 6 semanas con barras continuas -->
+                                    <!-- Gantt bars column -->
                                     <td style="padding: 4px; position: relative;">
                                         <div class="gantt-timeline-container" style="position: relative; height: 60px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
                                             <!-- Grid de semanas -->
@@ -252,7 +173,7 @@
                                             {% set gantt_start = today %}
                                             {% set gantt_end = today + timedelta(weeks=6) %}
                                             {% set gantt_days = 42 %}
-                                            
+
                                             <!-- Barras de OFs -->
                                             {% for of_info in proyecto.ofs %}
                                                 {% if of_info.of.fecha_planificada %}
@@ -261,28 +182,28 @@
                                                     {% set embalaje_days = of_info.tiempo_estimado_embalaje or 3 %}
                                                     {% set fabrica_end = of_start + timedelta(days=fabrica_days) %}
                                                     {% set embalaje_end = fabrica_end + timedelta(days=embalaje_days) %}
-                                                    
+
                                                     {% if of_start <= gantt_end and embalaje_end >= gantt_start %}
                                                         {% set start_days_from_today = (of_start - gantt_start).days %}
                                                         {% set fabrica_start_percent = max(0, (start_days_from_today / gantt_days) * 100) %}
                                                         {% set fabrica_width_percent = min(100 - fabrica_start_percent, (fabrica_days / gantt_days) * 100) %}
                                                         {% set embalaje_start_percent = max(0, ((start_days_from_today + fabrica_days) / gantt_days) * 100) %}
                                                         {% set embalaje_width_percent = min(100 - embalaje_start_percent, (embalaje_days / gantt_days) * 100) %}
-                                                        
+
                                                         {% if fabrica_width_percent > 0 %}
                                                             <!-- Barra de Fabricación -->
-                                                            <div class="gantt-bar-fabrica" 
-                                                                 style="position: absolute; 
-                                                                        left: {{ fabrica_start_percent }}%; 
-                                                                        width: {{ fabrica_width_percent }}%; 
-                                                                        height: 14px; 
+                                                            <div class="gantt-bar-fabrica"
+                                                                 style="position: absolute;
+                                                                        left: {{ fabrica_start_percent }}%;
+                                                                        width: {{ fabrica_width_percent }}%;
+                                                                        height: 14px;
                                                                         top: 8px;
-                                                                        background-color: 
+                                                                        background-color:
                                                                         {% if of_info.of.prioridad_numerica <= 3 %}#dc3545
                                                                         {% elif of_info.of.prioridad_numerica <= 7 %}#fd7e14
                                                                         {% elif of_info.of.prioridad_numerica <= 15 %}#0dcaf0
                                                                         {% else %}#198754{% endif %};
-                                                                        border-radius: 2px; 
+                                                                        border-radius: 2px;
                                                                         border: 1px solid #fff;
                                                                         display: flex; align-items: center; justify-content: center;"
                                                                  title="FABRICACIÓN: {{ of_info.of.codigo }} - P{{ of_info.of.prioridad_numerica or 99 }}
@@ -291,22 +212,22 @@ Duración: {{ fabrica_days }} días">
                                                                 <small style="color: white; font-size: 9px; font-weight: bold;">F</small>
                                                             </div>
                                                         {% endif %}
-                                                        
+
                                                         {% if embalaje_width_percent > 0 %}
                                                             <!-- Barra de Embalaje -->
-                                                            <div class="gantt-bar-embalaje" 
-                                                                 style="position: absolute; 
-                                                                        left: {{ embalaje_start_percent }}%; 
-                                                                        width: {{ embalaje_width_percent }}%; 
-                                                                        height: 14px; 
+                                                            <div class="gantt-bar-embalaje"
+                                                                 style="position: absolute;
+                                                                        left: {{ embalaje_start_percent }}%;
+                                                                        width: {{ embalaje_width_percent }}%;
+                                                                        height: 14px;
                                                                         top: 30px;
-                                                                        background-color: 
+                                                                        background-color:
                                                                         {% if of_info.of.prioridad_numerica <= 3 %}#dc3545
                                                                         {% elif of_info.of.prioridad_numerica <= 7 %}#fd7e14
                                                                         {% elif of_info.of.prioridad_numerica <= 15 %}#0dcaf0
                                                                         {% else %}#198754{% endif %};
                                                                         opacity: 0.7;
-                                                                        border-radius: 2px; 
+                                                                        border-radius: 2px;
                                                                         border: 1px solid #fff;
                                                                         display: flex; align-items: center; justify-content: center;"
                                                                  title="EMBALAJE: {{ of_info.of.codigo }} - P{{ of_info.of.prioridad_numerica or 99 }}
@@ -315,16 +236,16 @@ Duración: {{ embalaje_days }} días">
                                                                 <small style="color: white; font-size: 9px; font-weight: bold;">E</small>
                                                             </div>
                                                         {% endif %}
-                                                        
+
                                                         <!-- Etiqueta del código OF (solo si la fabricación está visible) -->
                                                         {% if fabrica_width_percent > 5 %}
-                                                            <div style="position: absolute; 
-                                                                       left: {{ fabrica_start_percent + 1 }}%; 
-                                                                       top: 46px; 
-                                                                       font-size: 7px; 
-                                                                       color: #333; 
-                                                                       background: rgba(255,255,255,0.8); 
-                                                                       padding: 1px 2px; 
+                                                            <div style="position: absolute;
+                                                                       left: {{ fabrica_start_percent + 1 }}%;
+                                                                       top: 46px;
+                                                                       font-size: 7px;
+                                                                       color: #333;
+                                                                       background: rgba(255,255,255,0.8);
+                                                                       padding: 1px 2px;
                                                                        border-radius: 2px;">
                                                                 {{ of_info.of.codigo[:6] }}
                                                             </div>
@@ -332,21 +253,21 @@ Duración: {{ embalaje_days }} días">
                                                     {% endif %}
                                                 {% endif %}
                                             {% endfor %}
-                                            
+
                                             <!-- Líneas verticales amarillas para hitos de entrega -->
                                             {% for hito in proyecto.hitos_entrega %}
-                                                <div style="position: absolute; 
-                                                           left: {{ hito.posicion_porcentual }}%; 
-                                                           top: 0; 
-                                                           height: 100%; 
-                                                           width: 2px; 
-                                                           background-color: #ffd700; 
+                                                <div style="position: absolute;
+                                                           left: {{ hito.posicion_porcentual }}%;
+                                                           top: 0;
+                                                           height: 100%;
+                                                           width: 2px;
+                                                           background-color: #ffd700;
                                                            z-index: 8;"></div>
-                                                <div style="position: absolute; 
-                                                           left: {{ hito.posicion_porcentual - 2 }}%; 
-                                                           top: -32px; 
-                                                           font-size: 7px; 
-                                                           color: #b8860b; 
+                                                <div style="position: absolute;
+                                                           left: {{ hito.posicion_porcentual - 2 }}%;
+                                                           top: -32px;
+                                                           font-size: 7px;
+                                                           color: #b8860b;
                                                            font-weight: bold;
                                                            background: rgba(255,255,255,0.9);
                                                            padding: 1px 3px;
@@ -372,7 +293,7 @@ Días restantes: {{ hito.dias_restantes }}">
                                     <td class="text-center align-middle bg-light">
                                         <div class="project-totals">
                                             <strong class="text-primary">{{ proyecto.ofs_activas }}</strong><br>
-                                            <small class="text-muted">OFs Total</small><br>
+                                            <small class="text-muted">OFs Totales</small><br>
                                             <strong class="text-info">{{ proyecto.total_tableros }}</strong><br>
                                             <small class="text-muted">Tableros</small>
                                         </div>
@@ -388,6 +309,440 @@ Días restantes: {{ hito.dias_restantes }}">
                                         {% endif %}
                                     </td>
                                 </tr>
+                                <!-- NEW ROW FOR OF DETAILS -->
+                                <tr class="collapse" id="proyecto-gantt-{{ loop.index }}">
+                                    <td colspan="10">
+                                        <div class="table-responsive p-3">
+                                            <table class="table table-sm mb-0" style="font-size: 11px;">
+                                                <thead class="table-secondary">
+                                                    <tr>
+                                                        <th style="width: 18%;">OF/Descripción</th>
+                                                        <th style="width: 12%;">Cliente</th>
+                                                        <th style="width: 8%;">Prioridad</th>
+                                                        <th style="width: 8%;">Tableros</th>
+                                                        <th style="width: 12%;">Estado</th>
+                                                        <th style="width: 12%;">Fecha Planificada</th>
+                                                        <th style="width: 15%;">Fecha Fab.</th>
+                                                        <th style="width: 15%;">Fecha Embalaje</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for of_info in proyecto.ofs %}
+                                                    <tr>
+                                                        <td>
+                                                            <div>
+                                                                <strong>{{ of_info.of.codigo }}</strong>
+                                                                {% if of_info.of.descripcion %}
+                                                                <br><small class="text-muted">{{ of_info.of.descripcion[:40] }}{% if of_info.of.descripcion|length > 40 %}...{% endif %}</small>
+                                                                {% endif %}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <small>{{ of_info.cliente.nombre[:15] }}{% if of_info.cliente.nombre|length > 15 %}...{% endif %}</small>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge
+                                                                {% if of_info.of.prioridad_numerica <= 3 %}bg-danger
+                                                                {% elif of_info.of.prioridad_numerica <= 7 %}bg-warning
+                                                                {% elif of_info.of.prioridad_numerica <= 15 %}bg-info
+                                                                {% else %}bg-success{% endif %}"
+                                                                style="font-size: 9px;">
+                                                                P{{ of_info.of.prioridad_numerica or 99 }}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge bg-info" style="font-size: 9px;">{{ of_info.of.cantidad_tableros or 0 }}</span>
+                                                        </td>
+                                                        <td>
+                                                            <small>
+                                                                <strong>{{ of_info.progreso_actual.area.nombre[:8] }}{% if of_info.progreso_actual.area.nombre|length > 8 %}...{% endif %}</strong><br>
+                                                                <span class="text-muted" style="font-size: 9px;">{{ of_info.progreso_actual.estado.nombre[:10] }}{% if of_info.progreso_actual.estado.nombre|length > 10 %}...{% endif %}</span>
+                                                            </small>
+                                                        </td>
+                                                        <td>
+                                                            {% if of_info.of.fecha_planificada %}
+                                                                <small class="badge bg-primary" style="font-size: 9px;">{{ of_info.of.fecha_planificada.strftime('%d/%m/%Y') }}</small>
+                                                            {% else %}
+                                                                <small class="badge bg-secondary" style="font-size: 9px;">Sin fecha</small>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {% if of_info.of.fecha_entrega_fabrica %}
+                                                                <small class="badge bg-warning text-dark" style="font-size: 9px;">{{ of_info.of.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}</small>
+                                                            {% else %}
+                                                                <small class="text-muted" style="font-size: 9px;">Sin fecha</small>
+                                                                {% if of_info.fecha_estimada_fabricacion %}
+                                                                <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
+                                                                {% endif %}
+                                                            {% endif %}
+                                                            <br>
+                                                            <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
+                                                        </td>
+                                                        <td>
+                                                            {% if of_info.of.fecha_entrega_embalaje %}
+                                                                <small class="badge bg-success" style="font-size: 9px;">{{ of_info.of.fecha_entrega_embalaje.strftime('%d/%m/%Y') }}</small>
+                                                            {% else %}
+                                                                <small class="text-muted" style="font-size: 9px;">Sin fecha</small>
+                                                                {% if of_info.fecha_estimada_embalaje %}
+                                                                <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
+                                                                {% endif %}
+                                                            {% endif %}
+                                                            <br>
+                                                            <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Espaciador entre proyectos -->
+                                <tr><td colspan="10" style="height: 10px; background-color: #f8f9fa;"></td></tr>
+                                {% endfor %}
+
+                                <!-- Fila de Totales -->
+                                <tr class="table-primary fw-bold">
+                                    <td><strong>TOTALES GENERALES</strong></td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ proyectos_gantt|sum(attribute='ofs_activas') }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ proyectos_gantt|sum(attribute='total_tableros') }}</span>
+                                    </td>
+                                    <!-- Resumen de carga total en cronograma -->
+                                    <td class="text-center bg-light" style="padding: 8px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <strong class="text-primary">{{ proyectos_gantt|sum(attribute='ofs_activas') }}</strong>
+                                                <small class="text-muted"> OFs Totales</small>
+                                            </div>
+                                            <div class="text-center">
+                                                <span class="badge bg-success">{{ proyectos_gantt|length }}</span>
+                                                <small class="text-muted"> Proyectos</small>
+                                            </div>
+                                            <div>
+                                                <strong class="text-info">{{ proyectos_gantt|sum(attribute='total_tableros') }}</strong>
+                                                <small class="text-muted"> Tableros</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center bg-primary text-white align-middle">
+                                        <div class="grand-totals">
+                                            <strong>{{ proyectos_gantt|sum(attribute='ofs_activas') }}</strong><br>
+                                            <small>Total OFs</small><br>
+                                            <strong>{{ proyectos_gantt|sum(attribute='total_tableros') }}</strong><br>
+                                            <small>Total Tableros</small>
+                                        </div>
+                                    </td>
+                                    <td class="text-center bg-warning text-dark align-middle">
+                                        {% set proximos_hitos = proyectos_gantt | selectattr('dias_proximo_hito', 'ne', none) | list %}
+                                        {% if proximos_hitos %}
+                                            {% set hito_mas_cercano = proximos_hitos | min(attribute='dias_proximo_hito') %}
+                                            <div class="next-milestone">
+                                                <strong>{{ hito_mas_cercano.dias_proximo_hito }}</strong><br>
+                                                <small>Próximo</small>
+                                            </div>
+                                        {% else %}
+                                            <small class="text-muted">N/A</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Leyenda -->
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6><i class="fas fa-info-circle"></i> Leyenda de Prioridades:</h6>
+                            <div class="d-flex gap-3">
+                                <span class="badge" style="background-color: #dc3545;">P1-P3 (Alta)</span>
+                                <span class="badge" style="background-color: #ffc107; color: #000;">P4-P7 (Media)</span>
+                                <span class="badge" style="background-color: #0dcaf0;">P8-P15 (Normal)</span>
+                                <span class="badge" style="background-color: #198754;">P16+ (Baja)</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar-week"></i> Vista de 6 semanas desde {{ today.strftime('%d/%m/%Y') }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Matriz Detallada de OFs -->
+    <div class="row matriz-detallada-section">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-list-ul text-secondary"></i>
+                        Matriz Detallada de Órdenes de Fabricación
+                    </h6>
+                    <div>
+                        <small class="text-muted">Actualizado: {{ fecha_actualizacion.strftime('%d/%m/%Y %H:%M') }}</small>
+                        <button class="btn btn-sm btn-info ms-2" onclick="imprimirMatrizDetallada()">
+                            <i class="fas fa-print"></i> Imprimir Detalle
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 20%">Proyecto/OF</th>
+                                    <th style="width: 8%">Cliente</th>
+                                    <th style="width: 6%">Prioridad</th>
+                                    <th style="width: 6%">Tableros</th>
+                                    <th style="width: 8%">Estado</th>
+                                    <th style="width: 10%">Fecha Planificada</th>
+                                    <th style="width: 12%">Fecha Fab.</th>
+                                    <th style="width: 12%">Fecha Embalaje</th>
+                                    <th style="width: 6%">Días Rest.</th>
+                                    <th style="width: 12%">Próximo Hito</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for proyecto in proyectos %}
+                                <!-- Encabezado del Proyecto -->
+                               <td colspan="10">
+                                        <div class="d-flex align-items-center">
+                                            <button class="btn btn-sm btn-outline-primary me-2" type="button" data-bs-toggle="collapse" data-bs-target="#proyecto-{{ proyecto.proyecto.id }}" aria-expanded="false">
+                                                <i class="fas fa-plus" id="icon-proyecto-{{ proyecto.proyecto.id }}"></i>
+                                            </button>
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-folder text-primary"></i>
+                                                {{ proyecto.proyecto.nombre }}
+                                            </h6>
+                                            <span class="badge bg-secondary ms-2">{{ proyecto.cliente.nombre }}</span>
+                                            {% if proyecto.prioridad_maxima %}
+                                            <span class="badge ms-2
+                                                {% if proyecto.prioridad_maxima.value in ['P1', 'urgente'] %}bg-danger
+                                                {% elif proyecto.prioridad_maxima.value in ['P2', 'alta'] %}bg-warning
+                                                {% elif proyecto.prioridad_maxima.value in ['P3', 'media'] %}bg-info
+                                                {% else %}bg-success{% endif %}">
+                                                {{ proyecto.prioridad_maxima.value.upper() }}
+                                            </span>
+                                            {% endif %}
+                                            <small class="text-muted ms-2">
+                                                {{ proyecto.ofs|length }} OFs |
+                                                {{ proyecto.total_tableros }} tableros |
+                                                {{ "{:.1f}".format(proyecto.tiempo_total_fabrica) }}d fáb. |
+                                                {{ "{:.1f}".format(proyecto.tiempo_total_embalaje) }}d emb.
+                                            </small>
+                                            {% if proyecto.fecha_entrega_mas_proxima %}
+                                            <small class="text-danger ms-2">
+                                                <i class="fas fa-clock"></i>
+                                                Entrega: {{ proyecto.fecha_entrega_mas_proxima.strftime('%d/%m/%Y') }}
+                                            </small>
+                                            {% endif %}
+                                            {% if proyecto.proximo_hito %}
+                                            <small class="text-warning ms-2">
+                                                <i class="fas fa-flag"></i>
+                                                Hito: {{ proyecto.proximo_hito.titulo }} ({{ proyecto.dias_proximo_hito }} días)
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- OFs del Proyecto (Colapsables) -->
+                                <tr class="collapse" id="proyecto-{{ proyecto.proyecto.id }}">
+                                    <td colspan="10">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm mb-0">
+                                                <thead class="table-secondary">
+                                                    <tr>
+                                                        <th style="width: 20%">OF/Descripción</th>
+                                                        <th style="width: 8%">Cliente</th>
+                                                        <th style="width: 6%">Prioridad</th>
+                                                        <th style="width: 6%">Tableros</th>
+                                                        <th style="width: 8%">Estado</th>
+                                                        <th style="width: 10%">Fecha Planificada</th>
+                                                        <th style="width: 12%">Fecha Fab.</th>
+                                                        <th style="width: 12%">Fecha Embalaje</th>
+                                                        <th style="width: 6%">Días Rest.</th>
+                                                        <th style="width: 12%">Próximo Hito</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                {% for of_info in proyecto.ofs %}
+                                                <tr>
+                                                    <td>
+                                                        <div>
+                                                            <strong>{{ of_info.of.codigo }}</strong>
+                                                            {% if of_info.of.descripcion %}
+                                                            <br><small class="text-muted">{{ of_info.of.descripcion[:40] }}{% if of_info.of.descripcion|length > 40 %}...{% endif %}</small>
+                                                            {% endif %}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <small>{{ of_info.cliente.nombre[:15] }}{% if of_info.cliente.nombre|length > 15 %}...{% endif %}</small>
+                                                    </td>
+                                                    <td>
+                                                        <select class="form-select form-select-sm prioridad-select"
+                                                                data-of-id="{{ of_info.of.id }}"
+                                                                data-original="{{ of_info.of.prioridad_numerica or 3 }}">
+                                                            <!-- Opciones dinámicas serán cargadas por JavaScript -->
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-info">{{ of_info.of.cantidad_tableros or 0 }}</span>
+                                                    </td>
+                                                    <td>
+                                                        <small>
+                                                            <strong>{{ of_info.progreso_actual.area.nombre }}</strong><br>
+                                                            <span class="text-muted">{{ of_info.progreso_actual.estado.nombre }}</span>
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        {% if of_info.of.fecha_planificada %}
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_planificada"
+                                                                   value="{{ of_info.of.fecha_planificada }}"
+                                                                   data-original="{{ of_info.of.fecha_planificada }}">
+                                                        {% else %}
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_planificada"
+                                                                   placeholder="Sin fecha"
+                                                                   data-original="">
+                                                            <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Falta fecha</small>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if of_info.of.fecha_entrega_fabrica %}
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_entrega_fabrica"
+                                                                   value="{{ of_info.of.fecha_entrega_fabrica }}"
+                                                                   data-original="{{ of_info.of.fecha_entrega_fabrica }}">
+                                                        {% else %}
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_entrega_fabrica"
+                                                                   data-original="">
+                                                            {% if of_info.fecha_estimada_fabricacion %}
+                                                            <small class="text-info">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                        <div>
+                                                            <small class="text-muted"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
+                                                            {% if of_info.tiempo_real_fabrica is not none %}
+                                                                <small class="ms-2">
+                                                                    <strong>Real:</strong> {{ of_info.tiempo_real_fabrica }}d
+                                                                    {% if of_info.desviacion_fabrica is not none %}
+                                                                        {% if of_info.porcentaje_desviacion_fabrica is not none %}
+                                                                            {% if of_info.porcentaje_desviacion_fabrica > 50 %}
+                                                                                <span class="badge bg-danger ms-1">+{{ of_info.desviacion_fabrica }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
+                                                                            {% elif of_info.porcentaje_desviacion_fabrica > 20 %}
+                                                                                <span class="badge bg-warning ms-1">+{{ of_info.desviacion_fabrica }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
+                                                                            {% elif of_info.porcentaje_desviacion_fabrica < -20 %}
+                                                                                <span class="badge bg-success ms-1">{{ of_info.desviacion_fabrica }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
+                                                                            {% elif of_info.desviacion_fabrica == 0 %}
+                                                                                <span class="badge bg-info ms-1">exacto</span>
+                                                                            {% else %}
+                                                                                <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_fabrica) }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
+                                                                            {% endif %}
+                                                                        {% else %}
+                                                                            <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_fabrica) }}d</span>
+                                                                        {% endif %}
+                                                                    {% endif %}
+                                                                </small>
+                                                            {% endif %}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        {% if of_info.of.fecha_entrega_embalaje %}
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_entrega_embalaje"
+                                                                   value="{{ of_info.of.fecha_entrega_embalaje }}"
+                                                                   data-original="{{ of_info.of.fecha_entrega_embalaje }}">
+                                                        {% else %}
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_entrega_embalaje"
+                                                                   data-original="">
+                                                            {% if of_info.fecha_estimada_embalaje %}
+                                                            <small class="text-info">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                        <div>
+                                                            <small class="text-muted"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
+                                                            {% if of_info.tiempo_real_embalaje is not none %}
+                                                                <small class="ms-2">
+                                                                    <strong>Real:</strong> {{ of_info.tiempo_real_embalaje }}d
+                                                                    {% if of_info.desviacion_embalaje is not none %}
+                                                                        {% if of_info.porcentaje_desviacion_embalaje is not none %}
+                                                                            {% if of_info.porcentaje_desviacion_embalaje > 50 %}
+                                                                                <span class="badge bg-danger ms-1">+{{ of_info.desviacion_embalaje }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
+                                                                            {% elif of_info.porcentaje_desviacion_embalaje > 20 %}
+                                                                                <span class="badge bg-warning ms-1">+{{ of_info.desviacion_embalaje }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
+                                                                            {% elif of_info.porcentaje_desviacion_embalaje < -20 %}
+                                                                                <span class="badge bg-success ms-1">{{ of_info.desviacion_embalaje }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
+                                                                            {% elif of_info.desviacion_embalaje == 0 %}
+                                                                                <span class="badge bg-info ms-1">exacto</span>
+                                                                            {% else %}
+                                                                                <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_embalaje) }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
+                                                                            {% endif %}
+                                                                        {% else %}
+                                                                            <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_embalaje) }}d</span>
+                                                                        {% endif %}
+                                                                    {% endif %}
+                                                                </small>
+                                                            {% endif %}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        {% if of_info.dias_hasta_entrega is not none %}
+                                                            {% if of_info.dias_hasta_entrega < 0 %}
+                                                            <span class="badge bg-danger">{{ of_info.dias_hasta_entrega }} días</span>
+                                                            {% elif of_info.dias_hasta_entrega < 7 %}
+                                                            <span class="badge bg-warning">{{ of_info.dias_hasta_entrega }} días</span>
+                                                            {% else %}
+                                                            <span class="badge bg-success">{{ of_info.dias_hasta_entrega }} días</span>
+                                                            {% endif %}
+                                                        {% else %}
+                                                        <small class="text-muted">-</small>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if proyecto.proximo_hito %}
+                                                            <small>
+                                                                <strong>{{ proyecto.proximo_hito.titulo }}</strong><br>
+                                                                <span class="text-muted">{{ proyecto.proximo_hito.fecha_programada.strftime('%d/%m/%Y') }}</span><br>
+                                                                {% if proyecto.dias_proximo_hito is not none %}
+                                                                    {% if proyecto.dias_proximo_hito < 0 %}
+                                                                    <span class="badge bg-danger">{{ proyecto.dias_proximo_hito }} días</span>
+                                                                    {% elif proyecto.dias_proximo_hito < 7 %}
+                                                                    <span class="badge bg-warning">{{ proyecto.dias_proximo_hito }} días</span>
+                                                                    {% else %}
+                                                                    <span class="badge bg-success">{{ proyecto.dias_proximo_hito }} días</span>
+                                                                    {% endif %}
+                                                                {% endif %}
+                                                            </small>
+                                                        {% else %}
+                                                            <small class="text-muted">Sin hitos</small>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Espaciador entre proyectos -->
+                                <tr><td colspan="10" style="height: 10px; background-color: #f8f9fa;"></td></tr>
                                 {% endfor %}
 
                                 <!-- Fila de Totales -->
@@ -513,7 +868,7 @@ Días restantes: {{ hito.dias_restantes }}">
                                             </h6>
                                             <span class="badge bg-secondary ms-2">{{ proyecto.cliente.nombre }}</span>
                                             {% if proyecto.prioridad_maxima %}
-                                            <span class="badge ms-2 
+                                            <span class="badge ms-2
                                                 {% if proyecto.prioridad_maxima.value in ['P1', 'urgente'] %}bg-danger
                                                 {% elif proyecto.prioridad_maxima.value in ['P2', 'alta'] %}bg-warning
                                                 {% elif proyecto.prioridad_maxima.value in ['P3', 'media'] %}bg-info
@@ -522,20 +877,20 @@ Días restantes: {{ hito.dias_restantes }}">
                                             </span>
                                             {% endif %}
                                             <small class="text-muted ms-2">
-                                                {{ proyecto.ofs|length }} OFs | 
+                                                {{ proyecto.ofs|length }} OFs |
                                                 {{ proyecto.total_tableros }} tableros |
                                                 {{ "{:.1f}".format(proyecto.tiempo_total_fabrica) }}d fáb. |
                                                 {{ "{:.1f}".format(proyecto.tiempo_total_embalaje) }}d emb.
                                             </small>
                                             {% if proyecto.fecha_entrega_mas_proxima %}
                                             <small class="text-danger ms-2">
-                                                <i class="fas fa-clock"></i> 
+                                                <i class="fas fa-clock"></i>
                                                 Entrega: {{ proyecto.fecha_entrega_mas_proxima.strftime('%d/%m/%Y') }}
                                             </small>
                                             {% endif %}
                                             {% if proyecto.proximo_hito %}
                                             <small class="text-warning ms-2">
-                                                <i class="fas fa-flag"></i> 
+                                                <i class="fas fa-flag"></i>
                                                 Hito: {{ proyecto.proximo_hito.titulo }} ({{ proyecto.dias_proximo_hito }} días)
                                             </small>
                                             {% endif %}
@@ -577,8 +932,8 @@ Días restantes: {{ hito.dias_restantes }}">
                                                         <small>{{ of_info.cliente.nombre[:15] }}{% if of_info.cliente.nombre|length > 15 %}...{% endif %}</small>
                                                     </td>
                                                     <td>
-                                                        <select class="form-select form-select-sm prioridad-select" 
-                                                                data-of-id="{{ of_info.of.id }}" 
+                                                        <select class="form-select form-select-sm prioridad-select"
+                                                                data-of-id="{{ of_info.of.id }}"
                                                                 data-original="{{ of_info.of.prioridad_numerica or 3 }}">
                                                             <!-- Opciones dinámicas serán cargadas por JavaScript -->
                                                         </select>
@@ -594,14 +949,14 @@ Días restantes: {{ hito.dias_restantes }}">
                                                     </td>
                                                     <td>
                                                         {% if of_info.of.fecha_planificada %}
-                                                            <input type="date" class="form-control form-control-sm fecha-input" 
-                                                                   data-of-id="{{ of_info.of.id }}" 
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
                                                                    data-field="fecha_planificada"
                                                                    value="{{ of_info.of.fecha_planificada }}"
                                                                    data-original="{{ of_info.of.fecha_planificada }}">
                                                         {% else %}
-                                                            <input type="date" class="form-control form-control-sm fecha-input" 
-                                                                   data-of-id="{{ of_info.of.id }}" 
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
                                                                    data-field="fecha_planificada"
                                                                    placeholder="Sin fecha"
                                                                    data-original="">
@@ -610,14 +965,14 @@ Días restantes: {{ hito.dias_restantes }}">
                                                     </td>
                                                     <td>
                                                         {% if of_info.of.fecha_entrega_fabrica %}
-                                                            <input type="date" class="form-control form-control-sm fecha-input" 
-                                                                   data-of-id="{{ of_info.of.id }}" 
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
                                                                    data-field="fecha_entrega_fabrica"
                                                                    value="{{ of_info.of.fecha_entrega_fabrica }}"
                                                                    data-original="{{ of_info.of.fecha_entrega_fabrica }}">
                                                         {% else %}
-                                                            <input type="date" class="form-control form-control-sm fecha-input" 
-                                                                   data-of-id="{{ of_info.of.id }}" 
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
                                                                    data-field="fecha_entrega_fabrica"
                                                                    data-original="">
                                                             {% if of_info.fecha_estimada_fabricacion %}
@@ -652,14 +1007,14 @@ Días restantes: {{ hito.dias_restantes }}">
                                                     </td>
                                                     <td>
                                                         {% if of_info.of.fecha_entrega_embalaje %}
-                                                            <input type="date" class="form-control form-control-sm fecha-input" 
-                                                                   data-of-id="{{ of_info.of.id }}" 
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
                                                                    data-field="fecha_entrega_embalaje"
                                                                    value="{{ of_info.of.fecha_entrega_embalaje }}"
                                                                    data-original="{{ of_info.of.fecha_entrega_embalaje }}">
                                                         {% else %}
-                                                            <input type="date" class="form-control form-control-sm fecha-input" 
-                                                                   data-of-id="{{ of_info.of.id }}" 
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
                                                                    data-field="fecha_entrega_embalaje"
                                                                    data-original="">
                                                             {% if of_info.fecha_estimada_embalaje %}
@@ -858,21 +1213,28 @@ function setupEventListeners() {
 }
 
 function setupDropdownListeners() {
-    // Manejar apertura y cierre de dropdowns de proyectos
-    const collapseElements = document.querySelectorAll('.collapse');
-    collapseElements.forEach(function(collapseEl) {
+    // Setup collapse icons for projects
+    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function(collapseButton) {
+        const targetId = collapseButton.getAttribute('data-bs-target');
+        const collapseEl = document.querySelector(targetId);
+        if (!collapseEl) return;
+
         collapseEl.addEventListener('shown.bs.collapse', function () {
-            const projectId = this.id.replace('proyecto-', '');
-            const icon = document.getElementById('icon-proyecto-' + projectId);
+            let projectId = this.id.replace('proyecto-', '');
+            projectId = projectId.replace('proyecto-gantt-', '');
+            const icon = document.getElementById('icon-proyecto-' + projectId) ||
+                         document.getElementById('icon-proyecto-gantt-' + projectId);
             if (icon) {
                 icon.classList.remove('fa-plus');
                 icon.classList.add('fa-minus');
             }
         });
-        
+
         collapseEl.addEventListener('hidden.bs.collapse', function () {
-            const projectId = this.id.replace('proyecto-', '');
-            const icon = document.getElementById('icon-proyecto-' + projectId);
+            let projectId = this.id.replace('proyecto-', '');
+            projectId = projectId.replace('proyecto-gantt-', '');
+            const icon = document.getElementById('icon-proyecto-' + projectId) ||
+                         document.getElementById('icon-proyecto-gantt-' + projectId);
             if (icon) {
                 icon.classList.remove('fa-minus');
                 icon.classList.add('fa-plus');
@@ -990,7 +1352,7 @@ function imprimirTabla() {
     // Abrir todos los dropdowns de OFs antes de imprimir
     const dropdowns = document.querySelectorAll('.dropdown-ofs .dropdown-toggle');
     const dropdownsAbiertos = [];
-    
+
     dropdowns.forEach((toggle, index) => {
         const menu = toggle.nextElementSibling;
         if (menu && !menu.classList.contains('show')) {
@@ -999,34 +1361,34 @@ function imprimirTabla() {
             dropdownsAbiertos.push({toggle, menu});
         }
     });
-    
+
     // Agregar clase no-print a elementos que no se deben imprimir (excepto dropdowns abiertos)
     const elementosNoImprimir = document.querySelectorAll('.btn:not(.dropdown-toggle), .form-control, .form-select, .alert');
     elementosNoImprimir.forEach(el => el.classList.add('no-print'));
-    
+
     // Crear header para impresión
     const originalTitle = document.title;
     document.title = 'Planificación y Prioridades - Gantt de Proyectos - ' + new Date().toLocaleDateString();
-    
+
     // Ocultar matriz detallada al imprimir gantt
     const matrizDetallada = document.querySelector('.matriz-detallada-section');
     if (matrizDetallada) {
         matrizDetallada.style.display = 'none';
     }
-    
+
     window.print();
-    
+
     // Restaurar después de imprimir
     setTimeout(() => {
         document.title = originalTitle;
         elementosNoImprimir.forEach(el => el.classList.remove('no-print'));
-        
+
         // Cerrar dropdowns que estaban cerrados
         dropdownsAbiertos.forEach(({toggle, menu}) => {
             toggle.classList.remove('show');
             menu.classList.remove('show');
         });
-        
+
         if (matrizDetallada) {
             matrizDetallada.style.display = 'block';
         }
@@ -1037,22 +1399,22 @@ function imprimirMatrizDetallada() {
     // Abrir todos los dropdowns de proyectos antes de imprimir
     const dropdowns = document.querySelectorAll('.collapse');
     const dropdownsAbiertos = [];
-    
+
     dropdowns.forEach((collapse, index) => {
         if (!collapse.classList.contains('show')) {
             collapse.classList.add('show');
             dropdownsAbiertos.push(collapse);
         }
     });
-    
+
     // Agregar clase no-print a elementos que no se deben imprimir (excepto dropdowns expandidos)
     const elementosNoImprimir = document.querySelectorAll('.btn:not(.dropdown-toggle), .form-control, .form-select, .alert');
     elementosNoImprimir.forEach(el => el.classList.add('no-print'));
-    
+
     // Crear header para impresión
     const originalTitle = document.title;
     document.title = 'Planificación y Prioridades - Matriz Detallada - ' + new Date().toLocaleDateString();
-    
+
     // Ocultar gantt de proyectos al imprimir matriz detallada
     const ganttProyectos = document.querySelector('.gantt-proyectos-section');
     const estadisticas = document.querySelector('.estadisticas-row');
@@ -1062,19 +1424,19 @@ function imprimirMatrizDetallada() {
     if (estadisticas) {
         estadisticas.style.display = 'none';
     }
-    
+
     window.print();
-    
+
     // Restaurar después de imprimir
     setTimeout(() => {
         document.title = originalTitle;
         elementosNoImprimir.forEach(el => el.classList.remove('no-print'));
-        
+
         // Cerrar dropdowns que estaban cerrados
         dropdownsAbiertos.forEach((collapse) => {
             collapse.classList.remove('show');
         });
-        
+
         if (ganttProyectos) {
             ganttProyectos.style.display = 'block';
         }
@@ -1109,67 +1471,67 @@ function imprimirMatrizDetallada() {
         size: letter;
         margin: 0.5in;
     }
-    
-    .btn, .form-control, .form-select { 
-        display: none !important; 
+
+    .btn, .form-control, .form-select {
+        display: none !important;
     }
-    
+
     .no-print {
         display: none !important;
     }
-    
+
     body {
         background-color: white !important;
         font-size: 10px;
     }
-    
+
     .card {
         border: 1px solid #000 !important;
         box-shadow: none !important;
         page-break-inside: avoid;
     }
-    
+
     .card-header {
         background-color: #f8f9fa !important;
         border-bottom: 2px solid #000 !important;
         -webkit-print-color-adjust: exact;
     }
-    
+
     .table {
         font-size: 8px !important;
         border-collapse: collapse !important;
     }
-    
+
     .table th, .table td {
         padding: 3px !important;
         border: 1px solid #000 !important;
         -webkit-print-color-adjust: exact;
     }
-    
+
     .table-dark th {
         background-color: #343a40 !important;
         color: white !important;
         -webkit-print-color-adjust: exact;
     }
-    
+
     .badge {
         background-color: #f8f9fa !important;
         color: #000 !important;
         border: 1px solid #000 !important;
         -webkit-print-color-adjust: exact;
     }
-    
+
     .gantt-timeline-container {
         border: 2px solid #000 !important;
         -webkit-print-color-adjust: exact;
     }
-    
+
     .gantt-bar-fabrica,
     .gantt-bar-embalaje {
         border: 1px solid #000 !important;
         -webkit-print-color-adjust: exact;
     }
-    
+
     .print-header {
         text-align: center;
         margin-bottom: 20px;
@@ -1177,29 +1539,29 @@ function imprimirMatrizDetallada() {
         padding-bottom: 15px;
         page-break-after: avoid;
     }
-    
+
     .estadisticas-row {
         page-break-after: avoid;
     }
-    
+
     /* Repetir títulos en cada página */
     .table thead tr {
         page-break-inside: avoid;
         page-break-after: avoid;
     }
-    
+
     .table thead {
         display: table-header-group;
     }
-    
+
     .table tbody {
         display: table-row-group;
     }
-    
+
     .table tfoot {
         display: table-footer-group;
     }
-    
+
     /* Asegurar que dropdowns abiertos se vean correctamente en impresión */
     .dropdown-menu.show {
         display: block !important;
@@ -1212,14 +1574,14 @@ function imprimirMatrizDetallada() {
         border-radius: 0 !important;
         box-shadow: none !important;
     }
-    
+
     .dropdown-toggle {
         display: inline-block !important;
         background-color: transparent !important;
         border: 1px solid #000 !important;
         color: #000 !important;
     }
-    
+
     .dropdown-toggle::after {
         display: none !important;
     }
