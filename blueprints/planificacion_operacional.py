@@ -236,7 +236,7 @@ def analisis_capacidad_api(year):
     """API para obtener datos de análisis de capacidad y productividad"""
     try:
         service = PlanificacionOperacionalService()
-        analisis = service.get_analisis_capacidad(year)
+        analisis = service.get_analisis_capacidad(año=year, vista='mensual')
         return jsonify(analisis)
     
     except Exception as e:
