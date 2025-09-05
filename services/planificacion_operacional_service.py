@@ -17,26 +17,23 @@ from services.configuraciones_service import ConfiguracionesService
 class PlanificacionOperacionalService:
     """Service layer for operational planning operations"""
 
-    # Default conversion factors by project type (Chilean Pesos) - Only Melamina
+    # Default conversion factors by project type (Chilean Pesos)
     DEFAULT_FACTORS_BY_TYPE = {
         'SOCIAL': {
-            'factor_m2': 45000,  # $45,000 por m² for social projects
-            'factor_clp_tablero': 134100,  # 45000 * 2.98
-            'descripcion': 'Melamina Social 18mm',
+            'factor_m2': 8053,  # Calculated from 24000 / 2.98
+            'factor_clp_tablero': 24000,  # $24,000 por tablero for social projects
             'factor_tiempo_fabrica': 0.02,  # 0.02 días por tablero
             'factor_tiempo_embalaje': 0.008  # 0.008 días por tablero
         },
         'ESTANDAR': {
-            'factor_m2': 50000,  # $50,000 por m² for standard projects
-            'factor_clp_tablero': 149000,  # 50000 * 2.98
-            'descripcion': 'Melamina Estándar 18mm',
+            'factor_m2': 10067,  # Calculated from 30000 / 2.98
+            'factor_clp_tablero': 30000,  # $30,000 por tablero for standard projects
             'factor_tiempo_fabrica': 0.025,  # 0.025 días por tablero
             'factor_tiempo_embalaje': 0.01  # 0.01 días por tablero
         },
         'ESPECIAL': {
-            'factor_m2': 60000,  # $60,000 por m² for special projects
-            'factor_clp_tablero': 178800,  # 60000 * 2.98
-            'descripcion': 'Melamina Especial 18mm',
+            'factor_m2': 15101,  # Calculated from 45000 / 2.98
+            'factor_clp_tablero': 45000,  # $45,000 por tablero for special projects
             'factor_tiempo_fabrica': 0.03,  # 0.03 días por tablero
             'factor_tiempo_embalaje': 0.012  # 0.012 días por tablero
         }
@@ -299,8 +296,7 @@ class PlanificacionOperacionalService:
                 'factor_m2': factor_m2,
                 'factor_clp_por_tablero': factor_clp_por_tablero,
                 'area_tablero': self.AREA_TABLERO_ESTANDAR,
-                'factor_desperdicio': self.FACTOR_DESPERDICIO,
-                'descripcion_proyecto': factor_data['descripcion']
+                'factor_desperdicio': self.FACTOR_DESPERDICIO
             }
         }
 
@@ -314,7 +310,6 @@ class PlanificacionOperacionalService:
             factores[tipo_proyecto] = {
                 'factor_m2': data['factor_m2'],
                 'factor_clp_tablero': data['factor_clp_tablero'],
-                'descripcion': data['descripcion'],
                 'factor_tiempo_fabrica': data['factor_tiempo_fabrica'],
                 'factor_tiempo_embalaje': data['factor_tiempo_embalaje']
             }
@@ -538,7 +533,6 @@ class PlanificacionOperacionalService:
             'tipo_proyecto': tipo_proyecto,
             'factor_m2': factor_data['factor_m2'],
             'factor_clp_tablero': factor_data['factor_clp_tablero'],
-            'descripcion': factor_data['descripcion'],
             'area_tablero': self.AREA_TABLERO_ESTANDAR,
             'factor_desperdicio': self.FACTOR_DESPERDICIO,
             'factor_tiempo_fabrica': factor_data['factor_tiempo_fabrica'],
