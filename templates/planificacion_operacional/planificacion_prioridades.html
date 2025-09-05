@@ -559,15 +559,15 @@ Días restantes: {{ hito.dias_restantes }}">
                                             <table class="table table-sm mb-0">
                                                 <thead class="table-secondary">
                                                     <tr>
-                                                        <th style="width: 22%">OF/Descripción</th>
+                                                        <th style="width: 18%">OF/Glosa</th>
                                                         <th style="width: 8%">Prioridad</th>
                                                         <th style="width: 6%">Tableros</th>
-                                                        <th style="width: 10%">Estado</th>
+                                                        <th style="width: 12%">Estado</th>
                                                         <th style="width: 12%">Fecha Planificada</th>
-                                                        <th style="width: 14%">Fecha Fab.</th>
-                                                        <th style="width: 14%">Fecha Embalaje</th>
+                                                        <th style="width: 13%">Fecha Fab.</th>
+                                                        <th style="width: 13%">Fecha Embalaje</th>
                                                         <th style="width: 8%">Días Rest.</th>
-                                                        <th style="width: 14%">Próximo Hito</th>
+                                                        <th style="width: 10%">Próximo Hito</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -576,8 +576,10 @@ Días restantes: {{ hito.dias_restantes }}">
                                                         <td>
                                                             <div>
                                                                 <strong>{{ of_info.of.codigo }}</strong>
-                                                                {% if of_info.of.descripcion %}
-                                                                <br><small class="text-muted">{{ of_info.of.descripcion[:40] }}{% if of_info.of.descripcion|length > 40 %}...{% endif %}</small>
+                                                                {% if of_info.of.glosa %}
+                                                                <br><small class="text-muted">{{ of_info.of.glosa[:35] }}{% if of_info.of.glosa|length > 35 %}...{% endif %}</small>
+                                                                {% elif of_info.of.descripcion %}
+                                                                <br><small class="text-muted">{{ of_info.of.descripcion[:35] }}{% if of_info.of.descripcion|length > 35 %}...{% endif %}</small>
                                                                 {% endif %}
                                                             </div>
                                                         </td>
@@ -592,10 +594,10 @@ Días restantes: {{ hito.dias_restantes }}">
                                                             <span class="badge bg-info">{{ of_info.of.cantidad_tableros or 0 }}</span>
                                                         </td>
                                                         <td>
-                                                            <small>
-                                                                <strong>{{ of_info.progreso_actual.area.nombre }}</strong><br>
-                                                                <span class="text-muted">{{ of_info.progreso_actual.estado.nombre }}</span>
-                                                            </small>
+                                                            <div style="font-size: 11px;">
+                                                                <strong class="text-primary">{{ of_info.progreso_actual.area.nombre[:12] }}{% if of_info.progreso_actual.area.nombre|length > 12 %}...{% endif %}</strong><br>
+                                                                <span class="text-muted">{{ of_info.progreso_actual.estado.nombre[:15] }}{% if of_info.progreso_actual.estado.nombre|length > 15 %}...{% endif %}</span>
+                                                            </div>
                                                         </td>
                                                         <td>
                                                             {% if of_info.of.fecha_planificada %}
@@ -712,19 +714,19 @@ Días restantes: {{ hito.dias_restantes }}">
                                                         </td>
                                                         <td>
                                                             {% if proyecto.proximo_hito %}
-                                                                <small>
-                                                                    <strong>{{ proyecto.proximo_hito.titulo }}</strong><br>
-                                                                    <span class="text-muted">{{ proyecto.proximo_hito.fecha_programada.strftime('%d/%m/%Y') }}</span><br>
+                                                                <div style="font-size: 10px;">
+                                                                    <strong>{{ proyecto.proximo_hito.titulo[:12] }}{% if proyecto.proximo_hito.titulo|length > 12 %}...{% endif %}</strong><br>
+                                                                    <span class="text-muted">{{ proyecto.proximo_hito.fecha_programada.strftime('%d/%m') }}</span><br>
                                                                     {% if proyecto.dias_proximo_hito is not none %}
                                                                         {% if proyecto.dias_proximo_hito < 0 %}
-                                                                        <span class="badge bg-danger">{{ proyecto.dias_proximo_hito }} días</span>
+                                                                        <span class="badge bg-danger" style="font-size: 8px;">{{ proyecto.dias_proximo_hito }}d</span>
                                                                         {% elif proyecto.dias_proximo_hito < 7 %}
-                                                                        <span class="badge bg-warning">{{ proyecto.dias_proximo_hito }} días</span>
+                                                                        <span class="badge bg-warning" style="font-size: 8px;">{{ proyecto.dias_proximo_hito }}d</span>
                                                                         {% else %}
-                                                                        <span class="badge bg-success">{{ proyecto.dias_proximo_hito }} días</span>
+                                                                        <span class="badge bg-success" style="font-size: 8px;">{{ proyecto.dias_proximo_hito }}d</span>
                                                                         {% endif %}
                                                                     {% endif %}
-                                                                </small>
+                                                                </div>
                                                             {% else %}
                                                                 <small class="text-muted">Sin hitos</small>
                                                             {% endif %}
@@ -921,20 +923,20 @@ function setupDropdownListeners() {
 
 // Funciones para expandir/colapsar todos los proyectos en la matriz detallada
 function expandirTodos() {
-    const collapseElements = document.querySelectorAll('[id^="proyecto-detalle-"]');
+    const collapseElements = document.querySelectorAll('.collapse[id*="proyecto-detalle-"]');
 
     collapseElements.forEach(element => {
-        if (element.classList.contains('collapse') && !element.classList.contains('show')) {
+        if (!element.classList.contains('show')) {
             const bsCollapse = new bootstrap.Collapse(element, {show: true});
         }
     });
 }
 
 function colapsarTodos() {
-    const collapseElements = document.querySelectorAll('[id^="proyecto-detalle-"]');
+    const collapseElements = document.querySelectorAll('.collapse[id*="proyecto-detalle-"]');
 
     collapseElements.forEach(element => {
-        if (element.classList.contains('collapse') && element.classList.contains('show')) {
+        if (element.classList.contains('show')) {
             const bsCollapse = new bootstrap.Collapse(element, {hide: true});
         }
     });
