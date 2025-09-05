@@ -17,19 +17,28 @@ from services.configuraciones_service import ConfiguracionesService
 class PlanificacionOperacionalService:
     """Service layer for operational planning operations"""
 
-    # Default conversion factors (Chilean Pesos)
-    DEFAULT_FACTORS = {
-        'melamina': {
-            'factor_m2': 50000,  # $50,000 por m²
-            'descripcion': 'Melamina estándar 18mm'
+    # Default conversion factors by project type (Chilean Pesos) - Only Melamina
+    DEFAULT_FACTORS_BY_TYPE = {
+        'SOCIAL': {
+            'factor_m2': 45000,  # $45,000 por m² for social projects
+            'factor_clp_tablero': 134100,  # 45000 * 2.98
+            'descripcion': 'Melamina Social 18mm',
+            'factor_tiempo_fabrica': 0.02,  # 0.02 días por tablero
+            'factor_tiempo_embalaje': 0.008  # 0.008 días por tablero
         },
-        'mdf': {
-            'factor_m2': 35000,  # $35,000 por m²
-            'descripcion': 'MDF estándar 18mm'
+        'ESTANDAR': {
+            'factor_m2': 50000,  # $50,000 por m² for standard projects
+            'factor_clp_tablero': 149000,  # 50000 * 2.98
+            'descripcion': 'Melamina Estándar 18mm',
+            'factor_tiempo_fabrica': 0.025,  # 0.025 días por tablero
+            'factor_tiempo_embalaje': 0.01  # 0.01 días por tablero
         },
-        'madera': {
-            'factor_m2': 80000,  # $80,000 por m²
-            'descripcion': 'Madera sólida'
+        'ESPECIAL': {
+            'factor_m2': 60000,  # $60,000 por m² for special projects
+            'factor_clp_tablero': 178800,  # 60000 * 2.98
+            'descripcion': 'Melamina Especial 18mm',
+            'factor_tiempo_fabrica': 0.03,  # 0.03 días por tablero
+            'factor_tiempo_embalaje': 0.012  # 0.012 días por tablero
         }
     }
     
@@ -50,19 +59,19 @@ class PlanificacionOperacionalService:
                 'factor_tiempo_embalaje': 0.01   # 0.01 días por tablero en embalaje
             }
 
-    def calcular_tiempo_estimado_fabrica(self, cantidad_tableros: int) -> float:
-        """Calcula tiempo estimado en fábrica basado en cantidad de tableros"""
+    def calcular_tiempo_estimado_fabrica(self, cantidad_tableros: int, tipo_proyecto: str = 'ESTANDAR') -> float:
+        """Calcula tiempo estimado en fábrica basado en cantidad de tableros y tipo de proyecto"""
         if not cantidad_tableros or cantidad_tableros <= 0:
             return 0.0
-        factores = self._get_factores_tiempo()
-        return cantidad_tableros * factores['factor_tiempo_fabrica']
+        factor_data = self.DEFAULT_FACTORS_BY_TYPE.get(tipo_proyecto, self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR'])
+        return cantidad_tableros * factor_data['factor_tiempo_fabrica']
     
-    def calcular_tiempo_estimado_embalaje(self, cantidad_tableros: int) -> float:
-        """Calcula tiempo estimado en embalaje basado en cantidad de tableros"""
+    def calcular_tiempo_estimado_embalaje(self, cantidad_tableros: int, tipo_proyecto: str = 'ESTANDAR') -> float:
+        """Calcula tiempo estimado en embalaje basado en cantidad de tableros y tipo de proyecto"""
         if not cantidad_tableros or cantidad_tableros <= 0:
             return 0.0
-        factores = self._get_factores_tiempo()
-        return cantidad_tableros * factores['factor_tiempo_embalaje']
+        factor_data = self.DEFAULT_FACTORS_BY_TYPE.get(tipo_proyecto, self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR'])
+        return cantidad_tableros * factor_data['factor_tiempo_embalaje']
 
     def get_matriz_operacional(self, año, mes_inicio=1, mes_fin=12, cliente_id=None, tipo_material='melamina'):
         """Get operational planning matrix with board calculations"""
@@ -113,13 +122,15 @@ class PlanificacionOperacionalService:
         tableros_por_material = {}
         
         if proyecto.monto_provision_presupuestado:
-            for material, _ in self.DEFAULT_FACTORS.items():
-                resultado = self.calcular_tableros_aproximados(
-                    monto_provision=float(proyecto.monto_provision_presupuestado),
-                    tipo_material=material,
-                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
-                )
-                tableros_por_material[material] = resultado
+            # Get project type, default to ESTANDAR
+            tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+            
+            resultado = self.calcular_tableros_aproximados(
+                monto_provision=float(proyecto.monto_provision_presupuestado),
+                tipo_proyecto=tipo_proyecto,
+                margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+            )
+            tableros_por_material['melamina'] = resultado
         
         # Get manufacturing orders
         ordenes_fabricacion = (db.session.query(OrdenFabricacion)
@@ -127,11 +138,15 @@ class PlanificacionOperacionalService:
                              .order_by(OrdenFabricacion.codigo)
                              .all())
         
+        # Get project type for factor info
+        tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+        
         return {
             'proyecto': proyecto,
             'tableros_por_material': tableros_por_material,
             'ordenes_fabricacion': ordenes_fabricacion,
-            'factor_info': {material: self._get_factor_info(material) for material in self.DEFAULT_FACTORS}
+            'factor_info': {'melamina': self._get_factor_info(tipo_proyecto)},
+            'tipo_proyecto': tipo_proyecto
         }
 
     def get_analisis_capacidad(self, año=2025, vista='mensual'):
@@ -227,17 +242,16 @@ class PlanificacionOperacionalService:
             'analisis_mensual': analisis_mensual
         }
 
-    def calcular_tableros_aproximados(self, monto_provision, tipo_material='melamina', margen_venta_provision=None):
+    def calcular_tableros_aproximados(self, monto_provision, tipo_proyecto='ESTANDAR', margen_venta_provision=None):
         """Calculate approximate boards needed based on provision amount using new formula:
-        Monto_provision * (1-margen_vta_provision) * factor_(CLP/tablero)
+        Monto_provision * (1-margen_vta_provision) / factor_(CLP/tablero)
+        Only uses Melamina, with factors based on project type.
         """
         
-        # Get conversion factor
-        factor_data = self.DEFAULT_FACTORS.get(tipo_material, self.DEFAULT_FACTORS['melamina'])
+        # Get conversion factor based on project type
+        factor_data = self.DEFAULT_FACTORS_BY_TYPE.get(tipo_proyecto, self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR'])
         factor_m2 = factor_data['factor_m2']
-        
-        # Calculate CLP per board: CLP/m2 * m2_per_board
-        factor_clp_por_tablero = factor_m2 * self.AREA_TABLERO_ESTANDAR
+        factor_clp_por_tablero = factor_data['factor_clp_tablero']
         
         # Apply new formula if margin is provided
         if margen_venta_provision is not None:
@@ -276,16 +290,17 @@ class PlanificacionOperacionalService:
             'area_con_desperdicio': float(area_con_desperdicio),
             'factor_usado': factor_m2,
             'factor_clp_por_tablero': factor_clp_por_tablero,
-            'tipo_material': tipo_material,
+            'tipo_proyecto': tipo_proyecto,
             'formula_usada': 'nueva' if margen_venta_provision is not None else 'legacy',
             'detalles': {
                 'monto_provision': monto_provision,
                 'margen_venta_provision': margen_venta_provision,
+                'tipo_proyecto': tipo_proyecto,
                 'factor_m2': factor_m2,
                 'factor_clp_por_tablero': factor_clp_por_tablero,
                 'area_tablero': self.AREA_TABLERO_ESTANDAR,
                 'factor_desperdicio': self.FACTOR_DESPERDICIO,
-                'descripcion_material': factor_data['descripcion']
+                'descripcion_proyecto': factor_data['descripcion']
             }
         }
 
@@ -470,17 +485,20 @@ class PlanificacionOperacionalService:
         
         return totales
 
-    def _get_factor_info(self, tipo_material):
-        """Get factor information for a material type"""
-        factor_data = self.DEFAULT_FACTORS.get(tipo_material, self.DEFAULT_FACTORS['melamina'])
+    def _get_factor_info(self, tipo_proyecto):
+        """Get factor information for a project type"""
+        factor_data = self.DEFAULT_FACTORS_BY_TYPE.get(tipo_proyecto, self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR'])
         
         return {
-            'tipo': tipo_material,
+            'tipo_proyecto': tipo_proyecto,
             'factor_m2': factor_data['factor_m2'],
+            'factor_clp_tablero': factor_data['factor_clp_tablero'],
             'descripcion': factor_data['descripcion'],
             'area_tablero': self.AREA_TABLERO_ESTANDAR,
             'factor_desperdicio': self.FACTOR_DESPERDICIO,
-            'ejemplo_calculo': f"Ejemplo: $1,000,000 ÷ ${factor_data['factor_m2']:,}/m² = {1000000/factor_data['factor_m2']:.1f}m² ÷ {self.AREA_TABLERO_ESTANDAR}m²/tablero × {self.FACTOR_DESPERDICIO} = {int((1000000/factor_data['factor_m2']) / self.AREA_TABLERO_ESTANDAR * self.FACTOR_DESPERDICIO)} tableros"
+            'factor_tiempo_fabrica': factor_data['factor_tiempo_fabrica'],
+            'factor_tiempo_embalaje': factor_data['factor_tiempo_embalaje'],
+            'ejemplo_calculo': f"Ejemplo: $1,000,000 ÷ ${factor_data['factor_clp_tablero']:,}/tablero = {1000000/factor_data['factor_clp_tablero']:.1f} tableros × {self.FACTOR_DESPERDICIO} = {int((1000000/factor_data['factor_clp_tablero']) * self.FACTOR_DESPERDICIO)} tableros"
         }
 
     def _calcular_capacidad_mensual(self, proyectos, año):
@@ -511,9 +529,12 @@ class PlanificacionOperacionalService:
                     
                     # Calculate boards for this project in this month using new formula
                     if proyecto.monto_provision_presupuestado:
+                        # Get project type, default to ESTANDAR
+                        tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                        
                         tableros_resultado = self.calcular_tableros_aproximados(
                             monto_provision=float(proyecto.monto_provision_presupuestado) / len(meses_proyecto),
-                            tipo_material='melamina',  # Default material
+                            tipo_proyecto=tipo_proyecto,
                             margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
                         )
                         
