@@ -202,38 +202,45 @@ def actualizar_prioridades_bodega(of_id):
 @login_required
 @role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def actualizar_configuracion():
-    """Actualizar factores de conversión"""
+    """Actualizar factores de conversión, tiempo y capacidad"""
     try:
         service = PlanificacionOperacionalService()
         
         # Get form data for new project-type based factors
-        factores_data = {
-            # Project type tablero factors
-            'factor_social_tablero': request.form.get('factor_social_tablero', type=float),
-            'factor_estandar_tablero': request.form.get('factor_estandar_tablero', type=float), 
-            'factor_especial_tablero': request.form.get('factor_especial_tablero', type=float),
-            
-            # General configuration
-            'area_tablero_estandar': request.form.get('area_tablero_estandar', type=float),
-            'factor_desperdicio': request.form.get('factor_desperdicio', type=float),
-            
-            # Time factors by project type
-            'factor_tiempo_fabrica_social': request.form.get('factor_tiempo_fabrica_social', type=float),
-            'factor_tiempo_embalaje_social': request.form.get('factor_tiempo_embalaje_social', type=float),
-            'factor_tiempo_fabrica_estandar': request.form.get('factor_tiempo_fabrica_estandar', type=float),
-            'factor_tiempo_embalaje_estandar': request.form.get('factor_tiempo_embalaje_estandar', type=float),
-            'factor_tiempo_fabrica_especial': request.form.get('factor_tiempo_fabrica_especial', type=float),
-            'factor_tiempo_embalaje_especial': request.form.get('factor_tiempo_embalaje_especial', type=float),
-        }
+        factores_data = {}
+        
+        # Only include non-None values to avoid overwriting with None
+        form_fields = [
+            'factor_social_tablero', 'factor_estandar_tablero', 'factor_especial_tablero',
+            'area_tablero_estandar', 'factor_desperdicio',
+            'factor_tiempo_fabrica_social', 'factor_tiempo_embalaje_social',
+            'factor_tiempo_fabrica_estandar', 'factor_tiempo_embalaje_estandar',
+            'factor_tiempo_fabrica_especial', 'factor_tiempo_embalaje_especial',
+            'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
+            'horas_disponibles_mes', 'horas_disponibles_semana',
+            'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+        ]
+        
+        for field in form_fields:
+            value = request.form.get(field)
+            if value is not None and value != '':
+                if field in ['capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana', 
+                           'horas_disponibles_mes', 'horas_disponibles_semana']:
+                    factores_data[field] = int(value)
+                else:
+                    factores_data[field] = float(value)
+        
+        print(f"Datos recibidos del formulario: {factores_data}")
         
         success = service.actualizar_factores_conversion(factores_data, current_user.id)
         
         if success:
-            flash('Factores de conversión actualizados exitosamente', 'success')
+            flash('Configuración de planificación operacional actualizada exitosamente', 'success')
         else:
-            flash('Error al actualizar factores de conversión', 'error')
+            flash('Error al actualizar configuración de planificación operacional', 'error')
         
     except Exception as e:
+        print(f"Error en actualizar_configuracion: {e}")
         flash(f'Error: {str(e)}', 'error')
     
     return redirect(url_for('planificacion_operacional.configuracion_conversion'))

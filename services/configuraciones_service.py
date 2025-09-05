@@ -281,9 +281,6 @@ class ConfiguracionesService:
         # Get recent user activity
         actividad_reciente = self._get_actividad_reciente(limit=10)
         
-        # Get time factors from database or use defaults
-        factores_tiempo = self.get_factores_tiempo()
-        
         return {
             'stats': stats,
             'actividad_reciente': actividad_reciente,
@@ -293,9 +290,7 @@ class ConfiguracionesService:
                 'sesion_timeout': 31,  # days
                 'max_intentos_login': 3,
                 'backup_automatico': True,
-                'notificaciones_email': True,
-                'factor_tiempo_fabrica': factores_tiempo['factor_tiempo_fabrica'],
-                'factor_tiempo_embalaje': factores_tiempo['factor_tiempo_embalaje']
+                'notificaciones_email': True
             }
         }
 
@@ -566,6 +561,48 @@ class ConfiguracionesService:
             'factor_tiempo_fabrica': 0.025,  # días por tablero en fábrica
             'factor_tiempo_embalaje': 0.01   # días por tablero en embalaje
         }
+
+    def get_configuracion_capacidad(self):
+        """Get capacity configuration settings"""
+        # For now, use default values - these could be stored in a config table later
+        return {
+            'capacidad_maxima_tableros_mes': 500,
+            'capacidad_maxima_tableros_semana': 125,  # 500/4 weeks
+            'horas_disponibles_mes': 160,  # 20 days × 8 hours
+            'horas_disponibles_semana': 40,  # 5 days × 8 hours
+            'horas_por_tablero_social': 0.6,  # 36 minutes per board for social projects
+            'horas_por_tablero_estandar': 0.5,  # 30 minutes per board for standard projects
+            'horas_por_tablero_especial': 0.4,  # 24 minutes per board for special projects
+        }
+    
+    def actualizar_configuracion_capacidad(self, capacidad_data: Dict[str, Any], usuario_id: str) -> bool:
+        """Update capacity configuration settings"""
+        try:
+            # For now, this is a placeholder that returns True
+            # In a full implementation, these would be stored in a config table
+            
+            # Validate data
+            required_fields = [
+                'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
+                'horas_disponibles_mes', 'horas_disponibles_semana',
+                'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+            ]
+            
+            for field in required_fields:
+                if field not in capacidad_data:
+                    return False
+                if capacidad_data[field] <= 0:
+                    return False
+            
+            # Log the change (you could implement audit logging here)
+            print(f"Usuario {usuario_id} actualizó configuración de capacidad: {capacidad_data}")
+            
+            # Return success - in a real implementation, check DB operation result
+            return True
+            
+        except Exception as e:
+            print(f"Error updating capacity configuration: {e}")
+            return False
     
     def actualizar_factores_tiempo(self, factor_fabrica: float, factor_embalaje: float, usuario_id: int) -> bool:
         """Update time factors configuration"""

@@ -17,34 +17,31 @@ from services.configuraciones_service import ConfiguracionesService
 class PlanificacionOperacionalService:
     """Service layer for operational planning operations"""
 
-    # Default conversion factors by project type (Chilean Pesos) - Only Melamina
+    # Default conversion factors by project type (Chilean Pesos)
     DEFAULT_FACTORS_BY_TYPE = {
         'SOCIAL': {
-            'factor_m2': 45000,  # $45,000 por m² for social projects
-            'factor_clp_tablero': 134100,  # 45000 * 2.98
-            'descripcion': 'Melamina Social 18mm',
+            'factor_m2': 5246,  # Calculated from 24000 / 4.575
+            'factor_clp_tablero': 24000,  # $24,000 por tablero for social projects
             'factor_tiempo_fabrica': 0.02,  # 0.02 días por tablero
             'factor_tiempo_embalaje': 0.008  # 0.008 días por tablero
         },
         'ESTANDAR': {
-            'factor_m2': 50000,  # $50,000 por m² for standard projects
-            'factor_clp_tablero': 149000,  # 50000 * 2.98
-            'descripcion': 'Melamina Estándar 18mm',
+            'factor_m2': 6557,  # Calculated from 30000 / 4.575
+            'factor_clp_tablero': 30000,  # $30,000 por tablero for standard projects
             'factor_tiempo_fabrica': 0.025,  # 0.025 días por tablero
             'factor_tiempo_embalaje': 0.01  # 0.01 días por tablero
         },
         'ESPECIAL': {
-            'factor_m2': 60000,  # $60,000 por m² for special projects
-            'factor_clp_tablero': 178800,  # 60000 * 2.98
-            'descripcion': 'Melamina Especial 18mm',
+            'factor_m2': 9836,  # Calculated from 45000 / 4.575
+            'factor_clp_tablero': 45000,  # $45,000 por tablero for special projects
             'factor_tiempo_fabrica': 0.03,  # 0.03 días por tablero
             'factor_tiempo_embalaje': 0.012  # 0.012 días por tablero
         }
     }
     
     # Standard board dimensions (meters)
-    AREA_TABLERO_ESTANDAR = 2.98  # 1.22m x 2.44m = 2.98 m²
-    FACTOR_DESPERDICIO = 1.15  # 15% waste factor
+    AREA_TABLERO_ESTANDAR = 4.575  # Standard board area in m²
+    FACTOR_DESPERDICIO = 1.1  # Waste factor
     
     # Time factors - now loaded from configuration
     def _get_factores_tiempo(self):
@@ -299,13 +296,12 @@ class PlanificacionOperacionalService:
                 'factor_m2': factor_m2,
                 'factor_clp_por_tablero': factor_clp_por_tablero,
                 'area_tablero': self.AREA_TABLERO_ESTANDAR,
-                'factor_desperdicio': self.FACTOR_DESPERDICIO,
-                'descripcion_proyecto': factor_data['descripcion']
+                'factor_desperdicio': self.FACTOR_DESPERDICIO
             }
         }
 
     def get_factores_conversion(self):
-        """Get current conversion factors"""
+        """Get current conversion factors including time and capacity settings"""
         # In the future, these could be stored in database
         # For now, return default factors with current configuration
         factores = {}
@@ -314,25 +310,58 @@ class PlanificacionOperacionalService:
             factores[tipo_proyecto] = {
                 'factor_m2': data['factor_m2'],
                 'factor_clp_tablero': data['factor_clp_tablero'],
-                'descripcion': data['descripcion'],
                 'factor_tiempo_fabrica': data['factor_tiempo_fabrica'],
-                'factor_tiempo_embalaje': data['factor_tiempo_embalaje']
+                'factor_tiempo_embalaje': data['factor_tiempo_embalaje'],
+                'descripcion': self._get_descripcion_tipo_proyecto(tipo_proyecto)
             }
         
-        # Get time factors from configuration
-        factores_tiempo = self._get_factores_tiempo()
+        # Get capacity configuration
+        try:
+            from services.configuraciones_service import ConfiguracionesService
+            config_service = ConfiguracionesService()
+            capacidad_config = config_service.get_configuracion_capacidad()
+        except:
+            capacidad_config = {
+                'capacidad_maxima_tableros_mes': 500,
+                'capacidad_maxima_tableros_semana': 125,
+                'horas_disponibles_mes': 160,
+                'horas_disponibles_semana': 40,
+                'horas_por_tablero_social': 0.6,
+                'horas_por_tablero_estandar': 0.5,
+                'horas_por_tablero_especial': 0.4,
+            }
+        
+        # Add configuration section
+        factores['configuracion'] = {
+            'area_tablero_estandar': self.AREA_TABLERO_ESTANDAR,
+            'factor_desperdicio': self.FACTOR_DESPERDICIO,
+            **capacidad_config
+        }
+        
+        return factores
+    
+    def _get_descripcion_tipo_proyecto(self, tipo_proyecto):
+        """Get description for project type"""
+        descripciones = {
+            'SOCIAL': 'Proyectos de vivienda social con especificaciones básicas',
+            'ESTANDAR': 'Proyectos comerciales estándar con especificaciones medias',
+            'ESPECIAL': 'Proyectos premium con especificaciones altas y acabados especiales'
+        }
+        return descripciones.get(tipo_proyecto, 'Descripción no disponible')
         
         factores['configuracion'] = {
             'area_tablero_estandar': self.AREA_TABLERO_ESTANDAR,
             'factor_desperdicio': self.FACTOR_DESPERDICIO,
             'factor_tiempo_fabrica': factores_tiempo['factor_tiempo_fabrica'],
-            'factor_tiempo_embalaje': factores_tiempo['factor_tiempo_embalaje']
+            'factor_tiempo_embalaje': factores_tiempo['factor_tiempo_embalaje'],
+            # Add capacity configuration
+            **capacidad_config
         }
         
         return factores
 
     def actualizar_factores_conversion(self, factores_data, user_id):
-        """Update conversion factors (project-type based)"""
+        """Update conversion factors including time and capacity settings"""
         try:
             updated_factors = []
             
@@ -382,6 +411,92 @@ class PlanificacionOperacionalService:
             if factores_data.get('factor_desperdicio') is not None:
                 self.FACTOR_DESPERDICIO = factores_data['factor_desperdicio']
                 updated_factors.append(f"Factor desperdicio: {factores_data['factor_desperdicio']}")
+            
+            # Update capacity configuration if provided
+            capacity_fields = [
+                'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
+                'horas_disponibles_mes', 'horas_disponibles_semana',
+                'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+            ]
+            
+            capacity_data = {}
+            for field in capacity_fields:
+                if factores_data.get(field) is not None:
+                    capacity_data[field] = factores_data[field]
+                    updated_factors.append(f"{field}: {factores_data[field]}")
+            
+            # Update capacity configuration using configuration service
+            if capacity_data:
+                try:
+                    from services.configuraciones_service import ConfiguracionesService
+                    config_service = ConfiguracionesService()
+                    config_service.actualizar_configuracion_capacidad(capacity_data, user_id)
+                except Exception as e:
+                    print(f"Error updating capacity configuration: {e}")
+            
+            # Log all updates
+            if updated_factors:
+                print(f"Usuario {user_id} actualizó factores: {', '.join(updated_factors)}")
+                return True
+            else:
+                print(f"Usuario {user_id} no proporcionó factores válidos para actualizar")
+                return False
+                
+        except Exception as e:
+            print(f"Error updating conversion factors: {e}")
+            return Falsefactor_tiempo_fabrica_social']
+                updated_factors.append(f"Social tiempo fábrica: {factores_data['factor_tiempo_fabrica_social']}")
+                
+            if factores_data.get('factor_tiempo_embalaje_social') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['SOCIAL']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_social']
+                updated_factors.append(f"Social tiempo embalaje: {factores_data['factor_tiempo_embalaje_social']}")
+                
+            if factores_data.get('factor_tiempo_fabrica_estandar') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR']['factor_tiempo_fabrica'] = factores_data['factor_tiempo_fabrica_estandar']
+                updated_factors.append(f"Estándar tiempo fábrica: {factores_data['factor_tiempo_fabrica_estandar']}")
+                
+            if factores_data.get('factor_tiempo_embalaje_estandar') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_estandar']
+                updated_factors.append(f"Estándar tiempo embalaje: {factores_data['factor_tiempo_embalaje_estandar']}")
+                
+            if factores_data.get('factor_tiempo_fabrica_especial') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['ESPECIAL']['factor_tiempo_fabrica'] = factores_data['factor_tiempo_fabrica_especial']
+                updated_factors.append(f"Especial tiempo fábrica: {factores_data['factor_tiempo_fabrica_especial']}")
+                
+            if factores_data.get('factor_tiempo_embalaje_especial') is not None:
+                self.DEFAULT_FACTORS_BY_TYPE['ESPECIAL']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_especial']
+                updated_factors.append(f"Especial tiempo embalaje: {factores_data['factor_tiempo_embalaje_especial']}")
+            
+            # Update general configuration constants if provided
+            if factores_data.get('area_tablero_estandar') is not None:
+                self.AREA_TABLERO_ESTANDAR = factores_data['area_tablero_estandar']
+                updated_factors.append(f"Área tablero estándar: {factores_data['area_tablero_estandar']}")
+                
+            if factores_data.get('factor_desperdicio') is not None:
+                self.FACTOR_DESPERDICIO = factores_data['factor_desperdicio']
+                updated_factors.append(f"Factor desperdicio: {factores_data['factor_desperdicio']}")
+            
+            # Update capacity configuration if provided
+            capacity_fields = [
+                'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
+                'horas_disponibles_mes', 'horas_disponibles_semana',
+                'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+            ]
+            
+            capacity_data = {}
+            for field in capacity_fields:
+                if factores_data.get(field) is not None:
+                    capacity_data[field] = factores_data[field]
+                    updated_factors.append(f"{field}: {factores_data[field]}")
+            
+            # Update capacity configuration using configuration service
+            if capacity_data:
+                try:
+                    from services.configuraciones_service import ConfiguracionesService
+                    config_service = ConfiguracionesService()
+                    config_service.actualizar_configuracion_capacidad(capacity_data, user_id)
+                except Exception as e:
+                    print(f"Error updating capacity configuration: {e}")
             
             # Log all updates
             if updated_factors:
@@ -538,7 +653,6 @@ class PlanificacionOperacionalService:
             'tipo_proyecto': tipo_proyecto,
             'factor_m2': factor_data['factor_m2'],
             'factor_clp_tablero': factor_data['factor_clp_tablero'],
-            'descripcion': factor_data['descripcion'],
             'area_tablero': self.AREA_TABLERO_ESTANDAR,
             'factor_desperdicio': self.FACTOR_DESPERDICIO,
             'factor_tiempo_fabrica': factor_data['factor_tiempo_fabrica'],
@@ -560,10 +674,24 @@ class PlanificacionOperacionalService:
                 'capacidad_porcentaje': 0
             }
         
-        # Assume capacity limits (could be configurable)
-        TABLEROS_MAXIMOS_MES = 500
-        HORAS_DISPONIBLES_MES = 160  # 20 days × 8 hours
-        HORAS_POR_TABLERO = 0.5  # 30 minutes per board
+        # Get capacity limits from configuration
+        try:
+            from services.configuraciones_service import ConfiguracionesService
+            config_service = ConfiguracionesService()
+            capacidad_config = config_service.get_configuracion_capacidad()
+            
+            TABLEROS_MAXIMOS_MES = capacidad_config['capacidad_maxima_tableros_mes']
+            HORAS_DISPONIBLES_MES = capacidad_config['horas_disponibles_mes']
+            HORAS_POR_TABLERO_SOCIAL = capacidad_config['horas_por_tablero_social']
+            HORAS_POR_TABLERO_ESTANDAR = capacidad_config['horas_por_tablero_estandar']
+            HORAS_POR_TABLERO_ESPECIAL = capacidad_config['horas_por_tablero_especial']
+        except:
+            # Fallback to default values
+            TABLEROS_MAXIMOS_MES = 500
+            HORAS_DISPONIBLES_MES = 160
+            HORAS_POR_TABLERO_SOCIAL = 0.6
+            HORAS_POR_TABLERO_ESTANDAR = 0.5
+            HORAS_POR_TABLERO_ESPECIAL = 0.4
         
         for proyecto in proyectos:
             meses_proyecto = self._obtener_meses_proyecto(proyecto, año)
@@ -583,8 +711,18 @@ class PlanificacionOperacionalService:
                             margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
                         )
                         
-                        capacidad[mes]['tableros_requeridos'] += tableros_resultado['tableros_aproximados']
-                        capacidad[mes]['horas_estimadas'] += tableros_resultado['tableros_aproximados'] * HORAS_POR_TABLERO
+                        tableros_mes = tableros_resultado['tableros_aproximados']
+                        capacidad[mes]['tableros_requeridos'] += tableros_mes
+                        
+                        # Use project-specific hours per board
+                        if tipo_proyecto == 'SOCIAL':
+                            horas_tablero = HORAS_POR_TABLERO_SOCIAL
+                        elif tipo_proyecto == 'ESPECIAL':
+                            horas_tablero = HORAS_POR_TABLERO_ESPECIAL
+                        else:  # ESTANDAR or default
+                            horas_tablero = HORAS_POR_TABLERO_ESTANDAR
+                        
+                        capacidad[mes]['horas_estimadas'] += tableros_mes * horas_tablero
         
         # Calculate capacity percentage
         for mes in capacidad:

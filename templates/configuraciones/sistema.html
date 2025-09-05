@@ -62,7 +62,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- System Settings -->
         <div class="col-md-6">
             <div class="card">
@@ -103,77 +103,22 @@
         </div>
     </div>
 
-    <!-- Time Configuration Factors -->
-    <div class="row mb-4">
+    <!-- System Configuration Note -->
+    <div class="row mt-4">
         <div class="col-md-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">
-                        <i class="fas fa-clock text-warning me-2"></i>
-                        Factores de Tiempo para Planificación
-                    </h6>
-                    <button class="btn btn-outline-primary btn-sm" onclick="toggleEditMode()">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                </div>
-                <div class="card-body">
-                    <form id="factorsForm" onsubmit="updateFactors(event)">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-industry text-primary me-2"></i>
-                                        Factor Tiempo Fabricación
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="factor_fabrica" 
-                                               name="factor_tiempo_fabrica" 
-                                               value="{{ '%.3f'|format(configuraciones.factor_tiempo_fabrica) }}" 
-                                               step="0.001" min="0" max="1" readonly>
-                                        <span class="input-group-text">días/tablero</span>
-                                    </div>
-                                    <small class="form-text text-muted">
-                                        Tiempo estimado de fabricación por tablero (actualmente: {{ '%.3f'|format(configuraciones.factor_tiempo_fabrica) }} días)
-                                    </small>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-box text-success me-2"></i>
-                                        Factor Tiempo Embalaje
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="factor_embalaje" 
-                                               name="factor_tiempo_embalaje" 
-                                               value="{{ '%.3f'|format(configuraciones.factor_tiempo_embalaje) }}" 
-                                               step="0.001" min="0" max="1" readonly>
-                                        <span class="input-group-text">días/tablero</span>
-                                    </div>
-                                    <small class="form-text text-muted">
-                                        Tiempo estimado de embalaje por tablero (actualmente: {{ '%.3f'|format(configuraciones.factor_tiempo_embalaje) }} días)
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row d-none" id="editActions">
-                            <div class="col-12">
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    <strong>Atención:</strong> Los cambios en estos factores afectarán a todos los cálculos futuros de tiempo estimado.
-                                </div>
-                                <div class="text-end">
-                                    <button type="button" class="btn btn-secondary me-2" onclick="cancelEdit()">
-                                        Cancelar
-                                    </button>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-save me-2"></i>Guardar Cambios
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
+            <div class="alert alert-info">
+                <h6 class="alert-heading">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Configuraciones de Planificación Operacional
+                </h6>
+                <p class="mb-2">Los factores de tiempo de producción y configuración de capacidad se han movido a:</p>
+                <a href="{{ url_for('planificacion_operacional.configuracion_conversion') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-cogs"></i> Planificación Operacional → Configurar Factores
+                </a>
+                <hr>
+                <p class="mb-0 small">
+                    Esto incluye: factores de tiempo por tipo de proyecto, capacidad mensual/semanal, y factores de productividad.
+                </p>
             </div>
         </div>
     </div>
@@ -325,6 +270,7 @@
 
 <script>
 let isEditing = false;
+let isCapacityEditing = false;
 
 function toggleEditMode() {
     isEditing = !isEditing;
@@ -332,7 +278,7 @@ function toggleEditMode() {
     const factorEmbalaje = document.getElementById('factor_embalaje');
     const editActions = document.getElementById('editActions');
     const editButton = document.querySelector('button[onclick="toggleEditMode()"]');
-    
+
     if (isEditing) {
         // Enable editing
         factorFabrica.readOnly = false;
@@ -340,7 +286,7 @@ function toggleEditMode() {
         editActions.classList.remove('d-none');
         editButton.innerHTML = '<i class="fas fa-times"></i> Cancelar';
         editButton.onclick = cancelEdit;
-        
+
         // Focus on first input
         factorFabrica.focus();
     } else {
@@ -360,21 +306,21 @@ function cancelEdit() {
 
 async function updateFactors(event) {
     event.preventDefault();
-    
+
     const factorFabrica = parseFloat(document.getElementById('factor_fabrica').value);
     const factorEmbalaje = parseFloat(document.getElementById('factor_embalaje').value);
-    
+
     // Validate inputs
     if (isNaN(factorFabrica) || factorFabrica < 0 || factorFabrica > 1) {
         alert('El factor de tiempo de fabricación debe estar entre 0 y 1');
         return;
     }
-    
+
     if (isNaN(factorEmbalaje) || factorEmbalaje < 0 || factorEmbalaje > 1) {
         alert('El factor de tiempo de embalaje debe estar entre 0 y 1');
         return;
     }
-    
+
     try {
         const response = await fetch('/configuraciones/actualizar-factores', {
             method: 'POST',
@@ -387,9 +333,9 @@ async function updateFactors(event) {
                 factor_tiempo_embalaje: factorEmbalaje
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok) {
             // Show success message
             const alertDiv = document.createElement('div');
@@ -399,27 +345,134 @@ async function updateFactors(event) {
                 <strong>Éxito:</strong> ${result.message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
-            
+
             // Insert alert at the top of the card body
             const cardBody = document.querySelector('#factorsForm').closest('.card-body');
             cardBody.insertBefore(alertDiv, cardBody.firstChild);
-            
+
             // Exit edit mode
             toggleEditMode();
-            
+
             // Auto-dismiss alert after 3 seconds
             setTimeout(() => {
                 if (alertDiv.parentNode) {
                     alertDiv.remove();
                 }
             }, 3000);
-            
+
         } else {
             alert('Error: ' + (result.error || 'No se pudieron actualizar los factores'));
         }
-        
+
     } catch (error) {
         console.error('Error updating factors:', error);
+        alert('Error de conexión. Por favor, intenta nuevamente.');
+    }
+}
+
+function toggleCapacityEditMode() {
+    isCapacityEditing = !isCapacityEditing;
+    const capacityFields = [
+        'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
+        'horas_disponibles_mes', 'horas_disponibles_semana',
+        'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+    ];
+    const editActions = document.getElementById('capacityEditActions');
+    const editButton = document.querySelector('button[onclick="toggleCapacityEditMode()"]');
+
+    if (isCapacityEditing) {
+        // Enable editing
+        capacityFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) field.readOnly = false;
+        });
+        editActions.classList.remove('d-none');
+        editButton.innerHTML = '<i class="fas fa-times"></i> Cancelar';
+        editButton.onclick = cancelCapacityEdit;
+
+        // Focus on first input
+        const firstField = document.getElementById(capacityFields[0]);
+        if (firstField) firstField.focus();
+    } else {
+        // Disable editing
+        capacityFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) field.readOnly = true;
+        });
+        editActions.classList.add('d-none');
+        editButton.innerHTML = '<i class="fas fa-edit"></i> Editar';
+        editButton.onclick = toggleCapacityEditMode;
+    }
+}
+
+function cancelCapacityEdit() {
+    // Reset form to original values
+    location.reload();
+}
+
+async function updateCapacityFactors(event) {
+    event.preventDefault();
+
+    const capacityData = {
+        capacidad_maxima_tableros_mes: parseFloat(document.getElementById('capacidad_maxima_tableros_mes').value),
+        capacidad_maxima_tableros_semana: parseFloat(document.getElementById('capacidad_maxima_tableros_semana').value),
+        horas_disponibles_mes: parseFloat(document.getElementById('horas_disponibles_mes').value),
+        horas_disponibles_semana: parseFloat(document.getElementById('horas_disponibles_semana').value),
+        horas_por_tablero_social: parseFloat(document.getElementById('horas_por_tablero_social').value),
+        horas_por_tablero_estandar: parseFloat(document.getElementById('horas_por_tablero_estandar').value),
+        horas_por_tablero_especial: parseFloat(document.getElementById('horas_por_tablero_especial').value)
+    };
+
+    // Basic validation
+    for (const key in capacityData) {
+        if (isNaN(capacityData[key]) || capacityData[key] < 0) {
+            alert(`Por favor, ingrese un valor válido para ${key.replace(/_/g, ' ')}.`);
+            return;
+        }
+    }
+
+    try {
+        const response = await fetch('/configuraciones/actualizar-capacidades', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(capacityData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Show success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Éxito:</strong> ${result.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            // Insert alert at the top of the card body
+            const cardBody = document.querySelector('#capacityFactorsForm').closest('.card-body');
+            cardBody.insertBefore(alertDiv, cardBody.firstChild);
+
+            // Exit edit mode
+            toggleCapacityEditMode();
+
+            // Auto-dismiss alert after 3 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 3000);
+
+        } else {
+            alert('Error: ' + (result.error || 'No se pudieron actualizar las capacidades'));
+        }
+
+    } catch (error) {
+        console.error('Error updating capacity factors:', error);
         alert('Error de conexión. Por favor, intenta nuevamente.');
     }
 }
