@@ -241,7 +241,7 @@ def planificacion_comercial():
             estado_filter=estado_filter
         )
 
-        return render_template('comercial/planificacion.html', **planning_data)
+        return render_template('comercial/planificacion.html', calendar=calendar, **planning_data)
 
     except Exception as e:
         flash(f'Error al cargar planificación comercial: {str(e)}', 'error')
