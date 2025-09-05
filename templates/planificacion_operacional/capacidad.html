@@ -1,17 +1,28 @@
 {% extends "base.html" %}
-{% set title = "Capacidad de Producción" %}
+{% set title = "Análisis Estratégico de Capacidad" %}
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Header -->
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
                     <h4 class="mb-0">
-                        <i class="fas fa-chart-area text-primary"></i>
-                        Análisis de Capacidad de Producción {{ año }}
+                        <i class="fas fa-industry text-primary"></i>
+                        {% if vista == 'estrategico' %}
+                            Análisis Estratégico de Capacidad {{ año }}
+                        {% else %}
+                            Análisis de Capacidad de Producción {{ año }}
+                        {% endif %}
                     </h4>
-                    <p class="mb-0 text-muted">Análisis de carga de trabajo por {{ vista }}</p>
+                    <p class="mb-0 text-muted">
+                        {% if vista == 'estrategico' %}
+                            Planificación estratégica con horizonte de {{ horizonte_meses }} meses
+                        {% else %}
+                            Análisis de carga de trabajo por {{ vista }}
+                        {% endif %}
+                    </p>
                 </div>
             </div>
         </div>
@@ -23,7 +34,7 @@
             <div class="card">
                 <div class="card-body">
                     <form method="GET" class="row g-3">
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">Año</label>
                             <select class="form-select" name="año">
                                 {% for y in range(2024, 2030) %}
@@ -32,20 +43,35 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Vista</label>
+                            <label class="form-label">Modo de Análisis</label>
                             <select class="form-select" name="vista">
-                                <option value="mensual" {% if vista == 'mensual' %}selected{% endif %}>Mensual</option>
-                                <option value="semanal" {% if vista == 'semanal' %}selected{% endif %}>Semanal</option>
+                                <option value="estrategico" {% if vista == 'estrategico' %}selected{% endif %}>Estratégico</option>
+                                <option value="mensual" {% if vista == 'mensual' %}selected{% endif %}>Mensual (Legacy)</option>
+                                <option value="semanal" {% if vista == 'semanal' %}selected{% endif %}>Semanal (Legacy)</option>
                             </select>
                         </div>
-                        <div class="col-md-3 d-flex align-items-end">
+                        {% if vista == 'estrategico' %}
+                        <div class="col-md-2">
+                            <label class="form-label">Horizonte (meses)</label>
+                            <select class="form-select" name="horizonte">
+                                <option value="3" {% if horizonte_meses == 3 %}selected{% endif %}>3 meses</option>
+                                <option value="6" {% if horizonte_meses == 6 %}selected{% endif %}>6 meses</option>
+                                <option value="9" {% if horizonte_meses == 9 %}selected{% endif %}>9 meses</option>
+                                <option value="12" {% if horizonte_meses == 12 %}selected{% endif %}>12 meses</option>
+                            </select>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-2 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-filter"></i> Aplicar
+                                <i class="fas fa-search"></i> Analizar
                             </button>
                         </div>
                         <div class="col-md-3 d-flex align-items-end justify-content-end">
-                            <a href="{{ url_for('planificacion_operacional.matriz_operacional') }}" class="btn btn-outline-secondary">
+                            <a href="{{ url_for('planificacion_operacional.matriz_operacional') }}" class="btn btn-outline-secondary me-2">
                                 <i class="fas fa-arrow-left"></i> Volver a Matriz
+                            </a>
+                            <a href="{{ url_for('planificacion_operacional.configuracion') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-cog"></i> Configurar
                             </a>
                         </div>
                     </form>
@@ -53,6 +79,359 @@
             </div>
         </div>
     </div>
+
+    {% if vista == 'estrategico' and resumen_capacidad %}
+    <!-- Strategic Capacity Analysis -->
+    
+    <!-- Key Metrics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ resumen_capacidad.calculos_capacidad.horas_nominales_mes }}</h4>
+                    <small>Horas Nominales/Mes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.0f}".format(resumen_capacidad.calculos_capacidad.horas_efectivas_mes) }}</h4>
+                    <small>Horas Efectivas/Mes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.0f}".format(resumen_capacidad.calculos_capacidad.eficiencia_global) }}%</h4>
+                    <small>OEE Global</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.0f}".format(resumen_capacidad.capacidad_teorica_tableros.estandar) }}</h4>
+                    <small>Tableros/Mes (Estándar)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operational Parameters -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-cogs text-primary"></i>
+                        Parámetros Operacionales Actuales
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Máquinas:</strong> {{ resumen_capacidad.parametros_operacionales.numero_maquinas }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Turnos/día:</strong> {{ resumen_capacidad.parametros_operacionales.turnos_por_dia }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Horas/turno:</strong> {{ resumen_capacidad.parametros_operacionales.horas_por_turno }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Días laborables:</strong> {{ resumen_capacidad.parametros_operacionales.dias_laborables_mes }}
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <div class="progress">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: {{ resumen_capacidad.calculos_capacidad.eficiencia_global }}%">
+                                    OEE: {{ "{:.1f}".format(resumen_capacidad.parametros_operacionales.oee * 100) }}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rolling Plan Analysis -->
+    {% if rolling_plan and rolling_plan.rolling_plan_por_mes %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calendar-alt text-primary"></i>
+                        Rolling Plan - Análisis de Capacidad vs Demanda
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Mes</th>
+                                    <th>Demanda Original</th>
+                                    <th>Backlog Heredado</th>
+                                    <th>Demanda Total</th>
+                                    <th>Capacidad</th>
+                                    <th>Utilización</th>
+                                    <th>Backlog Final</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mes_key, mes_data in rolling_plan.rolling_plan_por_mes.items() %}
+                                {% set utilizacion = mes_data.capacidad.utilizacion_porcentaje %}
+                                {% set clase_estado = 'table-success' if utilizacion < 70 else 'table-warning' if utilizacion < 90 else 'table-danger' if utilizacion > 100 else 'table-primary' %}
+                                <tr class="{{ clase_estado }}">
+                                    <td><strong>{{ mes_data.mes_info.nombre_mes }}</strong></td>
+                                    <td>{{ "{:.0f}".format(mes_data.demanda.horas_demanda_original) }}h</td>
+                                    <td>{{ "{:.0f}".format(mes_data.demanda.backlog_heredado) }}h</td>
+                                    <td>{{ "{:.0f}".format(mes_data.demanda.horas_demanda_total) }}h</td>
+                                    <td>{{ "{:.0f}".format(mes_data.capacidad.horas_efectivas_disponibles) }}h</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                                <div class="progress-bar 
+                                                    {% if utilizacion < 70 %}bg-success
+                                                    {% elif utilizacion < 90 %}bg-primary
+                                                    {% elif utilizacion <= 100 %}bg-warning
+                                                    {% else %}bg-danger{% endif %}" 
+                                                     style="width: {{ min(utilizacion, 100) }}%">
+                                                    {{ "{:.0f}".format(utilizacion) }}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if mes_data.backlog.backlog_fin_mes > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                                            {{ "{:.0f}".format(mes_data.backlog.backlog_fin_mes) }}h
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ mes_data.estado_mes.color }}">
+                                            {{ mes_data.estado_mes.descripcion }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rolling Plan Summary -->
+    {% if rolling_plan.resumen_rolling_plan %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie text-primary"></i>
+                        Resumen del Horizonte ({{ horizonte_meses }} meses)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Total Demanda:</strong> {{ "{:.0f}".format(rolling_plan.resumen_rolling_plan.totales_horizonte.total_horas_demanda) }} horas</p>
+                            <p><strong>Total Capacidad:</strong> {{ "{:.0f}".format(rolling_plan.resumen_rolling_plan.totales_horizonte.total_horas_capacidad) }} horas</p>
+                            <p><strong>Utilización Promedio:</strong> {{ "{:.0f}".format(rolling_plan.resumen_rolling_plan.totales_horizonte.utilizacion_promedio) }}%</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Backlog Máximo:</strong> {{ "{:.0f}".format(rolling_plan.resumen_rolling_plan.analisis_backlog.backlog_maximo_horas) }} horas</p>
+                            <p><strong>Meses con Sobrecarga:</strong> {{ rolling_plan.resumen_rolling_plan.distribucion_utilizacion.meses_sobrecarga }}</p>
+                            <p><strong>Meses Óptimos:</strong> {{ rolling_plan.resumen_rolling_plan.distribucion_utilizacion.meses_optimos }}</p>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <strong>Recomendación General:</strong> {{ rolling_plan.resumen_rolling_plan.recomendacion_general }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Strategic Recommendations -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb text-warning"></i>
+                        Recomendaciones Estratégicas
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if rolling_plan.recomendaciones_estrategicas %}
+                        {% for rec in rolling_plan.recomendaciones_estrategicas %}
+                        <div class="alert alert-{{ 'danger' if rec.prioridad == 'ALTA' else 'warning' if rec.prioridad == 'MEDIA' else 'info' }} alert-sm">
+                            <strong>{{ rec.titulo }} ({{ rec.prioridad }})</strong><br>
+                            <small>{{ rec.descripcion }}</small><br>
+                            <em>Acción: {{ rec.accion_recomendada }}</em>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No hay recomendaciones específicas para este período.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <!-- Deficit Scenarios -->
+    {% if vista == 'estrategico' and escenarios_deficit and escenarios_deficit.escenarios_individuales %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-tools text-primary"></i>
+                        Escenarios de Respuesta a Déficits
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for escenario_key, escenario in escenarios_deficit.escenarios_individuales.items() %}
+                        {% if escenario_key != 'capacidad_base' %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card border-primary">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">{{ escenario_key.replace('_', ' ').title() }}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text small">{{ escenario.descripcion }}</p>
+                                    {% if escenario.capacidad_adicional %}
+                                    <p><strong>Capacidad Adicional:</strong> {{ "{:.0f}".format(escenario.capacidad_adicional) }} horas</p>
+                                    {% endif %}
+                                    {% if escenario.costo_adicional_factor %}
+                                    <p><strong>Factor de Costo:</strong> +{{ "{:.0%}".format(escenario.costo_adicional_factor) }}</p>
+                                    {% endif %}
+                                    {% if escenario.recomendacion %}
+                                    <small class="text-muted">{{ escenario.recomendacion }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Scenario Usage Guidelines -->
+                    {% if escenarios_deficit.recomendaciones_uso %}
+                    <div class="mt-4">
+                        <h6>Guías de Uso de Escenarios</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Situación</th>
+                                        <th>Rango de Déficit</th>
+                                        <th>Escenario Recomendado</th>
+                                        <th>Justificación</th>
+                                        <th>Costo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for guia in escenarios_deficit.recomendaciones_uso %}
+                                    <tr>
+                                        <td><small>{{ guia.situacion.replace('_', ' ') }}</small></td>
+                                        <td><small>{{ guia.rango_deficit }}</small></td>
+                                        <td><small><strong>{{ guia.escenario_recomendado.replace('_', ' ').title() }}</strong></small></td>
+                                        <td><small>{{ guia.justificacion }}</small></td>
+                                        <td><small>{{ guia.costo_relativo }}</small></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Hierarchical Demand Structure -->
+    {% if vista == 'estrategico' and demanda_jerarquica and demanda_jerarquica.demanda_por_mes %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-sitemap text-primary"></i>
+                        Estructura de Demanda Mensual
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="demandaAccordion">
+                        {% for mes_key, mes_data in demanda_jerarquica.demanda_por_mes.items() %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading{{ mes_key }}">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                        data-bs-target="#collapse{{ mes_key }}" aria-expanded="false">
+                                    <strong>{{ mes_data.nombre_mes }}</strong>
+                                    <span class="badge bg-primary ms-2">{{ mes_data.totales_mes.proyectos_count }} proyectos</span>
+                                    <span class="badge bg-success ms-2">{{ mes_data.totales_mes.total_tableros }} tableros</span>
+                                    <span class="badge bg-info ms-2">{{ "{:.0f}".format(mes_data.totales_mes.total_horas_requeridas) }} horas</span>
+                                </button>
+                            </h2>
+                            <div id="collapse{{ mes_key }}" class="accordion-collapse collapse" 
+                                 data-bs-parent="#demandaAccordion">
+                                <div class="accordion-body">
+                                    {% if mes_data.proyectos %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Proyecto</th>
+                                                        <th>Cliente</th>
+                                                        <th>Tipo</th>
+                                                        <th>OFs</th>
+                                                        <th>Tableros</th>
+                                                        <th>Horas Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for proyecto_key, proyecto in mes_data.proyectos.items() %}
+                                                    <tr>
+                                                        <td><strong>{{ proyecto.codigo }}</strong><br><small>{{ proyecto.nombre[:50] }}...</small></td>
+                                                        <td>{{ proyecto.cliente.nombre }}</td>
+                                                        <td><span class="badge bg-secondary">{{ proyecto.tipo_proyecto }}</span></td>
+                                                        <td>{{ proyecto.totales_proyecto.ofs_count }}</td>
+                                                        <td>{{ proyecto.totales_proyecto.total_tableros }}</td>
+                                                        <td>{{ "{:.1f}".format(proyecto.totales_proyecto.total_horas_requeridas) }}</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted">No hay proyectos planificados para este mes.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- Legacy Capacity Analysis (for mensual/semanal views) -->
     
     <!-- Summary Cards -->
     <div class="row mb-4">
@@ -125,22 +504,22 @@
                                         <strong>Sem {{ data.semana if data.semana else periodo }}</strong>
                                         {% endif %}
                                     </td>
-                                    <td><span class="badge bg-info">{{ data.proyectos_activos or 0 }}</span></td>
-                                    <td><strong>{{ data.tableros_requeridos or 0 }}</strong></td>
-                                    <td>{{ "{:.0f}".format(data.horas_estimadas or 0) }}</td>
+                                    <td>{{ data.proyectos_activos }}</td>
+                                    <td>{{ data.tableros_requeridos }}</td>
+                                    <td>{{ "{:.0f}".format(data.horas_estimadas) }}</td>
                                     <td>
-                                        <div class="progress" style="width: 100px;">
+                                        <div class="progress">
                                             <div class="progress-bar {% if data.capacidad_porcentaje < 70 %}bg-success{% elif data.capacidad_porcentaje < 90 %}bg-warning{% else %}bg-danger{% endif %}" 
-                                                 style="width: {{ data.capacidad_porcentaje if data.capacidad_porcentaje < 100 else 100 }}%">
+                                                 style="width: {{ min(data.capacidad_porcentaje, 100) }}%">
+                                                {{ "{:.0f}".format(data.capacidad_porcentaje) }}%
                                             </div>
                                         </div>
-                                        {{ "{:.0f}".format(data.capacidad_porcentaje or 0) }}%
                                     </td>
                                     <td>
                                         {% if data.capacidad_porcentaje < 70 %}
-                                        <span class="badge bg-success">Óptimo</span>
+                                        <span class="badge bg-success">Normal</span>
                                         {% elif data.capacidad_porcentaje < 90 %}
-                                        <span class="badge bg-warning">Alto</span>
+                                        <span class="badge bg-warning">Cargado</span>
                                         {% else %}
                                         <span class="badge bg-danger">Sobrecargado</span>
                                         {% endif %}
@@ -154,598 +533,20 @@
             </div>
         </div>
     </div>
-    
-    <!-- Production Capacity Analysis 2025 -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="mb-0">
-                        <i class="fas fa-industry text-success"></i>
-                        Análisis de Productividad 2025
-                    </h4>
-                    <p class="mb-0 text-muted">Comparación de capacidad estimada vs productividad real</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Productivity Summary Cards -->
-    <div class="row mb-4" id="productivity-cards">
-        <div class="col-md-6">
-            <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <h4 id="total-fabricados">0</h4>
-                    <small>Tableros Fabricados {{ año }}</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <h4 id="total-embalados">0</h4>
-                    <small>Tableros Embalados {{ año }}</small>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Factory Productivity Chart -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-hammer text-primary"></i>
-                        Productividad de Fábrica {{ año }}
-                    </h6>
-                    <small class="text-muted">Tableros completados a estado FABRICACION_COMPLETA por mes</small>
-                </div>
-                <div class="card-body">
-                    <canvas id="fabricaChart" style="height: 400px;"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Packaging Productivity Chart -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-box text-warning"></i>
-                        Productividad de Embalaje {{ año }}
-                    </h6>
-                    <small class="text-muted">Tableros completados a estado EMBALAJE_LISTO por mes</small>
-                </div>
-                <div class="card-body">
-                    <canvas id="embalajeChart" style="height: 400px;"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Comparative Performance Chart -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-chart-line text-danger"></i>
-                        Rendimiento Comparativo {{ año }}
-                    </h6>
-                    <small class="text-muted">% de tableros reales vs estimados por mes</small>
-                </div>
-                <div class="card-body">
-                    <canvas id="rendimientoChart" style="height: 400px;"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Projects List -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">Proyectos Adjudicados ({{ proyectos_adjudicados|length }})</h6>
-                </div>
-                <div class="card-body">
-                    {% if proyectos_adjudicados %}
-                    <div class="row">
-                        {% for proyecto in proyectos_adjudicados %}
-                        <div class="col-md-6 col-lg-4 mb-3">
-                            <div class="card border-left-primary">
-                                <div class="card-body">
-                                    <h6 class="card-title">{{ proyecto.nombre }}</h6>
-                                    <p class="card-text">
-                                        <small class="text-muted">{{ proyecto.cliente.nombre }}</small><br>
-                                        <strong>Provisión:</strong> ${{ "{:,.0f}".format(proyecto.monto_provision_presupuestado or 0) }}
-                                    </p>
-                                    <small class="text-muted">
-                                        {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') if proyecto.fecha_inicio else 'Sin fecha' }} - 
-                                        {{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') if proyecto.fecha_fin_estimada else 'Sin fecha' }}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="text-center text-muted">
-                        <i class="fas fa-info-circle fa-3x mb-3"></i>
-                        <h5>No hay proyectos adjudicados para el período seleccionado</h5>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
+    {% endif %}
+
 </div>
-
-<style>
-.border-left-primary {
-    border-left: 4px solid #007bff !important;
-}
-</style>
-{% endblock %}
-
-{% block scripts %}
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Load productivity data
-    loadProductivityCharts();
+    // Auto-refresh functionality for strategic view
+    {% if vista == 'estrategico' %}
+    console.log('Strategic capacity analysis loaded');
+    
+    // Add any interactive functionality here
+    // For example, scenario simulation buttons, etc.
+    {% endif %}
 });
-
-async function loadProductivityCharts() {
-    try {
-        const response = await fetch(`{{ url_for('planificacion_operacional.analisis_capacidad_api', year=año) }}`);
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || 'Error loading data');
-        }
-        
-        // Update summary cards
-        updateSummaryCards(data);
-        
-        // Create charts
-        createFabricaChart(data.analisis_mensual);
-        createEmbalajeChart(data.analisis_mensual);
-        createRendimientoChart(data.analisis_mensual);
-        
-    } catch (error) {
-        console.error('Error loading productivity data:', error);
-        // Show error message to user
-        showErrorMessage('Error cargando datos de productividad: ' + error.message);
-    }
-}
-
-function updateSummaryCards(data) {
-    document.getElementById('total-fabricados').textContent = data.total_fabricados_año || 0;
-    document.getElementById('total-embalados').textContent = data.total_embalados_año || 0;
-}
-
-function createEmbalajeChart(analisisMensual) {
-    const ctx = document.getElementById('embalajeChart');
-    if (!ctx) return;
-    
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const tablerosEmbalados = [];
-    const tablerosEstimados = [];
-    
-    // Check if analisisMensual exists and has data
-    if (!analisisMensual || typeof analisisMensual !== 'object') {
-        console.warn('analisisMensual is not valid for embalaje chart:', analisisMensual);
-        return;
-    }
-    
-    for (let i = 1; i <= 12; i++) {
-        const mesData = analisisMensual[i];
-        if (mesData) {
-            tablerosEmbalados.push(mesData.tableros_embalados || 0);
-            tablerosEstimados.push(mesData.tableros_estimados || 0);
-        } else {
-            tablerosEmbalados.push(0);
-            tablerosEstimados.push(0);
-        }
-    }
-    
-    new Chart(ctx.getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: meses,
-            datasets: [{
-                label: 'Tableros Embalados',
-                data: tablerosEmbalados,
-                backgroundColor: 'rgba(23, 162, 184, 0.8)',
-                borderColor: 'rgba(23, 162, 184, 1)',
-                borderWidth: 1
-            }, {
-                label: 'Tableros Estimados',
-                data: tablerosEstimados,
-                backgroundColor: 'rgba(255, 193, 7, 0.8)',
-                borderColor: 'rgba(255, 193, 7, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Cantidad de Tableros'
-                    }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Productividad Embalaje - Mensual'
-                },
-                legend: {
-                    display: true
-                }
-            }
-        }
-    });
-}
-
-function createRendimientoChart(analisisMensual) {
-    const ctx = document.getElementById('rendimientoChart');
-    if (!ctx) return;
-    
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const rendimientoFabrica = [];
-    const rendimientoEmbalaje = [];
-    
-    // Check if analisisMensual exists and has data
-    if (!analisisMensual || typeof analisisMensual !== 'object') {
-        console.warn('analisisMensual is not valid for rendimiento chart:', analisisMensual);
-        return;
-    }
-    
-    for (let i = 1; i <= 12; i++) {
-        const mesData = analisisMensual[i];
-        if (mesData) {
-            rendimientoFabrica.push(mesData.rendimiento_fabrica || 0);
-            rendimientoEmbalaje.push(mesData.rendimiento_embalaje || 0);
-        } else {
-            rendimientoFabrica.push(0);
-            rendimientoEmbalaje.push(0);
-        }
-    }
-    
-    new Chart(ctx.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: meses,
-            datasets: [{
-                label: 'Rendimiento Fábrica (%)',
-                data: rendimientoFabrica,
-                backgroundColor: 'rgba(40, 167, 69, 0.2)',
-                borderColor: 'rgba(40, 167, 69, 1)',
-                borderWidth: 2,
-                fill: false
-            }, {
-                label: 'Rendimiento Embalaje (%)',
-                data: rendimientoEmbalaje,
-                backgroundColor: 'rgba(23, 162, 184, 0.2)',
-                borderColor: 'rgba(23, 162, 184, 1)',
-                borderWidth: 2,
-                fill: false
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 150,
-                    title: {
-                        display: true,
-                        text: 'Porcentaje (%)'
-                    }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Rendimiento vs Estimado - Mensual'
-                },
-                legend: {
-                    display: true
-                }
-            }
-        }
-    });
-}
-
-function showErrorMessage(message) {
-    // Create or update error alert
-    let alertDiv = document.getElementById('error-alert');
-    if (!alertDiv) {
-        alertDiv = document.createElement('div');
-        alertDiv.id = 'error-alert';
-        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
-        alertDiv.innerHTML = `
-            <strong>Error:</strong> <span id="error-message"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
-    }
-    document.getElementById('error-message').textContent = message;
-}
-
-function createFabricaChart(analisisMensual) {
-    const ctx = document.getElementById('fabricaChart').getContext('2d');
-    
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const tablerosFabricados = [];
-    const tablerosEstimados = [];
-    
-    // Check if analisisMensual exists and has data
-    if (!analisisMensual || typeof analisisMensual !== 'object') {
-        console.warn('analisisMensual is not valid:', analisisMensual);
-        return;
-    }
-    
-    for (let i = 1; i <= 12; i++) {
-        const mesData = analisisMensual[i];
-        if (mesData) {
-            tablerosFabricados.push(mesData.tableros_fabricados || 0);
-            tablerosEstimados.push(mesData.tableros_estimados || 0);
-        } else {
-            tablerosFabricados.push(0);
-            tablerosEstimados.push(0);
-        }
-    }
-    
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: meses,
-            datasets: [{
-                label: 'Tableros Fabricados',
-                data: tablerosFabricados,
-                backgroundColor: 'rgba(40, 167, 69, 0.8)',
-                borderColor: 'rgba(40, 167, 69, 1)',
-                borderWidth: 1
-            }, {
-                label: 'Tableros Estimados',
-                data: tablerosEstimados,
-                backgroundColor: 'rgba(255, 193, 7, 0.8)',
-                borderColor: 'rgba(255, 193, 7, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Cantidad de Tableros'
-                    }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Productividad Fábrica - Mensual'
-                },
-                legend: {
-                    display: true
-                }
-            }
-        }
-    });
-}2; i++) {
-        const data = analisisMensual[i];
-        tablerosFabricados.push(data.tableros_fabricados);
-        tablerosEstimados.push(data.tableros_estimados);
-    }
-    
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: meses,
-            datasets: [
-                {
-                    label: 'Fabricados (Real)',
-                    data: tablerosFabricados,
-                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
-                    borderColor: 'rgba(40, 167, 69, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Estimados (Planificado)',
-                    data: tablerosEstimados,
-                    backgroundColor: 'rgba(108, 117, 125, 0.6)',
-                    borderColor: 'rgba(108, 117, 125, 1)',
-                    borderWidth: 1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Tableros'
-                    }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Productividad de Fábrica - Comparación Real vs Estimado'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.y + ' tableros';
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-function createEmbalajeChart(analisisMensual) {
-    const ctx = document.getElementById('embalajeChart').getContext('2d');
-    
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const tablerosEmbalados = [];
-    const tablerosEstimados = [];
-    
-    for (let i = 1; i <= 12; i++) {
-        const data = analisisMensual[i];
-        tablerosEmbalados.push(data.tableros_embalados);
-        tablerosEstimados.push(data.tableros_estimados);
-    }
-    
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: meses,
-            datasets: [
-                {
-                    label: 'Embalados (Real)',
-                    data: tablerosEmbalados,
-                    backgroundColor: 'rgba(23, 162, 184, 0.8)',
-                    borderColor: 'rgba(23, 162, 184, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Estimados (Planificado)',
-                    data: tablerosEstimados,
-                    backgroundColor: 'rgba(108, 117, 125, 0.6)',
-                    borderColor: 'rgba(108, 117, 125, 1)',
-                    borderWidth: 1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Tableros'
-                    }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Productividad de Embalaje - Comparación Real vs Estimado'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.y + ' tableros';
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-function createRendimientoChart(analisisMensual) {
-    const ctx = document.getElementById('rendimientoChart').getContext('2d');
-    
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const rendimientoFabrica = [];
-    const rendimientoEmbalaje = [];
-    
-    for (let i = 1; i <= 12; i++) {
-        const data = analisisMensual[i];
-        rendimientoFabrica.push(data.rendimiento_fabrica);
-        rendimientoEmbalaje.push(data.rendimiento_embalaje);
-    }
-    
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: meses,
-            datasets: [
-                {
-                    label: 'Rendimiento Fábrica %',
-                    data: rendimientoFabrica,
-                    backgroundColor: 'rgba(255, 193, 7, 0.2)',
-                    borderColor: 'rgba(255, 193, 7, 1)',
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.1
-                },
-                {
-                    label: 'Rendimiento Embalaje %',
-                    data: rendimientoEmbalaje,
-                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
-                    borderColor: 'rgba(220, 53, 69, 1)',
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Porcentaje (%)'
-                    }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Rendimiento Mensual - % Real vs Estimado'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.y + '%';
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-function showErrorMessage(message) {
-    // Create or update an error alert
-    const alertDiv = document.getElementById('error-alert') || document.createElement('div');
-    alertDiv.id = 'error-alert';
-    alertDiv.className = 'alert alert-danger alert-dismissible fade show';
-    alertDiv.innerHTML = `
-        <strong>Error:</strong> ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    if (!document.getElementById('error-alert')) {
-        document.getElementById('productivity-cards').insertAdjacentElement('beforebegin', alertDiv);
-    }
-}
 </script>
+
 {% endblock %}

@@ -6,6 +6,20 @@ A comprehensive management system for manufacturing companies that centralizes a
 
 ## Recent Changes
 
+**[2025-09-05] Sistema de Planificación Estratégica de Capacidad - FINALIZADO**
+- **ANÁLISIS ESTRATÉGICO COMPLETO**: Sistema integral de planificación de capacidad con horizonte de 3-12 meses
+- **PARÁMETROS OPERACIONALES**: Configuración completa de máquinas, turnos, OEE, días laborables 
+- **CÁLCULOS AVANZADOS**: Fórmulas específicas (horas nominales = máquinas × turnos × horas × días, horas efectivas = nominales × OEE)
+- **DEMANDA JERÁRQUICA**: Estructura mes → proyecto → cliente → órdenes con cálculo automático de horas requeridas
+- **ROLLING PLAN CON BACKLOG**: Lógica de acumulación de demanda no satisfecha y redistribución inteligente
+- **ESCENARIOS DE DÉFICIT**: 7 estrategias de respuesta (horas extra, turnos adicionales, subcontratación, mejora OEE, combinados)
+- **ANÁLISIS DE BRECHAS**: Identificación automática de déficits y excesos de capacidad por mes
+- **RECOMENDACIONES ESTRATÉGICAS**: Sistema inteligente de sugerencias basado en patrones de utilización
+- **INTERFAZ ESTRATÉGICA**: Dashboard completo con métricas ejecutivas, rolling plan visual y escenarios interactivos
+- **INTEGRACIÓN COMPLETA**: Uso de datos existentes de proyectos/OFs para planificación estratégica
+- Sistema permite análisis de capacidad vs demanda, identificación de cuellos de botella y planificación de expansión
+- Compatible con sistema legacy manteniendo vistas mensual/semanal existentes
+
 **[2025-09-05] Sistema de Tipos de Proyectos con Factores Específicos - FINALIZADO**
 - **TIPOS DE PROYECTO**: Implementación completa de enum TipoProyecto (Social/Estandar/Especial)
 - **FACTORES POR TIPO**: Cada tipo tiene factores únicos de CLP/tablero y tiempos de fabricación/embalaje

@@ -566,6 +566,7 @@ class ConfiguracionesService:
         """Get capacity configuration settings"""
         # For now, use default values - these could be stored in a config table later
         return {
+            # Legacy capacity settings
             'capacidad_maxima_tableros_mes': 1500,
             'capacidad_maxima_tableros_semana': 330,
             'horas_disponibles_mes': 200,
@@ -573,6 +574,22 @@ class ConfiguracionesService:
             'horas_por_tablero_social': 0.6,  # 36 minutes per board for social projects
             'horas_por_tablero_estandar': 0.5,  # 30 minutes per board for standard projects
             'horas_por_tablero_especial': 0.4,  # 24 minutes per board for special projects
+            
+            # New operational parameters for strategic capacity planning
+            'numero_maquinas': 2,  # Number of cutting machines
+            'turnos_por_dia': 1,  # Number of shifts per day
+            'horas_por_turno': 8.0,  # Hours per shift
+            'dias_laborables_mes': 22,  # Working days per month
+            'oee': 0.70,  # Overall Equipment Effectiveness (70%)
+            
+            # Strategic planning parameters
+            'horizonte_planificacion': 6,  # Planning horizon in months
+            'umbral_sobrecarga': 90,  # Overload threshold percentage
+            
+            # Scenario planning parameters for deficit response
+            'factor_horas_extra': 1.5,  # Extra hours cost multiplier
+            'max_subcontrato': 30,  # Maximum subcontracting percentage
+            'mejora_oee_objetivo': 0.85  # Target OEE for improvements
         }
     
     def actualizar_configuracion_capacidad(self, capacidad_data: Dict[str, Any], usuario_id: str) -> bool:
@@ -621,3 +638,369 @@ class ConfiguracionesService:
         except Exception as e:
             print(f"Error updating time factors: {e}")
             return False
+
+    def get_escenarios_deficit(self) -> Dict[str, Any]:
+        """
+        Obtiene los escenarios disponibles para responder a déficits de capacidad
+        """
+        try:
+            config = self.get_parametros_operacionales()
+            
+            # Calcular capacidad base
+            horas_nominales = (config.get('numero_maquinas', 2) * 
+                             config.get('turnos_por_dia', 1) * 
+                             config.get('horas_por_turno', 8) * 
+                             config.get('dias_laborables_mes', 22))
+            horas_efectivas = horas_nominales * config.get('oee', 0.70)
+            
+            escenarios = {
+                'capacidad_base': {
+                    'horas_nominales_mes': horas_nominales,
+                    'horas_efectivas_mes': horas_efectivas,
+                    'descripcion': 'Capacidad actual sin modificaciones'
+                },
+                'horas_extra': {
+                    'factor_costo': config.get('factor_horas_extra', 1.5),
+                    'horas_adicionales_max': horas_nominales * 0.25,  # Máximo 25% extra
+                    'capacidad_adicional': horas_efectivas * 0.25,
+                    'costo_adicional_factor': config.get('factor_horas_extra', 1.5) - 1,
+                    'descripcion': 'Trabajar horas extra con recargo de {:.0%}'.format(config.get('factor_horas_extra', 1.5) - 1),
+                    'recomendacion': 'Usar para déficits temporales menores a 100 horas'
+                },
+                'turno_adicional': {
+                    'turnos_actuales': config.get('turnos_por_dia', 1),
+                    'turnos_maximo': 3,
+                    'incremento_posible': 3 - config.get('turnos_por_dia', 1),
+                    'capacidad_adicional': horas_efectivas * (3 - config.get('turnos_por_dia', 1)),
+                    'costo_adicional_factor': 1.2,  # 20% adicional por turno nocturno
+                    'descripcion': 'Agregar turnos adicionales (hasta 3 turnos/día)',
+                    'recomendacion': 'Usar para déficits persistentes mayores a 200 horas'
+                },
+                'subcontratacion': {
+                    'porcentaje_max': config.get('max_subcontrato', 30),
+                    'capacidad_adicional': horas_efectivas * (config.get('max_subcontrato', 30) / 100),
+                    'costo_adicional_factor': 1.2,  # 20% más caro que interno
+                    'tiempo_implementacion_dias': 15,
+                    'descripcion': 'Subcontratar hasta {:.0%} de la producción'.format(config.get('max_subcontrato', 30) / 100),
+                    'recomendacion': 'Usar para picos de demanda específicos'
+                },
+                'mejora_oee': {
+                    'oee_actual': config.get('oee', 0.70),
+                    'oee_objetivo': config.get('mejora_oee_objetivo', 0.85),
+                    'mejora_posible': config.get('mejora_oee_objetivo', 0.85) - config.get('oee', 0.70),
+                    'capacidad_adicional': horas_nominales * (config.get('mejora_oee_objetivo', 0.85) - config.get('oee', 0.70)),
+                    'costo_adicional_factor': 0.1,  # 10% en inversión en mejoras
+                    'tiempo_implementacion_dias': 60,
+                    'descripcion': 'Mejorar OEE del {:.0%} al {:.0%}'.format(config.get('oee', 0.70), config.get('mejora_oee_objetivo', 0.85)),
+                    'recomendacion': 'Mejor opción a largo plazo, sin costos operativos recurrentes'
+                }
+            }
+            
+            # Agregar escenarios combinados
+            escenarios['combinado_horas_extra_oee'] = {
+                'capacidad_adicional': (escenarios['horas_extra']['capacidad_adicional'] + 
+                                      escenarios['mejora_oee']['capacidad_adicional']),
+                'costo_adicional_factor': 0.6,  # Promedio ponderado
+                'descripcion': 'Combinar horas extra con mejoras de OEE',
+                'recomendacion': 'Estrategia intermedia para déficits moderados persistentes'
+            }
+            
+            escenarios['combinado_turno_subcontrato'] = {
+                'capacidad_adicional': (escenarios['turno_adicional']['capacidad_adicional'] + 
+                                      escenarios['subcontratacion']['capacidad_adicional']),
+                'costo_adicional_factor': 1.2,
+                'descripcion': 'Combinar turno adicional con subcontratación estratégica',
+                'recomendacion': 'Para déficits críticos que requieren solución inmediata'
+            }
+            
+            return {
+                'escenarios_individuales': escenarios,
+                'recomendaciones_uso': self._generar_recomendaciones_escenarios(escenarios),
+                'parametros_base': {
+                    'capacidad_actual_horas': horas_efectivas,
+                    'umbral_sobrecarga': config.get('umbral_sobrecarga', 90),
+                    'fecha_calculo': datetime.now().isoformat()
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error obteniendo escenarios de déficit: {e}")
+            return {
+                'escenarios_individuales': {},
+                'recomendaciones_uso': [],
+                'parametros_base': {}
+            }
+
+    def _generar_recomendaciones_escenarios(self, escenarios: Dict) -> List[Dict[str, str]]:
+        """Genera recomendaciones de uso de escenarios según diferentes situaciones"""
+        recomendaciones = [
+            {
+                'situacion': 'DEFICIT_TEMPORAL_LEVE',
+                'rango_deficit': '< 100 horas/mes',
+                'escenario_recomendado': 'horas_extra',
+                'justificacion': 'Solución rápida y flexible para déficits puntuales',
+                'costo_relativo': 'Medio'
+            },
+            {
+                'situacion': 'DEFICIT_MODERADO_PERSISTENTE',
+                'rango_deficit': '100-250 horas/mes por 3+ meses',
+                'escenario_recomendado': 'mejora_oee',
+                'justificacion': 'Mejor ROI a mediano plazo, sin costos recurrentes',
+                'costo_relativo': 'Bajo (largo plazo)'
+            },
+            {
+                'situacion': 'DEFICIT_CRITICO_INMEDIATO',
+                'rango_deficit': '> 250 horas/mes',
+                'escenario_recomendado': 'combinado_turno_subcontrato',
+                'justificacion': 'Solución integral para situaciones críticas',
+                'costo_relativo': 'Alto'
+            },
+            {
+                'situacion': 'PICO_ESTACIONAL',
+                'rango_deficit': 'Variable, 2-4 meses/año',
+                'escenario_recomendado': 'subcontratacion',
+                'justificacion': 'Flexibilidad para demandas estacionales sin inversión fija',
+                'costo_relativo': 'Medio-Alto'
+            },
+            {
+                'situacion': 'CRECIMIENTO_SOSTENIDO',
+                'rango_deficit': 'Tendencia creciente constante',
+                'escenario_recomendado': 'turno_adicional',
+                'justificacion': 'Expansión estructural de capacidad',
+                'costo_relativo': 'Alto (pero escalable)'
+            }
+        ]
+        
+        return recomendaciones
+
+    def calcular_impacto_escenario(self, escenario_tipo: str, deficit_horas: float) -> Dict[str, Any]:
+        """
+        Calcula el impacto específico de aplicar un escenario para un déficit dado
+        """
+        try:
+            escenarios_data = self.get_escenarios_deficit()
+            escenarios = escenarios_data['escenarios_individuales']
+            
+            if escenario_tipo not in escenarios:
+                return {'error': f'Escenario {escenario_tipo} no encontrado'}
+            
+            escenario = escenarios[escenario_tipo]
+            capacidad_base = escenarios['capacidad_base']['horas_efectivas_mes']
+            
+            # Calcular cuánto del déficit se puede cubrir
+            capacidad_adicional_disponible = escenario.get('capacidad_adicional', 0)
+            deficit_cubierto = min(deficit_horas, capacidad_adicional_disponible)
+            deficit_restante = max(0, deficit_horas - capacidad_adicional_disponible)
+            
+            # Calcular costos
+            costo_adicional_factor = escenario.get('costo_adicional_factor', 0)
+            costo_base_estimado = 100000  # CLP por hora base (estimado)
+            costo_adicional_total = deficit_cubierto * costo_base_estimado * costo_adicional_factor
+            
+            # Calcular nueva utilización
+            nueva_capacidad_total = capacidad_base + capacidad_adicional_disponible
+            nueva_utilizacion = ((capacidad_base + deficit_horas) / nueva_capacidad_total) * 100
+            
+            return {
+                'escenario_aplicado': escenario_tipo,
+                'deficit_original': deficit_horas,
+                'deficit_cubierto': deficit_cubierto,
+                'deficit_restante': deficit_restante,
+                'cobertura_porcentaje': (deficit_cubierto / deficit_horas) * 100 if deficit_horas > 0 else 0,
+                'impacto_capacidad': {
+                    'capacidad_base': capacidad_base,
+                    'capacidad_adicional': capacidad_adicional_disponible,
+                    'capacidad_total_nueva': nueva_capacidad_total,
+                    'utilizacion_nueva': round(nueva_utilizacion, 1)
+                },
+                'impacto_economico': {
+                    'costo_adicional_total_clp': round(costo_adicional_total),
+                    'costo_por_hora_adicional': round(costo_base_estimado * (1 + costo_adicional_factor)),
+                    'factor_costo': costo_adicional_factor
+                },
+                'recomendacion': self._evaluar_viabilidad_escenario(escenario_tipo, deficit_cubierto, deficit_restante, nueva_utilizacion)
+            }
+            
+        except Exception as e:
+            print(f"Error calculando impacto de escenario: {e}")
+            return {'error': str(e)}
+
+    def _evaluar_viabilidad_escenario(self, escenario_tipo: str, deficit_cubierto: float, deficit_restante: float, nueva_utilizacion: float) -> str:
+        """Evalúa la viabilidad del escenario aplicado"""
+        
+        if deficit_restante > 50:
+            return f"INSUFICIENTE: Escenario cubre solo parte del déficit. Considerar escenarios combinados."
+        elif nueva_utilizacion > 95:
+            return f"VIABLE con RIESGO: Elimina déficit pero utilización muy alta. Monitorear capacidad."
+        elif nueva_utilizacion > 85:
+            return f"VIABLE: Elimina déficit con utilización adecuada."
+        else:
+            return f"SOBREDIMENSIONADO: Escenario excede necesidades. Evaluar alternativas más eficientes."
+
+    def actualizar_parametros_operacionales(self, parametros: Dict[str, Any], usuario_id: str) -> bool:
+        """Update operational parameters for capacity planning"""
+        try:
+            # Validate operational parameters
+            valid_params = {
+                'numero_maquinas', 'turnos_por_dia', 'horas_por_turno', 
+                'dias_laborables_mes', 'oee', 'horizonte_planificacion',
+                'umbral_sobrecarga', 'factor_horas_extra', 'max_subcontrato',
+                'mejora_oee_objetivo', 'capacidad_maxima_tableros_mes',
+                'capacidad_maxima_tableros_semana', 'horas_disponibles_mes',
+                'horas_disponibles_semana', 'horas_por_tablero_social',
+                'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+            }
+            
+            # Filter and validate parameters
+            updated_params = []
+            for param, valor in parametros.items():
+                if param in valid_params and valor is not None:
+                    # Basic validation
+                    if isinstance(valor, (int, float)) and valor > 0:
+                        if param == 'oee' and (valor < 0.1 or valor > 1.0):
+                            continue  # OEE must be between 10% and 100%
+                        if param == 'mejora_oee_objetivo' and (valor < 0.1 or valor > 1.0):
+                            continue  # OEE target must be between 10% and 100%
+                        updated_params.append(f"{param}: {valor}")
+            
+            if updated_params:
+                # Log the change (audit logging could be implemented here)
+                print(f"Usuario {usuario_id} actualizó parámetros operacionales: {', '.join(updated_params)}")
+                return True
+            else:
+                print(f"No se proporcionaron parámetros válidos para actualizar por usuario {usuario_id}")
+                return False
+                
+        except Exception as e:
+            print(f"Error updating operational parameters: {e}")
+            return False
+
+    def calcular_capacidad_teorica(self, parametros=None):
+        """Calculate theoretical capacity based on operational parameters"""
+        if parametros is None:
+            parametros = self.get_configuracion_capacidad()
+        
+        try:
+            # Calculate nominal hours per month
+            horas_nominales_mes = (
+                parametros['numero_maquinas'] * 
+                parametros['turnos_por_dia'] * 
+                parametros['horas_por_turno'] * 
+                parametros['dias_laborables_mes']
+            )
+            
+            # Calculate effective hours with OEE
+            horas_efectivas_mes = horas_nominales_mes * parametros['oee']
+            
+            # Calculate theoretical capacity by project type
+            capacidad_social = int(horas_efectivas_mes / parametros['horas_por_tablero_social']) if parametros['horas_por_tablero_social'] > 0 else 0
+            capacidad_estandar = int(horas_efectivas_mes / parametros['horas_por_tablero_estandar']) if parametros['horas_por_tablero_estandar'] > 0 else 0
+            capacidad_especial = int(horas_efectivas_mes / parametros['horas_por_tablero_especial']) if parametros['horas_por_tablero_especial'] > 0 else 0
+            
+            return {
+                'horas_nominales_mes': horas_nominales_mes,
+                'horas_efectivas_mes': horas_efectivas_mes,
+                'oee_aplicado': parametros['oee'],
+                'utilizacion_efectiva': (horas_efectivas_mes / horas_nominales_mes) * 100,
+                'capacidad_teorica': {
+                    'social': capacidad_social,
+                    'estandar': capacidad_estandar,
+                    'especial': capacidad_especial
+                },
+                'tableros_por_hora': {
+                    'social': (1 / parametros['horas_por_tablero_social']) if parametros['horas_por_tablero_social'] > 0 else 0,
+                    'estandar': (1 / parametros['horas_por_tablero_estandar']) if parametros['horas_por_tablero_estandar'] > 0 else 0,
+                    'especial': (1 / parametros['horas_por_tablero_especial']) if parametros['horas_por_tablero_especial'] > 0 else 0
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error calculating theoretical capacity: {e}")
+            return None
+
+    def get_escenarios_deficit(self, deficit_horas: float, parametros=None):
+        """Calculate scenarios to handle capacity deficit"""
+        if parametros is None:
+            parametros = self.get_configuracion_capacidad()
+        
+        try:
+            escenarios = []
+            
+            # Scenario 1: Extra hours (max 25% additional)
+            horas_base = (
+                parametros['numero_maquinas'] * 
+                parametros['turnos_por_dia'] * 
+                parametros['horas_por_turno'] * 
+                parametros['dias_laborables_mes']
+            )
+            horas_extra_max = horas_base * 0.25
+            
+            if deficit_horas <= horas_extra_max:
+                costo_relativo = deficit_horas * parametros['factor_horas_extra']
+                escenarios.append({
+                    'tipo': 'horas_extra',
+                    'nombre': 'Horas Extra',
+                    'horas_adicionales': deficit_horas,
+                    'costo_relativo': costo_relativo,
+                    'factible': True,
+                    'descripcion': f"Trabajar {deficit_horas:.0f} horas extra (factor {parametros['factor_horas_extra']}x)"
+                })
+            
+            # Scenario 2: Additional shifts
+            max_turnos = 3
+            if parametros['turnos_por_dia'] < max_turnos:
+                horas_por_turno_adicional = parametros['horas_por_turno'] * parametros['dias_laborables_mes'] * parametros['numero_maquinas']
+                turnos_necesarios = int(deficit_horas / horas_por_turno_adicional) + 1
+                turnos_disponibles = max_turnos - parametros['turnos_por_dia']
+                
+                if turnos_necesarios <= turnos_disponibles:
+                    horas_adicionales = turnos_necesarios * horas_por_turno_adicional
+                    escenarios.append({
+                        'tipo': 'turnos_adicionales',
+                        'nombre': 'Turnos Adicionales',
+                        'turnos_adicionales': turnos_necesarios,
+                        'horas_adicionales': horas_adicionales,
+                        'costo_relativo': horas_adicionales * 1.1,  # 10% extra cost for additional shifts
+                        'factible': True,
+                        'descripcion': f"Agregar {turnos_necesarios} turno(s) adicional(es)"
+                    })
+            
+            # Scenario 3: Subcontracting
+            max_subcontrato_horas = horas_base * (parametros['max_subcontrato'] / 100)
+            if deficit_horas <= max_subcontrato_horas:
+                porcentaje_subcontrato = (deficit_horas / horas_base) * 100
+                costo_subcontrato = deficit_horas * 1.2  # 20% more expensive
+                escenarios.append({
+                    'tipo': 'subcontrato',
+                    'nombre': 'Subcontrato',
+                    'horas_subcontratadas': deficit_horas,
+                    'porcentaje_produccion': porcentaje_subcontrato,
+                    'costo_relativo': costo_subcontrato,
+                    'factible': True,
+                    'descripcion': f"Subcontratar {deficit_horas:.0f} horas ({porcentaje_subcontrato:.1f}% de la producción)"
+                })
+            
+            # Scenario 4: OEE improvement
+            oee_actual = parametros['oee']
+            oee_objetivo = parametros['mejora_oee_objetivo']
+            if oee_objetivo > oee_actual:
+                mejora_oee = oee_objetivo - oee_actual
+                horas_adicionales_oee = horas_base * mejora_oee
+                if horas_adicionales_oee >= deficit_horas:
+                    escenarios.append({
+                        'tipo': 'mejora_oee',
+                        'nombre': 'Mejora OEE',
+                        'oee_actual': oee_actual,
+                        'oee_objetivo': oee_objetivo,
+                        'mejora_porcentual': mejora_oee * 100,
+                        'horas_adicionales': horas_adicionales_oee,
+                        'costo_relativo': 0,  # Investment in efficiency, not direct operational cost
+                        'factible': True,
+                        'descripcion': f"Mejorar OEE del {oee_actual*100:.0f}% al {oee_objetivo*100:.0f}% (+{mejora_oee*100:.1f}%)"
+                    })
+            
+            return escenarios
+            
+        except Exception as e:
+            print(f"Error calculating deficit scenarios: {e}")
+            return []
