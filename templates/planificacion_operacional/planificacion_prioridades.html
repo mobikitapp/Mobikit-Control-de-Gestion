@@ -112,7 +112,7 @@
                                     <th style="width: 120px;">Órdenes de Fabricación</th>
                                     <th style="width: 80px;">Tableros</th>
                                     <!-- Cronograma de 6 semanas unificado -->
-                                    <th colspan="1" class="text-center bg-light" style="width: 420px;">
+                                    <th class="text-center bg-light" style="width: 420px;">
                                         <strong>Cronograma de Producción (6 Semanas)</strong><br>
                                         {% set today = fecha_actualizacion.date() %}
                                         <small class="text-muted">
@@ -122,12 +122,12 @@
                                             <small><strong>F</strong>=Fabricación | <strong>E</strong>=Embalaje | <span class="text-danger fw-bold">|</span>=Hoy | <span style="color: #ffd700; font-weight: bold;">|</span>=Hitos</small>
                                         </div>
                                     </th>
-                                    <th style="width: 100px;" class="text-center bg-info text-white align-middle">
+                                    <th style="width: 100px;" class="text-center bg-info text-white">
                                         <div class="d-flex flex-column justify-content-center align-items-center h-100">
                                             <strong>Total</strong>
                                         </div>
                                     </th>
-                                    <th style="width: 90px;" class="text-center bg-warning text-dark align-middle">
+                                    <th style="width: 90px;" class="text-center bg-warning text-dark">
                                         <div class="d-flex flex-column justify-content-center align-items-center h-100">
                                             <strong>Días</strong>
                                             <small>Próximo Hito</small>
@@ -192,7 +192,7 @@
                                         <span class="badge bg-info">{{ proyecto.total_tableros }}</span>
                                     </td>
                                     <!-- Cronograma de 6 semanas con barras continuas -->
-                                    <td colspan="6" style="padding: 4px; position: relative;">
+                                    <td style="padding: 4px; position: relative;">
                                         <div class="gantt-timeline-container" style="position: relative; height: 60px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
                                             <!-- Grid de semanas -->
                                             {% for week in range(6) %}
@@ -370,7 +370,7 @@ Días restantes: {{ hito.dias_restantes }}">
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center bg-primary text-white">
+                                    <td class="text-center bg-primary text-white align-middle">
                                         <div class="grand-totals">
                                             <strong>{{ proyectos_gantt|sum(attribute='ofs_activas') }}</strong><br>
                                             <small>Total OFs</small><br>
@@ -378,7 +378,7 @@ Días restantes: {{ hito.dias_restantes }}">
                                             <small>Total Tableros</small>
                                         </div>
                                     </td>
-                                    <td class="text-center bg-warning text-dark">
+                                    <td class="text-center bg-warning text-dark align-middle">
                                         {% set proximos_hitos = proyectos_gantt | selectattr('dias_proximo_hito', 'ne', none) | list %}
                                         {% if proximos_hitos %}
                                             {% set hito_mas_cercano = proximos_hitos | min(attribute='dias_proximo_hito') %}
