@@ -70,6 +70,7 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
+                                    <th>Prioridad</th>
                                     <th>Orden</th>
                                     <th>Proyecto</th>
                                     <th>Cliente</th>
@@ -86,6 +87,19 @@
                                 {% set days_in_area = (now.date() - order.fecha_ingreso_area.date()).days %}
                                 {% set days_in_state = (now.date() - order.fecha_cambio_estado.date()).days %}
                                 <tr class="{% if days_in_state > 7 %}table-danger{% elif days_in_state > 3 %}table-warning{% endif %}">
+                                    <td>
+                                        {% if order.prioridad_numerica %}
+                                            {% if order.prioridad_numerica <= 2 %}
+                                                <span class="badge bg-danger">P{{ order.prioridad_numerica }}</span>
+                                            {% elif order.prioridad_numerica == 3 %}
+                                                <span class="badge bg-warning">P{{ order.prioridad_numerica }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">P{{ order.prioridad_numerica }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">P3</span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <strong class="text-primary">{{ order.codigo }}</strong>
                                     </td>

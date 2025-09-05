@@ -105,7 +105,7 @@
         
         .order-info {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr;
+            grid-template-columns: 120px 1fr 1fr 1fr 1fr;
             gap: 12px;
             align-items: center;
         }
@@ -283,7 +283,7 @@
                     
                     <div class="order-card {% if days_in_state > 7 %}danger{% elif days_in_state > 3 %}warning{% endif %}">
                         <div class="order-code">
-                            {{ order.orden_fabricacion.codigo }}
+                            {{ order.codigo }}
                             {% if days_in_state > 7 %}
                             <i class="fas fa-exclamation-triangle text-danger status-indicator"></i>
                             {% elif days_in_state > 3 %}
@@ -295,22 +295,39 @@
                         
                         <div class="order-info">
                             <div class="info-block">
+                                <div class="info-label">Prioridad</div>
+                                <div class="info-value">
+                                    {% if order.prioridad_numerica %}
+                                        {% if order.prioridad_numerica <= 2 %}
+                                            <span class="badge bg-danger" style="font-size: 1rem;">P{{ order.prioridad_numerica }}</span>
+                                        {% elif order.prioridad_numerica == 3 %}
+                                            <span class="badge bg-warning" style="font-size: 1rem;">P{{ order.prioridad_numerica }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary" style="font-size: 1rem;">P{{ order.prioridad_numerica }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary" style="font-size: 1rem;">P3</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="info-block">
                                 <div class="info-label">Proyecto</div>
-                                <div class="info-value">{{ order.orden_fabricacion.proyecto.nombre }}</div>
-                                <div style="font-size: 0.9rem; color: #6c757d;">{{ order.orden_fabricacion.proyecto.cliente.nombre }}</div>
+                                <div class="info-value">{{ order.proyecto_nombre }}</div>
+                                <div style="font-size: 0.9rem; color: #6c757d;">{{ order.cliente_nombre }}</div>
                             </div>
                             
                             <div class="info-block">
                                 <div class="info-label">Glosa</div>
                                 <div class="info-value" style="font-size: 0.95rem;">
-                                    {% if order.orden_fabricacion.glosa %}
-                                    {{ order.orden_fabricacion.glosa[:50] }}{% if order.orden_fabricacion.glosa|length > 50 %}...{% endif %}
+                                    {% if order.glosa %}
+                                    {{ order.glosa[:50] }}{% if order.glosa|length > 50 %}...{% endif %}
                                     {% else %}
                                     <span class="text-muted">Sin glosa</span>
                                     {% endif %}
                                 </div>
-                                {% set delivery_date = order.orden_fabricacion.fecha_entrega_dinamica %}
-                                {% set days_remaining = order.orden_fabricacion.days_remaining_dynamic if delivery_date else None %}
+                                {% set delivery_date = order.fecha_entrega_dinamica %}
+                                {% set days_remaining = None %}
                                 <div style="font-size: 0.9rem; color: #6c757d;">
                                     {% if delivery_date %}
                                     <i class="fas fa-calendar"></i> 
@@ -333,8 +350,8 @@
                             <div class="info-block">
                                 <div class="info-label">Responsable</div>
                                 <div class="info-value">
-                                    {% if order.responsable_user %}
-                                    <i class="fas fa-user"></i> {{ order.responsable_user.nombre_completo }}
+                                    {% if order.responsable_nombre %}
+                                    <i class="fas fa-user"></i> {{ order.responsable_nombre }}
                                     {% else %}
                                     <span class="text-muted">Sin asignar</span>
                                     {% endif %}

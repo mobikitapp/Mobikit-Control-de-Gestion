@@ -96,10 +96,19 @@ def area_detail(area_id):
                     'responsable_nombre': order_progress.responsable_user.nombre_completo if order_progress.responsable_user else None,
                     'fecha_ingreso_area': order_progress.fecha_ingreso_area,
                     'fecha_cambio_estado': order_progress.fecha_cambio_estado,
-                    'tiempo_estimado_horas': float(order_progress.tiempo_estimado_horas) if order_progress.tiempo_estimado_horas else None
+                    'tiempo_estimado_horas': float(order_progress.tiempo_estimado_horas) if order_progress.tiempo_estimado_horas else None,
+                    'prioridad': of.prioridad.value if of.prioridad else 'media',
+                    'prioridad_numerica': of.prioridad_numerica or 3,
+                    'fecha_entrega_dinamica': areas_service.get_dynamic_delivery_date(of)
                 }
                 formatted_orders.append(formatted_order)
 
+            # Sort orders by priority and delivery date
+            formatted_orders.sort(key=lambda x: (
+                x['prioridad_numerica'],  # First by priority (lower number = higher priority)
+                x['fecha_entrega_dinamica'] or datetime(2099, 12, 31).date()  # Then by delivery date (nulls last)
+            ))
+            
             states_data.append({
                 'estado': estado,
                 'orders': formatted_orders,
@@ -531,10 +540,35 @@ def area_tv_display(area_id):
         for estado in area.estados:
             orders_in_state = [o for o in orders_in_area if o.estado_id == estado.id]
             if orders_in_state:  # Only include states with orders for TV
+                # Format order data for template
+                formatted_orders = []
+                for order_progress in orders_in_state:
+                    of = order_progress.orden_fabricacion
+                    formatted_order = {
+                        'id': of.id,
+                        'codigo': of.codigo,
+                        'proyecto_nombre': of.proyecto.nombre if of.proyecto else 'Sin proyecto',
+                        'cliente_nombre': of.proyecto.cliente.nombre if of.proyecto and of.proyecto.cliente else 'Sin cliente',
+                        'responsable_nombre': order_progress.responsable_user.nombre_completo if order_progress.responsable_user else None,
+                        'fecha_ingreso_area': order_progress.fecha_ingreso_area,
+                        'fecha_cambio_estado': order_progress.fecha_cambio_estado,
+                        'tiempo_estimado_horas': float(order_progress.tiempo_estimado_horas) if order_progress.tiempo_estimado_horas else None,
+                        'prioridad': of.prioridad.value if of.prioridad else 'media',
+                        'prioridad_numerica': of.prioridad_numerica or 3,
+                        'fecha_entrega_dinamica': areas_service.get_dynamic_delivery_date(of)
+                    }
+                    formatted_orders.append(formatted_order)
+
+                # Sort orders by priority and delivery date
+                formatted_orders.sort(key=lambda x: (
+                    x['prioridad_numerica'],  # First by priority (lower number = higher priority)
+                    x['fecha_entrega_dinamica'] or datetime(2099, 12, 31).date()  # Then by delivery date (nulls last)
+                ))
+                
                 states_data.append({
                     'estado': estado,
-                    'orders': orders_in_state,
-                    'count': len(orders_in_state)
+                    'orders': formatted_orders,
+                    'count': len(formatted_orders)
                 })
 
         from datetime import datetime
