@@ -1218,6 +1218,30 @@ class ComercialService:
         if objetivo_total_provision > 0:
             porcentaje_objetivo = (total_provision / objetivo_total_provision) * Decimal('100')
 
+        # Calculate average margins for provision and installation
+        margen_provision_promedio = Decimal('0')
+        margen_instalacion_promedio = Decimal('0')
+        proyectos_con_provision = 0
+        proyectos_con_instalacion = 0
+        total_margen_provision = Decimal('0')
+        total_margen_instalacion = Decimal('0')
+
+        for periodo_key, mes_data in matriz.items():
+            for proyecto_mes in mes_data['proyectos']:
+                if proyecto_mes['valor_provision_mes'] > 0 and proyecto_mes['margen_provision'] > 0:
+                    total_margen_provision += proyecto_mes['margen_provision'] * proyecto_mes['valor_provision_mes']
+                    proyectos_con_provision += proyecto_mes['valor_provision_mes']
+                
+                if proyecto_mes['valor_instalacion_mes'] > 0 and proyecto_mes['margen_instalacion'] > 0:
+                    total_margen_instalacion += proyecto_mes['margen_instalacion'] * proyecto_mes['valor_instalacion_mes']
+                    proyectos_con_instalacion += proyecto_mes['valor_instalacion_mes']
+
+        if proyectos_con_provision > 0:
+            margen_provision_promedio = total_margen_provision / proyectos_con_provision
+
+        if proyectos_con_instalacion > 0:
+            margen_instalacion_promedio = total_margen_instalacion / proyectos_con_instalacion
+
         return {
             'total_provision': total_provision,
             'total_instalacion': total_instalacion,
@@ -1225,6 +1249,8 @@ class ComercialService:
             'total_ventas': total_ventas,
             'total_proyectos': total_proyectos,
             'margen_global': margen_global,
+            'margen_provision_promedio': margen_provision_promedio,
+            'margen_instalacion_promedio': margen_instalacion_promedio,
             'objetivo_total_provision': objetivo_total_provision,
             'objetivo_total_instalacion': objetivo_total_instalacion,
             'porcentaje_objetivo': porcentaje_objetivo
