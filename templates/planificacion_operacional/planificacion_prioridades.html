@@ -1,5 +1,3 @@
-tags.
-```<replit_final_file>
 {% extends "base.html" %}
 {% set title = "Planificación y Prioridades" %}
 
@@ -91,7 +89,7 @@ tags.
                         <div class="me-4">
                             <small><strong>Leyenda:</strong></small>
                             <span class="badge bg-primary me-1">F</span>Fabricación
-                            <span class="badge bg-secondary me-1 ms-2">E</span>Embalaje  
+                            <span class="badge bg-secondary me-1 ms-2">E</span>Embalaje
                             <span class="text-danger fw-bold ms-2">|</span>Hoy
                         </div>
                         <button class="btn btn-sm btn-success me-2" onclick="asignarPrioridadesAutomaticas()">
@@ -512,7 +510,8 @@ Días restantes: {{ hito.dias_restantes }}">
                             <tbody>
                                 {% for proyecto in proyectos %}
                                 <!-- Encabezado del Proyecto -->
-                               <td colspan="10">
+                               <tr class="table-light">
+                                    <td colspan="10">
                                         <div class="d-flex align-items-center">
                                             <button class="btn btn-sm btn-outline-primary me-2" type="button" data-bs-toggle="collapse" data-bs-target="#proyecto-{{ proyecto.proyecto.id }}" aria-expanded="false">
                                                 <i class="fas fa-plus" id="icon-proyecto-{{ proyecto.proyecto.id }}"></i>
@@ -744,54 +743,6 @@ Días restantes: {{ hito.dias_restantes }}">
                                 <!-- Espaciador entre proyectos -->
                                 <tr><td colspan="10" style="height: 10px; background-color: #f8f9fa;"></td></tr>
                                 {% endfor %}
-
-                                <!-- Fila de Totales -->
-                                <tr class="table-primary fw-bold">
-                                    <td><strong>TOTALES GENERALES</strong></td>
-                                    <td class="text-center">
-                                        <span class="badge bg-primary">{{ proyectos_gantt|sum(attribute='ofs_activas') }}</span>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge bg-info">{{ proyectos_gantt|sum(attribute='total_tableros') }}</span>
-                                    </td>
-                                    <!-- Resumen de carga total en cronograma -->
-                                    <td class="text-center bg-light" style="padding: 8px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div>
-                                                <strong class="text-primary">{{ proyectos_gantt|sum(attribute='ofs_activas') }}</strong>
-                                                <small class="text-muted"> OFs Totales</small>
-                                            </div>
-                                            <div class="text-center">
-                                                <span class="badge bg-success">{{ proyectos_gantt|length }}</span>
-                                                <small class="text-muted"> Proyectos</small>
-                                            </div>
-                                            <div>
-                                                <strong class="text-info">{{ proyectos_gantt|sum(attribute='total_tableros') }}</strong>
-                                                <small class="text-muted"> Tableros</small>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-center bg-primary text-white align-middle">
-                                        <div class="grand-totals">
-                                            <strong>{{ proyectos_gantt|sum(attribute='ofs_activas') }}</strong><br>
-                                            <small>Total OFs</small><br>
-                                            <strong>{{ proyectos_gantt|sum(attribute='total_tableros') }}</strong><br>
-                                            <small>Total Tableros</small>
-                                        </div>
-                                    </td>
-                                    <td class="text-center bg-warning text-dark align-middle">
-                                        {% set proximos_hitos = proyectos_gantt | selectattr('dias_proximo_hito', 'ne', none) | list %}
-                                        {% if proximos_hitos %}
-                                            {% set hito_mas_cercano = proximos_hitos | min(attribute='dias_proximo_hito') %}
-                                            <div class="next-milestone">
-                                                <strong>{{ hito_mas_cercano.dias_proximo_hito }}</strong><br>
-                                                <small>Próximo</small>
-                                            </div>
-                                        {% else %}
-                                            <small class="text-muted">N/A</small>
-                                        {% endif %}
-                                    </td>
-                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -1091,6 +1042,26 @@ Días restantes: {{ hito.dias_restantes }}">
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Leyenda -->
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6><i class="fas fa-info-circle"></i> Leyenda de Prioridades:</h6>
+                            <div class="d-flex gap-3">
+                                <span class="badge" style="background-color: #dc3545;">P1-P3 (Alta)</span>
+                                <span class="badge" style="background-color: #ffc107; color: #000;">P4-P7 (Media)</span>
+                                <span class="badge" style="background-color: #0dcaf0;">P8-P15 (Normal)</span>
+                                <span class="badge" style="background-color: #198754;">P16+ (Baja)</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar-week"></i> Vista de 6 semanas desde {{ today.strftime('%d/%m/%Y') }}
+                            </small>
+                        </div>
                     </div>
                 </div>
             </div>
