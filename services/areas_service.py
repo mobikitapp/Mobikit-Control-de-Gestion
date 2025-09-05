@@ -377,7 +377,7 @@ class AreasService:
                             'es_final': estado.es_final
                         },
                         'count': len(orders_in_state),
-                        'orders': [
+                        'orders': sorted([
                             {
                                 'id': o.orden_fabricacion.id,
                                 'codigo': o.orden_fabricacion.codigo,
@@ -389,14 +389,18 @@ class AreasService:
                                 'fecha_entrega_fabrica': o.orden_fabricacion.fecha_entrega_fabrica,
                                 'fecha_entrega_embalaje': o.orden_fabricacion.fecha_entrega_embalaje,
                                 'fecha_entrega_dinamica': self.get_dynamic_delivery_date(o.orden_fabricacion),
-                                'fecha_entrega_embalaje': o.orden_fabricacion.fecha_entrega_embalaje,
                                 'fecha_ingreso_area': o.fecha_ingreso_area,
                                 'fecha_cambio_estado': o.fecha_cambio_estado,
                                 'tiempo_estimado_horas': float(o.tiempo_estimado_horas) if o.tiempo_estimado_horas else None,
-                                'next_action_description': self.get_next_action_description(o.orden_fabricacion.id)
+                                'next_action_description': self.get_next_action_description(o.orden_fabricacion.id),
+                                'prioridad': o.orden_fabricacion.prioridad.value if o.orden_fabricacion.prioridad else 'media',
+                                'prioridad_numerica': o.orden_fabricacion.prioridad_numerica or 3
                             }
                             for o in orders_in_state
-                        ]
+                        ], key=lambda x: (
+                            x['prioridad_numerica'],  # First sort by priority (lower number = higher priority)
+                            x['fecha_entrega_dinamica'] or datetime(2099, 12, 31).date()  # Then by delivery date (nulls last)
+                        ))
                     })
 
                 area_data = {

@@ -340,6 +340,7 @@ def capacidad_produccion():
         else:
             # Legacy capacity analysis for backward compatibility
             data = service.get_analisis_capacidad(año=año, vista=vista)
+            data['horizonte_meses'] = horizonte_meses  # Ensure this is always available
         
         return render_template('planificacion_operacional/capacidad.html', calendar=calendar, **data)
         

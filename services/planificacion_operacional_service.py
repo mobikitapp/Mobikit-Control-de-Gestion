@@ -669,7 +669,7 @@ class PlanificacionOperacionalService:
                 if proyecto_key not in demanda_jerarquica[mes_key]['proyectos']:
                     demanda_jerarquica[mes_key]['proyectos'][proyecto_key] = {
                         'id': proyecto.id,
-                        'codigo': proyecto.codigo_interno or f"PROY-{proyecto.id}",
+                        'codigo': getattr(proyecto, 'codigo_interno', None) or f"PROY-{proyecto.id}",
                         'nombre': proyecto.nombre_proyecto,
                         'tipo_proyecto': proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR',
                         'cliente': {

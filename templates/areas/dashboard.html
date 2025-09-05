@@ -33,55 +33,63 @@
 }
 
 /* Column specific widths for better responsive behavior */
-.table th:nth-child(1), /* Código */
+.table th:nth-child(1), /* Prioridad */
 .table td:nth-child(1) {
+    min-width: 80px;
+    max-width: 100px;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.table th:nth-child(2), /* Código */
+.table td:nth-child(2) {
     min-width: 100px;
     max-width: 120px;
     white-space: nowrap;
 }
 
-.table th:nth-child(2), /* Proyecto */
-.table td:nth-child(2) {
+.table th:nth-child(3), /* Proyecto */
+.table td:nth-child(3) {
     min-width: 180px;
     max-width: 250px;
 }
 
-.table th:nth-child(3), /* Glosa */
-.table td:nth-child(3) {
+.table th:nth-child(4), /* Glosa */
+.table td:nth-child(4) {
     min-width: 120px;
     max-width: 200px;
     word-wrap: break-word;
 }
 
-.table th:nth-child(4), /* Estado */
-.table td:nth-child(4) {
+.table th:nth-child(5), /* Estado */
+.table td:nth-child(5) {
     min-width: 140px;
     max-width: 180px;
 }
 
-.table th:nth-child(5), /* Fecha Entrega */
-.table td:nth-child(5) {
-    min-width: 110px;
-    max-width: 130px;
-    white-space: nowrap;
-}
-
-.table th:nth-child(6), /* Días Restantes */
+.table th:nth-child(6), /* Fecha Entrega */
 .table td:nth-child(6) {
     min-width: 110px;
     max-width: 130px;
     white-space: nowrap;
 }
 
-.table th:nth-child(7), /* Tiempo en Estado */
+.table th:nth-child(7), /* Días Restantes */
 .table td:nth-child(7) {
+    min-width: 110px;
+    max-width: 130px;
+    white-space: nowrap;
+}
+
+.table th:nth-child(8), /* Tiempo en Estado */
+.table td:nth-child(8) {
     min-width: 100px;
     max-width: 120px;
     white-space: nowrap;
 }
 
-.table th:nth-child(8), /* Acciones */
-.table td:nth-child(8) {
+.table th:nth-child(9), /* Acciones */
+.table td:nth-child(9) {
     min-width: 200px;
     text-align: center;
     white-space: nowrap;
@@ -310,6 +318,7 @@
                                 <table class="table table-striped table-hover table-nowrap">
                                     <thead class="table-dark">
                                         <tr>
+                                            <th>Prioridad</th>
                                             <th>Código</th>
                                             <th>Proyecto</th>
                                             <th>Glosa</th>
@@ -324,6 +333,19 @@
                                         {% for estado_data in area_data.estados %}
                                             {% for order in estado_data.orders %}
                                             <tr>
+                                                <td>
+                                                    {% if order.prioridad_numerica %}
+                                                        {% if order.prioridad_numerica <= 2 %}
+                                                            <span class="badge bg-danger">P{{ order.prioridad_numerica }}</span>
+                                                        {% elif order.prioridad_numerica == 3 %}
+                                                            <span class="badge bg-warning">P{{ order.prioridad_numerica }}</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">P{{ order.prioridad_numerica }}</span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">P3</span>
+                                                    {% endif %}
+                                                </td>
                                                 <td>
                                                     <div class="fw-medium">{{ order.codigo }}</div>
                                                 </td>
