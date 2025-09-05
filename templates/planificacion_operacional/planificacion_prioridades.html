@@ -503,20 +503,6 @@ Días restantes: {{ hito.dias_restantes }}">
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-sm mb-0">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th style="width: 20%">Proyecto/OF</th>
-                                    <th style="width: 8%">Cliente</th>
-                                    <th style="width: 6%">Prioridad</th>
-                                    <th style="width: 6%">Tableros</th>
-                                    <th style="width: 8%">Estado</th>
-                                    <th style="width: 10%">Fecha Planificada</th>
-                                    <th style="width: 12%">Fecha Fab.</th>
-                                    <th style="width: 12%">Fecha Embalaje</th>
-                                    <th style="width: 6%">Días Rest.</th>
-                                    <th style="width: 12%">Próximo Hito</th>
-                                </tr>
-                            </thead>
                             <tbody>
                                 {% for proyecto in proyectos %}
                                 <!-- Encabezado del Proyecto -->
@@ -939,7 +925,7 @@ function setupDropdownListeners() {
 
 // Funciones para expandir/colapsar todos los proyectos en la matriz detallada
 function expandirTodos() {
-    const collapseElements = document.querySelectorAll('#proyecto-detalle-\\5B 0-9\\5D +, [id^="proyecto-detalle-"]');
+    const collapseElements = document.querySelectorAll('[id^="proyecto-detalle-"]');
 
     collapseElements.forEach(element => {
         if (element.classList.contains('collapse') && !element.classList.contains('show')) {
@@ -949,7 +935,7 @@ function expandirTodos() {
 }
 
 function colapsarTodos() {
-    const collapseElements = document.querySelectorAll('#proyecto-detalle-\\5B 0-9\\5D +, [id^="proyecto-detalle-"]');
+    const collapseElements = document.querySelectorAll('[id^="proyecto-detalle-"]');
 
     collapseElements.forEach(element => {
         if (element.classList.contains('collapse') && element.classList.contains('show')) {
