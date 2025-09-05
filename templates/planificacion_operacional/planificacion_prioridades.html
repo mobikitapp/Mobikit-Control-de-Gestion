@@ -147,45 +147,91 @@
                                             <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="dropdownOFs{{ loop.index }}" data-bs-toggle="dropdown" aria-expanded="false">
                                                 {{ proyecto.ofs_activas }} OFs
                                             </button>
-                                            <ul class="dropdown-menu" aria-labelledby="dropdownOFs{{ loop.index }}" style="max-height: 300px; overflow-y: auto;">
-                                                {% for of_info in proyecto.ofs %}
-                                                <li>
-                                                    <div class="dropdown-item-text px-3 py-2" style="white-space: nowrap;">
-                                                        <div class="d-flex justify-content-between align-items-center">
-                                                            <div>
-                                                                <strong>{{ of_info.of.codigo }}</strong>
-                                                                <br>
-                                                                <small class="text-muted">
-                                                                    P{{ of_info.of.prioridad_numerica or 99 }}
-                                                                    {% if of_info.of.prioridad %}
-                                                                        ({{ of_info.of.prioridad.value }})
+                                            <div class="dropdown-menu p-0" aria-labelledby="dropdownOFs{{ loop.index }}" style="min-width: 800px; max-height: 400px; overflow-y: auto;">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm mb-0" style="font-size: 11px;">
+                                                        <thead class="table-secondary">
+                                                            <tr>
+                                                                <th style="width: 18%;">OF/Descripción</th>
+                                                                <th style="width: 12%;">Cliente</th>
+                                                                <th style="width: 8%;">Prioridad</th>
+                                                                <th style="width: 8%;">Tableros</th>
+                                                                <th style="width: 12%;">Estado</th>
+                                                                <th style="width: 12%;">Fecha Planificada</th>
+                                                                <th style="width: 15%;">Fecha Fab.</th>
+                                                                <th style="width: 15%;">Fecha Embalaje</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for of_info in proyecto.ofs %}
+                                                            <tr>
+                                                                <td>
+                                                                    <div>
+                                                                        <strong>{{ of_info.of.codigo }}</strong>
+                                                                        {% if of_info.of.descripcion %}
+                                                                        <br><small class="text-muted">{{ of_info.of.descripcion[:30] }}{% if of_info.of.descripcion|length > 30 %}...{% endif %}</small>
+                                                                        {% endif %}
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <small>{{ of_info.cliente.nombre[:12] }}{% if of_info.cliente.nombre|length > 12 %}...{% endif %}</small>
+                                                                </td>
+                                                                <td>
+                                                                    <span class="badge 
+                                                                        {% if of_info.of.prioridad_numerica <= 3 %}bg-danger
+                                                                        {% elif of_info.of.prioridad_numerica <= 7 %}bg-warning
+                                                                        {% elif of_info.of.prioridad_numerica <= 15 %}bg-info
+                                                                        {% else %}bg-success{% endif %}" 
+                                                                        style="font-size: 9px;">
+                                                                        P{{ of_info.of.prioridad_numerica or 99 }}
+                                                                    </span>
+                                                                </td>
+                                                                <td>
+                                                                    <span class="badge bg-info" style="font-size: 9px;">{{ of_info.of.cantidad_tableros or 0 }}</span>
+                                                                </td>
+                                                                <td>
+                                                                    <small>
+                                                                        <strong>{{ of_info.progreso_actual.area.nombre[:8] }}{% if of_info.progreso_actual.area.nombre|length > 8 %}...{% endif %}</strong><br>
+                                                                        <span class="text-muted" style="font-size: 9px;">{{ of_info.progreso_actual.estado.estado[:10] }}{% if of_info.progreso_actual.estado.estado|length > 10 %}...{% endif %}</span>
+                                                                    </small>
+                                                                </td>
+                                                                <td>
+                                                                    {% if of_info.of.fecha_planificada %}
+                                                                        <small class="badge bg-primary" style="font-size: 9px;">{{ of_info.of.fecha_planificada.strftime('%d/%m/%Y') }}</small>
+                                                                    {% else %}
+                                                                        <small class="badge bg-secondary" style="font-size: 9px;">Sin fecha</small>
                                                                     {% endif %}
-                                                                </small>
-                                                            </div>
-                                                            <div class="text-end">
-                                                                {% if of_info.of.fecha_entrega_embalaje %}
-                                                                    <small class="badge bg-success">{{ of_info.of.fecha_entrega_embalaje.strftime('%d/%m') }}</small>
-                                                                {% elif of_info.of.fecha_entrega_fabrica %}
-                                                                    <small class="badge bg-warning text-dark">{{ of_info.of.fecha_entrega_fabrica.strftime('%d/%m') }}</small>
-                                                                {% elif of_info.of.fecha_planificada %}
-                                                                    <small class="badge bg-info">{{ of_info.of.fecha_planificada.strftime('%d/%m') }}</small>
-                                                                {% else %}
-                                                                    <small class="badge bg-secondary">Sin fecha</small>
-                                                                {% endif %}
-                                                            </div>
-                                                        </div>
-                                                        {% if of_info.of.numero_tableros %}
-                                                            <div class="mt-1">
-                                                                <small class="text-info">{{ of_info.of.numero_tableros }} tableros</small>
-                                                            </div>
-                                                        {% endif %}
-                                                    </div>
-                                                </li>
-                                                {% if not loop.last %}
-                                                    <li><hr class="dropdown-divider"></li>
-                                                {% endif %}
-                                                {% endfor %}
-                                            </ul>
+                                                                </td>
+                                                                <td>
+                                                                    {% if of_info.of.fecha_entrega_fabrica %}
+                                                                        <small class="badge bg-warning text-dark" style="font-size: 9px;">{{ of_info.of.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}</small>
+                                                                    {% else %}
+                                                                        <small class="text-muted" style="font-size: 9px;">Sin fecha</small>
+                                                                        {% if of_info.fecha_estimada_fabricacion %}
+                                                                        <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
+                                                                        {% endif %}
+                                                                    {% endif %}
+                                                                    <br>
+                                                                    <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
+                                                                </td>
+                                                                <td>
+                                                                    {% if of_info.of.fecha_entrega_embalaje %}
+                                                                        <small class="badge bg-success" style="font-size: 9px;">{{ of_info.of.fecha_entrega_embalaje.strftime('%d/%m/%Y') }}</small>
+                                                                    {% else %}
+                                                                        <small class="text-muted" style="font-size: 9px;">Sin fecha</small>
+                                                                        {% if of_info.fecha_estimada_embalaje %}
+                                                                        <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
+                                                                        {% endif %}
+                                                                    {% endif %}
+                                                                    <br>
+                                                                    <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
+                                                                </td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
                                     <td class="text-center">
