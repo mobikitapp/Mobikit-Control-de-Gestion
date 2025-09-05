@@ -554,10 +554,24 @@ class PlanificacionOperacionalService:
                 'capacidad_porcentaje': 0
             }
         
-        # Assume capacity limits (could be configurable)
-        TABLEROS_MAXIMOS_MES = 500
-        HORAS_DISPONIBLES_MES = 160  # 20 days × 8 hours
-        HORAS_POR_TABLERO = 0.5  # 30 minutes per board
+        # Get capacity limits from configuration
+        try:
+            from services.configuraciones_service import ConfiguracionesService
+            config_service = ConfiguracionesService()
+            capacidad_config = config_service.get_configuracion_capacidad()
+            
+            TABLEROS_MAXIMOS_MES = capacidad_config['capacidad_maxima_tableros_mes']
+            HORAS_DISPONIBLES_MES = capacidad_config['horas_disponibles_mes']
+            HORAS_POR_TABLERO_SOCIAL = capacidad_config['horas_por_tablero_social']
+            HORAS_POR_TABLERO_ESTANDAR = capacidad_config['horas_por_tablero_estandar']
+            HORAS_POR_TABLERO_ESPECIAL = capacidad_config['horas_por_tablero_especial']
+        except:
+            # Fallback to default values
+            TABLEROS_MAXIMOS_MES = 500
+            HORAS_DISPONIBLES_MES = 160
+            HORAS_POR_TABLERO_SOCIAL = 0.6
+            HORAS_POR_TABLERO_ESTANDAR = 0.5
+            HORAS_POR_TABLERO_ESPECIAL = 0.4
         
         for proyecto in proyectos:
             meses_proyecto = self._obtener_meses_proyecto(proyecto, año)
@@ -577,8 +591,18 @@ class PlanificacionOperacionalService:
                             margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
                         )
                         
-                        capacidad[mes]['tableros_requeridos'] += tableros_resultado['tableros_aproximados']
-                        capacidad[mes]['horas_estimadas'] += tableros_resultado['tableros_aproximados'] * HORAS_POR_TABLERO
+                        tableros_mes = tableros_resultado['tableros_aproximados']
+                        capacidad[mes]['tableros_requeridos'] += tableros_mes
+                        
+                        # Use project-specific hours per board
+                        if tipo_proyecto == 'SOCIAL':
+                            horas_tablero = HORAS_POR_TABLERO_SOCIAL
+                        elif tipo_proyecto == 'ESPECIAL':
+                            horas_tablero = HORAS_POR_TABLERO_ESPECIAL
+                        else:  # ESTANDAR or default
+                            horas_tablero = HORAS_POR_TABLERO_ESTANDAR
+                        
+                        capacidad[mes]['horas_estimadas'] += tableros_mes * horas_tablero
         
         # Calculate capacity percentage
         for mes in capacidad:

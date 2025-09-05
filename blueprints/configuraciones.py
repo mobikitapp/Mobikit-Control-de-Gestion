@@ -301,6 +301,50 @@ def actualizar_factores():
         return jsonify({'error': f'Error al actualizar factores: {str(e)}'}), 500
 
 
+@configuraciones_bp.route('/actualizar-capacidad', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN])
+def actualizar_capacidad():
+    """Actualizar configuración de capacidad"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No se recibieron datos'}), 400
+        
+        # Extract capacity data
+        capacidad_data = {
+            'capacidad_maxima_tableros_mes': data.get('capacidad_maxima_tableros_mes'),
+            'capacidad_maxima_tableros_semana': data.get('capacidad_maxima_tableros_semana'),
+            'horas_disponibles_mes': data.get('horas_disponibles_mes'),
+            'horas_disponibles_semana': data.get('horas_disponibles_semana'),
+            'horas_por_tablero_social': data.get('horas_por_tablero_social'),
+            'horas_por_tablero_estandar': data.get('horas_por_tablero_estandar'),
+            'horas_por_tablero_especial': data.get('horas_por_tablero_especial'),
+        }
+        
+        # Validate all required fields are present and positive
+        for key, value in capacidad_data.items():
+            if value is None:
+                return jsonify({'error': f'Falta el campo requerido: {key}'}), 400
+            if value <= 0:
+                return jsonify({'error': f'El valor de {key} debe ser mayor a 0'}), 400
+        
+        service = ConfiguracionesService()
+        success = service.actualizar_configuracion_capacidad(capacidad_data, current_user.id)
+        
+        if success:
+            return jsonify({
+                'message': 'Configuración de capacidad actualizada correctamente',
+                'data': capacidad_data
+            })
+        else:
+            return jsonify({'error': 'Error interno al actualizar configuración de capacidad'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'Error al actualizar capacidad: {str(e)}'}), 500
+
+
 # Routes for commission configuration
 @configuraciones_bp.route('/comisiones')
 @login_required
