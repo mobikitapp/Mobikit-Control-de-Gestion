@@ -278,14 +278,20 @@ def actualizar_objetivos():
         objetivos_data = []
 
         for mes in range(1, 13):
-            objetivo_provision = request.form.get(f'objetivo_provision_{mes}')
-            objetivo_instalacion = request.form.get(f'objetivo_instalacion_{mes}')
+            objetivo_total = request.form.get(f'objetivo_total_{mes}')
 
-            if objetivo_provision or objetivo_instalacion:
+            if objetivo_total:
+                # Para mantener compatibilidad, dividimos el objetivo total entre provisión e instalación
+                # Se puede ajustar la proporción según necesidades del negocio
+                objetivo_total_decimal = Decimal(objetivo_total)
+                # Asignamos 70% a provisión y 30% a instalación como proporción estándar
+                objetivo_provision = objetivo_total_decimal * Decimal('0.7')
+                objetivo_instalacion = objetivo_total_decimal * Decimal('0.3')
+                
                 objetivos_data.append({
                     'mes': mes,
-                    'objetivo_provision': objetivo_provision,
-                    'objetivo_instalacion': objetivo_instalacion
+                    'objetivo_provision': str(objetivo_provision),
+                    'objetivo_instalacion': str(objetivo_instalacion)
                 })
 
         success = service.actualizar_objetivos_mensuales(año, objetivos_data, current_user.id)
