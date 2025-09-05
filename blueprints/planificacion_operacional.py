@@ -229,6 +229,19 @@ def actualizar_configuracion():
     
     return redirect(url_for('planificacion_operacional.configuracion_conversion'))
 
+@planificacion_operacional_bp.route('/api/analisis-capacidad/<int:year>')
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+def analisis_capacidad_api(year):
+    """API para obtener datos de análisis de capacidad y productividad"""
+    try:
+        service = PlanificacionOperacionalService()
+        analisis = service.get_analisis_capacidad(year)
+        return jsonify(analisis)
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 
 @planificacion_operacional_bp.route('/detalle-proyecto/<int:proyecto_id>')
 @login_required
