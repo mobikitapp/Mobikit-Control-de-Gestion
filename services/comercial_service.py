@@ -1032,13 +1032,13 @@ class ComercialService:
         """Calculate monthly totals from matrix"""
         totales = {}
 
-        for mes in range(1, 13):
-            totales[mes] = {
-                'valor_provision': matriz[mes]['valor_provision'],
-                'valor_instalacion': matriz[mes]['valor_instalacion'],
-                'margen_ponderado': matriz[mes]['margen_ponderado'],
-                'ganancias': matriz[mes]['ganancias'],
-                'proyectos_count': len(matriz[mes]['proyectos'])
+        for periodo_key, mes_data in matriz.items():
+            totales[periodo_key] = {
+                'valor_provision': mes_data['valor_provision'],
+                'valor_instalacion': mes_data['valor_instalacion'],
+                'margen_ponderado': mes_data['margen_ponderado'],
+                'ganancias': mes_data['ganancias'],
+                'proyectos_count': len(mes_data['proyectos'])
             }
 
         return totales
@@ -1184,7 +1184,7 @@ class ComercialService:
         return objetivos_dict
 
     def _calcular_gran_totales(self, matriz, objetivos):
-        """Calculate grand totals for the entire year"""
+        """Calculate grand totals for the entire period"""
         total_provision = Decimal('0')
         total_instalacion = Decimal('0')
         total_ganancias = Decimal('0')
@@ -1192,17 +1192,15 @@ class ComercialService:
         objetivo_total_provision = Decimal('0')
         objetivo_total_instalacion = Decimal('0')
 
-        # Sum up monthly values
-        for mes in range(1, 13):
-            mes_data = matriz[mes]
+        # Sum up monthly values - iterate over actual matriz keys
+        for periodo_key, mes_data in matriz.items():
             total_provision += mes_data['valor_provision']
             total_instalacion += mes_data['valor_instalacion']
             total_ganancias += mes_data['ganancias']
             total_proyectos += len(mes_data['proyectos'])
 
-        # Sum up objectives
-        for mes in range(1, 13):
-            objetivo_mes = objetivos.get(mes)
+        # Sum up objectives - iterate over actual objetivos keys
+        for periodo_key, objetivo_mes in objetivos.items():
             if objetivo_mes:
                 if objetivo_mes.objetivo_provision:
                     objetivo_total_provision += objetivo_mes.objetivo_provision
