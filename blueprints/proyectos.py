@@ -646,7 +646,7 @@ def estados_pago_detalle(proyecto_id):
         
         # Get payment states for this project
         estados_pago = estados_pago_service.get_estados_pago_by_proyecto(proyecto_id)
-        contratos = [c for c in proyecto.contratos if c.activo]
+        contratos = [c for c in proyecto.contratos if c.estado.value == 'VIGENTE']
         
         return render_template('proyectos/estados_pago_detalle.html',
                              proyecto=proyecto,
