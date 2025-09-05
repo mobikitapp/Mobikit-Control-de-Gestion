@@ -133,8 +133,8 @@ class PlanificacionOperacionalService:
             'factor_info': {material: self._get_factor_info(material) for material in self.DEFAULT_FACTORS}
         }
 
-    def get_analisis_capacidad(self, año, vista='mensual'):
-        """Get production capacity analysis"""
+    def get_analisis_capacidad(self, año=2025, vista='mensual'):
+        """Get production capacity analysis including productivity data"""
         
         # Get projects with commercial state ADJUDICADO
         proyectos_adjudicados = (db.session.query(Proyecto)
@@ -150,12 +150,76 @@ class PlanificacionOperacionalService:
         else:
             capacidad = self._calcular_capacidad_semanal(proyectos_adjudicados, año)
         
+        # Get productivity data (only for monthly view)
+        analisis_mensual = {}
+        total_fabricados = 0
+        total_embalados = 0
+        rendimiento_promedio_fabrica = 0
+        rendimiento_promedio_embalaje = 0
+        
+        if vista == 'mensual':
+            # Get productivity data
+            productividad_fabrica = self.get_productividad_fabrica(año, 'mensual')
+            productividad_embalaje = self.get_productividad_embalaje(año, 'mensual')
+            
+            # Calculate productivity totals
+            total_fabricados = sum(data['tableros_completados'] for data in productividad_fabrica.values())
+            total_embalados = sum(data['tableros_completados'] for data in productividad_embalaje.values())
+            
+            # Merge capacity and productivity data by month
+            for mes in range(1, 13):
+                analisis_mensual[mes] = {
+                    'mes': mes,
+                    'mes_nombre': calendar.month_name[mes],
+                    # Capacity data
+                    'tableros_estimados': capacidad.get(mes, {}).get('tableros_requeridos', 0),
+                    'horas_estimadas': capacidad.get(mes, {}).get('horas_estimadas', 0),
+                    'capacidad_porcentaje': capacidad.get(mes, {}).get('capacidad_porcentaje', 0),
+                    # Productivity data
+                    'tableros_fabricados': productividad_fabrica.get(mes, {}).get('tableros_completados', 0),
+                    'tableros_embalados': productividad_embalaje.get(mes, {}).get('tableros_completados', 0),
+                    # Performance indicators
+                    'rendimiento_fabrica': 0,  # Will calculate below
+                    'rendimiento_embalaje': 0,  # Will calculate below
+                }
+                
+                # Calculate performance ratios
+                estimados = analisis_mensual[mes]['tableros_estimados']
+                if estimados > 0:
+                    analisis_mensual[mes]['rendimiento_fabrica'] = round(
+                        (analisis_mensual[mes]['tableros_fabricados'] / estimados) * 100, 1
+                    )
+                    analisis_mensual[mes]['rendimiento_embalaje'] = round(
+                        (analisis_mensual[mes]['tableros_embalados'] / estimados) * 100, 1
+                    )
+            
+            # Calculate average performance
+            rendimiento_promedio_fabrica = round(sum(data['rendimiento_fabrica'] for data in analisis_mensual.values()) / 12, 1)
+            rendimiento_promedio_embalaje = round(sum(data['rendimiento_embalaje'] for data in analisis_mensual.values()) / 12, 1)
+        
+        # Calculate summary statistics
+        total_tableros = sum(data['tableros_requeridos'] for data in capacidad.values())
+        total_horas = sum(data['horas_estimadas'] for data in capacidad.values())
+        promedio_capacidad = sum(data['capacidad_porcentaje'] for data in capacidad.values()) / len(capacidad) if capacidad else 0
+        
         return {
+            # Original capacity analysis data
             'año': año,
             'vista': vista,
             'capacidad': capacidad,
             'proyectos_adjudicados': proyectos_adjudicados,
-            'resumen': self._calcular_resumen_capacidad(capacidad)
+            'resumen': self._calcular_resumen_capacidad(capacidad),
+            # Enhanced summary with productivity
+            'total_tableros_año': total_tableros,
+            'total_horas_año': total_horas,
+            'promedio_capacidad_porcentaje': promedio_capacidad,
+            'meses_sobrecargados': len([data for data in capacidad.values() if data['capacidad_porcentaje'] > 100]),
+            # New productivity metrics
+            'total_fabricados_año': total_fabricados,
+            'total_embalados_año': total_embalados,
+            'rendimiento_promedio_fabrica': rendimiento_promedio_fabrica,
+            'rendimiento_promedio_embalaje': rendimiento_promedio_embalaje,
+            'analisis_mensual': analisis_mensual
         }
 
     def calcular_tableros_aproximados(self, monto_provision, tipo_material='melamina'):
@@ -470,63 +534,6 @@ class PlanificacionOperacionalService:
             'meses_sobrecargados': len([data for data in capacidad.values() if data['capacidad_porcentaje'] > 100])
         }
 
-    def get_analisis_capacidad(self, año=2025):
-        """Get capacity analysis data for charts including productivity data"""
-        capacidad = self.get_capacidad_mensual(año)
-        
-        # Get productivity data
-        productividad_fabrica = self.get_productividad_fabrica(año, 'mensual')
-        productividad_embalaje = self.get_productividad_embalaje(año, 'mensual')
-        
-        # Calculate summary statistics
-        total_tableros = sum(data['tableros_requeridos'] for data in capacidad.values())
-        total_horas = sum(data['horas_estimadas'] for data in capacidad.values())
-        promedio_capacidad = sum(data['capacidad_porcentaje'] for data in capacidad.values()) / len(capacidad) if capacidad else 0
-        
-        # Calculate productivity totals
-        total_fabricados = sum(data['tableros_completados'] for data in productividad_fabrica.values())
-        total_embalados = sum(data['tableros_completados'] for data in productividad_embalaje.values())
-        
-        # Merge capacity and productivity data by month
-        analisis_completo = {}
-        for mes in range(1, 13):
-            analisis_completo[mes] = {
-                'mes': mes,
-                'mes_nombre': calendar.month_name[mes],
-                # Capacity data
-                'tableros_estimados': capacidad.get(mes, {}).get('tableros_requeridos', 0),
-                'horas_estimadas': capacidad.get(mes, {}).get('horas_estimadas', 0),
-                'capacidad_porcentaje': capacidad.get(mes, {}).get('capacidad_porcentaje', 0),
-                # Productivity data
-                'tableros_fabricados': productividad_fabrica.get(mes, {}).get('tableros_completados', 0),
-                'tableros_embalados': productividad_embalaje.get(mes, {}).get('tableros_completados', 0),
-                # Performance indicators
-                'rendimiento_fabrica': 0,  # Will calculate below
-                'rendimiento_embalaje': 0,  # Will calculate below
-            }
-            
-            # Calculate performance ratios
-            estimados = analisis_completo[mes]['tableros_estimados']
-            if estimados > 0:
-                analisis_completo[mes]['rendimiento_fabrica'] = round(
-                    (analisis_completo[mes]['tableros_fabricados'] / estimados) * 100, 1
-                )
-                analisis_completo[mes]['rendimiento_embalaje'] = round(
-                    (analisis_completo[mes]['tableros_embalados'] / estimados) * 100, 1
-                )
-        
-        return {
-            'total_tableros_año': total_tableros,
-            'total_horas_año': total_horas,
-            'promedio_capacidad_porcentaje': promedio_capacidad,
-            'meses_sobrecargados': len([data for data in capacidad.values() if data['capacidad_porcentaje'] > 100]),
-            # New productivity metrics
-            'total_fabricados_año': total_fabricados,
-            'total_embalados_año': total_embalados,
-            'rendimiento_promedio_fabrica': round(sum(data['rendimiento_fabrica'] for data in analisis_completo.values()) / 12, 1),
-            'rendimiento_promedio_embalaje': round(sum(data['rendimiento_embalaje'] for data in analisis_completo.values()) / 12, 1),
-            'analisis_mensual': analisis_completo
-        }
 
     # New productivity methods
     def get_productividad_fabrica(self, año, vista='mensual'):
