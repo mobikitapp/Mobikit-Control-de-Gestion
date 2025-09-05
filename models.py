@@ -289,7 +289,7 @@ class Proyecto(db.Model):
     notas_comerciales = db.Column(db.Text)
     
     # Campos adicionales opcionales para vendedores
-    tipo_proyecto = db.Column(db.Enum(TipoProyecto))  # Social, Estándar, Especial
+    tipo_proyecto = db.Column(db.Enum(TipoProyecto), default=TipoProyecto.ESTANDAR)  # Social, Estándar, Especial
     tipo_vivienda = db.Column(db.Enum(TipoVivienda))  # Casa, Departamento
     numero_viviendas = db.Column(db.Integer)  # Número de viviendas
     ubicacion_obra = db.Column(db.String(500))  # Ubicación de la obra (se relaciona con direcciones de despacho)
