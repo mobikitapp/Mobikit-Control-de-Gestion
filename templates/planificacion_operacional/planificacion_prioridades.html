@@ -27,50 +27,50 @@
     <!-- Estadísticas generales -->
     <div class="row mb-4 estadisticas-row">
         <div class="col-md-2">
-            <div class="card bg-primary text-white">
+            <div class="card border-primary bg-white text-primary" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h3>{{ estadisticas.total_ofs }}</h3>
-                    <small>OFs en Producción</small>
+                    <h3 class="text-primary">{{ estadisticas.total_ofs }}</h3>
+                    <small class="text-primary">OFs en Producción</small>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card bg-warning text-white">
+            <div class="card border-warning bg-white text-warning" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h3>{{ estadisticas.ofs_sin_fecha_planificada }}</h3>
-                    <small>Sin Fecha Planificada</small>
+                    <h3 class="text-warning">{{ estadisticas.ofs_sin_fecha_planificada }}</h3>
+                    <small class="text-warning">Sin Fecha Planificada</small>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card bg-danger text-white">
+            <div class="card border-danger bg-white text-danger" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h3>{{ estadisticas.ofs_con_prioridad_alta }}</h3>
-                    <small>Prioridad Alta</small>
+                    <h3 class="text-danger">{{ estadisticas.ofs_con_prioridad_alta }}</h3>
+                    <small class="text-danger">Prioridad Alta</small>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card bg-success text-white">
+            <div class="card border-success bg-white text-success" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h3>{{ estadisticas.total_tableros }}</h3>
-                    <small>Tableros Totales</small>
+                    <h3 class="text-success">{{ estadisticas.total_tableros }}</h3>
+                    <small class="text-success">Tableros Totales</small>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card bg-info text-white">
+            <div class="card border-info bg-white text-info" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h3>{{ "{:.1f}".format(estadisticas.tiempo_total_fabrica) }}</h3>
-                    <small>Días Fábrica</small>
+                    <h3 class="text-info">{{ "{:.1f}".format(estadisticas.tiempo_total_fabrica) }}</h3>
+                    <small class="text-info">Días Fábrica</small>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card bg-secondary text-white">
+            <div class="card border-secondary bg-white text-secondary" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h3>{{ "{:.1f}".format(estadisticas.tiempo_total_embalaje) }}</h3>
-                    <small>Días Embalaje</small>
+                    <h3 class="text-secondary">{{ "{:.1f}".format(estadisticas.tiempo_total_embalaje) }}</h3>
+                    <small class="text-secondary">Días Embalaje</small>
                 </div>
             </div>
         </div>
@@ -122,12 +122,12 @@
                                             <small><strong>F</strong>=Fabricación | <strong>E</strong>=Embalaje | <span class="text-danger fw-bold">|</span>=Hoy | <span style="color: #ffd700; font-weight: bold;">|</span>=Hitos</small>
                                         </div>
                                     </th>
-                                    <th style="width: 100px;" class="text-center bg-info text-white">
+                                    <th style="width: 100px; border: 2px solid #17a2b8; background-color: white;" class="text-center text-info">
                                         <div class="d-flex flex-column justify-content-center align-items-center h-100">
                                             <strong>Total</strong>
                                         </div>
                                     </th>
-                                    <th style="width: 90px;" class="text-center bg-warning text-dark">
+                                    <th style="width: 90px; border: 2px solid #ffc107; background-color: white;" class="text-center text-warning">
                                         <div class="d-flex flex-column justify-content-center align-items-center h-100">
                                             <strong>Días</strong>
                                             <small>Próximo Hito</small>
@@ -288,19 +288,19 @@ Días restantes: {{ hito.dias_restantes }}">
                                             <small style="position: absolute; left: {{ today_percent + 0.5 }}%; top: -16px; font-size: 8px; color: #e74c3c; font-weight: bold;">HOY</small>
                                         </div>
                                     </td>
-                                    <td class="text-center align-middle bg-light">
+                                    <td class="text-center align-middle" style="background-color: white; border: 2px solid #17a2b8;">
                                         <div class="project-totals">
                                             <strong class="text-primary">{{ proyecto.ofs_activas }}</strong><br>
-                                            <small class="text-muted">OFs Totales</small><br>
+                                            <small class="text-info">OFs Totales</small><br>
                                             <strong class="text-info">{{ proyecto.total_tableros }}</strong><br>
-                                            <small class="text-muted">Tableros</small>
+                                            <small class="text-info">Tableros</small>
                                         </div>
                                     </td>
-                                    <td class="text-center align-middle bg-warning bg-opacity-25">
+                                    <td class="text-center align-middle" style="background-color: white; border: 2px solid #ffc107;">
                                         {% if proyecto.dias_proximo_hito is not none %}
                                             <div class="days-remaining">
-                                                <strong class="text-dark">{{ proyecto.dias_proximo_hito }}</strong><br>
-                                                <small class="text-muted">días</small>
+                                                <strong class="text-warning">{{ proyecto.dias_proximo_hito }}</strong><br>
+                                                <small class="text-warning">días</small>
                                             </div>
                                         {% else %}
                                             <small class="text-muted">Sin hitos</small>
@@ -431,21 +431,21 @@ Días restantes: {{ hito.dias_restantes }}">
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center bg-primary text-white align-middle">
+                                    <td class="text-center align-middle" style="background-color: white; border: 2px solid #007bff;">
                                         <div class="grand-totals">
-                                            <strong>{{ proyectos_gantt|sum(attribute='ofs_activas') }}</strong><br>
-                                            <small>Total OFs</small><br>
-                                            <strong>{{ proyectos_gantt|sum(attribute='total_tableros') }}</strong><br>
-                                            <small>Total Tableros</small>
+                                            <strong class="text-primary">{{ proyectos_gantt|sum(attribute='ofs_activas') }}</strong><br>
+                                            <small class="text-primary">Total OFs</small><br>
+                                            <strong class="text-primary">{{ proyectos_gantt|sum(attribute='total_tableros') }}</strong><br>
+                                            <small class="text-primary">Total Tableros</small>
                                         </div>
                                     </td>
-                                    <td class="text-center bg-warning text-dark align-middle">
+                                    <td class="text-center align-middle" style="background-color: white; border: 2px solid #ffc107;">
                                         {% set proximos_hitos = proyectos_gantt | selectattr('dias_proximo_hito', 'ne', none) | list %}
                                         {% if proximos_hitos %}
                                             {% set hito_mas_cercano = proximos_hitos | min(attribute='dias_proximo_hito') %}
                                             <div class="next-milestone">
-                                                <strong>{{ hito_mas_cercano.dias_proximo_hito }}</strong><br>
-                                                <small>Próximo</small>
+                                                <strong class="text-warning">{{ hito_mas_cercano.dias_proximo_hito }}</strong><br>
+                                                <small class="text-warning">Próximo</small>
                                             </div>
                                         {% else %}
                                             <small class="text-muted">N/A</small>
@@ -925,7 +925,7 @@ function setupDropdownListeners() {
 
 // Funciones para expandir/colapsar todos los proyectos en la matriz detallada
 function expandirTodos() {
-    const collapseElements = document.querySelectorAll('.collapse[id*="proyecto-detalle-"]');
+    const collapseElements = document.querySelectorAll('[id^="proyecto-detalle-"]');
 
     collapseElements.forEach(element => {
         if (!element.classList.contains('show')) {
@@ -935,7 +935,7 @@ function expandirTodos() {
 }
 
 function colapsarTodos() {
-    const collapseElements = document.querySelectorAll('.collapse[id*="proyecto-detalle-"]');
+    const collapseElements = document.querySelectorAll('[id^="proyecto-detalle-"]');
 
     collapseElements.forEach(element => {
         if (element.classList.contains('show')) {
@@ -1253,20 +1253,26 @@ function imprimirMatrizDetallada() {
     /* Estadísticas - más compactas */
     .estadisticas-row .card {
         margin-bottom: 0.1in !important;
+        background-color: white !important;
+        -webkit-print-color-adjust: exact;
     }
 
     .estadisticas-row .card-body {
         padding: 2px !important;
         text-align: center !important;
+        background-color: white !important;
     }
 
     .estadisticas-row h3 {
         font-size: 9px !important;
         margin: 0 !important;
+        color: #000 !important;
+        font-weight: bold !important;
     }
 
     .estadisticas-row small {
         font-size: 5px !important;
+        color: #000 !important;
     }
 
     /* Gantt optimizado para horizontal */
