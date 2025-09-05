@@ -116,7 +116,8 @@ class PlanificacionOperacionalService:
             for material, _ in self.DEFAULT_FACTORS.items():
                 resultado = self.calcular_tableros_aproximados(
                     monto_provision=float(proyecto.monto_provision_presupuestado),
-                    tipo_material=material
+                    tipo_material=material,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
                 )
                 tableros_por_material[material] = resultado
         
@@ -136,19 +137,23 @@ class PlanificacionOperacionalService:
     def get_analisis_capacidad(self, año=2025, vista='mensual'):
         """Get production capacity analysis including productivity data"""
         
-        # Get projects with commercial state ADJUDICADO
-        proyectos_adjudicados = (db.session.query(Proyecto)
-                                .filter(Proyecto.estado_comercial == EstadoComercial.ADJUDICADO)
-                                .filter(or_(
-                                    extract('year', Proyecto.fecha_inicio) == año,
-                                    extract('year', Proyecto.fecha_fin_estimada) == año
-                                ))
-                                .all())
+        # Get projects with commercial states: ADJUDICADO, EN_DESARROLLO, TERMINADO
+        proyectos_activos = (db.session.query(Proyecto)
+                            .filter(Proyecto.estado_comercial.in_([
+                                EstadoComercial.ADJUDICADO,
+                                EstadoComercial.EN_DESARROLLO, 
+                                EstadoComercial.TERMINADO
+                            ]))
+                            .filter(or_(
+                                extract('year', Proyecto.fecha_inicio) == año,
+                                extract('year', Proyecto.fecha_fin_estimada) == año
+                            ))
+                            .all())
         
         if vista == 'mensual':
-            capacidad = self._calcular_capacidad_mensual(proyectos_adjudicados, año)
+            capacidad = self._calcular_capacidad_mensual(proyectos_activos, año)
         else:
-            capacidad = self._calcular_capacidad_semanal(proyectos_adjudicados, año)
+            capacidad = self._calcular_capacidad_semanal(proyectos_activos, año)
         
         # Get productivity data (only for monthly view)
         analisis_mensual = {}
@@ -207,7 +212,7 @@ class PlanificacionOperacionalService:
             'año': año,
             'vista': vista,
             'capacidad': capacidad,
-            'proyectos_adjudicados': proyectos_adjudicados,
+            'proyectos_activos': proyectos_activos,
             'resumen': self._calcular_resumen_capacidad(capacidad),
             # Enhanced summary with productivity
             'total_tableros_año': total_tableros,
@@ -222,21 +227,42 @@ class PlanificacionOperacionalService:
             'analisis_mensual': analisis_mensual
         }
 
-    def calcular_tableros_aproximados(self, monto_provision, tipo_material='melamina'):
-        """Calculate approximate boards needed based on provision amount"""
+    def calcular_tableros_aproximados(self, monto_provision, tipo_material='melamina', margen_venta_provision=None):
+        """Calculate approximate boards needed based on provision amount using new formula:
+        Monto_provision * (1-margen_vta_provision) * factor_(CLP/tablero)
+        """
         
         # Get conversion factor
         factor_data = self.DEFAULT_FACTORS.get(tipo_material, self.DEFAULT_FACTORS['melamina'])
         factor_m2 = factor_data['factor_m2']
         
-        # Calculate total area in m²
-        area_total_m2 = Decimal(str(monto_provision)) / Decimal(str(factor_m2))
+        # Calculate CLP per board: CLP/m2 * m2_per_board
+        factor_clp_por_tablero = factor_m2 * self.AREA_TABLERO_ESTANDAR
         
-        # Apply waste factor
-        area_con_desperdicio = area_total_m2 * Decimal(str(self.FACTOR_DESPERDICIO))
-        
-        # Calculate boards needed
-        tableros_aproximados = area_con_desperdicio / Decimal(str(self.AREA_TABLERO_ESTANDAR))
+        # Apply new formula if margin is provided
+        if margen_venta_provision is not None:
+            # New formula: Monto_provision * (1-margen_vta_provision) / factor_(CLP/tablero)
+            margen_decimal = Decimal(str(margen_venta_provision)) / 100  # Convert percentage to decimal
+            monto_neto = Decimal(str(monto_provision)) * (1 - margen_decimal)
+            
+            # Calculate boards directly using CLP per board
+            tableros_sin_desperdicio = monto_neto / Decimal(str(factor_clp_por_tablero))
+            
+            # Apply waste factor
+            tableros_aproximados = tableros_sin_desperdicio * Decimal(str(self.FACTOR_DESPERDICIO))
+            
+            # Calculate derived values for compatibility
+            area_total_m2 = tableros_sin_desperdicio * Decimal(str(self.AREA_TABLERO_ESTANDAR))
+            area_con_desperdicio = area_total_m2 * Decimal(str(self.FACTOR_DESPERDICIO))
+        else:
+            # Legacy formula: monto_provision / factor_m2 
+            area_total_m2 = Decimal(str(monto_provision)) / Decimal(str(factor_m2))
+            
+            # Apply waste factor
+            area_con_desperdicio = area_total_m2 * Decimal(str(self.FACTOR_DESPERDICIO))
+            
+            # Calculate boards needed
+            tableros_aproximados = area_con_desperdicio / Decimal(str(self.AREA_TABLERO_ESTANDAR))
         
         # Round up to whole boards
         tableros_enteros = int(tableros_aproximados.to_integral_value())
@@ -249,10 +275,14 @@ class PlanificacionOperacionalService:
             'area_total_m2': float(area_total_m2),
             'area_con_desperdicio': float(area_con_desperdicio),
             'factor_usado': factor_m2,
+            'factor_clp_por_tablero': factor_clp_por_tablero,
             'tipo_material': tipo_material,
+            'formula_usada': 'nueva' if margen_venta_provision is not None else 'legacy',
             'detalles': {
                 'monto_provision': monto_provision,
+                'margen_venta_provision': margen_venta_provision,
                 'factor_m2': factor_m2,
+                'factor_clp_por_tablero': factor_clp_por_tablero,
                 'area_tablero': self.AREA_TABLERO_ESTANDAR,
                 'factor_desperdicio': self.FACTOR_DESPERDICIO,
                 'descripcion_material': factor_data['descripcion']
@@ -479,11 +509,12 @@ class PlanificacionOperacionalService:
                 if mes in capacidad:
                     capacidad[mes]['proyectos_activos'] += 1
                     
-                    # Calculate boards for this project in this month
+                    # Calculate boards for this project in this month using new formula
                     if proyecto.monto_provision_presupuestado:
                         tableros_resultado = self.calcular_tableros_aproximados(
                             monto_provision=float(proyecto.monto_provision_presupuestado) / len(meses_proyecto),
-                            tipo_material='melamina'  # Default material
+                            tipo_material='melamina',  # Default material
+                            margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
                         )
                         
                         capacidad[mes]['tableros_requeridos'] += tableros_resultado['tableros_aproximados']
