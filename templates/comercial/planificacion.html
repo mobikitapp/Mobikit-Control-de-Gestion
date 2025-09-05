@@ -284,50 +284,50 @@
     <!-- Summary Cards -->
     <div class="row mb-4">
         <div class="col-md-2">
-            <div class="card bg-primary text-white">
+            <div class="card bg-white border-primary" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4>{{ gran_totales.total_proyectos }}</h4>
-                    <small>Total Proyectos</small>
+                    <h4 class="text-primary">{{ gran_totales.total_proyectos }}</h4>
+                    <small class="text-primary">Total Proyectos</small>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card bg-success text-white">
+            <div class="card bg-white border-success" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4>${{ "{:,.0f}".format(gran_totales.total_provision / 1000000) }}M</h4>
-                    <small>Total Provisión</small>
+                    <h4 class="text-success">${{ "{:,.0f}".format(gran_totales.total_provision / 1000000) }}M</h4>
+                    <small class="text-success">Total Provisión</small>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card bg-info text-white">
+            <div class="card bg-white border-info" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4>${{ "{:,.0f}".format(gran_totales.total_instalacion / 1000000) }}M</h4>
-                    <small>Total Instalación</small>
+                    <h4 class="text-info">${{ "{:,.0f}".format(gran_totales.total_instalacion / 1000000) }}M</h4>
+                    <small class="text-info">Total Instalación</small>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card bg-warning text-white">
+            <div class="card bg-white border-warning" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4>${{ "{:,.0f}".format(gran_totales.total_ganancias / 1000000) }}M</h4>
-                    <small>Total Ganancias</small>
+                    <h4 class="text-warning">${{ "{:,.0f}".format(gran_totales.total_ganancias / 1000000) }}M</h4>
+                    <small class="text-warning">Total Ganancias</small>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card bg-secondary text-white">
+            <div class="card bg-white border-secondary" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4>{{ "{:.1f}".format(gran_totales.total_ventas / 1000000) }}M</h4>
-                    <small>Total Ventas</small>
+                    <h4 class="text-secondary">{{ "{:.1f}".format(gran_totales.total_ventas / 1000000) }}M</h4>
+                    <small class="text-secondary">Total Ventas</small>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card bg-dark text-white">
+            <div class="card bg-white border-dark" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4>{{ "{:.1f}".format(gran_totales.margen_global) }}%</h4>
-                    <small>Margen Global</small>
+                    <h4 class="text-dark">{{ "{:.1f}".format(gran_totales.margen_global) }}%</h4>
+                    <small class="text-dark">Margen Global</small>
                 </div>
             </div>
         </div>
