@@ -77,7 +77,17 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h6 class="mb-0">Matriz de Planificación Mensual</h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Matriz de Planificación Mensual</h6>
+                        <div class="toggle-all-container">
+                            <button class="btn btn-sm btn-success me-1" onclick="expandAllMonths()">
+                                <i class="fas fa-expand-alt"></i> Expandir Todo
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="collapseAllMonths()">
+                                <i class="fas fa-compress-alt"></i> Contraer Todo
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -101,21 +111,25 @@
                                 {% set objetivo_provision = objetivo_mes.objetivo_provision if objetivo_mes else 0 %}
                                 {% set porcentaje_objetivo = (mes_data.valor_provision / objetivo_provision * 100) if objetivo_provision else 0 %}
 
-                                <tr class="{% if porcentaje_objetivo >= 100 %}table-success{% elif porcentaje_objetivo >= 80 %}table-warning{% elif objetivo_provision and porcentaje_objetivo < 50 %}table-danger{% endif %}">
+                                <tr class="{% if porcentaje_objetivo >= 100 %}table-success{% elif porcentaje_objetivo >= 80 %}table-warning{% elif objetivo_provision and porcentaje_objetivo < 50 %}table-danger{% endif %}" 
+                                    id="mes-row-{{ mes }}">
                                     <td>
                                         <strong>{{ mes_data.mes_nombre[:3] }}</strong>
                                         <br><small class="text-muted">{{ año }}</small>
                                     </td>
                                     <td>
-                                        <span class="badge bg-primary">{{ mes_data.proyectos|length }}</span>
                                         {% if mes_data.proyectos|length > 0 %}
-                                        <br>
-                                        {% for proyecto_mes in mes_data.proyectos[:2] %}
-                                        <small class="text-muted d-block">{{ proyecto_mes.proyecto.nombre[:20] }}{% if proyecto_mes.proyecto.nombre|length > 20 %}...{% endif %}</small>
-                                        {% endfor %}
-                                        {% if mes_data.proyectos|length > 2 %}
-                                        <small class="text-muted">+{{ mes_data.proyectos|length - 2 }} más</small>
-                                        {% endif %}
+                                        <div class="d-flex align-items-center">
+                                            <button class="btn btn-sm btn-outline-primary me-2" 
+                                                    onclick="toggleProyectosMes({{ mes }})" 
+                                                    id="toggle-btn-{{ mes }}">
+                                                <i class="fas fa-chevron-down" id="icon-{{ mes }}"></i>
+                                            </button>
+                                            <span class="badge bg-primary">{{ mes_data.proyectos|length }}</span>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">Click para ver proyectos</small>
+                                        {% else %}
+                                        <span class="badge bg-secondary">0</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -154,6 +168,80 @@
                                         {% endif %}
                                     </td>
                                 </tr>
+                                
+                                <!-- Expandable projects row for this month -->
+                                {% if mes_data.proyectos|length > 0 %}
+                                <tr id="proyectos-mes-{{ mes }}" class="proyectos-detail" style="display: none;">
+                                    <td colspan="8" class="p-0">
+                                        <div class="bg-light border-top">
+                                            <div class="p-3">
+                                                <h6 class="mb-3">Proyectos en {{ mes_data.mes_nombre }} {{ año }}</h6>
+                                                <div class="row">
+                                                    {% for proyecto_mes in mes_data.proyectos %}
+                                                    <div class="col-md-6 col-lg-4 mb-3">
+                                                        <div class="card card-sm">
+                                                            <div class="card-body p-2">
+                                                                <h6 class="card-title mb-1" style="font-size: 0.9rem;">
+                                                                    {{ proyecto_mes.proyecto.nombre }}
+                                                                </h6>
+                                                                <p class="mb-1 text-muted small">
+                                                                    <strong>Cliente:</strong> {{ proyecto_mes.proyecto.cliente.nombre }}
+                                                                </p>
+                                                                <p class="mb-1 text-muted small">
+                                                                    <strong>Estado:</strong> 
+                                                                    <span class="badge bg-{% if proyecto_mes.proyecto.estado_comercial.value == 'ADJUDICADO' %}success{% elif proyecto_mes.proyecto.estado_comercial.value == 'PRESUPUESTADO' %}info{% else %}secondary{% endif %} badge-sm">
+                                                                        {{ proyecto_mes.proyecto.estado_comercial.value }}
+                                                                    </span>
+                                                                </p>
+                                                                {% if proyecto_mes.proyecto.vendedor_user %}
+                                                                <p class="mb-1 text-muted small">
+                                                                    <strong>Vendedor:</strong> {{ proyecto_mes.proyecto.vendedor_user.first_name }} {{ proyecto_mes.proyecto.vendedor_user.last_name }}
+                                                                </p>
+                                                                {% endif %}
+                                                                <div class="row text-center mt-2">
+                                                                    <div class="col-6">
+                                                                        <small class="text-muted">Provisión</small>
+                                                                        <div class="fw-bold" style="font-size: 0.8rem;">
+                                                                            ${{ "{:,.0f}".format(proyecto_mes.valor_provision_mes) }}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-6">
+                                                                        <small class="text-muted">Instalación</small>
+                                                                        <div class="fw-bold" style="font-size: 0.8rem;">
+                                                                            ${{ "{:,.0f}".format(proyecto_mes.valor_instalacion_mes) }}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                {% if proyecto_mes.margen_provision or proyecto_mes.margen_instalacion %}
+                                                                <div class="row text-center mt-1">
+                                                                    {% if proyecto_mes.margen_provision %}
+                                                                    <div class="col-6">
+                                                                        <small class="text-success">{{ "{:.1f}".format(proyecto_mes.margen_provision) }}%</small>
+                                                                    </div>
+                                                                    {% endif %}
+                                                                    {% if proyecto_mes.margen_instalacion %}
+                                                                    <div class="col-6">
+                                                                        <small class="text-success">{{ "{:.1f}".format(proyecto_mes.margen_instalacion) }}%</small>
+                                                                    </div>
+                                                                    {% endif %}
+                                                                </div>
+                                                                {% endif %}
+                                                                <div class="text-center mt-2">
+                                                                    <a href="{{ url_for('comercial.proyecto_comercial', proyecto_id=proyecto_mes.proyecto.id) }}" 
+                                                                       class="btn btn-sm btn-outline-primary">
+                                                                        Ver Detalles
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
                                 {% endfor %}
 
                                 <!-- Totals Row -->
@@ -269,6 +357,85 @@
 @media print {
     .btn, .card-header, .navbar { display: none !important; }
     .table { font-size: 0.8rem; }
+    .proyectos-detail { display: none !important; }
+}
+
+.card-sm .card-body {
+    padding: 0.75rem;
+}
+
+.badge-sm {
+    font-size: 0.7rem;
+}
+
+.proyectos-detail td {
+    border-top: none;
+}
+
+.toggle-all-container {
+    margin-bottom: 1rem;
 }
 </style>
+
+<script>
+function toggleProyectosMes(mes) {
+    const row = document.getElementById('proyectos-mes-' + mes);
+    const icon = document.getElementById('icon-' + mes);
+    const btn = document.getElementById('toggle-btn-' + mes);
+    
+    if (row.style.display === 'none' || row.style.display === '') {
+        row.style.display = 'table-row';
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-primary');
+    } else {
+        row.style.display = 'none';
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-primary');
+    }
+}
+
+function expandAllMonths() {
+    const rows = document.querySelectorAll('.proyectos-detail');
+    const icons = document.querySelectorAll('[id^="icon-"]');
+    const buttons = document.querySelectorAll('[id^="toggle-btn-"]');
+    
+    rows.forEach(row => {
+        row.style.display = 'table-row';
+    });
+    
+    icons.forEach(icon => {
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+    });
+    
+    buttons.forEach(btn => {
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-primary');
+    });
+}
+
+function collapseAllMonths() {
+    const rows = document.querySelectorAll('.proyectos-detail');
+    const icons = document.querySelectorAll('[id^="icon-"]');
+    const buttons = document.querySelectorAll('[id^="toggle-btn-"]');
+    
+    rows.forEach(row => {
+        row.style.display = 'none';
+    });
+    
+    icons.forEach(icon => {
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    });
+    
+    buttons.forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-primary');
+    });
+}
+</script>
 {% endblock %}
