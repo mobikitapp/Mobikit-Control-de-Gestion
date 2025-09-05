@@ -6,6 +6,16 @@ A comprehensive management system for manufacturing companies that centralizes a
 
 ## Recent Changes
 
+**[2025-09-05] Sistema de Seguimiento de Tiempos de Procesamiento por Área - FINALIZADO**
+- **REGISTRO DE TIEMPOS DINÁMICO**: Sistema completo de tracking de tiempo de procesamiento por área sin modificaciones de schema
+- **CÁLCULO EN TIEMPO REAL**: Tiempos calculados dinámicamente basados en fecha_ingreso_area y transiciones entre áreas
+- **HISTÓRICO COMPLETO**: Tracking completo del recorrido de cada OF por todas las áreas con duración en cada una
+- **ESTADÍSTICAS INTEGRALES**: Promedios, máximos y mínimos de tiempo de procesamiento por tipo de área
+- **INTEGRACIÓN PLANIFICACIÓN**: Información de tiempos incluida en matriz de planificación y prioridades
+- **ÁREA ACTUAL**: Identificación automática de área y estado actual con tiempo transcurrido en progreso
+- **FILTRADO INTELIGENTE**: Exclusión automática de OFs que han llegado a área de Bodega
+- Sistema mantiene compatibilidad total con estructura de base de datos existente sin requerir migraciones
+
 **[2025-09-05] Sistema de Planificación Estratégica de Capacidad - FINALIZADO**
 - **ANÁLISIS ESTRATÉGICO COMPLETO**: Sistema integral de planificación de capacidad con horizonte de 3-12 meses
 - **PARÁMETROS OPERACIONALES**: Configuración completa de máquinas, turnos, OEE, días laborables 

@@ -81,13 +81,22 @@ class PlanificacionPrioridadesService:
         con información completa para la matriz de planificación
         """
         try:
-            # Estados que nos interesan para la planificación
+            # Estados que nos interesan para la planificación (hasta Listo Embalaje)
             estados_pendientes = [
                 'pendiente_aprobacion_diseño',
                 'aprobado'
             ]
             estados_fabrica = [
-                'enviado_a_fabricacion'
+                'enviado_a_fabricacion',
+                'seccionando',
+                'enchapando', 
+                'mecanizando',
+                'fabricacion_completa'
+            ]
+            estados_embalaje = [
+                'pendiente_de_embalar',
+                'embalando',
+                'embalaje_listo'
             ]
 
             # Query principal para obtener OFs con su progreso actual
@@ -104,13 +113,21 @@ class PlanificacionPrioridadesService:
                          .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
 
             query = query.filter(
-                or_(
-                    # Pendientes de Fabricación
-                    and_(Area.tipo == 'PENDIENTES_FABRICACION',
-                         AreaEstado.codigo.in_(estados_pendientes)),
-                    # En Fábrica - Enviado a Fabricar
-                    and_(Area.tipo == 'FABRICA',
-                         AreaEstado.codigo.in_(estados_fabrica))
+                and_(
+                    # Excluir explícitamente área de Bodega y Despacho
+                    Area.tipo.notin_(['BODEGA', 'DESPACHO']),
+                    # Incluir estados específicos hasta Listo Embalaje
+                    or_(
+                        # Pendientes de Fabricación
+                        and_(Area.tipo == 'PENDIENTES_FABRICACION',
+                             AreaEstado.codigo.in_(estados_pendientes)),
+                        # En Fábrica - Todos los estados
+                        and_(Area.tipo == 'FABRICA',
+                             AreaEstado.codigo.in_(estados_fabrica)),
+                        # En Embalaje - Todos los estados hasta Listo
+                        and_(Area.tipo == 'EMBALAJE',
+                             AreaEstado.codigo.in_(estados_embalaje))
+                    )
                 )
             )
 
@@ -173,6 +190,9 @@ class PlanificacionPrioridadesService:
                     if tiempo_embalaje > 0:
                         porcentaje_desviacion_embalaje = (desviacion_embalaje / tiempo_embalaje) * 100
 
+                # Obtener información de tiempos de procesamiento por área
+                tiempos_info = self.get_tiempos_procesamiento_of(of.id)
+                
                 of_data = {
                     'of': of,
                     'progreso_actual': progreso,
@@ -193,7 +213,12 @@ class PlanificacionPrioridadesService:
                         of.fecha_planificada,
                         of.fecha_entrega_fabrica,
                         of.fecha_entrega_embalaje
-                    ])
+                    ]),
+                    # Información de tiempos por área
+                    'tiempos_procesamiento': tiempos_info,
+                    'area_actual': tiempos_info.get('area_actual', {}),
+                    'tiempo_total_procesamiento': tiempos_info.get('tiempo_total_procesamiento', 0),
+                    'areas_completadas': tiempos_info.get('areas_completadas', 0)
                 }
 
                 ofs_procesadas.append(of_data)
@@ -338,10 +363,14 @@ class PlanificacionPrioridadesService:
                 }
                 proyectos_gantt.append(gantt_proyecto)
 
+            # Obtener estadísticas generales de tiempos por área
+            estadisticas_tiempos = self.get_estadisticas_tiempos_por_area()
+            
             return {
                 'proyectos': proyectos_ordenados,
                 'proyectos_gantt': proyectos_gantt,
                 'estadisticas': estadisticas,
+                'estadisticas_tiempos': estadisticas_tiempos,
                 'fecha_actualizacion': datetime.now(),
                 'timedelta': timedelta  # Para usar en template
             }
@@ -359,6 +388,7 @@ class PlanificacionPrioridadesService:
                     'tiempo_total_fabrica': 0,
                     'tiempo_total_embalaje': 0
                 },
+                'estadisticas_tiempos': {'success': False, 'estadisticas_por_area': {}, 'total_areas_con_datos': 0},
                 'fecha_actualizacion': datetime.now(),
                 'timedelta': timedelta
             }
@@ -405,11 +435,21 @@ class PlanificacionPrioridadesService:
                                .join(Area, OrdenAreaProgreso.area_id == Area.id)
                                .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
                                .filter(
-                                   or_(
-                                       and_(Area.tipo == 'PENDIENTES_FABRICACION',
-                                            AreaEstado.codigo.in_(['pendiente_aprobacion_diseño', 'aprobado'])),
-                                       and_(Area.tipo == 'FABRICA',
-                                            AreaEstado.codigo.in_(['enviado_a_fabricacion']))
+                                   and_(
+                                       # Excluir explícitamente área de Bodega y Despacho
+                                       Area.tipo.notin_(['BODEGA', 'DESPACHO']),
+                                       # Incluir estados específicos hasta Listo Embalaje
+                                       or_(
+                                           # Pendientes de Fabricación
+                                           and_(Area.tipo == 'PENDIENTES_FABRICACION',
+                                                AreaEstado.codigo.in_(['pendiente_aprobacion_diseño', 'aprobado'])),
+                                           # En Fábrica - Todos los estados
+                                           and_(Area.tipo == 'FABRICA',
+                                                AreaEstado.codigo.in_(['enviado_a_fabricacion', 'seccionando', 'enchapando', 'mecanizando', 'fabricacion_completa'])),
+                                           # En Embalaje - Todos los estados hasta Listo
+                                           and_(Area.tipo == 'EMBALAJE',
+                                                AreaEstado.codigo.in_(['pendiente_de_embalar', 'embalando', 'embalaje_listo']))
+                                       )
                                    )
                                )
                                .order_by(
@@ -547,3 +587,135 @@ class PlanificacionPrioridadesService:
             db.session.rollback()
             print(f"Error actualizando prioridad de OF {of_id}: {str(e)}")
             return False
+
+    def get_tiempos_procesamiento_of(self, of_id: int) -> Dict[str, Any]:
+        """
+        Obtiene el histórico de tiempos de procesamiento por área para una OF específica
+        """
+        try:
+            # Obtener todo el historial de progreso de la OF (no solo el actual)
+            from sqlalchemy.orm import joinedload
+            historial_progreso = (db.session.query(OrdenAreaProgreso)
+                                 .options(
+                                     joinedload(OrdenAreaProgreso.area),
+                                     joinedload(OrdenAreaProgreso.estado)
+                                 )
+                                 .filter(OrdenAreaProgreso.orden_fabricacion_id == of_id)
+                                 .order_by(OrdenAreaProgreso.fecha_ingreso_area.asc())
+                                 .all())
+
+            tiempos_por_area = []
+            tiempo_total_procesamiento = 0.0
+
+            for progreso in historial_progreso:
+                # Calcular tiempo en área dinámicamente
+                tiempo_real_horas = None
+                tiempo_transcurrido_actual = None
+                
+                if progreso.es_actual:
+                    # Si es actual, calcular tiempo transcurrido hasta ahora
+                    from datetime import datetime
+                    ahora = datetime.now()
+                    tiempo_transcurrido = ahora - progreso.fecha_ingreso_area
+                    tiempo_transcurrido_actual = round(tiempo_transcurrido.total_seconds() / 3600, 2)
+                else:
+                    # Si no es actual, calcular tiempo que estuvo en el área
+                    # Buscar el siguiente progreso para saber cuándo salió del área
+                    siguiente_progreso = (db.session.query(OrdenAreaProgreso)
+                                         .filter(
+                                             OrdenAreaProgreso.orden_fabricacion_id == progreso.orden_fabricacion_id,
+                                             OrdenAreaProgreso.fecha_ingreso_area > progreso.fecha_ingreso_area
+                                         )
+                                         .order_by(OrdenAreaProgreso.fecha_ingreso_area.asc())
+                                         .first())
+                    
+                    if siguiente_progreso:
+                        tiempo_en_area = siguiente_progreso.fecha_ingreso_area - progreso.fecha_ingreso_area
+                        tiempo_real_horas = round(tiempo_en_area.total_seconds() / 3600, 2)
+                        tiempo_total_procesamiento += tiempo_real_horas
+
+                area_info = {
+                    'area_nombre': progreso.area.nombre,
+                    'area_tipo': progreso.area.tipo.value,
+                    'fecha_ingreso': progreso.fecha_ingreso_area,
+                    'tiempo_estimado_horas': float(progreso.tiempo_estimado_horas) if progreso.tiempo_estimado_horas else None,
+                    'tiempo_real_horas': tiempo_real_horas,
+                    'tiempo_transcurrido_actual': tiempo_transcurrido_actual,
+                    'es_actual': progreso.es_actual,
+                    'estado_actual': progreso.estado.nombre if progreso.es_actual else None
+                }
+
+                tiempos_por_area.append(area_info)
+
+            return {
+                'success': True,
+                'of_id': of_id,
+                'tiempos_por_area': tiempos_por_area,
+                'tiempo_total_procesamiento': tiempo_total_procesamiento,
+                'areas_completadas': len([t for t in tiempos_por_area if not t['es_actual']]),
+                'area_actual': next((t for t in tiempos_por_area if t['es_actual']), None)
+            }
+
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
+
+    def get_estadisticas_tiempos_por_area(self) -> Dict[str, Any]:
+        """
+        Obtiene estadísticas promedio de tiempos de procesamiento por área
+        """
+        try:
+            # Obtener todos los progresos completados (no actuales) para calcular estadísticas
+            from sqlalchemy.orm import joinedload
+            progresos_completados = (db.session.query(OrdenAreaProgreso)
+                                   .options(joinedload(OrdenAreaProgreso.area))
+                                   .filter(OrdenAreaProgreso.es_actual == False)
+                                   .all())
+
+            estadisticas_areas = {}
+            for progreso in progresos_completados:
+                # Calcular tiempo dinámicamente para estadísticas
+                siguiente_progreso = (db.session.query(OrdenAreaProgreso)
+                                     .filter(
+                                         OrdenAreaProgreso.orden_fabricacion_id == progreso.orden_fabricacion_id,
+                                         OrdenAreaProgreso.fecha_ingreso_area > progreso.fecha_ingreso_area
+                                     )
+                                     .order_by(OrdenAreaProgreso.fecha_ingreso_area.asc())
+                                     .first())
+                
+                if not siguiente_progreso:
+                    continue  # Skip si no podemos calcular el tiempo
+                    
+                tiempo_en_area = siguiente_progreso.fecha_ingreso_area - progreso.fecha_ingreso_area
+                tiempo_real = round(tiempo_en_area.total_seconds() / 3600, 2)
+                
+                if tiempo_real <= 0:
+                    continue  # Skip tiempos inválidos
+                
+                area_tipo = progreso.area.tipo.value
+
+                if area_tipo not in estadisticas_areas:
+                    estadisticas_areas[area_tipo] = {
+                        'area_nombre': progreso.area.nombre,
+                        'tiempos': [],
+                        'total_ofs': 0
+                    }
+
+                estadisticas_areas[area_tipo]['tiempos'].append(tiempo_real)
+                estadisticas_areas[area_tipo]['total_ofs'] += 1
+
+            # Calcular promedios y estadísticas
+            for area_tipo, datos in estadisticas_areas.items():
+                tiempos = datos['tiempos']
+                datos['tiempo_promedio'] = round(sum(tiempos) / len(tiempos), 2)
+                datos['tiempo_minimo'] = round(min(tiempos), 2)
+                datos['tiempo_maximo'] = round(max(tiempos), 2)
+                del datos['tiempos']  # Remove raw data to reduce payload
+
+            return {
+                'success': True,
+                'estadisticas_por_area': estadisticas_areas,
+                'total_areas_con_datos': len(estadisticas_areas)
+            }
+
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
