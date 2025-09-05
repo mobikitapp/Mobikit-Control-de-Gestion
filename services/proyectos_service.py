@@ -310,6 +310,104 @@ class ProyectosService:
             logger.error(f"Error obteniendo proyectos activos: {str(e)}")
             raise
 
+    def add_project_attachment(self, proyecto_id: int, file, tipo: str, descripcion: str, created_by: str):
+        """
+        Add attachment to project
+        
+        Args:
+            proyecto_id: Project ID
+            file: Uploaded file
+            tipo: Type of attachment
+            descripcion: Description of the attachment
+            created_by: User ID who is uploading
+            
+        Returns:
+            Created ProyectoAdjunto instance
+        """
+        try:
+            from repositories.proyecto_adjuntos_repo import ProyectoAdjuntosRepository
+            from services.storage_service import StorageService
+            from models import TipoAdjunto
+            
+            proyecto = self.get_proyecto_by_id(proyecto_id)
+            if not proyecto:
+                raise ValueError(f"Proyecto {proyecto_id} no encontrado")
+
+            # Upload file
+            storage_service = StorageService()
+            file_metadata = storage_service.upload_file_for_entity(
+                file, 'proyectos', proyecto_id, 'docs', tipo
+            )
+
+            # Create adjunto record
+            adjuntos_repo = ProyectoAdjuntosRepository()
+            adjunto_data = {
+                'proyecto_id': proyecto_id,
+                'storage_key': file_metadata['storage_key'],
+                'filename': file_metadata['filename'],
+                'mime_type': file_metadata['mime_type'],
+                'size_bytes': file_metadata['size_bytes'],
+                'tipo': TipoAdjunto(tipo),
+                'descripcion': descripcion
+            }
+
+            adjunto = adjuntos_repo.create(adjunto_data, created_by)
+
+            # Commit transaction
+            db.session.commit()
+
+            logger.info(f"Adjunto agregado al proyecto {proyecto_id}: {file.filename}")
+            return adjunto
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error adding attachment to proyecto {proyecto_id}: {str(e)}")
+            raise
+
+    def get_project_attachments(self, proyecto_id: int):
+        """Get all attachments for a project"""
+        try:
+            from repositories.proyecto_adjuntos_repo import ProyectoAdjuntosRepository
+            adjuntos_repo = ProyectoAdjuntosRepository()
+            return adjuntos_repo.get_by_proyecto_id(proyecto_id)
+        except Exception as e:
+            logger.error(f"Error getting attachments for proyecto {proyecto_id}: {str(e)}")
+            return []
+
+    def delete_project_attachment(self, adjunto_id: int, user_id: str) -> bool:
+        """Delete project attachment"""
+        try:
+            from repositories.proyecto_adjuntos_repo import ProyectoAdjuntosRepository
+            from services.storage_service import StorageService
+            
+            adjuntos_repo = ProyectoAdjuntosRepository()
+            adjunto = adjuntos_repo.get_by_id(adjunto_id)
+            
+            if not adjunto:
+                raise ValueError(f"Adjunto {adjunto_id} no encontrado")
+
+            # Delete from storage
+            storage_service = StorageService()
+            try:
+                storage_service.delete_file(adjunto.storage_key)
+            except Exception as storage_error:
+                logger.warning(f"Error deleting file from storage: {storage_error}")
+
+            # Delete from database
+            success = adjuntos_repo.delete(adjunto)
+            
+            if success:
+                db.session.commit()
+                logger.info(f"Adjunto {adjunto_id} eliminado del proyecto {adjunto.proyecto_id}")
+                return True
+            
+            return False
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error deleting proyecto attachment {adjunto_id}: {str(e)}")
+            raise
+
     def _aplicar_cambios_automaticos_estado(self, proyecto, update_data):
         """Apply automatic estado changes based on business rules"""
         try:

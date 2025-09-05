@@ -368,6 +368,109 @@ def api_proyectos():
         logger.error(f"Error en API proyectos: {str(e)}")
         return jsonify({'error': 'Error al cargar proyectos'}), 500
 
+@proyectos_bp.route('/<int:proyecto_id>/adjuntos', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def subir_adjunto(proyecto_id):
+    """Upload attachment to project"""
+    try:
+        if 'archivo' not in request.files:
+            return jsonify({'success': False, 'message': 'No se seleccionó archivo'}), 400
+
+        file = request.files['archivo']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No se seleccionó archivo'}), 400
+
+        tipo = request.form.get('tipo', 'especificacion')
+        descripcion = request.form.get('descripcion', '')
+
+        # Validate file type
+        allowed_types = ['presupuesto', 'eett', 'especificacion', 'plano', 'contrato', 'foto', 'qa']
+        if tipo not in allowed_types:
+            tipo = 'especificacion'
+
+        adjunto = proyectos_service.add_project_attachment(
+            proyecto_id, file, tipo, descripcion, current_user.id
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Documento subido exitosamente',
+            'adjunto': {
+                'id': adjunto.id,
+                'filename': adjunto.filename,
+                'tipo': adjunto.tipo.value,
+                'descripcion': adjunto.descripcion,
+                'created_at': adjunto.created_at.strftime('%d/%m/%Y %H:%M')
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error uploading attachment to proyecto {proyecto_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al subir documento: {str(e)}'}), 500
+
+@proyectos_bp.route('/<int:proyecto_id>/adjuntos', methods=['GET'])
+@require_login
+def get_adjuntos(proyecto_id):
+    """Get project attachments"""
+    try:
+        adjuntos = proyectos_service.get_project_attachments(proyecto_id)
+        
+        return jsonify({
+            'success': True,
+            'adjuntos': [{
+                'id': adj.id,
+                'filename': adj.filename,
+                'tipo': adj.tipo.value,
+                'descripcion': adj.descripcion,
+                'size_mb': round(adj.size_bytes / 1024 / 1024, 2),
+                'created_at': adj.created_at.strftime('%d/%m/%Y %H:%M'),
+                'created_by': adj.creator.nombre_completo if adj.creator else 'Usuario desconocido'
+            } for adj in adjuntos]
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting adjuntos for proyecto {proyecto_id}: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error al cargar documentos'}), 500
+
+@proyectos_bp.route('/adjuntos/<int:adjunto_id>/descargar')
+@require_login
+def descargar_adjunto(adjunto_id):
+    """Download project attachment"""
+    try:
+        from repositories.proyecto_adjuntos_repo import ProyectoAdjuntosRepository
+        from services.storage_service import StorageService
+        
+        adjuntos_repo = ProyectoAdjuntosRepository()
+        adjunto = adjuntos_repo.get_by_id(adjunto_id)
+        
+        if not adjunto:
+            flash('Documento no encontrado', 'error')
+            return redirect(url_for('proyectos.index'))
+
+        storage_service = StorageService()
+        return storage_service.serve_file(adjunto.storage_key, adjunto.filename)
+
+    except Exception as e:
+        logger.error(f"Error downloading adjunto {adjunto_id}: {str(e)}")
+        flash('Error al descargar documento', 'error')
+        return redirect(url_for('proyectos.index'))
+
+@proyectos_bp.route('/adjuntos/<int:adjunto_id>/eliminar', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def eliminar_adjunto(adjunto_id):
+    """Delete project attachment"""
+    try:
+        success = proyectos_service.delete_project_attachment(adjunto_id, current_user.id)
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Documento eliminado exitosamente'})
+        else:
+            return jsonify({'success': False, 'message': 'Error al eliminar documento'}), 500
+
+    except Exception as e:
+        logger.error(f"Error deleting adjunto {adjunto_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al eliminar documento: {str(e)}'}), 500
+
 @proyectos_bp.route('/api/<int:proyecto_id>/contratos-activos')
 @require_login
 def api_contratos_activos(proyecto_id):

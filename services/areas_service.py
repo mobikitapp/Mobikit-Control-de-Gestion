@@ -405,7 +405,7 @@ class AreasService:
                                 'codigo': o.orden_fabricacion.codigo,
                                 'proyecto_nombre': o.orden_fabricacion.proyecto.nombre,
                                 'cliente_nombre': o.orden_fabricacion.proyecto.cliente.nombre,
-                                'glosa': o.orden_fabricacion.glosa,
+                                'glosa': o.orden_fabricacion.glosa or 'Sin glosa especificada',
                                 'contrato_id': o.orden_fabricacion.contrato_id,
                                 'proxima_entrega_contrato': self._get_proxima_entrega_contrato(o.orden_fabricacion),
                                 'fecha_entrega_fabrica': o.orden_fabricacion.fecha_entrega_fabrica,
@@ -414,6 +414,7 @@ class AreasService:
                                 'fecha_ingreso_area': o.fecha_ingreso_area,
                                 'fecha_cambio_estado': o.fecha_cambio_estado,
                                 'tiempo_estimado_horas': float(o.tiempo_estimado_horas) if o.tiempo_estimado_horas else None,
+                                'responsable_nombre': o.responsable_user.nombre_completo if o.responsable_user else None,
                                 'next_action_description': self.get_next_action_description(o.orden_fabricacion.id),
                                 'prioridad': o.orden_fabricacion.prioridad.value if o.orden_fabricacion.prioridad else 'media',
                                 'prioridad_numerica': o.orden_fabricacion.prioridad_numerica or 3

@@ -108,7 +108,7 @@ def area_detail(area_id):
                 x['prioridad_numerica'],  # First by priority (lower number = higher priority)
                 x['fecha_entrega_dinamica'] or datetime(2099, 12, 31).date()  # Then by delivery date (nulls last)
             ))
-            
+
             states_data.append({
                 'estado': estado,
                 'orders': formatted_orders,
@@ -486,13 +486,13 @@ def avanzar_area_form(orden_id):
 
         # Use smart advance to automatically determine whether to advance state or area
         updated_progress = areas_service.smart_advance_orden(orden_id, current_user.id, current_user.id, notas)
-        
+
         current_area = areas_service.get_current_area_for_order(orden_id)
         if current_area:
             flash(f'Orden avanzada exitosamente en {current_area.nombre}', 'success')
         else:
             flash('Orden avanzada exitosamente', 'success')
-            
+
         return redirect(url_for('areas.dashboard'))
 
     except ValueError as e:
@@ -544,27 +544,28 @@ def area_tv_display(area_id):
                 formatted_orders = []
                 for order_progress in orders_in_state:
                     of = order_progress.orden_fabricacion
-                    formatted_order = {
-                        'id': of.id,
-                        'codigo': of.codigo,
-                        'proyecto_nombre': of.proyecto.nombre if of.proyecto else 'Sin proyecto',
-                        'cliente_nombre': of.proyecto.cliente.nombre if of.proyecto and of.proyecto.cliente else 'Sin cliente',
-                        'responsable_nombre': order_progress.responsable_user.nombre_completo if order_progress.responsable_user else None,
+                    formatted_orders.append({
+                        'id': order_progress.orden_fabricacion_id,
+                        'codigo': order_progress.orden_fabricacion.codigo,
+                        'proyecto_nombre': order_progress.orden_fabricacion.proyecto.nombre,
+                        'cliente_nombre': order_progress.orden_fabricacion.proyecto.cliente.nombre,
+                        'glosa': order_progress.orden_fabricacion.glosa if order_progress.orden_fabricacion.glosa else 'Sin glosa especificada',
+                        'fecha_entrega_dinamica': areas_service.get_dynamic_delivery_date(order_progress.orden_fabricacion),
                         'fecha_ingreso_area': order_progress.fecha_ingreso_area,
                         'fecha_cambio_estado': order_progress.fecha_cambio_estado,
                         'tiempo_estimado_horas': float(order_progress.tiempo_estimado_horas) if order_progress.tiempo_estimado_horas else None,
-                        'prioridad': of.prioridad.value if of.prioridad else 'media',
-                        'prioridad_numerica': of.prioridad_numerica or 3,
-                        'fecha_entrega_dinamica': areas_service.get_dynamic_delivery_date(of)
-                    }
-                    formatted_orders.append(formatted_order)
+                        'responsable_nombre': order_progress.responsable_user.nombre_completo if order_progress.responsable_user else None,
+                        'prioridad': order_progress.orden_fabricacion.prioridad.value if order_progress.orden_fabricacion.prioridad else 'media',
+                        'prioridad_numerica': order_progress.orden_fabricacion.prioridad_numerica or 3
+                    })
+
 
                 # Sort orders by priority and delivery date
                 formatted_orders.sort(key=lambda x: (
                     x['prioridad_numerica'],  # First by priority (lower number = higher priority)
                     x['fecha_entrega_dinamica'] or datetime(2099, 12, 31).date()  # Then by delivery date (nulls last)
                 ))
-                
+
                 states_data.append({
                     'estado': estado,
                     'orders': formatted_orders,

@@ -319,46 +319,48 @@
                             
                             <div class="info-block">
                                 <div class="info-label">Glosa</div>
-                                <div class="info-value" style="font-size: 0.95rem;">
-                                    {% if order.glosa %}
-                                    {{ order.glosa[:50] }}{% if order.glosa|length > 50 %}...{% endif %}
+                                <div class="info-value" style="font-size: 0.95rem; line-height: 1.2;">
+                                    {% if order.glosa and order.glosa != 'Sin glosa especificada' %}
+                                    <span title="{{ order.glosa }}">{{ order.glosa[:60] }}{% if order.glosa|length > 60 %}...{% endif %}</span>
                                     {% else %}
                                     <span class="text-muted">Sin glosa</span>
-                                    {% endif %}
-                                </div>
-                                {% set delivery_date = order.fecha_entrega_dinamica %}
-                                {% set days_remaining = None %}
-                                <div style="font-size: 0.9rem; color: #6c757d;">
-                                    {% if delivery_date %}
-                                    <i class="fas fa-calendar"></i> 
-                                    {{ delivery_date.strftime('%d/%m/%Y') }}
-                                    {% if days_remaining is not none %}
-                                        {% if days_remaining > 0 %}
-                                        ({{ days_remaining }} días)
-                                        {% elif days_remaining == 0 %}
-                                        <span class="text-warning">(HOY)</span>
-                                        {% else %}
-                                        <span class="text-danger">({{ days_remaining|abs }} días atraso)</span>
-                                        {% endif %}
-                                    {% endif %}
-                                    {% else %}
-                                    Sin fecha entrega
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="info-block">
-                                <div class="info-label">Responsable</div>
-                                <div class="info-value">
-                                    {% if order.responsable_nombre %}
-                                    <i class="fas fa-user"></i> {{ order.responsable_nombre }}
-                                    {% else %}
-                                    <span class="text-muted">Sin asignar</span>
                                     {% endif %}
                                 </div>
                                 {% if order.tiempo_estimado_horas %}
                                 <div style="font-size: 0.9rem; color: #6c757d;">
                                     <i class="fas fa-clock"></i> {{ order.tiempo_estimado_horas }}h estimadas
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="info-block">
+                                <div class="info-label">Fecha Entrega</div>
+                                <div class="info-value">
+                                    {% set delivery_date = order.fecha_entrega_dinamica %}
+                                    {% if delivery_date %}
+                                    <i class="fas fa-calendar"></i> 
+                                    {{ delivery_date.strftime('%d/%m/%Y') }}
+                                    {% set days_remaining = (delivery_date - now.date()).days %}
+                                    {% if days_remaining > 0 %}
+                                    <div style="font-size: 0.9rem; color: #28a745;">
+                                        {{ days_remaining }} días restantes
+                                    </div>
+                                    {% elif days_remaining == 0 %}
+                                    <div style="font-size: 0.9rem; color: #ffc107;">
+                                        <strong>HOY</strong>
+                                    </div>
+                                    {% else %}
+                                    <div style="font-size: 0.9rem; color: #dc3545;">
+                                        <strong>{{ days_remaining|abs }} días de atraso</strong>
+                                    </div>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">Sin fecha</span>
+                                    {% endif %}
+                                </div>
+                                {% if order.responsable_nombre %}
+                                <div style="font-size: 0.9rem; color: #6c757d;">
+                                    <i class="fas fa-user"></i> {{ order.responsable_nombre }}
                                 </div>
                                 {% endif %}
                             </div>
