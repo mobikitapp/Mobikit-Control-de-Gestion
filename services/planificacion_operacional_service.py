@@ -469,3 +469,212 @@ class PlanificacionOperacionalService:
             'promedio_capacidad_porcentaje': promedio_capacidad,
             'meses_sobrecargados': len([data for data in capacidad.values() if data['capacidad_porcentaje'] > 100])
         }
+
+    def get_analisis_capacidad(self, año=2025):
+        """Get capacity analysis data for charts including productivity data"""
+        capacidad = self.get_capacidad_mensual(año)
+        
+        # Get productivity data
+        productividad_fabrica = self.get_productividad_fabrica(año, 'mensual')
+        productividad_embalaje = self.get_productividad_embalaje(año, 'mensual')
+        
+        # Calculate summary statistics
+        total_tableros = sum(data['tableros_requeridos'] for data in capacidad.values())
+        total_horas = sum(data['horas_estimadas'] for data in capacidad.values())
+        promedio_capacidad = sum(data['capacidad_porcentaje'] for data in capacidad.values()) / len(capacidad) if capacidad else 0
+        
+        # Calculate productivity totals
+        total_fabricados = sum(data['tableros_completados'] for data in productividad_fabrica.values())
+        total_embalados = sum(data['tableros_completados'] for data in productividad_embalaje.values())
+        
+        # Merge capacity and productivity data by month
+        analisis_completo = {}
+        for mes in range(1, 13):
+            analisis_completo[mes] = {
+                'mes': mes,
+                'mes_nombre': calendar.month_name[mes],
+                # Capacity data
+                'tableros_estimados': capacidad.get(mes, {}).get('tableros_requeridos', 0),
+                'horas_estimadas': capacidad.get(mes, {}).get('horas_estimadas', 0),
+                'capacidad_porcentaje': capacidad.get(mes, {}).get('capacidad_porcentaje', 0),
+                # Productivity data
+                'tableros_fabricados': productividad_fabrica.get(mes, {}).get('tableros_completados', 0),
+                'tableros_embalados': productividad_embalaje.get(mes, {}).get('tableros_completados', 0),
+                # Performance indicators
+                'rendimiento_fabrica': 0,  # Will calculate below
+                'rendimiento_embalaje': 0,  # Will calculate below
+            }
+            
+            # Calculate performance ratios
+            estimados = analisis_completo[mes]['tableros_estimados']
+            if estimados > 0:
+                analisis_completo[mes]['rendimiento_fabrica'] = round(
+                    (analisis_completo[mes]['tableros_fabricados'] / estimados) * 100, 1
+                )
+                analisis_completo[mes]['rendimiento_embalaje'] = round(
+                    (analisis_completo[mes]['tableros_embalados'] / estimados) * 100, 1
+                )
+        
+        return {
+            'total_tableros_año': total_tableros,
+            'total_horas_año': total_horas,
+            'promedio_capacidad_porcentaje': promedio_capacidad,
+            'meses_sobrecargados': len([data for data in capacidad.values() if data['capacidad_porcentaje'] > 100]),
+            # New productivity metrics
+            'total_fabricados_año': total_fabricados,
+            'total_embalados_año': total_embalados,
+            'rendimiento_promedio_fabrica': round(sum(data['rendimiento_fabrica'] for data in analisis_completo.values()) / 12, 1),
+            'rendimiento_promedio_embalaje': round(sum(data['rendimiento_embalaje'] for data in analisis_completo.values()) / 12, 1),
+            'analisis_mensual': analisis_completo
+        }
+
+    # New productivity methods
+    def get_productividad_fabrica(self, año, vista='mensual'):
+        """Get factory productivity data - boards completed to FABRICACION_COMPLETA"""
+        from sqlalchemy import func, extract
+        from models import OrdenFabricacion, Proyecto, OrdenAreaProgreso, AreaEstado
+        
+        # Query to get actual completed boards using area progress system
+        if vista == 'mensual':
+            query = (db.session.query(
+                extract('month', OrdenAreaProgreso.fecha_cambio_estado).label('periodo'),
+                func.sum(OrdenFabricacion.cantidad_tableros).label('tableros_completados')
+            )
+            .join(OrdenFabricacion, OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id)
+            .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
+            .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
+            .filter(
+                extract('year', OrdenAreaProgreso.fecha_cambio_estado) == año,
+                AreaEstado.codigo == 'fabricacion_completa',
+                OrdenFabricacion.cantidad_tableros.isnot(None)
+            )
+            .group_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado))
+            .order_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado))
+            )
+        else:  # semanal
+            query = (db.session.query(
+                extract('week', OrdenAreaProgreso.fecha_cambio_estado).label('periodo'),
+                extract('month', OrdenAreaProgreso.fecha_cambio_estado).label('mes'),
+                func.sum(OrdenFabricacion.cantidad_tableros).label('tableros_completados')
+            )
+            .join(OrdenFabricacion, OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id)
+            .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
+            .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
+            .filter(
+                extract('year', OrdenAreaProgreso.fecha_cambio_estado) == año,
+                AreaEstado.codigo == 'fabricacion_completa',
+                OrdenFabricacion.cantidad_tableros.isnot(None)
+            )
+            .group_by(extract('week', OrdenAreaProgreso.fecha_cambio_estado), extract('month', OrdenAreaProgreso.fecha_cambio_estado))
+            .order_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado), extract('week', OrdenAreaProgreso.fecha_cambio_estado))
+            )
+
+        try:
+            resultados = query.all()
+        except Exception as e:
+            print(f"Error querying factory productivity: {e}")
+            resultados = []
+
+        # Process results
+        productividad = {}
+        if vista == 'mensual':
+            for mes in range(1, 13):
+                productividad[mes] = {
+                    'periodo': mes,
+                    'periodo_nombre': calendar.month_name[mes],
+                    'tableros_completados': 0
+                }
+            
+            for resultado in resultados:
+                mes = int(resultado.periodo)
+                if mes in productividad:
+                    productividad[mes]['tableros_completados'] = int(resultado.tableros_completados or 0)
+        else:
+            # Para vista semanal, agrupar por mes y semana
+            for resultado in resultados:
+                semana = int(resultado.periodo)
+                mes = int(resultado.mes) if hasattr(resultado, 'mes') else 1
+                clave = f"{mes}_{semana}"
+                productividad[clave] = {
+                    'periodo': semana,
+                    'mes': mes,
+                    'periodo_nombre': f"Sem {semana} - {calendar.month_name[mes][:3]}",
+                    'tableros_completados': int(resultado.tableros_completados or 0)
+                }
+
+        return productividad
+
+    def get_productividad_embalaje(self, año, vista='mensual'):
+        """Get packaging productivity data - boards completed to EMBALAJE_LISTO"""
+        from sqlalchemy import func, extract
+        from models import OrdenFabricacion, Proyecto, OrdenAreaProgreso, AreaEstado
+        
+        # Query to get actual packaged boards using area progress system
+        if vista == 'mensual':
+            query = (db.session.query(
+                extract('month', OrdenAreaProgreso.fecha_cambio_estado).label('periodo'),
+                func.sum(OrdenFabricacion.cantidad_tableros).label('tableros_completados')
+            )
+            .join(OrdenFabricacion, OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id)
+            .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
+            .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
+            .filter(
+                extract('year', OrdenAreaProgreso.fecha_cambio_estado) == año,
+                AreaEstado.codigo == 'embalaje_listo',
+                OrdenFabricacion.cantidad_tableros.isnot(None)
+            )
+            .group_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado))
+            .order_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado))
+            )
+        else:  # semanal
+            query = (db.session.query(
+                extract('week', OrdenAreaProgreso.fecha_cambio_estado).label('periodo'),
+                extract('month', OrdenAreaProgreso.fecha_cambio_estado).label('mes'),
+                func.sum(OrdenFabricacion.cantidad_tableros).label('tableros_completados')
+            )
+            .join(OrdenFabricacion, OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id)
+            .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
+            .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
+            .filter(
+                extract('year', OrdenAreaProgreso.fecha_cambio_estado) == año,
+                AreaEstado.codigo == 'embalaje_listo',
+                OrdenFabricacion.cantidad_tableros.isnot(None)
+            )
+            .group_by(extract('week', OrdenAreaProgreso.fecha_cambio_estado), extract('month', OrdenAreaProgreso.fecha_cambio_estado))
+            .order_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado), extract('week', OrdenAreaProgreso.fecha_cambio_estado))
+            )
+
+        try:
+            resultados = query.all()
+        except Exception as e:
+            print(f"Error querying packaging productivity: {e}")
+            resultados = []
+
+        # Process results
+        productividad = {}
+        if vista == 'mensual':
+            for mes in range(1, 13):
+                productividad[mes] = {
+                    'periodo': mes,
+                    'periodo_nombre': calendar.month_name[mes],
+                    'tableros_completados': 0
+                }
+            
+            for resultado in resultados:
+                mes = int(resultado.periodo)
+                if mes in productividad:
+                    productividad[mes]['tableros_completados'] = int(resultado.tableros_completados or 0)
+        else:
+            # Para vista semanal, agrupar por mes y semana
+            for resultado in resultados:
+                semana = int(resultado.periodo)
+                mes = int(resultado.mes) if hasattr(resultado, 'mes') else 1
+                clave = f"{mes}_{semana}"
+                productividad[clave] = {
+                    'periodo': semana,
+                    'mes': mes,
+                    'periodo_nombre': f"Sem {semana} - {calendar.month_name[mes][:3]}",
+                    'tableros_completados': int(resultado.tableros_completados or 0)
+                }
+
+        return productividad

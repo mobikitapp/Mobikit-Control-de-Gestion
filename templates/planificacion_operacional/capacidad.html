@@ -155,6 +155,95 @@
         </div>
     </div>
     
+    <!-- Production Capacity Analysis 2025 -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-industry text-success"></i>
+                        Análisis de Productividad 2025
+                    </h4>
+                    <p class="mb-0 text-muted">Comparación de capacidad estimada vs productividad real</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Productivity Summary Cards -->
+    <div class="row mb-4" id="productivity-cards">
+        <div class="col-md-6">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4 id="total-fabricados">0</h4>
+                    <small>Tableros Fabricados {{ año }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4 id="total-embalados">0</h4>
+                    <small>Tableros Embalados {{ año }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Factory Productivity Chart -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-hammer text-primary"></i>
+                        Productividad de Fábrica {{ año }}
+                    </h6>
+                    <small class="text-muted">Tableros completados a estado FABRICACION_COMPLETA por mes</small>
+                </div>
+                <div class="card-body">
+                    <canvas id="fabricaChart" style="height: 400px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Packaging Productivity Chart -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-box text-warning"></i>
+                        Productividad de Embalaje {{ año }}
+                    </h6>
+                    <small class="text-muted">Tableros completados a estado EMBALAJE_LISTO por mes</small>
+                </div>
+                <div class="card-body">
+                    <canvas id="embalajeChart" style="height: 400px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Comparative Performance Chart -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-line text-danger"></i>
+                        Rendimiento Comparativo {{ año }}
+                    </h6>
+                    <small class="text-muted">% de tableros reales vs estimados por mes</small>
+                </div>
+                <div class="card-body">
+                    <canvas id="rendimientoChart" style="height: 400px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Projects List -->
     <div class="row">
         <div class="col-md-12">
@@ -200,4 +289,253 @@
     border-left: 4px solid #007bff !important;
 }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load productivity data
+    loadProductivityCharts();
+});
+
+async function loadProductivityCharts() {
+    try {
+        const response = await fetch(`{{ url_for('planificacion_operacional.analisis_capacidad_api', year=año) }}`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Error loading data');
+        }
+        
+        // Update summary cards
+        updateSummaryCards(data);
+        
+        // Create charts
+        createFabricaChart(data.analisis_mensual);
+        createEmbalajeChart(data.analisis_mensual);
+        createRendimientoChart(data.analisis_mensual);
+        
+    } catch (error) {
+        console.error('Error loading productivity data:', error);
+        // Show error message to user
+        showErrorMessage('Error cargando datos de productividad: ' + error.message);
+    }
+}
+
+function updateSummaryCards(data) {
+    document.getElementById('total-fabricados').textContent = data.total_fabricados_año || 0;
+    document.getElementById('total-embalados').textContent = data.total_embalados_año || 0;
+}
+
+function createFabricaChart(analisisMensual) {
+    const ctx = document.getElementById('fabricaChart').getContext('2d');
+    
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const tablerosFabricados = [];
+    const tablerosEstimados = [];
+    
+    for (let i = 1; i <= 12; i++) {
+        const data = analisisMensual[i];
+        tablerosFabricados.push(data.tableros_fabricados);
+        tablerosEstimados.push(data.tableros_estimados);
+    }
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [
+                {
+                    label: 'Fabricados (Real)',
+                    data: tablerosFabricados,
+                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Estimados (Planificado)',
+                    data: tablerosEstimados,
+                    backgroundColor: 'rgba(108, 117, 125, 0.6)',
+                    borderColor: 'rgba(108, 117, 125, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Tableros'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Productividad de Fábrica - Comparación Real vs Estimado'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' tableros';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createEmbalajeChart(analisisMensual) {
+    const ctx = document.getElementById('embalajeChart').getContext('2d');
+    
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const tablerosEmbalados = [];
+    const tablerosEstimados = [];
+    
+    for (let i = 1; i <= 12; i++) {
+        const data = analisisMensual[i];
+        tablerosEmbalados.push(data.tableros_embalados);
+        tablerosEstimados.push(data.tableros_estimados);
+    }
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [
+                {
+                    label: 'Embalados (Real)',
+                    data: tablerosEmbalados,
+                    backgroundColor: 'rgba(23, 162, 184, 0.8)',
+                    borderColor: 'rgba(23, 162, 184, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Estimados (Planificado)',
+                    data: tablerosEstimados,
+                    backgroundColor: 'rgba(108, 117, 125, 0.6)',
+                    borderColor: 'rgba(108, 117, 125, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Tableros'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Productividad de Embalaje - Comparación Real vs Estimado'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' tableros';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createRendimientoChart(analisisMensual) {
+    const ctx = document.getElementById('rendimientoChart').getContext('2d');
+    
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const rendimientoFabrica = [];
+    const rendimientoEmbalaje = [];
+    
+    for (let i = 1; i <= 12; i++) {
+        const data = analisisMensual[i];
+        rendimientoFabrica.push(data.rendimiento_fabrica);
+        rendimientoEmbalaje.push(data.rendimiento_embalaje);
+    }
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: meses,
+            datasets: [
+                {
+                    label: 'Rendimiento Fábrica %',
+                    data: rendimientoFabrica,
+                    backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1
+                },
+                {
+                    label: 'Rendimiento Embalaje %',
+                    data: rendimientoEmbalaje,
+                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Porcentaje (%)'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Rendimiento Mensual - % Real vs Estimado'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function showErrorMessage(message) {
+    // Create or update an error alert
+    const alertDiv = document.getElementById('error-alert') || document.createElement('div');
+    alertDiv.id = 'error-alert';
+    alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+    alertDiv.innerHTML = `
+        <strong>Error:</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    if (!document.getElementById('error-alert')) {
+        document.getElementById('productivity-cards').insertAdjacentElement('beforebegin', alertDiv);
+    }
+}
+</script>
 {% endblock %}
