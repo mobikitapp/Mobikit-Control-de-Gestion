@@ -577,9 +577,9 @@ Días restantes: {{ hito.dias_restantes }}">
                                                             <div>
                                                                 <strong>{{ of_info.of.codigo }}</strong>
                                                                 {% if of_info.of.glosa %}
-                                                                <br><small class="text-muted">{{ of_info.of.glosa[:35] }}{% if of_info.of.glosa|length > 35 %}...{% endif %}</small>
+                                                                <br><small class="text-muted">{{ of_info.of.glosa[:40] }}{% if of_info.of.glosa|length > 40 %}...{% endif %}</small>
                                                                 {% elif of_info.of.descripcion %}
-                                                                <br><small class="text-muted">{{ of_info.of.descripcion[:35] }}{% if of_info.of.descripcion|length > 35 %}...{% endif %}</small>
+                                                                <br><small class="text-muted">{{ of_info.of.descripcion[:40] }}{% if of_info.of.descripcion|length > 40 %}...{% endif %}</small>
                                                                 {% endif %}
                                                             </div>
                                                         </td>
@@ -1168,7 +1168,7 @@ function imprimirMatrizDetallada() {
 @media print {
     @page {
         size: letter landscape; /* Formato carta horizontal */
-        margin: 0.4in 0.3in; /* Márgenes reducidos para aprovechar espacio */
+        margin: 0.3in 0.2in; /* Márgenes reducidos para aprovechar espacio */
     }
 
     .btn, .form-control, .form-select {
@@ -1181,7 +1181,7 @@ function imprimirMatrizDetallada() {
 
     body {
         background-color: white !important;
-        font-size: 9px !important; /* Tamaño de fuente optimizado para carta horizontal */
+        font-size: 8px !important; /* Tamaño de fuente optimizado para carta horizontal */
         line-height: 1.1 !important;
         color: black !important;
     }
@@ -1196,18 +1196,18 @@ function imprimirMatrizDetallada() {
         border: 1px solid #000 !important;
         box-shadow: none !important;
         page-break-inside: avoid;
-        margin-bottom: 0.3in !important;
+        margin-bottom: 0.2in !important;
     }
 
     .card-header {
         background-color: #f0f0f0 !important;
         border-bottom: 1px solid #000 !important;
-        padding: 4px 8px !important;
+        padding: 3px 6px !important;
         -webkit-print-color-adjust: exact;
     }
 
     .card-header h4, .card-header h6 {
-        font-size: 11px !important;
+        font-size: 10px !important;
         font-weight: bold !important;
         margin: 0 !important;
     }
@@ -1220,11 +1220,13 @@ function imprimirMatrizDetallada() {
     }
 
     .table th, .table td {
-        padding: 2px 3px !important; /* Padding reducido */
+        padding: 1px 2px !important; /* Padding muy reducido */
         border: 0.5px solid #333 !important;
         vertical-align: top !important;
         -webkit-print-color-adjust: exact;
         line-height: 1 !important;
+        word-wrap: break-word !important;
+        overflow: hidden !important;
     }
 
     .table th {
@@ -1240,29 +1242,35 @@ function imprimirMatrizDetallada() {
         -webkit-print-color-adjust: exact;
     }
 
+    .table-secondary th {
+        background-color: #e2e3e5 !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact;
+    }
+
     /* Estadísticas - más compactas */
     .estadisticas-row .card {
         margin-bottom: 0.1in !important;
     }
 
     .estadisticas-row .card-body {
-        padding: 3px !important;
+        padding: 2px !important;
         text-align: center !important;
     }
 
     .estadisticas-row h3 {
-        font-size: 10px !important;
+        font-size: 9px !important;
         margin: 0 !important;
     }
 
     .estadisticas-row small {
-        font-size: 6px !important;
+        font-size: 5px !important;
     }
 
     /* Gantt optimizado para horizontal */
     .gantt-timeline-container {
         border: 1px solid #000 !important;
-        height: 40px !important; /* Altura reducida */
+        height: 35px !important; /* Altura reducida */
         -webkit-print-color-adjust: exact;
         position: relative !important;
     }
@@ -1271,15 +1279,15 @@ function imprimirMatrizDetallada() {
     .gantt-bar-embalaje {
         border: 0.5px solid #333 !important;
         -webkit-print-color-adjust: exact;
-        height: 10px !important; /* Barras más delgadas */
+        height: 8px !important; /* Barras más delgadas */
     }
 
     .gantt-bar-fabrica {
-        top: 5px !important;
+        top: 4px !important;
     }
 
     .gantt-bar-embalaje {
-        top: 20px !important;
+        top: 18px !important;
     }
 
     /* Badge y elementos pequeños */
@@ -1287,14 +1295,14 @@ function imprimirMatrizDetallada() {
         background-color: #e9ecef !important;
         color: #000 !important;
         border: 0.5px solid #333 !important;
-        padding: 1px 3px !important;
-        font-size: 6px !important;
+        padding: 1px 2px !important;
+        font-size: 5px !important;
         -webkit-print-color-adjust: exact;
     }
 
     /* Texto pequeño más legible */
     small {
-        font-size: 6px !important;
+        font-size: 5px !important;
         line-height: 1 !important;
     }
 
@@ -1307,67 +1315,112 @@ function imprimirMatrizDetallada() {
         display: block !important;
     }
 
-    /* Dropdowns expandidos para impresión */
-    .dropdown-menu.show {
-        display: block !important;
-        position: static !important;
-        float: none !important;
-        width: auto !important;
-        margin: 0 !important;
-        background-color: #fff !important;
-        border: 0.5px solid #333 !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        padding: 2px !important;
+    /* Ancho de columnas optimizado para matriz detallada horizontal */
+    .matriz-detallada-section .table th:nth-child(1), /* OF/Glosa */
+    .matriz-detallada-section .table td:nth-child(1) {
+        width: 20% !important;
+        max-width: 20% !important;
     }
 
-    .dropdown-item {
-        font-size: 6px !important;
-        padding: 1px 3px !important;
-        border-bottom: 0.5px solid #eee !important;
-    }
-
-    /* Ancho de columnas optimizado para horizontal */
-    .table th:nth-child(1), /* Proyecto */
-    .table td:nth-child(1) {
-        width: 18% !important;
-        max-width: 18% !important;
-    }
-
-    .table th:nth-child(2), /* OFs */
-    .table td:nth-child(2) {
-        width: 8% !important;
-        max-width: 8% !important;
-    }
-
-    .table th:nth-child(3), /* Tableros */
-    .table td:nth-child(3) {
+    .matriz-detallada-section .table th:nth-child(2), /* Prioridad */
+    .matriz-detallada-section .table td:nth-child(2) {
         width: 6% !important;
         max-width: 6% !important;
     }
 
-    .table th:nth-child(4), /* Cronograma */
-    .table td:nth-child(4) {
+    .matriz-detallada-section .table th:nth-child(3), /* Tableros */
+    .matriz-detallada-section .table td:nth-child(3) {
+        width: 6% !important;
+        max-width: 6% !important;
+    }
+
+    .matriz-detallada-section .table th:nth-child(4), /* Estado */
+    .matriz-detallada-section .table td:nth-child(4) {
+        width: 12% !important;
+        max-width: 12% !important;
+    }
+
+    .matriz-detallada-section .table th:nth-child(5), /* Fecha Planificada */
+    .matriz-detallada-section .table td:nth-child(5) {
+        width: 10% !important;
+        max-width: 10% !important;
+    }
+
+    .matriz-detallada-section .table th:nth-child(6), /* Fecha Fab */
+    .matriz-detallada-section .table td:nth-child(6) {
+        width: 14% !important;
+        max-width: 14% !important;
+    }
+
+    .matriz-detallada-section .table th:nth-child(7), /* Fecha Embalaje */
+    .matriz-detallada-section .table td:nth-child(7) {
+        width: 14% !important;
+        max-width: 14% !important;
+    }
+
+    .matriz-detallada-section .table th:nth-child(8), /* Días Rest */
+    .matriz-detallada-section .table td:nth-child(8) {
+        width: 8% !important;
+        max-width: 8% !important;
+    }
+
+    .matriz-detallada-section .table th:nth-child(9), /* Próximo Hito */
+    .matriz-detallada-section .table td:nth-child(9) {
+        width: 10% !important;
+        max-width: 10% !important;
+    }
+
+    /* Ancho de columnas para gantt de proyectos */
+    .gantt-proyectos-section .table th:nth-child(1), /* Proyecto */
+    .gantt-proyectos-section .table td:nth-child(1) {
+        width: 18% !important;
+        max-width: 18% !important;
+    }
+
+    .gantt-proyectos-section .table th:nth-child(2), /* OFs */
+    .gantt-proyectos-section .table td:nth-child(2) {
+        width: 8% !important;
+        max-width: 8% !important;
+    }
+
+    .gantt-proyectos-section .table th:nth-child(3), /* Tableros */
+    .gantt-proyectos-section .table td:nth-child(3) {
+        width: 6% !important;
+        max-width: 6% !important;
+    }
+
+    .gantt-proyectos-section .table th:nth-child(4), /* Cronograma */
+    .gantt-proyectos-section .table td:nth-child(4) {
         width: 50% !important; /* Más espacio para el gantt en horizontal */
         max-width: 50% !important;
     }
 
-    .table th:nth-child(5), /* Total */
-    .table td:nth-child(5) {
+    .gantt-proyectos-section .table th:nth-child(5), /* Total */
+    .gantt-proyectos-section .table td:nth-child(5) {
         width: 9% !important;
         max-width: 9% !important;
     }
 
-    .table th:nth-child(6), /* Días */
-    .table td:nth-child(6) {
+    .gantt-proyectos-section .table th:nth-child(6), /* Días */
+    .gantt-proyectos-section .table td:nth-child(6) {
         width: 9% !important;
         max-width: 9% !important;
+    }
+
+    /* Asegurar que la glosa se muestre correctamente */
+    .matriz-detallada-section .table td:nth-child(1) small {
+        display: block !important;
+        font-size: 5px !important;
+        line-height: 1.1 !important;
+        max-height: 15px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
     /* Títulos de sección */
     .card-header .fa-chart-gantt,
     .card-header .fa-list-ul {
-        font-size: 10px !important;
+        font-size: 9px !important;
     }
 
     /* Evitar saltos de página innecesarios */
@@ -1391,12 +1444,12 @@ function imprimirMatrizDetallada() {
 
     /* Leyenda más compacta */
     .card-footer {
-        padding: 3px 8px !important;
-        font-size: 6px !important;
+        padding: 2px 5px !important;
+        font-size: 5px !important;
     }
 
     .card-footer .badge {
-        margin: 0 2px !important;
+        margin: 0 1px !important;
         padding: 1px 2px !important;
     }
 
@@ -1418,17 +1471,10 @@ function imprimirMatrizDetallada() {
         display: none !important;
     }
 
-    /* Texto truncado en celdas pequeñas */
-    .table td {
-        word-wrap: break-word !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-    }
-
     /* Optimización de altura de filas */
     .table tr {
         height: auto !important;
-        min-height: 12px !important;
+        min-height: 10px !important;
     }
 
     /* Asegurar visibilidad de contenido importante */
@@ -1459,6 +1505,37 @@ function imprimirMatrizDetallada() {
     .text-primary {
         color: #004085 !important;
         font-weight: bold !important;
+    }
+
+    /* Mejoras específicas para impresión horizontal */
+    .project-totals,
+    .days-remaining,
+    .grand-totals,
+    .next-milestone {
+        font-size: 6px !important;
+        line-height: 1 !important;
+    }
+
+    /* Espaciadores entre proyectos muy reducidos */
+    .table tr[style*="background-color: #f8f9fa"] td {
+        height: 3px !important;
+        padding: 0 !important;
+    }
+
+    /* Asegurar que las fechas se muestren completas */
+    input[type="date"] {
+        font-size: 6px !important;
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+    /* Ajustes para selects de prioridad */
+    select.prioridad-select {
+        font-size: 6px !important;
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
     }
 }
 </style>
