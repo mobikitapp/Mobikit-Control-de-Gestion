@@ -868,6 +868,7 @@ class OrdenAreaProgreso(db.Model):
     # Asignación y seguimiento
     responsable_area = db.Column(db.String, db.ForeignKey('users.id'))  # Usuario responsable en esta área
     tiempo_estimado_horas = db.Column(db.Numeric(10, 2))  # Tiempo estimado para completar en esta área
+    # TODO: tiempo_total_area_horas = db.Column(db.Numeric(10, 2))  # Tiempo real que pasó en esta área (calculado al salir)
     notas_area = db.Column(db.Text)  # Observaciones específicas del área
 
     # Control de flujo

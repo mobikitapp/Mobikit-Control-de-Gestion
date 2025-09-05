@@ -74,6 +74,27 @@ class AreasService:
             logger.error(f"Error inicializando orden en áreas: {str(e)}")
             raise
 
+    def _calcular_tiempo_en_area(self, progreso: 'OrdenAreaProgreso') -> float:
+        """
+        Calcula el tiempo total que una OF pasó en un área específica (en horas)
+        """
+        try:
+            if not progreso.fecha_ingreso_area:
+                return 0.0
+            
+            ahora = datetime.now()
+            tiempo_transcurrido = ahora - progreso.fecha_ingreso_area
+            
+            # Convertir a horas (incluyendo decimales)
+            horas_totales = tiempo_transcurrido.total_seconds() / 3600
+            
+            # Redondear a 2 decimales
+            return round(horas_totales, 2)
+            
+        except Exception as e:
+            logger.error(f"Error calculando tiempo en área: {str(e)}")
+            return 0.0
+
     def change_estado_in_area(self, orden_fabricacion_id: int, nuevo_estado_id: int, 
                              responsable_id: str = None, notas: str = None, 
                              tiempo_estimado_horas: float = None) -> OrdenAreaProgreso:
@@ -212,6 +233,7 @@ class AreasService:
 
             # Mark current progress as not current (for history)
             current_progress.es_actual = False
+            # TODO: Agregar tiempo_total_area_horas cuando la base de datos esté sincronizada
 
             # Create new progress record for next area
             now = datetime.now()
