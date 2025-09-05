@@ -1443,8 +1443,8 @@ function imprimirMatrizDetallada() {
 
 @media print {
     @page {
-        size: letter;
-        margin: 0.5in;
+        size: letter landscape; /* Formato carta horizontal */
+        margin: 0.4in 0.3in; /* Márgenes reducidos para aprovechar espacio */
     }
 
     .btn, .form-control, .form-select {
@@ -1457,87 +1457,133 @@ function imprimirMatrizDetallada() {
 
     body {
         background-color: white !important;
-        font-size: 10px;
+        font-size: 9px !important; /* Tamaño de fuente optimizado para carta horizontal */
+        line-height: 1.1 !important;
+        color: black !important;
+    }
+
+    .container-fluid {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
     .card {
         border: 1px solid #000 !important;
         box-shadow: none !important;
         page-break-inside: avoid;
+        margin-bottom: 0.3in !important;
     }
 
     .card-header {
-        background-color: #f8f9fa !important;
-        border-bottom: 2px solid #000 !important;
+        background-color: #f0f0f0 !important;
+        border-bottom: 1px solid #000 !important;
+        padding: 4px 8px !important;
         -webkit-print-color-adjust: exact;
+    }
+
+    .card-header h4, .card-header h6 {
+        font-size: 11px !important;
+        font-weight: bold !important;
+        margin: 0 !important;
     }
 
     .table {
-        font-size: 8px !important;
+        font-size: 7px !important; /* Fuente más pequeña para aprovechar espacio */
         border-collapse: collapse !important;
+        width: 100% !important;
+        margin: 0 !important;
     }
 
     .table th, .table td {
-        padding: 3px !important;
-        border: 1px solid #000 !important;
+        padding: 2px 3px !important; /* Padding reducido */
+        border: 0.5px solid #333 !important;
+        vertical-align: top !important;
         -webkit-print-color-adjust: exact;
+        line-height: 1 !important;
+    }
+
+    .table th {
+        background-color: #e9ecef !important;
+        font-weight: bold !important;
+        text-align: center !important;
+        font-size: 7px !important;
     }
 
     .table-dark th {
-        background-color: #343a40 !important;
+        background-color: #495057 !important;
         color: white !important;
         -webkit-print-color-adjust: exact;
     }
 
-    .badge {
-        background-color: #f8f9fa !important;
-        color: #000 !important;
-        border: 1px solid #000 !important;
-        -webkit-print-color-adjust: exact;
+    /* Estadísticas - más compactas */
+    .estadisticas-row .card {
+        margin-bottom: 0.1in !important;
     }
 
+    .estadisticas-row .card-body {
+        padding: 3px !important;
+        text-align: center !important;
+    }
+
+    .estadisticas-row h3 {
+        font-size: 10px !important;
+        margin: 0 !important;
+    }
+
+    .estadisticas-row small {
+        font-size: 6px !important;
+    }
+
+    /* Gantt optimizado para horizontal */
     .gantt-timeline-container {
-        border: 2px solid #000 !important;
+        border: 1px solid #000 !important;
+        height: 40px !important; /* Altura reducida */
         -webkit-print-color-adjust: exact;
+        position: relative !important;
     }
 
     .gantt-bar-fabrica,
     .gantt-bar-embalaje {
-        border: 1px solid #000 !important;
+        border: 0.5px solid #333 !important;
+        -webkit-print-color-adjust: exact;
+        height: 10px !important; /* Barras más delgadas */
+    }
+
+    .gantt-bar-fabrica {
+        top: 5px !important;
+    }
+
+    .gantt-bar-embalaje {
+        top: 20px !important;
+    }
+
+    /* Badge y elementos pequeños */
+    .badge {
+        background-color: #e9ecef !important;
+        color: #000 !important;
+        border: 0.5px solid #333 !important;
+        padding: 1px 3px !important;
+        font-size: 6px !important;
         -webkit-print-color-adjust: exact;
     }
 
-    .print-header {
-        text-align: center;
-        margin-bottom: 20px;
-        border-bottom: 3px solid #000;
-        padding-bottom: 15px;
-        page-break-after: avoid;
+    /* Texto pequeño más legible */
+    small {
+        font-size: 6px !important;
+        line-height: 1 !important;
     }
 
-    .estadisticas-row {
-        page-break-after: avoid;
+    strong {
+        font-weight: bold !important;
     }
 
-    /* Repetir títulos en cada página */
-    .table thead tr {
-        page-break-inside: avoid;
-        page-break-after: avoid;
+    /* Optimización para colapsos expandidos */
+    .collapse.show {
+        display: block !important;
     }
 
-    .table thead {
-        display: table-header-group;
-    }
-
-    .table tbody {
-        display: table-row-group;
-    }
-
-    .table tfoot {
-        display: table-footer-group;
-    }
-
-    /* Asegurar que dropdowns abiertos se vean correctamente en impresión */
+    /* Dropdowns expandidos para impresión */
     .dropdown-menu.show {
         display: block !important;
         position: static !important;
@@ -1545,20 +1591,150 @@ function imprimirMatrizDetallada() {
         width: auto !important;
         margin: 0 !important;
         background-color: #fff !important;
-        border: 1px solid #000 !important;
+        border: 0.5px solid #333 !important;
         border-radius: 0 !important;
         box-shadow: none !important;
+        padding: 2px !important;
     }
 
-    .dropdown-toggle {
-        display: inline-block !important;
-        background-color: transparent !important;
-        border: 1px solid #000 !important;
-        color: #000 !important;
+    .dropdown-item {
+        font-size: 6px !important;
+        padding: 1px 3px !important;
+        border-bottom: 0.5px solid #eee !important;
     }
 
-    .dropdown-toggle::after {
+    /* Ancho de columnas optimizado para horizontal */
+    .table th:nth-child(1), /* Proyecto */
+    .table td:nth-child(1) {
+        width: 18% !important;
+        max-width: 18% !important;
+    }
+
+    .table th:nth-child(2), /* OFs */
+    .table td:nth-child(2) {
+        width: 8% !important;
+        max-width: 8% !important;
+    }
+
+    .table th:nth-child(3), /* Tableros */
+    .table td:nth-child(3) {
+        width: 6% !important;
+        max-width: 6% !important;
+    }
+
+    .table th:nth-child(4), /* Cronograma */
+    .table td:nth-child(4) {
+        width: 50% !important; /* Más espacio para el gantt en horizontal */
+        max-width: 50% !important;
+    }
+
+    .table th:nth-child(5), /* Total */
+    .table td:nth-child(5) {
+        width: 9% !important;
+        max-width: 9% !important;
+    }
+
+    .table th:nth-child(6), /* Días */
+    .table td:nth-child(6) {
+        width: 9% !important;
+        max-width: 9% !important;
+    }
+
+    /* Títulos de sección */
+    .card-header .fa-chart-gantt,
+    .card-header .fa-list-ul {
+        font-size: 10px !important;
+    }
+
+    /* Evitar saltos de página innecesarios */
+    .gantt-proyectos-section,
+    .matriz-detallada-section {
+        page-break-inside: avoid;
+    }
+
+    /* Repetir headers de tabla */
+    .table thead {
+        display: table-header-group !important;
+    }
+
+    .table tbody {
+        display: table-row-group !important;
+    }
+
+    .table tfoot {
+        display: table-footer-group !important;
+    }
+
+    /* Leyenda más compacta */
+    .card-footer {
+        padding: 3px 8px !important;
+        font-size: 6px !important;
+    }
+
+    .card-footer .badge {
+        margin: 0 2px !important;
+        padding: 1px 2px !important;
+    }
+
+    /* Espaciado entre elementos */
+    .row {
+        margin: 0 !important;
+    }
+
+    .col-md-12 {
+        padding: 0 !important;
+    }
+
+    /* Ocultar elementos innecesarios en impresión */
+    .btn-group,
+    .alert,
+    .pagination,
+    .navbar,
+    .sidebar {
         display: none !important;
+    }
+
+    /* Texto truncado en celdas pequeñas */
+    .table td {
+        word-wrap: break-word !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    /* Optimización de altura de filas */
+    .table tr {
+        height: auto !important;
+        min-height: 12px !important;
+    }
+
+    /* Asegurar visibilidad de contenido importante */
+    .text-muted {
+        color: #666 !important;
+    }
+
+    .text-danger {
+        color: #dc3545 !important;
+        font-weight: bold !important;
+    }
+
+    .text-warning {
+        color: #856404 !important;
+        font-weight: bold !important;
+    }
+
+    .text-success {
+        color: #155724 !important;
+        font-weight: bold !important;
+    }
+
+    .text-info {
+        color: #0c5460 !important;
+        font-weight: bold !important;
+    }
+
+    .text-primary {
+        color: #004085 !important;
+        font-weight: bold !important;
     }
 }
 </style>
