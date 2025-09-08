@@ -135,7 +135,7 @@ class TreasuryIntegrationService:
                 tipo=TipoEstadoPago.ESTADO_PAGO_CONTRATO,
                 descripcion=f"Anticipo {contrato.anticipo_pct}% - {contrato.numero_oc}",
                 monto_neto=monto_anticipo,
-                monto_efectivo=monto_anticipo,  # Sin impuestos para simplicidad
+                monto_estado_pago=monto_anticipo,  # Sin impuestos para simplicidad
                 fecha_programada=fecha_programada,
                 estado=EstadoPagoEnum.PENDIENTE,
                 observaciones=f"Anticipo automático - {contrato.anticipo_pct}% del contrato",
@@ -184,7 +184,7 @@ class TreasuryIntegrationService:
                     tipo=TipoEstadoPago.ESTADO_PAGO_CONTRATO,
                     descripcion=f"Avance Mensual {periodo_str} - {contrato.numero_oc}",
                     monto_neto=0,  # Se calcula al certificar
-                    monto_efectivo=0,
+                    monto_estado_pago=0,
                     fecha_programada=fecha_periodo + relativedelta(day=31),  # Último día del mes
                     estado=EstadoPagoEnum.PENDIENTE,
                     observaciones=f"Avance mensual - Período {periodo_str}. Monto se calcula al certificar.",
@@ -219,7 +219,7 @@ class TreasuryIntegrationService:
                 tipo=TipoEstadoPago.ESTADO_PAGO_CONTRATO,
                 descripcion=f"Liberación Retención {contrato.retencion_pct}% - {contrato.numero_oc}",
                 monto_neto=monto_retencion,
-                monto_efectivo=monto_retencion,
+                monto_estado_pago=monto_retencion,
                 fecha_programada=fecha_programada,
                 estado=EstadoPagoEnum.PENDIENTE,
                 observaciones=f"Liberación automática de retención - {contrato.retencion_pct}% del contrato",
