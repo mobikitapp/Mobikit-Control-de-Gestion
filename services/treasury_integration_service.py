@@ -131,21 +131,17 @@ class TreasuryIntegrationService:
             
             fecha_programada = contrato.fecha_emision or date.today()
             
-            estado_pago = EstadoPago(
-                proyecto_id=contrato.proyecto_id,
-                contrato_id=contrato.id,
-                tipo=TipoEstadoPago.ESTADO_PAGO_CONTRATO,
-                descripcion=f"Anticipo {contrato.anticipo_pct}% - {contrato.numero_oc}",
-                monto_neto=monto_anticipo,
-                monto_estado_pago=monto_anticipo,  # Sin impuestos para simplicidad
-                fecha_programada=fecha_programada,
-                estado=EstadoPagoEnum.PENDIENTE,
-                observaciones=f"Anticipo automático - {contrato.anticipo_pct}% del contrato",
-                created_by=created_by
-            )
-            
-            # Agregar campo personalizado para identificar el tipo específico
-            estado_pago.notas = f"TIPO_OPERACION:ANTICIPO"
+            estado_pago = EstadoPago()
+            estado_pago.proyecto_id = contrato.proyecto_id
+            estado_pago.contrato_id = contrato.id
+            estado_pago.tipo = TipoEstadoPago.ESTADO_PAGO_CONTRATO
+            estado_pago.descripcion = f"Anticipo {contrato.anticipo_pct}% - {contrato.numero_oc}"
+            estado_pago.monto_neto = monto_anticipo
+            estado_pago.monto_estado_pago = monto_anticipo
+            estado_pago.fecha_programada = fecha_programada
+            estado_pago.estado = EstadoPagoEnum.PENDIENTE
+            estado_pago.observaciones = f"Anticipo automático - {contrato.anticipo_pct}% del contrato | TIPO_OPERACION:ANTICIPO"
+            estado_pago.created_by = created_by
             
             db.session.add(estado_pago)
             db.session.flush()  # Para obtener el ID
@@ -187,20 +183,17 @@ class TreasuryIntegrationService:
                 fecha_periodo = fecha_inicio + relativedelta(months=mes)
                 periodo_str = fecha_periodo.strftime('%Y-%m')
                 
-                estado_pago = EstadoPago(
-                    proyecto_id=contrato.proyecto_id,
-                    contrato_id=contrato.id,
-                    tipo=TipoEstadoPago.ESTADO_PAGO_CONTRATO,
-                    descripcion=f"Avance Mensual {periodo_str} - {contrato.numero_oc}",
-                    monto_neto=0,  # Se calcula al certificar
-                    monto_estado_pago=0,
-                    fecha_programada=fecha_periodo + relativedelta(day=31),  # Último día del mes
-                    estado=EstadoPagoEnum.PENDIENTE,
-                    observaciones=f"Avance mensual - Período {periodo_str}. Monto se calcula al certificar.",
-                    created_by=created_by
-                )
-                
-                estado_pago.notas = f"TIPO_OPERACION:AVANCE_MENSUAL|PERIODO:{periodo_str}"
+                estado_pago = EstadoPago()
+                estado_pago.proyecto_id = contrato.proyecto_id
+                estado_pago.contrato_id = contrato.id
+                estado_pago.tipo = TipoEstadoPago.ESTADO_PAGO_CONTRATO
+                estado_pago.descripcion = f"Avance Mensual {periodo_str} - {contrato.numero_oc}"
+                estado_pago.monto_neto = 0  # Se calcula al certificar
+                estado_pago.monto_estado_pago = 0
+                estado_pago.fecha_programada = fecha_periodo + relativedelta(day=31)  # Último día del mes
+                estado_pago.estado = EstadoPagoEnum.PENDIENTE
+                estado_pago.observaciones = f"Avance mensual - Período {periodo_str}. Monto se calcula al certificar. | TIPO_OPERACION:AVANCE_MENSUAL|PERIODO:{periodo_str}"
+                estado_pago.created_by = created_by
                 
                 db.session.add(estado_pago)
                 db.session.flush()
@@ -222,20 +215,17 @@ class TreasuryIntegrationService:
             fecha_base = contrato.fecha_entrega_comprometida or date.today() + relativedelta(months=6)
             fecha_programada = fecha_base + timedelta(days=30)
             
-            estado_pago = EstadoPago(
-                proyecto_id=contrato.proyecto_id,
-                contrato_id=contrato.id,
-                tipo=TipoEstadoPago.ESTADO_PAGO_CONTRATO,
-                descripcion=f"Liberación Retención {contrato.retencion_pct}% - {contrato.numero_oc}",
-                monto_neto=monto_retencion,
-                monto_estado_pago=monto_retencion,
-                fecha_programada=fecha_programada,
-                estado=EstadoPagoEnum.PENDIENTE,
-                observaciones=f"Liberación automática de retención - {contrato.retencion_pct}% del contrato",
-                created_by=created_by
-            )
-            
-            estado_pago.notas = f"TIPO_OPERACION:LIBERACION_RETENCION"
+            estado_pago = EstadoPago()
+            estado_pago.proyecto_id = contrato.proyecto_id
+            estado_pago.contrato_id = contrato.id
+            estado_pago.tipo = TipoEstadoPago.ESTADO_PAGO_CONTRATO
+            estado_pago.descripcion = f"Liberación Retención {contrato.retencion_pct}% - {contrato.numero_oc}"
+            estado_pago.monto_neto = monto_retencion
+            estado_pago.monto_estado_pago = monto_retencion
+            estado_pago.fecha_programada = fecha_programada
+            estado_pago.estado = EstadoPagoEnum.PENDIENTE
+            estado_pago.observaciones = f"Liberación automática de retención - {contrato.retencion_pct}% del contrato | TIPO_OPERACION:LIBERACION_RETENCION"
+            estado_pago.created_by = created_by
             
             db.session.add(estado_pago)
             db.session.flush()
