@@ -478,3 +478,115 @@ class TreasuryIntegrationService:
         except Exception as e:
             logger.error(f"Error agrupando proyectos por cliente: {str(e)}")
             return {}
+    
+    def get_project_treasury_detail(self, proyecto_id: int) -> Dict[str, Any]:
+        """
+        Obtiene el detalle de tesorería para un proyecto específico con estructura jerárquica
+        """
+        try:
+            from models import Proyecto, Cliente, EstadoPago, Contrato, PendienteFacturar, TipoDocumento
+            from schemas.contratos import EstadoContratoEnum
+            
+            # Get project with client
+            proyecto_query = db.session.query(Proyecto, Cliente)\
+                .join(Cliente, Proyecto.cliente_id == Cliente.id)\
+                .filter(Proyecto.id == proyecto_id)\
+                .first()
+            
+            if not proyecto_query:
+                return {}
+            
+            proyecto, cliente = proyecto_query
+            
+            # Get contracts for this project, separating by type
+            contratos_regulares = Contrato.query.filter_by(
+                proyecto_id=proyecto.id
+            ).filter(
+                Contrato.tipo_documento == TipoDocumento.CONTRATO,
+                Contrato.estado == EstadoContratoEnum.VIGENTE
+            ).all()
+            
+            ordenes_compra = Contrato.query.filter_by(
+                proyecto_id=proyecto.id
+            ).filter(
+                Contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA,
+                Contrato.estado == EstadoContratoEnum.VIGENTE
+            ).all()
+            
+            # Prepare contracts data with payment states
+            contratos_data = []
+            for contrato in contratos_regulares:
+                estados_pago = EstadoPago.query.filter_by(contrato_id=contrato.id).all()
+                
+                # Calculate financial summary for this contract
+                total_monto = sum(float(ep.monto_estado_pago or 0) for ep in estados_pago)
+                total_pagado = sum(float(ep.monto_estado_pago or 0) for ep in estados_pago 
+                                 if ep.estado.value == 'PAGADO')
+                total_facturado = sum(float(ep.monto_estado_pago or 0) for ep in estados_pago 
+                                    if ep.facturado)
+                
+                contratos_data.append({
+                    'contrato': contrato,
+                    'estados_pago': estados_pago,
+                    'resumen_financiero': {
+                        'total_monto': total_monto,
+                        'total_pagado': total_pagado,
+                        'total_facturado': total_facturado,
+                        'porcentaje_pagado': (total_pagado / total_monto * 100) if total_monto > 0 else 0,
+                        'porcentaje_facturado': (total_facturado / total_monto * 100) if total_monto > 0 else 0
+                    }
+                })
+            
+            # Prepare OCs data with pending invoices (facturas)
+            ocs_data = []
+            for oc in ordenes_compra:
+                # Get pending invoices for this OC
+                facturas_pendientes = PendienteFacturar.query.filter_by(contrato_id=oc.id).all()
+                
+                # Calculate financial summary for this OC
+                total_monto = sum(float(fp.monto_neto or 0) for fp in facturas_pendientes)
+                total_pagado = sum(float(fp.monto_neto or 0) for fp in facturas_pendientes 
+                                 if fp.estado.value == 'PAGADO')
+                total_facturado = sum(float(fp.monto_neto or 0) for fp in facturas_pendientes 
+                                    if fp.estado.value in ['FACTURADO', 'PAGADO'])
+                
+                ocs_data.append({
+                    'oc': oc,
+                    'facturas_pendientes': facturas_pendientes,
+                    'resumen_financiero': {
+                        'total_monto': total_monto,
+                        'total_pagado': total_pagado,
+                        'total_facturado': total_facturado,
+                        'porcentaje_pagado': (total_pagado / total_monto * 100) if total_monto > 0 else 0,
+                        'porcentaje_facturado': (total_facturado / total_monto * 100) if total_monto > 0 else 0
+                    }
+                })
+            
+            # Calculate overall project financial summary
+            total_monto_proyecto = sum(c['resumen_financiero']['total_monto'] for c in contratos_data) + \
+                                 sum(oc['resumen_financiero']['total_monto'] for oc in ocs_data)
+            total_pagado_proyecto = sum(c['resumen_financiero']['total_pagado'] for c in contratos_data) + \
+                                  sum(oc['resumen_financiero']['total_pagado'] for oc in ocs_data)
+            total_facturado_proyecto = sum(c['resumen_financiero']['total_facturado'] for c in contratos_data) + \
+                                     sum(oc['resumen_financiero']['total_facturado'] for oc in ocs_data)
+            
+            # Return structured data
+            return {
+                'cliente': cliente,
+                'proyecto': proyecto,
+                'contratos': contratos_data,
+                'ordenes_compra': ocs_data,
+                'resumen_financiero': {
+                    'total_monto': total_monto_proyecto,
+                    'total_pagado': total_pagado_proyecto,
+                    'total_facturado': total_facturado_proyecto,
+                    'porcentaje_pagado': (total_pagado_proyecto / total_monto_proyecto * 100) if total_monto_proyecto > 0 else 0,
+                    'porcentaje_facturado': (total_facturado_proyecto / total_monto_proyecto * 100) if total_monto_proyecto > 0 else 0
+                },
+                'total_contratos': len(contratos_data),
+                'total_ocs': len(ocs_data)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo detalle de tesorería para proyecto {proyecto_id}: {str(e)}")
+            return {}

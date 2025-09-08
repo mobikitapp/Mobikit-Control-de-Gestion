@@ -658,26 +658,37 @@ def estados_pago_index():
 @proyectos_bp.route('/estados-pago/<int:proyecto_id>')
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
 def estados_pago_detalle(proyecto_id):
-    """Estados de Pago - Detalle de un proyecto específico"""
+    """Estados de Pago - Detalle de un proyecto específico con estructura jerárquica"""
     try:
+        from services.treasury_integration_service import TreasuryIntegrationService
         from services.estados_pago_service import EstadosPagoService
+        
+        treasury_service = TreasuryIntegrationService()
         estados_pago_service = EstadosPagoService()
 
-        # Get project data
-        proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
-        if not proyecto:
+        # Get structured project treasury data
+        proyecto_data = treasury_service.get_project_treasury_detail(proyecto_id)
+        if not proyecto_data:
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('proyectos.estados_pago_index'))
 
-        # Get payment states for this project
+        # Get all payment states for legacy compatibility (used in modal)
         estados_pago = estados_pago_service.get_estados_pago_by_proyecto(proyecto_id)
-        contratos = [c for c in proyecto.contratos if c.estado.value == 'VIGENTE']
+        
+        # Get all contracts for modal dropdown (legacy)
+        contratos_legacy = []
+        if proyecto_data.get('contratos'):
+            contratos_legacy.extend([c['contrato'] for c in proyecto_data['contratos']])
+        if proyecto_data.get('ordenes_compra'):
+            contratos_legacy.extend([oc['oc'] for oc in proyecto_data['ordenes_compra']])
 
         return render_template('proyectos/estados_pago_detalle.html',
-                             proyecto=proyecto,
+                             proyecto_data=proyecto_data,
+                             proyecto=proyecto_data.get('proyecto'),
+                             cliente=proyecto_data.get('cliente'),
                              estados_pago=estados_pago,
-                             contratos=contratos,
-                             title=f"Estados de Pago - {proyecto.nombre}")
+                             contratos=contratos_legacy,
+                             title=f"Estados de Pago - {proyecto_data.get('proyecto', {}).nombre if proyecto_data.get('proyecto') else 'Proyecto'}")
 
     except Exception as e:
         logger.error(f"Error loading estados pago detalle for proyecto {proyecto_id}: {str(e)}")
