@@ -610,8 +610,11 @@ function marcarPendienteFacturado(pendienteId, numeroOc) {
     const numeroFactura = prompt(`Número de factura para OC ${numeroOc}:`);
     if (!numeroFactura) return;
     
-    const fechaFacturacion = prompt('Fecha de facturación (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
-    if (!fechaFacturacion) return;
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
     
     fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-facturado`, {
         method: 'POST',
@@ -619,52 +622,85 @@ function marcarPendienteFacturado(pendienteId, numeroOc) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            numero_factura: numeroFactura,
-            fecha_facturacion: fechaFacturacion
+            numero_factura: numeroFactura
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            showAlert('success', data.message);
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error al marcar como facturado');
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+        button.disabled = false;
+        button.innerHTML = originalText;
     });
 }
 
 function marcarPendientePagado(pendienteId, numeroOc) {
-    const fechaPago = prompt(`Fecha de pago para OC ${numeroOc} (YYYY-MM-DD):`, new Date().toISOString().split('T')[0]);
-    if (!fechaPago) return;
-    
-    const observaciones = prompt('Observaciones (opcional):');
+    if (!confirm(`¿Marcar OC ${numeroOc} como pagada?`)) return;
+
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
     
     fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-pagado`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            fecha_pago: fechaPago,
-            observaciones: observaciones
-        })
+        }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            showAlert('success', data.message);
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error al marcar como pagado');
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+        button.disabled = false;
+        button.innerHTML = originalText;
     });
+}
+
+// Utility function to show alerts
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i data-feather="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    const container = document.querySelector('.container');
+    container.insertBefore(alertDiv, container.firstChild);
+
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
 }
 </script>
 {% endblock %}

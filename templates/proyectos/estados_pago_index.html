@@ -1083,15 +1083,24 @@ function cerrarModal(modalId) {
 // Function to open Create EP modal instead of automatic creation
 function abrirModalCrearEP(contratoId, numeroOc) {
     // Pre-fill the contract selection in the modal
-    document.getElementById('contratoIdModal').value = contratoId;
+    const contratoSelect = document.getElementById('contratoIdModal');
+    if (contratoSelect && contratoId) {
+        contratoSelect.value = contratoId;
+    }
 
     // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('modalCrearEP'));
-    modal.show();
+    const modalElement = document.getElementById('modalCrearEP');
+    if (modalElement) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
 
     // Auto-show contract fields since we're creating for a contract
-    document.getElementById('tipoEstadoModal').value = 'estado_pago_contrato';
-    document.getElementById('tipoEstadoModal').dispatchEvent(new Event('change'));
+    const tipoEstadoSelect = document.getElementById('tipoEstadoModal');
+    if (tipoEstadoSelect) {
+        tipoEstadoSelect.value = 'estado_pago_contrato';
+        tipoEstadoSelect.dispatchEvent(new Event('change'));
+    }
 }
 
 // Function to update fields based on selected Tipo EP
@@ -1132,9 +1141,10 @@ function updateAnticipoFromContract() {
     const porcentajeInput = document.getElementById('porcentajeAvanceModal');
     const tipoSelect = document.getElementById('tipoOperacionTesoreriaModal');
     
-    if (tipoSelect.value === 'ANTICIPO' && contratoSelect.value) {
+    if (contratoSelect && porcentajeInput && tipoSelect && 
+        tipoSelect.value === 'ANTICIPO' && contratoSelect.value) {
         const selectedOption = contratoSelect.options[contratoSelect.selectedIndex];
-        const anticipoPct = selectedOption.dataset.anticipo || 0;
+        const anticipoPct = selectedOption && selectedOption.dataset.anticipo ? selectedOption.dataset.anticipo : 0;
         porcentajeInput.value = anticipoPct;
     }
 }
