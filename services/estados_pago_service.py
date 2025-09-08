@@ -212,7 +212,7 @@ class EstadosPagoService:
         """Mark estado pago as paid"""
         try:
             if fecha_pago is None:
-                fecha_pago = date.today()
+                fecha_pago = datetime.now().date()
 
             update_data = {
                 'estado': EstadoPagoContrato.PAGADO,
@@ -237,7 +237,7 @@ class EstadosPagoService:
             'tipo': TipoEstadoPago.ORDEN_COMPRA,
             'numero_oc': numero_oc,
             'monto_neto': monto_neto,
-            'fecha_programada': fecha_programada or date.today(),
+            'fecha_programada': fecha_programada or datetime.now().date(),
             'observaciones': observaciones,
             'estado': EstadoPagoContrato.PENDIENTE
         }
@@ -256,7 +256,7 @@ class EstadosPagoService:
             'descripcion': descripcion,
             'porcentaje_avance': porcentaje_avance,
             'monto_estado_pago': monto_estado_pago,
-            'fecha_programada': fecha_programada or date.today(),
+            'fecha_programada': fecha_programada or datetime.now().date(),
             'observaciones': observaciones,
             'estado': EstadoPagoContrato.PENDIENTE
         }
@@ -273,7 +273,7 @@ class EstadosPagoService:
             
             # Actualizar campos de facturación
             estado_pago.facturado = True
-            estado_pago.fecha_facturacion = date.today()
+            estado_pago.fecha_facturacion = datetime.now().date()
             if numero_factura:
                 estado_pago.numero_factura = numero_factura
                 
