@@ -117,7 +117,7 @@
                             <label class="form-label fw-medium">Fecha Programada</label>
                             <div class="form-control-plaintext">
                                 {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
-                                {% if despacho.fecha_programada < (moment().utcnow().date() if moment else '9999-12-31'|as_datetime.date) and despacho.estado.value == 'programado' %}
+                                {% if despacho.fecha_programada < moment_global().date() and despacho.estado.value == 'programado' %}
                                 <span class="badge bg-danger ms-2">Atrasado</span>
                                 {% endif %}
                             </div>
