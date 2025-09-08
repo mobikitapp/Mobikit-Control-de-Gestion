@@ -192,6 +192,12 @@ class TipoEstadoPago(Enum):
     ORDEN_COMPRA = "orden_compra"
     ESTADO_PAGO_CONTRATO = "estado_pago_contrato"
 
+class TipoOperacionTesoreria(Enum):
+    """Tipos específicos de operaciones de tesorería para contratos"""
+    ANTICIPO = "ANTICIPO"                    # Anticipo inicial del contrato
+    AVANCE_MENSUAL = "AVANCE_MENSUAL"        # Pago mensual por avance de obra
+    LIBERACION_RETENCION = "LIBERACION_RETENCION"  # Liberación de retención al final
+
 class EstadoPagoContrato(Enum):
     PENDIENTE = "pendiente"
     PAGADO = "pagado"
