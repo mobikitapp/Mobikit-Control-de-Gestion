@@ -81,7 +81,7 @@
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">Órdenes de Compra pendientes de facturación y pago:</p>
-                    
+
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -152,78 +152,6 @@
     </div>
     {% endif %}
 
-    <!-- Quick Actions by Client -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i data-feather="plus-circle" class="me-2"></i>
-                        Acciones Rápidas por Cliente
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Cliente</label>
-                            <select class="form-select" id="clienteAcciones" onchange="updateContratosAcciones()">
-                                <option value="">Seleccionar cliente</option>
-                                {% for cliente_data in clientes_contratos %}
-                                <option value="{{ cliente_data.cliente.id }}">
-                                    {{ cliente_data.cliente.nombre }} ({{ cliente_data.count_proyectos_activos }} proyectos)
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Contrato/OC</label>
-                            <select class="form-select" id="contratoAcciones" disabled>
-                                <option value="">Primero seleccione un cliente</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2 d-flex align-items-end">
-                            <div class="dropdown">
-                                <button class="btn btn-primary dropdown-toggle w-100" type="button" 
-                                        id="accionesButton" data-bs-toggle="dropdown" 
-                                        aria-expanded="false" disabled>
-                                    <i data-feather="settings" class="me-1"></i>
-                                    Acciones
-                                </button>
-                                <ul class="dropdown-menu" aria-labelledby="accionesButton">
-                                    <li>
-                                        <button class="dropdown-item" onclick="crearEstadoPagoRapido()">
-                                            <i data-feather="plus" class="me-2"></i>
-                                            Crear Estado de Pago
-                                        </button>
-                                    </li>
-                                    <li>
-                                        <button class="dropdown-item" onclick="marcarFacturado()">
-                                            <i data-feather="file-text" class="me-2"></i>
-                                            Marcar como Facturado
-                                        </button>
-                                    </li>
-                                    <li>
-                                        <button class="dropdown-item" onclick="verDetalleContrato()">
-                                            <i data-feather="eye" class="me-2"></i>
-                                            Ver Detalle
-                                        </button>
-                                    </li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <button class="dropdown-item" onclick="crearEstadosTesoreriaRapido()">
-                                            <i data-feather="layers" class="me-2"></i>
-                                            Crear EP
-                                        </button>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Contracts Pending Treasury Integration -->
     {% if contratos_pendientes %}
     <div class="row mb-4">
@@ -237,7 +165,7 @@
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">Contratos que requieren configuración de estados de pago complejos (anticipo, avances, retención):</p>
-                    
+
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -335,7 +263,7 @@
                     {% for proyecto_data in data.proyectos %}
                     {% set proyecto = proyecto_data.proyecto %}
                     {% set resumen = proyecto_data.resumen %}
-                    
+
                     <div class="project-container mb-4 p-3 border rounded bg-light">
                         <!-- Project Header -->
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -374,7 +302,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Progress Bar -->
                         <div class="progress mb-3" style="height: 20px;">
                             <div class="progress-bar bg-success" style="width: {{ resumen.porcentaje_pagado }}%" 
@@ -382,7 +310,7 @@
                             <div class="progress-bar bg-info" style="width: {{ resumen.porcentaje_facturado - resumen.porcentaje_pagado }}%" 
                                  title="Facturado no pagado: {{ '%.1f'|format(resumen.porcentaje_facturado - resumen.porcentaje_pagado) }}%"></div>
                         </div>
-                        
+
                         <div class="row">
                             <!-- Contratos Section -->
                             {% if proyecto_data.contratos %}
@@ -405,7 +333,7 @@
                                                 {% for contrato_data in proyecto_data.contratos %}
                                                 {% set contrato = contrato_data.contrato %}
                                                 {% set resumen_c = contrato_data.resumen_financiero %}
-                                                
+
                                                 <div class="card mb-2">
                                                     <div class="card-body p-3">
                                                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -426,7 +354,7 @@
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         <!-- Estados de Pago Expandible -->
                                                         <div class="collapse" id="estados-contrato-{{ contrato.id }}">
                                                             <div class="table-responsive mt-2">
@@ -485,7 +413,7 @@
                                                                 </table>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         <button class="btn btn-sm btn-outline-info" type="button" 
                                                                 data-bs-toggle="collapse" 
                                                                 data-bs-target="#estados-contrato-{{ contrato.id }}">
@@ -501,7 +429,7 @@
                                 </div>
                             </div>
                             {% endif %}
-                            
+
                             <!-- OCs Section -->
                             {% if proyecto_data.ordenes_compra %}
                             <div class="col-md-6">
@@ -523,7 +451,7 @@
                                                 {% for oc_data in proyecto_data.ordenes_compra %}
                                                 {% set oc = oc_data.oc %}
                                                 {% set resumen_oc = oc_data.resumen_financiero %}
-                                                
+
                                                 <div class="card mb-2">
                                                     <div class="card-body p-3">
                                                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -544,7 +472,7 @@
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         <!-- Facturas Expandible -->
                                                         <div class="collapse" id="facturas-oc-{{ oc.id }}">
                                                             <div class="table-responsive mt-2">
@@ -588,7 +516,7 @@
                                                                 </table>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         <button class="btn btn-sm btn-outline-warning" type="button" 
                                                                 data-bs-toggle="collapse" 
                                                                 data-bs-target="#facturas-oc-{{ oc.id }}">
@@ -605,7 +533,7 @@
                             </div>
                             {% endif %}
                         </div>
-                        
+
                         <!-- Project Actions -->
                         <div class="mt-3 pt-2 border-top">
                             <div class="btn-group" role="group">
@@ -667,7 +595,7 @@
                                 <option value="LIBERACION_RETENCION">LIBERACION_RETENCION</option>
                             </select>
                         </div>
-                        
+
                         <div class="col-md-12">
                             <label for="contratoIdModal" class="form-label">Contrato</label>
                             <select class="form-select" id="contratoIdModal" name="contrato_id" required>
@@ -683,7 +611,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        
+
                         <!-- Contract Fields -->
                         <div class="col-md-12 contrato-field-modal" style="display: none;">
                             <label for="descripcionModal" class="form-label">Descripción</label>
@@ -697,7 +625,7 @@
                             <label for="montoEstadoPagoModal" class="form-label">Monto Neto EP</label>
                             <input type="number" class="form-control" id="montoEstadoPagoModal" name="monto_estado_pago" step="0.01" required>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="fechaProgramadaModal" class="form-label">Fecha Programada</label>
                             <input type="date" class="form-control" id="fechaProgramadaModal" name="fecha_programada">
@@ -722,14 +650,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const filtroCliente = document.getElementById('filtroCliente');
     const filtroEstado = document.getElementById('filtroEstado');
     const filtroFacturado = document.getElementById('filtroFacturado');
-    
+
     // Setup modal form behavior for Crear EP
     const tipoEstadoModal = document.getElementById('tipoEstadoModal');
     if (tipoEstadoModal) {
         tipoEstadoModal.addEventListener('change', function() {
             const tipo = this.value;
             const contratoFieldsModal = document.querySelectorAll('.contrato-field-modal');
-            
+
             if (tipo === 'estado_pago_contrato') {
                 contratoFieldsModal.forEach(field => field.style.display = 'block');
             } else {
@@ -737,19 +665,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     // Set default date to today for modal
     const fechaProgramadaModal = document.getElementById('fechaProgramadaModal');
     if (fechaProgramadaModal) {
         const today = new Date().toISOString().split('T')[0];
         fechaProgramadaModal.value = today;
     }
-    
+
     function aplicarFiltros() {
         const clienteSeleccionado = filtroCliente.value;
         const estadoSeleccionado = filtroEstado.value;
         const facturadoSeleccionado = filtroFacturado.value;
-        
+
         // Filter client groups
         const clienteGrupos = document.querySelectorAll('.cliente-grupo');
         clienteGrupos.forEach(grupo => {
@@ -757,15 +685,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const deberíaMostrar = !clienteSeleccionado || clienteNombre === clienteSeleccionado;
             grupo.style.display = deberíaMostrar ? 'block' : 'none';
         });
-        
+
         // Additional filtering could be implemented here for estado and facturado
         // This would require additional data attributes on the proyecto rows
     }
-    
+
     filtroCliente.addEventListener('change', aplicarFiltros);
     filtroEstado.addEventListener('change', aplicarFiltros);
     filtroFacturado.addEventListener('change', aplicarFiltros);
-    
+
     // Initialize icons
     if (typeof feather !== 'undefined') {
         feather.replace();
@@ -801,14 +729,14 @@ function updateContratosAcciones() {
     const clienteSelect = document.getElementById('clienteAcciones');
     const contratoSelect = document.getElementById('contratoAcciones');
     const accionesButton = document.getElementById('accionesButton');
-    
+
     const clienteId = clienteSelect.value;
-    
+
     // Clear contracts dropdown
     contratoSelect.innerHTML = '<option value="">Seleccionar contrato/OC</option>';
     contratoSelect.disabled = !clienteId;
     accionesButton.disabled = true;
-    
+
     if (clienteId && contratosPorCliente[clienteId]) {
         contratosPorCliente[clienteId].forEach(contrato => {
             const option = document.createElement('option');
@@ -817,7 +745,7 @@ function updateContratosAcciones() {
             option.dataset.contrato = JSON.stringify(contrato);
             contratoSelect.appendChild(option);
         });
-        
+
         contratoSelect.disabled = false;
         contratoSelect.addEventListener('change', function() {
             accionesButton.disabled = !this.value;
@@ -829,7 +757,7 @@ function updateContratosAcciones() {
 function getSelectedContrato() {
     const contratoSelect = document.getElementById('contratoAcciones');
     const selectedOption = contratoSelect.options[contratoSelect.selectedIndex];
-    
+
     if (selectedOption && selectedOption.dataset.contrato) {
         return JSON.parse(selectedOption.dataset.contrato);
     }
@@ -843,7 +771,7 @@ function crearEstadoPagoRapido() {
         alert('Seleccione un contrato/OC primero');
         return;
     }
-    
+
     // Open modal or redirect to create estado de pago
     window.location.href = `/proyectos/estados-pago/nuevo?contrato_id=${contrato.id}`;
 }
@@ -854,7 +782,7 @@ function marcarFacturado() {
         alert('Seleccione un contrato/OC primero');
         return;
     }
-    
+
     if (confirm(`¿Marcar como facturado el ${contrato.tipo_documento === 'ORDEN_COMPRA' ? 'OC' : 'contrato'} ${contrato.numero_oc}?`)) {
         fetch(`/proyectos/estados-pago/marcar-facturado/${contrato.id}`, {
             method: 'POST',
@@ -885,7 +813,7 @@ function verDetalleContrato() {
         alert('Seleccione un contrato/OC primero');
         return;
     }
-    
+
     window.open(`/contratos/${contrato.id}`, '_blank');
 }
 
@@ -895,7 +823,7 @@ function crearEstadosTesoreriaRapido() {
         alert('Seleccione un contrato/OC primero');
         return;
     }
-    
+
     // Abrir modal de Crear EP en lugar de crear automáticamente
     abrirModalCrearEP(contrato.id, contrato.numero_oc);
 }
@@ -909,11 +837,11 @@ function showMessage(message, type) {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     `;
-    
+
     // Insert at top of content
     const container = document.querySelector('.container-fluid');
     container.insertAdjacentHTML('afterbegin', alertHtml);
-    
+
     // Auto-remove after 5 seconds
     setTimeout(() => {
         const alert = container.querySelector('.alert');
@@ -933,13 +861,13 @@ function crearEstadosTesoreria(contratoId, numeroOc) {
 function marcarPendienteFacturado(pendienteId, numeroOc) {
     const numeroFactura = prompt(`Número de factura para OC ${numeroOc}:`);
     if (numeroFactura === null) return; // User cancelled
-    
+
     const button = event.target.closest('button');
     const originalText = button.innerHTML;
-    
+
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
-    
+
     fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-facturado`, {
         method: 'POST',
         headers: {
@@ -970,13 +898,13 @@ function marcarPendienteFacturado(pendienteId, numeroOc) {
 
 function marcarPendientePagado(pendienteId, numeroOc) {
     if (!confirm(`¿Marcar OC ${numeroOc} como pagada?`)) return;
-    
+
     const button = event.target.closest('button');
     const originalText = button.innerHTML;
-    
+
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
-    
+
     fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-pagado`, {
         method: 'POST',
         headers: {
@@ -1010,10 +938,10 @@ function showAlert(type, message) {
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
-    
+
     const container = document.querySelector('.container-fluid');
     container.insertBefore(alertDiv, container.firstChild);
-    
+
     if (typeof feather !== 'undefined') {
         feather.replace();
     }
@@ -1035,7 +963,7 @@ function mostrarOpcionesContrato(contratoId, numeroOc, clienteNombre) {
                     </div>
                     <div class="modal-body">
                         <p class="text-muted mb-3">Cliente: <strong>${clienteNombre}</strong></p>
-                        
+
                         <!-- Primary Actions -->
                         <div class="mb-4">
                             <h6 class="fw-bold mb-2">
@@ -1057,7 +985,7 @@ function mostrarOpcionesContrato(contratoId, numeroOc, clienteNombre) {
                                 </button>
                             </div>
                         </div>
-                        
+
                         <!-- Secondary Actions -->
                         <div class="mb-3">
                             <h6 class="fw-bold mb-2">
@@ -1083,18 +1011,18 @@ function mostrarOpcionesContrato(contratoId, numeroOc, clienteNombre) {
             </div>
         </div>
     `;
-    
+
     // Remove existing modal if any
     const existingModal = document.getElementById('modalOpcionesContrato');
     if (existingModal) {
         existingModal.remove();
     }
-    
+
     // Add modal to page and show
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     const modal = new bootstrap.Modal(document.getElementById('modalOpcionesContrato'));
     modal.show();
-    
+
     // Update feather icons
     setTimeout(() => feather.replace(), 100);
 }
@@ -1105,9 +1033,9 @@ function mostrarOpcionesContrato(contratoId, numeroOc, clienteNombre) {
 function facturarContrato(contratoId, numeroOc) {
     const numeroFactura = prompt(`Ingrese el número de factura para ${numeroOc}:`);
     if (numeroFactura === null || numeroFactura.trim() === '') return;
-    
+
     if (!confirm(`¿Marcar ${numeroOc} como facturado con número de factura ${numeroFactura}?`)) return;
-    
+
     fetch(`/proyectos/contratos/${contratoId}/marcar-facturado`, {
         method: 'POST',
         headers: {
@@ -1175,11 +1103,11 @@ function cerrarModal(modalId) {
 function abrirModalCrearEP(contratoId, numeroOc) {
     // Pre-fill the contract selection in the modal
     document.getElementById('contratoIdModal').value = contratoId;
-    
+
     // Show the modal
     const modal = new bootstrap.Modal(document.getElementById('modalCrearEP'));
     modal.show();
-    
+
     // Auto-show contract fields since we're creating for a contract
     document.getElementById('tipoEstadoModal').value = 'estado_pago_contrato';
     document.getElementById('tipoEstadoModal').dispatchEvent(new Event('change'));
@@ -1190,18 +1118,18 @@ function guardarEstadoPagoModal() {
     const form = document.getElementById('formCrearEP');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
-    
+
     // Get the project ID from the selected contract
     const contratoId = data.contrato_id;
     if (!contratoId) {
         alert('Debe seleccionar un contrato');
         return;
     }
-    
+
     // Find project ID from the selected contract
     const contratoSelect = document.getElementById('contratoIdModal');
     const selectedOption = contratoSelect.options[contratoSelect.selectedIndex];
-    
+
     fetch(`/proyectos/estados-pago`, {
         method: 'POST',
         headers: {
