@@ -405,7 +405,7 @@
                                                                         {% for estado in contrato_data.estados_pago %}
                                                                         <tr>
                                                                             <td>{{ estado.descripcion or 'Estado de pago' }}</td>
-                                                                            <td>${{ "{:,.0f}".format(estado.monto_efectivo or 0) }}</td>
+                                                                            <td>${{ "{:,.0f}".format(estado.monto_estado_pago or 0) }}</td>
                                                                             <td>
                                                                                 <span class="badge bg-{{ 'success' if estado.estado.value == 'PAGADO' else 'warning' }}">
                                                                                     {{ estado.estado.value }}

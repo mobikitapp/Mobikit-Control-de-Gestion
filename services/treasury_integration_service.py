@@ -375,18 +375,20 @@ class TreasuryIntegrationService:
                     }
                 
                 # Get contracts for this project, separating by type
+                from schemas.contratos import EstadoContratoEnum
+                
                 contratos_regulares = Contrato.query.filter_by(
-                    proyecto_id=proyecto.id, 
-                    activo=True
+                    proyecto_id=proyecto.id
                 ).filter(
-                    Contrato.tipo_documento == TipoDocumento.CONTRATO
+                    Contrato.tipo_documento == TipoDocumento.CONTRATO,
+                    Contrato.estado == EstadoContratoEnum.VIGENTE
                 ).all()
                 
                 ordenes_compra = Contrato.query.filter_by(
-                    proyecto_id=proyecto.id, 
-                    activo=True
+                    proyecto_id=proyecto.id
                 ).filter(
-                    Contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA
+                    Contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA,
+                    Contrato.estado == EstadoContratoEnum.VIGENTE
                 ).all()
                 
                 # Prepare contracts data with payment states
@@ -395,10 +397,10 @@ class TreasuryIntegrationService:
                     estados_pago = EstadoPago.query.filter_by(contrato_id=contrato.id).all()
                     
                     # Calculate financial summary for this contract
-                    total_monto = sum(float(ep.monto_efectivo or 0) for ep in estados_pago)
-                    total_pagado = sum(float(ep.monto_efectivo or 0) for ep in estados_pago 
+                    total_monto = sum(float(ep.monto_estado_pago or 0) for ep in estados_pago)
+                    total_pagado = sum(float(ep.monto_estado_pago or 0) for ep in estados_pago 
                                      if ep.estado.value == 'PAGADO')
-                    total_facturado = sum(float(ep.monto_efectivo or 0) for ep in estados_pago 
+                    total_facturado = sum(float(ep.monto_estado_pago or 0) for ep in estados_pago 
                                         if ep.facturado)
                     
                     contratos_data.append({
