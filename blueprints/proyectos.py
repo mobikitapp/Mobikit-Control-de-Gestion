@@ -733,7 +733,7 @@ def marcar_facturado(estado_pago_id):
     """Mark payment state as invoiced"""
     try:
         from services.estados_pago_service import EstadosPagoService
-        from datetime import datetime
+        from datetime import datetime, date
 
         data = request.get_json()
         estados_pago_service = EstadosPagoService()
