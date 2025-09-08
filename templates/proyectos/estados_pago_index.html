@@ -389,13 +389,13 @@
                                                                                 <div class="btn-group btn-group-sm" role="group">
                                                                                     {% if not estado.facturado %}
                                                                                     <button type="button" class="btn btn-outline-warning btn-xs" 
-                                                                                            onclick="marcarPendienteFacturado({{ estado.id }})" 
+                                                                                            onclick="marcarEstadoPagoFacturado({{ estado.id }})" 
                                                                                             title="Marcar como facturado">
                                                                                         <i data-feather="file-text" style="width: 10px; height: 10px;"></i>
                                                                                     </button>
-                                                                                    {% elif estado.facturado and not estado.pagado %}
+                                                                                    {% elif estado.facturado and estado.estado.value != 'PAGADO' %}
                                                                                     <button type="button" class="btn btn-outline-success btn-xs" 
-                                                                                            onclick="marcarPendientePagado({{ estado.id }})" 
+                                                                                            onclick="marcarEstadoPagoPagado({{ estado.id }})" 
                                                                                             title="Marcar como pagado">
                                                                                         <i data-feather="dollar-sign" style="width: 10px; height: 10px;"></i>
                                                                                     </button>
@@ -446,7 +446,7 @@
                                             </button>
                                         </h2>
                                         <div id="ocs-{{ proyecto.id }}" class="accordion-collapse collapse" 
-                                             data-bs-parent="#accordion-ocs-{{ proyecto.id }}">
+                                             data-bs-parent="#ocs-{{ proyecto.id }}">
                                             <div class="accordion-body">
                                                 {% for oc_data in proyecto_data.ordenes_compra %}
                                                 {% set oc = oc_data.oc %}
@@ -1110,9 +1110,9 @@ function updateFieldsByTipoEP() {
     const porcentajeInput = document.getElementById('porcentajeAvanceModal');
     const porcentajeLabel = document.getElementById('labelPorcentajeAvance');
     const porcentajeHelp = document.getElementById('helpPorcentajeAvance');
-    
+
     const tipo = tipoSelect.value;
-    
+
     if (tipo === 'ANTICIPO') {
         porcentajeField.style.display = 'block';
         porcentajeLabel.textContent = '% Anticipo';
@@ -1140,7 +1140,7 @@ function updateAnticipoFromContract() {
     const contratoSelect = document.getElementById('contratoIdModal');
     const porcentajeInput = document.getElementById('porcentajeAvanceModal');
     const tipoSelect = document.getElementById('tipoOperacionTesoreriaModal');
-    
+
     if (contratoSelect && porcentajeInput && tipoSelect && 
         tipoSelect.value === 'ANTICIPO' && contratoSelect.value) {
         const selectedOption = contratoSelect.options[contratoSelect.selectedIndex];
@@ -1189,6 +1189,79 @@ function guardarEstadoPagoModal() {
     .catch(error => {
         console.error('Error:', error);
         alert('Error al guardar estado de pago');
+    });
+}
+
+// Functions for contract payment states (different from OC functions)
+function marcarEstadoPagoFacturado(estadoPagoId) {
+    const numeroFactura = prompt('Número de factura:');
+    if (numeroFactura === null) return; // User cancelled
+
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+
+    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-facturado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            numero_factura: numeroFactura
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload();
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function marcarEstadoPagoPagado(estadoPagoId) {
+    if (!confirm('¿Marcar este estado de pago como pagado?')) return;
+
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+
+    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload();
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+        button.disabled = false;
+        button.innerHTML = originalText;
     });
 }
 </script>

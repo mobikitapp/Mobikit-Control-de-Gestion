@@ -121,14 +121,14 @@
                             {% for contrato_data in proyecto_data.contratos %}
                             {% set contrato = contrato_data.contrato %}
                             {% set resumen_c = contrato_data.resumen_financiero %}
-                            
+
                             <div class="card mb-3">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <h6 class="mb-0">{{ contrato.numero_oc }}</h6>
                                         <span class="badge bg-success">${{ "{:,.0f}".format(resumen_c.total_monto) }}</span>
                                     </div>
-                                    
+
                                     <!-- Progress Bar -->
                                     <div class="progress mb-3" style="height: 20px;">
                                         <div class="progress-bar bg-success" style="width: {{ resumen_c.porcentaje_pagado }}%" 
@@ -136,7 +136,7 @@
                                         <div class="progress-bar bg-info" style="width: {{ resumen_c.porcentaje_facturado - resumen_c.porcentaje_pagado }}%" 
                                              title="Facturado no pagado: {{ '%.1f'|format(resumen_c.porcentaje_facturado - resumen_c.porcentaje_pagado) }}%"></div>
                                     </div>
-                                    
+
                                     <!-- Estados de Pago Expandible -->
                                     <div class="collapse" id="estados-contrato-{{ contrato.id }}">
                                         <div class="table-responsive">
@@ -170,9 +170,16 @@
                                                                 </button>
                                                                 {% endif %}
                                                                 {% if not estado.facturado %}
-                                                                <button type="button" class="btn btn-xs btn-outline-info"
-                                                                        onclick="marcarComoFacturado({{ estado.id }})">
-                                                                    <i data-feather="file-text" style="width: 12px; height: 12px;"></i>
+                                                                <button type="button" class="btn btn-xs btn-outline-warning" 
+                                                                        onclick="marcarComoFacturado({{ estado.id }})" 
+                                                                        title="Marcar como facturado">
+                                                                    <i data-feather="file-text" style="width: 10px; height: 10px;"></i>
+                                                                </button>
+                                                                {% elif estado.facturado and estado.estado.value != 'PAGADO' %}
+                                                                <button type="button" class="btn btn-xs btn-outline-success" 
+                                                                        onclick="marcarComoPagado({{ estado.id }})" 
+                                                                        title="Marcar como pagado">
+                                                                    <i data-feather="dollar-sign" style="width: 10px; height: 10px;"></i>
                                                                 </button>
                                                                 {% endif %}
                                                                 <button type="button" class="btn btn-xs btn-outline-danger"
@@ -187,7 +194,7 @@
                                             </table>
                                         </div>
                                     </div>
-                                    
+
                                     <button class="btn btn-sm btn-outline-info" type="button" 
                                             data-bs-toggle="collapse" 
                                             data-bs-target="#estados-contrato-{{ contrato.id }}">
@@ -201,7 +208,7 @@
                     </div>
                 </div>
                 {% endif %}
-                
+
                 <!-- OCs Section -->
                 {% if proyecto_data.ordenes_compra %}
                 <div class="col-md-6">
@@ -217,14 +224,14 @@
                             {% for oc_data in proyecto_data.ordenes_compra %}
                             {% set oc = oc_data.oc %}
                             {% set resumen_oc = oc_data.resumen_financiero %}
-                            
+
                             <div class="card mb-3">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <h6 class="mb-0">{{ oc.numero_oc }}</h6>
                                         <span class="badge bg-warning">${{ "{:,.0f}".format(resumen_oc.total_monto) }}</span>
                                     </div>
-                                    
+
                                     <!-- Progress Bar -->
                                     <div class="progress mb-3" style="height: 20px;">
                                         <div class="progress-bar bg-success" style="width: {{ resumen_oc.porcentaje_pagado }}%" 
@@ -232,7 +239,7 @@
                                         <div class="progress-bar bg-info" style="width: {{ resumen_oc.porcentaje_facturado - resumen_oc.porcentaje_pagado }}%" 
                                              title="Facturado no pagado: {{ '%.1f'|format(resumen_oc.porcentaje_facturado - resumen_oc.porcentaje_pagado) }}%"></div>
                                     </div>
-                                    
+
                                     <!-- Facturas Expandible -->
                                     <div class="collapse" id="facturas-oc-{{ oc.id }}">
                                         <div class="table-responsive">
@@ -276,7 +283,7 @@
                                             </table>
                                         </div>
                                     </div>
-                                    
+
                                     <button class="btn btn-sm btn-outline-warning" type="button" 
                                             data-bs-toggle="collapse" 
                                             data-bs-target="#facturas-oc-{{ oc.id }}">
@@ -332,7 +339,7 @@
                             </small>
                         </div>
                         <div class="col-md-6"></div>
-                        
+
                         <div class="col-md-12">
                             <label for="contratoId" class="form-label">Contrato</label>
                             <select class="form-select" id="contratoId" name="contrato_id" required onchange="updateAnticipoFromContractDetalle()">
@@ -346,7 +353,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        
+
                         <!-- OC Fields -->
                         <div class="col-md-6 oc-field" style="display: none;">
                             <label for="numeroOc" class="form-label">Número OC</label>
@@ -356,7 +363,7 @@
                             <label for="montoNeto" class="form-label">Monto Neto</label>
                             <input type="number" class="form-control" id="montoNeto" name="monto_neto" step="0.01">
                         </div>
-                        
+
                         <!-- Contract Fields -->
                         <div class="col-md-12 contrato-field" style="display: none;">
                             <label for="descripcion" class="form-label">Descripción</label>
@@ -371,7 +378,7 @@
                             <label for="montoEstadoPago" class="form-label">Monto Neto EP</label>
                             <input type="number" class="form-control" id="montoEstadoPago" name="monto_estado_pago" step="0.01" required>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="fechaProgramada" class="form-label">Fecha Programada</label>
                             <input type="date" class="form-control" id="fechaProgramada" name="fecha_programada">
@@ -432,15 +439,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show contract fields by default since we only handle contract payment states
     const ocFields = document.querySelectorAll('.oc-field');
     const contratoFields = document.querySelectorAll('.contrato-field');
-    
+
     ocFields.forEach(field => field.style.display = 'none');
     contratoFields.forEach(field => field.style.display = 'block');
-    
+
     // Set default date to today
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('fechaProgramada').value = today;
     document.getElementById('fechaFacturacion').value = today;
-    
+
     // Initialize icons
     if (typeof feather !== 'undefined') {
         feather.replace();
@@ -454,9 +461,9 @@ function updateFieldsByTipoEPDetalle() {
     const porcentajeInput = document.getElementById('porcentajeAvance');
     const porcentajeLabel = document.getElementById('labelPorcentajeAvanceDetalle');
     const porcentajeHelp = document.getElementById('helpPorcentajeAvanceDetalle');
-    
+
     const tipo = tipoSelect.value;
-    
+
     if (tipo === 'ANTICIPO') {
         porcentajeField.style.display = 'block';
         porcentajeLabel.textContent = '% Anticipo';
@@ -484,7 +491,7 @@ function updateAnticipoFromContractDetalle() {
     const contratoSelect = document.getElementById('contratoId');
     const porcentajeInput = document.getElementById('porcentajeAvance');
     const tipoSelect = document.getElementById('tipoOperacionTesoreria');
-    
+
     if (tipoSelect.value === 'ANTICIPO' && contratoSelect.value) {
         const selectedOption = contratoSelect.options[contratoSelect.selectedIndex];
         const anticipoPct = selectedOption.dataset.anticipo || 0;
@@ -496,10 +503,10 @@ function guardarEstadoPago() {
     const form = document.getElementById('formNuevoEstadoPago');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
-    
+
     // Set tipo as estado_pago_contrato since we only handle contracts now
     data.tipo = 'estado_pago_contrato';
-    
+
     fetch(`/proyectos/{{ proyecto.id }}/estados-pago`, {
         method: 'POST',
         headers: {
@@ -524,9 +531,9 @@ function guardarEstadoPago() {
 function marcarComoPagado(estadoPagoId) {
     const fechaPago = prompt('Fecha de pago (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
     if (!fechaPago) return;
-    
+
     const observaciones = prompt('Observaciones (opcional):');
-    
+
     fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
         method: 'POST',
         headers: {
@@ -561,7 +568,7 @@ function confirmarFacturado() {
     const form = document.getElementById('formMarcarFacturado');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
-    
+
     fetch(`/proyectos/estados-pago/${estadoPagoParaFacturar}/marcar-facturado`, {
         method: 'POST',
         headers: {
@@ -587,7 +594,7 @@ function eliminarEstadoPago(estadoPagoId) {
     if (!confirm('¿Está seguro de que desea eliminar este estado de pago?')) {
         return;
     }
-    
+
     fetch(`/proyectos/estados-pago/${estadoPagoId}`, {
         method: 'DELETE'
     })
@@ -609,13 +616,13 @@ function eliminarEstadoPago(estadoPagoId) {
 function marcarPendienteFacturado(pendienteId, numeroOc) {
     const numeroFactura = prompt(`Número de factura para OC ${numeroOc}:`);
     if (!numeroFactura) return;
-    
+
     const button = event.target.closest('button');
     const originalText = button.innerHTML;
 
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
-    
+
     fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-facturado`, {
         method: 'POST',
         headers: {
@@ -652,7 +659,7 @@ function marcarPendientePagado(pendienteId, numeroOc) {
 
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
-    
+
     fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-pagado`, {
         method: 'POST',
         headers: {
