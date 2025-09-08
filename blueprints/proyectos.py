@@ -750,23 +750,22 @@ def marcar_facturado(estado_pago_id):
         estados_pago_service = EstadosPagoService()
 
         # Mark as invoiced
-        estado_pago = estados_pago_service.marcar_como_facturado(
+        success = estados_pago_service.marcar_como_facturado(
             estado_pago_id=estado_pago_id,
             numero_factura=data.get('numero_factura'),
-            fecha_facturacion=datetime.strptime(data.get('fecha_facturacion'), '%Y-%m-%d').date() if data.get('fecha_facturacion') else None,
-            observaciones=data.get('observaciones')
+            updated_by=current_user.id if current_user else 'system'
         )
 
-        return jsonify({
-            'success': True,
-            'message': 'Estado marcado como facturado exitosamente',
-            'estado_pago': {
-                'id': estado_pago.id,
-                'facturado': estado_pago.facturado,
-                'numero_factura': estado_pago.numero_factura,
-                'fecha_facturacion': estado_pago.fecha_facturacion.strftime('%d/%m/%Y') if estado_pago.fecha_facturacion else None
-            }
-        })
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Estado marcado como facturado exitosamente'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Error al marcar como facturado'
+            }), 500
 
     except Exception as e:
         logger.error(f"Error marking estado pago as invoiced {estado_pago_id}: {str(e)}")
