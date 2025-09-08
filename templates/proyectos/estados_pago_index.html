@@ -348,6 +348,22 @@
                                 <small class="text-muted">
                                     {{ proyecto_data.total_contratos or 0 }} contratos, {{ proyecto_data.total_ocs or 0 }} OCs
                                 </small>
+                                <!-- Project Action Buttons -->
+                                <div class="mt-2">
+                                    <a href="{{ url_for('proyectos.estados_pago_detalle', proyecto_id=proyecto.id) }}" 
+                                       class="btn btn-sm btn-outline-primary me-1" title="Ver detalle">
+                                        <i data-feather="eye" style="width: 14px; height: 14px;"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-primary me-1" 
+                                            onclick="crearEstadosTesoreria(null, '{{ proyecto.nombre }}', {{ proyecto.id }})" 
+                                            title="Crear EP">
+                                        <i data-feather="plus" style="width: 14px; height: 14px;"></i>
+                                    </button>
+                                    <a href="{{ url_for('proyectos.show', id=proyecto.id) }}" 
+                                       class="btn btn-sm btn-outline-secondary" title="Ver proyecto">
+                                        <i data-feather="folder" style="width: 14px; height: 14px;"></i>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                         
