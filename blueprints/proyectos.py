@@ -11,7 +11,7 @@ from services.treasury_integration_service import TreasuryIntegrationService
 from schemas.proyectos import ProyectoCreate, ProyectoUpdate, ProyectoSearchFilters
 from models import CategoriaMuebleModel, User
 import logging
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 import math
 
