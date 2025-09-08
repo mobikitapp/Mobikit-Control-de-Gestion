@@ -538,28 +538,21 @@ def crear_estado_pago(proyecto_id):
         
         tipo = data.get('tipo')
         
-        if tipo == TipoEstadoPago.ORDEN_COMPRA.value:
-            # Create Orden de Compra
-            estado_pago = estados_pago_service.create_orden_compra(
-                proyecto_id=proyecto_id,
-                numero_oc=data.get('numero_oc'),
-                monto_neto=Decimal(str(data.get('monto_neto', 0))),
-                fecha_programada=datetime.strptime(data.get('fecha_programada'), '%Y-%m-%d').date() if data.get('fecha_programada') else None,
-                observaciones=data.get('observaciones'),
-                created_by=current_user.id
-            )
-        else:
-            # Create Contract Payment State
-            estado_pago = estados_pago_service.create_estado_pago_contrato(
-                proyecto_id=proyecto_id,
-                contrato_id=data.get('contrato_id'),
-                descripcion=data.get('descripcion'),
-                porcentaje_avance=Decimal(str(data.get('porcentaje_avance', 0))),
-                monto_estado_pago=Decimal(str(data.get('monto_estado_pago', 0))),
-                fecha_programada=datetime.strptime(data.get('fecha_programada'), '%Y-%m-%d').date() if data.get('fecha_programada') else None,
-                observaciones=data.get('observaciones'),
-                created_by=current_user.id
-            )
+        # Only Contract Payment States are supported now - OCs are handled separately as PendienteFacturar
+        if tipo != TipoEstadoPago.ESTADO_PAGO_CONTRATO.value:
+            return jsonify({'success': False, 'message': 'Solo se permiten Estados de Pago de Contrato. Las OCs se gestionan automáticamente.'}), 400
+            
+        # Create Contract Payment State
+        estado_pago = estados_pago_service.create_estado_pago_contrato(
+            proyecto_id=proyecto_id,
+            contrato_id=data.get('contrato_id'),
+            descripcion=data.get('descripcion'),
+            porcentaje_avance=Decimal(str(data.get('porcentaje_avance', 0))),
+            monto_estado_pago=Decimal(str(data.get('monto_estado_pago', 0))),
+            fecha_programada=datetime.strptime(data.get('fecha_programada'), '%Y-%m-%d').date() if data.get('fecha_programada') else None,
+            observaciones=data.get('observaciones'),
+            created_by=current_user.id
+        )
 
         return jsonify({
             'success': True,

@@ -205,9 +205,11 @@
                             <label for="tipoEstado" class="form-label">Tipo de Estado</label>
                             <select class="form-select" id="tipoEstado" name="tipo" required>
                                 <option value="">Seleccione tipo</option>
-                                <option value="orden_compra">Orden de Compra</option>
                                 <option value="estado_pago_contrato">Estado de Pago de Contrato</option>
                             </select>
+                            <small class="form-text text-muted">
+                                Nota: Las Órdenes de Compra se gestionan automáticamente en la sección "Pendientes de Facturar"
+                            </small>
                         </div>
                         <div class="col-md-6">
                             <label for="contratoId" class="form-label">Contrato (opcional)</label>
@@ -300,16 +302,13 @@
 let estadoPagoParaFacturar = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Toggle form fields based on tipo
+    // Toggle form fields based on tipo - Only contract payment states are allowed
     document.getElementById('tipoEstado').addEventListener('change', function() {
         const tipo = this.value;
         const ocFields = document.querySelectorAll('.oc-field');
         const contratoFields = document.querySelectorAll('.contrato-field');
         
-        if (tipo === 'orden_compra') {
-            ocFields.forEach(field => field.style.display = 'block');
-            contratoFields.forEach(field => field.style.display = 'none');
-        } else if (tipo === 'estado_pago_contrato') {
+        if (tipo === 'estado_pago_contrato') {
             ocFields.forEach(field => field.style.display = 'none');
             contratoFields.forEach(field => field.style.display = 'block');
         } else {
