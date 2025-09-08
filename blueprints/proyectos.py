@@ -859,3 +859,65 @@ def marcar_pendiente_pagado(pendiente_id):
     except Exception as e:
         logger.error(f"Error marcando OC {pendiente_id} como pagada: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al marcar como pagada: {str(e)}'}), 500
+
+@proyectos_bp.route('/estados-pago/<int:estado_pago_id>/marcar-facturado', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def marcar_estado_pago_facturado(estado_pago_id):
+    """Marcar un estado de pago como facturado"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        estados_pago_service = EstadosPagoService()
+        
+        data = request.get_json() or {}
+        numero_factura = data.get('numero_factura', '')
+        
+        # Update payment state as invoiced
+        success = estados_pago_service.marcar_como_facturado(
+            estado_pago_id=estado_pago_id,
+            numero_factura=numero_factura,
+            updated_by=current_user.id
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Estado de pago marcado como facturado exitosamente'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'No se pudo marcar el estado de pago como facturado'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error marcando estado de pago {estado_pago_id} como facturado: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al marcar como facturado: {str(e)}'}), 500
+
+@proyectos_bp.route('/estados-pago/<int:estado_pago_id>/marcar-pagado', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def marcar_estado_pago_pagado(estado_pago_id):
+    """Marcar un estado de pago como pagado"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        estados_pago_service = EstadosPagoService()
+        
+        # Update payment state as paid
+        success = estados_pago_service.marcar_como_pagado(
+            estado_pago_id=estado_pago_id,
+            updated_by=current_user.id
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Estado de pago marcado como pagado exitosamente'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'No se pudo marcar el estado de pago como pagado'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error marcando estado de pago {estado_pago_id} como pagado: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al marcar como pagado: {str(e)}'}), 500
