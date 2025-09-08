@@ -1,0 +1,89 @@
+Objetivo: Seguimiento financiero por proyecto: contratos, OCs, despachos/estados de pago, facturación, pagos, notas de crédito, cartera y “por facturar”.
+
+Modelo (tablas mínimas)
+
+proyectos(id, cliente_id, nombre, obra, moneda)
+
+contratos(id, proyecto_id, monto_original, monto_modificado, retencion_pct, anticipo_pct, modo_facturacion:DESPACHO|AVANCE)
+
+ordenes_compra(id, proyecto_id, numero, monto, estado:ABIERTA|CERRADA)
+
+despachos(id, proyecto_id, guia, fecha, estado:EMITIDO|RECIBIDO|CONFORME)
+
+despachos_items(id, despacho_id, item_ref, cantidad, valor_valorizado)
+
+estados_pago(id, proyecto_id, periodo, avance_pct, monto_certificado, estado:ENVIADO|APROBADO|RECHAZADO)
+
+facturas(id, proyecto_id, tipo:DESPACHO|AVANCE|ANTICIPO, neto, iva, total, emision, vencimiento, estado:BORRADOR|EMITIDA|ENVIADA|PAGADA|VENCIDA|ANULADA)
+
+factura_items(id, factura_id, fuente_tipo:DESPACHO|AVANCE, fuente_id, monto_neto)
+
+pagos(id, factura_id, monto, fecha, ref)
+
+notas_credito(id, factura_id, monto, fecha, motivo)
+
+Reglas de negocio
+
+El contrato define modo_facturacion:
+
+DESPACHO: se factura solo contra despachos CONFORME.
+
+AVANCE: se factura solo contra estados de pago APROBADO.
+
+Tope: no facturar más de lo valorizado/certificado menos lo ya facturado.
+
+Retención/Anticipo: aplicar según % contrato; llevar saldo/liberación.
+
+Estados automáticos: VENCIDA al pasar el vencimiento sin pago; PAGADA si pagos ≥ total – NC.
+
+Endpoints
+
+GET /proyectos/:id/finanzas/resumen → contrato, facturado, por facturar, por cobrar, retención/anticipo.
+
+POST /facturas → crea factura validando tope y modo; genera factura_items.
+
+POST /facturas/:id/pagos y POST /facturas/:id/notas_credito.
+
+GET /reportes/cartera?cliente=&obra=&aging= (0–30,31–60,61–90,+90).
+
+POST /conciliar → desde fuentes (despachos/estados) a factura_items.
+
+Cálculos clave
+
+Facturado acumulado: suma facturas.total excl. ANULADA|BORRADOR.
+
+Por facturar DESPACHO: sum(despachos_items.valor_valorizado de CONFORME) – sum(factura_items.monto_neto ligados).
+
+Por facturar AVANCE: sum(estados_pago.monto_certificado APROBADO) – sum(factura_items.monto_neto).
+
+Por cobrar: total – pagos – notas de crédito en EMITIDA|ENVIADA|VENCIDA.
+
+UI (Firestudio)
+
+Tablero Proyecto: cards (Contrato, Facturado, Por Facturar, Por Cobrar, Retención/Anticipo) + línea mensual.
+
+Conciliador: lista de fuentes con checkbox → “Generar factura”.
+
+Cartera: aging con filtros cliente/obra y exportar CSV.
+
+Detalle Factura: items origen, impuestos, pagos y NC.
+
+Entregables
+
+Migraciones SQL, seed mínimo (1 proyecto, 1 contrato por cada modo).
+
+Tests de: tope de facturación, aging, cambio automático de estado VENCIDA.
+
+Script npm: dev, migrate, seed.
+
+README con variables: DATABASE_URL, PORT, TZ.
+
+Criterios de aceptación:
+
+No permite emitir factura sin items ni superar tope.
+
+“Por facturar” y “Por cobrar” coinciden con fuentes y movimientos.
+
+Aging correcto por días reales.
+
+Cambios de estado automáticos al correr un job diario.
