@@ -948,22 +948,25 @@ function marcarPendientePagado(pendienteId, numeroOc) {
             'Content-Type': 'application/json',
         }
     })
-    .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('success', data.message);
-            location.reload(); // Refresh to update the UI
+            showAlert('success', 'Estado de pago marcado como pagado exitosamente');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            showAlert('danger', 'Error: ' + data.message);
-            button.disabled = false;
-            button.innerHTML = originalText;
+            showAlert('error', 'Error: ' + data.message);
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
-        button.disabled = false;
-        button.innerHTML = originalText;
+        showAlert('error', 'Error al marcar como pagado');
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
     });
 }
 
@@ -1296,22 +1299,25 @@ function marcarEstadoPagoPagado(estadoPagoId) {
             observaciones: observaciones
         })
     })
-    .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('success', data.message);
-            location.reload();
+            showAlert('success', 'Estado de pago marcado como pagado exitosamente');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            showAlert('danger', 'Error: ' + data.message);
-            button.disabled = false;
-            button.innerHTML = originalText;
+            showAlert('error', 'Error: ' + data.message);
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
-        button.disabled = false;
-        button.innerHTML = originalText;
+        showAlert('error', 'Error al marcar como pagado');
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
     });
 }
 </script>

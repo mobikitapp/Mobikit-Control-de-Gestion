@@ -337,19 +337,19 @@ class EstadosPagoService:
                 return
             
             # Get all payment states for this contract
-            estados_pago = self.repo.get_by_contrato(contrato_id)
+            estados_pago = self.repo.get_by_contrato_id(contrato_id)  # Use the correct method name
             
-            # Calculate totals
+            # Calculate totals using monto_efectivo property
             total_facturado = sum(
-                float(ep.monto_estado_pago or 0) 
+                float(ep.monto_efectivo or 0) 
                 for ep in estados_pago 
-                if ep.facturado and ep.monto_estado_pago
+                if hasattr(ep, 'facturado') and ep.facturado
             )
             
             total_pagado = sum(
-                float(ep.monto_estado_pago or 0) 
+                float(ep.monto_efectivo or 0) 
                 for ep in estados_pago 
-                if ep.estado.value == 'PAGADO' and ep.monto_estado_pago
+                if ep.estado and ep.estado.value == 'PAGADO'
             )
             
             # Update contract fields

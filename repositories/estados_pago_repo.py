@@ -122,6 +122,11 @@ class EstadosPagoRepository:
         }
 
     @staticmethod
+    def get_by_contrato(contrato_id: int) -> List[EstadoPago]:
+        """Get all estados pago for a contrato - alias for get_by_contrato_id"""
+        return EstadosPagoRepository.get_by_contrato_id(contrato_id)
+
+    @staticmethod
     def get_proximos_vencimientos(dias: int = 30) -> List[EstadoPago]:
         """Get estados pago that will expire in the next 'dias' days"""
         from datetime import date, timedelta
