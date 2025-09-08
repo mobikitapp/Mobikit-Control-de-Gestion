@@ -198,6 +198,13 @@ class TipoOperacionTesoreria(Enum):
     AVANCE_MENSUAL = "AVANCE_MENSUAL"        # Pago mensual por avance de obra
     LIBERACION_RETENCION = "LIBERACION_RETENCION"  # Liberación de retención al final
 
+class EstadoPendienteFacturar(Enum):
+    """Estados para órdenes de compra pendientes de facturar"""
+    PENDIENTE = "PENDIENTE"            # Pendiente de facturar
+    FACTURADO = "FACTURADO"           # Ya fue facturado
+    PAGADO = "PAGADO"                 # Ya fue pagado
+    VENCIDO = "VENCIDO"               # Se venció sin pagar
+
 class EstadoPagoContrato(Enum):
     PENDIENTE = "pendiente"
     PAGADO = "pagado"
@@ -1180,6 +1187,63 @@ class EventoEntrega(db.Model):
             from datetime import timedelta
             return self.fecha_evento - timedelta(days=self.recordatorio_dias)
         return None
+
+
+class PendienteFacturar(db.Model):
+    """
+    Órdenes de Compra pendientes de facturar - Flujo simple para OCs
+    Separado conceptualmente de Estados de Pago (que son para contratos)
+    """
+    __tablename__ = 'pendientes_facturar'
+
+    id = db.Column(db.Integer, primary_key=True)
+    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
+    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=False)
+    
+    # Información de la OC
+    numero_oc = db.Column(db.String(100), nullable=False)
+    monto_neto = db.Column(db.Numeric(15, 2), nullable=False)
+    
+    # Estado y fechas
+    estado = db.Column(db.Enum(EstadoPendienteFacturar), default=EstadoPendienteFacturar.PENDIENTE, nullable=False)
+    fecha_programada = db.Column(db.Date, nullable=False)  # Fecha programada de facturación
+    fecha_facturado = db.Column(db.Date, nullable=True)    # Cuando se facturó
+    fecha_pagado = db.Column(db.Date, nullable=True)       # Cuando se pagó
+    
+    # Información adicional
+    observaciones = db.Column(db.Text, nullable=True)
+    numero_factura = db.Column(db.String(100), nullable=True)  # Número de factura emitida
+    
+    # Auditoría
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = db.Column(db.String(100), nullable=False)
+    updated_by = db.Column(db.String(100), nullable=True)
+    
+    # Relaciones
+    proyecto = db.relationship('Proyecto', backref='pendientes_facturar', lazy=True)
+    contrato = db.relationship('Contrato', backref='pendientes_facturar', lazy=True)
+    
+    __table_args__ = (
+        Index('idx_pendiente_facturar_proyecto', 'proyecto_id'),
+        Index('idx_pendiente_facturar_estado', 'estado'),
+        Index('idx_pendiente_facturar_fecha', 'fecha_programada'),
+    )
+
+    def __repr__(self):
+        return f'<PendienteFacturar OC:{self.numero_oc} - {self.estado.value}>'
+
+    @property
+    def dias_vencimiento(self):
+        """Días hasta el vencimiento (negativo si ya venció)"""
+        if self.fecha_programada:
+            return (self.fecha_programada - date.today()).days
+        return None
+
+    @property  
+    def esta_vencido(self):
+        """True si está vencido"""
+        return self.dias_vencimiento is not None and self.dias_vencimiento < 0
 
 
 class EstadoPago(db.Model):
