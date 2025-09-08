@@ -320,16 +320,6 @@
                 <form id="formNuevoEstadoPago">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="tipoEstado" class="form-label">Tipo de Estado</label>
-                            <select class="form-select" id="tipoEstado" name="tipo" required>
-                                <option value="">Seleccione tipo</option>
-                                <option value="estado_pago_contrato">Estado de Pago de Contrato</option>
-                            </select>
-                            <small class="form-text text-muted">
-                                Nota: Las Órdenes de Compra se gestionan automáticamente en la sección "Pendientes de Facturar"
-                            </small>
-                        </div>
-                        <div class="col-md-6">
                             <label for="tipoOperacionTesoreria" class="form-label">Tipo EP</label>
                             <select class="form-select" id="tipoOperacionTesoreria" name="tipo_operacion_tesoreria" required>
                                 <option value="">Seleccione tipo EP</option>
@@ -337,14 +327,22 @@
                                 <option value="AVANCE_MENSUAL">AVANCE</option>
                                 <option value="LIBERACION_RETENCION">LIBERACION_RETENCION</option>
                             </select>
+                            <small class="form-text text-muted">
+                                Nota: Solo se permiten Estados de Pago para Contratos. Las OCs se gestionan automáticamente.
+                            </small>
                         </div>
+                        <div class="col-md-6"></div>
                         
                         <div class="col-md-12">
                             <label for="contratoId" class="form-label">Contrato</label>
                             <select class="form-select" id="contratoId" name="contrato_id" required>
                                 <option value="">Seleccione contrato</option>
                                 {% for contrato in contratos %}
-                                <option value="{{ contrato.id }}">{{ contrato.numero_oc }} - ${{ "{:,.0f}".format(contrato.monto_total) if contrato.monto_total else '0' }}</option>
+                                    {% if contrato.tipo_documento.value == 'CONTRATO' %}
+                                    <option value="{{ contrato.id }}">
+                                        <span class="badge bg-success">CONTRATO</span> {{ contrato.numero_oc }} - ${{ "{:,.0f}".format(contrato.monto_total) if contrato.monto_total else '0' }}
+                                    </option>
+                                    {% endif %}
                                 {% endfor %}
                             </select>
                         </div>
@@ -430,20 +428,12 @@
 let estadoPagoParaFacturar = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Toggle form fields based on tipo - Only contract payment states are allowed
-    document.getElementById('tipoEstado').addEventListener('change', function() {
-        const tipo = this.value;
-        const ocFields = document.querySelectorAll('.oc-field');
-        const contratoFields = document.querySelectorAll('.contrato-field');
-        
-        if (tipo === 'estado_pago_contrato') {
-            ocFields.forEach(field => field.style.display = 'none');
-            contratoFields.forEach(field => field.style.display = 'block');
-        } else {
-            ocFields.forEach(field => field.style.display = 'none');
-            contratoFields.forEach(field => field.style.display = 'none');
-        }
-    });
+    // Show contract fields by default since we only handle contract payment states
+    const ocFields = document.querySelectorAll('.oc-field');
+    const contratoFields = document.querySelectorAll('.contrato-field');
+    
+    ocFields.forEach(field => field.style.display = 'none');
+    contratoFields.forEach(field => field.style.display = 'block');
     
     // Set default date to today
     const today = new Date().toISOString().split('T')[0];
@@ -460,6 +450,9 @@ function guardarEstadoPago() {
     const form = document.getElementById('formNuevoEstadoPago');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
+    
+    // Set tipo as estado_pago_contrato since we only handle contracts now
+    data.tipo = 'estado_pago_contrato';
     
     fetch(`/proyectos/{{ proyecto.id }}/estados-pago`, {
         method: 'POST',
