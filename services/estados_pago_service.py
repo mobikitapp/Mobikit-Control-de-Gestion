@@ -361,3 +361,25 @@ class EstadosPagoService:
         except Exception as e:
             logger.error(f"Error actualizando totales financieros del contrato {contrato_id}: {str(e)}")
             raise
+    
+    def sync_all_contracts_for_project(self, proyecto_id: int):
+        """Sync all contract financial totals for a specific project - manual fix method"""
+        try:
+            from models import Contrato
+            
+            # Get all contracts for the project
+            contratos = db.session.query(Contrato).filter_by(proyecto_id=proyecto_id).all()
+            
+            updated_count = 0
+            for contrato in contratos:
+                self._update_contract_financial_totals(contrato.id)
+                updated_count += 1
+            
+            db.session.commit()
+            logger.info(f"Successfully synced {updated_count} contracts for project {proyecto_id}")
+            return updated_count
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error syncing contracts for project {proyecto_id}: {str(e)}")
+            raise

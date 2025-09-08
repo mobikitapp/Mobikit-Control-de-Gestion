@@ -771,6 +771,25 @@ def marcar_facturado(estado_pago_id):
         logger.error(f"Error marking estado pago as invoiced {estado_pago_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al marcar como facturado: {str(e)}'}), 500
 
+@proyectos_bp.route('/sync-financial-totals/<int:proyecto_id>', methods=['POST'])
+@require_role(RolUsuario.ADMIN)
+def sync_financial_totals(proyecto_id):
+    """Sync financial totals for all contracts in a project - temporary fix endpoint"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        
+        estados_pago_service = EstadosPagoService()
+        updated_count = estados_pago_service.sync_all_contracts_for_project(proyecto_id)
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Synchronized {updated_count} contracts for project {proyecto_id}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error syncing financial totals for project {proyecto_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error syncing: {str(e)}'}), 500
+
 @proyectos_bp.route('/estados-pago/<int:estado_pago_id>', methods=['DELETE'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def eliminar_estado_pago(estado_pago_id):
