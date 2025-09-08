@@ -1250,14 +1250,7 @@ function guardarEstadoPagoModal() {
 
 // Functions for contract payment states (different from OC functions)
 function marcarEstadoPagoFacturado(estadoPagoId) {
-    const numeroFactura = prompt('Número de factura:');
-    if (numeroFactura === null) return; // User cancelled
-
-    const button = event.target.closest('button');
-    const originalText = button.innerHTML;
-
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+    const numeroFactura = prompt('Número de factura (opcional):');
 
     fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-facturado`, {
         method: 'POST',
@@ -1288,19 +1281,20 @@ function marcarEstadoPagoFacturado(estadoPagoId) {
 }
 
 function marcarEstadoPagoPagado(estadoPagoId) {
-    if (!confirm('¿Marcar este estado de pago como pagado?')) return;
+    const fechaPago = prompt('Fecha de pago (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    if (!fechaPago) return;
 
-    const button = event.target.closest('button');
-    const originalText = button.innerHTML;
-
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+    const observaciones = prompt('Observaciones (opcional):');
 
     fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify({
+            fecha_pago: fechaPago,
+            observaciones: observaciones
+        })
     })
     .then(response => response.json())
     .then(data => {

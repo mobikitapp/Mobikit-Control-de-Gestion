@@ -577,18 +577,29 @@ def marcar_estado_pago_pagado(estado_pago_id):
     try:
         from services.estados_pago_service import EstadosPagoService
 
-        data = request.get_json()
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json() or {}
+        else:
+            data = request.form.to_dict()
+        
         estados_pago_service = EstadosPagoService()
 
         fecha_pago = None
         if data.get('fecha_pago'):
-            fecha_pago = datetime.strptime(data.get('fecha_pago'), '%Y-%m-%d').date()
+            try:
+                fecha_pago = datetime.strptime(data.get('fecha_pago'), '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'success': False, 'message': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
 
         estado_pago = estados_pago_service.marcar_como_pagado(
             estado_pago_id=estado_pago_id,
             fecha_pago=fecha_pago,
             observaciones=data.get('observaciones')
         )
+
+        if not estado_pago:
+            return jsonify({'success': False, 'message': 'No se pudo encontrar el estado de pago'}), 404
 
         return jsonify({
             'success': True,
@@ -911,14 +922,19 @@ def marcar_estado_pago_facturado(estado_pago_id):
         from services.estados_pago_service import EstadosPagoService
         estados_pago_service = EstadosPagoService()
 
-        data = request.get_json() or {}
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json() or {}
+        else:
+            data = request.form.to_dict()
+            
         numero_factura = data.get('numero_factura', '')
 
         # Update payment state as invoiced
         success = estados_pago_service.marcar_como_facturado(
             estado_pago_id=estado_pago_id,
             numero_factura=numero_factura,
-            updated_by=current_user.id
+            updated_by=current_user.id if current_user else 'system'
         )
 
         if success:
