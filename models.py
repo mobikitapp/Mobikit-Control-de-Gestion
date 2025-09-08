@@ -679,7 +679,7 @@ class OrdenFabricacion(db.Model):
                         next_hito = (db.session.query(HitoEntrega)
                                    .filter_by(plan_entrega_id=self.contrato.plan_entrega.id)
                                    .filter(HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE)
-                                   .filter(HitoEntrega.fecha_programada >= date.today())
+                                   .filter(HitoEntrega.fecha_programada >= datetime.now().date())
                                    .order_by(HitoEntrega.fecha_programada.asc())
                                    .first())
                         
@@ -701,7 +701,7 @@ class OrdenFabricacion(db.Model):
             fecha_entrega = self.fecha_entrega_dinamica
             if fecha_entrega:
                 from datetime import date
-                today = date.today()
+                today = datetime.now().date()
                 return (fecha_entrega - today).days
             return None
         except Exception:
@@ -1237,7 +1237,7 @@ class PendienteFacturar(db.Model):
     def dias_vencimiento(self):
         """Días hasta el vencimiento (negativo si ya venció)"""
         if self.fecha_programada:
-            return (self.fecha_programada - date.today()).days
+            return (self.fecha_programada - datetime.now().date()).days
         return None
 
     @property  
