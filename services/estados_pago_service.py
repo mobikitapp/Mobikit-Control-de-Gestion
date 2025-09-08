@@ -292,6 +292,10 @@ class EstadosPagoService:
                 datos_nuevos={'facturado': True, 'numero_factura': numero_factura}
             )
             
+            # Actualizar totales financieros del contrato
+            if estado_pago.contrato_id:
+                self._update_contract_financial_totals(estado_pago.contrato_id)
+            
             logger.info(f"Estado de pago {estado_pago_id} marcado como facturado")
             return True
             
@@ -299,3 +303,49 @@ class EstadosPagoService:
             db.session.rollback()
             logger.error(f"Error marcando estado de pago {estado_pago_id} como facturado: {str(e)}")
             return False
+    
+    def _update_contract_financial_totals(self, contrato_id: int):
+        """Update contract financial totals based on payment states"""
+        try:
+            from models import Contrato
+            from decimal import Decimal
+            
+            # Get contract
+            contrato = db.session.query(Contrato).get(contrato_id)
+            if not contrato:
+                logger.error(f"Contrato {contrato_id} no encontrado para actualizar totales")
+                return
+            
+            # Get all payment states for this contract
+            estados_pago = self.repo.get_by_contrato(contrato_id)
+            
+            # Calculate totals
+            total_facturado = sum(
+                float(ep.monto_estado_pago or 0) 
+                for ep in estados_pago 
+                if ep.facturado and ep.monto_estado_pago
+            )
+            
+            total_pagado = sum(
+                float(ep.monto_estado_pago or 0) 
+                for ep in estados_pago 
+                if ep.pagado and ep.monto_estado_pago
+            )
+            
+            # Update contract fields
+            contrato.monto_facturado = Decimal(str(total_facturado))
+            contrato.monto_pagado = Decimal(str(total_pagado))
+            
+            # Update audit fields
+            contrato.updated_at = datetime.utcnow()
+            contrato.updated_by = 'system_sync'
+            
+            db.session.add(contrato)
+            # Don't commit here - let the caller handle the transaction
+            
+            logger.info(f"Totales financieros actualizados para contrato {contrato_id}: "
+                       f"Facturado={total_facturado}, Pagado={total_pagado}")
+            
+        except Exception as e:
+            logger.error(f"Error actualizando totales financieros del contrato {contrato_id}: {str(e)}")
+            raise
