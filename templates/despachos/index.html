@@ -87,11 +87,6 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label for="responsable" class="form-label">Responsable</label>
-                    <input type="text" class="form-control" id="responsable" name="responsable" 
-                           value="{{ filters.responsable or '' }}" placeholder="ID del responsable">
-                </div>
-                <div class="col-md-3">
                     <label for="fecha_programada_desde" class="form-label">Fecha Programada Desde</label>
                     <input type="date" class="form-control" id="fecha_programada_desde" name="fecha_programada_desde" 
                            value="{{ filters.fecha_programada_desde or '' }}">
@@ -136,11 +131,10 @@
                             <th>Número</th>
                             <th>Proyecto</th>
                             <th>Cliente</th>
+                            <th>Contrato</th>
                             <th>Estado</th>
                             <th>Fecha Programada</th>
                             <th>Destino</th>
-                            <th>Responsable</th>
-                            <th>Adjuntos</th>
                             <th width="150">Acciones</th>
                         </tr>
                     </thead>
@@ -164,6 +158,15 @@
                                 </a>
                             </td>
                             <td>
+                                {% if despacho.contrato %}
+                                    <a href="{{ url_for('contratos.detalle', contrato_id=despacho.contrato.id) }}" class="text-decoration-none">
+                                        {{ despacho.contrato.numero_oc }}
+                                    </a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
                                 <span class="badge bg-{{ 'warning' if despacho.estado.value == 'programado' else 'info' if despacho.estado.value == 'en_transporte' else 'success' if despacho.estado.value == 'entregado' else 'danger' }}">
                                     {{ despacho.estado.value|title|replace('_', ' ') }}
                                 </span>
@@ -184,20 +187,6 @@
                                 </div>
                                 {% if despacho.contacto_destino %}
                                 <small class="text-muted">{{ despacho.contacto_destino }}</small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if despacho.responsable_user %}
-                                    {{ despacho.responsable_user.nombre_completo }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if despacho.adjuntos %}
-                                    <span class="badge bg-info">{{ despacho.adjuntos|length }}</span>
-                                {% else %}
-                                    -
                                 {% endif %}
                             </td>
                             <td>
