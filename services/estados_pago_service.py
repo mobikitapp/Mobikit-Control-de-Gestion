@@ -144,7 +144,7 @@ class EstadosPagoService:
             raise
 
     def calcular_kpi_financiero_proyecto(self, proyecto_id: int) -> Dict[str, Any]:
-        """Calculate financial KPI with new payment tracking logic"""
+        """Calculate financial KPI using updated contract totals for synchronization"""
         try:
             proyecto = Proyecto.query.get(proyecto_id)
             if not proyecto:
@@ -155,16 +155,21 @@ class EstadosPagoService:
             presupuesto_instalacion = proyecto.monto_instalacion_presupuestado or Decimal('0')
             presupuesto_total = presupuesto_provision + presupuesto_instalacion
 
-            # Get payment tracking data
-            estadisticas = self.repo.get_estadisticas_proyecto(proyecto_id)
+            # Use updated contract totals (synchronized with treasury operations)
+            contratos = Contrato.query.filter_by(proyecto_id=proyecto_id).all()
             
-            # Total amount through payments (OC + Contract payments)
-            monto_pagado_total = Decimal(str(estadisticas['total_pagado']))
-            monto_pendiente_total = Decimal(str(estadisticas['total_pendiente']))
-            monto_parcial_total = Decimal(str(estadisticas['total_parcial']))
+            monto_contratado_total = Decimal('0')
+            monto_facturado_total = Decimal('0')
+            monto_pagado_total = Decimal('0')
             
-            # Total contracted amount (all payment states)
-            monto_contratado_total = monto_pagado_total + monto_pendiente_total + monto_parcial_total
+            for contrato in contratos:
+                monto_contratado_total += contrato.monto_total or Decimal('0')
+                monto_facturado_total += contrato.monto_facturado or Decimal('0')
+                monto_pagado_total += contrato.monto_pagado or Decimal('0')
+            
+            # Calculate pending amounts
+            monto_pendiente_total = monto_facturado_total - monto_pagado_total
+            monto_parcial_total = monto_contratado_total - monto_facturado_total
 
             # Calculate percentage and status
             if presupuesto_total > 0:
@@ -184,6 +189,9 @@ class EstadosPagoService:
                 avance_porcentaje = 0
                 porcentaje_cobrado = 0
                 estado = 'sin_presupuesto' if monto_contratado_total > 0 else 'sin_datos'
+
+            # Get original estadisticas for compatibility
+            estadisticas = self.repo.get_estadisticas_proyecto(proyecto_id)
 
             return {
                 'presupuesto_total': float(presupuesto_total),
