@@ -10,6 +10,19 @@
     line-height: 1.5;
     border-radius: 0.2rem;
 }
+
+.collapse-icon {
+    transition: transform 0.2s ease;
+}
+
+.btn-link:hover {
+    color: inherit !important;
+}
+
+.card-header .btn-link {
+    color: inherit !important;
+    text-decoration: none !important;
+}
 </style>
 <div class="container-fluid">
     <div class="row">
@@ -249,15 +262,28 @@
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
-                            <i data-feather="user" class="me-2"></i>
-                            {{ cliente_nombre }}
+                            <button class="btn btn-link p-0 text-start text-decoration-none" 
+                                    type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#cliente-{{ loop.index }}" 
+                                    aria-expanded="true" 
+                                    aria-controls="cliente-{{ loop.index }}">
+                                <i data-feather="chevron-down" class="me-2 collapse-icon" style="width: 16px; height: 16px;"></i>
+                                <i data-feather="user" class="me-2"></i>
+                                {{ cliente_nombre }}
+                            </button>
                         </h5>
-                        <span class="badge bg-info">
-                            {{ data.proyectos|length }} proyecto{{ 's' if data.proyectos|length != 1 else '' }}
-                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-info">
+                                {{ data.proyectos|length }} proyecto{{ 's' if data.proyectos|length != 1 else '' }}
+                            </span>
+                            <small class="text-muted">
+                                Total: ${{ "{:,.0f}".format(data.resumen_cliente.total_monto) }}
+                            </small>
+                        </div>
                     </div>
                 </div>
-                <div class="card-body">
+                <div class="card-body collapse show" id="cliente-{{ loop.index }}"
                     {% if data.proyectos %}
                     <!-- Projects Loop -->
                     {% for proyecto_data in data.proyectos %}
@@ -303,12 +329,21 @@
                             </div>
                         </div>
 
-                        <!-- Progress Bar -->
-                        <div class="progress mb-3" style="height: 20px;">
+                        <!-- Progress Bar with Financial Summary -->
+                        <div class="progress mb-2" style="height: 20px;">
                             <div class="progress-bar bg-success" style="width: {{ resumen.porcentaje_pagado }}%" 
                                  title="Pagado: {{ '%.1f'|format(resumen.porcentaje_pagado) }}%"></div>
                             <div class="progress-bar bg-info" style="width: {{ resumen.porcentaje_facturado - resumen.porcentaje_pagado }}%" 
                                  title="Facturado no pagado: {{ '%.1f'|format(resumen.porcentaje_facturado - resumen.porcentaje_pagado) }}%"></div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <small class="text-muted">
+                                    <strong>Resumen Financiero:</strong> 
+                                    Pagado: <span class="text-success">{{ '%.1f'|format(resumen.porcentaje_pagado) }}%</span> | 
+                                    Facturado: <span class="text-info">{{ '%.1f'|format(resumen.porcentaje_facturado) }}%</span>
+                                </small>
+                            </div>
                         </div>
 
                         <div class="row">
@@ -679,6 +714,27 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof feather !== 'undefined') {
         feather.replace();
     }
+
+    // Handle collapse icon rotation
+    document.addEventListener('shown.bs.collapse', function (e) {
+        const button = document.querySelector(`[data-bs-target="#${e.target.id}"]`);
+        if (button) {
+            const icon = button.querySelector('.collapse-icon');
+            if (icon) {
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+    });
+
+    document.addEventListener('hidden.bs.collapse', function (e) {
+        const button = document.querySelector(`[data-bs-target="#${e.target.id}"]`);
+        if (button) {
+            const icon = button.querySelector('.collapse-icon');
+            if (icon) {
+                icon.style.transform = 'rotate(-90deg)';
+            }
+        }
+    });
 });
 
 // Global variable to store contracts by client
