@@ -559,11 +559,110 @@
     </div>
 </div>
 
+<!-- Modal: Crear EP -->
+<div class="modal fade" id="modalCrearEP" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Crear EP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formCrearEP">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="tipoEstadoModal" class="form-label">Tipo de Estado</label>
+                            <select class="form-select" id="tipoEstadoModal" name="tipo" required>
+                                <option value="">Seleccione tipo</option>
+                                <option value="estado_pago_contrato">Estado de Pago de Contrato</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="tipoOperacionTesoreriaModal" class="form-label">Tipo EP</label>
+                            <select class="form-select" id="tipoOperacionTesoreriaModal" name="tipo_operacion_tesoreria" required>
+                                <option value="">Seleccione tipo EP</option>
+                                <option value="ANTICIPO">ANTICIPO</option>
+                                <option value="AVANCE_MENSUAL">AVANCE</option>
+                                <option value="LIBERACION_RETENCION">LIBERACION_RETENCION</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="contratoIdModal" class="form-label">Contrato</label>
+                            <select class="form-select" id="contratoIdModal" name="contrato_id" required>
+                                <option value="">Seleccione contrato</option>
+                                {% for cliente_data in clientes_contratos %}
+                                    {% for proyecto in cliente_data.proyectos_activos %}
+                                        {% for contrato in proyecto.contratos %}
+                                            {% if contrato.estado.value == 'VIGENTE' %}
+                                            <option value="{{ contrato.id }}">{{ contrato.numero_oc }} - {{ proyecto.nombre }} - ${{ "{:,.0f}".format(contrato.monto_total) if contrato.monto_total else '0' }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Contract Fields -->
+                        <div class="col-md-12 contrato-field-modal" style="display: none;">
+                            <label for="descripcionModal" class="form-label">Descripción</label>
+                            <input type="text" class="form-control" id="descripcionModal" name="descripcion">
+                        </div>
+                        <div class="col-md-6 contrato-field-modal" style="display: none;">
+                            <label for="porcentajeAvanceModal" class="form-label">% Avance</label>
+                            <input type="number" class="form-control" id="porcentajeAvanceModal" name="porcentaje_avance" step="0.01" min="0" max="100">
+                        </div>
+                        <div class="col-md-6 contrato-field-modal" style="display: none;">
+                            <label for="montoEstadoPagoModal" class="form-label">Monto Neto EP</label>
+                            <input type="number" class="form-control" id="montoEstadoPagoModal" name="monto_estado_pago" step="0.01" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="fechaProgramadaModal" class="form-label">Fecha Programada</label>
+                            <input type="date" class="form-control" id="fechaProgramadaModal" name="fecha_programada">
+                        </div>
+                        <div class="col-md-12">
+                            <label for="observacionesModal" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observacionesModal" name="observaciones" rows="3"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarEstadoPagoModal()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const filtroCliente = document.getElementById('filtroCliente');
     const filtroEstado = document.getElementById('filtroEstado');
     const filtroFacturado = document.getElementById('filtroFacturado');
+    
+    // Setup modal form behavior for Crear EP
+    const tipoEstadoModal = document.getElementById('tipoEstadoModal');
+    if (tipoEstadoModal) {
+        tipoEstadoModal.addEventListener('change', function() {
+            const tipo = this.value;
+            const contratoFieldsModal = document.querySelectorAll('.contrato-field-modal');
+            
+            if (tipo === 'estado_pago_contrato') {
+                contratoFieldsModal.forEach(field => field.style.display = 'block');
+            } else {
+                contratoFieldsModal.forEach(field => field.style.display = 'none');
+            }
+        });
+    }
+    
+    // Set default date to today for modal
+    const fechaProgramadaModal = document.getElementById('fechaProgramadaModal');
+    if (fechaProgramadaModal) {
+        const today = new Date().toISOString().split('T')[0];
+        fechaProgramadaModal.value = today;
+    }
     
     function aplicarFiltros() {
         const clienteSeleccionado = filtroCliente.value;
@@ -716,7 +815,8 @@ function crearEstadosTesoreriaRapido() {
         return;
     }
     
-    crearEstadosTesoreria(contrato.id, contrato.numero_oc);
+    // Abrir modal de Crear EP en lugar de crear automáticamente
+    abrirModalCrearEP(contrato.id, contrato.numero_oc);
 }
 
 // Utility function to show messages
@@ -744,51 +844,8 @@ function showMessage(message, type) {
 
 // Function to create treasury states for a contract (for buttons in tables)
 function crearEstadosTesoreria(contratoId, numeroOc) {
-    if (!confirm(`¿Crear estados de tesorería para el contrato ${numeroOc}?\n\nEsto creará automáticamente los estados de pago correspondientes según la configuración del contrato.`)) {
-        return;
-    }
-    
-    const button = event.target.closest('button');
-    const originalText = button.innerHTML;
-    
-    // Disable button and show loading state
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creando...';
-    
-    fetch(`/proyectos/contratos/${contratoId}/crear-estados-tesoreria`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            
-            // Remove the contract row since it now has states
-            button.closest('tr').remove();
-            
-            // Check if no more contracts pending
-            const tbody = button.closest('tbody');
-            if (tbody && tbody.children.length === 0) {
-                button.closest('.card').remove();
-            }
-            
-        } else {
-            showAlert('danger', 'Error: ' + data.message);
-            // Re-enable button
-            button.disabled = false;
-            button.innerHTML = originalText;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
-        // Re-enable button
-        button.disabled = false;
-        button.innerHTML = originalText;
-    });
+    // Abrir modal de Crear EP en lugar de crear automáticamente
+    abrirModalCrearEP(contratoId, numeroOc);
 }
 
 // Functions for handling pending invoices (OCs)
@@ -1010,30 +1067,11 @@ function verDetalleContrato(contratoId) {
 
 // Secondary Functions
 
-// CREAR ESTADOS AUTOMÁTICOS - Create automatic treasury states
+// CREAR EP - Abrir formulario de creación de Estado de Pago
 function crearEstadosAutomaticos(contratoId, numeroOc) {
-    if (!confirm(`¿Crear estados de tesorería automáticos para ${numeroOc}?\n\nEsto generará anticipo, avances y retención según la configuración del contrato.`)) return;
-    
-    fetch(`/proyectos/contratos/${contratoId}/crear-estados-tesoreria`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            cerrarModal('modalOpcionesContrato');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showAlert('danger', 'Error: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
-    });
+    cerrarModal('modalOpcionesContrato');
+    // Abrir modal de Crear EP en lugar de crear automáticamente
+    abrirModalCrearEP(contratoId, numeroOc);
 }
 
 // EDITAR CONTRATO - Edit contract
@@ -1050,6 +1088,60 @@ function cerrarModal(modalId) {
             bsModal.hide();
         }
     }
+}
+
+// Function to open Create EP modal instead of automatic creation
+function abrirModalCrearEP(contratoId, numeroOc) {
+    // Pre-fill the contract selection in the modal
+    document.getElementById('contratoIdModal').value = contratoId;
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('modalCrearEP'));
+    modal.show();
+    
+    // Auto-show contract fields since we're creating for a contract
+    document.getElementById('tipoEstadoModal').value = 'estado_pago_contrato';
+    document.getElementById('tipoEstadoModal').dispatchEvent(new Event('change'));
+}
+
+// Function to save the EP from modal
+function guardarEstadoPagoModal() {
+    const form = document.getElementById('formCrearEP');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Get the project ID from the selected contract
+    const contratoId = data.contrato_id;
+    if (!contratoId) {
+        alert('Debe seleccionar un contrato');
+        return;
+    }
+    
+    // Find project ID from the selected contract
+    const contratoSelect = document.getElementById('contratoIdModal');
+    const selectedOption = contratoSelect.options[contratoSelect.selectedIndex];
+    
+    fetch(`/proyectos/estados-pago`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            cerrarModal('modalCrearEP');
+            showAlert('success', 'Estado de pago creado exitosamente');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al guardar estado de pago');
+    });
 }
 </script>
 {% endblock %}
