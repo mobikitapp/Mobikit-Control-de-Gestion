@@ -313,14 +313,14 @@ class ProyectosService:
     def add_project_attachment(self, proyecto_id: int, file, tipo: str, descripcion: str, created_by: str):
         """
         Add attachment to project
-        
+
         Args:
             proyecto_id: Project ID
             file: Uploaded file
             tipo: Type of attachment
             descripcion: Description of the attachment
             created_by: User ID who is uploading
-            
+
         Returns:
             Created ProyectoAdjunto instance
         """
@@ -328,7 +328,7 @@ class ProyectosService:
             from repositories.proyecto_adjuntos_repo import ProyectoAdjuntosRepository
             from services.storage_service import StorageService
             from models import TipoAdjunto
-            
+
             proyecto = self.get_proyecto_by_id(proyecto_id)
             if not proyecto:
                 raise ValueError(f"Proyecto {proyecto_id} no encontrado")
@@ -379,10 +379,10 @@ class ProyectosService:
         try:
             from repositories.proyecto_adjuntos_repo import ProyectoAdjuntosRepository
             from services.storage_service import StorageService
-            
+
             adjuntos_repo = ProyectoAdjuntosRepository()
             adjunto = adjuntos_repo.get_by_id(adjunto_id)
-            
+
             if not adjunto:
                 raise ValueError(f"Adjunto {adjunto_id} no encontrado")
 
@@ -395,12 +395,12 @@ class ProyectosService:
 
             # Delete from database
             success = adjuntos_repo.delete(adjunto)
-            
+
             if success:
                 db.session.commit()
                 logger.info(f"Adjunto {adjunto_id} eliminado del proyecto {adjunto.proyecto_id}")
                 return True
-            
+
             return False
 
         except Exception as e:
@@ -641,9 +641,9 @@ class ProyectosService:
         """Calculate financial KPI using new payment tracking system"""
         try:
             from services.estados_pago_service import EstadosPagoService
-            
+
             if not proyecto:
-                return {'avance_porcentaje': 0, 'estado': 'sin_proyecto'}
+                return {'estado': 'sin_proyecto'}
 
             # Use new payment tracking service
             estados_pago_service = EstadosPagoService()
@@ -651,7 +651,7 @@ class ProyectosService:
 
         except Exception as e:
             logger.error(f"Error calculando KPI financiero: {str(e)}")
-            return {'avance_porcentaje': 0, 'estado': 'error'}
+            return {'estado': 'error'}
 
     def _calcular_eficiencia_por_area(self, proyecto_id: int) -> Dict[str, Any]:
         """Calculate efficiency metrics by area: Pendientes, Fábrica, Embalaje, Bodega"""
@@ -686,7 +686,7 @@ class ProyectosService:
                                     if hasattr(p.area, 'tipo') and 
                                        p.area.tipo and 
                                        p.area.tipo.value == tipo_key]
-                    
+
                     if not area_progresos:
                         areas_metricas[nombre_area] = {
                             'tiempo_promedio_horas': 0,
@@ -698,11 +698,11 @@ class ProyectosService:
                     # Calculate average time in area (completed ones)
                     tiempos_completados = []
                     ordenes_actuales = 0
-                    
+
                     for progreso in area_progresos:
                         if progreso.es_actual:
                             ordenes_actuales += 1
-                        
+
                         # For completed area progress, calculate time spent
                         if not progreso.es_actual and progreso.fecha_ingreso_area and progreso.fecha_cambio_estado:
                             tiempo_en_area = progreso.fecha_cambio_estado - progreso.fecha_ingreso_area
@@ -715,7 +715,7 @@ class ProyectosService:
                         'ordenes_procesadas': len(tiempos_completados),
                         'ordenes_actualmente': ordenes_actuales
                     }
-                    
+
                 except Exception as area_e:
                     logger.warning(f"Error calculando métricas para área {nombre_area}: {str(area_e)}")
                     areas_metricas[nombre_area] = {
@@ -729,3 +729,293 @@ class ProyectosService:
         except Exception as e:
             logger.error(f"Error calculando eficiencia por área: {str(e)}")
             return {}
+
+    def get_project_stats(self, proyecto_id: int) -> Dict[str, Any]:
+        """
+        Obtiene estadísticas completas del proyecto incluyendo KPI financiero y eficiencia por área
+        """
+        try:
+            from models import Contrato, OrdenFabricacion, Despacho, EstadoPago, PendienteFacturar
+            from schemas.contratos import EstadoContratoEnum
+            from schemas.fabricacion import EstadoOrdenFabricacion
+            from services.treasury_integration_service import TreasuryIntegrationService
+
+            proyecto = self.get_by_id(proyecto_id)
+            if not proyecto:
+                return {}
+
+            stats = {}
+
+            # Basic project statistics
+            contratos = Contrato.query.filter_by(proyecto_id=proyecto_id).all()
+            ordenes = OrdenFabricacion.query.filter_by(proyecto_id=proyecto_id).all()
+            despachos = Despacho.query.filter_by(proyecto_id=proyecto_id).all()
+
+            stats['total_contratos'] = len(contratos)
+            stats['contratos_vigentes'] = len([c for c in contratos if c.estado == EstadoContratoEnum.VIGENTE])
+            stats['total_ordenes'] = len(ordenes)
+            stats['despachos_realizados'] = len(despachos)
+
+            # Órdenes por estado
+            ordenes_por_estado = {}
+            for orden in ordenes:
+                estado = orden.estado.value if orden.estado else 'sin_estado'
+                ordenes_por_estado[estado] = ordenes_por_estado.get(estado, 0) + 1
+
+            stats['ordenes_por_estado'] = ordenes_por_estado
+
+            # Financial KPI calculation using Treasury data
+            stats['kpi_financiero'] = self._calculate_financial_kpi_with_treasury(proyecto_id)
+
+            # Efficiency by area
+            stats['eficiencia_por_area'] = self._calculate_area_efficiency(proyecto_id)
+
+            return stats
+
+        except Exception as e:
+            logger.error(f"Error getting project stats for {proyecto_id}: {str(e)}")
+            return {}
+
+    def _calculate_financial_kpi_with_treasury(self, proyecto_id: int) -> Dict[str, Any]:
+        """
+        Calcula KPI financiero del proyecto usando datos de tesorería (contratos + OCs)
+        """
+        try:
+            from models import Contrato, EstadoPago, PendienteFacturar, TipoDocumento
+            from schemas.contratos import EstadoContratoEnum
+            from schemas.estados_pago import EstadoPagoEnum, EstadoPendienteFacturar
+
+            # Obtener contratos vigentes (separar por tipo)
+            contratos_regulares = Contrato.query.filter_by(
+                proyecto_id=proyecto_id,
+                estado=EstadoContratoEnum.VIGENTE,
+                tipo_documento=TipoDocumento.CONTRATO
+            ).all()
+
+            ordenes_compra = Contrato.query.filter_by(
+                proyecto_id=proyecto_id,
+                estado=EstadoContratoEnum.VIGENTE,
+                tipo_documento=TipoDocumento.ORDEN_COMPRA
+            ).all()
+
+            # Calcular totales de contratos regulares
+            total_contratos_regulares = sum(float(c.monto_total or 0) for c in contratos_regulares)
+
+            # Calcular totales de órdenes de compra
+            total_ordenes_compra = sum(float(oc.monto_total or 0) for oc in ordenes_compra)
+
+            total_contratado = total_contratos_regulares + total_ordenes_compra
+
+            if total_contratado == 0:
+                return {'estado': 'sin_datos'}
+
+            # === CONTRATOS REGULARES ===
+            # Obtener estados de pago para contratos regulares
+            monto_facturado_contratos = 0
+            monto_pagado_contratos = 0
+
+            if contratos_regulares:
+                estados_pago_contratos = EstadoPago.query.filter(
+                    EstadoPago.contrato_id.in_([c.id for c in contratos_regulares])
+                ).all()
+
+                monto_facturado_contratos = sum(
+                    float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
+                    if ep.facturado
+                )
+
+                monto_pagado_contratos = sum(
+                    float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
+                    if ep.estado == EstadoPagoEnum.PAGADO
+                )
+
+            # === ÓRDENES DE COMPRA ===
+            # Obtener pendientes de facturar para OCs
+            monto_facturado_ocs = 0
+            monto_pagado_ocs = 0
+
+            if ordenes_compra:
+                pendientes_facturar = PendienteFacturar.query.filter(
+                    PendienteFacturar.contrato_id.in_([oc.id for oc in ordenes_compra])
+                ).all()
+
+                monto_facturado_ocs = sum(
+                    float(pf.monto_neto or 0) for pf in pendientes_facturar 
+                    if pf.estado in [EstadoPendienteFacturar.FACTURADO, EstadoPendienteFacturar.PAGADO]
+                )
+
+                monto_pagado_ocs = sum(
+                    float(pf.monto_neto or 0) for pf in pendientes_facturar 
+                    if pf.estado == EstadoPendienteFacturar.PAGADO
+                )
+
+            # === TOTALES COMBINADOS ===
+            monto_facturado_total = monto_facturado_contratos + monto_facturado_ocs
+            monto_pagado_total = monto_pagado_contratos + monto_pagado_ocs
+
+            # Calcular porcentajes
+            porcentaje_facturado = (monto_facturado_total / total_contratado * 100) if total_contratado > 0 else 0
+            porcentaje_cobrado = (monto_pagado_total / total_contratado * 100) if total_contratado > 0 else 0
+
+            # Montos pendientes
+            monto_pendiente = total_contratado - monto_pagado_total
+            monto_parcial = 0  # Para futuras implementaciones de pagos parciales
+
+            return {
+                'estado': 'con_datos',
+                'presupuesto_total': 0,  # No tenemos esta info aún
+                'monto_contratado': total_contratado,
+                'monto_facturado': monto_facturado_total,
+                'monto_pagado': monto_pagado_total,
+                'monto_pendiente': monto_pendiente,
+                'monto_parcial': monto_parcial,
+                'porcentaje_facturado': porcentaje_facturado,
+                'porcentaje_cobrado': porcentaje_cobrado,
+                'desglose': {
+                    'contratos_regulares': {
+                        'monto_total': total_contratos_regulares,
+                        'monto_facturado': monto_facturado_contratos,
+                        'monto_pagado': monto_pagado_contratos
+                    },
+                    'ordenes_compra': {
+                        'monto_total': total_ordenes_compra,
+                        'monto_facturado': monto_facturado_ocs,
+                        'monto_pagado': monto_pagado_ocs
+                    }
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error calculating financial KPI with treasury data for project {proyecto_id}: {str(e)}")
+            return {'estado': 'error'}
+
+    def _calculate_financial_kpi(self, proyecto_id: int) -> Dict[str, Any]:
+        """
+        Método legacy - ahora redirige al método con datos de tesorería
+        """
+        return self._calculate_financial_kpi_with_treasury(proyecto_id)
+
+    def get_proyectos_financial_summary(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Obtiene resumen financiero de proyectos para dashboard usando datos de tesorería
+        """
+        try:
+            from models import Proyecto, Cliente, Contrato, EstadoPago, PendienteFacturar, TipoDocumento
+            from schemas.contratos import EstadoContratoEnum
+            from schemas.estados_pago import EstadoPagoEnum, EstadoPendienteFacturar
+
+            proyectos = db.session.query(Proyecto, Cliente)\
+                .join(Cliente, Proyecto.cliente_id == Cliente.id)\
+                .filter(Proyecto.activo == True)\
+                .limit(limit)\
+                .all()
+
+            resultado = []
+            for proyecto, cliente in proyectos:
+                # Obtener contratos regulares vigentes
+                contratos_regulares = Contrato.query.filter_by(
+                    proyecto_id=proyecto.id,
+                    estado=EstadoContratoEnum.VIGENTE,
+                    tipo_documento=TipoDocumento.CONTRATO
+                ).all()
+
+                # Obtener órdenes de compra vigentes
+                ordenes_compra = Contrato.query.filter_by(
+                    proyecto_id=proyecto.id,
+                    estado=EstadoContratoEnum.VIGENTE,
+                    tipo_documento=TipoDocumento.ORDEN_COMPRA
+                ).all()
+
+                total_contratos = len(contratos_regulares) + len(ordenes_compra)
+
+                if total_contratos == 0:
+                    continue
+
+                # === CONTRATOS REGULARES ===
+                total_contratado_regulares = sum(float(c.monto_total or 0) for c in contratos_regulares)
+                total_facturado_contratos = 0
+                total_pagado_contratos = 0
+
+                if contratos_regulares:
+                    estados_pago_contratos = EstadoPago.query.filter(
+                        EstadoPago.contrato_id.in_([c.id for c in contratos_regulares])
+                    ).all()
+
+                    total_facturado_contratos = sum(
+                        float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
+                        if ep.facturado
+                    )
+
+                    total_pagado_contratos = sum(
+                        float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
+                        if ep.estado == EstadoPagoEnum.PAGADO
+                    )
+
+                # === ÓRDENES DE COMPRA ===
+                total_contratado_ocs = sum(float(oc.monto_total or 0) for oc in ordenes_compra)
+                total_facturado_ocs = 0
+                total_pagado_ocs = 0
+
+                if ordenes_compra:
+                    pendientes_facturar = PendienteFacturar.query.filter(
+                        PendienteFacturar.contrato_id.in_([oc.id for oc in ordenes_compra])
+                    ).all()
+
+                    total_facturado_ocs = sum(
+                        float(pf.monto_neto or 0) for pf in pendientes_facturar 
+                        if pf.estado in [EstadoPendienteFacturar.FACTURADO, EstadoPendienteFacturar.PAGADO]
+                    )
+
+                    total_pagado_ocs = sum(
+                        float(pf.monto_neto or 0) for pf in pendientes_facturar 
+                        if pf.estado == EstadoPendienteFacturar.PAGADO
+                    )
+
+                # === TOTALES COMBINADOS ===
+                total_contratado = total_contratado_regulares + total_contratado_ocs
+                total_facturado = total_facturado_contratos + total_facturado_ocs
+                total_pagado = total_pagado_contratos + total_pagado_ocs
+                saldo_por_cobrar = total_contratado - total_pagado
+
+                # Calcular porcentajes
+                porcentaje_facturado = (total_facturado / total_contratado * 100) if total_contratado > 0 else 0
+                porcentaje_cobrado = (total_pagado / total_contratado * 100) if total_contratado > 0 else 0
+
+                resumen = {
+                    'total_contratos': total_contratos,
+                    'montos': {
+                        'total_contratado': total_contratado,
+                        'total_facturado': total_facturado,
+                        'total_pagado': total_pagado,
+                        'saldo_por_cobrar': saldo_por_cobrar
+                    },
+                    'porcentajes': {
+                        'facturado': porcentaje_facturado,
+                        'cobrado': porcentaje_cobrado
+                    },
+                    'desglose': {
+                        'contratos_regulares': {
+                            'cantidad': len(contratos_regulares),
+                            'monto_total': total_contratado_regulares,
+                            'monto_facturado': total_facturado_contratos,
+                            'monto_pagado': total_pagado_contratos
+                        },
+                        'ordenes_compra': {
+                            'cantidad': len(ordenes_compra),
+                            'monto_total': total_contratado_ocs,
+                            'monto_facturado': total_facturado_ocs,
+                            'monto_pagado': total_pagado_ocs
+                        }
+                    }
+                }
+
+                resultado.append({
+                    'proyecto': proyecto,
+                    'resumen': resumen
+                })
+
+            return resultado
+
+        except Exception as e:
+            logger.error(f"Error getting financial summary: {str(e)}")
+            return []
