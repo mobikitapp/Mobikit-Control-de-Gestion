@@ -638,16 +638,13 @@ class ProyectosService:
             return 0
 
     def _calcular_kpi_financiero(self, proyecto) -> Dict[str, Any]:
-        """Calculate financial KPI using new payment tracking system"""
+        """Calculate financial KPI using treasury integration logic"""
         try:
-            from services.estados_pago_service import EstadosPagoService
-
             if not proyecto:
                 return {'estado': 'sin_proyecto'}
 
-            # Use new payment tracking service
-            estados_pago_service = EstadosPagoService()
-            return estados_pago_service.calcular_kpi_financiero_proyecto(proyecto.id)
+            # Use the same logic as treasury integration for consistency
+            return self._calculate_financial_kpi_with_treasury(proyecto.id)
 
         except Exception as e:
             logger.error(f"Error calculando KPI financiero: {str(e)}")

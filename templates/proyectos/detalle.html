@@ -281,21 +281,27 @@
                     {% if kpi and kpi.estado != 'sin_datos' %}
                     <div class="row g-3">
                         <!-- Budget Information -->
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="text-center p-2 bg-light rounded">
                                 <div class="fw-bold text-primary">${{ "{:,.0f}".format(kpi.presupuesto_total or 0) }}</div>
                                 <small class="text-muted">Presupuesto Total</small>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="text-center p-2 bg-light rounded">
                                 <div class="fw-bold text-success">${{ "{:,.0f}".format(kpi.monto_contratado or 0) }}</div>
                                 <small class="text-muted">Monto Contratado + OCs</small>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="text-center p-2 bg-light rounded">
-                                <div class="fw-bold text-info">${{ "{:,.0f}".format(kpi.monto_pagado or 0) }}</div>
+                                <div class="fw-bold text-info">${{ "{:,.0f}".format(kpi.monto_facturado or 0) }}</div>
+                                <small class="text-muted">Monto Facturado</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-light rounded">
+                                <div class="fw-bold text-success">${{ "{:,.0f}".format(kpi.monto_pagado or 0) }}</div>
                                 <small class="text-muted">Monto Cobrado</small>
                             </div>
                         </div>
