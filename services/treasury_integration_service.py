@@ -63,7 +63,7 @@ class TreasuryIntegrationService:
                 return None
                 
             # Fecha programada: 30 días desde emisión o desde hoy
-            fecha_base = contrato.fecha_emision or date.today()
+            fecha_base = contrato.fecha_emision or datetime.now().date()
             fecha_programada = fecha_base + timedelta(days=30)
             
             # Crear registro en Pendientes de Facturar
@@ -128,7 +128,7 @@ class TreasuryIntegrationService:
         try:
             monto_anticipo = float(contrato.monto_total or 0) * float(contrato.anticipo_pct or 0) / 100
             
-            fecha_programada = contrato.fecha_emision or date.today()
+            fecha_programada = contrato.fecha_emision or datetime.now().date()
             
             estado_pago = EstadoPago()
             estado_pago.proyecto_id = contrato.proyecto_id
@@ -158,7 +158,7 @@ class TreasuryIntegrationService:
         
         try:
             # Estimar duración del proyecto (usar fechas del contrato o default 6 meses)
-            fecha_inicio = contrato.fecha_emision or date.today()
+            fecha_inicio = contrato.fecha_emision or datetime.now().date()
             fecha_fin = contrato.fecha_entrega_comprometida 
             
             if not fecha_fin:
@@ -211,7 +211,7 @@ class TreasuryIntegrationService:
             monto_retencion = float(contrato.monto_total or 0) * float(contrato.retencion_pct or 0) / 100
             
             # Fecha programada: al final del proyecto + 30 días
-            fecha_base = contrato.fecha_entrega_comprometida or date.today() + relativedelta(months=6)
+            fecha_base = contrato.fecha_entrega_comprometida or datetime.now().date() + relativedelta(months=6)
             fecha_programada = fecha_base + timedelta(days=30)
             
             estado_pago = EstadoPago()
@@ -324,14 +324,14 @@ class TreasuryIntegrationService:
             
             # Actualizar fechas según el estado
             if nuevo_estado == EstadoPendienteFacturar.FACTURADO:
-                pendiente.fecha_facturado = date.today()
+                pendiente.fecha_facturado = datetime.now().date()
                 if numero_factura:
                     pendiente.numero_factura = numero_factura
                     
             elif nuevo_estado == EstadoPendienteFacturar.PAGADO:
                 if not pendiente.fecha_facturado:
-                    pendiente.fecha_facturado = date.today()  # Auto-mark as invoiced
-                pendiente.fecha_pagado = date.today()
+                    pendiente.fecha_facturado = datetime.now().date()  # Auto-mark as invoiced
+                pendiente.fecha_pagado = datetime.now().date()
             
             db.session.add(pendiente)
             db.session.commit()
