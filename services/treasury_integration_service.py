@@ -471,20 +471,20 @@ class TreasuryIntegrationService:
                 proyectos_por_cliente[cliente_nombre]['proyectos'].append(proyecto_data)
 
                 # Add to client totals
-                resumen = proyecto_treasury_data['resumen']
+                resumen = proyecto_data['resumen']
                 cliente_resumen = proyectos_por_cliente[cliente_nombre]['resumen_cliente']
                 cliente_resumen['total_monto'] += resumen['total_monto']
                 cliente_resumen['total_pagado'] += resumen['total_pagado']
                 cliente_resumen['total_facturado'] += resumen['total_facturado']
 
-        # Calculate percentages for each client
-        for cliente_data in proyectos_por_cliente.values():
-            resumen = cliente_data['resumen_cliente']
-            if resumen['total_monto'] > 0:
-                resumen['porcentaje_pagado'] = (resumen['total_pagado'] / resumen['total_monto']) * 100
-                resumen['porcentaje_facturado'] = (resumen['total_facturado'] / resumen['total_monto']) * 100
+            # Calculate percentages for each client
+            for cliente_data in proyectos_por_cliente.values():
+                resumen = cliente_data['resumen_cliente']
+                if resumen['total_monto'] > 0:
+                    resumen['porcentaje_pagado'] = (resumen['total_pagado'] / resumen['total_monto']) * 100
+                    resumen['porcentaje_facturado'] = (resumen['total_facturado'] / resumen['total_monto']) * 100
 
-        return proyectos_por_cliente
+            return proyectos_por_cliente
 
         except Exception as e:
             logger.error(f"Error agrupando proyectos por cliente: {str(e)}")
