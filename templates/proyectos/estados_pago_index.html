@@ -460,11 +460,6 @@
                                                                 <span class="badge bg-warning me-2">${{ "{:,.0f}".format(resumen_oc.total_monto) }}</span>
                                                                 <!-- OC Action Buttons -->
                                                                 <div class="btn-group btn-group-sm" role="group">
-                                                                    <button type="button" class="btn btn-outline-primary" 
-                                                                            onclick="crearEstadosTesoreria({{ oc.id }}, '{{ oc.numero_oc }}', {{ proyecto.id }})" 
-                                                                            title="Crear EP para esta OC">
-                                                                        <i data-feather="plus" style="width: 12px; height: 12px;"></i>
-                                                                    </button>
                                                                     <a href="{{ url_for('contratos.detalle', contrato_id=oc.id) }}" 
                                                                        class="btn btn-outline-secondary" title="Ver OC">
                                                                         <i data-feather="file-text" style="width: 12px; height: 12px;"></i>
