@@ -112,3 +112,35 @@ def logistics_required(f):
         
         return f(*args, **kwargs)
     return decorated_function
+
+
+def require_role(*allowed_roles):
+    """Decorator to require specific roles - accepts multiple role arguments"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Check for test mode bypass
+            test_mode = os.environ.get('TEST_MODE', 'false').lower() == 'true'
+            if test_mode:
+                return f(*args, **kwargs)
+                
+            if not current_user.is_authenticated:
+                abort(401)
+            
+            if not current_user.activo:
+                abort(403)
+            
+            # Convert string roles to enum if needed
+            roles_enum = []
+            for role in allowed_roles:
+                if isinstance(role, str):
+                    roles_enum.append(RolUsuario(role))
+                else:
+                    roles_enum.append(role)
+            
+            if current_user.rol not in roles_enum:
+                abort(403)
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator

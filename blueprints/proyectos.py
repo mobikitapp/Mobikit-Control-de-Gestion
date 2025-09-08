@@ -1,18 +1,19 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import current_user
+from flask_login import current_user, login_required
 from pydantic import ValidationError
 from app import db
 from replit_auth import require_login, require_role
-from models import RolUsuario
+from models import RolUsuario, Contrato, EstadoFacturacion, TipoDocumento, PendienteFacturar, EstadoPendienteFacturar
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
+from services.estados_pago_service import EstadosPagoService
+from services.treasury_integration_service import TreasuryIntegrationService
 from schemas.proyectos import ProyectoCreate, ProyectoUpdate, ProyectoSearchFilters
 from models import CategoriaMuebleModel, User
 import logging
 from datetime import datetime
 from decimal import Decimal
 import math
-import services.estados_pago_service_extension  # Load extension methods
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +34,12 @@ def process_form_data(form_data, is_update=False):
         elif key in ['cliente_id']:
             processed[key] = int(value) if value else None
 
-        elif key in ['monto_provision_presupuestado', 'margen_venta_provision', 
+        elif key in ['monto_provision_presupuestado', 'margen_venta_provision',
                      'monto_instalacion_presupuestado', 'margen_venta_instalacion']:
             processed[key] = Decimal(str(value)) if value else None
         elif key == 'numero_viviendas':
             processed[key] = int(value) if value else None
-        elif key in ['fecha_inicio', 'fecha_fin_estimada', 'fecha_fin_real', 
+        elif key in ['fecha_inicio', 'fecha_fin_estimada', 'fecha_fin_real',
                      'fecha_presupuesto', 'fecha_adjudicacion']:
             try:
                 processed[key] = datetime.strptime(value, '%Y-%m-%d').date() if value else None
@@ -110,8 +111,8 @@ def nuevo():
         usuarios = User.query.filter_by(activo=True).all()
         vendedores = User.query.filter_by(activo=True).all()  # Filtrar por rol si necesario
 
-        return render_template('proyectos/form.html', 
-                             proyecto=None, 
+        return render_template('proyectos/form.html',
+                             proyecto=None,
                              clientes=clientes,
                              categorias=categorias,
                              usuarios=usuarios,
@@ -160,8 +161,8 @@ def crear():
         categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
         usuarios = User.query.filter_by(activo=True).all()
         vendedores = User.query.filter_by(activo=True).all()
-        return render_template('proyectos/form.html', 
-                             proyecto=None, 
+        return render_template('proyectos/form.html',
+                             proyecto=None,
                              clientes=clientes,
                              categorias=categorias,
                              usuarios=usuarios,
@@ -174,8 +175,8 @@ def crear():
         categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
         usuarios = User.query.filter_by(activo=True).all()
         vendedores = User.query.filter_by(activo=True).all()
-        return render_template('proyectos/form.html', 
-                             proyecto=None, 
+        return render_template('proyectos/form.html',
+                             proyecto=None,
                              clientes=clientes,
                              categorias=categorias,
                              usuarios=usuarios,
@@ -192,7 +193,7 @@ def detalle(proyecto_id):
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('proyectos.index'))
 
-        return render_template('proyectos/detalle.html', 
+        return render_template('proyectos/detalle.html',
                              proyecto=proyecto_data['proyecto'],
                              stats=proyecto_data['stats'])
 
@@ -216,7 +217,7 @@ def editar(proyecto_id):
         usuarios = User.query.filter_by(activo=True).all()
         vendedores = User.query.filter_by(activo=True).all()  # Filtrar por rol si necesario
 
-        return render_template('proyectos/form.html', 
+        return render_template('proyectos/form.html',
                              proyecto=proyecto,
                              clientes=clientes,
                              categorias=categorias,
@@ -256,7 +257,7 @@ def actualizar(proyecto_id):
         categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
         usuarios = User.query.filter_by(activo=True).all()
         vendedores = User.query.filter_by(activo=True).all()
-        return render_template('proyectos/form.html', 
+        return render_template('proyectos/form.html',
                              proyecto=proyecto,
                              clientes=clientes,
                              categorias=categorias,
@@ -337,7 +338,7 @@ def cambiar_estado(proyecto_id):
         proyecto_actualizado = proyectos_service.update_proyecto(proyecto_id, update_data)
 
         return jsonify({
-            'success': True, 
+            'success': True,
             'message': f'Estado cambiado a {nuevo_estado}',
             'nuevo_estado': proyecto_actualizado.estado_comercial.value
         })
@@ -415,7 +416,7 @@ def get_adjuntos(proyecto_id):
     """Get project attachments"""
     try:
         adjuntos = proyectos_service.get_project_attachments(proyecto_id)
-        
+
         return jsonify({
             'success': True,
             'adjuntos': [{
@@ -440,10 +441,10 @@ def descargar_adjunto(adjunto_id):
     try:
         from repositories.proyecto_adjuntos_repo import ProyectoAdjuntosRepository
         from services.storage_service import StorageService
-        
+
         adjuntos_repo = ProyectoAdjuntosRepository()
         adjunto = adjuntos_repo.get_by_id(adjunto_id)
-        
+
         if not adjunto:
             flash('Documento no encontrado', 'error')
             return redirect(url_for('proyectos.index'))
@@ -462,7 +463,7 @@ def eliminar_adjunto(adjunto_id):
     """Delete project attachment"""
     try:
         success = proyectos_service.delete_project_attachment(adjunto_id, current_user.id)
-        
+
         if success:
             return jsonify({'success': True, 'message': 'Documento eliminado exitosamente'})
         else:
@@ -502,9 +503,9 @@ def get_estados_pago(proyecto_id):
     try:
         from services.estados_pago_service import EstadosPagoService
         estados_pago_service = EstadosPagoService()
-        
+
         estados_pago = estados_pago_service.get_estados_pago_by_proyecto(proyecto_id)
-        
+
         return jsonify({
             'success': True,
             'estados_pago': [{
@@ -532,16 +533,16 @@ def crear_estado_pago(proyecto_id):
         from services.estados_pago_service import EstadosPagoService
         from models import TipoEstadoPago
         from decimal import Decimal
-        
+
         data = request.get_json()
         estados_pago_service = EstadosPagoService()
-        
+
         tipo = data.get('tipo')
-        
+
         # Only Contract Payment States are supported now - OCs are handled separately as PendienteFacturar
         if tipo != TipoEstadoPago.ESTADO_PAGO_CONTRATO.value:
             return jsonify({'success': False, 'message': 'Solo se permiten Estados de Pago de Contrato. Las OCs se gestionan automáticamente.'}), 400
-            
+
         # Create Contract Payment State
         estado_pago = estados_pago_service.create_estado_pago_contrato(
             proyecto_id=proyecto_id,
@@ -575,14 +576,14 @@ def marcar_estado_pago_pagado(estado_pago_id):
     """Mark payment state as paid"""
     try:
         from services.estados_pago_service import EstadosPagoService
-        
+
         data = request.get_json()
         estados_pago_service = EstadosPagoService()
-        
+
         fecha_pago = None
         if data.get('fecha_pago'):
             fecha_pago = datetime.strptime(data.get('fecha_pago'), '%Y-%m-%d').date()
-        
+
         estado_pago = estados_pago_service.marcar_como_pagado(
             estado_pago_id=estado_pago_id,
             fecha_pago=fecha_pago,
@@ -608,27 +609,40 @@ def marcar_estado_pago_pagado(estado_pago_id):
 def estados_pago_index():
     """Tesorería - Lista de proyectos agrupados por cliente y contratos pendientes"""
     try:
-        from services.estados_pago_service import EstadosPagoService
-        from services.treasury_integration_service import TreasuryIntegrationService
-        
-        estados_pago_service = EstadosPagoService()
+        service = EstadosPagoService()
+
+        # Get filters from request
+        cliente_id = request.args.get('cliente_id', type=int)
+        estado_filter = request.args.get('estado')
+
+        # Get estados de pago with pagination
+        page = request.args.get('page', 1, type=int)
+        per_page = 20
+
+        estados_pago_data = service.get_estados_pago_agrupados(
+            cliente_id=cliente_id,
+            estado_filter=estado_filter,
+            page=page,
+            per_page=per_page
+        )
+
+        # Get pending invoices (OCs)
         treasury_service = TreasuryIntegrationService()
-        
-        # Get all projects with payment states grouped by client
-        proyectos_por_cliente = estados_pago_service.get_proyectos_con_estados_pago_por_cliente()
-        
-        # Get contracts that need manual treasury state creation (only CONTRATOS)
-        contratos_pendientes = treasury_service.get_contracts_without_treasury_states()
-        
-        # Get OCs as pending invoices (separate concept)
         pendientes_facturar = treasury_service.get_pending_invoices()
-        
-        return render_template('proyectos/estados_pago_index.html', 
-                             proyectos_por_cliente=proyectos_por_cliente,
-                             contratos_pendientes=contratos_pendientes,
+
+        # Get contracts without treasury states
+        contratos_pendientes = treasury_service.get_contracts_without_treasury_states()
+
+        # Get clients with active projects and contracts for quick actions
+        from repositories.clientes_repo import ClientesRepository
+        clientes_contratos = ClientesRepository.get_all_with_active_projects()
+
+        return render_template('proyectos/estados_pago_index.html',
+                             **estados_pago_data,
                              pendientes_facturar=pendientes_facturar,
-                             title="Tesorería")
-        
+                             contratos_pendientes=contratos_pendientes,
+                             clientes_contratos=clientes_contratos)
+
     except Exception as e:
         logger.error(f"Error loading estados pago index: {str(e)}")
         flash('Error al cargar estados de pago', 'error')
@@ -641,23 +655,23 @@ def estados_pago_detalle(proyecto_id):
     try:
         from services.estados_pago_service import EstadosPagoService
         estados_pago_service = EstadosPagoService()
-        
+
         # Get project data
         proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
         if not proyecto:
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('proyectos.estados_pago_index'))
-        
+
         # Get payment states for this project
         estados_pago = estados_pago_service.get_estados_pago_by_proyecto(proyecto_id)
         contratos = [c for c in proyecto.contratos if c.estado.value == 'VIGENTE']
-        
+
         return render_template('proyectos/estados_pago_detalle.html',
                              proyecto=proyecto,
                              estados_pago=estados_pago,
                              contratos=contratos,
                              title=f"Estados de Pago - {proyecto.nombre}")
-        
+
     except Exception as e:
         logger.error(f"Error loading estados pago detalle for proyecto {proyecto_id}: {str(e)}")
         flash('Error al cargar detalle de estados de pago', 'error')
@@ -670,22 +684,22 @@ def dashboard_financiero():
     try:
         from services.contratos_financial_service import ContratosFinancialService
         financial_service = ContratosFinancialService()
-        
+
         # Obtener resumen de cartera general
         portfolio_summary = financial_service.get_portfolio_summary()
-        
+
         # Obtener contratos pendientes de facturación
         pending_invoicing = financial_service.get_contracts_requiring_invoicing()
-        
+
         # Obtener proyectos con resúmenes financieros (top 10)
         from services.proyectos_service import ProyectosService
         proyectos_service = ProyectosService()
-        
+
         # Obtener proyectos recientes para mostrar sus resúmenes financieros
         from schemas.proyectos import ProyectoSearchFilters
         filters = ProyectoSearchFilters(page=1, per_page=10)
         proyectos, _ = proyectos_service.search_proyectos(filters)
-        
+
         # Enriquecer cada proyecto con su resumen financiero
         proyectos_financieros = []
         for proyecto in proyectos:
@@ -694,13 +708,13 @@ def dashboard_financiero():
                 'proyecto': proyecto,
                 'resumen': resumen_financiero
             })
-        
+
         return render_template('proyectos/dashboard_financiero.html',
                              portfolio_summary=portfolio_summary,
                              pending_invoicing=pending_invoicing,
                              proyectos_financieros=proyectos_financieros,
                              title="Dashboard Financiero")
-        
+
     except Exception as e:
         logger.error(f"Error loading dashboard financiero: {str(e)}")
         flash('Error al cargar dashboard financiero', 'error')
@@ -713,10 +727,10 @@ def marcar_facturado(estado_pago_id):
     try:
         from services.estados_pago_service import EstadosPagoService
         from datetime import datetime
-        
+
         data = request.get_json()
         estados_pago_service = EstadosPagoService()
-        
+
         # Mark as invoiced
         estado_pago = estados_pago_service.marcar_como_facturado(
             estado_pago_id=estado_pago_id,
@@ -724,7 +738,7 @@ def marcar_facturado(estado_pago_id):
             fecha_facturacion=datetime.strptime(data.get('fecha_facturacion'), '%Y-%m-%d').date() if data.get('fecha_facturacion') else None,
             observaciones=data.get('observaciones')
         )
-        
+
         return jsonify({
             'success': True,
             'message': 'Estado marcado como facturado exitosamente',
@@ -735,7 +749,7 @@ def marcar_facturado(estado_pago_id):
                 'fecha_facturacion': estado_pago.fecha_facturacion.strftime('%d/%m/%Y') if estado_pago.fecha_facturacion else None
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Error marking estado pago as invoiced {estado_pago_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al marcar como facturado: {str(e)}'}), 500
@@ -747,9 +761,9 @@ def eliminar_estado_pago(estado_pago_id):
     try:
         from services.estados_pago_service import EstadosPagoService
         estados_pago_service = EstadosPagoService()
-        
+
         success = estados_pago_service.delete_estado_pago(estado_pago_id)
-        
+
         if success:
             return jsonify({'success': True, 'message': 'Estado de pago eliminado exitosamente'})
         else:
@@ -766,25 +780,25 @@ def crear_estados_tesoreria_contrato(contrato_id):
     try:
         from services.treasury_integration_service import TreasuryIntegrationService
         treasury_service = TreasuryIntegrationService()
-        
+
         # Create treasury states for existing contract
         estados_creados = treasury_service.create_states_for_existing_contract(
-            contrato_id=contrato_id, 
+            contrato_id=contrato_id,
             created_by=current_user.id
         )
-        
+
         if estados_creados:
             return jsonify({
-                'success': True, 
+                'success': True,
                 'message': f'{len(estados_creados)} estados de pago creados exitosamente en tesorería',
                 'estados_creados': len(estados_creados)
             })
         else:
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': 'No se pudieron crear estados de pago (es posible que ya existan)'
             }), 400
-        
+
     except Exception as e:
         logger.error(f"Error creando estados tesorería para contrato {contrato_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al crear estados de tesorería: {str(e)}'}), 500
@@ -797,17 +811,17 @@ def marcar_pendiente_facturado(pendiente_id):
         from services.treasury_integration_service import TreasuryIntegrationService
         from models import EstadoPendienteFacturar
         treasury_service = TreasuryIntegrationService()
-        
+
         data = request.get_json() or {}
         numero_factura = data.get('numero_factura', '')
-        
+
         success = treasury_service.update_pending_invoice_status(
             pendiente_id=pendiente_id,
             nuevo_estado=EstadoPendienteFacturar.FACTURADO,
             updated_by=current_user.id,
             numero_factura=numero_factura
         )
-        
+
         if success:
             return jsonify({
                 'success': True,
@@ -818,7 +832,7 @@ def marcar_pendiente_facturado(pendiente_id):
                 'success': False,
                 'message': 'No se pudo actualizar el estado de la OC'
             }), 400
-            
+
     except Exception as e:
         logger.error(f"Error marcando OC {pendiente_id} como facturada: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al marcar como facturada: {str(e)}'}), 500
@@ -831,13 +845,13 @@ def marcar_pendiente_pagado(pendiente_id):
         from services.treasury_integration_service import TreasuryIntegrationService
         from models import EstadoPendienteFacturar
         treasury_service = TreasuryIntegrationService()
-        
+
         success = treasury_service.update_pending_invoice_status(
             pendiente_id=pendiente_id,
             nuevo_estado=EstadoPendienteFacturar.PAGADO,
             updated_by=current_user.id
         )
-        
+
         if success:
             return jsonify({
                 'success': True,
@@ -848,7 +862,7 @@ def marcar_pendiente_pagado(pendiente_id):
                 'success': False,
                 'message': 'No se pudo actualizar el estado de la OC'
             }), 400
-            
+
     except Exception as e:
         logger.error(f"Error marcando OC {pendiente_id} como pagada: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al marcar como pagada: {str(e)}'}), 500
@@ -860,17 +874,17 @@ def marcar_estado_pago_facturado(estado_pago_id):
     try:
         from services.estados_pago_service import EstadosPagoService
         estados_pago_service = EstadosPagoService()
-        
+
         data = request.get_json() or {}
         numero_factura = data.get('numero_factura', '')
-        
+
         # Update payment state as invoiced
         success = estados_pago_service.marcar_como_facturado(
             estado_pago_id=estado_pago_id,
             numero_factura=numero_factura,
             updated_by=current_user.id
         )
-        
+
         if success:
             return jsonify({
                 'success': True,
@@ -881,7 +895,74 @@ def marcar_estado_pago_facturado(estado_pago_id):
                 'success': False,
                 'message': 'No se pudo marcar el estado de pago como facturado'
             }), 400
-            
+
     except Exception as e:
         logger.error(f"Error marcando estado de pago {estado_pago_id} como facturado: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al marcar como facturado: {str(e)}'}), 500
+
+@proyectos_bp.route('/api/<int:proyecto_id>/contratos')
+@login_required
+def api_get_contratos(proyecto_id):
+    """API: Get contracts for a project"""
+    try:
+        contratos = Contrato.query.filter_by(proyecto_id=proyecto_id).all()
+        return jsonify([{
+            'id': c.id,
+            'numero_oc': c.numero_oc,
+            'monto_total': float(c.monto_total) if c.monto_total else 0,
+            'estado': c.estado.value
+        } for c in contratos])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@proyectos_bp.route('/estados-pago/marcar-facturado/<int:contrato_id>', methods=['POST'])
+@login_required
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES)
+def marcar_contrato_facturado(contrato_id):
+    """API: Mark contract as invoiced"""
+    try:
+        from services.contratos_service import ContratosService
+
+        service = ContratosService()
+        contrato = Contrato.query.get_or_404(contrato_id)
+
+        # Update invoice status
+        if contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA:
+            # For OCs, update the pending invoice status
+            treasury_service = TreasuryIntegrationService()
+            pendiente = PendienteFacturar.query.filter_by(contrato_id=contrato_id).first()
+
+            if pendiente:
+                success = treasury_service.update_pending_invoice_status(
+                    pendiente.id,
+                    EstadoPendienteFacturar.FACTURADO,
+                    current_user.id
+                )
+                if success:
+                    return jsonify({
+                        'success': True,
+                        'message': f'OC {contrato.numero_oc} marcada como facturada'
+                    })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'No se encontró registro en pendientes de facturar'
+                }), 404
+        else:
+            # For contracts, update contract status
+            contrato.estado_facturacion = EstadoFacturacion.FACTURADO
+            contrato.monto_facturado = contrato.monto_total
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'Contrato {contrato.numero_oc} marcado como facturado'
+            })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error al marcar como facturado: {str(e)}'
+        }), 500

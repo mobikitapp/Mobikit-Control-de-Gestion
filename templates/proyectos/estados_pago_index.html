@@ -144,6 +144,78 @@
     </div>
     {% endif %}
 
+    <!-- Quick Actions by Client -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i data-feather="plus-circle" class="me-2"></i>
+                        Acciones Rápidas por Cliente
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Cliente</label>
+                            <select class="form-select" id="clienteAcciones" onchange="updateContratosAcciones()">
+                                <option value="">Seleccionar cliente</option>
+                                {% for cliente_data in clientes_contratos %}
+                                <option value="{{ cliente_data.cliente.id }}">
+                                    {{ cliente_data.cliente.nombre }} ({{ cliente_data.count_proyectos_activos }} proyectos)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Contrato/OC</label>
+                            <select class="form-select" id="contratoAcciones" disabled>
+                                <option value="">Primero seleccione un cliente</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="dropdown">
+                                <button class="btn btn-primary dropdown-toggle w-100" type="button" 
+                                        id="accionesButton" data-bs-toggle="dropdown" 
+                                        aria-expanded="false" disabled>
+                                    <i data-feather="settings" class="me-1"></i>
+                                    Acciones
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="accionesButton">
+                                    <li>
+                                        <button class="dropdown-item" onclick="crearEstadoPagoRapido()">
+                                            <i data-feather="plus" class="me-2"></i>
+                                            Crear Estado de Pago
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="marcarFacturado()">
+                                            <i data-feather="file-text" class="me-2"></i>
+                                            Marcar como Facturado
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="verDetalleContrato()">
+                                            <i data-feather="eye" class="me-2"></i>
+                                            Ver Detalle
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="crearEstadosTesoreriaRapido()">
+                                            <i data-feather="layers" class="me-2"></i>
+                                            Crear Estados Automáticos
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Contracts Pending Treasury Integration -->
     {% if contratos_pendientes %}
     <div class="row mb-4">
@@ -409,6 +481,156 @@ document.addEventListener('DOMContentLoaded', function() {
         feather.replace();
     }
 });
+
+// Global variable to store contracts by client
+let contratosPorCliente = {};
+
+// Load contracts data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Load contracts by client data
+    {% for cliente_data in clientes_contratos %}
+    contratosPorCliente[{{ cliente_data.cliente.id }}] = [
+        {% for proyecto in cliente_data.proyectos_activos %}
+            {% for contrato in proyecto.contratos %}
+            {
+                id: {{ contrato.id }},
+                numero_oc: "{{ contrato.numero_oc }}",
+                proyecto_nombre: "{{ proyecto.nombre }}",
+                monto_total: {{ contrato.monto_total or 0 }},
+                tipo_documento: "{{ contrato.tipo_documento.value }}",
+                estado: "{{ contrato.estado.value }}"
+            },
+            {% endfor %}
+        {% endfor %}
+    ];
+    {% endfor %}
+});
+
+// Update contracts dropdown when client changes
+function updateContratosAcciones() {
+    const clienteSelect = document.getElementById('clienteAcciones');
+    const contratoSelect = document.getElementById('contratoAcciones');
+    const accionesButton = document.getElementById('accionesButton');
+    
+    const clienteId = clienteSelect.value;
+    
+    // Clear contracts dropdown
+    contratoSelect.innerHTML = '<option value="">Seleccionar contrato/OC</option>';
+    contratoSelect.disabled = !clienteId;
+    accionesButton.disabled = true;
+    
+    if (clienteId && contratosPorCliente[clienteId]) {
+        contratosPorCliente[clienteId].forEach(contrato => {
+            const option = document.createElement('option');
+            option.value = contrato.id;
+            option.textContent = `${contrato.numero_oc} - ${contrato.proyecto_nombre} ($${contrato.monto_total.toLocaleString()})`;
+            option.dataset.contrato = JSON.stringify(contrato);
+            contratoSelect.appendChild(option);
+        });
+        
+        contratoSelect.disabled = false;
+        contratoSelect.addEventListener('change', function() {
+            accionesButton.disabled = !this.value;
+        });
+    }
+}
+
+// Get selected contract data
+function getSelectedContrato() {
+    const contratoSelect = document.getElementById('contratoAcciones');
+    const selectedOption = contratoSelect.options[contratoSelect.selectedIndex];
+    
+    if (selectedOption && selectedOption.dataset.contrato) {
+        return JSON.parse(selectedOption.dataset.contrato);
+    }
+    return null;
+}
+
+// Quick action functions
+function crearEstadoPagoRapido() {
+    const contrato = getSelectedContrato();
+    if (!contrato) {
+        alert('Seleccione un contrato/OC primero');
+        return;
+    }
+    
+    // Open modal or redirect to create estado de pago
+    window.location.href = `/proyectos/estados-pago/nuevo?contrato_id=${contrato.id}`;
+}
+
+function marcarFacturado() {
+    const contrato = getSelectedContrato();
+    if (!contrato) {
+        alert('Seleccione un contrato/OC primero');
+        return;
+    }
+    
+    if (confirm(`¿Marcar como facturado el ${contrato.tipo_documento === 'ORDEN_COMPRA' ? 'OC' : 'contrato'} ${contrato.numero_oc}?`)) {
+        fetch(`/proyectos/estados-pago/marcar-facturado/${contrato.id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage('Marcado como facturado exitosamente', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showMessage('Error: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('Error al procesar la solicitud', 'error');
+        });
+    }
+}
+
+function verDetalleContrato() {
+    const contrato = getSelectedContrato();
+    if (!contrato) {
+        alert('Seleccione un contrato/OC primero');
+        return;
+    }
+    
+    window.open(`/contratos/${contrato.id}`, '_blank');
+}
+
+function crearEstadosTesoreriaRapido() {
+    const contrato = getSelectedContrato();
+    if (!contrato) {
+        alert('Seleccione un contrato/OC primero');
+        return;
+    }
+    
+    crearEstadosTesoreria(contrato.id, contrato.numero_oc);
+}
+
+// Utility function to show messages
+function showMessage(message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // Insert at top of content
+    const container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
 
 // Function to create treasury states for a contract
 function crearEstadosTesoreria(contratoId, numeroOc) {
