@@ -214,15 +214,28 @@ class EstadosPagoService:
             if fecha_pago is None:
                 fecha_pago = datetime.now().date()
 
+            # Get estado pago first to access contrato_id
+            estado_pago = self.repo.get_by_id(estado_pago_id)
+            if not estado_pago:
+                raise ValueError(f"Estado de pago {estado_pago_id} no encontrado")
+
             update_data = {
                 'estado': EstadoPagoContrato.PAGADO,
-                'fecha_pago': fecha_pago
+                'fecha_pago': fecha_pago,
+                'pagado': True
             }
             
             if observaciones:
                 update_data['observaciones'] = observaciones
 
-            return self.update_estado_pago(estado_pago_id, update_data)
+            # Update the payment state
+            updated_estado = self.update_estado_pago(estado_pago_id, update_data)
+            
+            # Update contract financial totals if it's a contract payment state
+            if updated_estado and updated_estado.contrato_id:
+                self._update_contract_financial_totals(updated_estado.contrato_id)
+            
+            return updated_estado
 
         except Exception as e:
             logger.error(f"Error marcando estado de pago como pagado {estado_pago_id}: {str(e)}")
