@@ -613,17 +613,24 @@ def marcar_estado_pago_pagado(estado_pago_id):
 @proyectos_bp.route('/estados-pago')
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
 def estados_pago_index():
-    """Estados de Pago - Lista de proyectos agrupados por cliente"""
+    """Tesorería - Lista de proyectos agrupados por cliente y contratos pendientes"""
     try:
         from services.estados_pago_service import EstadosPagoService
+        from services.treasury_integration_service import TreasuryIntegrationService
+        
         estados_pago_service = EstadosPagoService()
+        treasury_service = TreasuryIntegrationService()
         
         # Get all projects with payment states grouped by client
         proyectos_por_cliente = estados_pago_service.get_proyectos_con_estados_pago_por_cliente()
         
+        # Get contracts that need manual treasury state creation
+        contratos_pendientes = treasury_service.get_contracts_without_treasury_states()
+        
         return render_template('proyectos/estados_pago_index.html', 
                              proyectos_por_cliente=proyectos_por_cliente,
-                             title="Estados de Pago")
+                             contratos_pendientes=contratos_pendientes,
+                             title="Tesorería")
         
     except Exception as e:
         logger.error(f"Error loading estados pago index: {str(e)}")
@@ -754,3 +761,33 @@ def eliminar_estado_pago(estado_pago_id):
     except Exception as e:
         logger.error(f"Error deleting estado pago {estado_pago_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al eliminar estado de pago: {str(e)}'}), 500
+
+@proyectos_bp.route('/contratos/<int:contrato_id>/crear-estados-tesoreria', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def crear_estados_tesoreria_contrato(contrato_id):
+    """Crear estados de pago en tesorería para un contrato existente"""
+    try:
+        from services.treasury_integration_service import TreasuryIntegrationService
+        treasury_service = TreasuryIntegrationService()
+        
+        # Create treasury states for existing contract
+        estados_creados = treasury_service.create_states_for_existing_contract(
+            contrato_id=contrato_id, 
+            created_by=current_user.id
+        )
+        
+        if estados_creados:
+            return jsonify({
+                'success': True, 
+                'message': f'{len(estados_creados)} estados de pago creados exitosamente en tesorería',
+                'estados_creados': len(estados_creados)
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'message': 'No se pudieron crear estados de pago (es posible que ya existan)'
+            }), 400
+        
+    except Exception as e:
+        logger.error(f"Error creando estados tesorería para contrato {contrato_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al crear estados de tesorería: {str(e)}'}), 500

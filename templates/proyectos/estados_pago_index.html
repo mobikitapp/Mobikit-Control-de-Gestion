@@ -60,6 +60,94 @@
         </div>
     </div>
 
+    <!-- Contracts Pending Treasury Integration -->
+    {% if contratos_pendientes %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i data-feather="alert-triangle" class="me-2"></i>
+                        Contratos sin Estados de Tesorería ({{ contratos_pendientes|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Los siguientes contratos no tienen estados de pago en tesorería y podrían necesitarlos:</p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Proyecto</th>
+                                    <th>Número</th>
+                                    <th>Tipo</th>
+                                    <th>Monto</th>
+                                    <th>Modo Facturación</th>
+                                    <th>Anticipo</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in contratos_pendientes %}
+                                {% set contrato = item.contrato %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-medium">{{ contrato.proyecto.cliente.nombre }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">{{ contrato.proyecto.nombre }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'primary' if contrato.tipo_documento.value == 'ORDEN_COMPRA' else 'info' }}">
+                                            {{ contrato.numero_oc }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if contrato.tipo_documento.value == 'ORDEN_COMPRA' else 'secondary' }}">
+                                            {{ 'OC' if contrato.tipo_documento.value == 'ORDEN_COMPRA' else 'Contrato' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">${{ "{:,.0f}".format(contrato.monto_total or 0) }}</div>
+                                    </td>
+                                    <td>
+                                        {% if item.modo_facturacion %}
+                                        <span class="badge bg-{{ 'warning' if item.modo_facturacion == 'AVANCE' else 'info' }}">
+                                            {{ item.modo_facturacion }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.tiene_anticipo %}
+                                        <span class="badge bg-success">{{ contrato.anticipo_pct or 0 }}%</span>
+                                        {% else %}
+                                        <span class="text-muted">No</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.puede_auto_crear %}
+                                        <span class="badge bg-success">Auto-creado</span>
+                                        {% elif item.requiere_manual %}
+                                        <button type="button" class="btn btn-sm btn-primary" onclick="crearEstadosTesoreria({{ contrato.id }}, '{{ contrato.numero_oc }}')">
+                                            <i data-feather="plus" class="me-1" style="width: 14px; height: 14px;"></i>
+                                            Crear Estados
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Projects by Client -->
     <div class="row">
         <div class="col-12">
@@ -198,5 +286,73 @@ document.addEventListener('DOMContentLoaded', function() {
         feather.replace();
     }
 });
+
+// Function to create treasury states for a contract
+function crearEstadosTesoreria(contratoId, numeroOc) {
+    if (!confirm(`¿Crear estados de tesorería para el contrato ${numeroOc}?\n\nEsto creará automáticamente los estados de pago correspondientes según la configuración del contrato.`)) {
+        return;
+    }
+    
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creando...';
+    
+    fetch(`/proyectos/contratos/${contratoId}/crear-estados-tesoreria`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i data-feather="check-circle" class="me-2"></i>
+                ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            // Insert alert at top of page
+            const container = document.querySelector('.container-fluid');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            // Replace icons
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+            
+            // Remove the contract row since it now has states
+            button.closest('tr').remove();
+            
+            // Check if no more contracts pending
+            const tbody = button.closest('tbody');
+            if (tbody && tbody.children.length === 0) {
+                button.closest('.card').remove();
+            }
+            
+        } else {
+            // Show error message
+            alert('Error: ' + data.message);
+            
+            // Re-enable button
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error de conexión. Por favor, intenta nuevamente.');
+        
+        // Re-enable button
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
 </script>
 {% endblock %}
