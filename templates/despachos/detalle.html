@@ -78,6 +78,17 @@
                             </div>
                         </div>
                         
+                        {% if despacho.contrato %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Contrato</label>
+                            <div class="form-control-plaintext">
+                                <a href="{{ url_for('contratos.detalle', contrato_id=despacho.contrato.id) }}" class="text-decoration-none">
+                                    {{ despacho.contrato.numero_oc }}
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
                         {% if despacho.orden_fabricacion %}
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Orden de Fabricación</label>
@@ -98,12 +109,6 @@
                             </div>
                         </div>
                         
-                        {% if despacho.responsable_user %}
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Responsable</label>
-                            <div class="form-control-plaintext">{{ despacho.responsable_user.nombre_completo }}</div>
-                        </div>
-                        {% endif %}
                         
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Fecha de Creación</label>
