@@ -63,6 +63,10 @@ class EstadoPagoContrato(Enum):
     PAGADO_TOTAL = "PAGADO_TOTAL"
     VENCIDO = "VENCIDO"
 
+class ModoFacturacion(Enum):
+    AVANCE = "AVANCE"          # Facturación mensual por avance de obra
+    DESPACHO = "DESPACHO"      # Facturación contra despachos conformes
+
 class TipoAdjunto(Enum):
     CONTRATO = "contrato"
     PLANO = "plano"
@@ -418,6 +422,11 @@ class Contrato(db.Model):
     fecha_entrega_comprometida = db.Column(db.Date)
     condiciones_pago = db.Column(db.Text)
     notas = db.Column(db.Text)
+    
+    # Campos de facturación y cobros
+    modo_facturacion = db.Column(db.Enum(ModoFacturacion), default=ModoFacturacion.AVANCE, nullable=True)
+    anticipo_pct = db.Column(db.Numeric(5, 2), default=0.00, nullable=False)  # Porcentaje de anticipo
+    retencion_pct = db.Column(db.Numeric(5, 2), default=0.00, nullable=False)  # Porcentaje de retención
     
     # Campos financieros - Fase 1
     estado_facturacion = db.Column(db.Enum(EstadoFacturacion), default=EstadoFacturacion.POR_FACTURAR, nullable=False)
