@@ -221,8 +221,7 @@ class EstadosPagoService:
 
             update_data = {
                 'estado': EstadoPagoContrato.PAGADO,
-                'fecha_pago': fecha_pago,
-                'pagado': True
+                'fecha_pago': fecha_pago
             }
             
             if observaciones:
@@ -342,7 +341,7 @@ class EstadosPagoService:
             total_pagado = sum(
                 float(ep.monto_estado_pago or 0) 
                 for ep in estados_pago 
-                if ep.pagado and ep.monto_estado_pago
+                if ep.estado.value == 'PAGADO' and ep.monto_estado_pago
             )
             
             # Update contract fields
