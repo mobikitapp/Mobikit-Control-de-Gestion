@@ -125,7 +125,7 @@ class EstadosPagoRepository:
     def get_proximos_vencimientos(dias: int = 30) -> List[EstadoPago]:
         """Get estados pago that will expire in the next 'dias' days"""
         from datetime import date, timedelta
-        fecha_limite = date.today() + timedelta(days=dias)
+        fecha_limite = datetime.now().date() + timedelta(days=dias)
         
         return (db.session.query(EstadoPago)
                 .options(
@@ -136,7 +136,7 @@ class EstadosPagoRepository:
                     EstadoPago.activo == True,
                     EstadoPago.estado.in_([EstadoPagoContrato.PENDIENTE, EstadoPagoContrato.PARCIAL]),
                     EstadoPago.fecha_programada <= fecha_limite,
-                    EstadoPago.fecha_programada >= date.today()
+                    EstadoPago.fecha_programada >= datetime.now().date()
                 )
                 .order_by(EstadoPago.fecha_programada.asc())
                 .all())
