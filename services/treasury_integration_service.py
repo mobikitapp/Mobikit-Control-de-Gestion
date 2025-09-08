@@ -170,8 +170,15 @@ class TreasuryIntegrationService:
                 # Default: 6 meses desde inicio
                 fecha_fin = fecha_inicio + relativedelta(months=6)
             
-            # Calcular número de meses
-            meses_proyecto = (fecha_fin.year - fecha_inicio.year) * 12 + (fecha_fin.month - fecha_inicio.month)
+            # Calcular número de meses usando relativedelta para precisión
+            delta = relativedelta(fecha_fin, fecha_inicio)
+            meses_proyecto = delta.years * 12 + delta.months
+            
+            # Si hay días adicionales, contar como un mes extra
+            if delta.days > 0:
+                meses_proyecto += 1
+                
+            # Asegurar mínimo 1 mes
             if meses_proyecto <= 0:
                 meses_proyecto = 1
                 
