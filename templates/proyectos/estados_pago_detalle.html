@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ proyecto.nombre }} - Estados de Pago - Sistema de Manufactura{% endblock %}
+{% block title %}{{ proyecto.nombre }} - Tesorería - Sistema de Manufactura{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -9,12 +9,12 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h2">
                     <i data-feather="dollar-sign" class="me-2"></i>
-                    Estados de Pago - {{ proyecto.nombre }}
+                    Tesorería - {{ proyecto.nombre }}
                 </h1>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoEstadoPago">
                         <i data-feather="plus" class="me-2"></i>
-                        Nuevo Estado de Pago
+                        Nueva Operación
                     </button>
                     <a href="{{ url_for('proyectos.estados_pago_index') }}" class="btn btn-outline-secondary">
                         <i data-feather="arrow-left" class="me-2"></i>
