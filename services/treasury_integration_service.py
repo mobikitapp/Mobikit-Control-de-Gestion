@@ -353,3 +353,76 @@ class TreasuryIntegrationService:
         except Exception as e:
             logger.error(f"Error actualizando estado de pendiente facturar {pendiente_id}: {str(e)}")
             return False
+    
+    def get_projects_grouped_by_client(self) -> Dict[str, Any]:
+        """
+        Obtiene proyectos con estados de pago agrupados por cliente
+        """
+        try:
+            from models import Proyecto, Cliente, EstadoPago
+            from sqlalchemy import func
+            
+            # Get all projects with active payment states and their clients
+            proyectos_query = db.session.query(Proyecto)\
+                .join(Cliente)\
+                .outerjoin(EstadoPago)\
+                .filter(Proyecto.activo == True)\
+                .all()
+            
+            # Group projects by client
+            proyectos_por_cliente = {}
+            
+            for proyecto in proyectos_query:
+                cliente_nombre = proyecto.cliente.nombre
+                
+                if cliente_nombre not in proyectos_por_cliente:
+                    proyectos_por_cliente[cliente_nombre] = {
+                        'proyectos': [],
+                        'resumen_general': {
+                            'total_monto': 0,
+                            'total_pagado': 0,
+                            'total_facturado': 0
+                        }
+                    }
+                
+                # Get payment states for this project
+                estados_pago = EstadoPago.query.filter_by(proyecto_id=proyecto.id).all()
+                
+                # Calculate financial summary for this project
+                total_monto = sum(float(ep.monto_efectivo or 0) for ep in estados_pago)
+                total_pagado = sum(float(ep.monto_efectivo or 0) for ep in estados_pago 
+                                 if ep.estado.value == 'PAGADO')
+                total_facturado = sum(float(ep.monto_efectivo or 0) for ep in estados_pago 
+                                    if ep.facturado)
+                
+                # Calculate percentages
+                porcentaje_pagado = (total_pagado / total_monto * 100) if total_monto > 0 else 0
+                porcentaje_facturado = (total_facturado / total_monto * 100) if total_monto > 0 else 0
+                
+                resumen = {
+                    'total_monto': total_monto,
+                    'total_pagado': total_pagado,
+                    'total_facturado': total_facturado,
+                    'porcentaje_pagado': porcentaje_pagado,
+                    'porcentaje_facturado': porcentaje_facturado
+                }
+                
+                # Add project data
+                proyecto_data = {
+                    'proyecto': proyecto,
+                    'estados_pago': estados_pago,
+                    'resumen': resumen
+                }
+                
+                proyectos_por_cliente[cliente_nombre]['proyectos'].append(proyecto_data)
+                
+                # Update client totals
+                proyectos_por_cliente[cliente_nombre]['resumen_general']['total_monto'] += total_monto
+                proyectos_por_cliente[cliente_nombre]['resumen_general']['total_pagado'] += total_pagado
+                proyectos_por_cliente[cliente_nombre]['resumen_general']['total_facturado'] += total_facturado
+            
+            return proyectos_por_cliente
+            
+        except Exception as e:
+            logger.error(f"Error agrupando proyectos por cliente: {str(e)}")
+            return {}

@@ -609,40 +609,27 @@ def marcar_estado_pago_pagado(estado_pago_id):
 def estados_pago_index():
     """Tesorería - Lista de proyectos agrupados por cliente y contratos pendientes"""
     try:
-        service = EstadosPagoService()
-
-        # Get filters from request
-        cliente_id = request.args.get('cliente_id', type=int)
-        estado_filter = request.args.get('estado')
-
-        # Get estados de pago with pagination
-        page = request.args.get('page', 1, type=int)
-        per_page = 20
-
-        estados_pago_data = service.get_estados_pago_agrupados(
-            cliente_id=cliente_id,
-            estado_filter=estado_filter,
-            page=page,
-            per_page=per_page
-        )
-
-        # Get pending invoices (OCs)
+        from services.estados_pago_service import EstadosPagoService
+        from services.treasury_integration_service import TreasuryIntegrationService
+        
+        estados_pago_service = EstadosPagoService()
         treasury_service = TreasuryIntegrationService()
-        pendientes_facturar = treasury_service.get_pending_invoices()
-
-        # Get contracts without treasury states
+        
+        # Get all projects with payment states grouped by client
+        proyectos_por_cliente = treasury_service.get_projects_grouped_by_client()
+        
+        # Get contracts that need manual treasury state creation (only CONTRATOS)
         contratos_pendientes = treasury_service.get_contracts_without_treasury_states()
-
-        # Get clients with active projects and contracts for quick actions
-        from repositories.clientes_repo import ClientesRepository
-        clientes_contratos = ClientesRepository.get_all_with_active_projects()
-
-        return render_template('proyectos/estados_pago_index.html',
-                             **estados_pago_data,
-                             pendientes_facturar=pendientes_facturar,
+        
+        # Get OCs as pending invoices (separate concept)
+        pendientes_facturar = treasury_service.get_pending_invoices()
+        
+        return render_template('proyectos/estados_pago_index.html', 
+                             proyectos_por_cliente=proyectos_por_cliente,
                              contratos_pendientes=contratos_pendientes,
-                             clientes_contratos=clientes_contratos)
-
+                             pendientes_facturar=pendientes_facturar,
+                             title="Tesorería")
+        
     except Exception as e:
         logger.error(f"Error loading estados pago index: {str(e)}")
         flash('Error al cargar estados de pago', 'error')
