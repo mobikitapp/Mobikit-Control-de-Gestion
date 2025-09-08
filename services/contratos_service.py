@@ -61,6 +61,19 @@ class ContratosService:
             proyectos_service = ProyectosService()
             proyectos_service.cambiar_estado_por_contrato_creado(contrato.proyecto_id)
 
+            # **INTEGRACIÓN TESORERÍA** - Auto-crear estados de pago según tipo de contrato
+            try:
+                from services.treasury_integration_service import TreasuryIntegrationService
+                treasury_service = TreasuryIntegrationService()
+                estados_creados = treasury_service.process_contract_creation(contrato, created_by)
+                
+                if estados_creados:
+                    logger.info(f"Tesorería: {len(estados_creados)} estados de pago creados automáticamente para contrato {contrato.id}")
+                    
+            except Exception as treasury_error:
+                logger.warning(f"Error en integración con Tesorería para contrato {contrato.id}: {str(treasury_error)}")
+                # No interrumpir creación del contrato si falla la integración
+
             # Log audit
             AuditService.log_action(
                 'contratos', 
