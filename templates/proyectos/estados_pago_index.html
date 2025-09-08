@@ -792,7 +792,7 @@ function showAlert(type, message) {
 
 // Function for showing contract options from dropdown
 function mostrarOpcionesContrato(contratoId, numeroOc, clienteNombre) {
-    // Create a simple action menu modal
+    // Create a comprehensive action menu modal with proper actions
     const modalHtml = `
         <div class="modal fade" id="modalOpcionesContrato" tabindex="-1">
             <div class="modal-dialog">
@@ -800,29 +800,51 @@ function mostrarOpcionesContrato(contratoId, numeroOc, clienteNombre) {
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i data-feather="file-text" class="me-2"></i>
-                            Opciones para ${numeroOc}
+                            Acciones para ${numeroOc}
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <p class="text-muted mb-3">Cliente: <strong>${clienteNombre}</strong></p>
-                        <div class="d-grid gap-2">
-                            <button type="button" class="btn btn-outline-primary" onclick="crearEstadosTesoreria(${contratoId}, '${numeroOc}')">
-                                <i data-feather="plus-circle" class="me-2"></i>
-                                Crear Estados de Tesorería
-                            </button>
-                            <button type="button" class="btn btn-outline-info" onclick="verDetallesContrato(${contratoId})">
-                                <i data-feather="eye" class="me-2"></i>
-                                Ver Detalles del Contrato
-                            </button>
-                            <button type="button" class="btn btn-outline-success" onclick="marcarComoFacturadoContrato(${contratoId}, '${numeroOc}')">
-                                <i data-feather="file-text" class="me-2"></i>
-                                Marcar como Facturado
-                            </button>
-                            <button type="button" class="btn btn-outline-warning" onclick="modificarContrato(${contratoId})">
-                                <i data-feather="edit" class="me-2"></i>
-                                Modificar Contrato
-                            </button>
+                        
+                        <!-- Primary Actions -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-2">
+                                <i data-feather="zap" class="me-1" style="width: 16px; height: 16px;"></i>
+                                Acciones Principales
+                            </h6>
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-success" onclick="facturarContrato(${contratoId}, '${numeroOc}')">
+                                    <i data-feather="file-text" class="me-2"></i>
+                                    Facturar
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="agregarEstadoPago(${contratoId}, '${numeroOc}')">
+                                    <i data-feather="plus-circle" class="me-2"></i>
+                                    Agregar Estado de Pago
+                                </button>
+                                <button type="button" class="btn btn-info" onclick="verDetalleContrato(${contratoId})">
+                                    <i data-feather="eye" class="me-2"></i>
+                                    Ver Detalle
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Secondary Actions -->
+                        <div class="mb-3">
+                            <h6 class="fw-bold mb-2">
+                                <i data-feather="settings" class="me-1" style="width: 16px; height: 16px;"></i>
+                                Gestión Avanzada
+                            </h6>
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-outline-primary" onclick="crearEstadosAutomaticos(${contratoId}, '${numeroOc}')">
+                                    <i data-feather="layers" class="me-2"></i>
+                                    Crear Estados Automáticos
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="editarContrato(${contratoId})">
+                                    <i data-feather="edit" class="me-2"></i>
+                                    Editar Contrato
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
