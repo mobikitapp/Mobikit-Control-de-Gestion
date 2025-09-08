@@ -305,11 +305,50 @@
                                         <small class="text-muted">Pagado: {{ "%.1f"|format(resumen.porcentaje_pagado) }}% | Facturado: {{ "%.1f"|format(resumen.porcentaje_facturado) }}%</small>
                                     </td>
                                     <td>
-                                        <a href="{{ url_for('proyectos.estados_pago_detalle', proyecto_id=proyecto.id) }}" 
-                                           class="btn btn-sm btn-primary">
-                                            <i data-feather="eye" class="me-1"></i>
-                                            Ver Detalle
-                                        </a>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i data-feather="more-horizontal" class="me-1"></i>
+                                                Acciones
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ url_for('proyectos.estados_pago_detalle', proyecto_id=proyecto.id) }}">
+                                                        <i data-feather="eye" class="me-2" style="width: 14px; height: 14px;"></i>
+                                                        Ver Detalle de Estados
+                                                    </a>
+                                                </li>
+                                                {% if proyecto.contratos %}
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <h6 class="dropdown-header">
+                                                        <i data-feather="file-text" class="me-1" style="width: 14px; height: 14px;"></i>
+                                                        Contratos/OCs ({{ proyecto.contratos|length }})
+                                                    </h6>
+                                                </li>
+                                                {% for contrato in proyecto.contratos %}
+                                                <li>
+                                                    <button class="dropdown-item d-flex justify-content-between align-items-center" 
+                                                            onclick="mostrarOpcionesContrato({{ contrato.id }}, '{{ contrato.numero_oc }}', '{{ contrato.proyecto.cliente.nombre }}')">
+                                                        <span>
+                                                            <i data-feather="{{ 'shopping-cart' if contrato.tipo_documento.value == 'ORDEN_COMPRA' else 'file-text' }}" 
+                                                               class="me-2" style="width: 12px; height: 12px;"></i>
+                                                            {{ contrato.numero_oc }}
+                                                        </span>
+                                                        <small class="text-muted">${{ "{:,.0f}".format(contrato.monto_total) if contrato.monto_total else '0' }}</small>
+                                                    </button>
+                                                </li>
+                                                {% endfor %}
+                                                {% else %}
+                                                <li>
+                                                    <span class="dropdown-item-text text-muted">
+                                                        <i data-feather="info" class="me-2" style="width: 14px; height: 14px;"></i>
+                                                        Sin contratos/OCs
+                                                    </span>
+                                                </li>
+                                                {% endif %}
+                                            </ul>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
