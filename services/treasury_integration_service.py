@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from app import db
@@ -67,16 +67,15 @@ class TreasuryIntegrationService:
             fecha_programada = fecha_base + timedelta(days=30)
             
             # Crear registro en Pendientes de Facturar
-            pendiente_facturar = PendienteFacturar(
-                proyecto_id=contrato.proyecto_id,
-                contrato_id=contrato.id,
-                numero_oc=contrato.numero_oc,
-                monto_neto=contrato.monto_total,
-                estado=EstadoPendienteFacturar.PENDIENTE,
-                fecha_programada=fecha_programada,
-                observaciones=f"OC creada automáticamente desde contrato {contrato.numero_oc}",
-                created_by=created_by
-            )
+            pendiente_facturar = PendienteFacturar()
+            pendiente_facturar.proyecto_id = contrato.proyecto_id
+            pendiente_facturar.contrato_id = contrato.id
+            pendiente_facturar.numero_oc = contrato.numero_oc
+            pendiente_facturar.monto_neto = contrato.monto_total
+            pendiente_facturar.estado = EstadoPendienteFacturar.PENDIENTE
+            pendiente_facturar.fecha_programada = fecha_programada
+            pendiente_facturar.observaciones = f"OC creada automáticamente desde contrato {contrato.numero_oc}"
+            pendiente_facturar.created_by = created_by
             
             db.session.add(pendiente_facturar)
             db.session.commit()
@@ -309,7 +308,7 @@ class TreasuryIntegrationService:
             return []
 
     def update_pending_invoice_status(self, pendiente_id: int, nuevo_estado: EstadoPendienteFacturar, 
-                                    updated_by: str, numero_factura: str = None) -> bool:
+                                    updated_by: str, numero_factura: Optional[str] = None) -> bool:
         """
         Actualiza el estado de un pendiente de facturar
         """
@@ -353,8 +352,8 @@ class TreasuryIntegrationService:
             from sqlalchemy import func
             
             # Get all projects with active payment states and their clients
-            proyectos_query = db.session.query(Proyecto)\
-                .join(Cliente)\
+            proyectos_query = db.session.query(Proyecto, Cliente)\
+                .join(Cliente, Proyecto.cliente_id == Cliente.id)\
                 .outerjoin(EstadoPago)\
                 .filter(Proyecto.activo == True)\
                 .all()
@@ -362,8 +361,8 @@ class TreasuryIntegrationService:
             # Group projects by client
             proyectos_por_cliente = {}
             
-            for proyecto in proyectos_query:
-                cliente_nombre = proyecto.cliente.nombre
+            for proyecto, cliente in proyectos_query:
+                cliente_nombre = cliente.nombre
                 
                 if cliente_nombre not in proyectos_por_cliente:
                     proyectos_por_cliente[cliente_nombre] = {
