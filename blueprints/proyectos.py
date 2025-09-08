@@ -523,7 +523,7 @@ def get_estados_pago(proyecto_id):
 
     except Exception as e:
         logger.error(f"Error getting estados pago for proyecto {proyecto_id}: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error al cargar estados de pago'}), 500
+        return jsonify({'success': False, 'message': 'Error al cargar Tesorería'}), 500
 
 @proyectos_bp.route('/<int:proyecto_id>/estados-pago', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
@@ -652,7 +652,7 @@ def estados_pago_index():
         
     except Exception as e:
         logger.error(f"Error loading estados pago index: {str(e)}")
-        flash('Error al cargar estados de pago', 'error')
+        flash('Error al cargar Tesorería', 'error')
         return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/estados-pago/<int:proyecto_id>')
@@ -692,7 +692,7 @@ def estados_pago_detalle(proyecto_id):
 
     except Exception as e:
         logger.error(f"Error loading estados pago detalle for proyecto {proyecto_id}: {str(e)}")
-        flash('Error al cargar detalle de estados de pago', 'error')
+        flash('Error al cargar detalle de Tesorería', 'error')
         return redirect(url_for('proyectos.estados_pago_index'))
 
 @proyectos_bp.route('/dashboard-financiero')

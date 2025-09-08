@@ -367,7 +367,7 @@
                                             title="Crear EP">
                                         <i data-feather="plus" style="width: 14px; height: 14px;"></i>
                                     </button>
-                                    <a href="{{ url_for('proyectos.show', id=proyecto.id) }}" 
+                                    <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" 
                                        class="btn btn-sm btn-outline-secondary" title="Ver proyecto">
                                         <i data-feather="folder" style="width: 14px; height: 14px;"></i>
                                     </a>
@@ -419,7 +419,7 @@
                                                                             title="Crear EP para este contrato">
                                                                         <i data-feather="plus" style="width: 12px; height: 12px;"></i>
                                                                     </button>
-                                                                    <a href="{{ url_for('contratos.show', id=contrato.id) }}" 
+                                                                    <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
                                                                        class="btn btn-outline-secondary" title="Ver contrato">
                                                                         <i data-feather="file-text" style="width: 12px; height: 12px;"></i>
                                                                     </a>
@@ -537,7 +537,7 @@
                                                                             title="Crear EP para esta OC">
                                                                         <i data-feather="plus" style="width: 12px; height: 12px;"></i>
                                                                     </button>
-                                                                    <a href="{{ url_for('contratos.show', id=oc.id) }}" 
+                                                                    <a href="{{ url_for('contratos.detalle', contrato_id=oc.id) }}" 
                                                                        class="btn btn-outline-secondary" title="Ver OC">
                                                                         <i data-feather="file-text" style="width: 12px; height: 12px;"></i>
                                                                     </a>
