@@ -781,9 +781,19 @@ class ProyectosService:
         Calcula KPI financiero del proyecto usando datos de tesorería (contratos + OCs)
         """
         try:
-            from models import Contrato, EstadoPago, PendienteFacturar, TipoDocumento
+            from models import Contrato, EstadoPago, PendienteFacturar, TipoDocumento, Proyecto
             from schemas.contratos import EstadoContratoEnum
             from schemas.estados_pago import EstadoPagoEnum, EstadoPendienteFacturar
+
+            # Obtener proyecto para presupuesto
+            proyecto = Proyecto.query.get(proyecto_id)
+            if not proyecto:
+                return {'estado': 'sin_proyecto'}
+
+            # Calcular presupuesto total
+            presupuesto_provision = float(proyecto.monto_provision_presupuestado or 0)
+            presupuesto_instalacion = float(proyecto.monto_instalacion_presupuestado or 0)
+            presupuesto_total = presupuesto_provision + presupuesto_instalacion
 
             # Obtener contratos vigentes (separar por tipo)
             contratos_regulares = Contrato.query.filter_by(
@@ -807,7 +817,17 @@ class ProyectosService:
             total_contratado = total_contratos_regulares + total_ordenes_compra
 
             if total_contratado == 0:
-                return {'estado': 'sin_datos'}
+                return {
+                    'estado': 'sin_datos',
+                    'presupuesto_total': presupuesto_total,
+                    'monto_contratado': 0,
+                    'monto_facturado': 0,
+                    'monto_pagado': 0,
+                    'monto_pendiente': 0,
+                    'monto_parcial': 0,
+                    'porcentaje_facturado': 0,
+                    'porcentaje_cobrado': 0
+                }
 
             # === CONTRATOS REGULARES ===
             # Obtener estados de pago para contratos regulares
@@ -861,16 +881,28 @@ class ProyectosService:
             monto_pendiente = total_contratado - monto_pagado_total
             monto_parcial = 0  # Para futuras implementaciones de pagos parciales
 
+            # Determinar estado basado en presupuesto vs contratado
+            if presupuesto_total > 0:
+                porcentaje_contratado = (total_contratado / presupuesto_total) * 100
+                if porcentaje_contratado <= 100:
+                    estado = 'dentro_presupuesto'
+                elif porcentaje_contratado <= 110:
+                    estado = 'alerta'
+                else:
+                    estado = 'sobre_presupuesto'
+            else:
+                estado = 'sin_presupuesto' if total_contratado > 0 else 'sin_datos'
+
             return {
-                'estado': 'con_datos',
-                'presupuesto_total': 0,  # No tenemos esta info aún
+                'estado': estado,
+                'presupuesto_total': presupuesto_total,
                 'monto_contratado': total_contratado,
                 'monto_facturado': monto_facturado_total,
                 'monto_pagado': monto_pagado_total,
                 'monto_pendiente': monto_pendiente,
                 'monto_parcial': monto_parcial,
-                'porcentaje_facturado': porcentaje_facturado,
-                'porcentaje_cobrado': porcentaje_cobrado,
+                'porcentaje_facturado': round(porcentaje_facturado, 1),
+                'porcentaje_cobrado': round(porcentaje_cobrado, 1),
                 'desglose': {
                     'contratos_regulares': {
                         'monto_total': total_contratos_regulares,
