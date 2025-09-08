@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Financiero - Sistema de Manufactura{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i data-feather="trending-up" class="me-2"></i>
+                    Dashboard Financiero
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('proyectos.estados_pago_index') }}" class="btn btn-outline-primary">
+                        <i data-feather="dollar-sign" class="me-2"></i>
+                        Estados de Pago
+                    </a>
+                    <a href="{{ url_for('proyectos.index') }}" class="btn btn-outline-secondary">
+                        <i data-feather="arrow-left" class="me-2"></i>
+                        Proyectos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards Globales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <i data-feather="file-text" class="text-primary mb-2" style="width: 32px; height: 32px;"></i>
+                    <h5 class="text-primary">Total Contratado</h5>
+                    <h3>${{ "{:,.0f}".format(portfolio_summary.totales_globales.total_contratado) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <i data-feather="credit-card" class="text-info mb-2" style="width: 32px; height: 32px;"></i>
+                    <h5 class="text-info">Total Facturado</h5>
+                    <h3>${{ "{:,.0f}".format(portfolio_summary.totales_globales.total_facturado) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i data-feather="check-circle" class="text-success mb-2" style="width: 32px; height: 32px;"></i>
+                    <h5 class="text-success">Total Cobrado</h5>
+                    <h3>${{ "{:,.0f}".format(portfolio_summary.totales_globales.total_pagado) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <i data-feather="clock" class="text-warning mb-2" style="width: 32px; height: 32px;"></i>
+                    <h5 class="text-warning">Por Cobrar</h5>
+                    <h3>${{ "{:,.0f}".format(portfolio_summary.totales_globales.saldo_por_cobrar) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de Contratos Pendientes de Facturación -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="alert-circle" class="me-2"></i>
+                        Contratos Pendientes de Facturación ({{ pending_invoicing|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if pending_invoicing %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Proyecto</th>
+                                    <th>Número OC</th>
+                                    <th>Monto Total</th>
+                                    <th>Ya Facturado</th>
+                                    <th>Pendiente Facturar</th>
+                                    <th>Estado</th>
+                                    <th>Vencimiento</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contrato in pending_invoicing %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-medium">{{ contrato.cliente }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">{{ contrato.proyecto }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ contrato.numero_oc }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">${{ "{:,.0f}".format(contrato.monto_total) }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="text-info">${{ "{:,.0f}".format(contrato.monto_facturado) }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="text-warning fw-medium">${{ "{:,.0f}".format(contrato.saldo_por_facturar) }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'warning' if contrato.estado_facturacion == 'FACTURADO_PARCIAL' else 'secondary' }}">
+                                            {{ 'Parcial' if contrato.estado_facturacion == 'FACTURADO_PARCIAL' else 'Por Facturar' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if contrato.fecha_vencimiento %}
+                                        <small class="text-muted">{{ contrato.fecha_vencimiento }}</small>
+                                        {% else %}
+                                        <small class="text-muted">Sin vencimiento</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i data-feather="check-circle" class="text-success mb-2" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted">No hay contratos pendientes de facturación</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen por Cliente -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="users" class="me-2"></i>
+                        Resumen de Cartera por Cliente
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if portfolio_summary.por_cliente %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Contratos</th>
+                                    <th>Total Contratado</th>
+                                    <th>Total Facturado</th>
+                                    <th>Total Cobrado</th>
+                                    <th>Por Facturar</th>
+                                    <th>Por Cobrar</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cliente in portfolio_summary.por_cliente[:10] %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-medium">{{ cliente.cliente_nombre }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ cliente.cantidad_contratos }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">${{ "{:,.0f}".format(cliente.total_contratado) }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="text-info">${{ "{:,.0f}".format(cliente.total_facturado) }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="text-success">${{ "{:,.0f}".format(cliente.total_pagado) }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="text-warning">${{ "{:,.0f}".format(cliente.saldo_por_facturar) }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="text-danger fw-medium">${{ "{:,.0f}".format(cliente.saldo_por_cobrar) }}</div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i data-feather="inbox" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
+                        <p class="text-muted">No hay datos de clientes disponibles</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Proyectos con Resumen Financiero -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="folder" class="me-2"></i>
+                        Proyectos - Resumen Financiero (Top 10)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if proyectos_financieros %}
+                    <div class="row">
+                        {% for item in proyectos_financieros %}
+                        {% set proyecto = item.proyecto %}
+                        {% set resumen = item.resumen %}
+                        <div class="col-lg-6 col-xl-4 mb-4">
+                            <div class="card h-100 border-left-primary">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title mb-0">{{ proyecto.nombre }}</h6>
+                                        <span class="badge bg-{{ 'success' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' }}">
+                                            {{ proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto.estado_comercial else 'Sin Estado' }}
+                                        </span>
+                                    </div>
+                                    
+                                    <p class="text-muted small mb-2">
+                                        <i data-feather="user" style="width: 14px; height: 14px;"></i>
+                                        {{ proyecto.cliente.nombre }}
+                                    </p>
+                                    
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <div class="text-center p-2 bg-light rounded">
+                                                <div class="small text-muted">Contratado</div>
+                                                <div class="fw-medium">${{ "{:,.0f}".format(resumen.montos.total_contratado) }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="text-center p-2 bg-light rounded">
+                                                <div class="small text-muted">Por Cobrar</div>
+                                                <div class="fw-medium text-{{ 'danger' if resumen.montos.saldo_por_cobrar > 0 else 'success' }}">${{ "{:,.0f}".format(resumen.montos.saldo_por_cobrar) }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Progress Bars -->
+                                    <div class="mb-2">
+                                        <div class="d-flex justify-content-between small mb-1">
+                                            <span>Facturación</span>
+                                            <span>{{ "%.1f"|format(resumen.porcentajes.facturado) }}%</span>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-info" style="width: {{ resumen.porcentajes.facturado }}%"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between small mb-1">
+                                            <span>Cobranza</span>
+                                            <span>{{ "%.1f"|format(resumen.porcentajes.cobrado) }}%</span>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-success" style="width: {{ resumen.porcentajes.cobrado }}%"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            {{ resumen.total_contratos }} contrato{{ 's' if resumen.total_contratos != 1 else '' }}
+                                        </small>
+                                        <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i data-feather="eye" style="width: 14px; height: 14px;"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i data-feather="folder" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
+                        <h4 class="text-muted">No hay proyectos disponibles</h4>
+                        <p class="text-muted">Los proyectos con contratos aparecerán aquí con su información financiera.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+    
+    // Auto-refresh cada 5 minutos (opcional para datos en tiempo real)
+    // setInterval(function() {
+    //     window.location.reload();
+    // }, 300000);
+});
+</script>
+
+<style>
+.border-left-primary {
+    border-left: 4px solid #007bff !important;
+}
+
+.progress {
+    border-radius: 3px;
+}
+
+.card {
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+
+.card-header {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+</style>
+{% endblock %}

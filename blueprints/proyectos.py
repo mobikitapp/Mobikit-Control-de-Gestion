@@ -659,6 +659,49 @@ def estados_pago_detalle(proyecto_id):
         flash('Error al cargar detalle de estados de pago', 'error')
         return redirect(url_for('proyectos.estados_pago_index'))
 
+@proyectos_bp.route('/dashboard-financiero')
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def dashboard_financiero():
+    """Dashboard de seguimiento financiero integral - Fase 1"""
+    try:
+        from services.contratos_financial_service import ContratosFinancialService
+        financial_service = ContratosFinancialService()
+        
+        # Obtener resumen de cartera general
+        portfolio_summary = financial_service.get_portfolio_summary()
+        
+        # Obtener contratos pendientes de facturación
+        pending_invoicing = financial_service.get_contracts_requiring_invoicing()
+        
+        # Obtener proyectos con resúmenes financieros (top 10)
+        from services.proyectos_service import ProyectosService
+        proyectos_service = ProyectosService()
+        
+        # Obtener proyectos recientes para mostrar sus resúmenes financieros
+        from schemas.proyectos import ProyectoSearchFilters
+        filters = ProyectoSearchFilters(page=1, per_page=10)
+        proyectos, _ = proyectos_service.search_proyectos(filters)
+        
+        # Enriquecer cada proyecto con su resumen financiero
+        proyectos_financieros = []
+        for proyecto in proyectos:
+            resumen_financiero = financial_service.get_financial_summary_by_project(proyecto.id)
+            proyectos_financieros.append({
+                'proyecto': proyecto,
+                'resumen': resumen_financiero
+            })
+        
+        return render_template('proyectos/dashboard_financiero.html',
+                             portfolio_summary=portfolio_summary,
+                             pending_invoicing=pending_invoicing,
+                             proyectos_financieros=proyectos_financieros,
+                             title="Dashboard Financiero")
+        
+    except Exception as e:
+        logger.error(f"Error loading dashboard financiero: {str(e)}")
+        flash('Error al cargar dashboard financiero', 'error')
+        return redirect(url_for('proyectos.index'))
+
 @proyectos_bp.route('/estados-pago/<int:estado_pago_id>/marcar-facturado', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
 def marcar_facturado(estado_pago_id):
