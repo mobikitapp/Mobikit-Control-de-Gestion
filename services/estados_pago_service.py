@@ -262,3 +262,40 @@ class EstadosPagoService:
         }
         
         return self.create_estado_pago(estado_pago_data, created_by)
+    
+    def marcar_como_facturado(self, estado_pago_id: int, numero_factura: str, updated_by: str) -> bool:
+        """Marcar un estado de pago como facturado"""
+        try:
+            estado_pago = self.repo.get_by_id(estado_pago_id)
+            if not estado_pago:
+                logger.error(f"Estado de pago {estado_pago_id} no encontrado")
+                return False
+            
+            # Actualizar campos de facturación
+            estado_pago.facturado = True
+            estado_pago.fecha_facturacion = date.today()
+            if numero_factura:
+                estado_pago.numero_factura = numero_factura
+                
+            # Actualizar auditoría
+            estado_pago.updated_at = datetime.utcnow()
+            estado_pago.updated_by = updated_by
+            
+            db.session.add(estado_pago)
+            db.session.commit()
+            
+            # Log audit
+            AuditService.log_action(
+                'estados_pago', 
+                estado_pago.id, 
+                'UPDATE', 
+                datos_nuevos={'facturado': True, 'numero_factura': numero_factura}
+            )
+            
+            logger.info(f"Estado de pago {estado_pago_id} marcado como facturado")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error marcando estado de pago {estado_pago_id} como facturado: {str(e)}")
+            return False
