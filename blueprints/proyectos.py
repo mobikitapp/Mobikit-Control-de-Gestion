@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user, login_required
 from pydantic import ValidationError
 from app import db
-from replit_auth import require_login, require_role, role_required
+from replit_auth import require_login, require_role
 from models import RolUsuario, Contrato, EstadoFacturacion, TipoDocumento, PendienteFacturar, EstadoPendienteFacturar
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
@@ -918,7 +918,7 @@ def api_get_contratos(proyecto_id):
 
 @proyectos_bp.route('/estados-pago/marcar-facturado/<int:contrato_id>', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES)
 def marcar_contrato_facturado(contrato_id):
     """API: Mark contract as invoiced"""
     try:

@@ -13,7 +13,7 @@ from models import (
 )
 from services.planificacion_operacional_service import PlanificacionOperacionalService
 from services.planificacion_prioridades_service import PlanificacionPrioridadesService
-from utils.auth import role_required
+from utils.auth import require_role
 
 # Create blueprint
 planificacion_operacional_bp = Blueprint('planificacion_operacional', __name__)
@@ -21,19 +21,19 @@ planificacion_operacional_bp = Blueprint('planificacion_operacional', __name__)
 @planificacion_operacional_bp.route('/')
 @planificacion_operacional_bp.route('/matriz')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def matriz_operacional():
     """Matriz de planificación operacional - Conversión de montos a tableros"""
     try:
         service = PlanificacionOperacionalService()
-        
+
         # Get filters from request
         año = request.args.get('año', type=int) or datetime.now().year
         mes_inicio = request.args.get('mes_inicio', type=int) or 1
         mes_fin = request.args.get('mes_fin', type=int) or 12
         cliente_id = request.args.get('cliente_id', type=int)
         tipo_material = request.args.get('tipo_material', default='melamina')
-        
+
         # Get operational planning data
         data = service.get_matriz_operacional(
             año=año,
@@ -42,9 +42,9 @@ def matriz_operacional():
             cliente_id=cliente_id,
             tipo_material=tipo_material
         )
-        
+
         return render_template('planificacion_operacional/matriz.html', calendar=calendar, **data)
-        
+
     except Exception as e:
         flash(f'Error al cargar matriz operacional: {str(e)}', 'error')
         return redirect(url_for('index'))
@@ -52,18 +52,18 @@ def matriz_operacional():
 
 @planificacion_operacional_bp.route('/configuracion')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES)
 def configuracion_conversion():
     """Configuración de factores de conversión"""
     try:
         service = PlanificacionOperacionalService()
-        
+
         # Get current conversion factors
         factores = service.get_factores_conversion()
-        
+
         return render_template('planificacion_operacional/configuracion.html', 
                              factores=factores, calendar=calendar)
-        
+
     except Exception as e:
         flash(f'Error al cargar configuración: {str(e)}', 'error')
         return redirect(url_for('planificacion_operacional.matriz_operacional'))
@@ -71,18 +71,18 @@ def configuracion_conversion():
 
 @planificacion_operacional_bp.route('/prioridades')
 @login_required  
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def planificacion_prioridades():
     """Planificación y Prioridades - Matriz tipo Gantt para gestión de cola de producción"""
     try:
         service = PlanificacionPrioridadesService()
-        
+
         # Obtener datos de la matriz de planificación
         datos_matriz = service.get_matriz_planificacion_prioridades()
-        
+
         return render_template('planificacion_operacional/planificacion_prioridades.html', 
                              calendar=calendar, **datos_matriz)
-        
+
     except Exception as e:
         flash(f'Error al cargar planificación y prioridades: {str(e)}', 'error')
         return redirect(url_for('planificacion_operacional.matriz_operacional'))
@@ -90,18 +90,18 @@ def planificacion_prioridades():
 
 @planificacion_operacional_bp.route('/api/actualizar-fechas-of', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def actualizar_fechas_of():
     """API endpoint para actualizar fechas de una OF"""
     try:
         data = request.get_json()
         service = PlanificacionPrioridadesService()
-        
+
         of_id = data.get('of_id')
         fecha_planificada = data.get('fecha_planificada')
         fecha_entrega_fabrica = data.get('fecha_entrega_fabrica')
         fecha_entrega_embalaje = data.get('fecha_entrega_embalaje')
-        
+
         # Convertir fechas string a objetos date
         if fecha_planificada:
             fecha_planificada = datetime.strptime(fecha_planificada, '%Y-%m-%d').date()
@@ -109,36 +109,36 @@ def actualizar_fechas_of():
             fecha_entrega_fabrica = datetime.strptime(fecha_entrega_fabrica, '%Y-%m-%d').date()
         if fecha_entrega_embalaje:
             fecha_entrega_embalaje = datetime.strptime(fecha_entrega_embalaje, '%Y-%m-%d').date()
-        
+
         exito = service.actualizar_fechas_of(
             of_id=of_id,
             fecha_planificada=fecha_planificada,
             fecha_entrega_fabrica=fecha_entrega_fabrica,
             fecha_entrega_embalaje=fecha_entrega_embalaje
         )
-        
+
         if exito:
             return jsonify({'success': True, 'message': 'Fechas actualizadas correctamente'})
         else:
             return jsonify({'success': False, 'message': 'Error al actualizar fechas'})
-            
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
 
 
 @planificacion_operacional_bp.route('/api/actualizar-prioridad-of', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def actualizar_prioridad_of():
     """API endpoint para actualizar prioridad de una OF"""
     try:
         from models import PrioridadOrden
         data = request.get_json()
         service = PlanificacionPrioridadesService()
-        
+
         of_id = data.get('of_id')
         nueva_prioridad = data.get('prioridad')
-        
+
         # Si viene como string "P5", extraer el número
         if isinstance(nueva_prioridad, str) and nueva_prioridad.startswith('P'):
             try:
@@ -147,68 +147,68 @@ def actualizar_prioridad_of():
                 return jsonify({'success': False, 'message': f'Formato de prioridad inválido: {nueva_prioridad}'})
         else:
             prioridad_numerica = int(nueva_prioridad)
-        
+
         exito = service.actualizar_prioridad_of(of_id, prioridad_numerica)
-        
+
         if exito:
             return jsonify({'success': True, 'message': 'Prioridad actualizada correctamente'})
         else:
             return jsonify({'success': False, 'message': 'Error al actualizar prioridad'})
-            
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
 
 
 @planificacion_operacional_bp.route('/api/asignar-prioridades-automaticas', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def asignar_prioridades_automaticas():
     """API para asignar prioridades automáticamente P1-P{total}"""
     try:
         service = PlanificacionPrioridadesService()
         resultado = service.asignar_prioridades_automaticas()
         return jsonify(resultado)
-    
+
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
 @planificacion_operacional_bp.route('/api/rango-prioridades', methods=['GET'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def rango_prioridades():
     """API para obtener el rango de prioridades disponible"""
     try:
         service = PlanificacionPrioridadesService()
         resultado = service.get_rango_prioridades_disponible()
         return jsonify(resultado)
-    
+
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
 @planificacion_operacional_bp.route('/api/actualizar-prioridades-bodega/<int:of_id>', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def actualizar_prioridades_bodega(of_id):
     """API para actualizar prioridades cuando una OF pasa a bodega"""
     try:
         service = PlanificacionPrioridadesService()
         resultado = service.actualizar_prioridades_al_pasar_bodega(of_id)
         return jsonify(resultado)
-    
+
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
 @planificacion_operacional_bp.route('/configuracion/actualizar', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES)
 def actualizar_configuracion():
     """Actualizar factores de conversión, tiempo y capacidad"""
     try:
         service = PlanificacionOperacionalService()
-        
+
         # Get form data for new project-type based factors
         factores_data = {}
-        
+
         # Process conversion factors
         conversion_fields = [
             'factor_social_tablero', 'factor_estandar_tablero', 'factor_especial_tablero',
@@ -220,7 +220,7 @@ def actualizar_configuracion():
             'horas_disponibles_mes', 'horas_disponibles_semana',
             'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
         ]
-        
+
         for field in conversion_fields:
             value = request.form.get(field)
             if value is not None and value != '':
@@ -229,18 +229,18 @@ def actualizar_configuracion():
                     factores_data[field] = int(value)
                 else:
                     factores_data[field] = float(value)
-        
+
         # Process operational parameters
         from services.configuraciones_service import ConfiguracionesService
         config_service = ConfiguracionesService()
-        
+
         parametros_operacionales = {}
         operational_fields = [
             'numero_maquinas', 'turnos_por_dia', 'horas_por_turno', 'dias_laborables_mes', 'oee',
             'horizonte_planificacion', 'umbral_sobrecarga',
             'factor_horas_extra', 'max_subcontrato', 'mejora_oee_objetivo'
         ]
-        
+
         for field in operational_fields:
             value = request.form.get(field)
             if value is not None and value != '':
@@ -249,16 +249,16 @@ def actualizar_configuracion():
                     parametros_operacionales[field] = int(value)
                 else:
                     parametros_operacionales[field] = float(value)
-        
+
         print(f"Datos recibidos del formulario: {factores_data}")
-        
+
         # Update both conversion factors and operational parameters
         success_factors = service.actualizar_factores_conversion(factores_data, current_user.id)
         success_params = True
-        
+
         if parametros_operacionales:
             success_params = config_service.actualizar_parametros_operacionales(parametros_operacionales, current_user.id)
-        
+
         if success_factors and success_params:
             flash('Parámetros operacionales actualizados exitosamente', 'success')
         elif success_factors:
@@ -267,45 +267,45 @@ def actualizar_configuracion():
             flash('Parámetros operacionales actualizados exitosamente, pero algunos factores no se pudieron actualizar', 'warning')
         else:
             flash('Error al actualizar parámetros operacionales', 'error')
-        
+
     except Exception as e:
         print(f"Error en actualizar_configuracion: {e}")
         flash(f'Error: {str(e)}', 'error')
-    
+
     return redirect(url_for('planificacion_operacional.configuracion_conversion'))
 
 @planificacion_operacional_bp.route('/api/analisis-capacidad/<int:year>')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def analisis_capacidad_api(year):
     """API para obtener datos de análisis de capacidad y productividad"""
     try:
         service = PlanificacionOperacionalService()
         analisis = service.get_analisis_capacidad(año=year, vista='mensual')
         return jsonify(analisis)
-    
+
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
 
 @planificacion_operacional_bp.route('/detalle-proyecto/<int:proyecto_id>')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def detalle_proyecto_operacional(proyecto_id):
     """Detalle operacional de un proyecto específico"""
     try:
         service = PlanificacionOperacionalService()
-        
+
         # Get project operational details
         proyecto_data = service.get_detalle_proyecto_operacional(proyecto_id)
-        
+
         if not proyecto_data:
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('planificacion_operacional.matriz_operacional'))
-        
+
         return render_template('planificacion_operacional/proyecto_detalle.html', 
                              calendar=calendar, **proyecto_data)
-        
+
     except Exception as e:
         flash(f'Error al cargar detalle del proyecto: {str(e)}', 'error')
         return redirect(url_for('planificacion_operacional.matriz_operacional'))
@@ -313,18 +313,18 @@ def detalle_proyecto_operacional(proyecto_id):
 
 @planificacion_operacional_bp.route('/capacidad-produccion')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def capacidad_produccion():
     """Análisis estratégico de capacidad de producción"""
     try:
         from services.configuraciones_service import ConfiguracionesService
         service = PlanificacionOperacionalService()
-        
+
         # Get filters
         año = request.args.get('año', type=int) or datetime.now().year
         vista = request.args.get('vista', default='estrategico')  # estrategico, mensual, semanal
         horizonte_meses = request.args.get('horizonte', type=int) or 6
-        
+
         # Get strategic capacity analysis data
         if vista == 'estrategico':
             # New strategic capacity planning data
@@ -341,9 +341,9 @@ def capacidad_produccion():
             # Legacy capacity analysis for backward compatibility
             data = service.get_analisis_capacidad(año=año, vista=vista)
             data['horizonte_meses'] = horizonte_meses  # Ensure this is always available
-        
+
         return render_template('planificacion_operacional/capacidad.html', calendar=calendar, **data)
-        
+
     except Exception as e:
         flash(f'Error al cargar análisis de capacidad: {str(e)}', 'error')
         return redirect(url_for('planificacion_operacional.matriz_operacional'))
@@ -352,24 +352,24 @@ def capacidad_produccion():
 # API routes for AJAX calls
 @planificacion_operacional_bp.route('/api/calcular-tableros', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def api_calcular_tableros():
     """API para calcular tableros en tiempo real"""
     try:
         service = PlanificacionOperacionalService()
-        
+
         data = request.get_json()
         monto_provision = data.get('monto_provision', 0)
         tipo_proyecto = data.get('tipo_proyecto', 'ESTANDAR')
         margen_venta_provision = data.get('margen_venta_provision')
-        
+
         # Calculate boards
         resultado = service.calcular_tableros_aproximados(
             monto_provision=monto_provision,
             tipo_proyecto=tipo_proyecto,
             margen_venta_provision=margen_venta_provision
         )
-        
+
         return jsonify({
             'success': True,
             'tableros_aproximados': resultado['tableros_aproximados'],
@@ -377,7 +377,7 @@ def api_calcular_tableros():
             'factor_usado': resultado['factor_usado'],
             'detalles': resultado['detalles']
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -387,17 +387,17 @@ def api_calcular_tableros():
 
 @planificacion_operacional_bp.route('/api/matriz/<int:year>/datos')
 @login_required  
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def api_matriz_datos(year):
     """API para obtener datos de matriz operacional"""
     try:
         service = PlanificacionOperacionalService()
-        
+
         mes_inicio = request.args.get('mes_inicio', type=int) or 1
         mes_fin = request.args.get('mes_fin', type=int) or 12
         cliente_id = request.args.get('cliente_id', type=int)
         tipo_material = request.args.get('tipo_material', default='melamina')
-        
+
         data = service.get_matriz_operacional(
             año=year,
             mes_inicio=mes_inicio,
@@ -405,7 +405,7 @@ def api_matriz_datos(year):
             cliente_id=cliente_id,
             tipo_material=tipo_material
         )
-        
+
         return jsonify({
             'success': True,
             'data': {
@@ -414,10 +414,9 @@ def api_matriz_datos(year):
                 'proyectos_count': len(data['proyectos'])
             }
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
             'message': f'Error: {str(e)}'
         }), 500
-
