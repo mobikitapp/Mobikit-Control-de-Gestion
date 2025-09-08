@@ -204,7 +204,7 @@
                                     <li>
                                         <button class="dropdown-item" onclick="crearEstadosTesoreriaRapido()">
                                             <i data-feather="layers" class="me-2"></i>
-                                            Crear Estados Automáticos
+                                            Crear EP
                                         </button>
                                     </li>
                                 </ul>
@@ -289,7 +289,7 @@
                                         {% elif item.requiere_manual %}
                                         <button type="button" class="btn btn-sm btn-primary" onclick="crearEstadosTesoreria({{ contrato.id }}, '{{ contrato.numero_oc }}')">
                                             <i data-feather="plus" class="me-1" style="width: 14px; height: 14px;"></i>
-                                            Crear Estados
+                                            Crear EP
                                         </button>
                                         {% endif %}
                                     </td>
@@ -929,7 +929,7 @@ function mostrarOpcionesContrato(contratoId, numeroOc, clienteNombre) {
                             <div class="d-grid gap-2">
                                 <button type="button" class="btn btn-outline-primary" onclick="crearEstadosAutomaticos(${contratoId}, '${numeroOc}')">
                                     <i data-feather="layers" class="me-2"></i>
-                                    Crear Estados Automáticos
+                                    Crear EP
                                 </button>
                                 <button type="button" class="btn btn-outline-secondary" onclick="editarContrato(${contratoId})">
                                     <i data-feather="edit" class="me-2"></i>
