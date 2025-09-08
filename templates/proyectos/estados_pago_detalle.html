@@ -313,7 +313,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Nuevo Estado de Pago</h5>
+                <h5 class="modal-title">Crear EP</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -330,9 +330,19 @@
                             </small>
                         </div>
                         <div class="col-md-6">
-                            <label for="contratoId" class="form-label">Contrato (opcional)</label>
-                            <select class="form-select" id="contratoId" name="contrato_id">
-                                <option value="">Sin contrato asociado</option>
+                            <label for="tipoOperacionTesoreria" class="form-label">Tipo EP</label>
+                            <select class="form-select" id="tipoOperacionTesoreria" name="tipo_operacion_tesoreria" required>
+                                <option value="">Seleccione tipo EP</option>
+                                <option value="ANTICIPO">ANTICIPO</option>
+                                <option value="AVANCE_MENSUAL">AVANCE</option>
+                                <option value="LIBERACION_RETENCION">LIBERACION_RETENCION</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="contratoId" class="form-label">Contrato</label>
+                            <select class="form-select" id="contratoId" name="contrato_id" required>
+                                <option value="">Seleccione contrato</option>
                                 {% for contrato in contratos %}
                                 <option value="{{ contrato.id }}">{{ contrato.numero_oc }} - ${{ "{:,.0f}".format(contrato.monto_total) if contrato.monto_total else '0' }}</option>
                                 {% endfor %}
@@ -359,8 +369,8 @@
                             <input type="number" class="form-control" id="porcentajeAvance" name="porcentaje_avance" step="0.01" min="0" max="100">
                         </div>
                         <div class="col-md-6 contrato-field" style="display: none;">
-                            <label for="montoEstadoPago" class="form-label">Monto Estado de Pago</label>
-                            <input type="number" class="form-control" id="montoEstadoPago" name="monto_estado_pago" step="0.01">
+                            <label for="montoEstadoPago" class="form-label">Monto Neto EP</label>
+                            <input type="number" class="form-control" id="montoEstadoPago" name="monto_estado_pago" step="0.01" required>
                         </div>
                         
                         <div class="col-md-6">
