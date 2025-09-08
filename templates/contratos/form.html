@@ -157,54 +157,7 @@
                             </div>
                             {% endif %}
                             
-                            <!-- Plan de Entrega (solo para contratos nuevos) -->
-                            {% if not contrato %}
-                            <div class="col-12">
-                                <hr class="my-4">
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" id="crear_plan_entrega" name="crear_plan_entrega">
-                                    <label class="form-check-label" for="crear_plan_entrega">
-                                        <strong>Crear Plan de Entrega</strong>
-                                        <small class="text-muted d-block">Configura fechas y hitos de entrega para este contrato</small>
-                                    </label>
-                                </div>
-                                
-                                <div id="seccion_plan_entrega" style="display: none;">
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <h6 class="card-title">
-                                                <i data-feather="calendar" class="me-2"></i>
-                                                Plan de Entrega
-                                            </h6>
-                                            
-                                            <div class="row g-3">
-                                                <div class="col-md-8">
-                                                    <label for="plan_nombre" class="form-label">Nombre del Plan</label>
-                                                    <input type="text" class="form-control" id="plan_nombre" name="plan_nombre" 
-                                                           placeholder="Ej: Plan de Entrega - Cocina Integral">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label for="cantidad_hitos" class="form-label">Cantidad de Hitos</label>
-                                                    <input type="number" class="form-control" id="cantidad_hitos" name="cantidad_hitos" 
-                                                           value="2" min="1" max="50" 
-                                                           placeholder="Número de hitos">
-                                                    <div class="form-text">Mínimo 1, sin límite máximo</div>
-                                                </div>
-                                                <div class="col-12">
-                                                    <label for="plan_descripcion" class="form-label">Descripción</label>
-                                                    <textarea class="form-control" id="plan_descripcion" name="plan_descripcion" rows="2"
-                                                            placeholder="Descripción general del plan de entrega..."></textarea>
-                                                </div>
-                                            </div>
-                                            
-                                            <div id="hitos_container" class="mt-3">
-                                                <!-- Los hitos se generarán dinámicamente -->
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endif %}
+                            
                             
                             <!-- Plan de Entrega -->
                             <div class="col-12">
