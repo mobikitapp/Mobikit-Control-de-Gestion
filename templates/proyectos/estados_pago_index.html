@@ -323,114 +323,224 @@
                 </div>
                 <div class="card-body">
                     {% if data.proyectos %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Proyecto</th>
-                                    <th>Estados de Pago</th>
-                                    <th>Monto Total</th>
-                                    <th>Pagado</th>
-                                    <th>Facturado</th>
-                                    <th>% Avance</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for proyecto_data in data.proyectos %}
-                                {% set proyecto = proyecto_data.proyecto %}
-                                {% set resumen = proyecto_data.resumen %}
-                                <tr class="proyecto-row" 
-                                    data-proyecto-id="{{ proyecto.id }}"
-                                    data-cliente="{{ cliente_nombre }}"
-                                    data-monto="{{ resumen.total_monto }}"
-                                    data-pagado="{{ resumen.total_pagado }}"
-                                    data-facturado="{{ resumen.total_facturado }}">
-                                    <td>
-                                        <div class="fw-medium">{{ proyecto.nombre }}</div>
-                                        <small class="text-muted">
-                                            Estado: 
-                                            <span class="badge bg-{{ 'success' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' }}">
-                                                {{ proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto.estado_comercial else 'N/A' }}
-                                            </span>
-                                        </small>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-secondary">{{ proyecto_data.estados_pago|length }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="fw-medium">${{ "{:,.0f}".format(resumen.total_monto) }}</div>
-                                    </td>
-                                    <td>
-                                        <div class="text-success fw-medium">${{ "{:,.0f}".format(resumen.total_pagado) }}</div>
-                                        <small class="text-muted">{{ "%.1f"|format(resumen.porcentaje_pagado) }}%</small>
-                                    </td>
-                                    <td>
-                                        <div class="text-info fw-medium">${{ "{:,.0f}".format(resumen.total_facturado) }}</div>
-                                        <small class="text-muted">{{ "%.1f"|format(resumen.porcentaje_facturado) }}%</small>
-                                    </td>
-                                    <td>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-success" style="width: {{ resumen.porcentaje_pagado }}%"></div>
-                                            <div class="progress-bar bg-info" style="width: {{ resumen.porcentaje_facturado - resumen.porcentaje_pagado }}%"></div>
-                                        </div>
-                                        <small class="text-muted">Pagado: {{ "%.1f"|format(resumen.porcentaje_pagado) }}% | Facturado: {{ "%.1f"|format(resumen.porcentaje_facturado) }}%</small>
-                                    </td>
-                                    <td>
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
-                                                    data-bs-toggle="dropdown" aria-expanded="false">
-                                                <i data-feather="more-horizontal" class="me-1"></i>
-                                                Acciones
+                    <!-- Projects Loop -->
+                    {% for proyecto_data in data.proyectos %}
+                    {% set proyecto = proyecto_data.proyecto %}
+                    {% set resumen = proyecto_data.resumen %}
+                    
+                    <div class="project-container mb-4 p-3 border rounded bg-light">
+                        <!-- Project Header -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="mb-1">
+                                    <i data-feather="folder" class="me-2"></i>
+                                    {{ proyecto.nombre }}
+                                </h6>
+                                <small class="text-muted">
+                                    Estado: 
+                                    <span class="badge bg-{{ 'success' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' }}">
+                                        {{ proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto.estado_comercial else 'N/A' }}
+                                    </span>
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-medium">${{ "{:,.0f}".format(resumen.total_monto) }}</div>
+                                <small class="text-muted">
+                                    {{ proyecto_data.total_contratos or 0 }} contratos, {{ proyecto_data.total_ocs or 0 }} OCs
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <!-- Progress Bar -->
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar bg-success" style="width: {{ resumen.porcentaje_pagado }}%" 
+                                 title="Pagado: {{ '%.1f'|format(resumen.porcentaje_pagado) }}%"></div>
+                            <div class="progress-bar bg-info" style="width: {{ resumen.porcentaje_facturado - resumen.porcentaje_pagado }}%" 
+                                 title="Facturado no pagado: {{ '%.1f'|format(resumen.porcentaje_facturado - resumen.porcentaje_pagado) }}%"></div>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- Contratos Section -->
+                            {% if proyecto_data.contratos %}
+                            <div class="col-md-6">
+                                <div class="accordion" id="accordion-contratos-{{ proyecto.id }}">
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" 
+                                                    data-bs-toggle="collapse" 
+                                                    data-bs-target="#contratos-{{ proyecto.id }}" 
+                                                    aria-expanded="false">
+                                                <i data-feather="file-text" class="me-2" style="width: 16px; height: 16px;"></i>
+                                                <span class="badge bg-primary me-2">CONTRATOS</span>
+                                                {{ proyecto_data.total_contratos or 0 }} contrato{{ 's' if (proyecto_data.total_contratos or 0) != 1 else '' }}
                                             </button>
-                                            <ul class="dropdown-menu">
-                                                <li>
-                                                    <a class="dropdown-item" href="{{ url_for('proyectos.estados_pago_detalle', proyecto_id=proyecto.id) }}">
-                                                        <i data-feather="eye" class="me-2" style="width: 14px; height: 14px;"></i>
-                                                        Ver Detalle de Estados
-                                                    </a>
-                                                </li>
-                                                {% if proyecto.contratos %}
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li>
-                                                    <h6 class="dropdown-header">
-                                                        <i data-feather="file-text" class="me-1" style="width: 14px; height: 14px;"></i>
-                                                        Contratos/OCs ({{ proyecto.contratos|length }})
-                                                    </h6>
-                                                </li>
-                                                {% for contrato in proyecto.contratos %}
-                                                <li>
-                                                    <button class="dropdown-item d-flex justify-content-between align-items-center" 
-                                                            onclick="mostrarOpcionesContrato({{ contrato.id }}, '{{ contrato.numero_oc }}', '{{ contrato.proyecto.cliente.nombre }}')">
-                                                        <span>
-                                                            <i data-feather="{{ 'shopping-cart' if contrato.tipo_documento.value == 'ORDEN_COMPRA' else 'file-text' }}" 
-                                                               class="me-2" style="width: 12px; height: 12px;"></i>
-                                                            {{ contrato.numero_oc }}
-                                                        </span>
-                                                        <small class="text-muted">${{ "{:,.0f}".format(contrato.monto_total) if contrato.monto_total else '0' }}</small>
-                                                    </button>
-                                                </li>
+                                        </h2>
+                                        <div id="contratos-{{ proyecto.id }}" class="accordion-collapse collapse" 
+                                             data-bs-parent="#accordion-contratos-{{ proyecto.id }}">
+                                            <div class="accordion-body">
+                                                {% for contrato_data in proyecto_data.contratos %}
+                                                {% set contrato = contrato_data.contrato %}
+                                                {% set resumen_c = contrato_data.resumen_financiero %}
+                                                
+                                                <div class="card mb-2">
+                                                    <div class="card-body p-3">
+                                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                                            <h6 class="mb-0">{{ contrato.numero_oc }}</h6>
+                                                            <span class="badge bg-success">${{ "{:,.0f}".format(resumen_c.total_monto) }}</span>
+                                                        </div>
+                                                        
+                                                        <!-- Estados de Pago Expandible -->
+                                                        <div class="collapse" id="estados-contrato-{{ contrato.id }}">
+                                                            <div class="table-responsive mt-2">
+                                                                <table class="table table-sm">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Descripción</th>
+                                                                            <th>Monto</th>
+                                                                            <th>Estado</th>
+                                                                            <th>Fecha</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {% for estado in contrato_data.estados_pago %}
+                                                                        <tr>
+                                                                            <td>{{ estado.descripcion or 'Estado de pago' }}</td>
+                                                                            <td>${{ "{:,.0f}".format(estado.monto_efectivo or 0) }}</td>
+                                                                            <td>
+                                                                                <span class="badge bg-{{ 'success' if estado.estado.value == 'PAGADO' else 'warning' }}">
+                                                                                    {{ estado.estado.value }}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td>{{ estado.fecha_programada.strftime('%d/%m/%Y') if estado.fecha_programada else '-' }}</td>
+                                                                        </tr>
+                                                                        {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <button class="btn btn-sm btn-outline-info" type="button" 
+                                                                data-bs-toggle="collapse" 
+                                                                data-bs-target="#estados-contrato-{{ contrato.id }}">
+                                                            <i data-feather="chevron-down" style="width: 14px; height: 14px;"></i>
+                                                            Ver Estados ({{ contrato_data.estados_pago|length }})
+                                                        </button>
+                                                    </div>
+                                                </div>
                                                 {% endfor %}
-                                                {% else %}
-                                                <li>
-                                                    <span class="dropdown-item-text text-muted">
-                                                        <i data-feather="info" class="me-2" style="width: 14px; height: 14px;"></i>
-                                                        Sin contratos/OCs
-                                                    </span>
-                                                </li>
-                                                {% endif %}
-                                            </ul>
+                                            </div>
                                         </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- OCs Section -->
+                            {% if proyecto_data.ordenes_compra %}
+                            <div class="col-md-6">
+                                <div class="accordion" id="accordion-ocs-{{ proyecto.id }}">
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" 
+                                                    data-bs-toggle="collapse" 
+                                                    data-bs-target="#ocs-{{ proyecto.id }}" 
+                                                    aria-expanded="false">
+                                                <i data-feather="shopping-cart" class="me-2" style="width: 16px; height: 16px;"></i>
+                                                <span class="badge bg-warning me-2">ÓRDENES DE COMPRA</span>
+                                                {{ proyecto_data.total_ocs or 0 }} OC{{ 's' if (proyecto_data.total_ocs or 0) != 1 else '' }}
+                                            </button>
+                                        </h2>
+                                        <div id="ocs-{{ proyecto.id }}" class="accordion-collapse collapse" 
+                                             data-bs-parent="#accordion-ocs-{{ proyecto.id }}">
+                                            <div class="accordion-body">
+                                                {% for oc_data in proyecto_data.ordenes_compra %}
+                                                {% set oc = oc_data.oc %}
+                                                {% set resumen_oc = oc_data.resumen_financiero %}
+                                                
+                                                <div class="card mb-2">
+                                                    <div class="card-body p-3">
+                                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                                            <h6 class="mb-0">{{ oc.numero_oc }}</h6>
+                                                            <span class="badge bg-warning">${{ "{:,.0f}".format(resumen_oc.total_monto) }}</span>
+                                                        </div>
+                                                        
+                                                        <!-- Facturas Expandible -->
+                                                        <div class="collapse" id="facturas-oc-{{ oc.id }}">
+                                                            <div class="table-responsive mt-2">
+                                                                <table class="table table-sm">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Número OC</th>
+                                                                            <th>Monto</th>
+                                                                            <th>Estado</th>
+                                                                            <th>Fecha Prog.</th>
+                                                                            <th>Acciones</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {% for factura in oc_data.facturas_pendientes %}
+                                                                        <tr>
+                                                                            <td>{{ factura.numero_oc }}</td>
+                                                                            <td>${{ "{:,.0f}".format(factura.monto_neto or 0) }}</td>
+                                                                            <td>
+                                                                                <span class="badge bg-{{ 'success' if factura.estado.value == 'PAGADO' else ('info' if factura.estado.value == 'FACTURADO' else 'warning') }}">
+                                                                                    {{ factura.estado.value }}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td>{{ factura.fecha_programada.strftime('%d/%m/%Y') if factura.fecha_programada else '-' }}</td>
+                                                                            <td>
+                                                                                {% if factura.estado.value == 'PENDIENTE' %}
+                                                                                <button type="button" class="btn btn-xs btn-success" 
+                                                                                        onclick="marcarPendienteFacturado({{ factura.id }}, '{{ factura.numero_oc }}')">
+                                                                                    Facturar
+                                                                                </button>
+                                                                                {% elif factura.estado.value == 'FACTURADO' %}
+                                                                                <button type="button" class="btn btn-xs btn-primary" 
+                                                                                        onclick="marcarPendientePagado({{ factura.id }}, '{{ factura.numero_oc }}')">
+                                                                                    Pagar
+                                                                                </button>
+                                                                                {% endif %}
+                                                                            </td>
+                                                                        </tr>
+                                                                        {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <button class="btn btn-sm btn-outline-warning" type="button" 
+                                                                data-bs-toggle="collapse" 
+                                                                data-bs-target="#facturas-oc-{{ oc.id }}">
+                                                            <i data-feather="chevron-down" style="width: 14px; height: 14px;"></i>
+                                                            Ver Facturas ({{ oc_data.facturas_pendientes|length }})
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Project Actions -->
+                        <div class="mt-3 pt-2 border-top">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('proyectos.estados_pago_detalle', proyecto_id=proyecto.id) }}" 
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i data-feather="eye" class="me-1" style="width: 14px; height: 14px;"></i>
+                                    Ver Detalle
+                                </a>
+                            </div>
+                        </div>
                     </div>
+                    {% endfor %}
                     {% else %}
-                    <div class="text-center py-3">
-                        <i data-feather="inbox" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
-                        <p class="text-muted">No hay proyectos para este cliente.</p>
+                    <div class="text-center text-muted py-4">
+                        <i data-feather="inbox" class="mb-2"></i>
+                        <p>No hay proyectos con estados de pago para este cliente</p>
                     </div>
                     {% endif %}
                 </div>
