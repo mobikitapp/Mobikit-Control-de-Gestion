@@ -239,7 +239,7 @@
                                     <div class="row g-2 mb-3">
                                         <div class="col-6">
                                             <div class="text-center p-2 bg-light rounded">
-                                                <div class="small text-muted">Contratado</div>
+                                                <div class="small text-muted">Contratado + OCs</div>
                                                 <div class="fw-medium">${{ "{:,.0f}".format(resumen.montos.total_contratado) }}</div>
                                             </div>
                                         </div>
@@ -255,7 +255,7 @@
                                     <div class="mb-2">
                                         <div class="d-flex justify-content-between small mb-1">
                                             <span>Facturación</span>
-                                            <span>{{ "%.1f"|format(resumen.porcentajes.facturado) }}%</span>
+                                            <span class="badge bg-info">{{ "%.1f"|format(resumen.porcentajes.facturado) }}%</span>
                                         </div>
                                         <div class="progress" style="height: 6px;">
                                             <div class="progress-bar bg-info" style="width: {{ resumen.porcentajes.facturado }}%"></div>
@@ -265,7 +265,7 @@
                                     <div class="mb-3">
                                         <div class="d-flex justify-content-between small mb-1">
                                             <span>Cobranza</span>
-                                            <span>{{ "%.1f"|format(resumen.porcentajes.cobrado) }}%</span>
+                                            <span class="badge bg-success">{{ "%.1f"|format(resumen.porcentajes.cobrado) }}%</span>
                                         </div>
                                         <div class="progress" style="height: 6px;">
                                             <div class="progress-bar bg-success" style="width: {{ resumen.porcentajes.cobrado }}%"></div>
