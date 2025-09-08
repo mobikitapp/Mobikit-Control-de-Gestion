@@ -632,7 +632,7 @@ function showMessage(message, type) {
     }, 5000);
 }
 
-// Function to create treasury states for a contract
+// Function to create treasury states for a contract (for buttons in tables)
 function crearEstadosTesoreria(contratoId, numeroOc) {
     if (!confirm(`¿Crear estados de tesorería para el contrato ${numeroOc}?\n\nEsto creará automáticamente los estados de pago correspondientes según la configuración del contrato.`)) {
         return;
@@ -654,23 +654,7 @@ function crearEstadosTesoreria(contratoId, numeroOc) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Show success message
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success alert-dismissible fade show';
-            alertDiv.innerHTML = `
-                <i data-feather="check-circle" class="me-2"></i>
-                ${data.message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            
-            // Insert alert at top of page
-            const container = document.querySelector('.container-fluid');
-            container.insertBefore(alertDiv, container.firstChild);
-            
-            // Replace icons
-            if (typeof feather !== 'undefined') {
-                feather.replace();
-            }
+            showAlert('success', data.message);
             
             // Remove the contract row since it now has states
             button.closest('tr').remove();
@@ -682,9 +666,7 @@ function crearEstadosTesoreria(contratoId, numeroOc) {
             }
             
         } else {
-            // Show error message
-            alert('Error: ' + data.message);
-            
+            showAlert('danger', 'Error: ' + data.message);
             // Re-enable button
             button.disabled = false;
             button.innerHTML = originalText;
@@ -692,8 +674,7 @@ function crearEstadosTesoreria(contratoId, numeroOc) {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error de conexión. Por favor, intenta nuevamente.');
-        
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
         // Re-enable button
         button.disabled = false;
         button.innerHTML = originalText;
@@ -870,21 +851,29 @@ function mostrarOpcionesContrato(contratoId, numeroOc, clienteNombre) {
     setTimeout(() => feather.replace(), 100);
 }
 
-// Contract action functions
-function crearEstadosTesoreria(contratoId, numeroOc) {
-    if (!confirm(`¿Crear estados de tesorería para ${numeroOc}? Esto creará anticipo, avances y retención según corresponda.`)) return;
+// Main Contract Action Functions - Specific actions requested by user
+
+// 1. FACTURAR - Action to invoice a contract/OC
+function facturarContrato(contratoId, numeroOc) {
+    const numeroFactura = prompt(`Ingrese el número de factura para ${numeroOc}:`);
+    if (numeroFactura === null || numeroFactura.trim() === '') return;
     
-    fetch(`/proyectos/contratos/${contratoId}/crear-estados-tesoreria`, {
+    if (!confirm(`¿Marcar ${numeroOc} como facturado con número de factura ${numeroFactura}?`)) return;
+    
+    fetch(`/proyectos/contratos/${contratoId}/marcar-facturado`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify({
+            numero_factura: numeroFactura.trim()
+        })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('success', data.message);
-            document.getElementById('modalOpcionesContrato').querySelector('[data-bs-dismiss="modal"]').click();
+            showAlert('success', `${numeroOc} marcado como facturado exitosamente`);
+            cerrarModal('modalOpcionesContrato');
             setTimeout(() => location.reload(), 1000);
         } else {
             showAlert('danger', 'Error: ' + data.message);
@@ -896,22 +885,61 @@ function crearEstadosTesoreria(contratoId, numeroOc) {
     });
 }
 
-function verDetallesContrato(contratoId) {
-    // Redirect to contract details or open in new tab
+// 2. AGREGAR ESTADO DE PAGO - Create new payment state for contract
+function agregarEstadoPago(contratoId, numeroOc) {
+    cerrarModal('modalOpcionesContrato');
+    // Redirect to create new payment state for this specific contract
+    window.location.href = `/proyectos/estados-pago/nuevo?contrato_id=${contratoId}`;
+}
+
+// 3. VER DETALLE - View contract details
+function verDetalleContrato(contratoId) {
+    // Open contract details in new tab
     window.open(`/proyectos/contratos/${contratoId}`, '_blank');
 }
 
-function marcarComoFacturadoContrato(contratoId, numeroOc) {
-    const numeroFactura = prompt(`Número de factura para ${numeroOc}:`);
-    if (numeroFactura === null) return;
+// Secondary Functions
+
+// CREAR ESTADOS AUTOMÁTICOS - Create automatic treasury states
+function crearEstadosAutomaticos(contratoId, numeroOc) {
+    if (!confirm(`¿Crear estados de tesorería automáticos para ${numeroOc}?\n\nEsto generará anticipo, avances y retención según la configuración del contrato.`)) return;
     
-    // This would need a specific endpoint for contracts
-    showAlert('info', 'Funcionalidad en desarrollo - Marcar contrato como facturado');
+    fetch(`/proyectos/contratos/${contratoId}/crear-estados-tesoreria`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            cerrarModal('modalOpcionesContrato');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+    });
 }
 
-function modificarContrato(contratoId) {
-    // Redirect to contract edit page
+// EDITAR CONTRATO - Edit contract
+function editarContrato(contratoId) {
     window.location.href = `/proyectos/contratos/${contratoId}/editar`;
+}
+
+// Utility function to close modal
+function cerrarModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        const bsModal = bootstrap.Modal.getInstance(modal);
+        if (bsModal) {
+            bsModal.hide();
+        }
+    }
 }
 </script>
 {% endblock %}
