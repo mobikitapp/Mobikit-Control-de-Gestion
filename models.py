@@ -52,6 +52,17 @@ class EstadoDespacho(Enum):
     ENTREGADO = "ENTREGADO"
     OBSERVADO = "OBSERVADO"
 
+class EstadoFacturacion(Enum):
+    POR_FACTURAR = "POR_FACTURAR"
+    FACTURADO_PARCIAL = "FACTURADO_PARCIAL"
+    FACTURADO_TOTAL = "FACTURADO_TOTAL"
+
+class EstadoPagoContrato(Enum):
+    PENDIENTE = "PENDIENTE"
+    PAGO_PARCIAL = "PAGO_PARCIAL"
+    PAGADO_TOTAL = "PAGADO_TOTAL"
+    VENCIDO = "VENCIDO"
+
 class TipoAdjunto(Enum):
     CONTRATO = "contrato"
     PLANO = "plano"
@@ -407,6 +418,12 @@ class Contrato(db.Model):
     fecha_entrega_comprometida = db.Column(db.Date)
     condiciones_pago = db.Column(db.Text)
     notas = db.Column(db.Text)
+    
+    # Campos financieros - Fase 1
+    estado_facturacion = db.Column(db.Enum(EstadoFacturacion), default=EstadoFacturacion.POR_FACTURAR, nullable=False)
+    monto_facturado = db.Column(db.Numeric(15, 2), default=0.00, nullable=False)
+    estado_pago = db.Column(db.Enum(EstadoPagoContrato), default=EstadoPagoContrato.PENDIENTE, nullable=False) 
+    monto_pagado = db.Column(db.Numeric(15, 2), default=0.00, nullable=False)
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
@@ -425,10 +442,38 @@ class Contrato(db.Model):
         Index('idx_contrato_numero_oc', 'numero_oc'),
         Index('idx_contrato_estado', 'estado'),
         Index('idx_contrato_fechas', 'fecha_emision', 'fecha_vencimiento'),
+        Index('idx_contrato_estado_facturacion', 'estado_facturacion'),
+        Index('idx_contrato_estado_pago', 'estado_pago'),
     )
 
     def __repr__(self):
         return f'<Contrato {self.numero_oc}>'
+    
+    @property
+    def saldo_por_facturar(self):
+        """Calcula el saldo pendiente por facturar"""
+        if not self.monto_total:
+            return 0
+        return float(self.monto_total) - float(self.monto_facturado or 0)
+    
+    @property
+    def saldo_por_cobrar(self):
+        """Calcula el saldo pendiente por cobrar"""
+        return float(self.monto_facturado or 0) - float(self.monto_pagado or 0)
+    
+    @property
+    def porcentaje_facturado(self):
+        """Calcula el porcentaje facturado del contrato"""
+        if not self.monto_total or self.monto_total == 0:
+            return 0
+        return (float(self.monto_facturado or 0) / float(self.monto_total)) * 100
+    
+    @property
+    def porcentaje_pagado(self):
+        """Calcula el porcentaje pagado respecto al monto facturado"""
+        if not self.monto_facturado or self.monto_facturado == 0:
+            return 0
+        return (float(self.monto_pagado or 0) / float(self.monto_facturado)) * 100
 
 class ContratoAdjunto(db.Model):
     __tablename__ = 'contrato_adjuntos'
