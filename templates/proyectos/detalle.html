@@ -303,43 +303,24 @@
                         <!-- Progress Bars -->
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="fw-medium">Avance Contratación</span>
-                                <span class="badge bg-{{
-                                    'success' if kpi.estado == 'dentro_presupuesto' else
-                                    'warning' if kpi.estado == 'alerta' else
-                                    'danger' if kpi.estado == 'sobre_presupuesto' else
-                                    'secondary'
-                                }}">{{ kpi.avance_porcentaje }}%</span>
+                                <span class="fw-medium">Facturación</span>
+                                <span class="badge bg-info">{{ "%.1f"|format(kpi.porcentaje_facturado if kpi.porcentaje_facturado is defined else 0) }}%</span>
                             </div>
-                            <div class="progress" style="height: 20px;">
-                                <div class="progress-bar bg-{{
-                                    'success' if kpi.estado == 'dentro_presupuesto' else
-                                    'warning' if kpi.estado == 'alerta' else
-                                    'danger'
-                                }}" role="progressbar" 
-                                     style="width: {{ min(100, kpi.avance_porcentaje) }}%">
-                                    <small class="fw-bold">{{ kpi.avance_porcentaje }}%</small>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-info" role="progressbar" 
+                                     style="width: {{ kpi.porcentaje_facturado if kpi.porcentaje_facturado is defined else 0 }}%">
                                 </div>
                             </div>
                         </div>
 
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="fw-medium">Avance Cobranza</span>
-                                <span class="badge bg-{{
-                                    'success' if kpi.porcentaje_cobrado >= 80 else
-                                    'warning' if kpi.porcentaje_cobrado >= 50 else
-                                    'danger'
-                                }}">{{ kpi.porcentaje_cobrado }}%</span>
+                                <span class="fw-medium">Cobranza</span>
+                                <span class="badge bg-success">{{ "%.1f"|format(kpi.porcentaje_cobrado) }}%</span>
                             </div>
-                            <div class="progress" style="height: 20px;">
-                                <div class="progress-bar bg-{{
-                                    'success' if kpi.porcentaje_cobrado >= 80 else
-                                    'warning' if kpi.porcentaje_cobrado >= 50 else
-                                    'danger'
-                                }}" role="progressbar" 
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
                                      style="width: {{ kpi.porcentaje_cobrado }}%">
-                                    <small class="fw-bold">{{ kpi.porcentaje_cobrado }}%</small>
                                 </div>
                             </div>
                         </div>
