@@ -801,6 +801,40 @@ def sync_financial_totals(proyecto_id):
         logger.error(f"Error syncing financial totals for project {proyecto_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error syncing: {str(e)}'}), 500
 
+@proyectos_bp.route('/estados-pago/<int:estado_pago_id>/sync-status', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def sync_payment_state_status(estado_pago_id):
+    """Sync payment state status and contract totals - fix inconsistencies"""
+    try:
+        from services.estados_pago_service import EstadosPagoService
+        
+        estados_pago_service = EstadosPagoService()
+        estado_pago = estados_pago_service.get_estado_pago_by_id(estado_pago_id)
+        
+        if not estado_pago:
+            return jsonify({'success': False, 'message': 'Estado de pago no encontrado'}), 404
+        
+        # Force update contract financial totals
+        if estado_pago.contrato_id:
+            estados_pago_service._update_contract_financial_totals(estado_pago.contrato_id)
+            db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Estado de pago sincronizado correctamente',
+            'estado_pago': {
+                'id': estado_pago.id,
+                'estado': estado_pago.estado.value,
+                'facturado': estado_pago.facturado,
+                'fecha_pago': estado_pago.fecha_pago.strftime('%d/%m/%Y') if estado_pago.fecha_pago else None
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error syncing payment state {estado_pago_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error sincronizando: {str(e)}'}), 500
+
 @proyectos_bp.route('/estados-pago/<int:estado_pago_id>', methods=['DELETE'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def eliminar_estado_pago(estado_pago_id):

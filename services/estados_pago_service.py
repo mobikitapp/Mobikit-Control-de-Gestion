@@ -227,6 +227,9 @@ class EstadosPagoService:
             if not estado_pago:
                 raise ValueError(f"Estado de pago {estado_pago_id} no encontrado")
 
+            # Store original data for audit
+            datos_anteriores = serialize_model(estado_pago)
+
             update_data = {
                 'estado': EstadoPagoContrato.PAGADO,
                 'fecha_pago': fecha_pago
@@ -236,15 +239,29 @@ class EstadosPagoService:
                 update_data['observaciones'] = observaciones
 
             # Update the payment state
-            updated_estado = self.update_estado_pago(estado_pago_id, update_data)
+            updated_estado = self.repo.update(estado_pago, update_data)
             
             # Update contract financial totals if it's a contract payment state
             if updated_estado and updated_estado.contrato_id:
                 self._update_contract_financial_totals(updated_estado.contrato_id)
             
+            # Commit the transaction
+            db.session.commit()
+            
+            # Log audit
+            AuditService.log_action(
+                'estados_pago', 
+                estado_pago_id, 
+                'UPDATE',
+                datos_anteriores=datos_anteriores,
+                datos_nuevos=serialize_model(updated_estado)
+            )
+            
+            logger.info(f"Estado de pago marcado como pagado: {estado_pago_id}")
             return updated_estado
 
         except Exception as e:
+            db.session.rollback()
             logger.error(f"Error marcando estado de pago como pagado {estado_pago_id}: {str(e)}")
             raise
 
@@ -291,30 +308,36 @@ class EstadosPagoService:
                 logger.error(f"Estado de pago {estado_pago_id} no encontrado")
                 return False
             
-            # Actualizar campos de facturación
-            estado_pago.facturado = True
-            estado_pago.fecha_facturacion = datetime.now().date()
-            if numero_factura:
-                estado_pago.numero_factura = numero_factura
-                
-            # Actualizar auditoría
-            estado_pago.updated_at = datetime.utcnow()
-            estado_pago.updated_by = updated_by
+            # Store original data for audit
+            datos_anteriores = serialize_model(estado_pago)
             
-            db.session.add(estado_pago)
+            # Actualizar campos de facturación
+            update_data = {
+                'facturado': True,
+                'fecha_facturacion': datetime.now().date(),
+                'numero_factura': numero_factura or '',
+                'updated_by': updated_by,
+                'updated_at': datetime.utcnow()
+            }
+            
+            # Update the payment state
+            updated_estado = self.repo.update(estado_pago, update_data)
+            
+            # Actualizar totales financieros del contrato
+            if updated_estado.contrato_id:
+                self._update_contract_financial_totals(updated_estado.contrato_id)
+            
+            # Commit the transaction
             db.session.commit()
             
             # Log audit
             AuditService.log_action(
                 'estados_pago', 
                 estado_pago.id, 
-                'UPDATE', 
-                datos_nuevos={'facturado': True, 'numero_factura': numero_factura}
+                'UPDATE',
+                datos_anteriores=datos_anteriores,
+                datos_nuevos=serialize_model(updated_estado)
             )
-            
-            # Actualizar totales financieros del contrato
-            if estado_pago.contrato_id:
-                self._update_contract_financial_totals(estado_pago.contrato_id)
             
             logger.info(f"Estado de pago {estado_pago_id} marcado como facturado")
             return True
@@ -337,24 +360,26 @@ class EstadosPagoService:
                 return
             
             # Get all payment states for this contract
-            estados_pago = self.repo.get_by_contrato_id(contrato_id)  # Use the correct method name
+            estados_pago = self.repo.get_by_contrato_id(contrato_id)
             
             # Calculate totals using monto_efectivo property
-            total_facturado = sum(
-                float(ep.monto_efectivo or 0) 
-                for ep in estados_pago 
-                if hasattr(ep, 'facturado') and ep.facturado
-            )
+            total_facturado = Decimal('0')
+            total_pagado = Decimal('0')
             
-            total_pagado = sum(
-                float(ep.monto_efectivo or 0) 
-                for ep in estados_pago 
-                if ep.estado and ep.estado.value == 'PAGADO'
-            )
+            for ep in estados_pago:
+                monto = Decimal(str(ep.monto_efectivo or 0))
+                
+                # Check if it's invoiced
+                if hasattr(ep, 'facturado') and ep.facturado:
+                    total_facturado += monto
+                
+                # Check if it's paid
+                if ep.estado and ep.estado.value == 'PAGADO':
+                    total_pagado += monto
             
             # Update contract fields
-            contrato.monto_facturado = Decimal(str(total_facturado))
-            contrato.monto_pagado = Decimal(str(total_pagado))
+            contrato.monto_facturado = total_facturado
+            contrato.monto_pagado = total_pagado
             
             # Update audit fields
             contrato.updated_at = datetime.utcnow()
