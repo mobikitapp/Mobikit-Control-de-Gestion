@@ -345,17 +345,17 @@ class TreasuryIntegrationService:
     
     def get_projects_grouped_by_client(self) -> Dict[str, Any]:
         """
-        Obtiene proyectos con estados de pago agrupados por cliente
+        Obtiene proyectos con estados de pago agrupados por cliente, separando contratos de OCs
         """
         try:
-            from models import Proyecto, Cliente, EstadoPago
+            from models import Proyecto, Cliente, EstadoPago, Contrato, PendienteFacturar, TipoDocumento
             from sqlalchemy import func
             
-            # Get all projects with active payment states and their clients
+            # Get all active projects with their clients
             proyectos_query = db.session.query(Proyecto, Cliente)\
                 .join(Cliente, Proyecto.cliente_id == Cliente.id)\
-                .outerjoin(EstadoPago)\
                 .filter(Proyecto.activo == True)\
+                .distinct()\
                 .all()
             
             # Group projects by client
@@ -374,41 +374,102 @@ class TreasuryIntegrationService:
                         }
                     }
                 
-                # Get payment states for this project
-                estados_pago = EstadoPago.query.filter_by(proyecto_id=proyecto.id).all()
+                # Get contracts for this project, separating by type
+                contratos_regulares = Contrato.query.filter_by(
+                    proyecto_id=proyecto.id, 
+                    activo=True
+                ).filter(
+                    Contrato.tipo_documento == TipoDocumento.CONTRATO
+                ).all()
                 
-                # Calculate financial summary for this project
-                total_monto = sum(float(ep.monto_efectivo or 0) for ep in estados_pago)
-                total_pagado = sum(float(ep.monto_efectivo or 0) for ep in estados_pago 
-                                 if ep.estado.value == 'PAGADO')
-                total_facturado = sum(float(ep.monto_efectivo or 0) for ep in estados_pago 
-                                    if ep.facturado)
+                ordenes_compra = Contrato.query.filter_by(
+                    proyecto_id=proyecto.id, 
+                    activo=True
+                ).filter(
+                    Contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA
+                ).all()
                 
-                # Calculate percentages
-                porcentaje_pagado = (total_pagado / total_monto * 100) if total_monto > 0 else 0
-                porcentaje_facturado = (total_facturado / total_monto * 100) if total_monto > 0 else 0
+                # Prepare contracts data with payment states
+                contratos_data = []
+                for contrato in contratos_regulares:
+                    estados_pago = EstadoPago.query.filter_by(contrato_id=contrato.id).all()
+                    
+                    # Calculate financial summary for this contract
+                    total_monto = sum(float(ep.monto_efectivo or 0) for ep in estados_pago)
+                    total_pagado = sum(float(ep.monto_efectivo or 0) for ep in estados_pago 
+                                     if ep.estado.value == 'PAGADO')
+                    total_facturado = sum(float(ep.monto_efectivo or 0) for ep in estados_pago 
+                                        if ep.facturado)
+                    
+                    contratos_data.append({
+                        'contrato': contrato,
+                        'estados_pago': estados_pago,
+                        'resumen_financiero': {
+                            'total_monto': total_monto,
+                            'total_pagado': total_pagado,
+                            'total_facturado': total_facturado,
+                            'porcentaje_pagado': (total_pagado / total_monto * 100) if total_monto > 0 else 0,
+                            'porcentaje_facturado': (total_facturado / total_monto * 100) if total_monto > 0 else 0
+                        }
+                    })
                 
-                resumen = {
-                    'total_monto': total_monto,
-                    'total_pagado': total_pagado,
-                    'total_facturado': total_facturado,
-                    'porcentaje_pagado': porcentaje_pagado,
-                    'porcentaje_facturado': porcentaje_facturado
+                # Prepare OCs data with pending invoices (facturas)
+                ocs_data = []
+                for oc in ordenes_compra:
+                    # Get pending invoices for this OC
+                    facturas_pendientes = PendienteFacturar.query.filter_by(contrato_id=oc.id).all()
+                    
+                    # Calculate financial summary for this OC
+                    total_monto = sum(float(fp.monto_neto or 0) for fp in facturas_pendientes)
+                    total_pagado = sum(float(fp.monto_neto or 0) for fp in facturas_pendientes 
+                                     if fp.estado.value == 'PAGADO')
+                    total_facturado = sum(float(fp.monto_neto or 0) for fp in facturas_pendientes 
+                                        if fp.estado.value in ['FACTURADO', 'PAGADO'])
+                    
+                    ocs_data.append({
+                        'oc': oc,
+                        'facturas_pendientes': facturas_pendientes,
+                        'resumen_financiero': {
+                            'total_monto': total_monto,
+                            'total_pagado': total_pagado,
+                            'total_facturado': total_facturado,
+                            'porcentaje_pagado': (total_pagado / total_monto * 100) if total_monto > 0 else 0,
+                            'porcentaje_facturado': (total_facturado / total_monto * 100) if total_monto > 0 else 0
+                        }
+                    })
+                
+                # Calculate overall project financial summary
+                total_monto_proyecto = sum(c['resumen_financiero']['total_monto'] for c in contratos_data) + \
+                                     sum(oc['resumen_financiero']['total_monto'] for oc in ocs_data)
+                total_pagado_proyecto = sum(c['resumen_financiero']['total_pagado'] for c in contratos_data) + \
+                                      sum(oc['resumen_financiero']['total_pagado'] for oc in ocs_data)
+                total_facturado_proyecto = sum(c['resumen_financiero']['total_facturado'] for c in contratos_data) + \
+                                         sum(oc['resumen_financiero']['total_facturado'] for oc in ocs_data)
+                
+                resumen_proyecto = {
+                    'total_monto': total_monto_proyecto,
+                    'total_pagado': total_pagado_proyecto,
+                    'total_facturado': total_facturado_proyecto,
+                    'porcentaje_pagado': (total_pagado_proyecto / total_monto_proyecto * 100) if total_monto_proyecto > 0 else 0,
+                    'porcentaje_facturado': (total_facturado_proyecto / total_monto_proyecto * 100) if total_monto_proyecto > 0 else 0
                 }
                 
-                # Add project data
+                # Add project data with separated contracts and OCs
                 proyecto_data = {
                     'proyecto': proyecto,
-                    'estados_pago': estados_pago,
-                    'resumen': resumen
+                    'contratos': contratos_data,
+                    'ordenes_compra': ocs_data,
+                    'resumen': resumen_proyecto,
+                    'total_contratos': len(contratos_data),
+                    'total_ocs': len(ocs_data)
                 }
                 
                 proyectos_por_cliente[cliente_nombre]['proyectos'].append(proyecto_data)
                 
                 # Update client totals
-                proyectos_por_cliente[cliente_nombre]['resumen_general']['total_monto'] += total_monto
-                proyectos_por_cliente[cliente_nombre]['resumen_general']['total_pagado'] += total_pagado
-                proyectos_por_cliente[cliente_nombre]['resumen_general']['total_facturado'] += total_facturado
+                proyectos_por_cliente[cliente_nombre]['resumen_general']['total_monto'] += total_monto_proyecto
+                proyectos_por_cliente[cliente_nombre]['resumen_general']['total_pagado'] += total_pagado_proyecto
+                proyectos_por_cliente[cliente_nombre]['resumen_general']['total_facturado'] += total_facturado_proyecto
             
             return proyectos_por_cliente
             
