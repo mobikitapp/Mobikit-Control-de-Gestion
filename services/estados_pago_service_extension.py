@@ -63,7 +63,7 @@ def get_proyectos_con_estados_pago_por_cliente(self) -> Dict[str, Any]:
 
 def marcar_como_facturado(self, estado_pago_id: int, numero_factura: str = None, 
                          fecha_facturacion: date = None, observaciones: str = None) -> EstadoPago:
-    """Mark payment state as invoiced"""
+    """Mark payment state as invoiced and update contract financial fields"""
     try:
         estado_pago = self.repo.get_by_id(estado_pago_id)
         if not estado_pago:
@@ -82,6 +82,26 @@ def marcar_como_facturado(self, estado_pago_id: int, numero_factura: str = None,
         
         # Update estado pago
         estado_pago_actualizado = self.repo.update(estado_pago, update_data)
+        
+        # ** INTEGRACIÓN FASE 1 ** - Actualizar campos financieros del contrato
+        if estado_pago_actualizado.contrato_id:
+            try:
+                from services.contratos_financial_service import ContratosFinancialService
+                financial_service = ContratosFinancialService()
+                
+                # Actualizar el contrato con el monto facturado del estado de pago
+                monto_facturado = float(estado_pago_actualizado.monto_efectivo or 0)
+                financial_service.update_contract_invoicing(
+                    contrato_id=estado_pago_actualizado.contrato_id,
+                    monto_facturado=monto_facturado,
+                    numero_factura=numero_factura
+                )
+                
+                logger.info(f"Campos financieros del contrato {estado_pago_actualizado.contrato_id} actualizados - Monto: ${monto_facturado}")
+                
+            except Exception as integration_error:
+                logger.warning(f"Error actualizando campos financieros del contrato: {str(integration_error)}")
+                # No interrumpimos el flujo principal si falla la integración
         
         # Commit transaction
         db.session.commit()
