@@ -60,6 +60,90 @@
         </div>
     </div>
 
+    <!-- Pendientes de Facturar (OCs) -->
+    {% if pendientes_facturar %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i data-feather="file-text" class="me-2"></i>
+                        Pendientes de Facturar - OCs ({{ pendientes_facturar|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Órdenes de Compra pendientes de facturación y pago:</p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Proyecto</th>
+                                    <th>Número OC</th>
+                                    <th>Monto</th>
+                                    <th>Fecha Programada</th>
+                                    <th>Estado</th>
+                                    <th>Días</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pendiente in pendientes_facturar %}
+                                <tr class="{{ 'table-danger' if pendiente.esta_vencido else ('table-warning' if pendiente.dias_vencimiento <= 5 else '') }}">
+                                    <td>
+                                        <div class="fw-medium">{{ pendiente.contrato.proyecto.cliente.nombre }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">{{ pendiente.contrato.proyecto.nombre }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ pendiente.numero_oc }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">${{ "{:,.0f}".format(pendiente.monto_neto) }}</div>
+                                    </td>
+                                    <td>
+                                        {{ pendiente.fecha_programada.strftime('%d/%m/%Y') if pendiente.fecha_programada else '-' }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if pendiente.estado.value == 'PAGADO' else ('info' if pendiente.estado.value == 'FACTURADO' else 'warning') }}">
+                                            {{ pendiente.estado.value }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if pendiente.dias_vencimiento is not none %}
+                                            <span class="badge bg-{{ 'danger' if pendiente.esta_vencido else ('warning' if pendiente.dias_vencimiento <= 5 else 'secondary') }}">
+                                                {{ pendiente.dias_vencimiento }} días
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if pendiente.estado.value == 'PENDIENTE' %}
+                                        <button type="button" class="btn btn-sm btn-success me-1" onclick="marcarPendienteFacturado({{ pendiente.id }}, '{{ pendiente.numero_oc }}')">
+                                            <i data-feather="file-text" style="width: 14px; height: 14px;"></i>
+                                            Facturar
+                                        </button>
+                                        {% elif pendiente.estado.value == 'FACTURADO' %}
+                                        <button type="button" class="btn btn-sm btn-primary" onclick="marcarPendientePagado({{ pendiente.id }}, '{{ pendiente.numero_oc }}')">
+                                            <i data-feather="dollar-sign" style="width: 14px; height: 14px;"></i>
+                                            Marcar Pagado
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Contracts Pending Treasury Integration -->
     {% if contratos_pendientes %}
     <div class="row mb-4">
@@ -68,11 +152,11 @@
                 <div class="card-header bg-warning text-dark">
                     <h5 class="mb-0">
                         <i data-feather="alert-triangle" class="me-2"></i>
-                        Contratos sin Estados de Tesorería ({{ contratos_pendientes|length }})
+                        Contratos sin Estados de Pago ({{ contratos_pendientes|length }})
                     </h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted mb-3">Los siguientes contratos no tienen estados de pago en tesorería y podrían necesitarlos:</p>
+                    <p class="text-muted mb-3">Contratos que requieren configuración de estados de pago complejos (anticipo, avances, retención):</p>
                     
                     <div class="table-responsive">
                         <table class="table table-hover">
@@ -353,6 +437,96 @@ function crearEstadosTesoreria(contratoId, numeroOc) {
         button.disabled = false;
         button.innerHTML = originalText;
     });
+}
+
+// Functions for handling pending invoices (OCs)
+function marcarPendienteFacturado(pendienteId, numeroOc) {
+    const numeroFactura = prompt(`Número de factura para OC ${numeroOc}:`);
+    if (numeroFactura === null) return; // User cancelled
+    
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+    
+    fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-facturado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            numero_factura: numeroFactura
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload(); // Refresh to update the UI
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function marcarPendientePagado(pendienteId, numeroOc) {
+    if (!confirm(`¿Marcar OC ${numeroOc} como pagada?`)) return;
+    
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+    
+    fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-pagado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload(); // Refresh to update the UI
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i data-feather="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
 }
 </script>
 {% endblock %}

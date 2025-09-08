@@ -624,12 +624,16 @@ def estados_pago_index():
         # Get all projects with payment states grouped by client
         proyectos_por_cliente = estados_pago_service.get_proyectos_con_estados_pago_por_cliente()
         
-        # Get contracts that need manual treasury state creation
+        # Get contracts that need manual treasury state creation (only CONTRATOS)
         contratos_pendientes = treasury_service.get_contracts_without_treasury_states()
+        
+        # Get OCs as pending invoices (separate concept)
+        pendientes_facturar = treasury_service.get_pending_invoices()
         
         return render_template('proyectos/estados_pago_index.html', 
                              proyectos_por_cliente=proyectos_por_cliente,
                              contratos_pendientes=contratos_pendientes,
+                             pendientes_facturar=pendientes_facturar,
                              title="Tesorería")
         
     except Exception as e:
@@ -791,3 +795,67 @@ def crear_estados_tesoreria_contrato(contrato_id):
     except Exception as e:
         logger.error(f"Error creando estados tesorería para contrato {contrato_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al crear estados de tesorería: {str(e)}'}), 500
+
+@proyectos_bp.route('/pendientes-facturar/<int:pendiente_id>/marcar-facturado', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def marcar_pendiente_facturado(pendiente_id):
+    """Marcar un pendiente de facturar como facturado"""
+    try:
+        from services.treasury_integration_service import TreasuryIntegrationService
+        from models import EstadoPendienteFacturar
+        treasury_service = TreasuryIntegrationService()
+        
+        data = request.get_json() or {}
+        numero_factura = data.get('numero_factura', '')
+        
+        success = treasury_service.update_pending_invoice_status(
+            pendiente_id=pendiente_id,
+            nuevo_estado=EstadoPendienteFacturar.FACTURADO,
+            updated_by=current_user.id,
+            numero_factura=numero_factura
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'OC marcada como facturada exitosamente'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'No se pudo actualizar el estado de la OC'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error marcando OC {pendiente_id} como facturada: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al marcar como facturada: {str(e)}'}), 500
+
+@proyectos_bp.route('/pendientes-facturar/<int:pendiente_id>/marcar-pagado', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def marcar_pendiente_pagado(pendiente_id):
+    """Marcar un pendiente de facturar como pagado"""
+    try:
+        from services.treasury_integration_service import TreasuryIntegrationService
+        from models import EstadoPendienteFacturar
+        treasury_service = TreasuryIntegrationService()
+        
+        success = treasury_service.update_pending_invoice_status(
+            pendiente_id=pendiente_id,
+            nuevo_estado=EstadoPendienteFacturar.PAGADO,
+            updated_by=current_user.id
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'OC marcada como pagada exitosamente'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'No se pudo actualizar el estado de la OC'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error marcando OC {pendiente_id} como pagada: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al marcar como pagada: {str(e)}'}), 500
