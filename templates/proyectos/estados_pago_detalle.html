@@ -565,5 +565,67 @@ function eliminarEstadoPago(estadoPagoId) {
         alert('Error al eliminar estado de pago');
     });
 }
+
+// Functions for OCs (Purchase Orders)
+function marcarPendienteFacturado(pendienteId, numeroOc) {
+    const numeroFactura = prompt(`Número de factura para OC ${numeroOc}:`);
+    if (!numeroFactura) return;
+    
+    const fechaFacturacion = prompt('Fecha de facturación (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    if (!fechaFacturacion) return;
+    
+    fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-facturado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            numero_factura: numeroFactura,
+            fecha_facturacion: fechaFacturacion
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al marcar como facturado');
+    });
+}
+
+function marcarPendientePagado(pendienteId, numeroOc) {
+    const fechaPago = prompt(`Fecha de pago para OC ${numeroOc} (YYYY-MM-DD):`, new Date().toISOString().split('T')[0]);
+    if (!fechaPago) return;
+    
+    const observaciones = prompt('Observaciones (opcional):');
+    
+    fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-pagado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            fecha_pago: fechaPago,
+            observaciones: observaciones
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al marcar como pagado');
+    });
+}
 </script>
 {% endblock %}
