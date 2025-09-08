@@ -567,5 +567,107 @@ function showAlert(type, message) {
         feather.replace();
     }
 }
+
+// Function for showing contract options from dropdown
+function mostrarOpcionesContrato(contratoId, numeroOc, clienteNombre) {
+    // Create a simple action menu modal
+    const modalHtml = `
+        <div class="modal fade" id="modalOpcionesContrato" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i data-feather="file-text" class="me-2"></i>
+                            Opciones para ${numeroOc}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3">Cliente: <strong>${clienteNombre}</strong></p>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-primary" onclick="crearEstadosTesoreria(${contratoId}, '${numeroOc}')">
+                                <i data-feather="plus-circle" class="me-2"></i>
+                                Crear Estados de Tesorería
+                            </button>
+                            <button type="button" class="btn btn-outline-info" onclick="verDetallesContrato(${contratoId})">
+                                <i data-feather="eye" class="me-2"></i>
+                                Ver Detalles del Contrato
+                            </button>
+                            <button type="button" class="btn btn-outline-success" onclick="marcarComoFacturadoContrato(${contratoId}, '${numeroOc}')">
+                                <i data-feather="file-text" class="me-2"></i>
+                                Marcar como Facturado
+                            </button>
+                            <button type="button" class="btn btn-outline-warning" onclick="modificarContrato(${contratoId})">
+                                <i data-feather="edit" class="me-2"></i>
+                                Modificar Contrato
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('modalOpcionesContrato');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page and show
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('modalOpcionesContrato'));
+    modal.show();
+    
+    // Update feather icons
+    setTimeout(() => feather.replace(), 100);
+}
+
+// Contract action functions
+function crearEstadosTesoreria(contratoId, numeroOc) {
+    if (!confirm(`¿Crear estados de tesorería para ${numeroOc}? Esto creará anticipo, avances y retención según corresponda.`)) return;
+    
+    fetch(`/proyectos/contratos/${contratoId}/crear-estados-tesoreria`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            document.getElementById('modalOpcionesContrato').querySelector('[data-bs-dismiss="modal"]').click();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+    });
+}
+
+function verDetallesContrato(contratoId) {
+    // Redirect to contract details or open in new tab
+    window.open(`/proyectos/contratos/${contratoId}`, '_blank');
+}
+
+function marcarComoFacturadoContrato(contratoId, numeroOc) {
+    const numeroFactura = prompt(`Número de factura para ${numeroOc}:`);
+    if (numeroFactura === null) return;
+    
+    // This would need a specific endpoint for contracts
+    showAlert('info', 'Funcionalidad en desarrollo - Marcar contrato como facturado');
+}
+
+function modificarContrato(contratoId) {
+    // Redirect to contract edit page
+    window.location.href = `/proyectos/contratos/${contratoId}/editar`;
+}
 </script>
 {% endblock %}
