@@ -2,8 +2,9 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from app import db
-from models import (Contrato, EstadoPago, TipoDocumento, TipoEstadoPago, TipoOperacionTesoreria, 
-                    ModoFacturacion, EstadoPagoContrato as EstadoPagoEnum)
+from models import (Contrato, EstadoPago, PendienteFacturar, TipoDocumento, TipoEstadoPago, 
+                    TipoOperacionTesoreria, ModoFacturacion, EstadoPagoContrato as EstadoPagoEnum,
+                    EstadoPendienteFacturar)
 from services.estados_pago_service import EstadosPagoService
 from services.audit_service import AuditService, serialize_model
 import logging
@@ -34,10 +35,11 @@ class TreasuryIntegrationService:
         
         try:
             if contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA:
-                # Para OCs: Crear automáticamente en Tesorería
-                estado_oc = self._create_oc_automatically(contrato, created_by)
-                if estado_oc:
-                    created_estados.append(estado_oc)
+                # Para OCs: Crear en Pendientes de Facturar (flujo simple)
+                pendiente_facturar = self._create_oc_as_pending_invoice(contrato, created_by)
+                if pendiente_facturar:
+                    # Note: PendienteFacturar no se agrega a created_estados (diferente concepto)
+                    logger.info(f"OC creada como pendiente de facturar: {pendiente_facturar.id}")
                     
             elif contrato.tipo_documento == TipoDocumento.CONTRATO:
                 # Para Contratos: Crear estados de pago según lógica de negocio
@@ -51,39 +53,39 @@ class TreasuryIntegrationService:
             logger.error(f"Error procesando contrato {contrato.id}: {str(e)}")
             raise
 
-    def _create_oc_automatically(self, contrato: Contrato, created_by: str) -> Optional[EstadoPago]:
+    def _create_oc_as_pending_invoice(self, contrato: Contrato, created_by: str) -> Optional[PendienteFacturar]:
         """
-        Crea automáticamente una OC en Tesorería
+        Crea una OC como pendiente de facturar (flujo simple)
         """
         try:
             if not contrato.monto_total or contrato.monto_total <= 0:
-                logger.warning(f"OC {contrato.numero_oc} no tiene monto válido para crear en tesorería")
+                logger.warning(f"OC {contrato.numero_oc} no tiene monto válido para crear como pendiente de facturar")
                 return None
                 
             # Fecha programada: 30 días desde emisión o desde hoy
             fecha_base = contrato.fecha_emision or date.today()
             fecha_programada = fecha_base + timedelta(days=30)
             
-            # Crear OC automáticamente
-            estado_pago = self.estados_pago_service.create_orden_compra(
+            # Crear registro en Pendientes de Facturar
+            pendiente_facturar = PendienteFacturar(
                 proyecto_id=contrato.proyecto_id,
+                contrato_id=contrato.id,
                 numero_oc=contrato.numero_oc,
                 monto_neto=contrato.monto_total,
+                estado=EstadoPendienteFacturar.PENDIENTE,
                 fecha_programada=fecha_programada,
                 observaciones=f"OC creada automáticamente desde contrato {contrato.numero_oc}",
                 created_by=created_by
             )
             
-            # Vincular el estado de pago al contrato
-            estado_pago.contrato_id = contrato.id
-            db.session.add(estado_pago)
+            db.session.add(pendiente_facturar)
             db.session.commit()
             
-            logger.info(f"OC creada automáticamente: {estado_pago.id} para contrato {contrato.id}")
-            return estado_pago
+            logger.info(f"OC creada como pendiente de facturar: {pendiente_facturar.id} para contrato {contrato.id}")
+            return pendiente_facturar
             
         except Exception as e:
-            logger.error(f"Error creando OC automática para contrato {contrato.id}: {str(e)}")
+            logger.error(f"Error creando OC como pendiente de facturar para contrato {contrato.id}: {str(e)}")
             raise
 
     def _create_contract_payment_states(self, contrato: Contrato, created_by: str) -> List[EstadoPago]:
@@ -240,12 +242,14 @@ class TreasuryIntegrationService:
 
     def get_contracts_without_treasury_states(self) -> List[Dict[str, Any]]:
         """
-        Obtiene contratos que no tienen estados de pago en tesorería y podrían necesitarlos
+        Obtiene CONTRATOS que no tienen estados de pago en tesorería y podrían necesitarlos
+        (Las OCs van a PendienteFacturar, no a EstadoPago)
         """
         try:
-            # Buscar contratos vigentes sin estados de pago
+            # Solo buscar CONTRATOS sin estados de pago (las OCs van a otro lado)
             contratos_sin_estados = db.session.query(Contrato).filter(
                 Contrato.estado.in_(['VIGENTE', 'BORRADOR']),
+                Contrato.tipo_documento == TipoDocumento.CONTRATO,  # Solo contratos
                 ~Contrato.id.in_(
                     db.session.query(EstadoPago.contrato_id).filter(
                         EstadoPago.contrato_id.isnot(None)
@@ -257,8 +261,8 @@ class TreasuryIntegrationService:
             for contrato in contratos_sin_estados:
                 resultado.append({
                     'contrato': contrato,
-                    'puede_auto_crear': contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA,
-                    'requiere_manual': contrato.tipo_documento == TipoDocumento.CONTRATO,
+                    'puede_auto_crear': False,  # Los contratos requieren revisión manual
+                    'requiere_manual': True,    # Siempre manual para contratos
                     'tiene_anticipo': contrato.anticipo_pct and contrato.anticipo_pct > 0,
                     'modo_facturacion': contrato.modo_facturacion.value if contrato.modo_facturacion else None
                 })
@@ -290,3 +294,55 @@ class TreasuryIntegrationService:
         except Exception as e:
             logger.error(f"Error creando estados para contrato existente {contrato_id}: {str(e)}")
             raise
+
+    def get_pending_invoices(self) -> List[PendienteFacturar]:
+        """
+        Obtiene todas las OCs pendientes de facturar
+        """
+        try:
+            return PendienteFacturar.query.filter(
+                PendienteFacturar.estado.in_([
+                    EstadoPendienteFacturar.PENDIENTE, 
+                    EstadoPendienteFacturar.FACTURADO
+                ])
+            ).order_by(PendienteFacturar.fecha_programada.asc()).all()
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo pendientes de facturar: {str(e)}")
+            return []
+
+    def update_pending_invoice_status(self, pendiente_id: int, nuevo_estado: EstadoPendienteFacturar, 
+                                    updated_by: str, numero_factura: str = None) -> bool:
+        """
+        Actualiza el estado de un pendiente de facturar
+        """
+        try:
+            pendiente = PendienteFacturar.query.get(pendiente_id)
+            if not pendiente:
+                return False
+            
+            # Actualizar estado
+            pendiente.estado = nuevo_estado
+            pendiente.updated_by = updated_by
+            pendiente.updated_at = datetime.utcnow()
+            
+            # Actualizar fechas según el estado
+            if nuevo_estado == EstadoPendienteFacturar.FACTURADO:
+                pendiente.fecha_facturado = date.today()
+                if numero_factura:
+                    pendiente.numero_factura = numero_factura
+                    
+            elif nuevo_estado == EstadoPendienteFacturar.PAGADO:
+                if not pendiente.fecha_facturado:
+                    pendiente.fecha_facturado = date.today()  # Auto-mark as invoiced
+                pendiente.fecha_pagado = date.today()
+            
+            db.session.add(pendiente)
+            db.session.commit()
+            
+            logger.info(f"Estado de pendiente facturar actualizado: {pendiente_id} -> {nuevo_estado.value}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error actualizando estado de pendiente facturar {pendiente_id}: {str(e)}")
+            return False
