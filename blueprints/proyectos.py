@@ -624,10 +624,30 @@ def estados_pago_index():
         # Get OCs as pending invoices (separate concept)
         pendientes_facturar = treasury_service.get_pending_invoices()
         
+        # Get clients with contracts data for the dropdown functionality
+        clientes_contratos = []
+        clientes = clientes_service.get_active_clientes()
+        
+        for cliente in clientes:
+            # Get active projects for this client
+            proyectos_activos = [p for p in cliente.proyectos 
+                               if p.estado_comercial and p.estado_comercial.value in ['EN_DESARROLLO', 'ADJUDICADO']]
+            
+            if proyectos_activos:
+                # Count active projects
+                count_proyectos_activos = len(proyectos_activos)
+                
+                clientes_contratos.append({
+                    'cliente': cliente,
+                    'proyectos_activos': proyectos_activos,
+                    'count_proyectos_activos': count_proyectos_activos
+                })
+        
         return render_template('proyectos/estados_pago_index.html', 
                              proyectos_por_cliente=proyectos_por_cliente,
                              contratos_pendientes=contratos_pendientes,
                              pendientes_facturar=pendientes_facturar,
+                             clientes_contratos=clientes_contratos,
                              title="Tesorería")
         
     except Exception as e:
