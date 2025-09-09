@@ -833,25 +833,30 @@ function dv(T) {
 }
 
 // Enhanced row details functionality
-        document.querySelectorAll('.toggle-details').forEach(button => {
-            button.addEventListener('click', function() {
-                const row = this.closest('tr');
-                if (!row) return;
+function initializeToggleDetails() {
+    document.querySelectorAll('.toggle-details').forEach(button => {
+        button.addEventListener('click', function() {
+            const row = this.closest('tr');
+            if (!row) return;
 
-                const detailsRow = row.nextElementSibling;
+            const detailsRow = row.nextElementSibling;
 
-                if (detailsRow && detailsRow.classList.contains('details-row')) {
-                    detailsRow.style.display = detailsRow.style.display === 'none' ? '' : 'none';
+            if (detailsRow && detailsRow.classList.contains('details-row')) {
+                detailsRow.style.display = detailsRow.style.display === 'none' ? '' : 'none';
 
-                    // Update icon
-                    const icon = this.querySelector('i');
-                    if (icon) {
-                        icon.classList.toggle('fa-chevron-down');
-                        icon.classList.toggle('fa-chevron-up');
-                    }
+                // Update icon
+                const icon = this.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('fa-chevron-down');
+                    icon.classList.toggle('fa-chevron-up');
                 }
-            });
+            }
         });
+    });
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', initializeToggleDetails);
 
 // Treasury operations functions
 function marcarComoPagado(estadoPagoId) {
