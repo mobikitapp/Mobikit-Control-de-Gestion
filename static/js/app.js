@@ -853,8 +853,8 @@ function dv(T) {
             });
         });
 
-// Missing functions for treasury operations
-function marcarEstadoPagoPagado(estadoPagoId) {
+// Treasury operations functions
+function marcarComoPagado(estadoPagoId) {
     const fechaPago = prompt('Fecha de pago (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
     if (!fechaPago) return;
 
@@ -942,22 +942,59 @@ function showAlert(type, message) {
 // Export for use in other scripts
 window.ManufacturingApp = ManufacturingApp;
 window.API = API;
-window.marcarEstadoPagoPagado = marcarEstadoPagoPagado;
-window.eliminarEstadoPago = eliminarEstadoPago;
 window.ngApp = ngApp;
 
-// Additional treasury functions
-function marcarEstadoPagoFacturado(estadoPagoId) {
-    const numeroFactura = prompt('Número de factura (opcional):');
+// Treasury functions
+function marcarComoFacturado(estadoPagoId) {
+    // Try to use modal if exists, otherwise use prompt
+    const modalElement = document.getElementById('modalMarcarFacturado');
+    if (modalElement) {
+        window.estadoPagoParaFacturar = estadoPagoId;
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    } else {
+        // Fallback to prompt
+        const numeroFactura = prompt('Número de factura (opcional):');
+        
+        fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-facturado`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                numero_factura: numeroFactura || ''
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Estado de pago marcado como facturado');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('danger', 'Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'Error al marcar como facturado');
+        });
+    }
+}
+
+// Confirm invoiced modal function
+function confirmarFacturado() {
+    const form = document.getElementById('formMarcarFacturado');
+    if (!form || !window.estadoPagoParaFacturar) return;
     
-    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-facturado`, {
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    fetch(`/proyectos/estados-pago/${window.estadoPagoParaFacturar}/marcar-facturado`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            numero_factura: numeroFactura || ''
-        })
+        body: JSON.stringify(data)
     })
     .then(response => response.json())
     .then(data => {
@@ -974,5 +1011,12 @@ function marcarEstadoPagoFacturado(estadoPagoId) {
     });
 }
 
-// Export the new function
-window.marcarEstadoPagoFacturado = marcarEstadoPagoFacturado;
+// Export functions to global scope
+window.marcarComoPagado = marcarComoPagado;
+window.marcarComoFacturado = marcarComoFacturado;
+window.confirmarFacturado = confirmarFacturado;
+window.eliminarEstadoPago = eliminarEstadoPago;
+
+// Keep legacy names for backward compatibility
+window.marcarEstadoPagoPagado = marcarComoPagado;
+window.marcarEstadoPagoFacturado = marcarComoFacturado;
