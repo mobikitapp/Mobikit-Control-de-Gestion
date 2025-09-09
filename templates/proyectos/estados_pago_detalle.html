@@ -582,6 +582,43 @@ function marcarPendienteFacturado(pendienteId, numeroOc) {
     .then(data => {
         if (data.success) {
             showAlert('success', data.message);
+            location.reload();
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function marcarPendientePagado(pendienteId, numeroOc) {
+    if (!confirm(`¿Marcar OC ${numeroOc} como pagada?`)) return;
+
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+
+    fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-facturado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            numero_factura: numeroFactura
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
             location.reload(); // Refresh to update the UI
         } else {
             showAlert('danger', 'Error: ' + data.message);
@@ -637,31 +674,106 @@ function marcarPendientePagado(pendienteId, numeroOc) {
 
 // Functions for managing scheduled dates
 function definirFechaProgramada(pendienteId, numeroOc) {
-    const fechaInput = prompt(`Definir fecha programada para OC ${numeroOc} (YYYY-MM-DD):`);
-    if (fechaInput === null) return; // User cancelled
-    
-    // Validate date format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(fechaInput)) {
-        alert('Formato de fecha inválido. Use YYYY-MM-DD');
-        return;
-    }
-    
-    actualizarFechaProgramada(pendienteId, numeroOc, fechaInput);
+    mostrarModalFechaProgramadaDetalle(pendienteId, numeroOc, null, 'definir');
 }
 
 function editarFechaProgramada(pendienteId, numeroOc, fechaActual) {
-    const fechaInput = prompt(`Editar fecha programada para OC ${numeroOc} (YYYY-MM-DD):`, fechaActual);
-    if (fechaInput === null) return; // User cancelled
-    
-    // Validate date format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(fechaInput)) {
-        alert('Formato de fecha inválido. Use YYYY-MM-DD');
+    mostrarModalFechaProgramadaDetalle(pendienteId, numeroOc, fechaActual, 'editar');
+}
+
+function mostrarModalFechaProgramadaDetalle(pendienteId, numeroOc, fechaActual, accion) {
+    const modalHtml = `
+        <div class="modal fade" id="modalFechaProgramadaDetalle" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i data-feather="calendar" class="me-2"></i>
+                            ${accion === 'definir' ? 'Definir' : 'Editar'} Fecha Programada - OC ${numeroOc}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formFechaProgramadaDetalle">
+                            <div class="mb-3">
+                                <label for="fechaProgramadaInputDetalle" class="form-label">Fecha Programada de Facturación</label>
+                                <input type="date" class="form-control" id="fechaProgramadaInputDetalle" 
+                                       value="${fechaActual || ''}" required>
+                                <small class="form-text text-muted">
+                                    Seleccione la fecha en que planea facturar esta OC
+                                </small>
+                            </div>
+                            <input type="hidden" id="pendienteIdDetalle" value="${pendienteId}">
+                            <input type="hidden" id="numeroOcDetalle" value="${numeroOc}">
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="confirmarFechaProgramadaDetalle()">
+                            <i data-feather="save" class="me-1"></i>
+                            ${accion === 'definir' ? 'Definir' : 'Actualizar'} Fecha
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('modalFechaProgramadaDetalle');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('modalFechaProgramadaDetalle'));
+    modal.show();
+
+    // Set minimum date to today
+    const fechaInput = document.getElementById('fechaProgramadaInputDetalle');
+    const today = new Date().toISOString().split('T')[0];
+    fechaInput.min = today;
+
+    // Replace feather icons
+    setTimeout(() => {
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    }, 100);
+}
+
+function confirmarFechaProgramadaDetalle() {
+    const pendienteId = document.getElementById('pendienteIdDetalle').value;
+    const numeroOc = document.getElementById('numeroOcDetalle').value;
+    const nuevaFecha = document.getElementById('fechaProgramadaInputDetalle').value;
+
+    if (!nuevaFecha) {
+        alert('Por favor seleccione una fecha');
         return;
     }
+
+    // Validate date is not in the past
+    const selectedDate = new Date(nuevaFecha);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    actualizarFechaProgramada(pendienteId, numeroOc, fechaInput);
+    if (selectedDate < today) {
+        if (!confirm('La fecha seleccionada es anterior a hoy. ¿Está seguro de continuar?')) {
+            return;
+        }
+    }
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalFechaProgramadaDetalle'));
+    if (modal) {
+        modal.hide();
+    }
+
+    // Update the scheduled date
+    actualizarFechaProgramada(pendienteId, numeroOc, nuevaFecha);
 }
 
 function actualizarFechaProgramada(pendienteId, numeroOc, nuevaFecha) {
