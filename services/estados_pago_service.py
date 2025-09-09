@@ -222,7 +222,7 @@ class EstadosPagoService:
         return self.repo.get_proximos_vencimientos(dias)
 
     def marcar_como_pagado(self, estado_pago_id: int, fecha_pago: date = None, observaciones: str = None) -> EstadoPago:
-        """Mark estado pago as paid"""
+        """Mark estado pago as paid with state validation"""
         try:
             if fecha_pago is None:
                 fecha_pago = datetime.now().date()
@@ -231,6 +231,14 @@ class EstadosPagoService:
             estado_pago = self.repo.get_by_id(estado_pago_id)
             if not estado_pago:
                 raise ValueError(f"Estado de pago {estado_pago_id} no encontrado")
+            
+            # Validate state transition: must be invoiced before being marked as paid
+            if not estado_pago.facturado:
+                raise ValueError("El estado de pago debe estar facturado antes de marcarlo como pagado")
+            
+            # Check if already paid
+            if estado_pago.estado == EstadoPagoContrato.PAGADO:
+                raise ValueError("El estado de pago ya está marcado como pagado")
 
             # Store original data for audit
             datos_anteriores = serialize_model(estado_pago)
@@ -308,11 +316,21 @@ class EstadosPagoService:
         return self.create_estado_pago(estado_pago_data, created_by)
     
     def marcar_como_facturado(self, estado_pago_id: int, numero_factura: str, updated_by: str) -> bool:
-        """Marcar un estado de pago como facturado"""
+        """Marcar un estado de pago como facturado con validación de estado"""
         try:
             estado_pago = self.repo.get_by_id(estado_pago_id)
             if not estado_pago:
                 logger.error(f"Estado de pago {estado_pago_id} no encontrado")
+                return False
+            
+            # Check if already invoiced
+            if estado_pago.facturado:
+                logger.warning(f"Estado de pago {estado_pago_id} ya está facturado")
+                return False
+            
+            # Check if already paid (shouldn't happen but safeguard)
+            if estado_pago.estado == EstadoPagoContrato.PAGADO:
+                logger.error(f"No se puede facturar un estado de pago que ya está pagado")
                 return False
             
             # Store original data for audit
