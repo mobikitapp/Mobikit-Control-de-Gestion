@@ -1170,6 +1170,75 @@ def marcar_contrato_facturado(contrato_id):
             'success': False,
             'message': f'Error al marcar como facturado: {str(e)}'
         }), 500
+@proyectos_bp.route('/<int:proyecto_id>/limpiar-kpi', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def limpiar_datos_kpi(proyecto_id):
+    """Limpiar/resetear datos de KPI del proyecto"""
+    try:
+        from models import EstadoPago, OrdenAreaProgreso, PendienteFacturar
+        
+        data = request.get_json() or {}
+        tipo_limpieza = data.get('tipo', 'todo')  # 'financiero', 'eficiencia', 'todo'
+        
+        # Verificar que el proyecto existe
+        proyecto = Proyecto.query.get_or_404(proyecto_id)
+        
+        eliminaciones = []
+        
+        if tipo_limpieza in ['financiero', 'todo']:
+            # Eliminar estados de pago relacionados con contratos del proyecto
+            estados_eliminados = 0
+            for contrato in proyecto.contratos:
+                estados_pago = EstadoPago.query.filter_by(contrato_id=contrato.id).all()
+                for estado in estados_pago:
+                    estado.deleted = True
+                    estado.updated_by = current_user.id
+                    estados_eliminados += 1
+            
+            # Eliminar pendientes de facturación relacionados
+            pendientes_eliminados = 0
+            pendientes = PendienteFacturar.query.join(Contrato).filter(
+                Contrato.proyecto_id == proyecto_id
+            ).all()
+            
+            for pendiente in pendientes:
+                pendiente.deleted = True
+                pendiente.updated_by = current_user.id
+                pendientes_eliminados += 1
+            
+            eliminaciones.append(f"Estados de pago financiero: {estados_eliminados}")
+            eliminaciones.append(f"Pendientes de facturación: {pendientes_eliminados}")
+        
+        if tipo_limpieza in ['eficiencia', 'todo']:
+            # Eliminar datos de progreso por área
+            progreso_eliminados = 0
+            progresos = OrdenAreaProgreso.query.join(OrdenFabricacion).filter(
+                OrdenFabricacion.proyecto_id == proyecto_id
+            ).all()
+            
+            for progreso in progresos:
+                db.session.delete(progreso)
+                progreso_eliminados += 1
+            
+            eliminaciones.append(f"Registros de progreso por área: {progreso_eliminados}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Datos de KPI limpiados exitosamente',
+            'detalles': eliminaciones,
+            'proyecto': proyecto.nombre
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error limpiando KPI para proyecto {proyecto_id}: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'message': f'Error al limpiar datos de KPI: {str(e)}'
+        }), 500
+
 @proyectos_bp.route('/<int:proyecto_id>/debug-financial-status')
 @require_role(RolUsuario.ADMIN)
 def debug_financial_status(proyecto_id):
