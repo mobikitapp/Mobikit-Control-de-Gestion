@@ -239,11 +239,11 @@ class EstadosPagoService:
 
             # Update estado_facturacion based on amounts
             if total_facturado == 0:
-                contrato.estado_facturacion = EstadoFacturacion.NO_FACTURADO
+                contrato.estado_facturacion = EstadoFacturacion.POR_FACTURAR
             elif total_facturado >= float(contrato.monto_total or 0):
-                contrato.estado_facturacion = EstadoFacturacion.FACTURADO
+                contrato.estado_facturacion = EstadoFacturacion.FACTURADO_TOTAL
             else:
-                contrato.estado_facturacion = EstadoFacturacion.PARCIAL
+                contrato.estado_facturacion = EstadoFacturacion.FACTURADO_PARCIAL
 
             db.session.flush()
             logger.info(f"Updated contract {contrato_id} financial totals - Facturado: ${total_facturado}, Pagado: ${total_pagado}")
