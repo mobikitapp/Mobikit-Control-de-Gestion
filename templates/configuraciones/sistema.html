@@ -525,7 +525,11 @@ function limpiarCache(event) {
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpiando...';
     button.disabled = true;
 
-    // Enviar solicitud al servidor
+    // Crear área de logs
+    const logArea = createLogArea(button, 'cache-log');
+    addLogMessage(logArea, 'Iniciando limpieza de caché...', 'info');
+
+    // Enviar solicitud al servidor con timeout más largo
     fetch('/configuraciones/limpiar-cache', { 
         method: 'POST',
         headers: {
@@ -535,6 +539,15 @@ function limpiarCache(event) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            addLogMessage(logArea, 'Caché limpiada exitosamente', 'success');
+            
+            // Mostrar detalles si están disponibles
+            if (data.details) {
+                updateProgress(logArea, data.details);
+            }
+            
+            addLogMessage(logArea, 'Proceso completado. Recargando página...', 'success');
+
             // Mostrar mensaje de éxito
             const alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
@@ -551,10 +564,10 @@ function limpiarCache(event) {
             button.innerHTML = originalText;
             button.disabled = false;
 
-            // Auto-recargar después de 2 segundos
+            // Auto-recargar después de 3 segundos para que el usuario vea los logs
             setTimeout(() => {
                 location.reload(true);
-            }, 2000);
+            }, 3000);
 
         } else {
             throw new Error(data.message || 'Error desconocido');
@@ -562,6 +575,7 @@ function limpiarCache(event) {
     })
     .catch(error => {
         console.error('Error limpiando caché:', error);
+        addLogMessage(logArea, `Error: ${error.message}`, 'error');
 
         // Mostrar error
         const alertDiv = document.createElement('div');
@@ -581,6 +595,64 @@ function limpiarCache(event) {
     });
 }
 
+// Funciones auxiliares para el sistema de logging
+function createLogArea(button, logId) {
+    // Buscar si ya existe un área de log
+    let logArea = document.getElementById(logId);
+    if (logArea) {
+        logArea.innerHTML = ''; // Limpiar logs anteriores
+        return logArea;
+    }
+
+    // Crear nueva área de log
+    const cardBody = button.closest('.card-body');
+    logArea = document.createElement('div');
+    logArea.id = logId;
+    logArea.className = 'alert alert-info mt-3';
+    logArea.style.maxHeight = '300px';
+    logArea.style.overflowY = 'auto';
+    logArea.innerHTML = `
+        <h6><i class="fas fa-list-alt me-2"></i>Log de Progreso:</h6>
+        <div class="log-messages" style="font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+        </div>
+    `;
+    
+    cardBody.insertBefore(logArea, cardBody.firstChild);
+    return logArea;
+}
+
+function addLogMessage(logArea, message, type = 'info') {
+    const logMessages = logArea.querySelector('.log-messages');
+    const timestamp = new Date().toLocaleTimeString();
+    const iconMap = {
+        'info': 'fas fa-info-circle text-info',
+        'success': 'fas fa-check-circle text-success',
+        'warning': 'fas fa-exclamation-triangle text-warning',
+        'error': 'fas fa-times-circle text-danger'
+    };
+    
+    const logEntry = document.createElement('div');
+    logEntry.className = 'mb-1';
+    logEntry.innerHTML = `<i class="${iconMap[type] || iconMap['info']} me-2"></i>[${timestamp}] ${message}`;
+    
+    logMessages.appendChild(logEntry);
+    logMessages.scrollTop = logMessages.scrollHeight; // Auto-scroll al final
+}
+
+function updateProgress(logArea, details) {
+    if (details) {
+        if (details.garbage_collected !== undefined) {
+            addLogMessage(logArea, `Garbage collection: ${details.garbage_collected} objetos limpiados`, 'success');
+        }
+        if (details.temp_files_cleaned !== undefined) {
+            addLogMessage(logArea, `Archivos temporales: ${details.temp_files_cleaned} archivos eliminados`, 'success');
+        }
+        if (details.modules_count !== undefined) {
+            addLogMessage(logArea, `Módulos en memoria: ${details.modules_count}`, 'info');
+        }
+    }
+}
+
 function limpiarDatos(event) {
     // Mostrar confirmación para limpieza de datos
     if (!confirm('¿Está seguro de que desea eliminar TODOS los datos de producción (proyectos, contratos, órdenes de compra, órdenes de fabricación y despachos)? Esta acción NO se puede deshacer.')) {
@@ -593,8 +665,13 @@ function limpiarDatos(event) {
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpiando datos...';
     button.disabled = true;
 
+    // Crear área de logs
+    const logArea = createLogArea(button, 'data-log');
+    addLogMessage(logArea, 'Iniciando limpieza de datos de producción...', 'info');
+    addLogMessage(logArea, 'ADVERTENCIA: Esta operación eliminará TODOS los datos', 'warning');
+
     // Enviar solicitud al servidor para limpiar datos
-    fetch('/configuraciones/limpiar-datos-produccion', { 
+    fetch('/configuraciones/limpiar-datos', { 
         method: 'POST',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
@@ -603,6 +680,10 @@ function limpiarDatos(event) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            addLogMessage(logArea, 'Datos de producción limpiados exitosamente', 'success');
+            addLogMessage(logArea, 'Todas las tablas de producción han sido vaciadas', 'success');
+            addLogMessage(logArea, 'Secuencias de base de datos reseteadas', 'success');
+            
             // Mostrar mensaje de éxito
             const alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
@@ -619,10 +700,7 @@ function limpiarDatos(event) {
             button.innerHTML = originalText;
             button.disabled = false;
 
-            // Opcional: Recargar la página o actualizar partes de la UI después de limpiar datos
-            // setTimeout(() => {
-            //     location.reload(true);
-            // }, 2000);
+            addLogMessage(logArea, 'Proceso completado exitosamente', 'success');
 
         } else {
             throw new Error(data.message || 'Error desconocido al limpiar datos');
@@ -630,6 +708,7 @@ function limpiarDatos(event) {
     })
     .catch(error => {
         console.error('Error limpiando datos de producción:', error);
+        addLogMessage(logArea, `Error: ${error.message}`, 'error');
 
         // Mostrar error
         const alertDiv = document.createElement('div');
