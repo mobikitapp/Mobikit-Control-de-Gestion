@@ -272,6 +272,11 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><h6 class="dropdown-header">{{ current_user.rol.value|title }}</h6></li>
                             <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('capacitacion.index') }}">
+                                <i data-feather="book-open" class="me-1"></i>
+                                Capacitación uso App
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('replit_auth.logout') }}">
                                 <i data-feather="log-out" class="me-1"></i>
                                 Cerrar Sesión
