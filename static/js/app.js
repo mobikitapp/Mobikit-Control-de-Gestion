@@ -865,8 +865,15 @@ function marcarComoPagado(estadoPagoId) {
 
     const observaciones = prompt('Observaciones (opcional):');
 
-    // Show loading indicator
-    showAlert('info', 'Procesando pago...');
+    // Show loading indicator and disable button
+    showAlert('info', '⏳ Procesando pago...');
+    
+    // Disable all payment buttons temporarily
+    const buttons = document.querySelectorAll(`button[onclick*="marcarComoPagado(${estadoPagoId})"]`);
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Procesando...';
+    });
 
     fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
         method: 'POST',
@@ -881,15 +888,31 @@ function marcarComoPagado(estadoPagoId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('success', '✓ Estado de pago marcado como pagado exitosamente');
-            setTimeout(() => location.reload(), 1500);
+            showAlert('success', '✅ Estado de pago marcado como pagado exitosamente');
+            // Add visual celebration effect
+            buttons.forEach(btn => {
+                btn.className = 'btn btn-xs btn-success';
+                btn.innerHTML = '<i data-feather="check-circle" style="width: 10px; height: 10px;"></i> Pagado';
+                btn.disabled = true;
+            });
+            setTimeout(() => location.reload(), 2000);
         } else {
-            showAlert('danger', '⚠ ' + (data.message || 'Error al marcar como pagado'));
+            // Re-enable buttons on error
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-feather="dollar-sign" style="width: 10px; height: 10px;"></i> Pagar';
+            });
+            showAlert('danger', '❌ ' + (data.message || 'Error al marcar como pagado'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('danger', '⚠ Error de conexión al marcar como pagado');
+        // Re-enable buttons on connection error
+        buttons.forEach(btn => {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-feather="dollar-sign" style="width: 10px; height: 10px;"></i> Pagar';
+        });
+        showAlert('danger', '🔌 Error de conexión al marcar como pagado');
     });
 }
 
@@ -964,8 +987,15 @@ function marcarComoFacturado(estadoPagoId) {
         // Fallback to prompt
         const numeroFactura = prompt('Número de factura (opcional):');
         
-        // Show loading indicator
-        showAlert('info', 'Procesando facturación...');
+        // Show loading indicator and disable button
+        showAlert('info', '⏳ Procesando facturación...');
+        
+        // Disable invoice buttons temporarily
+        const buttons = document.querySelectorAll(`button[onclick*="marcarComoFacturado(${estadoPagoId})"]`);
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Facturando...';
+        });
         
         fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-facturado`, {
             method: 'POST',
@@ -1008,7 +1038,7 @@ function confirmarFacturado() {
     }
 
     // Show loading
-    showAlert('info', 'Procesando facturación...');
+    showAlert('info', '⏳ Procesando facturación...');
 
     fetch(`/proyectos/estados-pago/${window.estadoPagoParaFacturar}/marcar-facturado`, {
         method: 'POST',
