@@ -1,4 +1,3 @@
-
 -- PostgreSQL schema for Mobikit system
 
 -- Enable required extensions
@@ -29,24 +28,6 @@ CREATE TABLE IF NOT EXISTS areas (
     nombre VARCHAR(100) NOT NULL UNIQUE,
     descripcion TEXT,
     activo BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Usuarios table
-CREATE TABLE IF NOT EXISTS usuarios (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    rol VARCHAR(20) NOT NULL CHECK (rol IN ('admin', 'general', 'vendedor', 'operación', 'embalaje', 'despacho')),
-    nombre VARCHAR(100) NOT NULL,
-    apellido VARCHAR(100),
-    email VARCHAR(150) UNIQUE,
-    telefono VARCHAR(20),
-    area_id INTEGER REFERENCES areas(id),
-    repl_user_id VARCHAR(100),
-    activo BOOLEAN DEFAULT TRUE,
-    ultimo_acceso TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -103,8 +84,8 @@ CREATE TABLE IF NOT EXISTS proyectos (
     fecha_entrega DATE,
     fecha_entrega_real DATE,
     fecha_estimada_inicio DATE,
-    diseñador_id INTEGER REFERENCES usuarios(id),
-    supervisor_id INTEGER REFERENCES usuarios(id),
+    diseñador_id VARCHAR(255) REFERENCES users(id),
+    supervisor_id VARCHAR(255) REFERENCES users(id),
     monto_neto DECIMAL(12,2),
     monto_neto_provision DECIMAL(12,2),
     monto_neto_instalacion DECIMAL(12,2),
@@ -196,7 +177,7 @@ CREATE TABLE IF NOT EXISTS tareas (
     fecha_programada DATE,
     fecha_inicio TIMESTAMP,
     fecha_completada TIMESTAMP,
-    usuario_asignado_id INTEGER REFERENCES usuarios(id),
+    usuario_asignado_id VARCHAR(255) REFERENCES users(id),
     rol_asignado VARCHAR(20),
     tiempo_estimado INTEGER,
     tiempo_real INTEGER,
@@ -254,7 +235,7 @@ CREATE TABLE IF NOT EXISTS recordatorios (
     id SERIAL PRIMARY KEY,
     tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('proyecto', 'despacho', 'tarea', 'general')),
     referencia_id INTEGER,
-    usuario_id INTEGER REFERENCES usuarios(id),
+    usuario_id VARCHAR(255) REFERENCES users(id),
     area_id INTEGER REFERENCES areas(id),
     titulo VARCHAR(200) NOT NULL,
     mensaje TEXT,
@@ -271,7 +252,7 @@ CREATE TABLE IF NOT EXISTS auditoria (
     tabla_afectada VARCHAR(50) NOT NULL,
     registro_id INTEGER NOT NULL,
     accion VARCHAR(20) NOT NULL CHECK (accion IN ('INSERT', 'UPDATE', 'DELETE', 'ARCHIVE', 'UNARCHIVE')),
-    usuario_id INTEGER REFERENCES usuarios(id),
+    usuario_id VARCHAR(255) REFERENCES users(id),
     valores_anteriores JSONB,
     valores_nuevos JSONB,
     timestamp_accion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -297,7 +278,7 @@ CREATE TABLE IF NOT EXISTS documentos_proyecto (
     tipo_archivo VARCHAR(50) NOT NULL,
     tamaño INTEGER,
     descripcion TEXT,
-    usuario_subida_id INTEGER REFERENCES usuarios(id),
+    usuario_subida_id VARCHAR(255) REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
