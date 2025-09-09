@@ -583,6 +583,7 @@ def marcar_estado_pago_pagado(estado_pago_id):
     """Mark payment state as paid - siguiendo el mismo patrón que las OCs"""
     try:
         from services.estados_pago_service import EstadosPagoService
+        from models import EstadoPagoContrato
 
         # Handle both JSON and form data
         if request.is_json:
@@ -601,8 +602,8 @@ def marcar_estado_pago_pagado(estado_pago_id):
         if not hasattr(estado_pago, 'facturado') or not estado_pago.facturado:
             return jsonify({'success': False, 'message': 'El estado de pago debe estar facturado antes de marcarlo como pagado'}), 400
 
-        # Verificar que no esté ya pagado - safer attribute access
-        if hasattr(estado_pago, 'estado') and estado_pago.estado and hasattr(estado_pago.estado, 'value') and estado_pago.estado.value == 'PAGADO':
+        # Verificar que no esté ya pagado - direct enum comparison
+        if estado_pago.estado == EstadoPagoContrato.PAGADO:
             return jsonify({'success': False, 'message': 'El estado de pago ya está marcado como pagado'}), 400
 
         fecha_pago = None
@@ -612,11 +613,15 @@ def marcar_estado_pago_pagado(estado_pago_id):
             except ValueError:
                 return jsonify({'success': False, 'message': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
 
+        logger.info(f"Marcando estado de pago {estado_pago_id} como pagado. Estado actual: {estado_pago.estado.value if estado_pago.estado else 'None'}")
+
         estado_pago_actualizado = estados_pago_service.marcar_como_pagado(
             estado_pago_id=estado_pago_id,
             fecha_pago=fecha_pago,
             observaciones=data.get('observaciones')
         )
+
+        logger.info(f"Estado de pago {estado_pago_id} actualizado. Nuevo estado: {estado_pago_actualizado.estado.value if estado_pago_actualizado.estado else 'None'}")
 
         return jsonify({
             'success': True,
@@ -625,7 +630,8 @@ def marcar_estado_pago_pagado(estado_pago_id):
                 'id': estado_pago_actualizado.id,
                 'estado': estado_pago_actualizado.estado.value if estado_pago_actualizado.estado else None,
                 'fecha_pago': estado_pago_actualizado.fecha_pago.strftime('%d/%m/%Y') if estado_pago_actualizado.fecha_pago else None,
-                'facturado': getattr(estado_pago_actualizado, 'facturado', False)
+                'facturado': getattr(estado_pago_actualizado, 'facturado', False),
+                'monto_efectivo': float(estado_pago_actualizado.monto_efectivo or 0)
             }
         })
 
@@ -634,6 +640,7 @@ def marcar_estado_pago_pagado(estado_pago_id):
         return jsonify({'success': False, 'message': str(ve)}), 400
     except Exception as e:
         logger.error(f"Error marking estado pago as paid {estado_pago_id}: {str(e)}")
+        db.session.rollback()
         return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
 
 @proyectos_bp.route('/estados-pago')

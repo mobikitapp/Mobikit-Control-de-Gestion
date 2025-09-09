@@ -236,34 +236,37 @@ class EstadosPagoService:
             if not hasattr(estado_pago, 'facturado') or not estado_pago.facturado:
                 raise ValueError("El estado de pago debe estar facturado antes de marcarlo como pagado")
             
-            # Check if already paid - use safer attribute access
-            if hasattr(estado_pago, 'estado') and estado_pago.estado and hasattr(estado_pago.estado, 'value') and estado_pago.estado.value == 'PAGADO':
-                logger.warning(f"Estado de pago {estado_pago_id} ya está pagado, ignorando solicitud")
-                return estado_pago  # Return existing estado instead of raising error
+            # Check if already paid - improved validation
+            if estado_pago.estado == EstadoPagoContrato.PAGADO:
+                logger.warning(f"Estado de pago {estado_pago_id} ya está pagado")
+                return estado_pago
 
             # Store original data for audit
             datos_anteriores = serialize_model(estado_pago)
 
-            update_data = {
-                'estado': EstadoPagoContrato.PAGADO,
-                'fecha_pago': fecha_pago
-            }
+            # Update fields directly on the object
+            estado_pago.estado = EstadoPagoContrato.PAGADO
+            estado_pago.fecha_pago = fecha_pago
+            estado_pago.updated_at = datetime.utcnow()
+            estado_pago.updated_by = 'system'
             
             if observaciones:
-                update_data['observaciones'] = observaciones
+                estado_pago.observaciones = observaciones
 
-            # Update the payment state
-            updated_estado = self.repo.update(estado_pago, update_data)
+            # Mark for update and flush to ensure changes are pending
+            db.session.add(estado_pago)
+            db.session.flush()
             
             # Update contract financial totals if it's a contract payment state
-            if updated_estado and updated_estado.contrato_id:
-                self._update_contract_financial_totals(updated_estado.contrato_id)
+            if estado_pago.contrato_id:
+                logger.info(f"Actualizando totales financieros para contrato {estado_pago.contrato_id}")
+                self._update_contract_financial_totals(estado_pago.contrato_id)
             
             # Commit the transaction
             db.session.commit()
             
             # Log audit
-            datos_nuevos = serialize_model(updated_estado)
+            datos_nuevos = serialize_model(estado_pago)
             if datos_anteriores and datos_nuevos:
                 AuditService.log_action(
                     'estados_pago', 
@@ -273,8 +276,8 @@ class EstadosPagoService:
                     datos_nuevos=datos_nuevos
                 )
             
-            logger.info(f"Estado de pago marcado como pagado: {estado_pago_id}")
-            return updated_estado
+            logger.info(f"Estado de pago marcado como pagado exitosamente: {estado_pago_id}, Estado: {estado_pago.estado.value}")
+            return estado_pago
 
         except Exception as e:
             db.session.rollback()
@@ -381,8 +384,8 @@ class EstadosPagoService:
             from models import Contrato, TipoDocumento, PendienteFacturar, EstadoPendienteFacturar
             from decimal import Decimal
             
-            # Get contract
-            contrato = db.session.query(Contrato).get(contrato_id)
+            # Get contract with explicit session query
+            contrato = db.session.query(Contrato).filter_by(id=contrato_id).first()
             if not contrato:
                 logger.error(f"Contrato {contrato_id} no encontrado para actualizar totales")
                 return
@@ -390,20 +393,27 @@ class EstadosPagoService:
             total_facturado = Decimal('0')
             total_pagado = Decimal('0')
             
+            logger.info(f"Actualizando totales para contrato {contrato_id}, tipo: {contrato.tipo_documento.value}")
+            
             if contrato.tipo_documento == TipoDocumento.CONTRATO:
                 # Para contratos regulares: usar estados de pago
                 estados_pago = self.repo.get_by_contrato_id(contrato_id)
                 
+                logger.info(f"Encontrados {len(estados_pago)} estados de pago para contrato {contrato_id}")
+                
                 for ep in estados_pago:
                     monto = Decimal(str(ep.monto_efectivo or 0))
+                    logger.info(f"Estado de pago {ep.id}: monto={monto}, facturado={ep.facturado}, estado={ep.estado.value if ep.estado else 'None'}")
                     
                     # Check if it's invoiced
                     if hasattr(ep, 'facturado') and ep.facturado:
                         total_facturado += monto
+                        logger.info(f"Sumando a facturado: {monto}")
                     
-                    # Check if it's paid - safer access to enum value
-                    if ep.estado and hasattr(ep.estado, 'value') and ep.estado.value == 'PAGADO':
+                    # Check if it's paid - direct enum comparison
+                    if ep.estado == EstadoPagoContrato.PAGADO:
                         total_pagado += monto
+                        logger.info(f"Sumando a pagado: {monto}")
                         
             elif contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA:
                 # Para OCs: usar pendientes de facturar
@@ -420,19 +430,22 @@ class EstadosPagoService:
                     if pendiente.estado == EstadoPendienteFacturar.PAGADO:
                         total_pagado += monto
             
-            # Update contract fields
+            # Update contract fields with explicit assignment
+            old_facturado = contrato.monto_facturado
+            old_pagado = contrato.monto_pagado
+            
             contrato.monto_facturado = total_facturado
             contrato.monto_pagado = total_pagado
-            
-            # Update audit fields
             contrato.updated_at = datetime.utcnow()
             contrato.updated_by = 'system_sync'
             
+            # Explicitly add to session
             db.session.add(contrato)
-            # Don't commit here - let the caller handle the transaction
+            db.session.flush()
             
             logger.info(f"Totales financieros actualizados para contrato {contrato_id} ({contrato.tipo_documento.value}): "
-                       f"Facturado={total_facturado}, Pagado={total_pagado}")
+                       f"Facturado: {old_facturado} -> {total_facturado}, "
+                       f"Pagado: {old_pagado} -> {total_pagado}")
             
         except Exception as e:
             logger.error(f"Error actualizando totales financieros del contrato {contrato_id}: {str(e)}")
