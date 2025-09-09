@@ -310,11 +310,13 @@
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="fw-medium">Facturación</span>
-                                <span class="badge bg-info">{{ "%.1f"|format(kpi.get('porcentaje_facturado', 0)) }}%</span>
+                                <span class="badge bg-info" id="porcentaje-facturado-badge">{{ "%.1f"|format(kpi.get('porcentaje_facturado', 0)) }}%</span>
                             </div>
                             <div class="progress" style="height: 6px;">
                                 <div class="progress-bar bg-info" role="progressbar" 
-                                     style="width: {{ kpi.get('porcentaje_facturado', 0) }}%">
+                                     id="progress-bar-facturacion"
+                                     style="width: {{ kpi.get('porcentaje_facturado', 0) }}%"
+                                     data-porcentaje="{{ kpi.get('porcentaje_facturado', 0) }}">
                                 </div>
                             </div>
                         </div>
@@ -951,16 +953,89 @@
             refreshFinancialData();
         });
 
-        // Debug: Check KPI data on page load
+        // Debug: Check KPI data on page load and update progress bars
         document.addEventListener('DOMContentLoaded', function() {
-            const progressBar = document.getElementById('progress-bar-cobranza');
-            if (progressBar) {
-                const porcentaje = progressBar.getAttribute('data-porcentaje');
+            const progressBarCobranza = document.getElementById('progress-bar-cobranza');
+            if (progressBarCobranza) {
+                const porcentaje = progressBarCobranza.getAttribute('data-porcentaje');
                 console.log('KPI Cobranza cargado:', porcentaje + '%');
-                
                 // Force update progress bar width (in case of caching issues)
-                progressBar.style.width = porcentaje + '%';
+                progressBarCobranza.style.width = porcentaje + '%';
+            }
+
+            const progressBarFacturacion = document.getElementById('progress-bar-facturacion');
+            if (progressBarFacturacion) {
+                const porcentaje = progressBarFacturacion.getAttribute('data-porcentaje');
+                console.log('KPI Facturación cargado:', porcentaje + '%');
+                // Force update progress bar width (in case of caching issues)
+                progressBarFacturacion.style.width = porcentaje + '%';
             }
         });
+
+        // Helper function to update Cobranza KPI visually
+        function updateCobranzaKPI(porcentaje, showErrorIndicator = false) {
+            const badge = document.getElementById('porcentaje-cobrado-badge');
+            const progressBar = document.getElementById('progress-bar-cobranza');
+
+            if (badge) {
+                badge.textContent = `${porcentaje.toFixed(1)}%`;
+                if (showErrorIndicator) {
+                    badge.classList.add('bg-danger');
+                    badge.classList.remove('bg-success');
+                } else {
+                    badge.classList.add('bg-success');
+                    badge.classList.remove('bg-danger');
+                }
+            }
+            if (progressBar) {
+                progressBar.style.width = `${porcentaje}%`;
+                progressBar.setAttribute('data-porcentaje', porcentaje);
+                if (showErrorIndicator) {
+                    progressBar.classList.add('bg-danger');
+                } else {
+                    progressBar.classList.remove('bg-danger');
+                }
+            }
+        }
+
+        // Helper function to update Facturación KPI visually
+        function updateFacturacionKPI(porcentaje) {
+            const badge = document.getElementById('porcentaje-facturado-badge');
+            const progressBar = document.getElementById('progress-bar-facturacion');
+
+            if (badge) {
+                badge.textContent = `${porcentaje.toFixed(1)}%`;
+            }
+            if (progressBar) {
+                progressBar.style.width = `${porcentaje}%`;
+                progressBar.setAttribute('data-porcentaje', porcentaje);
+            }
+        }
+
+
+        // Cargar KPI de cobranza con cache busting
+        // Cargar KPI de cobranza con cache busting
+            const timestamp = new Date().getTime();
+            fetch(`/api/proyectos/{{ proyecto.id }}/kpi-cobranza?_t=${timestamp}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const porcentajeCobrado = data.porcentaje_cobrado || 0;
+                        console.log('KPI Cobranza cargado:', porcentajeCobrado + '%');
+                        updateCobranzaKPI(porcentajeCobrado);
+
+                        // También actualizar otros KPIs si están disponibles
+                        if (data.porcentaje_facturado !== undefined) {
+                            updateFacturacionKPI(data.porcentaje_facturado);
+                        }
+                    } else {
+                        console.error('Error en respuesta KPI:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error cargando KPI cobranza:', error);
+                    // Mostrar un indicador de error en la UI
+                    updateCobranzaKPI(0, true);
+                });
     </script>
 {% endblock %}

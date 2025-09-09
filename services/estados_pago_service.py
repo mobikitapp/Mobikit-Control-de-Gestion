@@ -350,7 +350,7 @@ class EstadosPagoService:
     def _update_contract_financial_totals(self, contrato_id: int):
         """Update contract financial totals based on payment states"""
         try:
-            from models import Contrato
+            from models import Contrato, TipoDocumento, PendienteFacturar, EstadoPendienteFacturar
             from decimal import Decimal
             
             # Get contract
@@ -359,23 +359,38 @@ class EstadosPagoService:
                 logger.error(f"Contrato {contrato_id} no encontrado para actualizar totales")
                 return
             
-            # Get all payment states for this contract
-            estados_pago = self.repo.get_by_contrato_id(contrato_id)
-            
-            # Calculate totals using monto_efectivo property
             total_facturado = Decimal('0')
             total_pagado = Decimal('0')
             
-            for ep in estados_pago:
-                monto = Decimal(str(ep.monto_efectivo or 0))
+            if contrato.tipo_documento == TipoDocumento.CONTRATO:
+                # Para contratos regulares: usar estados de pago
+                estados_pago = self.repo.get_by_contrato_id(contrato_id)
                 
-                # Check if it's invoiced
-                if hasattr(ep, 'facturado') and ep.facturado:
-                    total_facturado += monto
+                for ep in estados_pago:
+                    monto = Decimal(str(ep.monto_efectivo or 0))
+                    
+                    # Check if it's invoiced
+                    if hasattr(ep, 'facturado') and ep.facturado:
+                        total_facturado += monto
+                    
+                    # Check if it's paid
+                    if ep.estado and ep.estado.value == 'PAGADO':
+                        total_pagado += monto
+                        
+            elif contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA:
+                # Para OCs: usar pendientes de facturar
+                pendientes = PendienteFacturar.query.filter_by(contrato_id=contrato_id).all()
                 
-                # Check if it's paid
-                if ep.estado and ep.estado.value == 'PAGADO':
-                    total_pagado += monto
+                for pendiente in pendientes:
+                    monto = Decimal(str(pendiente.monto_neto or 0))
+                    
+                    # Check if it's invoiced or paid
+                    if pendiente.estado in [EstadoPendienteFacturar.FACTURADO, EstadoPendienteFacturar.PAGADO]:
+                        total_facturado += monto
+                    
+                    # Check if it's paid
+                    if pendiente.estado == EstadoPendienteFacturar.PAGADO:
+                        total_pagado += monto
             
             # Update contract fields
             contrato.monto_facturado = total_facturado
@@ -388,7 +403,7 @@ class EstadosPagoService:
             db.session.add(contrato)
             # Don't commit here - let the caller handle the transaction
             
-            logger.info(f"Totales financieros actualizados para contrato {contrato_id}: "
+            logger.info(f"Totales financieros actualizados para contrato {contrato_id} ({contrato.tipo_documento.value}): "
                        f"Facturado={total_facturado}, Pagado={total_pagado}")
             
         except Exception as e:

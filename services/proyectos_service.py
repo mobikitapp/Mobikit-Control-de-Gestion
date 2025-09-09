@@ -872,10 +872,13 @@ class ProyectosService:
 
             # Calcular porcentajes
             porcentaje_facturado = (monto_facturado_total / total_contratado * 100) if total_contratado > 0 else 0
-            porcentaje_cobrado = (monto_pagado_total / monto_facturado_total * 100) if monto_facturado_total > 0 else 0
+            # Porcentaje cobrado debe ser sobre el total contratado para ser consistente
+            porcentaje_cobrado = (monto_pagado_total / total_contratado * 100) if total_contratado > 0 else 0
 
             # Montos pendientes
             monto_pendiente = total_contratado - monto_pagado_total
+            monto_por_facturar = total_contratado - monto_facturado_total
+            monto_facturado_no_cobrado = monto_facturado_total - monto_pagado_total
             monto_parcial = 0  # Para futuras implementaciones de pagos parciales
 
             # Determinar estado basado en presupuesto vs contratado

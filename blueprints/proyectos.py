@@ -971,6 +971,27 @@ def marcar_estado_pago_facturado(estado_pago_id):
             
         numero_factura = data.get('numero_factura', '')
 
+        if not numero_factura.strip():
+            return jsonify({
+                'success': False,
+                'message': 'El número de factura es requerido'
+            }), 400
+
+        # Verificar que el estado de pago existe
+        estado_pago = estados_pago_service.get_estado_pago_by_id(estado_pago_id)
+        if not estado_pago:
+            return jsonify({
+                'success': False,
+                'message': 'Estado de pago no encontrado'
+            }), 404
+
+        # Verificar que no esté ya facturado
+        if hasattr(estado_pago, 'facturado') and estado_pago.facturado:
+            return jsonify({
+                'success': False,
+                'message': 'El estado de pago ya está marcado como facturado'
+            }), 400
+
         # Update payment state as invoiced
         success = estados_pago_service.marcar_como_facturado(
             estado_pago_id=estado_pago_id,
@@ -981,17 +1002,18 @@ def marcar_estado_pago_facturado(estado_pago_id):
         if success:
             return jsonify({
                 'success': True,
-                'message': 'Estado de pago marcado como facturado exitosamente'
+                'message': f'Estado de pago marcado como facturado (Factura: {numero_factura})'
             })
         else:
             return jsonify({
                 'success': False,
                 'message': 'No se pudo marcar el estado de pago como facturado'
-            }), 400
+            }), 500
 
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Error marcando estado de pago {estado_pago_id} como facturado: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al marcar como facturado: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
 
 @proyectos_bp.route('/api/<int:proyecto_id>/contratos')
 @login_required
@@ -1059,3 +1081,39 @@ def marcar_contrato_facturado(contrato_id):
             'success': False,
             'message': f'Error al marcar como facturado: {str(e)}'
         }), 500
+@proyectos_bp.route('/<int:proyecto_id>/debug-financial-status')
+@require_role(RolUsuario.ADMIN)
+def debug_financial_status(proyecto_id):
+    """Debug endpoint to check financial status calculations"""
+    try:
+        from services.treasury_integration_service import TreasuryIntegrationService
+        from services.estados_pago_service import EstadosPagoService
+        
+        treasury_service = TreasuryIntegrationService()
+        estados_service = EstadosPagoService()
+        
+        # Get project data
+        proyecto_data = treasury_service.get_project_treasury_detail(proyecto_id)
+        
+        # Get financial KPI
+        kpi_data = proyectos_service.get_proyecto_with_stats(proyecto_id)
+        
+        debug_info = {
+            'proyecto_id': proyecto_id,
+            'proyecto_data_treasury': {
+                'contratos_count': len(proyecto_data.get('contratos', [])),
+                'ocs_count': len(proyecto_data.get('ordenes_compra', [])),
+                'resumen_financiero': proyecto_data.get('resumen_financiero', {})
+            },
+            'kpi_data': kpi_data.get('stats', {}) if kpi_data else {},
+            'raw_treasury_data': proyecto_data
+        }
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en debug financial status {proyecto_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
