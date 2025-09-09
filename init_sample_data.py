@@ -34,8 +34,6 @@ def init_sample_data():
         print("🚀 Inicializando datos de ejemplo...")
         
         try:
-            # Verificar tabla usuarios y actualizar estructura si es necesaria
-            check_and_update_users_table()
             # Limpiar datos existentes
             print("🧹 Limpiando datos existentes...")
             clear_existing_data()
@@ -185,7 +183,15 @@ def create_system_areas():
         db.session.flush()
         
         for estado_data in estados_data:
-            estado = AreaEstado(area_id=area.id, **estado_data)
+            estado = AreaEstado(
+                area_id=area.id,
+                codigo=estado_data['codigo'],
+                nombre=estado_data['nombre'],
+                orden_en_area=estado_data['orden'],
+                es_inicial=estado_data['es_inicial'],
+                es_final=estado_data['es_final'],
+                activo=True
+            )
             db.session.add(estado)
 
 def create_furniture_categories():
@@ -490,7 +496,7 @@ def create_sample_fabrication_orders():
                 'glosa': f'Lote {j+1} - {["Cocinas", "Closets", "Muebles varios"][j % 3]}',
                 'cantidad_tableros': random.randint(8, 25) if j > 0 else None,  # Primera OF sin tableros para probar validación
                 'fecha_entrega_fabrica': date.today() + timedelta(days=15 + j*10),
-                'estado': [EstadoOF.PENDIENTE_APROBACION_DISENO, EstadoOF.APROBADO, EstadoOF.SECCIONANDO][j % 3],
+                'estado': ['pendiente_aprobacion_diseño', 'aprobado', 'seccionando'][j % 3],
                 'fecha_planificada': date.today() + timedelta(days=5 + j*3),
                 'responsable': 'produccion-001',
                 'notas': f'OF generada automáticamente para lote {j+1}',
@@ -498,7 +504,7 @@ def create_sample_fabrication_orders():
             }
             
             # Si el estado es SECCIONANDO o posterior, agregar fecha_inicio
-            if of_data['estado'] in [EstadoOF.SECCIONANDO, EstadoOF.ENCHAPANDO]:
+            if of_data['estado'] in ['seccionando', 'enchapando']:
                 of_data['fecha_inicio'] = datetime.now() - timedelta(days=random.randint(1, 5))
             
             of = OrdenFabricacion(**of_data)
@@ -537,7 +543,7 @@ def create_sample_despachos():
     """Crea despachos de ejemplo"""
     # Solo crear despachos para OFs que estén en estado avanzado
     ofs_avanzadas = OrdenFabricacion.query.filter(
-        OrdenFabricacion.estado.in_([EstadoOF.SECCIONANDO, EstadoOF.ENCHAPANDO])
+        OrdenFabricacion.estado.in_(['seccionando', 'enchapando'])
     ).all()
     
     for i, of in enumerate(ofs_avanzadas[:2]):  # Solo 2 despachos
