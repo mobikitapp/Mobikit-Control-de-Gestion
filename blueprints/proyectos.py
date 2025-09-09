@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_login import current_user, login_required
 from pydantic import ValidationError
 from app import db
@@ -193,9 +193,16 @@ def detalle(proyecto_id):
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('proyectos.index'))
 
-        return render_template('proyectos/detalle.html',
-                             proyecto=proyecto_data['proyecto'],
-                             stats=proyecto_data['stats'])
+        response = make_response(render_template('proyectos/detalle.html',
+                                               proyecto=proyecto_data['proyecto'],
+                                               stats=proyecto_data['stats']))
+        
+        # Add headers to prevent caching of financial data
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
+        return response
 
     except Exception as e:
         logger.error(f"Error obteniendo proyecto {proyecto_id}: {str(e)}")

@@ -322,13 +322,21 @@
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="fw-medium">Cobranza</span>
-                                <span class="badge bg-success">{{ "%.1f"|format(kpi.get('porcentaje_cobrado', 0)) }}%</span>
+                                <span class="badge bg-success" id="porcentaje-cobrado-badge">{{ "%.1f"|format(kpi.get('porcentaje_cobrado', 0)) }}%</span>
                             </div>
                             <div class="progress" style="height: 6px;">
                                 <div class="progress-bar bg-success" role="progressbar" 
-                                     style="width: {{ kpi.get('porcentaje_cobrado', 0) }}%">
+                                     id="progress-bar-cobranza"
+                                     style="width: {{ kpi.get('porcentaje_cobrado', 0) }}%"
+                                     data-porcentaje="{{ kpi.get('porcentaje_cobrado', 0) }}">
                                 </div>
                             </div>
+                            <!-- Debug info (remove in production) -->
+                            <small class="text-muted">
+                                Debug: Facturado: ${{ "{:,.0f}".format(kpi.get('monto_facturado', 0)) }} | 
+                                Pagado: ${{ "{:,.0f}".format(kpi.get('monto_pagado', 0)) }} | 
+                                % Cobrado: {{ "%.2f"|format(kpi.get('porcentaje_cobrado', 0)) }}%
+                            </small>
                         </div>
 
                         <!-- Payment Summary -->
@@ -926,5 +934,33 @@
             // Simple alert, you can replace with toast notifications
             alert(message);
         }
+
+        // Auto-refresh function for treasury updates
+        function refreshFinancialData() {
+            // Check if we're on a project detail page
+            if (window.location.pathname.includes('/proyectos/') && !window.location.pathname.includes('/editar')) {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000); // Refresh after 2 seconds to allow backend processing
+            }
+        }
+
+        // Listen for custom events from treasury operations
+        document.addEventListener('treasuryUpdate', function(e) {
+            console.log('Treasury update detected, refreshing financial data...');
+            refreshFinancialData();
+        });
+
+        // Debug: Check KPI data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const progressBar = document.getElementById('progress-bar-cobranza');
+            if (progressBar) {
+                const porcentaje = progressBar.getAttribute('data-porcentaje');
+                console.log('KPI Cobranza cargado:', porcentaje + '%');
+                
+                // Force update progress bar width (in case of caching issues)
+                progressBar.style.width = porcentaje + '%';
+            }
+        });
     </script>
 {% endblock %}

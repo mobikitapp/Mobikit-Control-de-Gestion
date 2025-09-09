@@ -120,8 +120,8 @@ class ProyectosService:
                 'progreso_fabricacion': self._calcular_progreso_fabricacion_safe(ordenes),
                 'contratos_asociados': self._get_contratos_count(proyecto_id),
                 'despachos_realizados': self._get_despachos_count(proyecto_id),
-                # New financial KPIs
-                'kpi_financiero': self._calcular_kpi_financiero(proyecto),
+                # New financial KPIs - always recalculate from treasury data
+                'kpi_financiero': self._calculate_financial_kpi_with_treasury(proyecto_id),
                 # New efficiency metrics by area
                 'eficiencia_por_area': self._calcular_eficiencia_por_area(proyecto_id)
             }
@@ -918,11 +918,7 @@ class ProyectosService:
             logger.error(f"Error calculating financial KPI with treasury data for project {proyecto_id}: {str(e)}")
             return {'estado': 'error'}
 
-    def _calculate_financial_kpi(self, proyecto_id: int) -> Dict[str, Any]:
-        """
-        Método legacy - ahora redirige al método con datos de tesorería
-        """
-        return self._calculate_financial_kpi_with_treasury(proyecto_id)
+    
 
     def get_proyectos_financial_summary(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
