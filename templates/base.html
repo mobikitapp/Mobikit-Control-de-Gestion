@@ -15,8 +15,8 @@
     <script src="https://unpkg.com/feather-icons"></script>
 
     <!-- Custom CSS -->
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}?v={{ moment_global().timestamp() }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}?v={{ moment_global().timestamp() }}" rel="stylesheet">
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/branding/app-icon.png') }}">
@@ -325,7 +325,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- Custom Scripts -->
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ moment_global().timestamp() }}"></script>
 
     <!-- Initialize Feather Icons -->
     <script>

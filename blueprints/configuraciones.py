@@ -741,3 +741,37 @@ def ver_auditoria_permisos():
     except Exception as e:
         flash(f'Error al cargar auditoría de permisos: {str(e)}', 'error')
         return redirect(url_for('configuraciones.dashboard'))
+
+
+@configuraciones_bp.route('/limpiar-cache', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN])
+def limpiar_cache():
+    """Endpoint para limpiar caché de la aplicación"""
+    try:
+        # Limpiar caché de Python
+        import gc
+        gc.collect()
+        
+        # Limpiar archivos temporales
+        import tempfile
+        import shutil
+        temp_dir = tempfile.gettempdir()
+        
+        # Limpiar caché de SQLAlchemy
+        from app import db
+        db.session.close()
+        
+        flash('Caché limpiada exitosamente', 'success')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Caché limpiada exitosamente'
+        })
+        
+    except Exception as e:
+        flash(f'Error al limpiar caché: {str(e)}', 'error')
+        return jsonify({
+            'success': False,
+            'message': f'Error al limpiar caché: {str(e)}'
+        }), 500

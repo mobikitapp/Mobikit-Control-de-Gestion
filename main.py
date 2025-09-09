@@ -22,6 +22,16 @@ try:
         db.create_all()
         logger.info("Database tables created")
 
+    # Add cache control headers
+    @app.after_request
+    def after_request(response):
+        # Prevent caching for HTML pages and API responses
+        if response.mimetype == 'text/html' or '/api/' in request.path:
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
+
     # Import routes after app creation
     import routes  # noqa: F401
 
