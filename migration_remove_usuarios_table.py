@@ -35,26 +35,57 @@ def migrate_remove_usuarios_table():
         if table_exists:
             print("Found usuarios table, proceeding with removal...")
             
-            # Drop foreign key constraints first
-            constraints_to_drop = [
+            # First, check and drop all foreign key constraints that reference usuarios
+            print("Checking foreign key constraints...")
+            
+            # Get all foreign key constraints that reference usuarios table
+            cursor.execute("""
+                SELECT
+                    tc.constraint_name,
+                    tc.table_name,
+                    kcu.column_name
+                FROM 
+                    information_schema.table_constraints AS tc 
+                    JOIN information_schema.key_column_usage AS kcu
+                      ON tc.constraint_name = kcu.constraint_name
+                    JOIN information_schema.constraint_column_usage AS ccu
+                      ON ccu.constraint_name = tc.constraint_name
+                WHERE tc.constraint_type = 'FOREIGN KEY' 
+                AND ccu.table_name='usuarios';
+            """)
+            
+            constraints_to_drop = cursor.fetchall()
+            
+            # Drop all found constraints
+            for constraint in constraints_to_drop:
+                constraint_name = constraint[0]
+                table_name = constraint[1]
+                try:
+                    cursor.execute(f"ALTER TABLE {table_name} DROP CONSTRAINT IF EXISTS {constraint_name}")
+                    print(f"✓ Dropped constraint: {constraint_name} from {table_name}")
+                except Exception as e:
+                    print(f"Warning: Could not drop constraint {constraint_name}: {e}")
+            
+            # Also drop any additional constraints that might exist
+            additional_constraints = [
                 "ALTER TABLE proyectos DROP CONSTRAINT IF EXISTS proyectos_diseñador_id_fkey",
                 "ALTER TABLE proyectos DROP CONSTRAINT IF EXISTS proyectos_supervisor_id_fkey", 
                 "ALTER TABLE tareas DROP CONSTRAINT IF EXISTS tareas_usuario_asignado_id_fkey",
                 "ALTER TABLE auditoria DROP CONSTRAINT IF EXISTS auditoria_usuario_id_fkey",
                 "ALTER TABLE recordatorios DROP CONSTRAINT IF EXISTS recordatorios_usuario_id_fkey",
                 "ALTER TABLE documentos_proyecto DROP CONSTRAINT IF EXISTS documentos_proyecto_usuario_subida_id_fkey"
-            ]
+            ]</old_str>
             
-            for constraint_sql in constraints_to_drop:
+            for constraint_sql in additional_constraints:
                 try:
                     cursor.execute(constraint_sql)
-                    print(f"✓ Dropped constraint: {constraint_sql.split()[-1]}")
+                    print(f"✓ Dropped additional constraint: {constraint_sql.split()[-1]}")
                 except Exception as e:
-                    print(f"Warning: Could not drop constraint: {e}")
+                    print(f"Warning: Could not drop constraint: {e}")</old_str>
             
-            # Now drop the usuarios table
+            # Now drop the usuarios table with CASCADE to handle any remaining references
             cursor.execute("DROP TABLE IF EXISTS usuarios CASCADE")
-            print("✓ Dropped usuarios table")
+            print("✓ Dropped usuarios table with CASCADE")</old_str>
             
             # Update foreign key columns to VARCHAR(255) to match users.id
             column_updates = [
