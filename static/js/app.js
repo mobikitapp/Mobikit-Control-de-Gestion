@@ -28,14 +28,14 @@ const ManufacturingApp = {
         if (this.config.isMobile) {
             // Reduce debounce delay for mobile for better responsiveness
             this.config.debounceDelay = 150;
-            
+
             // Add mobile-specific CSS class
             document.body.classList.add('mobile-device');
-            
+
             // Optimize scroll performance
             document.addEventListener('touchstart', function() {}, {passive: true});
             document.addEventListener('touchmove', function() {}, {passive: true});
-            
+
             // Handle orientation changes
             window.addEventListener('orientationchange', () => {
                 setTimeout(() => {
@@ -43,7 +43,7 @@ const ManufacturingApp = {
                 }, 100);
             });
         }
-        
+
         if (this.config.isTouch) {
             document.body.classList.add('touch-device');
         }
@@ -53,7 +53,7 @@ const ManufacturingApp = {
     handleOrientationChange() {
         // Trigger window resize event to update components
         window.dispatchEvent(new Event('resize'));
-        
+
         // Re-initialize tooltips and popovers after orientation change
         this.initializeBootstrapComponents();
     },
@@ -227,17 +227,17 @@ const ManufacturingApp = {
     // Initialize collapsible filters
     initializeCollapsibleFilters() {
         const filterToggles = document.querySelectorAll('[data-bs-toggle="collapse"]');
-        
+
         filterToggles.forEach(toggle => {
             toggle.addEventListener('click', () => {
                 const target = document.querySelector(toggle.getAttribute('data-bs-target'));
                 const chevron = toggle.querySelector('[data-feather="chevron-down"]');
-                
+
                 if (target && chevron) {
                     toggle.addEventListener('shown.bs.collapse', () => {
                         chevron.style.transform = 'rotate(180deg)';
                     });
-                    
+
                     toggle.addEventListener('hidden.bs.collapse', () => {
                         chevron.style.transform = 'rotate(0deg)';
                     });
@@ -603,8 +603,11 @@ const API = {
 document.addEventListener('DOMContentLoaded', () => {
     ManufacturingApp.init();
 
-    // Inicializar selectores en cascada
-    console.log('Cascade selects initialized');
+    // Initialize cascade selects on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeCascadeSelects();
+        console.log('Cascade selects initialized');
+    });
 
     // Selector de cliente -> proyecto en despachos
     const clienteSelect = document.getElementById('cliente_id');

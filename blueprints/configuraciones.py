@@ -267,27 +267,27 @@ def actualizar_factores():
     """Actualizar factores de tiempo de configuración"""
     try:
         data = request.get_json()
-        
+
         if not data:
             return jsonify({'error': 'No se recibieron datos'}), 400
-            
+
         factor_fabrica = data.get('factor_tiempo_fabrica')
         factor_embalaje = data.get('factor_tiempo_embalaje')
-        
+
         # Validate inputs
         if factor_fabrica is None or factor_embalaje is None:
             return jsonify({'error': 'Faltan datos requeridos'}), 400
-            
+
         if not (0 <= factor_fabrica <= 1) or not (0 <= factor_embalaje <= 1):
             return jsonify({'error': 'Los factores deben estar entre 0 y 1'}), 400
-        
+
         service = ConfiguracionesService()
         success = service.actualizar_factores_tiempo(
             factor_fabrica=factor_fabrica,
             factor_embalaje=factor_embalaje,
             usuario_id=current_user.id
         )
-        
+
         if success:
             return jsonify({
                 'message': 'Factores de tiempo actualizados correctamente',
@@ -296,7 +296,7 @@ def actualizar_factores():
             })
         else:
             return jsonify({'error': 'Error interno al actualizar factores'}), 500
-            
+
     except Exception as e:
         return jsonify({'error': f'Error al actualizar factores: {str(e)}'}), 500
 
@@ -308,10 +308,10 @@ def actualizar_capacidad():
     """Actualizar configuración de capacidad"""
     try:
         data = request.get_json()
-        
+
         if not data:
             return jsonify({'error': 'No se recibieron datos'}), 400
-        
+
         # Extract capacity data
         capacidad_data = {
             'capacidad_maxima_tableros_mes': data.get('capacidad_maxima_tableros_mes'),
@@ -322,17 +322,17 @@ def actualizar_capacidad():
             'horas_por_tablero_estandar': data.get('horas_por_tablero_estandar'),
             'horas_por_tablero_especial': data.get('horas_por_tablero_especial'),
         }
-        
+
         # Validate all required fields are present and positive
         for key, value in capacidad_data.items():
             if value is None:
                 return jsonify({'error': f'Falta el campo requerido: {key}'}), 400
             if value <= 0:
                 return jsonify({'error': f'El valor de {key} debe ser mayor a 0'}), 400
-        
+
         service = ConfiguracionesService()
         success = service.actualizar_configuracion_capacidad(capacidad_data, current_user.id)
-        
+
         if success:
             return jsonify({
                 'message': 'Configuración de capacidad actualizada correctamente',
@@ -340,7 +340,7 @@ def actualizar_capacidad():
             })
         else:
             return jsonify({'error': 'Error interno al actualizar configuración de capacidad'}), 500
-            
+
     except Exception as e:
         return jsonify({'error': f'Error al actualizar capacidad: {str(e)}'}), 500
 
@@ -498,10 +498,10 @@ def gestionar_permisos():
     """Interfaz principal para gestión dinámica de permisos"""
     try:
         service = PermisosService()
-        
+
         # Obtener matriz completa de permisos
         data = service.obtener_matriz_permisos_completa()
-        
+
         if data['success']:
             # Convertir la matriz para JavaScript
             import json
@@ -510,7 +510,7 @@ def gestionar_permisos():
         else:
             flash(f'Error al cargar permisos: {data["error"]}', 'error')
             return redirect(url_for('configuraciones.dashboard'))
-            
+
     except Exception as e:
         flash(f'Error al cargar gestión de permisos: {str(e)}', 'error')
         return redirect(url_for('configuraciones.dashboard'))
@@ -524,15 +524,15 @@ def inicializar_permisos():
     try:
         service = PermisosService()
         success, mensaje = service.inicializar_modulos_sistema(current_user.id)
-        
+
         if success:
             flash(mensaje, 'success')
         else:
             flash(f'Error: {mensaje}', 'error')
-            
+
     except Exception as e:
         flash(f'Error al inicializar permisos: {str(e)}', 'error')
-    
+
     return redirect(url_for('configuraciones.gestionar_permisos'))
 
 
@@ -543,23 +543,23 @@ def actualizar_permiso_individual():
     """Actualiza un permiso específico"""
     try:
         service = PermisosService()
-        
+
         # Obtener datos del formulario
         rol = request.form.get('rol')
         modulo = request.form.get('modulo')
         tipo_permiso = request.form.get('tipo_permiso')
         permitido = request.form.get('permitido') == 'true'
-        
+
         if not all([rol, modulo, tipo_permiso]):
             return jsonify({
                 'success': False,
                 'message': 'Faltan parámetros requeridos'
             }), 400
-        
+
         success, mensaje = service.actualizar_permiso(
             rol, modulo, tipo_permiso, permitido, current_user.id
         )
-        
+
         if success:
             return jsonify({
                 'success': True,
@@ -570,7 +570,7 @@ def actualizar_permiso_individual():
                 'success': False,
                 'message': mensaje
             }), 400
-            
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -585,7 +585,7 @@ def actualizar_permisos_masivo():
     """Actualiza múltiples permisos en una sola operación"""
     try:
         service = PermisosService()
-        
+
         # Obtener datos JSON del cuerpo de la solicitud
         data = request.get_json()
         if not data or 'updates' not in data:
@@ -593,16 +593,16 @@ def actualizar_permisos_masivo():
                 'success': False,
                 'message': 'No se recibieron datos de actualización'
             }), 400
-        
+
         updates = data['updates']
         if not isinstance(updates, list):
             return jsonify({
                 'success': False,
                 'message': 'Los datos de actualización deben ser una lista'
             }), 400
-        
+
         success, resultado = service.actualizar_permisos_masivo(updates, current_user.id)
-        
+
         if success:
             return jsonify({
                 'success': True,
@@ -613,7 +613,7 @@ def actualizar_permisos_masivo():
                 'success': False,
                 'message': str(resultado)
             }), 400
-            
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -628,16 +628,16 @@ def resetear_permisos_rol():
     """Resetea todos los permisos de un rol a los valores por defecto"""
     try:
         service = PermisosService()
-        
+
         rol = request.form.get('rol')
         if not rol:
             return jsonify({
                 'success': False,
                 'message': 'Rol requerido'
             }), 400
-        
+
         success, mensaje = service.resetear_permisos_rol(rol, current_user.id)
-        
+
         if success:
             return jsonify({
                 'success': True,
@@ -648,7 +648,7 @@ def resetear_permisos_rol():
                 'success': False,
                 'message': mensaje
             }), 400
-            
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -664,7 +664,7 @@ def api_obtener_matriz_permisos():
     try:
         service = PermisosService()
         data = service.obtener_matriz_permisos_completa()
-        
+
         if data['success']:
             return jsonify({
                 'success': True,
@@ -675,7 +675,7 @@ def api_obtener_matriz_permisos():
                 'success': False,
                 'message': data['error']
             }), 500
-            
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -690,18 +690,18 @@ def api_auditoria_permisos():
     """API para obtener el historial de cambios en permisos"""
     try:
         service = PermisosService()
-        
+
         # Obtener filtros
         limit = request.args.get('limit', 50, type=int)
         rol_filtro = request.args.get('rol')
         modulo_filtro = request.args.get('modulo')
-        
+
         data = service.obtener_auditoria_permisos(
             limit=limit,
             rol_filtro=rol_filtro,
             modulo_filtro=modulo_filtro
         )
-        
+
         if data['success']:
             return jsonify({
                 'success': True,
@@ -712,7 +712,7 @@ def api_auditoria_permisos():
                 'success': False,
                 'message': data['error']
             }), 500
-            
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -727,17 +727,17 @@ def ver_auditoria_permisos():
     """Vista para el historial de cambios en permisos"""
     try:
         service = PermisosService()
-        
+
         # Obtener historial inicial
         data = service.obtener_auditoria_permisos(limit=50)
-        
+
         if data['success']:
-            return render_template('configuraciones/auditoria_permisos.html', 
+            return render_template('configuraciones/auditoria_permisos.html',
                                  auditorias=data['auditorias'])
         else:
             flash(f'Error al cargar auditoría: {data["error"]}', 'error')
             return redirect(url_for('configuraciones.dashboard'))
-            
+
     except Exception as e:
         flash(f'Error al cargar auditoría de permisos: {str(e)}', 'error')
         return redirect(url_for('configuraciones.dashboard'))
@@ -752,26 +752,160 @@ def limpiar_cache():
         # Limpiar caché de Python
         import gc
         gc.collect()
-        
+
         # Limpiar archivos temporales
         import tempfile
         import shutil
         temp_dir = tempfile.gettempdir()
-        
+
         # Limpiar caché de SQLAlchemy
         from app import db
         db.session.close()
-        
+
         flash('Caché limpiada exitosamente', 'success')
-        
+
         return jsonify({
             'success': True,
             'message': 'Caché limpiada exitosamente'
         })
-        
+
     except Exception as e:
         flash(f'Error al limpiar caché: {str(e)}', 'error')
         return jsonify({
             'success': False,
             'message': f'Error al limpiar caché: {str(e)}'
+        }), 500
+
+@configuraciones_bp.route('/limpiar-datos', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN])
+def limpiar_datos():
+    """Endpoint para limpiar todos los datos de producción"""
+    try:
+        from app import db
+        from sqlalchemy import text
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Ejecutar la limpieza usando SQLAlchemy
+        with db.engine.connect() as conn:
+            with conn.begin():
+                logger.info("Iniciando limpieza de datos de producción...")
+
+                # 1. Eliminar dependencias de órdenes de fabricación
+                logger.info("Eliminando items de órdenes de fabricación...")
+                conn.execute(text("DELETE FROM of_items"))
+
+                logger.info("Eliminando progreso de áreas...")
+                conn.execute(text("DELETE FROM orden_area_progreso"))
+
+                logger.info("Eliminando detalles de despacho...")
+                conn.execute(text("DELETE FROM despacho_ordenes_fabricacion"))
+
+                # 2. Eliminar órdenes de fabricación
+                logger.info("Eliminando órdenes de fabricación...")
+                conn.execute(text("DELETE FROM ordenes_fabricacion"))
+
+                # 3. Eliminar adjuntos de despachos
+                logger.info("Eliminando adjuntos de despachos...")
+                conn.execute(text("DELETE FROM despacho_adjuntos"))
+
+                # 4. Eliminar despachos
+                logger.info("Eliminando despachos...")
+                conn.execute(text("DELETE FROM despachos"))
+
+                # 5. Eliminar hitos de entrega y planes
+                logger.info("Eliminando eventos de entrega...")
+                conn.execute(text("DELETE FROM eventos_entrega"))
+
+                logger.info("Eliminando hitos de entrega...")
+                conn.execute(text("DELETE FROM hitos_entrega"))
+
+                logger.info("Eliminando planes de entrega...")
+                conn.execute(text("DELETE FROM planes_entrega"))
+
+                # 6. Eliminar adjuntos de contratos
+                logger.info("Eliminando adjuntos de contratos...")
+                conn.execute(text("DELETE FROM contrato_adjuntos"))
+
+                # 7. Eliminar estados de pago
+                logger.info("Eliminando estados de pago...")
+                conn.execute(text("DELETE FROM estados_pago"))
+
+                logger.info("Eliminando pendientes de facturar...")
+                conn.execute(text("DELETE FROM pendientes_facturar"))
+
+                # 8. Eliminar entregas de contrato
+                logger.info("Eliminando entregas de contrato...")
+                conn.execute(text("DELETE FROM contrato_entregas"))
+
+                # 9. Limpiar relaciones de categorías de contratos
+                logger.info("Eliminando categorías de contratos...")
+                conn.execute(text("DELETE FROM contrato_categorias"))
+
+                # 10. Eliminar contratos
+                logger.info("Eliminando contratos...")
+                conn.execute(text("DELETE FROM contratos"))
+
+                # 11. Eliminar tareas comerciales
+                logger.info("Eliminando tareas comerciales...")
+                conn.execute(text("DELETE FROM tareas_comerciales"))
+
+                # 12. Eliminar adjuntos de proyectos
+                logger.info("Eliminando adjuntos de proyectos...")
+                conn.execute(text("DELETE FROM proyecto_adjuntos"))
+
+                # 13. Limpiar relaciones de categorías de proyectos
+                logger.info("Eliminando categorías de proyectos...")
+                conn.execute(text("DELETE FROM proyecto_categorias"))
+
+                # 14. Resetear estados de proyectos
+                logger.info("Reseteando estados de proyectos...")
+                conn.execute(text("""
+                    UPDATE proyectos 
+                    SET estado_comercial = 'PENDIENTE_PRESUPUESTO',
+                        fecha_fin_real = NULL,
+                        fecha_adjudicacion = NULL,
+                        updated_at = CURRENT_TIMESTAMP
+                """))
+
+                # 15. Limpiar auditoría relacionada
+                logger.info("Limpiando registros de auditoría...")
+                conn.execute(text("""
+                    DELETE FROM audit_log 
+                    WHERE entidad IN ('ordenes_fabricacion', 'contratos', 'despachos', 'estados_pago')
+                """))
+
+                # 16. Resetear secuencias si existen
+                logger.info("Reseteando secuencias...")
+                try:
+                    sequences = [
+                        "ordenes_fabricacion_id_seq",
+                        "contratos_id_seq", 
+                        "despachos_id_seq",
+                        "estados_pago_id_seq",
+                        "pendientes_facturar_id_seq"
+                    ]
+                    for seq in sequences:
+                        try:
+                            conn.execute(text(f"ALTER SEQUENCE {seq} RESTART WITH 1"))
+                        except Exception:
+                            pass  # Secuencia no existe
+                except Exception as e:
+                    logger.warning(f"No se pudieron resetear secuencias: {e}")
+
+                logger.info("Limpieza de datos completada exitosamente")
+
+        flash('Datos de producción limpiados exitosamente', 'success')
+        return jsonify({
+            'success': True,
+            'message': 'Datos de producción limpiados exitosamente. Los proyectos permanecen activos pero sin órdenes asociadas.'
+        })
+
+    except Exception as e:
+        logger.error(f"Error al limpiar datos: {str(e)}")
+        flash(f'Error al limpiar datos: {str(e)}', 'error')
+        return jsonify({
+            'success': False,
+            'message': f'Error al limpiar datos: {str(e)}'
         }), 500
