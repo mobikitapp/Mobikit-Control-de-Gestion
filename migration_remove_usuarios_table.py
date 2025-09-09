@@ -85,18 +85,7 @@ def migrate_remove_usuarios_table():
             
             # Now drop the usuarios table with CASCADE to handle any remaining references
             cursor.execute("DROP TABLE IF EXISTS usuarios CASCADE")
-            print("✓ Dropped usuarios table with CASCADE")</old_str>
-            
-            for constraint_sql in additional_constraints:
-                try:
-                    cursor.execute(constraint_sql)
-                    print(f"✓ Dropped additional constraint: {constraint_sql.split()[-1]}")
-                except Exception as e:
-                    print(f"Warning: Could not drop constraint: {e}")</old_str>
-            
-            # Now drop the usuarios table with CASCADE to handle any remaining references
-            cursor.execute("DROP TABLE IF EXISTS usuarios CASCADE")
-            print("✓ Dropped usuarios table with CASCADE")</old_str>
+            print("✓ Dropped usuarios table with CASCADE")
             
             # Update foreign key columns to VARCHAR(255) to match users.id
             column_updates = [
