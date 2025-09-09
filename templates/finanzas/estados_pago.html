@@ -8,11 +8,11 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('finanzas.dashboard') }}">Dashboard Financiero</a></li>
             <li class="breadcrumb-item"><a href="{{ url_for('finanzas.detalle_proyecto', proyecto_id=contrato.proyecto.id) }}">{{ contrato.proyecto.nombre }}</a></li>
-            <li class="breadcrumb-item active">{{ contrato.numero_contrato }}</li>
+            <li class="breadcrumb-item active">{{ contrato.numero_oc }}</li>
         </ol>
     </nav>
     
-    <h1 class="h3 mb-4">Estados de Pago - {{ contrato.numero_contrato }}</h1>
+    <h1 class="h3 mb-4">Estados de Pago - {{ contrato.numero_oc }}</h1>
     
     <!-- Información del Contrato -->
     <div class="card mb-4">
@@ -22,7 +22,7 @@
                     <p><strong>Proyecto:</strong> {{ contrato.proyecto.nombre }}</p>
                     <p><strong>Cliente:</strong> {{ contrato.proyecto.cliente.nombre if contrato.proyecto.cliente else 'Sin cliente' }}</p>
                     <p><strong>Tipo:</strong> 
-                        {% if contrato.tipo == 'CONTRATO' %}
+                        {% if contrato.tipo_documento.value == 'CONTRATO' %}
                         <span class="badge bg-primary">Contrato</span>
                         {% else %}
                         <span class="badge bg-info">Orden de Compra</span>

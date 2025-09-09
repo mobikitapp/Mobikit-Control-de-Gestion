@@ -36,6 +36,11 @@
                 <div class="card-body">
                     <h6 class="text-danger">Total Costos</h6>
                     <h4>$ {{ "{:,.0f}".format(total_costos) }}</h4>
+                    {% if costos_son_estimados %}
+                    <small class="text-muted">Estimados por margen</small>
+                    {% else %}
+                    <small class="text-muted">Registrados desde ERP</small>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -75,15 +80,15 @@
                     <tbody>
                         {% for contrato in proyecto.contratos %}
                         <tr>
-                            <td><strong>{{ contrato.numero_contrato }}</strong></td>
+                            <td><strong>{{ contrato.numero_oc }}</strong></td>
                             <td>
-                                {% if contrato.tipo == 'CONTRATO' %}
+                                {% if contrato.tipo_documento.value == 'CONTRATO' %}
                                 <span class="badge bg-primary">Contrato</span>
                                 {% else %}
                                 <span class="badge bg-info">OC</span>
                                 {% endif %}
                             </td>
-                            <td>{{ contrato.descripcion[:50] }}{% if contrato.descripcion|length > 50 %}...{% endif %}</td>
+                            <td>{{ contrato.notas[:50] if contrato.notas }}{% if contrato.notas and contrato.notas|length > 50 %}...{% endif %}</td>
                             <td class="text-end">$ {{ "{:,.0f}".format(contrato.monto_total or 0) }}</td>
                             <td class="text-end">
                                 {% set facturado = contrato.estados_pago|selectattr("tipo_estado", "equalto", "FACTURADO")|sum(attribute="monto") %}

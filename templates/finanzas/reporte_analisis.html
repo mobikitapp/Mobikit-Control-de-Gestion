@@ -146,14 +146,13 @@
         </div>
     </div>
     
-    <!-- Nota sobre costos -->
-    {% if analisis and analisis|sum(attribute='total_costos') == 0 %}
-    <div class="alert alert-warning mt-4">
-        <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Costos no registrados</h6>
-        <p class="mb-0">No se han registrado costos para los proyectos. Los márgenes mostrados solo consideran los ingresos. 
-        Para un análisis completo, ingrese los costos desde su sistema ERP.</p>
+    <!-- Nota sobre costos estimados -->
+    <div class="alert alert-info mt-4">
+        <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Costos Estimados</h6>
+        <p class="mb-0">Los costos mostrados son <strong>estimaciones calculadas</strong> basadas en los márgenes de venta configurados en cada proyecto 
+        (Costo = Monto Presupuestado × (1 - Margen de Venta)). Para obtener márgenes reales, 
+        ingrese los costos actuales desde su sistema ERP en cada proyecto.</p>
     </div>
-    {% endif %}
     
     <!-- Acciones -->
     <div class="mt-4">
