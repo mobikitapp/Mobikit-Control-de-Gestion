@@ -119,18 +119,22 @@ def detalle_proyecto(proyecto_id):
         costos = []  # Por ahora vacío hasta implementar tabla de costos
         
         # Calcular totales
-        total_ingresos = sum(c.monto_total or 0 for c in proyecto.contratos)
+        total_ingresos = float(sum(c.monto_total or 0 for c in proyecto.contratos))
         
         # Calcular costos estimados basados en márgenes de venta hasta que se ingresen costos reales
         if not costos:  # Si no hay costos reales, usar estimados
-            costo_estimado_provision = 0
-            costo_estimado_instalacion = 0
+            costo_estimado_provision = 0.0
+            costo_estimado_instalacion = 0.0
             
             if proyecto.monto_provision_presupuestado and proyecto.margen_venta_provision:
-                costo_estimado_provision = float(proyecto.monto_provision_presupuestado) * (1 - float(proyecto.margen_venta_provision) / 100)
+                monto_provision = float(proyecto.monto_provision_presupuestado)
+                margen_provision = float(proyecto.margen_venta_provision)
+                costo_estimado_provision = monto_provision * (1 - margen_provision / 100)
             
             if proyecto.monto_instalacion_presupuestado and proyecto.margen_venta_instalacion:
-                costo_estimado_instalacion = float(proyecto.monto_instalacion_presupuestado) * (1 - float(proyecto.margen_venta_instalacion) / 100)
+                monto_instalacion = float(proyecto.monto_instalacion_presupuestado) 
+                margen_instalacion = float(proyecto.margen_venta_instalacion)
+                costo_estimado_instalacion = monto_instalacion * (1 - margen_instalacion / 100)
                 
             total_costos = costo_estimado_provision + costo_estimado_instalacion
             costos_son_estimados = True
@@ -292,27 +296,24 @@ def reporte_analisis_proyectos():
         analisis = []
         for proyecto in proyectos:
             # Calcular ingresos
-            total_contratos = sum(c.monto_total or 0 for c in proyecto.contratos)
-            total_facturado = 0
-            total_pagado = 0
-            
-            for contrato in proyecto.contratos:
-                for estado in contrato.estados_pago:
-                    if estado.tipo_estado == TipoEstadoPago.FACTURADO:
-                        total_facturado += estado.monto or 0
-                    elif estado.tipo_estado == TipoEstadoPago.PAGADO:
-                        total_pagado += estado.monto or 0
+            total_contratos = float(sum(c.monto_total or 0 for c in proyecto.contratos))
+            total_facturado = float(sum(estado.monto or 0 for contrato in proyecto.contratos for estado in contrato.estados_pago if estado.tipo_estado == TipoEstadoPago.FACTURADO))
+            total_pagado = float(sum(estado.monto or 0 for contrato in proyecto.contratos for estado in contrato.estados_pago if estado.tipo_estado == TipoEstadoPago.PAGADO))
             
             # Calcular costos estimados basados en márgenes de venta del proyecto
             # Si no hay costos reales del ERP, usar los estimados
-            costo_estimado_provision = 0
-            costo_estimado_instalacion = 0
+            costo_estimado_provision = 0.0
+            costo_estimado_instalacion = 0.0
             
             if proyecto.monto_provision_presupuestado and proyecto.margen_venta_provision:
-                costo_estimado_provision = float(proyecto.monto_provision_presupuestado) * (1 - float(proyecto.margen_venta_provision) / 100)
+                monto_provision = float(proyecto.monto_provision_presupuestado)
+                margen_provision = float(proyecto.margen_venta_provision)
+                costo_estimado_provision = monto_provision * (1 - margen_provision / 100)
             
             if proyecto.monto_instalacion_presupuestado and proyecto.margen_venta_instalacion:
-                costo_estimado_instalacion = float(proyecto.monto_instalacion_presupuestado) * (1 - float(proyecto.margen_venta_instalacion) / 100)
+                monto_instalacion = float(proyecto.monto_instalacion_presupuestado) 
+                margen_instalacion = float(proyecto.margen_venta_instalacion)
+                costo_estimado_instalacion = monto_instalacion * (1 - margen_instalacion / 100)
                 
             total_costos = costo_estimado_provision + costo_estimado_instalacion
             margen = total_contratos - total_costos
