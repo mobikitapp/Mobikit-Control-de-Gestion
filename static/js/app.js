@@ -860,6 +860,9 @@ function marcarComoPagado(estadoPagoId) {
 
     const observaciones = prompt('Observaciones (opcional):');
 
+    // Show loading indicator
+    showAlert('info', 'Procesando pago...');
+
     fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
         method: 'POST',
         headers: {
@@ -873,15 +876,15 @@ function marcarComoPagado(estadoPagoId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('success', 'Estado de pago marcado como pagado exitosamente');
-            setTimeout(() => location.reload(), 1000);
+            showAlert('success', '✓ Estado de pago marcado como pagado exitosamente');
+            setTimeout(() => location.reload(), 1500);
         } else {
-            showAlert('danger', 'Error: ' + data.message);
+            showAlert('danger', '⚠ ' + (data.message || 'Error al marcar como pagado'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('danger', 'Error al marcar como pagado');
+        showAlert('danger', '⚠ Error de conexión al marcar como pagado');
     });
 }
 
@@ -956,6 +959,9 @@ function marcarComoFacturado(estadoPagoId) {
         // Fallback to prompt
         const numeroFactura = prompt('Número de factura (opcional):');
         
+        // Show loading indicator
+        showAlert('info', 'Procesando facturación...');
+        
         fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-facturado`, {
             method: 'POST',
             headers: {
@@ -968,15 +974,15 @@ function marcarComoFacturado(estadoPagoId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showAlert('success', 'Estado de pago marcado como facturado');
-                setTimeout(() => location.reload(), 1000);
+                showAlert('success', '✓ Estado de pago marcado como facturado');
+                setTimeout(() => location.reload(), 1500);
             } else {
-                showAlert('danger', 'Error: ' + data.message);
+                showAlert('danger', '⚠ ' + (data.message || 'Error al marcar como facturado'));
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showAlert('danger', 'Error al marcar como facturado');
+            showAlert('danger', '⚠ Error de conexión al marcar como facturado');
         });
     }
 }
@@ -989,6 +995,16 @@ function confirmarFacturado() {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
 
+    // Close modal first
+    const modalElement = document.getElementById('modalMarcarFacturado');
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) modal.hide();
+    }
+
+    // Show loading
+    showAlert('info', 'Procesando facturación...');
+
     fetch(`/proyectos/estados-pago/${window.estadoPagoParaFacturar}/marcar-facturado`, {
         method: 'POST',
         headers: {
@@ -999,15 +1015,15 @@ function confirmarFacturado() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('success', 'Estado de pago marcado como facturado');
-            setTimeout(() => location.reload(), 1000);
+            showAlert('success', '✓ Estado de pago facturado exitosamente');
+            setTimeout(() => location.reload(), 1500);
         } else {
-            showAlert('danger', 'Error: ' + data.message);
+            showAlert('danger', '⚠ ' + (data.message || 'Error al facturar'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('danger', 'Error al marcar como facturado');
+        showAlert('danger', '⚠ Error de conexión al facturar');
     });
 }
 
