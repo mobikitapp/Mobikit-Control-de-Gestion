@@ -872,7 +872,7 @@ class ProyectosService:
 
             # Calcular porcentajes
             porcentaje_facturado = (monto_facturado_total / total_contratado * 100) if total_contratado > 0 else 0
-            porcentaje_cobrado = (monto_pagado_total / total_contratado * 100) if total_contratado > 0 else 0
+            porcentaje_cobrado = (monto_pagado_total / monto_facturado_total * 100) if monto_facturado_total > 0 else 0
 
             # Montos pendientes
             monto_pendiente = total_contratado - monto_pagado_total
