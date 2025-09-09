@@ -81,6 +81,17 @@ The system follows a modular blueprint architecture with clear separation of con
 
 ## Recent Changes
 
+### 2025-09-09: Simplified Finance Module Implementation
+- **Created simplified finance module** focused on project financial tracking
+- **Key Features**:
+  - Dashboard showing all projects with contracts and payment states
+  - Payment state management (pending invoicing → invoiced → paid)
+  - Support for typical payment types: advance/progress/retention
+  - Manual cost entry from external ERP system
+  - Financial analysis report with margins and collection status
+- **Access Control**: Restricted to Admin and General roles
+- **Purpose**: Provide lightweight financial tracking complementing existing ERP system
+
 ### 2025-09-09: Database Enum Synchronization
 - **Synchronized all enum values across the codebase to match database values**:
   - Updated `EstadoOF` enum in models.py to use lowercase with underscores and Spanish characters (ñ)
