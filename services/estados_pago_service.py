@@ -16,7 +16,7 @@ class EstadosPagoService:
     def __init__(self):
         self.repo = EstadosPagoRepository()
 
-    def create_estado_pago(self, estado_pago_data: Dict[str, Any], created_by: str) -> EstadoPago:
+    def create_estado_pago(self, estado_pago_data: Dict[str, Any], created_by: Optional[str]) -> EstadoPago:
         """Create a new estado pago with validation and audit logging"""
         try:
             # Validate proyecto exists
@@ -221,7 +221,7 @@ class EstadosPagoService:
         """Get estados pago that will expire soon"""
         return self.repo.get_proximos_vencimientos(dias)
 
-    def marcar_como_pagado(self, estado_pago_id: int, fecha_pago: date = None, observaciones: str = None) -> EstadoPago:
+    def marcar_como_pagado(self, estado_pago_id: int, fecha_pago: Optional[date] = None, observaciones: Optional[str] = None) -> EstadoPago:
         """Mark estado pago as paid with state validation"""
         try:
             if fecha_pago is None:
@@ -281,8 +281,8 @@ class EstadosPagoService:
             raise
 
     def create_orden_compra(self, proyecto_id: int, numero_oc: str, monto_neto: Decimal, 
-                          fecha_programada: date = None, observaciones: str = None, 
-                          created_by: str = None) -> EstadoPago:
+                          fecha_programada: Optional[date] = None, observaciones: Optional[str] = None, 
+                          created_by: Optional[str] = None) -> EstadoPago:
         """Create an Orden de Compra payment state"""
         estado_pago_data = {
             'proyecto_id': proyecto_id,
@@ -298,8 +298,8 @@ class EstadosPagoService:
 
     def create_estado_pago_contrato(self, proyecto_id: int, contrato_id: int, descripcion: str,
                                   porcentaje_avance: Decimal, monto_estado_pago: Decimal,
-                                  fecha_programada: date = None, observaciones: str = None,
-                                  created_by: str = None) -> EstadoPago:
+                                  fecha_programada: Optional[date] = None, observaciones: Optional[str] = None,
+                                  created_by: Optional[str] = None) -> EstadoPago:
         """Create a contract payment state"""
         estado_pago_data = {
             'proyecto_id': proyecto_id,
