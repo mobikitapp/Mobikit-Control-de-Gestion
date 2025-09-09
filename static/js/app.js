@@ -970,10 +970,35 @@ function showAlert(type, message) {
     }, 5000);
 }
 
+// Enhanced showAlert function
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i data-feather="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    const container = document.querySelector('.container-fluid') || document.querySelector('.container') || document.body;
+    container.insertBefore(alertDiv, container.firstChild);
+
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
 // Export for use in other scripts
 window.ManufacturingApp = ManufacturingApp;
 window.API = API;
-window.ngApp = ngApp;
+window.showAlert = showAlert;gApp = ngApp;
 
 // Treasury functions
 function marcarComoFacturado(estadoPagoId) {

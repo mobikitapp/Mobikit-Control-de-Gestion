@@ -196,12 +196,12 @@ def detalle(proyecto_id):
         response = make_response(render_template('proyectos/detalle.html',
                                                proyecto=proyecto_data['proyecto'],
                                                stats=proyecto_data['stats']))
-        
+
         # Add headers to prevent caching of financial data
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
-        
+
         return response
 
     except Exception as e:
@@ -590,7 +590,7 @@ def marcar_estado_pago_pagado(estado_pago_id):
             data = request.get_json() or {}
         else:
             data = request.form.to_dict()
-        
+
         estados_pago_service = EstadosPagoService()
 
         # Verificar que el estado de pago existe
@@ -650,45 +650,45 @@ def estados_pago_index():
     try:
         from services.estados_pago_service import EstadosPagoService
         from services.treasury_integration_service import TreasuryIntegrationService
-        
+
         estados_pago_service = EstadosPagoService()
         treasury_service = TreasuryIntegrationService()
-        
+
         # Get all projects with payment states grouped by client
         proyectos_por_cliente = treasury_service.get_projects_grouped_by_client()
-        
+
         # Get contracts that need manual treasury state creation (only CONTRATOS)
         contratos_pendientes = treasury_service.get_contracts_without_treasury_states()
-        
+
         # Get OCs as pending invoices (separate concept)
         pendientes_facturar = treasury_service.get_pending_invoices()
-        
+
         # Get clients with contracts data for the dropdown functionality
         clientes_contratos = []
         clientes = clientes_service.get_active_clientes()
-        
+
         for cliente in clientes:
             # Get active projects for this client
-            proyectos_activos = [p for p in cliente.proyectos 
+            proyectos_activos = [p for p in cliente.proyectos
                                if p.estado_comercial and p.estado_comercial.value in ['EN_DESARROLLO', 'ADJUDICADO']]
-            
+
             if proyectos_activos:
                 # Count active projects
                 count_proyectos_activos = len(proyectos_activos)
-                
+
                 clientes_contratos.append({
                     'cliente': cliente,
                     'proyectos_activos': proyectos_activos,
                     'count_proyectos_activos': count_proyectos_activos
                 })
-        
-        return render_template('proyectos/estados_pago_index.html', 
+
+        return render_template('proyectos/estados_pago_index.html',
                              proyectos_por_cliente=proyectos_por_cliente,
                              contratos_pendientes=contratos_pendientes,
                              pendientes_facturar=pendientes_facturar,
                              clientes_contratos=clientes_contratos,
                              title="Tesorería")
-        
+
     except Exception as e:
         logger.error(f"Error loading estados pago index: {str(e)}")
         flash('Error al cargar Tesorería', 'error')
@@ -701,7 +701,7 @@ def estados_pago_detalle(proyecto_id):
     try:
         from services.treasury_integration_service import TreasuryIntegrationService
         from services.estados_pago_service import EstadosPagoService
-        
+
         treasury_service = TreasuryIntegrationService()
         estados_pago_service = EstadosPagoService()
 
@@ -713,7 +713,7 @@ def estados_pago_detalle(proyecto_id):
 
         # Get all payment states for legacy compatibility (used in modal)
         estados_pago = estados_pago_service.get_estados_pago_by_proyecto(proyecto_id)
-        
+
         # Get all contracts for modal dropdown (legacy)
         contratos_legacy = []
         if proyecto_data.get('contratos'):
@@ -816,15 +816,15 @@ def sync_financial_totals(proyecto_id):
     """Sync financial totals for all contracts in a project - temporary fix endpoint"""
     try:
         from services.estados_pago_service import EstadosPagoService
-        
+
         estados_pago_service = EstadosPagoService()
         updated_count = estados_pago_service.sync_all_contracts_for_project(proyecto_id)
-        
+
         return jsonify({
-            'success': True, 
+            'success': True,
             'message': f'Synchronized {updated_count} contracts for project {proyecto_id}'
         })
-        
+
     except Exception as e:
         logger.error(f"Error syncing financial totals for project {proyecto_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error syncing: {str(e)}'}), 500
@@ -835,18 +835,18 @@ def sync_payment_state_status(estado_pago_id):
     """Sync payment state status and contract totals - fix inconsistencies"""
     try:
         from services.estados_pago_service import EstadosPagoService
-        
+
         estados_pago_service = EstadosPagoService()
         estado_pago = estados_pago_service.get_estado_pago_by_id(estado_pago_id)
-        
+
         if not estado_pago:
             return jsonify({'success': False, 'message': 'Estado de pago no encontrado'}), 404
-        
+
         # Force update contract financial totals
         if estado_pago.contrato_id:
             estados_pago_service._update_contract_financial_totals(estado_pago.contrato_id)
             db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': 'Estado de pago sincronizado correctamente',
@@ -857,7 +857,7 @@ def sync_payment_state_status(estado_pago_id):
                 'fecha_pago': estado_pago.fecha_pago.strftime('%d/%m/%Y') if estado_pago.fecha_pago else None
             }
         })
-        
+
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error syncing payment state {estado_pago_id}: {str(e)}")
@@ -953,6 +953,7 @@ def marcar_pendiente_pagado(pendiente_id):
     try:
         from services.treasury_integration_service import TreasuryIntegrationService
         from models import EstadoPendienteFacturar
+
         treasury_service = TreasuryIntegrationService()
 
         success = treasury_service.update_pending_invoice_status(
@@ -962,19 +963,13 @@ def marcar_pendiente_pagado(pendiente_id):
         )
 
         if success:
-            return jsonify({
-                'success': True,
-                'message': 'OC marcada como pagada exitosamente'
-            })
+            return jsonify({'success': True, 'message': 'Pendiente marcado como pagado exitosamente'})
         else:
-            return jsonify({
-                'success': False,
-                'message': 'No se pudo actualizar el estado de la OC'
-            }), 400
+            return jsonify({'success': False, 'message': 'Error al marcar como pagado'}), 500
 
     except Exception as e:
-        logger.error(f"Error marcando OC {pendiente_id} como pagada: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al marcar como pagada: {str(e)}'}), 500
+        logger.error(f"Error marking pending as paid {pendiente_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al marcar como pagado: {str(e)}'}), 500
 
 @proyectos_bp.route('/pendientes-facturar/<int:pendiente_id>/actualizar-fecha-programada', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
@@ -983,32 +978,32 @@ def actualizar_fecha_programada_pendiente(pendiente_id):
     try:
         from models import PendienteFacturar
         from datetime import datetime
-        
+
         data = request.get_json() or {}
         nueva_fecha_str = data.get('fecha_programada')
-        
+
         if not nueva_fecha_str:
             return jsonify({'success': False, 'message': 'Fecha programada requerida'}), 400
-        
+
         # Validate and parse date
         try:
             nueva_fecha = datetime.strptime(nueva_fecha_str, '%Y-%m-%d').date()
         except ValueError:
             return jsonify({'success': False, 'message': 'Formato de fecha inválido'}), 400
-        
+
         # Get pendiente
         pendiente = PendienteFacturar.query.get(pendiente_id)
         if not pendiente:
             return jsonify({'success': False, 'message': 'Pendiente de facturar no encontrado'}), 404
-        
+
         # Update date
         pendiente.fecha_programada = nueva_fecha
         pendiente.updated_by = current_user.id
         pendiente.updated_at = datetime.utcnow()
-        
+
         db.session.add(pendiente)
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': 'Fecha programada actualizada exitosamente'
@@ -1032,7 +1027,7 @@ def marcar_estado_pago_facturado(estado_pago_id):
             data = request.get_json() or {}
         else:
             data = request.form.to_dict()
-            
+
         numero_factura = data.get('numero_factura', '').strip()
 
         if not numero_factura:
@@ -1164,16 +1159,16 @@ def debug_financial_status(proyecto_id):
     try:
         from services.treasury_integration_service import TreasuryIntegrationService
         from services.estados_pago_service import EstadosPagoService
-        
+
         treasury_service = TreasuryIntegrationService()
         estados_service = EstadosPagoService()
-        
+
         # Get project data
         proyecto_data = treasury_service.get_project_treasury_detail(proyecto_id)
-        
+
         # Get financial KPI
         kpi_data = proyectos_service.get_proyecto_with_stats(proyecto_id)
-        
+
         debug_info = {
             'proyecto_id': proyecto_id,
             'proyecto_data_treasury': {
@@ -1184,12 +1179,12 @@ def debug_financial_status(proyecto_id):
             'kpi_data': kpi_data.get('stats', {}) if kpi_data else {},
             'raw_treasury_data': proyecto_data
         }
-        
+
         return jsonify({
             'success': True,
             'debug_info': debug_info
         })
-        
+
     except Exception as e:
         logger.error(f"Error en debug financial status {proyecto_id}: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
