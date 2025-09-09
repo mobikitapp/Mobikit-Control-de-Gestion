@@ -53,20 +53,6 @@ class EstadoDespacho(Enum):
     ENTREGADO = "ENTREGADO"
     OBSERVADO = "OBSERVADO"
 
-class EstadoFacturacion(Enum):
-    POR_FACTURAR = "POR_FACTURAR"
-    FACTURADO_PARCIAL = "FACTURADO_PARCIAL"
-    FACTURADO_TOTAL = "FACTURADO_TOTAL"
-
-class EstadoPagoContrato(Enum):
-    PENDIENTE = "PENDIENTE"
-    PAGO_PARCIAL = "PAGO_PARCIAL"
-    PAGADO_TOTAL = "PAGADO_TOTAL"
-    VENCIDO = "VENCIDO"
-
-class ModoFacturacion(Enum):
-    AVANCE = "AVANCE"          # Facturación mensual por avance de obra
-    DESPACHO = "DESPACHO"      # Facturación contra despachos conformes
 
 class TipoAdjunto(Enum):
     CONTRATO = "contrato"
@@ -194,28 +180,6 @@ class EstadoDespachoBodega(Enum):
     PARCIALMENTE_DESPACHADO = "parcialmente_despachado" 
     COMPLETAMENTE_DESPACHADO = "completamente_despachado"
 
-class TipoEstadoPago(Enum):
-    ORDEN_COMPRA = "orden_compra"
-    ESTADO_PAGO_CONTRATO = "estado_pago_contrato"
-
-class TipoOperacionTesoreria(Enum):
-    """Tipos específicos de operaciones de tesorería para contratos"""
-    ANTICIPO = "ANTICIPO"                    # Anticipo inicial del contrato
-    AVANCE_MENSUAL = "AVANCE_MENSUAL"        # Pago mensual por avance de obra
-    LIBERACION_RETENCION = "LIBERACION_RETENCION"  # Liberación de retención al final
-
-class EstadoPendienteFacturar(Enum):
-    """Estados para órdenes de compra pendientes de facturar"""
-    PENDIENTE = "PENDIENTE"            # Pendiente de facturar
-    FACTURADO = "FACTURADO"           # Ya fue facturado
-    PAGADO = "PAGADO"                 # Ya fue pagado
-    VENCIDO = "VENCIDO"               # Se venció sin pagar
-
-class EstadoPagoContrato(Enum):
-    PENDIENTE = "pendiente"
-    PAGADO = "pagado"
-    PARCIAL = "parcial"
-    VENCIDO = "vencido"
 
 # Enums para categorización de muebles
 class CategoriaMueble(Enum):
@@ -442,16 +406,6 @@ class Contrato(db.Model):
     condiciones_pago = db.Column(db.Text)
     notas = db.Column(db.Text)
     
-    # Campos de facturación y cobros
-    modo_facturacion = db.Column(db.Enum(ModoFacturacion), default=ModoFacturacion.AVANCE, nullable=True)
-    anticipo_pct = db.Column(db.Numeric(5, 2), default=0.00, nullable=False)  # Porcentaje de anticipo
-    retencion_pct = db.Column(db.Numeric(5, 2), default=0.00, nullable=False)  # Porcentaje de retención
-    
-    # Campos financieros - Fase 1
-    estado_facturacion = db.Column(db.Enum(EstadoFacturacion), default=EstadoFacturacion.POR_FACTURAR, nullable=False)
-    monto_facturado = db.Column(db.Numeric(15, 2), default=0.00, nullable=False)
-    estado_pago = db.Column(db.Enum(EstadoPagoContrato), default=EstadoPagoContrato.PENDIENTE, nullable=False) 
-    monto_pagado = db.Column(db.Numeric(15, 2), default=0.00, nullable=False)
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
@@ -470,38 +424,11 @@ class Contrato(db.Model):
         Index('idx_contrato_numero_oc', 'numero_oc'),
         Index('idx_contrato_estado', 'estado'),
         Index('idx_contrato_fechas', 'fecha_emision', 'fecha_vencimiento'),
-        Index('idx_contrato_estado_facturacion', 'estado_facturacion'),
-        Index('idx_contrato_estado_pago', 'estado_pago'),
     )
 
     def __repr__(self):
         return f'<Contrato {self.numero_oc}>'
     
-    @property
-    def saldo_por_facturar(self):
-        """Calcula el saldo pendiente por facturar"""
-        if not self.monto_total:
-            return 0
-        return float(self.monto_total) - float(self.monto_facturado or 0)
-    
-    @property
-    def saldo_por_cobrar(self):
-        """Calcula el saldo pendiente por cobrar"""
-        return float(self.monto_facturado or 0) - float(self.monto_pagado or 0)
-    
-    @property
-    def porcentaje_facturado(self):
-        """Calcula el porcentaje facturado del contrato"""
-        if not self.monto_total or self.monto_total == 0:
-            return 0
-        return (float(self.monto_facturado or 0) / float(self.monto_total)) * 100
-    
-    @property
-    def porcentaje_pagado(self):
-        """Calcula el porcentaje pagado respecto al monto facturado"""
-        if not self.monto_facturado or self.monto_facturado == 0:
-            return 0
-        return (float(self.monto_pagado or 0) / float(self.monto_facturado)) * 100
 
 class ContratoAdjunto(db.Model):
     __tablename__ = 'contrato_adjuntos'
@@ -1193,136 +1120,6 @@ class EventoEntrega(db.Model):
             from datetime import timedelta
             return self.fecha_evento - timedelta(days=self.recordatorio_dias)
         return None
-
-
-class PendienteFacturar(db.Model):
-    """
-    Órdenes de Compra pendientes de facturar - Flujo simple para OCs
-    Separado conceptualmente de Estados de Pago (que son para contratos)
-    """
-    __tablename__ = 'pendientes_facturar'
-
-    id = db.Column(db.Integer, primary_key=True)
-    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
-    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=False)
-    
-    # Información de la OC
-    numero_oc = db.Column(db.String(100), nullable=False)
-    monto_neto = db.Column(db.Numeric(15, 2), nullable=False)
-    
-    # Estado y fechas
-    estado = db.Column(db.Enum(EstadoPendienteFacturar), default=EstadoPendienteFacturar.PENDIENTE, nullable=False)
-    fecha_programada = db.Column(db.Date, nullable=True)  # Fecha programada de facturación (indefinida por defecto)
-    fecha_facturado = db.Column(db.Date, nullable=True)    # Cuando se facturó
-    fecha_pagado = db.Column(db.Date, nullable=True)       # Cuando se pagó
-    
-    # Información adicional
-    observaciones = db.Column(db.Text, nullable=True)
-    numero_factura = db.Column(db.String(100), nullable=True)  # Número de factura emitida
-    
-    # Auditoría
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    created_by = db.Column(db.String(100), nullable=False)
-    updated_by = db.Column(db.String(100), nullable=True)
-    
-    # Relaciones
-    proyecto = db.relationship('Proyecto', backref='pendientes_facturar', lazy=True)
-    contrato = db.relationship('Contrato', backref='pendientes_facturar', lazy=True)
-    
-    __table_args__ = (
-        Index('idx_pendiente_facturar_proyecto', 'proyecto_id'),
-        Index('idx_pendiente_facturar_estado', 'estado'),
-        Index('idx_pendiente_facturar_fecha', 'fecha_programada'),
-    )
-
-    def __repr__(self):
-        return f'<PendienteFacturar OC:{self.numero_oc} - {self.estado.value}>'
-
-    @property
-    def dias_vencimiento(self):
-        """Días hasta el vencimiento (negativo si ya venció)"""
-        if self.fecha_programada:
-            return (self.fecha_programada - datetime.now().date()).days
-        return None
-
-    @property  
-    def esta_vencido(self):
-        """True si está vencido"""
-        return self.dias_vencimiento is not None and self.dias_vencimiento < 0
-
-
-class EstadoPago(db.Model):
-    """Estados de pago para seguimiento financiero de proyectos"""
-    __tablename__ = 'estados_pago'
-
-    id = db.Column(db.Integer, primary_key=True)
-    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
-    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=True)
-    tipo = db.Column(db.Enum(TipoEstadoPago), nullable=False)
-    
-    # Para Órdenes de Compra
-    numero_oc = db.Column(db.String(100), nullable=True)  # Número de OC
-    monto_neto = db.Column(db.Numeric(15, 2), nullable=True)  # Monto neto de la OC
-    
-    # Para Estados de Pago de Contrato
-    descripcion = db.Column(db.String(500), nullable=True)  # Descripción del estado de pago
-    porcentaje_avance = db.Column(db.Numeric(5, 2), nullable=True)  # % de avance de obra
-    monto_estado_pago = db.Column(db.Numeric(15, 2), nullable=True)  # Monto de este estado de pago
-    
-    # Campos comunes
-    estado = db.Column(db.Enum(EstadoPagoContrato), default=EstadoPagoContrato.PENDIENTE, nullable=False)
-    fecha_programada = db.Column(db.Date, nullable=True)  # Fecha programada de pago
-    fecha_pago = db.Column(db.Date, nullable=True)  # Fecha real de pago
-    
-    # Campo para facturación
-    facturado = db.Column(db.Boolean, default=False, nullable=False)  # Si ha sido facturado
-    fecha_facturacion = db.Column(db.Date, nullable=True)  # Fecha de facturación
-    numero_factura = db.Column(db.String(100), nullable=True)  # Número de factura
-    
-    observaciones = db.Column(db.Text)
-    activo = db.Column(db.Boolean, default=True, nullable=False)
-    
-    created_at = db.Column(db.DateTime, default=utc_now)
-    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
-    created_by = db.Column(db.String, db.ForeignKey('users.id'))
-
-    # Relationships
-    proyecto = db.relationship('Proyecto', backref='estados_pago')
-    contrato = db.relationship('Contrato', backref='estados_pago')
-    creator = db.relationship('User', foreign_keys=[created_by])
-
-    # Indexes
-    __table_args__ = (
-        Index('idx_estado_pago_proyecto', 'proyecto_id'),
-        Index('idx_estado_pago_contrato', 'contrato_id'),
-        Index('idx_estado_pago_tipo', 'tipo'),
-        Index('idx_estado_pago_estado', 'estado'),
-        Index('idx_estado_pago_fecha', 'fecha_programada'),
-        Index('idx_estado_pago_facturado', 'facturado'),
-    )
-
-    def __repr__(self):
-        if self.tipo == TipoEstadoPago.ORDEN_COMPRA:
-            return f'<EstadoPago OC:{self.numero_oc}>'
-        else:
-            return f'<EstadoPago Contrato:{self.contrato_id} - {self.descripcion}>'
-
-    @property
-    def monto_efectivo(self):
-        """Monto efectivo según el tipo de estado de pago"""
-        if self.tipo == TipoEstadoPago.ORDEN_COMPRA:
-            return self.monto_neto or 0
-        else:
-            return self.monto_estado_pago or 0
-
-    @property
-    def titulo_display(self):
-        """Título para mostrar en UI"""
-        if self.tipo == TipoEstadoPago.ORDEN_COMPRA:
-            return f"OC {self.numero_oc}" if self.numero_oc else "OC Sin Número"
-        else:
-            return self.descripcion or f"Estado Pago {self.porcentaje_avance}%"
 
 
 # =============================================================================
