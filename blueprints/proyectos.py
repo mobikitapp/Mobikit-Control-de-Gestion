@@ -971,6 +971,92 @@ def marcar_pendiente_pagado(pendiente_id):
         logger.error(f"Error marking pending as paid {pendiente_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al marcar como pagado: {str(e)}'}), 500
 
+@proyectos_bp.route('/pendientes-facturar/<int:pendiente_id>/definir-fecha-programada', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def definir_fecha_programada_pendiente(pendiente_id):
+    """Definir la fecha programada de un pendiente de facturar (cuando es indefinida)"""
+    try:
+        from models import PendienteFacturar
+        from datetime import datetime
+
+        data = request.get_json() or {}
+        nueva_fecha_str = data.get('fecha_programada')
+
+        if not nueva_fecha_str:
+            return jsonify({'success': False, 'message': 'Fecha programada requerida'}), 400
+
+        # Validate and parse date
+        try:
+            nueva_fecha = datetime.strptime(nueva_fecha_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Formato de fecha inválido'}), 400
+
+        # Get pendiente
+        pendiente = PendienteFacturar.query.get(pendiente_id)
+        if not pendiente:
+            return jsonify({'success': False, 'message': 'Pendiente de facturar no encontrado'}), 404
+
+        # Update date
+        pendiente.fecha_programada = nueva_fecha
+        pendiente.updated_by = current_user.id
+        pendiente.updated_at = datetime.utcnow()
+
+        db.session.add(pendiente)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Fecha programada definida exitosamente'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error definiendo fecha programada para pendiente {pendiente_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al definir fecha: {str(e)}'}), 500
+
+@proyectos_bp.route('/pendientes-facturar/<int:pendiente_id>/editar-fecha-programada', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def editar_fecha_programada_pendiente(pendiente_id):
+    """Editar la fecha programada de un pendiente de facturar (cuando ya existe)"""
+    try:
+        from models import PendienteFacturar
+        from datetime import datetime
+
+        data = request.get_json() or {}
+        nueva_fecha_str = data.get('fecha_programada')
+
+        if not nueva_fecha_str:
+            return jsonify({'success': False, 'message': 'Fecha programada requerida'}), 400
+
+        # Validate and parse date
+        try:
+            nueva_fecha = datetime.strptime(nueva_fecha_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Formato de fecha inválido'}), 400
+
+        # Get pendiente
+        pendiente = PendienteFacturar.query.get(pendiente_id)
+        if not pendiente:
+            return jsonify({'success': False, 'message': 'Pendiente de facturar no encontrado'}), 404
+
+        # Update date
+        pendiente.fecha_programada = nueva_fecha
+        pendiente.updated_by = current_user.id
+        pendiente.updated_at = datetime.utcnow()
+
+        db.session.add(pendiente)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Fecha programada actualizada exitosamente'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error editando fecha programada para pendiente {pendiente_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al editar fecha: {str(e)}'}), 500
+
 @proyectos_bp.route('/pendientes-facturar/<int:pendiente_id>/actualizar-fecha-programada', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
 def actualizar_fecha_programada_pendiente(pendiente_id):

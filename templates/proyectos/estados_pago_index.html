@@ -1,5 +1,6 @@
-// Treasury functions
-function marcarPendienteFacturado(pendienteId, button) {
+<script>
+// Treasury functions - make globally available
+window.marcarPendienteFacturado = function(pendienteId, button) {
     const originalText = button.innerHTML;
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
@@ -34,7 +35,7 @@ function marcarPendienteFacturado(pendienteId, button) {
     });
 }
 
-function editarFechaProgramada(pendienteId, fechaActual) {
+window.editarFechaProgramada = function(pendienteId, fechaActual) {
     // Create a modal for date picker
     const modalHtml = `
         <div class="modal fade" id="editarFechaModal" tabindex="-1">
@@ -73,7 +74,7 @@ function editarFechaProgramada(pendienteId, fechaActual) {
     modal.show();
 }
 
-function guardarFechaProgramada(pendienteId) {
+window.guardarFechaProgramada = function(pendienteId) {
     const nuevaFecha = document.getElementById('nuevaFechaProgramada').value;
 
     if (!nuevaFecha) {
@@ -106,7 +107,7 @@ function guardarFechaProgramada(pendienteId) {
     });
 }
 
-function definirFechaProgramada(pendienteId, button) {
+window.definirFechaProgramada = function(pendienteId, button) {
     const originalText = button.innerHTML;
 
     // Create a modal for date picker
@@ -147,7 +148,7 @@ function definirFechaProgramada(pendienteId, button) {
     modal.show();
 }
 
-function confirmarDefinirFecha(pendienteId, originalText) {
+window.confirmarDefinirFecha = function(pendienteId, originalText) {
     const fecha = document.getElementById('fechaProgramadaDefinir').value;
 
     if (!fecha) {
@@ -178,4 +179,31 @@ function confirmarDefinirFecha(pendienteId, originalText) {
         console.error('Error:', error);
         showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
     });
-}
+};
+
+// Also add missing route handler
+window.definirFechaProgramadaPendiente = function(pendienteId) {
+    fetch(`/proyectos/pendientes-facturar/${pendienteId}/definir-fecha-programada`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            fecha_programada: document.getElementById('fechaProgramadaDefinir').value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload();
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+    });
+};
+</script>
