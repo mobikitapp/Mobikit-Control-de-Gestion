@@ -123,6 +123,37 @@
         </div>
     </div>
 
+    <!-- Cache Management -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Administración de Caché</h6>
+                    <button type="button" class="btn btn-warning btn-sm" onclick="limpiarCache()">
+                        <i class="fas fa-broom"></i> Limpiar Caché
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-info-circle"></i> 
+                                Limpiar la caché puede resolver problemas de actualización y mejorar el rendimiento.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled small">
+                                <li><i class="fas fa-check text-success"></i> Limpia archivos temporales del servidor</li>
+                                <li><i class="fas fa-check text-success"></i> Fuerza recarga de archivos estáticos</li>
+                                <li><i class="fas fa-check text-success"></i> Reinicia sesiones de base de datos</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- System Status -->
     <div class="row mb-4">
         <div class="col-md-12">
@@ -478,26 +509,71 @@ async function updateCapacityFactors(event) {
 }
 
 function limpiarCache() {
-    // Implement cache clearing logic here
-    // This could involve:
-    // 1. Sending a request to a backend endpoint to clear server-side cache
-    // 2. Instructing the browser to clear its cache (though this is usually done by the user)
-    // 3. Forcing a reload of the page with cache-busting parameters
-
-    // Example: Trigger a server-side cache clear and then reload
-    fetch('/configuraciones/limpiar-cache', { method: 'POST' })
-        .then(response => {
-            if (response.ok) {
-                alert('Caché del servidor limpiada. Recargando la página...');
-                location.reload(true); // true forces a reload from the server, bypassing cache
-            } else {
-                alert('Error al limpiar la caché del servidor.');
-            }
-        })
-        .catch(error => {
-            console.error('Error limpiando caché:', error);
-            alert('Error de conexión. No se pudo limpiar la caché.');
-        });
+    // Mostrar confirmación
+    if (!confirm('¿Está seguro de que desea limpiar la caché? Esto forzará una recarga completa del sistema.')) {
+        return;
+    }
+    
+    // Mostrar indicador de carga
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpiando...';
+    button.disabled = true;
+    
+    // Enviar solicitud al servidor
+    fetch('/configuraciones/limpiar-cache', { 
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mostrar mensaje de éxito
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Éxito:</strong> ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const cardBody = button.closest('.card-body');
+            cardBody.insertBefore(alertDiv, cardBody.firstChild);
+            
+            // Restaurar botón
+            button.innerHTML = originalText;
+            button.disabled = false;
+            
+            // Auto-recargar después de 2 segundos
+            setTimeout(() => {
+                location.reload(true);
+            }, 2000);
+            
+        } else {
+            throw new Error(data.message || 'Error desconocido');
+        }
+    })
+    .catch(error => {
+        console.error('Error limpiando caché:', error);
+        
+        // Mostrar error
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <strong>Error:</strong> ${error.message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const cardBody = button.closest('.card-body');
+        cardBody.insertBefore(alertDiv, cardBody.firstChild);
+        
+        // Restaurar botón
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
 }
 
 </script>

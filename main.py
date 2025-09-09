@@ -25,6 +25,7 @@ try:
     # Add cache control headers
     @app.after_request
     def after_request(response):
+        from flask import request
         # Prevent caching for HTML pages and API responses
         if response.mimetype == 'text/html' or '/api/' in request.path:
             response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
