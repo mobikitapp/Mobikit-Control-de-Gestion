@@ -109,7 +109,7 @@ class PrioridadOrden(Enum):
     P2 = "P2"
     P3 = "P3"
     P4 = "P4"
-    
+
     @classmethod
     def get_orden_valor(cls, prioridad):
         """Obtiene el valor numérico para ordenamiento (menor = mayor prioridad)"""
@@ -297,13 +297,13 @@ class Proyecto(db.Model):
     fecha_presupuesto = db.Column(db.Date)
     fecha_adjudicacion = db.Column(db.Date)
     notas_comerciales = db.Column(db.Text)
-    
+
     # Campos adicionales opcionales para vendedores
     tipo_proyecto = db.Column(db.Enum(TipoProyecto), default=TipoProyecto.ESTANDAR)  # Social, Estándar, Especial
     tipo_vivienda = db.Column(db.Enum(TipoVivienda))  # Casa, Departamento
     numero_viviendas = db.Column(db.Integer)  # Número de viviendas
     ubicacion_obra = db.Column(db.String(500))  # Ubicación de la obra (se relaciona con direcciones de despacho)
-    
+
     activo = db.Column(db.Boolean, default=True, nullable=False)
 
     created_at = db.Column(db.DateTime, default=utc_now)
@@ -405,7 +405,7 @@ class Contrato(db.Model):
     fecha_entrega_comprometida = db.Column(db.Date)
     condiciones_pago = db.Column(db.Text)
     notas = db.Column(db.Text)
-    
+
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
@@ -428,7 +428,7 @@ class Contrato(db.Model):
 
     def __repr__(self):
         return f'<Contrato {self.numero_oc}>'
-    
+
 
 class ContratoAdjunto(db.Model):
     __tablename__ = 'contrato_adjuntos'
@@ -595,9 +595,9 @@ class OrdenFabricacion(db.Model):
             current_progress = self.area_progreso_actual
             if not current_progress or not current_progress.area:
                 return self.fecha_entrega_fabrica
-                
+
             area_tipo = current_progress.area.tipo.value
-            
+
             if area_tipo == 'fabrica':
                 return self.fecha_entrega_fabrica
             elif area_tipo == 'embalaje':
@@ -608,22 +608,22 @@ class OrdenFabricacion(db.Model):
                     if self.contrato.plan_entrega:
                         from models import HitoEntrega, EstadoHitoEntrega
                         from datetime import date
-                        
+
                         next_hito = (db.session.query(HitoEntrega)
                                    .filter_by(plan_entrega_id=self.contrato.plan_entrega.id)
                                    .filter(HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE)
                                    .filter(HitoEntrega.fecha_programada >= datetime.now().date())
                                    .order_by(HitoEntrega.fecha_programada.asc())
                                    .first())
-                        
+
                         if next_hito:
                             return next_hito.fecha_programada
-                    
+
                     return self.contrato.fecha_entrega_comprometida
                 return self.fecha_entrega_fabrica
             else:
                 return self.fecha_entrega_fabrica
-                
+
         except Exception:
             return self.fecha_entrega_fabrica
 
@@ -736,7 +736,7 @@ class DespachoAdjunto(db.Model):
 
 class DespachoOrdenFabricacion(db.Model):
     __tablename__ = 'despacho_ordenes_fabricacion'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     despacho_id = db.Column(db.Integer, db.ForeignKey('despachos.id'), nullable=False)
     orden_fabricacion_id = db.Column(db.Integer, db.ForeignKey('ordenes_fabricacion.id'), nullable=False)
@@ -744,15 +744,15 @@ class DespachoOrdenFabricacion(db.Model):
     cantidad_despachada = db.Column(db.Numeric(10, 3), nullable=False)
     cantidad_total = db.Column(db.Numeric(10, 3), nullable=False)
     observaciones = db.Column(db.Text)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     despacho = db.relationship('Despacho', backref=db.backref('ordenes_fabricacion_detalle', lazy=True))
     orden_fabricacion = db.relationship('OrdenFabricacion', backref=db.backref('despachos_detalle', lazy=True))
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_despacho_of_despacho', 'despacho_id'),
@@ -761,19 +761,19 @@ class DespachoOrdenFabricacion(db.Model):
         # Constraint para evitar duplicados
         db.UniqueConstraint('despacho_id', 'orden_fabricacion_id', name='uq_despacho_orden_fabricacion'),
     )
-    
+
     @property
     def porcentaje_despachado(self):
         """Calcula el porcentaje despachado de esta OF en este despacho"""
         if self.cantidad_total and self.cantidad_total > 0:
             return (self.cantidad_despachada / self.cantidad_total) * 100
         return 0
-    
+
     @property
     def cantidad_pendiente(self):
         """Calcula la cantidad pendiente por despachar"""
         return self.cantidad_total - self.cantidad_despachada
-    
+
     def __repr__(self):
         return f'<DespachoOrdenFabricacion D:{self.despacho_id} OF:{self.orden_fabricacion_id}>'
 
@@ -1014,7 +1014,7 @@ class ObjetivoMensual(db.Model):
     objetivo_provision = db.Column(db.Numeric(15, 2))
     objetivo_instalacion = db.Column(db.Numeric(15, 2))
     notas = db.Column(db.Text)
-    
+
     # Revenue Management fields
     buffer_pp = db.Column(db.Numeric(5, 2), default=2.0)  # Buffer sobre Break Even
     utilidad_objetivo_clp = db.Column(db.Numeric(15, 2), default=0)  # Utilidad objetivo en CLP
@@ -1129,21 +1129,21 @@ class EventoEntrega(db.Model):
 class Modulo(db.Model):
     """Módulos del sistema para gestión de permisos"""
     __tablename__ = 'modulos'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), unique=True, nullable=False)
     descripcion = db.Column(db.String(500))
     codigo = db.Column(db.String(50), unique=True, nullable=False)  # ej: 'clientes', 'proyectos'
     activo = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     permisos_rol = db.relationship('PermisoRol', back_populates='modulo', cascade='all, delete-orphan')
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     def __repr__(self):
         return f'<Modulo {self.nombre}>'
 
@@ -1151,21 +1151,21 @@ class Modulo(db.Model):
 class PermisoRol(db.Model):
     """Permisos específicos por rol y módulo"""
     __tablename__ = 'permisos_rol'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     rol = db.Column(db.Enum(RolUsuario), nullable=False)
     modulo_id = db.Column(db.Integer, db.ForeignKey('modulos.id'), nullable=False)
     tipo_permiso = db.Column(db.Enum(TipoPermiso), nullable=False)
     permitido = db.Column(db.Boolean, default=False, nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     updated_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     modulo = db.relationship('Modulo', back_populates='permisos_rol')
     updater = db.relationship('User', foreign_keys=[updated_by])
-    
+
     # Constraints
     __table_args__ = (
         UniqueConstraint('rol', 'modulo_id', 'tipo_permiso', name='uk_permiso_rol_modulo_tipo'),
@@ -1173,7 +1173,7 @@ class PermisoRol(db.Model):
         Index('idx_permiso_modulo', 'modulo_id'),
         Index('idx_permiso_tipo', 'tipo_permiso'),
     )
-    
+
     def __repr__(self):
         return f'<PermisoRol {self.rol.value}-{self.modulo.codigo if self.modulo else "None"}-{self.tipo_permiso.value}>'
 
@@ -1181,7 +1181,7 @@ class PermisoRol(db.Model):
 class AuditoriaPermisos(db.Model):
     """Auditoría de cambios en permisos"""
     __tablename__ = 'auditoria_permisos'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     rol = db.Column(db.Enum(RolUsuario), nullable=False)
     modulo_codigo = db.Column(db.String(50), nullable=False)
@@ -1189,19 +1189,19 @@ class AuditoriaPermisos(db.Model):
     valor_anterior = db.Column(db.Boolean)
     valor_nuevo = db.Column(db.Boolean, nullable=False)
     accion = db.Column(db.String(50), nullable=False)  # 'created', 'updated', 'deleted'
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
-    
+
     # Relationships
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_auditoria_rol', 'rol'),
         Index('idx_auditoria_fecha', 'created_at'),
         Index('idx_auditoria_modulo', 'modulo_codigo'),
     )
-    
+
     def __repr__(self):
         return f'<AuditoriaPermisos {self.rol.value}-{self.modulo_codigo}-{self.tipo_permiso.value}>'

@@ -1,0 +1,1 @@
+# This file has been removed as estados_pago functionality is no longer needed

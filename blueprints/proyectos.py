@@ -158,7 +158,7 @@ def detalle(proyecto_id):
     """Ver detalles del proyecto"""
     try:
         proyecto_data = proyectos_service.get_proyecto_with_stats(proyecto_id)
-        
+
         if not proyecto_data:
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('proyectos.index'))
@@ -242,7 +242,7 @@ def eliminar(proyecto_id):
             return redirect(url_for('proyectos.index'))
 
         success = proyectos_service.delete_proyecto(proyecto_id, current_user.id)
-        
+
         if success:
             flash(f'Proyecto "{proyecto.nombre}" eliminado exitosamente', 'success')
         else:
@@ -261,7 +261,7 @@ def eliminar_adjunto(adjunto_id):
     """Delete project attachment"""
     try:
         success = proyectos_service.delete_adjunto(adjunto_id, current_user.id)
-        
+
         if success:
             return jsonify({'success': True, 'message': 'Documento eliminado exitosamente'})
         else:
