@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Flujo de Caja{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Reporte de Flujo de Caja</h1>
+    
+    <!-- Filtros de fecha -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('finanzas.reporte_flujo_caja') }}" class="row g-3">
+                <div class="col-md-4">
+                    <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" 
+                           value="{{ fecha_inicio }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" 
+                           value="{{ fecha_fin }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Filtrar
+                        </button>
+                        <a href="{{ url_for('finanzas.reporte_flujo_caja') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> Limpiar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if flujo_caja %}
+    <!-- Resumen -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Saldo Inicial</h6>
+                    <h4>$ {{ "{:,.0f}".format(flujo_caja.saldo_inicial) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="text-success">Total Ingresos</h6>
+                    <h4 class="text-success">+ $ {{ "{:,.0f}".format(flujo_caja.total_ingresos) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h6 class="text-danger">Total Egresos</h6>
+                    <h4 class="text-danger">- $ {{ "{:,.0f}".format(flujo_caja.total_egresos) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h6 class="text-primary">Saldo Final</h6>
+                    <h4 class="{% if flujo_caja.saldo_final >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        $ {{ "{:,.0f}".format(flujo_caja.saldo_final) }}
+                    </h4>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Categorías -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Ingresos por Categoría</h5>
+                </div>
+                <div class="card-body">
+                    {% if flujo_caja.categorias_ingresos %}
+                    <ul class="list-group list-group-flush">
+                        {% for cat in flujo_caja.categorias_ingresos %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ cat.categoria }}
+                            <span class="badge bg-success rounded-pill">$ {{ "{:,.0f}".format(cat.total) }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted text-center">Sin ingresos en el período</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Egresos por Categoría</h5>
+                </div>
+                <div class="card-body">
+                    {% if flujo_caja.categorias_egresos %}
+                    <ul class="list-group list-group-flush">
+                        {% for cat in flujo_caja.categorias_egresos %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ cat.categoria }}
+                            <span class="badge bg-danger rounded-pill">$ {{ "{:,.0f}".format(cat.total) }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted text-center">Sin egresos en el período</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Detalle de movimientos -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Detalle de Movimientos</h5>
+        </div>
+        <div class="card-body">
+            {% if flujo_caja.movimientos %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Descripción</th>
+                            <th>Proyecto</th>
+                            <th class="text-end">Monto</th>
+                            <th class="text-end">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in flujo_caja.movimientos %}
+                        <tr>
+                            <td>{{ mov.fecha }}</td>
+                            <td>
+                                <span class="badge bg-{% if mov.tipo == 'INGRESO' %}success{% else %}danger{% endif %} badge-sm">
+                                    {{ mov.tipo }}
+                                </span>
+                            </td>
+                            <td>
+                                {{ mov.descripcion[:60] }}{% if mov.descripcion|length > 60 %}...{% endif %}
+                                {% if mov.referencia %}
+                                <br><small class="text-muted">Ref: {{ mov.referencia }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if mov.proyecto %}
+                                <small>{{ mov.proyecto }}</small>
+                                {% else %}
+                                <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end {% if mov.tipo == 'INGRESO' %}text-success{% else %}text-danger{% endif %}">
+                                {% if mov.tipo == 'INGRESO' %}+{% else %}-{% endif %}
+                                $ {{ "{:,.0f}".format(mov.monto) }}
+                            </td>
+                            <td class="text-end {% if mov.saldo_acumulado >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                $ {{ "{:,.0f}".format(mov.saldo_acumulado) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-4">No hay movimientos en el período seleccionado</p>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No se encontraron movimientos para el período seleccionado.
+    </div>
+    {% endif %}
+    
+    <!-- Acciones -->
+    <div class="mt-4">
+        <a href="{{ url_for('finanzas.tesoreria') }}" class="btn btn-outline-primary">
+            <i class="bi bi-cash-stack"></i> Ver Tesorería
+        </a>
+        <a href="{{ url_for('finanzas.reportes') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Reportes
+        </a>
+    </div>
+</div>
+{% endblock %}

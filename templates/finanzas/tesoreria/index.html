@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Tesorería{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Tesorería</h1>
+        <a href="{{ url_for('finanzas.nuevo_movimiento') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Nuevo Movimiento
+        </a>
+    </div>
+    
+    <!-- Resumen de Saldos -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Saldo Total: $ {{ "{:,.0f}".format(saldo_total.total) }} CLP</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for cuenta in saldo_total.cuentas %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ cuenta.nombre }}</h6>
+                                    <p class="mb-1"><small class="text-muted">{{ cuenta.banco }}</small></p>
+                                    <h5 class="mb-0 {% if cuenta.saldo >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        $ {{ "{:,.0f}".format(cuenta.saldo) }}
+                                    </h5>
+                                    <small class="text-muted">{{ cuenta.moneda }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if not saldo_total.cuentas %}
+                        <div class="col-12">
+                            <p class="text-muted text-center">No hay cuentas bancarias registradas</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Movimientos Recientes -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Movimientos Recientes</h5>
+        </div>
+        <div class="card-body">
+            {% if movimientos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Descripción</th>
+                            <th>Cuenta</th>
+                            <th>Proyecto</th>
+                            <th>Centro Costo</th>
+                            <th class="text-end">Monto</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in movimientos %}
+                        <tr>
+                            <td>{{ mov.fecha }}</td>
+                            <td>
+                                <span class="badge bg-{% if mov.tipo == 'INGRESO' %}success{% elif mov.tipo == 'EGRESO' %}danger{% else %}info{% endif %}">
+                                    {{ mov.tipo }}
+                                </span>
+                            </td>
+                            <td>
+                                {{ mov.descripcion[:50] }}{% if mov.descripcion|length > 50 %}...{% endif %}
+                                {% if mov.referencia %}
+                                <br><small class="text-muted">Ref: {{ mov.referencia }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ mov.cuenta }}</td>
+                            <td>
+                                {% if mov.proyecto %}
+                                <small>{{ mov.proyecto }}</small>
+                                {% else %}
+                                <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if mov.centro_costo %}
+                                <small>{{ mov.centro_costo }}</small>
+                                {% else %}
+                                <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end {{ mov.tipo_class }}">
+                                {% if mov.tipo == 'INGRESO' %}+{% elif mov.tipo == 'EGRESO' %}-{% endif %}
+                                $ {{ "{:,.0f}".format(mov.monto) }}
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if mov.estado == 'CONFIRMADO' %}success{% elif mov.estado == 'PENDIENTE' %}warning{% else %}secondary{% endif %} badge-sm">
+                                    {{ mov.estado }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-4">No hay movimientos registrados</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Botones de acción -->
+    <div class="mt-4">
+        <a href="{{ url_for('finanzas.reporte_flujo_caja') }}" class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-text"></i> Ver Flujo de Caja
+        </a>
+        <a href="{{ url_for('finanzas.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-speedometer2"></i> Volver al Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

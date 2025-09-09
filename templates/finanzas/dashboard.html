@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Financiero{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Dashboard Financiero</h1>
+    
+    <!-- Métricas principales -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">Ingresos del Mes</h5>
+                    <h3 class="mb-0">$ {{ "{:,.0f}".format(metricas.ingresos_mes) }}</h3>
+                    <small class="text-muted">CLP</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">Egresos del Mes</h5>
+                    <h3 class="mb-0">$ {{ "{:,.0f}".format(metricas.egresos_mes) }}</h3>
+                    <small class="text-muted">CLP</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-success">Balance del Mes</h5>
+                    <h3 class="mb-0 {% if metricas.balance_mes >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        $ {{ "{:,.0f}".format(metricas.balance_mes) }}
+                    </h3>
+                    <small class="text-muted">CLP</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-info">Avance Objetivo</h5>
+                    <h3 class="mb-0">{{ "{:.1f}".format(metricas.avance_objetivo) }}%</h3>
+                    <div class="progress mt-2" style="height: 5px;">
+                        <div class="progress-bar bg-info" style="width: {{ metricas.avance_objetivo }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Segunda fila de métricas -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Proyectos Activos</h6>
+                    <h4 class="mb-0">{{ metricas.proyectos_activos }}</h4>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Contratos Vigentes</h6>
+                    <h4 class="mb-0">{{ metricas.contratos_vigentes }}</h4>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Por Cobrar</h6>
+                    <h4 class="mb-0 text-warning">$ {{ "{:,.0f}".format(metricas.por_cobrar) }}</h4>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Facturado del Mes</h6>
+                    <h4 class="mb-0">$ {{ "{:,.0f}".format(metricas.facturado_mes) }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resumen por Proyectos -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Resumen Financiero por Proyecto</h5>
+        </div>
+        <div class="card-body">
+            {% if resumen_proyectos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Proyecto</th>
+                            <th>Cliente</th>
+                            <th>Estado</th>
+                            <th class="text-end">Presupuestado</th>
+                            <th class="text-end">Facturado</th>
+                            <th class="text-end">Cobrado</th>
+                            <th class="text-end">Pendiente</th>
+                            <th class="text-end">Margen</th>
+                            <th class="text-end">Avance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for proyecto in resumen_proyectos %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('proyectos.detalle', id=proyecto.id) }}" class="text-decoration-none">
+                                    {{ proyecto.nombre }}
+                                </a>
+                            </td>
+                            <td>{{ proyecto.cliente }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ proyecto.estado }}</span>
+                            </td>
+                            <td class="text-end">$ {{ "{:,.0f}".format(proyecto.presupuestado) }}</td>
+                            <td class="text-end">$ {{ "{:,.0f}".format(proyecto.facturado) }}</td>
+                            <td class="text-end text-success">$ {{ "{:,.0f}".format(proyecto.cobrado) }}</td>
+                            <td class="text-end text-warning">$ {{ "{:,.0f}".format(proyecto.pendiente_cobro) }}</td>
+                            <td class="text-end {% if proyecto.margen_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ "{:.1f}".format(proyecto.margen_pct) }}%
+                            </td>
+                            <td class="text-end">
+                                <div class="progress" style="min-width: 100px; height: 20px;">
+                                    <div class="progress-bar" style="width: {{ proyecto.avance_facturacion }}%">
+                                        {{ "{:.0f}".format(proyecto.avance_facturacion) }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-4">No hay proyectos activos con información financiera</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Cartera Pendiente -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Cartera Pendiente</h5>
+                </div>
+                <div class="card-body">
+                    {% if cartera_pendiente %}
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>OC</th>
+                                    <th>Estado</th>
+                                    <th class="text-end">Monto</th>
+                                    <th>Vencimiento</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in cartera_pendiente[:10] %}
+                                <tr>
+                                    <td><small>{{ item.cliente[:20] }}</small></td>
+                                    <td><small>{{ item.numero_oc }}</small></td>
+                                    <td>
+                                        <span class="badge bg-{% if item.tipo == 'FACTURADO' %}warning{% else %}info{% endif %} badge-sm">
+                                            {{ item.tipo }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end"><small>$ {{ "{:,.0f}".format(item.monto) }}</small></td>
+                                    <td>
+                                        {% if item.fecha_programada %}
+                                        <small class="{% if item.estado_vencimiento == 'vencido' %}text-danger{% elif item.estado_vencimiento == 'por_vencer' %}text-warning{% endif %}">
+                                            {{ item.fecha_programada }}
+                                            {% if item.estado_vencimiento == 'vencido' %}
+                                            ({{ item.dias_vencimiento|abs }} días vencido)
+                                            {% endif %}
+                                        </small>
+                                        {% else %}
+                                        <small class="text-muted">-</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">No hay pagos pendientes</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Flujo de Caja - Mes Actual</h5>
+                </div>
+                <div class="card-body">
+                    {% if flujo_caja %}
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Saldo Inicial</small>
+                            <h6>$ {{ "{:,.0f}".format(flujo_caja.saldo_inicial) }}</h6>
+                        </div>
+                        <div class="col-6 text-end">
+                            <small class="text-muted">Saldo Final</small>
+                            <h6 class="{% if flujo_caja.saldo_final >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                $ {{ "{:,.0f}".format(flujo_caja.saldo_final) }}
+                            </h6>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1">
+                                <span class="text-success">+ Ingresos:</span>
+                                <strong>$ {{ "{:,.0f}".format(flujo_caja.total_ingresos) }}</strong>
+                            </p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1">
+                                <span class="text-danger">- Egresos:</span>
+                                <strong>$ {{ "{:,.0f}".format(flujo_caja.total_egresos) }}</strong>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{{ url_for('finanzas.tesoreria') }}" class="btn btn-sm btn-outline-primary">
+                            Ver Tesorería
+                        </a>
+                        <a href="{{ url_for('finanzas.reporte_flujo_caja') }}" class="btn btn-sm btn-outline-secondary">
+                            Ver Reporte Completo
+                        </a>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">No hay movimientos en el mes actual</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Accesos rápidos -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('finanzas.tesoreria') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-cash-stack"></i> Tesorería
+                </a>
+                <a href="{{ url_for('finanzas.nuevo_movimiento') }}" class="btn btn-outline-success">
+                    <i class="bi bi-plus-circle"></i> Nuevo Movimiento
+                </a>
+                <a href="{{ url_for('finanzas.centros_costo') }}" class="btn btn-outline-info">
+                    <i class="bi bi-building"></i> Centros de Costo
+                </a>
+                <a href="{{ url_for('finanzas.reportes') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-file-earmark-bar-graph"></i> Reportes
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-actualizar dashboard cada 5 minutos
+setTimeout(function() {
+    location.reload();
+}, 300000);
+</script>
+{% endblock %}

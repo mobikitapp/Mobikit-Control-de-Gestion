@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes Financieros{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Reportes Financieros</h1>
+    
+    <div class="row">
+        <!-- Reportes Operativos -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Reportes Operativos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('finanzas.reporte_flujo_caja') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1"><i class="bi bi-cash-coin"></i> Flujo de Caja</h6>
+                                <small>Mensual</small>
+                            </div>
+                            <p class="mb-1 text-muted">Movimientos de entrada y salida de dinero</p>
+                        </a>
+                        
+                        <a href="{{ url_for('finanzas.dashboard') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1"><i class="bi bi-graph-up"></i> Estado de Resultados</h6>
+                                <small>Por Proyecto</small>
+                            </div>
+                            <p class="mb-1 text-muted">Ingresos, costos y márgenes por proyecto</p>
+                        </a>
+                        
+                        <a href="{{ url_for('finanzas.dashboard') }}#cartera" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1"><i class="bi bi-receipt"></i> Cartera de Cobros</h6>
+                                <small>Pendientes</small>
+                            </div>
+                            <p class="mb-1 text-muted">Facturas y pagos pendientes de cobro</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reportes Gerenciales -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Reportes Gerenciales</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('finanzas.dashboard') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1"><i class="bi bi-speedometer2"></i> Dashboard Ejecutivo</h6>
+                                <small>Tiempo Real</small>
+                            </div>
+                            <p class="mb-1 text-muted">Indicadores clave de desempeño financiero</p>
+                        </a>
+                        
+                        <a href="#" class="list-group-item list-group-item-action disabled">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1"><i class="bi bi-bar-chart-line"></i> Análisis de Tendencias</h6>
+                                <small>Próximamente</small>
+                            </div>
+                            <p class="mb-1 text-muted">Evolución histórica de indicadores</p>
+                        </a>
+                        
+                        <a href="#" class="list-group-item list-group-item-action disabled">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1"><i class="bi bi-calculator"></i> Proyecciones</h6>
+                                <small>Próximamente</small>
+                            </div>
+                            <p class="mb-1 text-muted">Estimaciones y proyecciones financieras</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Acciones -->
+    <div class="mt-4">
+        <a href="{{ url_for('finanzas.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -196,7 +196,35 @@
                     </li>
                     {% endif %}
 
-                    <!-- 10. Configuraciones (solo admin) -->
+                    <!-- 10. Finanzas -->
+                    {% if current_user.rol.value in ['admin', 'general'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i data-feather="dollar-sign" class="me-1"></i>
+                            Finanzas
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('finanzas.dashboard') }}">
+                                <i data-feather="pie-chart" class="me-2"></i> Dashboard Financiero
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('finanzas.tesoreria') }}">
+                                <i data-feather="credit-card" class="me-2"></i> Tesorería
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('finanzas.nuevo_movimiento') }}">
+                                <i data-feather="plus-circle" class="me-2"></i> Nuevo Movimiento
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('finanzas.centros_costo') }}">
+                                <i data-feather="layers" class="me-2"></i> Centros de Costo
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('finanzas.reportes') }}">
+                                <i data-feather="bar-chart-2" class="me-2"></i> Reportes Financieros
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    <!-- 11. Configuraciones (solo admin) -->
                     {% if current_user.rol.value == 'admin' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">

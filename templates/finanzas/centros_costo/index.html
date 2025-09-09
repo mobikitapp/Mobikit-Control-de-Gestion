@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Centros de Costo{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Centros de Costo</h1>
+        <button class="btn btn-primary" disabled>
+            <i class="bi bi-plus-circle"></i> Nuevo Centro de Costo
+        </button>
+    </div>
+    
+    <!-- Lista de Centros de Costo -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Resumen de Centros de Costo</h5>
+        </div>
+        <div class="card-body">
+            {% if centros %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th>Proyecto</th>
+                            <th>Responsable</th>
+                            <th class="text-end">Presupuesto Mensual</th>
+                            <th class="text-end">Gastos del Mes</th>
+                            <th class="text-end">Disponible</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for centro in centros %}
+                        <tr>
+                            <td><strong>{{ centro.codigo }}</strong></td>
+                            <td>{{ centro.nombre }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ centro.tipo }}</span>
+                            </td>
+                            <td>
+                                {% if centro.proyecto %}
+                                {{ centro.proyecto }}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if centro.responsable %}
+                                {{ centro.responsable }}
+                                {% else %}
+                                <span class="text-muted">Sin asignar</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">$ {{ "{:,.0f}".format(centro.presupuesto_mensual) }}</td>
+                            <td class="text-end">$ {{ "{:,.0f}".format(centro.gastos_mes) }}</td>
+                            <td class="text-end {% if centro.disponible >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                $ {{ "{:,.0f}".format(centro.disponible) }}
+                            </td>
+                            <td>
+                                <div class="progress" style="min-width: 100px; height: 20px;">
+                                    <div class="progress-bar {% if centro.consumido_pct <= 75 %}bg-success{% elif centro.consumido_pct <= 90 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                         style="width: {{ min(centro.consumido_pct, 100) }}%">
+                                        {{ "{:.0f}".format(centro.consumido_pct) }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-secondary">
+                            <th colspan="5">TOTALES</th>
+                            <th class="text-end">
+                                $ {{ "{:,.0f}".format(centros|sum(attribute='presupuesto_mensual')) }}
+                            </th>
+                            <th class="text-end">
+                                $ {{ "{:,.0f}".format(centros|sum(attribute='gastos_mes')) }}
+                            </th>
+                            <th class="text-end">
+                                $ {{ "{:,.0f}".format(centros|sum(attribute='disponible')) }}
+                            </th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-building text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3">No hay centros de costo registrados</p>
+                <p class="text-muted">Los centros de costo se crearán automáticamente cuando se asignen gastos a proyectos o áreas</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Información -->
+    <div class="alert alert-info mt-4">
+        <h6 class="alert-heading">Acerca de los Centros de Costo</h6>
+        <p class="mb-0">Los centros de costo permiten organizar y controlar los gastos por proyecto, área o actividad específica. 
+        Cada movimiento financiero puede asociarse a un centro de costo para un mejor control presupuestario.</p>
+    </div>
+    
+    <!-- Botones de acción -->
+    <div class="mt-4">
+        <a href="{{ url_for('finanzas.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

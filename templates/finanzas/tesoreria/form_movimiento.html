@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Movimiento Financiero{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h4 class="mb-0">Nuevo Movimiento Financiero</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('finanzas.nuevo_movimiento') }}">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="fecha" class="form-label">Fecha <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="fecha" name="fecha" required value="{{ date.today() }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="tipo" class="form-label">Tipo <span class="text-danger">*</span></label>
+                                <select class="form-select" id="tipo" name="tipo" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="INGRESO">Ingreso</option>
+                                    <option value="EGRESO">Egreso</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="monto" class="form-label">Monto <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="monto" name="monto" 
+                                       step="0.01" min="0.01" required placeholder="0.00">
+                                <span class="input-group-text">CLP</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="descripcion" class="form-label">Descripción <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="descripcion" name="descripcion" 
+                                      rows="3" required placeholder="Descripción del movimiento..."></textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="cuenta_bancaria_id" class="form-label">Cuenta Bancaria</label>
+                                <select class="form-select" id="cuenta_bancaria_id" name="cuenta_bancaria_id">
+                                    <option value="">Sin cuenta específica</option>
+                                    {% for cuenta in cuentas %}
+                                    <option value="{{ cuenta.id }}">
+                                        {{ cuenta.nombre }} - {{ cuenta.banco }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="referencia" class="form-label">Referencia</label>
+                                <input type="text" class="form-control" id="referencia" name="referencia" 
+                                       placeholder="Número de factura, boleta, etc.">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="proyecto_id" class="form-label">Proyecto</label>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id">
+                                    <option value="">Sin proyecto</option>
+                                    {% for proyecto in proyectos %}
+                                    <option value="{{ proyecto.id }}">
+                                        {{ proyecto.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="centro_costo_id" class="form-label">Centro de Costo</label>
+                                <select class="form-select" id="centro_costo_id" name="centro_costo_id">
+                                    <option value="">Sin centro de costo</option>
+                                    {% for centro in centros_costo %}
+                                    <option value="{{ centro.id }}">
+                                        {{ centro.codigo }} - {{ centro.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('finanzas.tesoreria') }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg"></i> Guardar Movimiento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Cambiar color del monto según el tipo
+document.getElementById('tipo').addEventListener('change', function() {
+    const montoGroup = document.querySelector('#monto').closest('.input-group');
+    if (this.value === 'INGRESO') {
+        montoGroup.classList.remove('border-danger');
+        montoGroup.classList.add('border-success');
+    } else if (this.value === 'EGRESO') {
+        montoGroup.classList.remove('border-success');
+        montoGroup.classList.add('border-danger');
+    } else {
+        montoGroup.classList.remove('border-success', 'border-danger');
+    }
+});
+</script>
+{% endblock %}
