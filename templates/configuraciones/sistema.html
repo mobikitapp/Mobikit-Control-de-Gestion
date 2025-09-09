@@ -129,9 +129,14 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">Administración de Caché</h6>
-                    <button type="button" class="btn btn-warning btn-sm" onclick="limpiarCache()">
-                        <i class="fas fa-broom"></i> Limpiar Caché
-                    </button>
+                    <div>
+                        <button type="button" class="btn btn-warning btn-sm" onclick="limpiarCache(event)">
+                            <i class="fas fa-broom"></i> Limpiar Caché
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm ms-2" onclick="limpiarDatos(event)">
+                            <i class="fas fa-trash-alt"></i> Limpiar Datos de Producción
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -557,6 +562,74 @@ function limpiarCache(event) {
     })
     .catch(error => {
         console.error('Error limpiando caché:', error);
+
+        // Mostrar error
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <strong>Error:</strong> ${error.message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        const cardBody = button.closest('.card-body');
+        cardBody.insertBefore(alertDiv, cardBody.firstChild);
+
+        // Restaurar botón
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function limpiarDatos(event) {
+    // Mostrar confirmación para limpieza de datos
+    if (!confirm('¿Está seguro de que desea eliminar TODOS los datos de producción (proyectos, contratos, órdenes de compra, órdenes de fabricación y despachos)? Esta acción NO se puede deshacer.')) {
+        return;
+    }
+
+    // Mostrar indicador de carga
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpiando datos...';
+    button.disabled = true;
+
+    // Enviar solicitud al servidor para limpiar datos
+    fetch('/configuraciones/limpiar-datos-produccion', { 
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mostrar mensaje de éxito
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Éxito:</strong> ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            const cardBody = button.closest('.card-body');
+            cardBody.insertBefore(alertDiv, cardBody.firstChild);
+
+            // Restaurar botón
+            button.innerHTML = originalText;
+            button.disabled = false;
+
+            // Opcional: Recargar la página o actualizar partes de la UI después de limpiar datos
+            // setTimeout(() => {
+            //     location.reload(true);
+            // }, 2000);
+
+        } else {
+            throw new Error(data.message || 'Error desconocido al limpiar datos');
+        }
+    })
+    .catch(error => {
+        console.error('Error limpiando datos de producción:', error);
 
         // Mostrar error
         const alertDiv = document.createElement('div');
