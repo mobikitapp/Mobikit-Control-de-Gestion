@@ -281,4 +281,139 @@
         </div>
     </div>
 </div>
+
+<script>
+// Treasury functions
+function marcarPendienteFacturado(pendienteId, button) {
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+    const numeroFactura = prompt('Número de factura (opcional):');
+
+    fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-facturado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            numero_factura: numeroFactura
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload();
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function marcarPendientePagado(pendienteId, button) {
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+    fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-pagado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload();
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function editarFechaProgramada(pendienteId) {
+    const fechaInput = document.getElementById(`fecha-${pendienteId}`);
+    const nuevaFecha = fechaInput.value;
+    
+    if (!nuevaFecha) {
+        showAlert('warning', 'Por favor selecciona una fecha');
+        return;
+    }
+
+    fetch(`/proyectos/pendientes-facturar/${pendienteId}/actualizar-fecha-programada`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            fecha_programada: nuevaFecha
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload();
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+    });
+}
+
+function definirFechaProgramada(pendienteId) {
+    // This function can trigger the date picker or modal
+    const fechaInput = document.getElementById(`fecha-${pendienteId}`);
+    if (fechaInput) {
+        fechaInput.focus();
+        fechaInput.click();
+    }
+}
+
+// Alert function
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i data-feather="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    const container = document.querySelector('.container');
+    container.insertBefore(alertDiv, container.firstChild);
+
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
 {% endblock %}
