@@ -665,22 +665,34 @@ def estados_pago_index():
         
         # Get clients with contracts data for the dropdown functionality
         clientes_contratos = []
-        clientes = clientes_service.get_active_clientes()
         
-        for cliente in clientes:
-            # Get active projects for this client
-            proyectos_activos = [p for p in cliente.proyectos 
-                               if p.estado_comercial and p.estado_comercial.value in ['EN_DESARROLLO', 'ADJUDICADO']]
-            
-            if proyectos_activos:
-                # Count active projects
-                count_proyectos_activos = len(proyectos_activos)
-                
-                clientes_contratos.append({
-                    'cliente': cliente,
-                    'proyectos_activos': proyectos_activos,
-                    'count_proyectos_activos': count_proyectos_activos
-                })
+        # Get active projects grouped by client
+        from models import Proyecto, EstadoComercial
+        from sqlalchemy.orm import joinedload
+        
+        # Get all active projects with their clients
+        proyectos_activos = (db.session.query(Proyecto)
+                           .options(joinedload(Proyecto.cliente))
+                           .filter(Proyecto.estado_comercial.in_([
+                               EstadoComercial.EN_DESARROLLO, 
+                               EstadoComercial.ADJUDICADO
+                           ]))
+                           .all())
+        
+        # Group projects by client
+        clientes_proyectos = {}
+        for proyecto in proyectos_activos:
+            if proyecto.cliente_id not in clientes_proyectos:
+                clientes_proyectos[proyecto.cliente_id] = {
+                    'cliente': proyecto.cliente,
+                    'proyectos_activos': []
+                }
+            clientes_proyectos[proyecto.cliente_id]['proyectos_activos'].append(proyecto)
+        
+        # Convert to list format expected by template
+        for cliente_data in clientes_proyectos.values():
+            cliente_data['count_proyectos_activos'] = len(cliente_data['proyectos_activos'])
+            clientes_contratos.append(cliente_data)
         
         return render_template('proyectos/estados_pago_index.html', 
                              proyectos_por_cliente=proyectos_por_cliente,
