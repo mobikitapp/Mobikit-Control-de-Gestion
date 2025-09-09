@@ -1,0 +1,1227 @@
+{% extends "base.html" %}
+
+{% block title %}Capacitación - Sistema de Gestión{% endblock %}
+
+{% block head %}
+<style>
+    .capacitacion-sidebar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: calc(100vh - 160px);
+        border-radius: 12px;
+        color: white;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    .capacitacion-nav {
+        padding: 1.5rem;
+    }
+    
+    .capacitacion-nav h5 {
+        color: #ffffff;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .nav-item-capacitacion {
+        margin-bottom: 0.5rem;
+    }
+    
+    .nav-link-capacitacion {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        display: block;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .nav-link-capacitacion:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        transform: translateX(5px);
+    }
+    
+    .nav-link-capacitacion.active {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        font-weight: 600;
+    }
+    
+    .contenido-capacitacion {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        min-height: calc(100vh - 160px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+    
+    .modulo-header {
+        border-bottom: 3px solid #667eea;
+        padding-bottom: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .modulo-header h2 {
+        color: #333;
+        font-weight: 700;
+        margin: 0;
+    }
+    
+    .modulo-header p {
+        color: #666;
+        margin: 0.5rem 0 0 0;
+        font-size: 1.1rem;
+    }
+    
+    .proceso-step {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #667eea;
+    }
+    
+    .proceso-step h4 {
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    
+    .flujo-imagen {
+        max-width: 100%;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        margin: 1.5rem 0;
+    }
+    
+    .caracteristica-item {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .caracteristica-item:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .caracteristica-item h6 {
+        color: #667eea;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .alert-tip {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        border-radius: 12px;
+        color: white;
+        padding: 1rem 1.5rem;
+        margin: 1.5rem 0;
+    }
+    
+    .alert-tip .alert-heading {
+        color: white;
+        font-weight: 600;
+    }
+    
+    .badge-modulo {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 500;
+        display: inline-block;
+        margin-bottom: 1rem;
+    }
+    
+    .conexiones-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+    }
+    
+    .conexion-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+    }
+    
+    .conexion-card:hover {
+        border-color: #667eea;
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+    
+    .conexion-icon {
+        font-size: 2.5rem;
+        color: #667eea;
+        margin-bottom: 1rem;
+    }
+    
+    .navegacion-modulos {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .btn-modulo {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-modulo:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row">
+        <!-- Sidebar de navegación -->
+        <div class="col-lg-3">
+            <div class="capacitacion-sidebar">
+                <div class="capacitacion-nav">
+                    <h5><i class="fas fa-graduation-cap me-2"></i>Módulos de Capacitación</h5>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='introduccion') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'introduccion' else '' }}">
+                            <i class="fas fa-play-circle me-2"></i>Introducción
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='flujo-general') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'flujo-general' else '' }}">
+                            <i class="fas fa-route me-2"></i>Flujo General
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='dashboard') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'dashboard' else '' }}">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='clientes') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'clientes' else '' }}">
+                            <i class="fas fa-users me-2"></i>Clientes
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='proyectos') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'proyectos' else '' }}">
+                            <i class="fas fa-folder-open me-2"></i>Proyectos
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='contratos') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'contratos' else '' }}">
+                            <i class="fas fa-file-contract me-2"></i>Contratos/OC
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='fabricacion') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'fabricacion' else '' }}">
+                            <i class="fas fa-cogs me-2"></i>Fabricación
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='areas-produccion') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'areas-produccion' else '' }}">
+                            <i class="fas fa-industry me-2"></i>Áreas de Producción
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='despachos') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'despachos' else '' }}">
+                            <i class="fas fa-truck me-2"></i>Despachos
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='configuraciones') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'configuraciones' else '' }}">
+                            <i class="fas fa-cog me-2"></i>Configuraciones
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='mejores-practicas') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'mejores-practicas' else '' }}">
+                            <i class="fas fa-lightbulb me-2"></i>Mejores Prácticas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contenido principal -->
+        <div class="col-lg-9">
+            <div class="contenido-capacitacion">
+                {% if modulo_activo == 'introduccion' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-play-circle me-3"></i>Introducción al Sistema</h2>
+                        <p>Bienvenido al sistema de gestión integral para constructoras</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 1</div>
+                    
+                    <h3>¿Qué es nuestro sistema?</h3>
+                    <p class="lead">Nuestro sistema de gestión integral está diseñado específicamente para constructoras, optimizando cada etapa del proceso desde la captación de clientes hasta la entrega final de proyectos.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-target me-2"></i>Objetivos del Sistema</h4>
+                        <ul>
+                            <li><strong>Centralizar la información:</strong> Toda la información de proyectos en un solo lugar</li>
+                            <li><strong>Mejorar el cumplimiento:</strong> Seguimiento detallado de plazos y compromisos</li>
+                            <li><strong>Optimizar procesos:</strong> Automatización de tareas repetitivas</li>
+                            <li><strong>Facilitar la comunicación:</strong> Transparencia entre todas las áreas</li>
+                            <li><strong>Generar reportes:</strong> Información en tiempo real para toma de decisiones</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="conexiones-grid">
+                        <div class="conexion-card">
+                            <div class="conexion-icon"><i class="fas fa-users"></i></div>
+                            <h5>Clientes</h5>
+                            <p>Gestión completa de la base de clientes y sus proyectos</p>
+                        </div>
+                        <div class="conexion-card">
+                            <div class="conexion-icon"><i class="fas fa-project-diagram"></i></div>
+                            <h5>Proyectos</h5>
+                            <p>Seguimiento integral desde la cotización hasta la entrega</p>
+                        </div>
+                        <div class="conexion-card">
+                            <div class="conexion-icon"><i class="fas fa-chart-line"></i></div>
+                            <h5>Control Financiero</h5>
+                            <p>Monitoreo de estados de pago y facturación</p>
+                        </div>
+                        <div class="conexion-card">
+                            <div class="conexion-icon"><i class="fas fa-cogs"></i></div>
+                            <h5>Producción</h5>
+                            <p>Control de fabricación por áreas y estados</p>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>Tip de Uso</h5>
+                        Comienza explorando el Dashboard para tener una visión general del estado de todos tus proyectos.
+                    </div>
+                    
+                {% elif modulo_activo == 'flujo-general' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-route me-3"></i>Flujo General del Sistema</h2>
+                        <p>Comprende el flujo completo de trabajo del sistema</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 2</div>
+                    
+                    <h3>Flujo Completo de Procesos</h3>
+                    <p class="lead">El sistema sigue un flujo lógico que refleja el proceso real de trabajo en una constructora:</p>
+                    
+                    <img src="{{ url_for('static', filename='img/capacitacion/flujo-general.png') }}" 
+                         alt="Flujo general del sistema" class="flujo-imagen">
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-user me-2"></i>1. Cliente</h4>
+                        <p>Todo comienza con el registro del cliente. Aquí se almacena la información de contacto, tipo de cliente (persona natural o empresa), y se establece la relación comercial.</p>
+                        <ul>
+                            <li>Datos básicos de contacto</li>
+                            <li>Tipo de cliente y clasificación</li>
+                            <li>Historial de interacciones</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-folder me-2"></i>2. Proyecto</h4>
+                        <p>Una vez que hay interés del cliente, se crea un proyecto. Este puede pasar por varios estados desde la cotización hasta la ejecución.</p>
+                        <ul>
+                            <li>Pendiente presupuesto → Presupuestado → Adjudicado → En desarrollo</li>
+                            <li>Información técnica y comercial</li>
+                            <li>Seguimiento de avances y hitos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-file-contract me-2"></i>3. Contrato/OC</h4>
+                        <p>Cuando el proyecto es adjudicado, se formaliza mediante un contrato o se recibe una orden de compra.</p>
+                        <ul>
+                            <li>Condiciones comerciales y técnicas</li>
+                            <li>Plazos de entrega y pagos</li>
+                            <li>Estados de facturación y pagos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-cogs me-2"></i>4. Fabricación</h4>
+                        <p>Se crean las órdenes de fabricación que pasan por diferentes áreas productivas.</p>
+                        <ul>
+                            <li>Órdenes de fabricación por contrato</li>
+                            <li>Control de materiales y especificaciones</li>
+                            <li>Seguimiento por áreas de producción</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-truck me-2"></i>5. Despacho</h4>
+                        <p>Finalmente, los productos terminados se despachan al cliente, completando el ciclo.</p>
+                        <ul>
+                            <li>Programación de despachos</li>
+                            <li>Control de entregas</li>
+                            <li>Documentación de entrega</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Importante</h5>
+                        Cada etapa del proceso está conectada y los cambios en una etapa pueden afectar a las siguientes. El sistema automáticamente sincroniza la información entre módulos.
+                    </div>
+                    
+                {% elif modulo_activo == 'dashboard' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-tachometer-alt me-3"></i>Dashboard - Panel de Control</h2>
+                        <p>Tu centro de comando con toda la información clave</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 3</div>
+                    
+                    <h3>Visión General</h3>
+                    <p class="lead">El Dashboard es tu punto de entrada al sistema. Aquí puedes ver el estado general de todos tus proyectos y acceder rápidamente a la información más importante.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-bar me-2"></i>Estadísticas Principales</h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><i class="fas fa-users me-2"></i>Total Clientes</h6>
+                                    <p>Número total de clientes activos en el sistema</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><i class="fas fa-project-diagram me-2"></i>Proyectos Activos</h6>
+                                    <p>Proyectos en desarrollo o pendientes de completar</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><i class="fas fa-handshake me-2"></i>Contratos Vigentes</h6>
+                                    <p>Contratos activos y en ejecución</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><i class="fas fa-industry me-2"></i>OF en Producción</h6>
+                                    <p>Órdenes de fabricación en proceso productivo</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-clock me-2"></i>Actividad Reciente</h4>
+                        <p>El dashboard muestra las actividades más recientes:</p>
+                        <ul>
+                            <li><strong>Proyectos Recientes:</strong> Los últimos 5 proyectos modificados</li>
+                            <li><strong>OFs Pendientes:</strong> Órdenes de fabricación asignadas a tu usuario</li>
+                            <li><strong>Alertas:</strong> Notificaciones importantes del sistema</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-eye me-2"></i>Dashboard de Áreas</h4>
+                        <p>Para usuarios con permisos administrativos u operacionales, está disponible el Dashboard de Áreas que muestra:</p>
+                        <ul>
+                            <li>Estado de todas las áreas de producción</li>
+                            <li>Órdenes de fabricación por área</li>
+                            <li>Métricas de rendimiento</li>
+                            <li>Cuellos de botella y alertas</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-star me-2"></i>Consejo</h5>
+                        Revisa el dashboard al inicio de cada día para tener una visión clara de las prioridades y tareas pendientes.
+                    </div>
+                    
+                {% elif modulo_activo == 'clientes' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-users me-3"></i>Gestión de Clientes</h2>
+                        <p>Administra tu base de clientes de manera eficiente</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 4</div>
+                    
+                    <h3>Funcionalidades Principales</h3>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-plus-circle me-2"></i>Registro de Clientes</h4>
+                        <p>Puedes registrar dos tipos de clientes:</p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><i class="fas fa-user me-2"></i>Persona Natural</h6>
+                                    <ul>
+                                        <li>RUT personal</li>
+                                        <li>Nombres y apellidos</li>
+                                        <li>Información de contacto</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><i class="fas fa-building me-2"></i>Empresa</h6>
+                                    <ul>
+                                        <li>RUT empresarial</li>
+                                        <li>Razón social</li>
+                                        <li>Representante legal</li>
+                                        <li>Contacto principal</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-search me-2"></i>Búsqueda y Filtros</h4>
+                        <p>Encuentra clientes rápidamente usando:</p>
+                        <ul>
+                            <li><strong>Búsqueda por texto:</strong> Busca por nombre, RUT o razón social</li>
+                            <li><strong>Filtro por tipo:</strong> Persona natural o empresa</li>
+                            <li><strong>Filtro por estado:</strong> Activos o inactivos</li>
+                            <li><strong>Ordenamiento:</strong> Por nombre, fecha de registro o última modificación</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-info-circle me-2"></i>Información del Cliente</h4>
+                        <p>Cada ficha de cliente incluye:</p>
+                        <ul>
+                            <li>Datos de contacto completos</li>
+                            <li>Dirección y ubicación</li>
+                            <li>Historial de proyectos</li>
+                            <li>Estado de contratos vigentes</li>
+                            <li>Notas y observaciones</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-link me-2"></i>Conexión con Proyectos</h4>
+                        <p>Desde la ficha del cliente puedes:</p>
+                        <ul>
+                            <li>Ver todos los proyectos asociados</li>
+                            <li>Crear nuevos proyectos directamente</li>
+                            <li>Acceder al historial comercial</li>
+                            <li>Revisar el estado financiero</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-database me-2"></i>Tip de Organización</h5>
+                        Mantén actualizada la información de contacto de tus clientes. Esto facilitará la comunicación y seguimiento de proyectos.
+                    </div>
+                    
+                {% elif modulo_activo == 'proyectos' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-folder-open me-3"></i>Gestión de Proyectos</h2>
+                        <p>El corazón del sistema - gestiona proyectos de principio a fin</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 5</div>
+                    
+                    <h3>Estados del Proyecto</h3>
+                    <p class="lead">Los proyectos pasan por diferentes estados que reflejan su progreso:</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-clock me-2"></i>Ciclo de Vida del Proyecto</h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-warning">Pendiente Presupuesto</span></h6>
+                                    <p>Proyecto registrado, esperando cotización</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-info">Presupuestado</span></h6>
+                                    <p>Cotización enviada, esperando respuesta del cliente</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-success">Adjudicado</span></h6>
+                                    <p>Proyecto adjudicado, preparando documentación</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-primary">En Desarrollo</span></h6>
+                                    <p>Proyecto en ejecución activa</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-line me-2"></i>Dashboard Financiero</h4>
+                        <p>Para administradores y gerentes, incluye:</p>
+                        <ul>
+                            <li><strong>KPIs de Facturación:</strong> Porcentaje de proyectos facturados</li>
+                            <li><strong>KPIs de Cobranza:</strong> Porcentaje de pagos recibidos</li>
+                            <li><strong>Análisis por Período:</strong> Comparativas mensuales y anuales</li>
+                            <li><strong>Alertas Financieras:</strong> Proyectos con retrasos en pagos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-dollar-sign me-2"></i>Tesorería</h4>
+                        <p>Control detallado de estados de pago:</p>
+                        <ul>
+                            <li>Estados de pago por contrato</li>
+                            <li>Fechas programadas vs reales</li>
+                            <li>Seguimiento de anticipos y retenciones</li>
+                            <li>Facturación por avance o despacho</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-tasks me-2"></i>Información del Proyecto</h4>
+                        <p>Cada proyecto mantiene:</p>
+                        <ul>
+                            <li>Información básica y descripción</li>
+                            <li>Datos comerciales (vendedor, comisiones)</li>
+                            <li>Especificaciones técnicas</li>
+                            <li>Contratos y órdenes de compra asociadas</li>
+                            <li>Órdenes de fabricación</li>
+                            <li>Historial de cambios</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-sync-alt me-2"></i>Automatización</h5>
+                        El sistema actualiza automáticamente muchos campos del proyecto basándose en los contratos y órdenes de fabricación asociadas.
+                    </div>
+                    
+                {% elif modulo_activo == 'contratos' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-file-contract me-3"></i>Contratos y Órdenes de Compra</h2>
+                        <p>Formalización y control financiero de proyectos</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 6</div>
+                    
+                    <h3>Tipos de Documentos</h3>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-file-signature me-2"></i>Contratos</h4>
+                        <p>Para proyectos donde nosotros emitimos la propuesta:</p>
+                        <ul>
+                            <li>Condiciones comerciales definidas por nosotros</li>
+                            <li>Control de anticipos y retenciones</li>
+                            <li>Modos de facturación (por avance o despacho)</li>
+                            <li>Estados de pago programados</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-shopping-cart me-2"></i>Órdenes de Compra</h4>
+                        <p>Cuando el cliente nos envía una OC:</p>
+                        <ul>
+                            <li>Condiciones definidas por el cliente</li>
+                            <li>Seguimiento como "pendiente de facturar"</li>
+                            <li>Control de entregas y conformidades</li>
+                            <li>Facturación contra despachos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-calendar-alt me-2"></i>Plan de Entregas</h4>
+                        <p>Para contratos complejos, puedes crear planes de entrega con:</p>
+                        <ul>
+                            <li><strong>Hitos de Entrega:</strong> Fechas clave del proyecto</li>
+                            <li><strong>Porcentajes de Avance:</strong> Distribución del valor total</li>
+                            <li><strong>Descripción de Entregables:</strong> Qué se entrega en cada hito</li>
+                            <li><strong>Estados de Completitud:</strong> Seguimiento del cumplimiento</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-money-bill-wave me-2"></i>Integración con Tesorería</h4>
+                        <p>Al crear un contrato vigente, el sistema automáticamente:</p>
+                        <ul>
+                            <li>Crea estados de pago según el modo de facturación</li>
+                            <li>Programa fechas de cobro</li>
+                            <li>Genera alertas de vencimiento</li>
+                            <li>Calcula anticipos y retenciones</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-pie me-2"></i>Estados del Contrato</h4>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-secondary">Borrador</span></h6>
+                                    <p>En preparación</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-success">Vigente</span></h6>
+                                    <p>Activo y en ejecución</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-dark">Cerrado</span></h6>
+                                    <p>Completado exitosamente</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-bell me-2"></i>Recordatorio</h5>
+                        Revisa regularmente los contratos próximos a vencer y los estados de pago pendientes para mantener un flujo de caja saludable.
+                    </div>
+                    
+                {% elif modulo_activo == 'fabricacion' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-cogs me-3"></i>Órdenes de Fabricación</h2>
+                        <p>Control de producción y fabricación de productos</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 7</div>
+                    
+                    <h3>¿Qué son las Órdenes de Fabricación?</h3>
+                    <p class="lead">Las Órdenes de Fabricación (OF) son instrucciones detalladas que especifican qué productos fabricar, en qué cantidad y con qué especificaciones.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-plus me-2"></i>Creación de OFs</h4>
+                        <p>Cada OF incluye:</p>
+                        <ul>
+                            <li><strong>Información del Proyecto:</strong> Cliente y proyecto asociado</li>
+                            <li><strong>Contrato de Referencia:</strong> Contrato u OC que origina la fabricación</li>
+                            <li><strong>Lista de Items:</strong> Productos específicos a fabricar</li>
+                            <li><strong>Especificaciones:</strong> Detalles técnicos y materiales</li>
+                            <li><strong>Responsable:</strong> Usuario asignado a supervisar la OF</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-list me-2"></i>Items de Fabricación</h4>
+                        <p>Cada item dentro de una OF especifica:</p>
+                        <ul>
+                            <li>Código y descripción del producto</li>
+                            <li>Cantidad a fabricar</li>
+                            <li>Especificaciones técnicas</li>
+                            <li>Observaciones especiales</li>
+                            <li>Estado de completitud</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-route me-2"></i>Flujo por Áreas</h4>
+                        <p>Las OFs siguen un flujo definido por áreas de producción:</p>
+                        <ul>
+                            <li><strong>Inicio:</strong> Pendientes de Fabricación</li>
+                            <li><strong>Producción:</strong> Fábrica (con diferentes estados internos)</li>
+                            <li><strong>Finalización:</strong> Embalaje → Bodega → Despacho</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-archive me-2"></i>Estados de la OF</h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-warning">Pendiente</span></h6>
+                                    <p>Creada, esperando inicio de fabricación</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-primary">En Producción</span></h6>
+                                    <p>En proceso de fabricación</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-success">Terminada</span></h6>
+                                    <p>Fabricación completada</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-dark">Despachada</span></h6>
+                                    <p>Entregada al cliente</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-file-archive me-2"></i>Archivo de OFs</h4>
+                        <p>Las OFs completadas se pueden archivar para:</p>
+                        <ul>
+                            <li>Mantener el historial de producción</li>
+                            <li>Limpiar las vistas activas</li>
+                            <li>Consultas futuras y reportes</li>
+                            <li>Trazabilidad de productos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-user-check me-2"></i>Asignación</h5>
+                        Asigna responsables a cada OF para tener claridad sobre quién debe supervisar cada proceso de fabricación.
+                    </div>
+                    
+                {% elif modulo_activo == 'areas-produccion' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-industry me-3"></i>Áreas de Producción</h2>
+                        <p>Control detallado del flujo productivo por áreas</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 8</div>
+                    
+                    <h3>Flujo de Áreas</h3>
+                    <p class="lead">El sistema maneja un flujo secuencial de áreas que representa el proceso real de fabricación:</p>
+                    
+                    <img src="{{ url_for('static', filename='img/capacitacion/areas-produccion.png') }}" 
+                         alt="Flujo de áreas de producción" class="flujo-imagen">
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-hourglass-start me-2"></i>1. Pendientes de Fabricación</h4>
+                        <p>Área inicial donde llegan todas las OFs nuevas:</p>
+                        <ul>
+                            <li>OFs recién creadas esperando inicio</li>
+                            <li>Revisión de especificaciones</li>
+                            <li>Planificación de recursos</li>
+                            <li>Asignación de prioridades</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-industry me-2"></i>2. Fábrica</h4>
+                        <p>Área principal de producción con múltiples estados:</p>
+                        <ul>
+                            <li><strong>Enviado a Fabricación:</strong> OF ingresada a producción</li>
+                            <li><strong>Seccionando:</strong> Corte y preparación de materiales</li>
+                            <li><strong>Enchapando:</strong> Aplicación de acabados</li>
+                            <li><strong>Mecanizando:</strong> Procesos de maquinado final</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-box me-2"></i>3. Embalaje</h4>
+                        <p>Preparación final para entrega:</p>
+                        <ul>
+                            <li>Empaquetado de productos terminados</li>
+                            <li>Etiquetado y documentación</li>
+                            <li>Control de calidad final</li>
+                            <li>Preparación para transporte</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-warehouse me-2"></i>4. Bodega</h4>
+                        <p>Almacenamiento y preparación para despacho:</p>
+                        <ul>
+                            <li><strong>Listo para Despacho:</strong> Producto terminado disponible</li>
+                            <li><strong>Programado para Despacho:</strong> Asignado a un despacho específico</li>
+                            <li>Control de inventario</li>
+                            <li>Coordinación con logística</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-truck me-2"></i>5. Despacho</h4>
+                        <p>Entrega final al cliente:</p>
+                        <ul>
+                            <li><strong>Despachado:</strong> En ruta hacia el cliente</li>
+                            <li>Documentación de entrega</li>
+                            <li>Confirmación de recepción</li>
+                            <li>Cierre del ciclo productivo</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-line me-2"></i>Métricas por Área</h4>
+                        <p>El sistema calcula automáticamente:</p>
+                        <ul>
+                            <li>Tiempo promedio en cada área</li>
+                            <li>Cantidad de OFs por estado</li>
+                            <li>Cuellos de botella identificados</li>
+                            <li>Rendimiento y productividad</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-forward me-2"></i>Avance Automático</h4>
+                        <p>El sistema incluye lógica inteligente de avance:</p>
+                        <ul>
+                            <li>Avance automático entre áreas</li>
+                            <li>Validaciones de prerrequisitos</li>
+                            <li>Notificaciones de cambios</li>
+                            <li>Seguimiento de responsables</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-stopwatch me-2"></i>Monitoreo</h5>
+                        Revisa regularmente el Dashboard de Áreas para identificar cuellos de botella y optimizar el flujo productivo.
+                    </div>
+                    
+                {% elif modulo_activo == 'despachos' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-truck me-3"></i>Gestión de Despachos</h2>
+                        <p>Control de entregas y distribución al cliente</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 9</div>
+                    
+                    <h3>¿Qué son los Despachos?</h3>
+                    <p class="lead">Los despachos son el último paso del proceso, donde los productos terminados se entregan al cliente en su ubicación final.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-plus-circle me-2"></i>Creación de Despachos</h4>
+                        <p>Un despacho puede crearse:</p>
+                        <ul>
+                            <li><strong>Por Proyecto:</strong> Despacho general de un proyecto completo</li>
+                            <li><strong>Por Contrato:</strong> Entregas específicas según contrato</li>
+                            <li><strong>Por Hito:</strong> Entregas parciales según plan de entregas</li>
+                            <li><strong>Personalizado:</strong> Despachos específicos según necesidad</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-tasks me-2"></i>Información del Despacho</h4>
+                        <p>Cada despacho incluye:</p>
+                        <ul>
+                            <li>Fecha programada de entrega</li>
+                            <li>Dirección de destino</li>
+                            <li>Persona de contacto en destino</li>
+                            <li>Medio de transporte utilizado</li>
+                            <li>Observaciones especiales</li>
+                            <li>Documentación requerida</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-link me-2"></i>Asignación de OFs</h4>
+                        <p>Puedes asignar OFs al despacho de dos maneras:</p>
+                        <ul>
+                            <li><strong>Automática:</strong> El sistema asigna OFs listas para despacho</li>
+                            <li><strong>Manual:</strong> Selección específica de OFs</li>
+                            <li><strong>Parcial:</strong> Solo algunos items de una OF</li>
+                            <li><strong>Múltiples Proyectos:</strong> OFs de diferentes proyectos en un mismo despacho</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-line me-2"></i>Estados del Despacho</h4>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-warning">Programado</span></h6>
+                                    <p>Despacho planificado, preparando envío</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-primary">En Tránsito</span></h6>
+                                    <p>Productos en camino al destino</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-success">Entregado</span></h6>
+                                    <p>Recibido conforme por el cliente</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-calendar me-2"></i>Planificación de Despachos</h4>
+                        <p>La planificación incluye:</p>
+                        <ul>
+                            <li>Vista calendario de despachos programados</li>
+                            <li>Optimización de rutas y cargas</li>
+                            <li>Coordinación con disponibilidad del cliente</li>
+                            <li>Gestión de recursos de transporte</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-file-alt me-2"></i>Documentación y Evidencias</h4>
+                        <p>Puedes adjuntar:</p>
+                        <ul>
+                            <li><strong>Guías de Despacho:</strong> Documentación oficial</li>
+                            <li><strong>Fotos de Entrega:</strong> Evidencia de la entrega</li>
+                            <li><strong>Firmas Digitales:</strong> Confirmación de recepción</li>
+                            <li><strong>Documentos Adicionales:</strong> Manuales, garantías, etc.</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-sync-alt me-2"></i>Automatización</h4>
+                        <p>Cuando un despacho se marca como "Entregado":</p>
+                        <ul>
+                            <li>Las OFs asociadas se marcan automáticamente como "Despachadas"</li>
+                            <li>Se actualiza el progreso del proyecto</li>
+                            <li>Se pueden generar facturas automáticamente</li>
+                            <li>Se notifica a los responsables</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-camera me-2"></i>Evidencia</h5>
+                        Siempre toma fotos de la entrega y solicita la firma del cliente. Esto protege a la empresa ante reclamos futuros.
+                    </div>
+                    
+                {% elif modulo_activo == 'configuraciones' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-cog me-3"></i>Configuraciones del Sistema</h2>
+                        <p>Administración y configuración general</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 10</div>
+                    
+                    <h3>Panel de Administración</h3>
+                    <p class="lead">Solo los usuarios con rol de administrador pueden acceder a estas configuraciones críticas del sistema.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-users me-2"></i>Gestión de Usuarios</h4>
+                        <p>Control completo de usuarios del sistema:</p>
+                        <ul>
+                            <li><strong>Crear Usuarios:</strong> Registro de nuevos miembros del equipo</li>
+                            <li><strong>Asignar Roles:</strong> Admin, General, Ventas, Operaciones, etc.</li>
+                            <li><strong>Estado del Usuario:</strong> Activar/desactivar accesos</li>
+                            <li><strong>Información Personal:</strong> Datos de contacto y perfil</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-shield-alt me-2"></i>Roles y Permisos</h4>
+                        <p>El sistema maneja diferentes niveles de acceso:</p>
+                        <ul>
+                            <li><strong>Admin:</strong> Acceso total al sistema</li>
+                            <li><strong>General:</strong> Acceso a la mayoría de módulos</li>
+                            <li><strong>Ventas:</strong> Enfoque en clientes, proyectos y comercial</li>
+                            <li><strong>Operaciones:</strong> Producción, fabricación y despachos</li>
+                            <li><strong>Producción:</strong> Áreas productivas específicamente</li>
+                            <li><strong>Logística:</strong> Enfoque en despachos y distribución</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-percent me-2"></i>Configuración de Comisiones</h4>
+                        <p>Para el módulo comercial:</p>
+                        <ul>
+                            <li>Porcentajes de comisión por vendedor</li>
+                            <li>Escalas según volumen de ventas</li>
+                            <li>Configuración de bonificaciones</li>
+                            <li>Períodos de cálculo</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-tools me-2"></i>Configuración del Sistema</h4>
+                        <p>Parámetros generales del sistema:</p>
+                        <ul>
+                            <li>Configuraciones de la empresa</li>
+                            <li>Parámetros de cálculo</li>
+                            <li>Formatos de documentos</li>
+                            <li>Integraciones externas</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-history me-2"></i>Auditoría de Permisos</h4>
+                        <p>Seguimiento de actividad:</p>
+                        <ul>
+                            <li>Registro de cambios en permisos</li>
+                            <li>Historial de accesos</li>
+                            <li>Actividades de usuarios</li>
+                            <li>Logs de seguridad</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Seguridad</h5>
+                        Revisa regularmente los permisos de usuarios y mantén actualizada la información de contacto del equipo.
+                    </div>
+                    
+                {% elif modulo_activo == 'mejores-practicas' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-lightbulb me-3"></i>Mejores Prácticas</h2>
+                        <p>Consejos para maximizar la eficiencia del sistema</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 11</div>
+                    
+                    <h3>Flujo de Trabajo Recomendado</h3>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-line me-2"></i>Inicio del Día</h4>
+                        <ul>
+                            <li><strong>Revisa el Dashboard:</strong> Estado general de proyectos activos</li>
+                            <li><strong>Verifica Alertas:</strong> Tareas pendientes y vencimientos</li>
+                            <li><strong>Prioriza Actividades:</strong> Enfócate en lo más urgente</li>
+                            <li><strong>Comunica con el Equipo:</strong> Coordina actividades del día</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-database me-2"></i>Mantenimiento de Datos</h4>
+                        <ul>
+                            <li><strong>Actualiza Estados:</strong> Mantén al día el progreso de OFs y proyectos</li>
+                            <li><strong>Registra Observaciones:</strong> Documenta cambios y decisiones importantes</li>
+                            <li><strong>Adjunta Evidencias:</strong> Fotos y documentos relevantes</li>
+                            <li><strong>Valida Información:</strong> Verifica datos antes de cerrar etapas</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-users me-2"></i>Comunicación Efectiva</h4>
+                        <ul>
+                            <li><strong>Usa las Notas:</strong> Deja comentarios claros para el equipo</li>
+                            <li><strong>Actualiza Fechas:</strong> Comunica cambios en cronogramas</li>
+                            <li><strong>Asigna Responsables:</strong> Clarifica quién hace qué</li>
+                            <li><strong>Reporta Problemas:</strong> Escala issues importantes rápidamente</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-shield-alt me-2"></i>Control de Calidad</h4>
+                        <ul>
+                            <li><strong>Verifica Especificaciones:</strong> Revisa detalles antes de producir</li>
+                            <li><strong>Documenta Cambios:</strong> Registra modificaciones autorizadas</li>
+                            <li><strong>Valida Entregas:</strong> Confirma conformidad del cliente</li>
+                            <li><strong>Mantén Trazabilidad:</strong> Historial completo de cada proyecto</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-bar me-2"></i>Análisis y Mejora</h4>
+                        <ul>
+                            <li><strong>Revisa Métricas:</strong> Analiza tiempos y rendimientos</li>
+                            <li><strong>Identifica Cuellos de Botella:</strong> Busca oportunidades de mejora</li>
+                            <li><strong>Optimiza Procesos:</strong> Ajusta flujos según resultados</li>
+                            <li><strong>Capacita al Equipo:</strong> Comparte conocimientos y mejoras</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="conexiones-grid">
+                        <div class="conexion-card">
+                            <div class="conexion-icon"><i class="fas fa-clock"></i></div>
+                            <h5>Puntualidad</h5>
+                            <p>Actualiza el sistema regularmente para mantener información en tiempo real</p>
+                        </div>
+                        <div class="conexion-card">
+                            <div class="conexion-icon"><i class="fas fa-accuracy"></i></div>
+                            <h5>Precisión</h5>
+                            <p>Datos precisos son fundamentales para tomar buenas decisiones</p>
+                        </div>
+                        <div class="conexion-card">
+                            <div class="conexion-icon"><i class="fas fa-teamwork"></i></div>
+                            <h5>Colaboración</h5>
+                            <p>El sistema funciona mejor cuando todo el equipo participa activamente</p>
+                        </div>
+                        <div class="conexion-card">
+                            <div class="conexion-icon"><i class="fas fa-improvement"></i></div>
+                            <h5>Mejora Continua</h5>
+                            <p>Siempre busca formas de optimizar procesos y resultados</p>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-graduation-cap me-2"></i>Recordatorio Final</h5>
+                        El sistema es una herramienta poderosa, pero su efectividad depende de cómo lo uses. Mantén una actitud de aprendizaje continuo y no dudes en explorar nuevas funcionalidades.
+                    </div>
+                    
+                {% endif %}
+                
+                <!-- Navegación entre módulos -->
+                <div class="navegacion-modulos">
+                    {% set modulos = [
+                        ('introduccion', 'Introducción'),
+                        ('flujo-general', 'Flujo General'),
+                        ('dashboard', 'Dashboard'),
+                        ('clientes', 'Clientes'),
+                        ('proyectos', 'Proyectos'),
+                        ('contratos', 'Contratos/OC'),
+                        ('fabricacion', 'Fabricación'),
+                        ('areas-produccion', 'Áreas de Producción'),
+                        ('despachos', 'Despachos'),
+                        ('configuraciones', 'Configuraciones'),
+                        ('mejores-practicas', 'Mejores Prácticas')
+                    ] %}
+                    
+                    {% set current_index = modulos|map(attribute='0')|list|index(modulo_activo) %}
+                    
+                    <div>
+                        {% if current_index > 0 %}
+                        {% set prev_modulo = modulos[current_index - 1] %}
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name=prev_modulo[0]) }}" class="btn btn-modulo">
+                            <i class="fas fa-arrow-left me-2"></i>{{ prev_modulo[1] }}
+                        </a>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        {% if current_index < modulos|length - 1 %}
+                        {% set next_modulo = modulos[current_index + 1] %}
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name=next_modulo[0]) }}" class="btn btn-modulo">
+                            {{ next_modulo[1] }}<i class="fas fa-arrow-right ms-2"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Inicializar feather icons después de cargar el contenido
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    });
+</script>
+{% endblock %}
