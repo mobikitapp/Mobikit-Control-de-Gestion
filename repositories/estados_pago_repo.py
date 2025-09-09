@@ -1,9 +1,12 @@
-
 from typing import List, Optional, Dict, Any
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload
 from app import db
 from models import EstadoPago, TipoEstadoPago, EstadoPagoContrato, Proyecto, Contrato
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 class EstadosPagoRepository:
     """Repository for EstadoPago operations"""
@@ -65,9 +68,16 @@ class EstadosPagoRepository:
     @staticmethod
     def delete(estado_pago: EstadoPago) -> bool:
         """Soft delete estado pago"""
-        estado_pago.activo = False
-        db.session.flush()
-        return True
+        try:
+            estado_pago.activo = False
+            estado_pago.updated_at = datetime.utcnow()
+            db.session.add(estado_pago)
+            db.session.flush()  # Ensure changes are persisted
+            logger.info(f"Soft deleted estado pago {estado_pago.id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error soft deleting estado pago {estado_pago.id}: {str(e)}")
+            return False
 
     @staticmethod
     def get_montos_pagados_by_proyecto(proyecto_id: int) -> Dict[str, float]:
@@ -86,7 +96,7 @@ class EstadosPagoRepository:
 
         for estado in estados:
             monto = float(estado.monto_efectivo)
-            
+
             if estado.estado == EstadoPagoContrato.PAGADO:
                 result['total_pagado'] += monto
             elif estado.estado == EstadoPagoContrato.PENDIENTE:
@@ -106,12 +116,12 @@ class EstadosPagoRepository:
         """Get payment statistics for a proyecto"""
         estados = EstadosPagoRepository.get_by_proyecto_id(proyecto_id)
         montos = EstadosPagoRepository.get_montos_pagados_by_proyecto(proyecto_id)
-        
+
         total_estados = len(estados)
         estados_pagados = len([e for e in estados if e.estado == EstadoPagoContrato.PAGADO])
         estados_pendientes = len([e for e in estados if e.estado == EstadoPagoContrato.PENDIENTE])
         estados_parciales = len([e for e in estados if e.estado == EstadoPagoContrato.PARCIAL])
-        
+
         return {
             'total_estados': total_estados,
             'estados_pagados': estados_pagados,
@@ -131,7 +141,7 @@ class EstadosPagoRepository:
         """Get estados pago that will expire in the next 'dias' days"""
         from datetime import date, timedelta
         fecha_limite = datetime.now().date() + timedelta(days=dias)
-        
+
         return (db.session.query(EstadoPago)
                 .options(
                     joinedload(EstadoPago.proyecto),

@@ -169,63 +169,76 @@ class EstadosPagoService:
         try:
             estado_pago = self.get_estado_pago_by_id(estado_pago_id)
             if not estado_pago:
+                logger.warning(f"Estado pago {estado_pago_id} not found for deletion")
                 return False
 
+            # Store contract_id before deletion for financial update
+            contrato_id = estado_pago.contrato_id
             old_data = serialize_model(estado_pago)
             
+            # Perform soft delete
             success = self.repo.delete(estado_pago)
             
-            if success and estado_pago.contrato_id:
-                self._update_contract_financial_totals(estado_pago.contrato_id)
+            if success:
+                # Update contract financial totals after deletion
+                if contrato_id:
+                    self._update_contract_financial_totals(contrato_id)
+                
+                # Commit transaction
+                db.session.commit()
 
-            db.session.commit()
+                # Audit log
+                self.audit_service.log_delete(
+                    table_name='estado_pago',
+                    record_id=estado_pago_id,
+                    old_data=old_data,
+                    user_id='system'
+                )
 
-            # Audit log
-            self.audit_service.log_delete(
-                table_name='estado_pago',
-                record_id=estado_pago_id,
-                old_data=old_data,
-                user_id='system'
-            )
-
-            return success
+                logger.info(f"Successfully deleted estado pago {estado_pago_id}")
+                return True
+            else:
+                logger.warning(f"Failed to delete estado pago {estado_pago_id}")
+                return False
 
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error deleting estado pago {estado_pago_id}: {str(e)}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return False
 
     def _update_contract_financial_totals(self, contrato_id: int):
         """Update contract financial totals based on payment states"""
         try:
-            from models import Contrato
+            from models import Contrato, EstadoFacturacion
             contrato = Contrato.query.get(contrato_id)
             if not contrato:
                 return
 
-            # Get all payment states for this contract
+            # Get all active payment states for this contract
             estados_pago = self.repo.get_by_contrato_id(contrato_id)
+            active_estados = [ep for ep in estados_pago if ep.activo]
 
             # Calculate totals
             total_facturado = sum(
                 float(ep.monto_efectivo or 0) 
-                for ep in estados_pago 
-                if ep.facturado and ep.activo
+                for ep in active_estados 
+                if ep.facturado
             )
 
             total_pagado = sum(
                 float(ep.monto_efectivo or 0) 
-                for ep in estados_pago 
-                if ep.estado == EstadoPagoContrato.PAGADO and ep.activo
+                for ep in active_estados 
+                if hasattr(ep, 'estado') and ep.estado == EstadoPagoContrato.PAGADO
             )
 
-            # Update contract
+            # Update contract amounts
             contrato.monto_facturado = Decimal(str(total_facturado))
             contrato.monto_pagado = Decimal(str(total_pagado))
 
             # Update estado_facturacion based on amounts
             if total_facturado == 0:
-                from models import EstadoFacturacion
                 contrato.estado_facturacion = EstadoFacturacion.NO_FACTURADO
             elif total_facturado >= float(contrato.monto_total or 0):
                 contrato.estado_facturacion = EstadoFacturacion.FACTURADO
@@ -233,9 +246,12 @@ class EstadosPagoService:
                 contrato.estado_facturacion = EstadoFacturacion.PARCIAL
 
             db.session.flush()
+            logger.info(f"Updated contract {contrato_id} financial totals - Facturado: ${total_facturado}, Pagado: ${total_pagado}")
 
         except Exception as e:
             logger.error(f"Error updating contract financial totals {contrato_id}: {str(e)}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
 
     def sync_all_contracts_for_project(self, proyecto_id: int) -> int:
         """Sync financial totals for all contracts in a project"""
