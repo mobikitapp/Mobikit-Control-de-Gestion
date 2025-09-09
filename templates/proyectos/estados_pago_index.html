@@ -944,45 +944,7 @@ function marcarPendienteFacturado(pendienteId, numeroOc) {
     .then(data => {
         if (data.success) {
             showAlert('success', data.message);
-            location.reload(); // Refresh to update the UI
-        } else {
-            showAlert('danger', 'Error: ' + data.message);
-            button.disabled = false;
-            button.innerHTML = originalText;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
-        button.disabled = false;
-        button.innerHTML = originalText;
-    });
-}
-
-function marcarPendienteFacturado(pendienteId, numeroOc) {
-    const numeroFactura = prompt(`Número de factura para OC ${numeroOc}:`);
-    if (numeroFactura === null) return; // User cancelled
-
-    const button = event.target.closest('button');
-    const originalText = button.innerHTML;
-
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
-
-    fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-facturado`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            numero_factura: numeroFactura
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            location.reload(); // Refresh to update the UI
+            location.reload();
         } else {
             showAlert('danger', 'Error: ' + data.message);
             button.disabled = false;
@@ -1375,6 +1337,79 @@ function initializeCascadeSelects() {
     } catch (error) {
         console.error('Error initializing cascade selects:', error);
     }
+}
+
+// Functions for contract payment states - replicating OC functionality
+function marcarComoFacturado(estadoPagoId) {
+    const numeroFactura = prompt('Número de factura:');
+    if (numeroFactura === null) return; // User cancelled
+
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+
+    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-facturado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            numero_factura: numeroFactura
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload();
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function marcarComoPagado(estadoPagoId) {
+    if (!confirm('¿Marcar este estado de pago como pagado?')) return;
+
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+
+    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', 'Estado de pago marcado como pagado exitosamente');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error al marcar como pagado');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
 }
 
 // Treasury functions now centralized in app.js

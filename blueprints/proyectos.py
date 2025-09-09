@@ -601,8 +601,8 @@ def marcar_estado_pago_pagado(estado_pago_id):
         if not hasattr(estado_pago, 'facturado') or not estado_pago.facturado:
             return jsonify({'success': False, 'message': 'El estado de pago debe estar facturado antes de marcarlo como pagado'}), 400
 
-        # Verificar que no esté ya pagado
-        if hasattr(estado_pago, 'estado') and estado_pago.estado.value == 'PAGADO':
+        # Verificar que no esté ya pagado - safer attribute access
+        if hasattr(estado_pago, 'estado') and estado_pago.estado and hasattr(estado_pago.estado, 'value') and estado_pago.estado.value == 'PAGADO':
             return jsonify({'success': False, 'message': 'El estado de pago ya está marcado como pagado'}), 400
 
         fecha_pago = None
@@ -623,9 +623,9 @@ def marcar_estado_pago_pagado(estado_pago_id):
             'message': 'Estado de pago marcado como pagado exitosamente',
             'estado_pago': {
                 'id': estado_pago_actualizado.id,
-                'estado': estado_pago_actualizado.estado.value,
+                'estado': estado_pago_actualizado.estado.value if estado_pago_actualizado.estado else None,
                 'fecha_pago': estado_pago_actualizado.fecha_pago.strftime('%d/%m/%Y') if estado_pago_actualizado.fecha_pago else None,
-                'facturado': estado_pago_actualizado.facturado
+                'facturado': getattr(estado_pago_actualizado, 'facturado', False)
             }
         })
 

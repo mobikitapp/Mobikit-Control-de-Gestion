@@ -233,11 +233,11 @@ class EstadosPagoService:
                 raise ValueError(f"Estado de pago {estado_pago_id} no encontrado")
             
             # Validate state transition: must be invoiced before being marked as paid
-            if not estado_pago.facturado:
+            if not hasattr(estado_pago, 'facturado') or not estado_pago.facturado:
                 raise ValueError("El estado de pago debe estar facturado antes de marcarlo como pagado")
             
-            # Check if already paid - be more specific with the error message
-            if estado_pago.estado == EstadoPagoContrato.PAGADO:
+            # Check if already paid - use safer attribute access
+            if hasattr(estado_pago, 'estado') and estado_pago.estado and hasattr(estado_pago.estado, 'value') and estado_pago.estado.value == 'PAGADO':
                 logger.warning(f"Estado de pago {estado_pago_id} ya está pagado, ignorando solicitud")
                 return estado_pago  # Return existing estado instead of raising error
 
