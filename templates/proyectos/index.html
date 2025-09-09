@@ -24,13 +24,19 @@
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-header">
-            <h5 class="card-title mb-0">
-                <i data-feather="filter" class="me-2"></i>
-                Filtros
-            </h5>
+            <button class="btn btn-link text-decoration-none p-0 w-100 text-start" type="button" 
+                    data-bs-toggle="collapse" data-bs-target="#filtrosProyectos" 
+                    aria-expanded="false" aria-controls="filtrosProyectos">
+                <h5 class="card-title mb-0">
+                    <i data-feather="filter" class="me-2"></i>
+                    Filtros
+                    <i data-feather="chevron-down" class="float-end"></i>
+                </h5>
+            </button>
         </div>
-        <div class="card-body">
-            <form method="GET" class="row g-3">
+        <div class="collapse" id="filtrosProyectos">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
                 <div class="col-md-3">
                     <label for="cliente_id" class="form-label">Cliente</label>
                     <select class="form-select" id="cliente_id" name="cliente_id">
@@ -89,7 +95,8 @@
                         Limpiar
                     </a>
                 </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
     

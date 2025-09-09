@@ -83,6 +83,9 @@ const ManufacturingApp = {
 
         // Initialize dynamic form components
         this.setupDynamicForms();
+
+        // Initialize collapsible filters
+        this.initializeCollapsibleFilters();
     },
 
     // Auto-hide alert messages after timeout
@@ -219,6 +222,28 @@ const ManufacturingApp = {
 
         // Handle dynamic item addition/removal
         this.setupDynamicItems();
+    },
+
+    // Initialize collapsible filters
+    initializeCollapsibleFilters() {
+        const filterToggles = document.querySelectorAll('[data-bs-toggle="collapse"]');
+        
+        filterToggles.forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                const target = document.querySelector(toggle.getAttribute('data-bs-target'));
+                const chevron = toggle.querySelector('[data-feather="chevron-down"]');
+                
+                if (target && chevron) {
+                    toggle.addEventListener('shown.bs.collapse', () => {
+                        chevron.style.transform = 'rotate(180deg)';
+                    });
+                    
+                    toggle.addEventListener('hidden.bs.collapse', () => {
+                        chevron.style.transform = 'rotate(0deg)';
+                    });
+                }
+            });
+        });
     },
 
     // Setup cascade select functionality

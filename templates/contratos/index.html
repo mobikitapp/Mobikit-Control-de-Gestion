@@ -26,13 +26,19 @@
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-header">
-            <h5 class="card-title mb-0">
-                <i data-feather="filter" class="me-2"></i>
-                Filtros
-            </h5>
+            <button class="btn btn-link text-decoration-none p-0 w-100 text-start" type="button" 
+                    data-bs-toggle="collapse" data-bs-target="#filtrosContratos" 
+                    aria-expanded="false" aria-controls="filtrosContratos">
+                <h5 class="card-title mb-0">
+                    <i data-feather="filter" class="me-2"></i>
+                    Filtros
+                    <i data-feather="chevron-down" class="float-end"></i>
+                </h5>
+            </button>
         </div>
-        <div class="card-body">
-            <form method="GET" class="row g-3">
+        <div class="collapse" id="filtrosContratos">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
                 <div class="col-md-3">
                     <label for="proyecto_cliente" class="form-label">Cliente</label>
                     <select class="form-select" id="proyecto_cliente" onchange="updateProyectos()">
@@ -103,7 +109,8 @@
                         Limpiar
                     </a>
                 </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
     

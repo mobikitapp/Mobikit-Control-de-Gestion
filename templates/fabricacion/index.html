@@ -30,74 +30,76 @@
 
     <!-- Filters -->
     <div class="card mb-4">
-        <div class="card-header">
+        <div class="card-header collapsed" data-bs-toggle="collapse" data-bs-target="#filtrosCollapse" aria-expanded="false" aria-controls="filtrosCollapse">
             <h5 class="card-title mb-0">
                 <i data-feather="filter" class="me-2"></i>
                 Filtros
             </h5>
         </div>
-        <div class="card-body">
-            <form method="GET" class="row g-3">
-                <div class="col-md-3">
-                    <label for="cliente_filtro" class="form-label">Cliente</label>
-                    <select class="form-select" id="cliente_filtro" onchange="updateProyectosFilter()">
-                        <option value="">Todos los clientes</option>
-                        {% for cliente in clientes %}
-                        <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="proyecto_id" class="form-label">Proyecto</label>
-                    <select class="form-select" id="proyecto_id" name="proyecto_id">
-                        <option value="">Todos los proyectos</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="codigo" class="form-label">Código OF</label>
-                    <input type="text" class="form-control" id="codigo" name="codigo" 
-                           value="{{ filters.codigo or '' }}" placeholder="Buscar por código">
-                </div>
-                <div class="col-md-3">
-                    <label for="estado" class="form-label">Estado</label>
-                    <select class="form-select" id="estado" name="estado">
-                        <option value="">Todos los estados</option>
-                        <option value="planificada" {% if filters.estado == 'planificada' %}selected{% endif %}>Planificada</option>
-                        <option value="en_produccion" {% if filters.estado == 'en_produccion' %}selected{% endif %}>En Producción</option>
-                        <option value="qa" {% if filters.estado == 'qa' %}selected{% endif %}>QA</option>
-                        <option value="terminada" {% if filters.estado == 'terminada' %}selected{% endif %}>Terminada</option>
-                        <option value="entregada" {% if filters.estado == 'entregada' %}selected{% endif %}>Entregada</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="responsable" class="form-label">Responsable</label>
-                    <input type="text" class="form-control" id="responsable" name="responsable" 
-                           value="{{ filters.responsable or '' }}" placeholder="ID del responsable">
-                </div>
-                <div class="col-md-3">
-                    <label for="fecha_planificada_desde" class="form-label">Fecha Planificada Desde</label>
-                    <input type="date" class="form-control" id="fecha_planificada_desde" name="fecha_planificada_desde" 
-                           value="{{ filters.fecha_planificada_desde or '' }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="fecha_planificada_hasta" class="form-label">Fecha Planificada Hasta</label>
-                    <input type="date" class="form-control" id="fecha_planificada_hasta" name="fecha_planificada_hasta" 
-                           value="{{ filters.fecha_planificada_hasta or '' }}">
-                </div>
-                <div class="col-md-3">
-                    <!-- Empty column for alignment -->
-                </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary">
-                        <i data-feather="search" class="me-2"></i>
-                        Buscar
-                    </button>
-                    <a href="{{ url_for('fabricacion.index') }}" class="btn btn-outline-secondary">
-                        <i data-feather="x" class="me-2"></i>
-                        Limpiar
-                    </a>
-                </div>
-            </form>
+        <div class="collapse" id="filtrosCollapse">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="cliente_filtro" class="form-label">Cliente</label>
+                        <select class="form-select" id="cliente_filtro" onchange="updateProyectosFilter()">
+                            <option value="">Todos los clientes</option>
+                            {% for cliente in clientes %}
+                            <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="proyecto_id" class="form-label">Proyecto</label>
+                        <select class="form-select" id="proyecto_id" name="proyecto_id">
+                            <option value="">Todos los proyectos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="codigo" class="form-label">Código OF</label>
+                        <input type="text" class="form-control" id="codigo" name="codigo" 
+                               value="{{ filters.codigo or '' }}" placeholder="Buscar por código">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="estado" class="form-label">Estado</label>
+                        <select class="form-select" id="estado" name="estado">
+                            <option value="">Todos los estados</option>
+                            <option value="planificada" {% if filters.estado == 'planificada' %}selected{% endif %}>Planificada</option>
+                            <option value="en_produccion" {% if filters.estado == 'en_produccion' %}selected{% endif %}>En Producción</option>
+                            <option value="qa" {% if filters.estado == 'qa' %}selected{% endif %}>QA</option>
+                            <option value="terminada" {% if filters.estado == 'terminada' %}selected{% endif %}>Terminada</option>
+                            <option value="entregada" {% if filters.estado == 'entregada' %}selected{% endif %}>Entregada</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="responsable" class="form-label">Responsable</label>
+                        <input type="text" class="form-control" id="responsable" name="responsable" 
+                               value="{{ filters.responsable or '' }}" placeholder="ID del responsable">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="fecha_planificada_desde" class="form-label">Fecha Planificada Desde</label>
+                        <input type="date" class="form-control" id="fecha_planificada_desde" name="fecha_planificada_desde" 
+                               value="{{ filters.fecha_planificada_desde or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="fecha_planificada_hasta" class="form-label">Fecha Planificada Hasta</label>
+                        <input type="date" class="form-control" id="fecha_planificada_hasta" name="fecha_planificada_hasta" 
+                               value="{{ filters.fecha_planificada_hasta or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <!-- Empty column for alignment -->
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i data-feather="search" class="me-2"></i>
+                            Buscar
+                        </button>
+                        <a href="{{ url_for('fabricacion.index') }}" class="btn btn-outline-secondary">
+                            <i data-feather="x" class="me-2"></i>
+                            Limpiar
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -266,7 +268,7 @@
                     </li>
                     {% endif %}
 
-                    {% for page_num in range(1, total_pages + 1) %}
+                    {% for page_num in range(1, total__pages + 1) %}
                         {% if page_num == filters.page %}
                         <li class="page-item active">
                             <span class="page-link">{{ page_num }}</span>

@@ -387,6 +387,34 @@
   }
 }
 
+/* Collapsible Filter Styles */
+.card-header .btn-link {
+  color: inherit;
+  border: none;
+  background: none;
+}
+
+.card-header .btn-link:hover {
+  color: var(--bs-primary);
+}
+
+.card-header .btn-link:focus {
+  box-shadow: none;
+}
+
+.card-header .btn-link [data-feather] {
+  transition: transform 0.2s ease-in-out;
+}
+
+.card-header .btn-link[aria-expanded="true"] [data-feather="chevron-down"] {
+  transform: rotate(180deg);
+}
+
+/* Filter animation */
+.collapse {
+  transition: height 0.35s ease;
+}
+
 /* Utility Classes */
 .text-truncate-2 {
   display: -webkit-box;
