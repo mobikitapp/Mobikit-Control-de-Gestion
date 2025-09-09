@@ -78,3 +78,21 @@ The system follows a modular blueprint architecture with clear separation of con
 ### File Format Support
 - **Documents**: PDF.
 - **Images**: JPEG, PNG.
+
+## Recent Changes
+
+### 2025-09-09: Database Enum Synchronization
+- **Synchronized all enum values across the codebase to match database values**:
+  - Updated `EstadoOF` enum in models.py to use lowercase with underscores and Spanish characters (ñ)
+  - Synchronized `EstadoPendientesFabricacion`, `EstadoFabrica`, `EstadoEmbalaje`, `EstadoBodega`, and `EstadoDespachoArea` enums
+  - Updated schemas/fabricacion.py to use synchronized values
+  - Updated constants/transitions.py to use lowercase values matching database
+  - Fixed routes.py to use lowercase enum values
+  - Added missing state `programado_para_despacho` to relevant enums
+- **Purpose**: Ensure consistency between database values and code, preventing runtime errors from mismatched enum values
+- **Impact**: All state comparisons now work correctly with database values
+
+### 2025-09-08: Database Redundancy Elimination
+- **Removed redundant `usuarios` table**: Consolidated to use only the `users` table
+- **Fixed cache cleaning and production data cleaning functions**: Added real-time logging and progress indicators
+- **Standardized authentication**: All systems now use the unified `users` table

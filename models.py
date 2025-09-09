@@ -28,23 +28,24 @@ class EstadoContrato(Enum):
     ANULADO = "ANULADO"
 
 class EstadoOF(Enum):
-    # Estados de Pendientes de Fabricación
-    PENDIENTE_APROBACION_DISENO = "PENDIENTE_APROBACION_DISENO"
-    APROBADO = "APROBADO"
-    # Estados de Fábrica
-    ENVIADO_A_FABRICACION = "ENVIADO_A_FABRICACION"
-    SECCIONANDO = "SECCIONANDO"
-    ENCHAPANDO = "ENCHAPANDO"
-    MECANIZANDO = "MECANIZANDO"
-    FABRICACION_COMPLETA = "FABRICACION_COMPLETA"
-    # Estados de Embalaje
-    PENDIENTE_DE_EMBALAR = "PENDIENTE_DE_EMBALAR"
-    EMBALANDO = "EMBALANDO"
-    EMBALAJE_LISTO = "EMBALAJE_LISTO"
-    # Estados de Bodega
-    LISTO_PARA_DESPACHO = "LISTO_PARA_DESPACHO"
-    # Estados de Despacho
-    DESPACHADO = "DESPACHADO"
+    # Estados de Pendientes de Fabricación - sincronizados con BD
+    PENDIENTE_APROBACION_DISENO = "pendiente_aprobacion_diseño"
+    APROBADO = "aprobado"
+    # Estados de Fábrica - sincronizados con BD
+    ENVIADO_A_FABRICACION = "enviado_a_fabricacion"
+    SECCIONANDO = "seccionando"
+    ENCHAPANDO = "enchapando"
+    MECANIZANDO = "mecanizando"
+    FABRICACION_COMPLETA = "fabricacion_completa"
+    # Estados de Embalaje - sincronizados con BD
+    PENDIENTE_DE_EMBALAR = "pendiente_de_embalar"
+    EMBALANDO = "embalando"
+    EMBALAJE_LISTO = "embalaje_listo"
+    # Estados de Bodega - sincronizados con BD
+    LISTO_PARA_DESPACHO = "listo_para_despacho"
+    PROGRAMADO_PARA_DESPACHO = "programado_para_despacho"
+    # Estados de Despacho - sincronizados con BD
+    DESPACHADO = "despachado"
 
 class EstadoDespacho(Enum):
     PROGRAMADO = "PROGRAMADO"
@@ -149,10 +150,12 @@ class TipoArea(Enum):
     DESPACHO = "despacho"
 
 class EstadoPendientesFabricacion(Enum):
+    # Sincronizado con EstadoOF y BD
     PENDIENTE_APROBACION_DISENO = "pendiente_aprobacion_diseño"
     APROBADO = "aprobado"
 
 class EstadoFabrica(Enum):
+    # Sincronizado con EstadoOF y BD
     ENVIADO_A_FABRICACION = "enviado_a_fabricacion"
     SECCIONANDO = "seccionando"
     ENCHAPANDO = "enchapando"
@@ -160,15 +163,18 @@ class EstadoFabrica(Enum):
     FABRICACION_COMPLETA = "fabricacion_completa"
 
 class EstadoEmbalaje(Enum):
+    # Sincronizado con EstadoOF y BD
     PENDIENTE_DE_EMBALAR = "pendiente_de_embalar"
     EMBALANDO = "embalando"
     EMBALAJE_LISTO = "embalaje_listo"
 
 class EstadoBodega(Enum):
+    # Sincronizado con EstadoOF y BD
     LISTO_PARA_DESPACHO = "listo_para_despacho"
     PROGRAMADO_PARA_DESPACHO = "programado_para_despacho"
 
 class EstadoDespachoArea(Enum):
+    # Sincronizado con EstadoOF y BD
     DESPACHADO = "despachado"
 
 # Enums para despachos parciales

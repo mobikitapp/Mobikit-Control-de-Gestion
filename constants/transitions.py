@@ -3,20 +3,21 @@ Constantes centralizadas para transiciones de estado
 Única fuente de verdad para todas las transiciones permitidas
 """
 
-# Transiciones para Órdenes de Fabricación
+# Transiciones para Órdenes de Fabricación - sincronizados con models.py y BD
 OF_TRANSITIONS = {
-    "PENDIENTE_APROBACION_DISENO": ["APROBADO"],
-    "APROBADO": ["ENVIADO_A_FABRICACION"],
-    "ENVIADO_A_FABRICACION": ["SECCIONANDO", "APROBADO"],
-    "SECCIONANDO": ["ENCHAPANDO", "ENVIADO_A_FABRICACION"],
-    "ENCHAPANDO": ["MECANIZANDO", "SECCIONANDO"],
-    "MECANIZANDO": ["FABRICACION_COMPLETA", "ENCHAPANDO"],
-    "FABRICACION_COMPLETA": ["PENDIENTE_DE_EMBALAR"],
-    "PENDIENTE_DE_EMBALAR": ["EMBALANDO"],
-    "EMBALANDO": ["EMBALAJE_LISTO", "PENDIENTE_DE_EMBALAR"],
-    "EMBALAJE_LISTO": ["LISTO_PARA_DESPACHO"],
-    "LISTO_PARA_DESPACHO": ["DESPACHADO"],
-    "DESPACHADO": []  # Estado final
+    "pendiente_aprobacion_diseño": ["aprobado"],
+    "aprobado": ["enviado_a_fabricacion"],
+    "enviado_a_fabricacion": ["seccionando", "aprobado"],
+    "seccionando": ["enchapando", "enviado_a_fabricacion"],
+    "enchapando": ["mecanizando", "seccionando"],
+    "mecanizando": ["fabricacion_completa", "enchapando"],
+    "fabricacion_completa": ["pendiente_de_embalar"],
+    "pendiente_de_embalar": ["embalando"],
+    "embalando": ["embalaje_listo", "pendiente_de_embalar"],
+    "embalaje_listo": ["listo_para_despacho"],
+    "listo_para_despacho": ["programado_para_despacho", "despachado"],
+    "programado_para_despacho": ["despachado"],
+    "despachado": []  # Estado final
 }
 
 # Transiciones para Contratos
@@ -43,31 +44,32 @@ OF_SPECIAL_VALIDATIONS = {
     }
 }
 
-# Estados activos para dashboards y reportes
+# Estados activos para dashboards y reportes - sincronizados con models.py y BD
 OF_ACTIVE_STATES = [
-    "PENDIENTE_APROBACION_DISENO", 
-    "APROBADO", 
-    "ENVIADO_A_FABRICACION", 
-    "SECCIONANDO",
-    "ENCHAPANDO", 
-    "MECANIZANDO"
+    "pendiente_aprobacion_diseño", 
+    "aprobado", 
+    "enviado_a_fabricacion", 
+    "seccionando",
+    "enchapando", 
+    "mecanizando"
 ]
 
 OF_FACTORY_STATES = [
-    "ENVIADO_A_FABRICACION", 
-    "SECCIONANDO",
-    "ENCHAPANDO", 
-    "MECANIZANDO",
-    "FABRICACION_COMPLETA"
+    "enviado_a_fabricacion", 
+    "seccionando",
+    "enchapando", 
+    "mecanizando",
+    "fabricacion_completa"
 ]
 
 OF_PACKAGING_STATES = [
-    "PENDIENTE_DE_EMBALAR",
-    "EMBALANDO", 
-    "EMBALAJE_LISTO"
+    "pendiente_de_embalar",
+    "embalando", 
+    "embalaje_listo"
 ]
 
 OF_DISPATCH_STATES = [
-    "LISTO_PARA_DESPACHO",
-    "DESPACHADO"
+    "listo_para_despacho",
+    "programado_para_despacho",
+    "despachado"
 ]
