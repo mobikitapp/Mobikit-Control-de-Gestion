@@ -701,42 +701,6 @@ function marcarPendienteFacturado(pendienteId, numeroOc) {
     });
 }
 
-function marcarPendientePagado(pendienteId, numeroOc) {
-    if (!confirm(`¿Marcar OC ${numeroOc} como pagada?`)) return;
-
-    const button = event.target.closest('button');
-    const originalText = button.innerHTML;
-
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
-
-    fetch(`/proyectos/pendientes-facturar/${pendienteId}/marcar-facturado`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            numero_factura: numeroFactura
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            location.reload(); // Refresh to update the UI
-        } else {
-            showAlert('danger', 'Error: ' + data.message);
-            button.disabled = false;
-            button.innerHTML = originalText;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'Error de conexión. Por favor, intenta nuevamente.');
-        button.disabled = false;
-        button.innerHTML = originalText;
-    });
-}
 
 function marcarPendientePagado(pendienteId, numeroOc) {
     if (!confirm(`¿Marcar OC ${numeroOc} como pagada?`)) return;
