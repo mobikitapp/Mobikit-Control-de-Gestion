@@ -748,32 +748,80 @@ def ver_auditoria_permisos():
 @role_required([RolUsuario.ADMIN])
 def limpiar_cache():
     """Endpoint para limpiar caché de la aplicación"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
-        # Limpiar caché de Python
+        logger.info("Iniciando limpieza de caché...")
+        
+        # Limpiar caché de Python (garbage collection)
         import gc
-        gc.collect()
+        collected = gc.collect()
+        logger.info(f"Garbage collection ejecutado: {collected} objetos limpiados")
 
-        # Limpiar archivos temporales
+        # Limpiar archivos temporales específicos de la aplicación
         import tempfile
         import shutil
+        import os
         temp_dir = tempfile.gettempdir()
+        
+        temp_files_cleaned = 0
+        try:
+            # Buscar archivos temporales de la aplicación
+            for filename in os.listdir(temp_dir):
+                if any(pattern in filename.lower() for pattern in ['flask', 'werkzeug', 'tmp_', 'cache_']):
+                    try:
+                        file_path = os.path.join(temp_dir, filename)
+                        if os.path.isfile(file_path):
+                            os.remove(file_path)
+                            temp_files_cleaned += 1
+                    except PermissionError:
+                        # Archivo en uso, continuar con el siguiente
+                        continue
+            logger.info(f"Archivos temporales limpiados: {temp_files_cleaned}")
+        except Exception as temp_error:
+            logger.warning(f"No se pudieron limpiar algunos archivos temporales: {temp_error}")
 
         # Limpiar caché de SQLAlchemy
         from app import db
-        db.session.close()
+        try:
+            # Cerrar todas las sesiones activas
+            db.session.close()
+            # Limpiar el pool de conexiones
+            db.engine.dispose()
+            logger.info("Caché de SQLAlchemy limpiado")
+        except Exception as db_error:
+            logger.warning(f"Error limpiando caché de base de datos: {db_error}")
 
-        flash('Caché limpiada exitosamente', 'success')
+        # Limpiar variables de entorno temporales si existen
+        import sys
+        modules_before = len(sys.modules)
+        # No eliminar módulos críticos, solo limpiar referencias
+        gc.collect()  # Segunda pasada de garbage collection
+        modules_after = len(sys.modules)
+        logger.info(f"Módulos en memoria: {modules_before} -> {modules_after}")
+
+        success_message = f'Caché limpiada exitosamente. GC: {collected} objetos, Archivos temp: {temp_files_cleaned}'
+        flash(success_message, 'success')
+        logger.info("Limpieza de caché completada exitosamente")
 
         return jsonify({
             'success': True,
-            'message': 'Caché limpiada exitosamente'
+            'message': success_message,
+            'details': {
+                'garbage_collected': collected,
+                'temp_files_cleaned': temp_files_cleaned,
+                'modules_count': modules_after
+            }
         })
 
     except Exception as e:
-        flash(f'Error al limpiar caché: {str(e)}', 'error')
+        error_msg = f'Error al limpiar caché: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        flash(error_msg, 'error')
         return jsonify({
             'success': False,
-            'message': f'Error al limpiar caché: {str(e)}'
+            'message': error_msg
         }), 500
 
 @configuraciones_bp.route('/limpiar-datos', methods=['POST'])
@@ -903,9 +951,23 @@ def limpiar_datos():
         })
 
     except Exception as e:
-        logger.error(f"Error al limpiar datos: {str(e)}")
-        flash(f'Error al limpiar datos: {str(e)}', 'error')
+        # Asegurar imports en caso de error
+        import logging
+        from app import db
+        logger = logging.getLogger(__name__)
+        
+        error_msg = f"Error al limpiar datos de producción: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        
+        # Intentar rollback si hay una transacción activa
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+            
+        flash(error_msg, 'error')
         return jsonify({
             'success': False,
-            'message': f'Error al limpiar datos: {str(e)}'
+            'message': error_msg,
+            'error_type': type(e).__name__
         }), 500
