@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Costos del Proyecto - {{ proyecto.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('finanzas.dashboard') }}">Dashboard Financiero</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('finanzas.detalle_proyecto', proyecto_id=proyecto.id) }}">{{ proyecto.nombre }}</a></li>
+            <li class="breadcrumb-item active">Costos</li>
+        </ol>
+    </nav>
+    
+    <h1 class="h3 mb-4">Costos del Proyecto</h1>
+    
+    <!-- Información del Proyecto -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Proyecto:</strong> {{ proyecto.nombre }}</p>
+                    <p><strong>Cliente:</strong> {{ proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente' }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Total Costos Registrados:</strong> <span class="text-danger">$ {{ "{:,.0f}".format(total_costos) }}</span></p>
+                    <p><strong>Fecha Último Costo:</strong> {% if costos %}{{ costos[0].fecha }}{% else %}Sin registros{% endif %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Formulario para nuevo costo -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Registrar Nuevo Costo (desde ERP)</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('finanzas.costos_proyecto', proyecto_id=proyecto.id) }}">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="fecha" class="form-label">Fecha <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="fecha" name="fecha" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="categoria" class="form-label">Categoría <span class="text-danger">*</span></label>
+                            <select class="form-select" id="categoria" name="categoria" required>
+                                <option value="">Seleccione...</option>
+                                <option value="MATERIALES">Materiales</option>
+                                <option value="MANO_OBRA">Mano de Obra</option>
+                                <option value="SERVICIOS">Servicios</option>
+                                <option value="LOGISTICA">Logística</option>
+                                <option value="OTROS">Otros</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="monto" class="form-label">Monto <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="monto" name="monto" 
+                                       step="0.01" min="0" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="descripcion" class="form-label">Descripción <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="descripcion" name="descripcion" 
+                           placeholder="Descripción del costo según ERP" required>
+                </div>
+                <div class="mb-3">
+                    <label for="referencia_erp" class="form-label">Referencia ERP</label>
+                    <input type="text" class="form-control" id="referencia_erp" name="referencia_erp" 
+                           placeholder="Número de documento o referencia en el ERP (opcional)">
+                </div>
+                
+                <button type="submit" class="btn btn-primary" disabled>
+                    <i class="bi bi-plus-circle"></i> Registrar Costo
+                </button>
+                <small class="text-muted ms-2">Esta funcionalidad estará disponible próximamente</small>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Lista de costos -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Historial de Costos</h5>
+        </div>
+        <div class="card-body">
+            {% if costos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Categoría</th>
+                            <th>Descripción</th>
+                            <th>Referencia ERP</th>
+                            <th class="text-end">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for costo in costos %}
+                        <tr>
+                            <td>{{ costo.fecha }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ costo.categoria }}</span>
+                            </td>
+                            <td>{{ costo.descripcion }}</td>
+                            <td>{{ costo.referencia_erp or '-' }}</td>
+                            <td class="text-end">$ {{ "{:,.0f}".format(costo.monto) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-secondary">
+                            <th colspan="4">TOTAL</th>
+                            <th class="text-end">$ {{ "{:,.0f}".format(total_costos) }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-calculator text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3">No hay costos registrados para este proyecto</p>
+                <p class="text-muted">Los costos deben ingresarse manualmente desde su sistema ERP</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Información -->
+    <div class="alert alert-info mt-4">
+        <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Información sobre costos</h6>
+        <p class="mb-0">Los costos deben ser ingresados manualmente desde su sistema ERP contable. 
+        Esta información se utilizará para calcular márgenes y realizar el análisis financiero del proyecto.</p>
+    </div>
+    
+    <!-- Acciones -->
+    <div class="mt-4">
+        <a href="{{ url_for('finanzas.detalle_proyecto', proyecto_id=proyecto.id) }}" 
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Proyecto
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,206 +1,316 @@
+"""
+Módulo de Finanzas Simplificado
+Enfocado en seguimiento de proyectos, contratos y estados de pago
+"""
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import current_user, login_required
-from app import db
-from replit_auth import require_login, require_role
-from models import (
-    RolUsuario, Proyecto, Contrato, EstadoContrato, EstadoPago, 
-    EstadoComercial, ObjetivoMensual, MovimientoFinanciero, 
-    CuentaBancaria, CentroCosto, TipoMovimiento
-)
-from services.finanzas_service import FinanzasService
-from services.tesoreria_service import TesoreriaService
-from datetime import datetime, date, timedelta
+from flask_login import login_required, current_user
+from functools import wraps
+from datetime import datetime, timedelta
 from decimal import Decimal
+from sqlalchemy import func, and_, or_
+from sqlalchemy.orm import joinedload
 import logging
+
+from app import db
+from models import (
+    Proyecto, Contrato, EstadoPago, Cliente,
+    TipoEstadoPago, RolUsuario
+)
 
 logger = logging.getLogger(__name__)
 
 finanzas_bp = Blueprint('finanzas', __name__)
-finanzas_service = FinanzasService()
-tesoreria_service = TesoreriaService()
+
+def finanzas_required(f):
+    """Decorador para requerir rol de finanzas"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('Debe iniciar sesión para acceder a esta página', 'error')
+            return redirect(url_for('auth.login'))
+        
+        if current_user.rol not in [RolUsuario.ADMIN, RolUsuario.GENERAL]:
+            flash('No tiene permisos para acceder a finanzas', 'error')
+            return redirect(url_for('index'))
+        
+        return f(*args, **kwargs)
+    return decorated_function
 
 @finanzas_bp.route('/')
 @finanzas_bp.route('/dashboard')
-@require_login
+@login_required
+@finanzas_required
 def dashboard():
-    """Dashboard principal del módulo de finanzas"""
+    """Dashboard principal de finanzas - Lista de proyectos con contratos"""
     try:
-        # Obtener métricas del dashboard
-        metricas = finanzas_service.get_dashboard_metrics()
+        # Obtener todos los proyectos activos con sus contratos
+        proyectos = db.session.query(Proyecto).filter(
+            Proyecto.activo == True
+        ).options(
+            joinedload(Proyecto.cliente),
+            joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
+        ).order_by(Proyecto.nombre).all()
         
-        # Obtener resumen por proyectos activos
-        resumen_proyectos = finanzas_service.get_resumen_proyectos()
+        # Calcular resumen por proyecto
+        resumen_proyectos = []
+        for proyecto in proyectos:
+            # Calcular totales de contratos
+            total_contratos = sum(c.monto_total or 0 for c in proyecto.contratos)
+            total_facturado = 0
+            total_pagado = 0
+            total_pendiente = 0
+            
+            for contrato in proyecto.contratos:
+                for estado in contrato.estados_pago:
+                    if estado.tipo_estado == TipoEstadoPago.FACTURADO:
+                        total_facturado += estado.monto or 0
+                    elif estado.tipo_estado == TipoEstadoPago.PAGADO:
+                        total_pagado += estado.monto or 0
+                    elif estado.tipo_estado == TipoEstadoPago.PENDIENTE_FACTURAR:
+                        total_pendiente += estado.monto or 0
+            
+            resumen_proyectos.append({
+                'proyecto': proyecto,
+                'num_contratos': len(proyecto.contratos),
+                'total_contratos': total_contratos,
+                'total_facturado': total_facturado,
+                'total_pagado': total_pagado,
+                'total_pendiente': total_pendiente,
+                'avance_facturacion': (total_facturado / total_contratos * 100) if total_contratos > 0 else 0,
+                'avance_cobro': (total_pagado / total_contratos * 100) if total_contratos > 0 else 0
+            })
         
-        # Obtener flujo de caja del mes actual
-        flujo_caja = tesoreria_service.get_flujo_caja_mensual()
+        # Calcular KPIs generales
+        total_proyectos = len(proyectos)
+        total_contratos_global = sum(r['total_contratos'] for r in resumen_proyectos)
+        total_facturado_global = sum(r['total_facturado'] for r in resumen_proyectos)
+        total_pagado_global = sum(r['total_pagado'] for r in resumen_proyectos)
+        total_pendiente_global = sum(r['total_pendiente'] for r in resumen_proyectos)
         
-        # Obtener estado de cartera (pagos pendientes)
-        cartera_pendiente = finanzas_service.get_cartera_pendiente()
-        
-        return render_template('finanzas/dashboard.html',
-                             metricas=metricas,
+        return render_template('finanzas/dashboard_simple.html',
                              resumen_proyectos=resumen_proyectos,
-                             flujo_caja=flujo_caja,
-                             cartera_pendiente=cartera_pendiente,
-                             current_user=current_user,
-                             title="Dashboard Financiero")
+                             total_proyectos=total_proyectos,
+                             total_contratos=total_contratos_global,
+                             total_facturado=total_facturado_global,
+                             total_pagado=total_pagado_global,
+                             total_pendiente=total_pendiente_global,
+                             current_user=current_user)
+                             
     except Exception as e:
-        logger.error(f"Error en dashboard financiero: {str(e)}")
+        logger.error(f"Error en dashboard financiero: {e}")
         flash('Error al cargar el dashboard financiero', 'error')
         return redirect(url_for('index'))
 
-@finanzas_bp.route('/tesoreria')
-@require_login
-def tesoreria():
-    """Vista principal de tesorería"""
+@finanzas_bp.route('/proyecto/<int:proyecto_id>')
+@login_required
+@finanzas_required
+def detalle_proyecto(proyecto_id):
+    """Vista detallada de un proyecto con sus contratos y estados de pago"""
     try:
-        # Obtener cuentas bancarias
-        cuentas = tesoreria_service.get_cuentas_bancarias()
+        proyecto = db.session.query(Proyecto).filter(
+            Proyecto.id == proyecto_id
+        ).options(
+            joinedload(Proyecto.cliente),
+            joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
+        ).first_or_404()
         
-        # Obtener movimientos recientes
-        movimientos = tesoreria_service.get_movimientos_recientes(limit=50)
+        # Obtener costos manuales del proyecto (tabla se creará si es necesaria)
+        costos = []  # Por ahora vacío hasta implementar tabla de costos
         
-        # Obtener saldo total
-        saldo_total = tesoreria_service.get_saldo_total()
+        # Calcular totales
+        total_ingresos = sum(c.monto_total or 0 for c in proyecto.contratos)
+        total_costos = sum(c.get('monto', 0) for c in costos)
+        margen = total_ingresos - total_costos
+        margen_porcentaje = (margen / total_ingresos * 100) if total_ingresos > 0 else 0
         
-        return render_template('finanzas/tesoreria/index.html',
-                             cuentas=cuentas,
-                             movimientos=movimientos,
-                             saldo_total=saldo_total,
-                             current_user=current_user,
-                             title="Tesorería")
+        return render_template('finanzas/detalle_proyecto.html',
+                             proyecto=proyecto,
+                             costos=costos,
+                             total_ingresos=total_ingresos,
+                             total_costos=total_costos,
+                             margen=margen,
+                             margen_porcentaje=margen_porcentaje,
+                             current_user=current_user)
+                             
     except Exception as e:
-        logger.error(f"Error en tesorería: {str(e)}")
-        flash('Error al cargar tesorería', 'error')
+        logger.error(f"Error en detalle de proyecto: {e}")
+        flash('Error al cargar el detalle del proyecto', 'error')
         return redirect(url_for('finanzas.dashboard'))
 
-@finanzas_bp.route('/tesoreria/movimiento/nuevo', methods=['GET', 'POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def nuevo_movimiento():
-    """Crear nuevo movimiento financiero"""
-    if request.method == 'GET':
-        try:
-            # Obtener datos para el formulario
-            cuentas = tesoreria_service.get_cuentas_bancarias()
-            proyectos = Proyecto.query.filter_by(activo=True).all()
-            centros_costo = CentroCosto.query.filter_by(activo=True).all()
-            
-            return render_template('finanzas/tesoreria/form_movimiento.html',
-                                 cuentas=cuentas,
-                                 proyectos=proyectos,
-                                 centros_costo=centros_costo,
-                                 current_user=current_user,
-                                 title="Nuevo Movimiento")
-        except Exception as e:
-            logger.error(f"Error cargando formulario de movimiento: {str(e)}")
-            flash('Error al cargar formulario', 'error')
-            return redirect(url_for('finanzas.tesoreria'))
-    
-    # POST - Crear movimiento
+@finanzas_bp.route('/contrato/<int:contrato_id>/estados')
+@login_required
+@finanzas_required
+def estados_pago_contrato(contrato_id):
+    """Gestión de estados de pago de un contrato"""
     try:
-        data = {
-            'fecha': datetime.strptime(request.form.get('fecha'), '%Y-%m-%d').date(),
-            'tipo': request.form.get('tipo'),
-            'monto': Decimal(request.form.get('monto', '0')),
-            'descripcion': request.form.get('descripcion'),
-            'cuenta_bancaria_id': int(request.form.get('cuenta_bancaria_id')) if request.form.get('cuenta_bancaria_id') else None,
-            'proyecto_id': int(request.form.get('proyecto_id')) if request.form.get('proyecto_id') else None,
-            'centro_costo_id': int(request.form.get('centro_costo_id')) if request.form.get('centro_costo_id') else None,
-            'referencia': request.form.get('referencia'),
-            'created_by': current_user.id
-        }
+        contrato = db.session.query(Contrato).filter(
+            Contrato.id == contrato_id
+        ).options(
+            joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
+            joinedload(Contrato.estados_pago)
+        ).first_or_404()
         
-        movimiento = tesoreria_service.crear_movimiento(data)
+        # Calcular resumen de estados
+        total_contrato = contrato.monto_total or 0
+        total_facturado = sum(e.monto for e in contrato.estados_pago 
+                            if e.tipo_estado == TipoEstadoPago.FACTURADO)
+        total_pagado = sum(e.monto for e in contrato.estados_pago 
+                         if e.tipo_estado == TipoEstadoPago.PAGADO)
+        total_pendiente = sum(e.monto for e in contrato.estados_pago 
+                            if e.tipo_estado == TipoEstadoPago.PENDIENTE_FACTURAR)
         
-        flash(f'Movimiento registrado exitosamente', 'success')
-        return redirect(url_for('finanzas.tesoreria'))
-        
-    except ValueError as e:
-        flash(f'Error en los datos: {str(e)}', 'error')
-        return redirect(url_for('finanzas.nuevo_movimiento'))
+        return render_template('finanzas/estados_pago.html',
+                             contrato=contrato,
+                             total_facturado=total_facturado,
+                             total_pagado=total_pagado,
+                             total_pendiente=total_pendiente,
+                             tipos_estado=TipoEstadoPago,
+                             current_user=current_user)
+                             
     except Exception as e:
-        logger.error(f"Error creando movimiento: {str(e)}")
-        flash('Error al crear movimiento', 'error')
-        return redirect(url_for('finanzas.nuevo_movimiento'))
+        logger.error(f"Error en estados de pago: {e}")
+        flash('Error al cargar los estados de pago', 'error')
+        return redirect(url_for('finanzas.dashboard'))
 
-@finanzas_bp.route('/centros-costo')
-@require_login
-def centros_costo():
-    """Vista de centros de costo"""
+@finanzas_bp.route('/contrato/<int:contrato_id>/estado/nuevo', methods=['GET', 'POST'])
+@login_required
+@finanzas_required
+def nuevo_estado_pago(contrato_id):
+    """Crear nuevo estado de pago para un contrato"""
     try:
-        centros = finanzas_service.get_centros_costo_con_resumen()
+        contrato = db.session.query(Contrato).filter(
+            Contrato.id == contrato_id
+        ).options(
+            joinedload(Contrato.proyecto)
+        ).first_or_404()
         
-        return render_template('finanzas/centros_costo/index.html',
-                             centros=centros,
-                             current_user=current_user,
-                             title="Centros de Costo")
+        if request.method == 'POST':
+            # Crear nuevo estado de pago
+            estado = EstadoPago(
+                contrato_id=contrato_id,
+                tipo_estado=TipoEstadoPago[request.form.get('tipo_estado')],
+                numero_documento=request.form.get('numero_documento'),
+                fecha_estado=datetime.strptime(request.form.get('fecha_estado'), '%Y-%m-%d').date(),
+                monto=Decimal(request.form.get('monto', 0)),
+                descripcion=request.form.get('descripcion'),
+                fecha_programada_pago=datetime.strptime(request.form.get('fecha_programada_pago'), '%Y-%m-%d').date() if request.form.get('fecha_programada_pago') else None,
+                created_by=current_user.id
+            )
+            
+            db.session.add(estado)
+            db.session.commit()
+            
+            flash(f'Estado de pago creado exitosamente', 'success')
+            return redirect(url_for('finanzas.estados_pago_contrato', contrato_id=contrato_id))
+        
+        # Definir tipos de estado típicos para contratos
+        tipos_comunes = ['ANTICIPO', 'AVANCE', 'RETENCION']
+        
+        return render_template('finanzas/nuevo_estado_pago.html',
+                             contrato=contrato,
+                             tipos_estado=TipoEstadoPago,
+                             tipos_comunes=tipos_comunes,
+                             current_user=current_user)
+                             
     except Exception as e:
-        logger.error(f"Error en centros de costo: {str(e)}")
-        flash('Error al cargar centros de costo', 'error')
+        logger.error(f"Error creando estado de pago: {e}")
+        db.session.rollback()
+        flash('Error al crear el estado de pago', 'error')
+        return redirect(url_for('finanzas.estados_pago_contrato', contrato_id=contrato_id))
+
+@finanzas_bp.route('/proyecto/<int:proyecto_id>/costos', methods=['GET', 'POST'])
+@login_required
+@finanzas_required
+def costos_proyecto(proyecto_id):
+    """Gestión de costos manuales del proyecto"""
+    try:
+        proyecto = db.session.query(Proyecto).filter(
+            Proyecto.id == proyecto_id
+        ).first_or_404()
+        
+        if request.method == 'POST':
+            # Aquí se implementará el guardado de costos cuando se cree la tabla
+            flash('Funcionalidad de costos en desarrollo', 'info')
+            return redirect(url_for('finanzas.costos_proyecto', proyecto_id=proyecto_id))
+        
+        # Por ahora solo mostrar la vista vacía
+        costos = []
+        total_costos = 0
+        
+        return render_template('finanzas/costos_proyecto.html',
+                             proyecto=proyecto,
+                             costos=costos,
+                             total_costos=total_costos,
+                             current_user=current_user)
+                             
+    except Exception as e:
+        logger.error(f"Error en costos del proyecto: {e}")
+        flash('Error al cargar los costos del proyecto', 'error')
         return redirect(url_for('finanzas.dashboard'))
 
 @finanzas_bp.route('/reportes')
-@require_login
+@login_required
+@finanzas_required
 def reportes():
-    """Vista principal de reportes financieros"""
-    try:
-        return render_template('finanzas/reportes/index.html',
-                             current_user=current_user,
-                             title="Reportes Financieros")
-    except Exception as e:
-        logger.error(f"Error en reportes: {str(e)}")
-        flash('Error al cargar reportes', 'error')
-        return redirect(url_for('finanzas.dashboard'))
+    """Vista de reportes financieros disponibles"""
+    return render_template('finanzas/reportes_simple.html',
+                         current_user=current_user)
 
-@finanzas_bp.route('/reportes/flujo-caja')
-@require_login
-def reporte_flujo_caja():
-    """Reporte de flujo de caja"""
+@finanzas_bp.route('/reporte/analisis-proyectos')
+@login_required
+@finanzas_required
+def reporte_analisis_proyectos():
+    """Reporte de análisis financiero de proyectos"""
     try:
-        # Obtener parámetros de fecha
-        fecha_inicio = request.args.get('fecha_inicio')
-        fecha_fin = request.args.get('fecha_fin')
+        # Obtener proyectos con análisis financiero
+        proyectos = db.session.query(Proyecto).filter(
+            Proyecto.activo == True
+        ).options(
+            joinedload(Proyecto.cliente),
+            joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
+        ).all()
         
-        if not fecha_inicio:
-            # Por defecto, último mes
-            fecha_fin = date.today()
-            fecha_inicio = fecha_fin - timedelta(days=30)
-        else:
-            fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
-            fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d').date() if fecha_fin else date.today()
+        analisis = []
+        for proyecto in proyectos:
+            # Calcular ingresos
+            total_contratos = sum(c.monto_total or 0 for c in proyecto.contratos)
+            total_facturado = 0
+            total_pagado = 0
+            
+            for contrato in proyecto.contratos:
+                for estado in contrato.estados_pago:
+                    if estado.tipo_estado == TipoEstadoPago.FACTURADO:
+                        total_facturado += estado.monto or 0
+                    elif estado.tipo_estado == TipoEstadoPago.PAGADO:
+                        total_pagado += estado.monto or 0
+            
+            # Por ahora costos en 0 hasta que se implemente la tabla
+            total_costos = 0
+            margen = total_contratos - total_costos
+            margen_porcentaje = (margen / total_contratos * 100) if total_contratos > 0 else 0
+            
+            analisis.append({
+                'proyecto': proyecto,
+                'cliente': proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente',
+                'total_contratos': total_contratos,
+                'total_facturado': total_facturado,
+                'total_pagado': total_pagado,
+                'total_costos': total_costos,
+                'margen': margen,
+                'margen_porcentaje': margen_porcentaje,
+                'avance_facturacion': (total_facturado / total_contratos * 100) if total_contratos > 0 else 0,
+                'avance_cobro': (total_pagado / total_contratos * 100) if total_contratos > 0 else 0
+            })
         
-        # Obtener datos del flujo de caja
-        flujo_caja = tesoreria_service.get_flujo_caja_periodo(fecha_inicio, fecha_fin)
+        # Ordenar por margen
+        analisis.sort(key=lambda x: x['margen'], reverse=True)
         
-        return render_template('finanzas/reportes/flujo_caja.html',
-                             flujo_caja=flujo_caja,
-                             fecha_inicio=fecha_inicio,
-                             fecha_fin=fecha_fin,
-                             current_user=current_user,
-                             title="Reporte Flujo de Caja")
+        return render_template('finanzas/reporte_analisis.html',
+                             analisis=analisis,
+                             current_user=current_user)
+                             
     except Exception as e:
-        logger.error(f"Error en reporte flujo de caja: {str(e)}")
-        flash('Error al generar reporte', 'error')
+        logger.error(f"Error en reporte de análisis: {e}")
+        flash('Error al generar el reporte', 'error')
         return redirect(url_for('finanzas.reportes'))
-
-@finanzas_bp.route('/api/dashboard-data')
-@require_login
-def api_dashboard_data():
-    """API para obtener datos del dashboard (para actualización AJAX)"""
-    try:
-        metricas = finanzas_service.get_dashboard_metrics()
-        return jsonify(metricas)
-    except Exception as e:
-        logger.error(f"Error en API dashboard: {str(e)}")
-        return jsonify({'error': 'Error al obtener datos'}), 500
-
-@finanzas_bp.route('/api/flujo-caja/<int:year>/<int:month>')
-@require_login
-def api_flujo_caja_mes(year, month):
-    """API para obtener flujo de caja de un mes específico"""
-    try:
-        flujo_caja = tesoreria_service.get_flujo_caja_mes(year, month)
-        return jsonify(flujo_caja)
-    except Exception as e:
-        logger.error(f"Error en API flujo caja: {str(e)}")
-        return jsonify({'error': 'Error al obtener flujo de caja'}), 500

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Estados de Pago - {{ contrato.numero_contrato }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('finanzas.dashboard') }}">Dashboard Financiero</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('finanzas.detalle_proyecto', proyecto_id=contrato.proyecto.id) }}">{{ contrato.proyecto.nombre }}</a></li>
+            <li class="breadcrumb-item active">{{ contrato.numero_contrato }}</li>
+        </ol>
+    </nav>
+    
+    <h1 class="h3 mb-4">Estados de Pago - {{ contrato.numero_contrato }}</h1>
+    
+    <!-- Información del Contrato -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Proyecto:</strong> {{ contrato.proyecto.nombre }}</p>
+                    <p><strong>Cliente:</strong> {{ contrato.proyecto.cliente.nombre if contrato.proyecto.cliente else 'Sin cliente' }}</p>
+                    <p><strong>Tipo:</strong> 
+                        {% if contrato.tipo == 'CONTRATO' %}
+                        <span class="badge bg-primary">Contrato</span>
+                        {% else %}
+                        <span class="badge bg-info">Orden de Compra</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Monto Total:</strong> $ {{ "{:,.0f}".format(contrato.monto_total or 0) }}</p>
+                    <p><strong>Total Facturado:</strong> <span class="text-info">$ {{ "{:,.0f}".format(total_facturado) }}</span></p>
+                    <p><strong>Total Pagado:</strong> <span class="text-success">$ {{ "{:,.0f}".format(total_pagado) }}</span></p>
+                    <p><strong>Pendiente Facturar:</strong> <span class="text-warning">$ {{ "{:,.0f}".format(total_pendiente) }}</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resumen de Estados -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h6 class="text-warning">Pendiente Facturar</h6>
+                    <h4>$ {{ "{:,.0f}".format(total_pendiente) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h6 class="text-info">Facturado</h6>
+                    <h4>$ {{ "{:,.0f}".format(total_facturado) }}</h4>
+                    <small>{{ "{:.1f}%".format((total_facturado / contrato.monto_total * 100) if contrato.monto_total else 0) }} del total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h6 class="text-success">Pagado</h6>
+                    <h4>$ {{ "{:,.0f}".format(total_pagado) }}</h4>
+                    <small>{{ "{:.1f}%".format((total_pagado / contrato.monto_total * 100) if contrato.monto_total else 0) }} del total</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lista de Estados de Pago -->
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Estados de Pago</h5>
+            <a href="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}" 
+               class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-circle"></i> Nuevo Estado
+            </a>
+        </div>
+        <div class="card-body">
+            {% if contrato.estados_pago %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Tipo/Concepto</th>
+                            <th>Número Doc.</th>
+                            <th>Descripción</th>
+                            <th class="text-end">Monto</th>
+                            <th>Fecha Programada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for estado in contrato.estados_pago|sort(attribute='fecha_estado', reverse=True) %}
+                        <tr>
+                            <td>{{ estado.fecha_estado.strftime('%d/%m/%Y') }}</td>
+                            <td>
+                                {% if estado.tipo_estado.value == 'PENDIENTE_FACTURAR' %}
+                                <span class="badge bg-warning">Pendiente Facturar</span>
+                                {% elif estado.tipo_estado.value == 'FACTURADO' %}
+                                <span class="badge bg-info">Facturado</span>
+                                {% elif estado.tipo_estado.value == 'PAGADO' %}
+                                <span class="badge bg-success">Pagado</span>
+                                {% elif estado.tipo_estado.value == 'ANTICIPO' %}
+                                <span class="badge bg-primary">Anticipo</span>
+                                {% elif estado.tipo_estado.value == 'AVANCE' %}
+                                <span class="badge bg-secondary">Avance</span>
+                                {% elif estado.tipo_estado.value == 'RETENCION' %}
+                                <span class="badge bg-dark">Retención</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ estado.tipo_estado.value }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if 'ANTICIPO' in estado.descripcion %}
+                                Anticipo
+                                {% elif 'AVANCE' in estado.descripcion %}
+                                Avance
+                                {% elif 'RETENCION' in estado.descripcion or 'RETENCIÓN' in estado.descripcion %}
+                                Retención
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ estado.numero_documento or '-' }}</td>
+                            <td>{{ estado.descripcion[:50] }}{% if estado.descripcion and estado.descripcion|length > 50 %}...{% endif %}</td>
+                            <td class="text-end">$ {{ "{:,.0f}".format(estado.monto or 0) }}</td>
+                            <td>
+                                {% if estado.fecha_programada_pago %}
+                                {{ estado.fecha_programada_pago.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-secondary">
+                            <th colspan="5">TOTAL</th>
+                            <th class="text-end">$ {{ "{:,.0f}".format(contrato.estados_pago|sum(attribute='monto')) }}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-clipboard-x text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3">No hay estados de pago registrados</p>
+                <a href="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}" 
+                   class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Crear Primer Estado
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Acciones -->
+    <div class="mt-4">
+        <a href="{{ url_for('finanzas.detalle_proyecto', proyecto_id=contrato.proyecto.id) }}" 
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Proyecto
+        </a>
+        <a href="{{ url_for('contratos.ver', contrato_id=contrato.id) }}" 
+           class="btn btn-outline-primary">
+            <i class="bi bi-file-text"></i> Ver Contrato Completo
+        </a>
+    </div>
+</div>
+{% endblock %}

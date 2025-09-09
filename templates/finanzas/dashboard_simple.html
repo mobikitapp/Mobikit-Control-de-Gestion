@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Financiero - Seguimiento de Proyectos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Dashboard Financiero</h1>
+    
+    <!-- KPIs Generales -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Proyectos</h6>
+                    <h3>{{ total_proyectos }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Total Contratos</h6>
+                    <h4>$ {{ "{:,.0f}".format(total_contratos) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h6 class="text-warning">Pendiente Facturar</h6>
+                    <h4>$ {{ "{:,.0f}".format(total_pendiente) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h6 class="text-info">Facturado</h6>
+                    <h4>$ {{ "{:,.0f}".format(total_facturado) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h6 class="text-success">Pagado</h6>
+                    <h4>$ {{ "{:,.0f}".format(total_pagado) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">% Cobro</h6>
+                    <h3>{{ "{:.1f}%".format((total_pagado / total_contratos * 100) if total_contratos > 0 else 0) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lista de Proyectos -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Proyectos y Estados de Pago</h5>
+        </div>
+        <div class="card-body">
+            {% if resumen_proyectos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Proyecto</th>
+                            <th>Cliente</th>
+                            <th>Contratos</th>
+                            <th class="text-end">Monto Total</th>
+                            <th class="text-end">Pendiente</th>
+                            <th class="text-end">Facturado</th>
+                            <th class="text-end">Pagado</th>
+                            <th>% Facturación</th>
+                            <th>% Cobro</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in resumen_proyectos %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.proyecto.nombre }}</strong>
+                            </td>
+                            <td>
+                                {% if item.proyecto.cliente %}
+                                {{ item.proyecto.cliente.nombre }}
+                                {% else %}
+                                <span class="text-muted">Sin cliente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ item.num_contratos }}</span>
+                            </td>
+                            <td class="text-end">
+                                $ {{ "{:,.0f}".format(item.total_contratos) }}
+                            </td>
+                            <td class="text-end text-warning">
+                                $ {{ "{:,.0f}".format(item.total_pendiente) }}
+                            </td>
+                            <td class="text-end text-info">
+                                $ {{ "{:,.0f}".format(item.total_facturado) }}
+                            </td>
+                            <td class="text-end text-success">
+                                $ {{ "{:,.0f}".format(item.total_pagado) }}
+                            </td>
+                            <td>
+                                <div class="progress" style="min-width: 80px; height: 20px;">
+                                    <div class="progress-bar bg-info" style="width: {{ min(item.avance_facturacion, 100) }}%">
+                                        {{ "{:.0f}%".format(item.avance_facturacion) }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="progress" style="min-width: 80px; height: 20px;">
+                                    <div class="progress-bar bg-success" style="width: {{ min(item.avance_cobro, 100) }}%">
+                                        {{ "{:.0f}%".format(item.avance_cobro) }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('finanzas.detalle_proyecto', proyecto_id=item.proyecto.id) }}" 
+                                       class="btn btn-outline-primary" title="Ver detalle">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if item.num_contratos > 0 %}
+                                    <a href="{{ url_for('finanzas.costos_proyecto', proyecto_id=item.proyecto.id) }}" 
+                                       class="btn btn-outline-secondary" title="Ingresar costos">
+                                        <i class="bi bi-calculator"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-folder-x text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3">No hay proyectos con contratos registrados</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Acciones rápidas -->
+    <div class="mt-4">
+        <a href="{{ url_for('finanzas.reportes') }}" class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-text"></i> Ver Reportes
+        </a>
+        <a href="{{ url_for('contratos.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-file-text"></i> Gestionar Contratos
+        </a>
+    </div>
+</div>
+{% endblock %}

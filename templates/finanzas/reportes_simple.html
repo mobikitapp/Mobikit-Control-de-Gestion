@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes Financieros{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Reportes Financieros</h1>
+    
+    <div class="row">
+        <!-- Reporte de Análisis de Proyectos -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-graph-up text-primary"></i> Análisis Financiero de Proyectos
+                    </h5>
+                    <p class="card-text">
+                        Reporte completo con ingresos, costos y márgenes por proyecto. 
+                        Incluye estados de facturación y cobro.
+                    </p>
+                    <a href="{{ url_for('finanzas.reporte_analisis_proyectos') }}" class="btn btn-primary">
+                        <i class="bi bi-file-earmark-text"></i> Ver Reporte
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reporte de Estados de Pago -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-calendar-check text-info"></i> Estados de Pago Pendientes
+                    </h5>
+                    <p class="card-text">
+                        Lista de todos los pagos pendientes por facturar y cobrar, 
+                        organizados por fecha programada.
+                    </p>
+                    <button class="btn btn-outline-secondary" disabled>
+                        <i class="bi bi-file-earmark-text"></i> Próximamente
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reporte de Flujo de Caja -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-cash-stack text-success"></i> Flujo de Caja Proyectado
+                    </h5>
+                    <p class="card-text">
+                        Proyección de ingresos basada en estados de pago programados 
+                        y vencimientos de contratos.
+                    </p>
+                    <button class="btn btn-outline-secondary" disabled>
+                        <i class="bi bi-file-earmark-text"></i> Próximamente
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reporte de Rentabilidad -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-pie-chart text-warning"></i> Rentabilidad por Cliente
+                    </h5>
+                    <p class="card-text">
+                        Análisis de rentabilidad agrupado por cliente, 
+                        mostrando márgenes y volúmenes de negocio.
+                    </p>
+                    <button class="btn btn-outline-secondary" disabled>
+                        <i class="bi bi-file-earmark-text"></i> Próximamente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Información -->
+    <div class="alert alert-info">
+        <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Sobre los reportes</h6>
+        <p class="mb-0">Los reportes financieros se generan en base a los contratos, estados de pago y costos registrados. 
+        Para obtener reportes precisos, asegúrese de mantener actualizada la información de costos desde su ERP.</p>
+    </div>
+    
+    <!-- Acciones -->
+    <div class="mt-4">
+        <a href="{{ url_for('finanzas.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

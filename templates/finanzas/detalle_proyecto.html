@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle Financiero - {{ proyecto.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('finanzas.dashboard') }}">Dashboard Financiero</a></li>
+            <li class="breadcrumb-item active">{{ proyecto.nombre }}</li>
+        </ol>
+    </nav>
+    
+    <h1 class="h3 mb-4">{{ proyecto.nombre }}</h1>
+    
+    <!-- Resumen Financiero -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Cliente</h6>
+                    <h5>{{ proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente' }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="text-success">Total Ingresos</h6>
+                    <h4>$ {{ "{:,.0f}".format(total_ingresos) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h6 class="text-danger">Total Costos</h6>
+                    <h4>$ {{ "{:,.0f}".format(total_costos) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card {% if margen >= 0 %}border-primary{% else %}border-warning{% endif %}">
+                <div class="card-body">
+                    <h6 class="{% if margen >= 0 %}text-primary{% else %}text-warning{% endif %}">Margen</h6>
+                    <h4>$ {{ "{:,.0f}".format(margen) }}</h4>
+                    <small>{{ "{:.1f}%".format(margen_porcentaje) }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contratos del Proyecto -->
+    <div class="card mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Contratos y Órdenes de Compra</h5>
+            <span class="badge bg-secondary">{{ proyecto.contratos|length }} contratos</span>
+        </div>
+        <div class="card-body">
+            {% if proyecto.contratos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Tipo</th>
+                            <th>Descripción</th>
+                            <th class="text-end">Monto Total</th>
+                            <th class="text-end">Facturado</th>
+                            <th class="text-end">Pagado</th>
+                            <th>Estados</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contrato in proyecto.contratos %}
+                        <tr>
+                            <td><strong>{{ contrato.numero_contrato }}</strong></td>
+                            <td>
+                                {% if contrato.tipo == 'CONTRATO' %}
+                                <span class="badge bg-primary">Contrato</span>
+                                {% else %}
+                                <span class="badge bg-info">OC</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ contrato.descripcion[:50] }}{% if contrato.descripcion|length > 50 %}...{% endif %}</td>
+                            <td class="text-end">$ {{ "{:,.0f}".format(contrato.monto_total or 0) }}</td>
+                            <td class="text-end">
+                                {% set facturado = contrato.estados_pago|selectattr("tipo_estado", "equalto", "FACTURADO")|sum(attribute="monto") %}
+                                $ {{ "{:,.0f}".format(facturado) }}
+                            </td>
+                            <td class="text-end">
+                                {% set pagado = contrato.estados_pago|selectattr("tipo_estado", "equalto", "PAGADO")|sum(attribute="monto") %}
+                                $ {{ "{:,.0f}".format(pagado) }}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ contrato.estados_pago|length }} estados</span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-list-check"></i> Estados
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-3">No hay contratos registrados para este proyecto</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Costos del Proyecto -->
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Costos del Proyecto (desde ERP)</h5>
+            <a href="{{ url_for('finanzas.costos_proyecto', proyecto_id=proyecto.id) }}" 
+               class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-circle"></i> Ingresar Costos
+            </a>
+        </div>
+        <div class="card-body">
+            {% if costos %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Categoría</th>
+                            <th class="text-end">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for costo in costos %}
+                        <tr>
+                            <td>{{ costo.fecha }}</td>
+                            <td>{{ costo.descripcion }}</td>
+                            <td>{{ costo.categoria }}</td>
+                            <td class="text-end">$ {{ "{:,.0f}".format(costo.monto) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-3">No se han registrado costos para este proyecto</p>
+            <p class="text-center">
+                <a href="{{ url_for('finanzas.costos_proyecto', proyecto_id=proyecto.id) }}" 
+                   class="btn btn-outline-primary">
+                    <i class="bi bi-calculator"></i> Ingresar primer costo
+                </a>
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Acciones -->
+    <div class="mt-4">
+        <a href="{{ url_for('finanzas.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Dashboard
+        </a>
+        <a href="{{ url_for('proyectos.ver', proyecto_id=proyecto.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-folder"></i> Ver Proyecto Completo
+        </a>
+    </div>
+</div>
+{% endblock %}

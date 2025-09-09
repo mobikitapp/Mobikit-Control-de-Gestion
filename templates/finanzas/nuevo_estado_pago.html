@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Estado de Pago{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('finanzas.dashboard') }}">Dashboard Financiero</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}">{{ contrato.numero_contrato }}</a></li>
+            <li class="breadcrumb-item active">Nuevo Estado</li>
+        </ol>
+    </nav>
+    
+    <h1 class="h3 mb-4">Nuevo Estado de Pago</h1>
+    
+    <!-- Información del Contrato -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Contrato:</strong> {{ contrato.numero_contrato }}</p>
+                    <p><strong>Proyecto:</strong> {{ contrato.proyecto.nombre }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Monto Total:</strong> $ {{ "{:,.0f}".format(contrato.monto_total or 0) }}</p>
+                    <p><strong>Saldo Disponible:</strong> $ {{ "{:,.0f}".format((contrato.monto_total or 0) - (contrato.estados_pago|sum(attribute='monto'))) }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Formulario -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Datos del Estado de Pago</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="tipo_estado" class="form-label">Estado <span class="text-danger">*</span></label>
+                            <select class="form-select" id="tipo_estado" name="tipo_estado" required>
+                                <option value="">Seleccione...</option>
+                                <option value="PENDIENTE_FACTURAR" selected>Pendiente por Facturar</option>
+                                <option value="FACTURADO">Facturado</option>
+                                <option value="PAGADO">Pagado</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="fecha_estado" class="form-label">Fecha del Estado <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="fecha_estado" name="fecha_estado" 
+                                   value="{{ today.strftime('%Y-%m-%d') if today else '' }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="monto" class="form-label">Monto <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="monto" name="monto" 
+                                       step="0.01" min="0" required>
+                            </div>
+                            <small class="text-muted">Saldo disponible: $ {{ "{:,.0f}".format((contrato.monto_total or 0) - (contrato.estados_pago|sum(attribute='monto'))) }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="numero_documento" class="form-label">Número de Documento</label>
+                            <input type="text" class="form-control" id="numero_documento" name="numero_documento" 
+                                   placeholder="Ej: Factura #1234">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="fecha_programada_pago" class="form-label">Fecha Programada de Pago</label>
+                            <input type="date" class="form-control" id="fecha_programada_pago" name="fecha_programada_pago">
+                            <small class="text-muted">Opcional - Para estados pendientes de pago</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="descripcion" class="form-label">Descripción/Concepto <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="descripcion" name="descripcion" rows="3" required 
+                                      placeholder="Ej: Anticipo 30%, Avance 50%, Retención 10%, etc."></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tipos comunes -->
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">Tipos de pago comunes:</h6>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="setDescripcion('ANTICIPO 30%')">
+                            Anticipo 30%
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setDescripcion('ANTICIPO 50%')">
+                            Anticipo 50%
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setDescripcion('AVANCE 50%')">
+                            Avance 50%
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setDescripcion('AVANCE 70%')">
+                            Avance 70%
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setDescripcion('RETENCIÓN 10%')">
+                            Retención 10%
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setDescripcion('PAGO FINAL')">
+                            Pago Final
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Crear Estado de Pago
+                    </button>
+                    <a href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}" 
+                       class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function setDescripcion(text) {
+    document.getElementById('descripcion').value = text;
+    
+    // Calcular el monto basado en el porcentaje si está presente
+    const montoTotal = {{ contrato.monto_total or 0 }};
+    const match = text.match(/(\d+)%/);
+    if (match) {
+        const porcentaje = parseInt(match[1]);
+        const monto = montoTotal * (porcentaje / 100);
+        document.getElementById('monto').value = monto.toFixed(2);
+    }
+}
+</script>
+{% endblock %}
