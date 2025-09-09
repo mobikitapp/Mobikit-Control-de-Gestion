@@ -853,6 +853,126 @@ function dv(T) {
             });
         });
 
+// Missing functions for treasury operations
+function marcarEstadoPagoPagado(estadoPagoId) {
+    const fechaPago = prompt('Fecha de pago (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    if (!fechaPago) return;
+
+    const observaciones = prompt('Observaciones (opcional):');
+
+    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            fecha_pago: fechaPago,
+            observaciones: observaciones
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', 'Estado de pago marcado como pagado exitosamente');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error al marcar como pagado');
+    });
+}
+
+function eliminarEstadoPago(estadoPagoId) {
+    if (!confirm('¿Está seguro de eliminar este estado de pago?')) {
+        return;
+    }
+
+    fetch(`/proyectos/estados-pago/${estadoPagoId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', 'Estado de pago eliminado exitosamente');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error al eliminar estado de pago');
+    });
+}
+
+// Define ngApp variable (if needed for Angular-like functionality)
+var ngApp = ngApp || {};
+
+// Enhanced showAlert function
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i data-feather="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    const container = document.querySelector('.container-fluid') || document.querySelector('.container') || document.body;
+    container.insertBefore(alertDiv, container.firstChild);
+
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
 // Export for use in other scripts
 window.ManufacturingApp = ManufacturingApp;
 window.API = API;
+window.marcarEstadoPagoPagado = marcarEstadoPagoPagado;
+window.eliminarEstadoPago = eliminarEstadoPago;
+window.ngApp = ngApp;
+
+// Additional treasury functions
+function marcarEstadoPagoFacturado(estadoPagoId) {
+    const numeroFactura = prompt('Número de factura (opcional):');
+    
+    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-facturado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            numero_factura: numeroFactura || ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', 'Estado de pago marcado como facturado');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error al marcar como facturado');
+    });
+}
+
+// Export the new function
+window.marcarEstadoPagoFacturado = marcarEstadoPagoFacturado;
