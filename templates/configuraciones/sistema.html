@@ -557,8 +557,7 @@ function limpiarCache(event) {
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
 
-            const cardBody = button.closest('.card-body');
-            cardBody.insertBefore(alertDiv, cardBody.firstChild);
+            safeInsertAlert(button, alertDiv);
 
             // Restaurar botón
             button.innerHTML = originalText;
@@ -586,8 +585,7 @@ function limpiarCache(event) {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
 
-        const cardBody = button.closest('.card-body');
-        cardBody.insertBefore(alertDiv, cardBody.firstChild);
+        safeInsertAlert(button, alertDiv);
 
         // Restaurar botón
         button.innerHTML = originalText;
@@ -595,48 +593,100 @@ function limpiarCache(event) {
     });
 }
 
+// Función auxiliar para insertar alertas de forma segura
+function safeInsertAlert(button, alertDiv) {
+    try {
+        const cardBody = button.closest('.card-body');
+        if (cardBody && cardBody.firstChild) {
+            cardBody.insertBefore(alertDiv, cardBody.firstChild);
+        } else if (cardBody) {
+            cardBody.appendChild(alertDiv);
+        } else {
+            // Como última opción, agregar al body
+            document.body.appendChild(alertDiv);
+        }
+    } catch (error) {
+        console.warn('Error insertando alerta:', error);
+        // Intento final: agregar al body
+        try {
+            document.body.appendChild(alertDiv);
+        } catch (e) {
+            console.error('Error crítico insertando alerta:', e);
+        }
+    }
+}
+
 // Funciones auxiliares para el sistema de logging
 function createLogArea(button, logId) {
-    // Buscar si ya existe un área de log
-    let logArea = document.getElementById(logId);
-    if (logArea) {
-        logArea.innerHTML = ''; // Limpiar logs anteriores
-        return logArea;
-    }
+    try {
+        // Buscar si ya existe un área de log
+        let logArea = document.getElementById(logId);
+        if (logArea) {
+            logArea.innerHTML = ''; // Limpiar logs anteriores
+            return logArea;
+        }
 
-    // Crear nueva área de log
-    const cardBody = button.closest('.card-body');
-    logArea = document.createElement('div');
-    logArea.id = logId;
-    logArea.className = 'alert alert-info mt-3';
-    logArea.style.maxHeight = '300px';
-    logArea.style.overflowY = 'auto';
-    logArea.innerHTML = `
-        <h6><i class="fas fa-list-alt me-2"></i>Log de Progreso:</h6>
-        <div class="log-messages" style="font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 4px;">
-        </div>
-    `;
-    
-    cardBody.insertBefore(logArea, cardBody.firstChild);
-    return logArea;
+        // Crear nueva área de log
+        const cardBody = button.closest('.card-body');
+        if (!cardBody) {
+            console.warn('No se encontró card-body, creando log en el documento');
+            return null; // Fallar silenciosamente
+        }
+
+        logArea = document.createElement('div');
+        logArea.id = logId;
+        logArea.className = 'alert alert-info mt-3';
+        logArea.style.maxHeight = '300px';
+        logArea.style.overflowY = 'auto';
+        logArea.innerHTML = `
+            <h6><i class="fas fa-list-alt me-2"></i>Log de Progreso:</h6>
+            <div class="log-messages" style="font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+            </div>
+        `;
+        
+        if (cardBody.firstChild) {
+            cardBody.insertBefore(logArea, cardBody.firstChild);
+        } else {
+            cardBody.appendChild(logArea);
+        }
+        return logArea;
+    } catch (error) {
+        console.warn('Error creando área de log:', error);
+        return null;
+    }
 }
 
 function addLogMessage(logArea, message, type = 'info') {
-    const logMessages = logArea.querySelector('.log-messages');
-    const timestamp = new Date().toLocaleTimeString();
-    const iconMap = {
-        'info': 'fas fa-info-circle text-info',
-        'success': 'fas fa-check-circle text-success',
-        'warning': 'fas fa-exclamation-triangle text-warning',
-        'error': 'fas fa-times-circle text-danger'
-    };
-    
-    const logEntry = document.createElement('div');
-    logEntry.className = 'mb-1';
-    logEntry.innerHTML = `<i class="${iconMap[type] || iconMap['info']} me-2"></i>[${timestamp}] ${message}`;
-    
-    logMessages.appendChild(logEntry);
-    logMessages.scrollTop = logMessages.scrollHeight; // Auto-scroll al final
+    try {
+        if (!logArea) {
+            console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+            return;
+        }
+        
+        const logMessages = logArea.querySelector('.log-messages');
+        if (!logMessages) {
+            console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+            return;
+        }
+        
+        const timestamp = new Date().toLocaleTimeString();
+        const iconMap = {
+            'info': 'fas fa-info-circle text-info',
+            'success': 'fas fa-check-circle text-success',
+            'warning': 'fas fa-exclamation-triangle text-warning',
+            'error': 'fas fa-times-circle text-danger'
+        };
+        
+        const logEntry = document.createElement('div');
+        logEntry.className = 'mb-1';
+        logEntry.innerHTML = `<i class="${iconMap[type] || iconMap['info']} me-2"></i>[${timestamp}] ${message}`;
+        
+        logMessages.appendChild(logEntry);
+        logMessages.scrollTop = logMessages.scrollHeight; // Auto-scroll al final
+    } catch (error) {
+        console.warn('Error agregando mensaje al log:', error);
+        console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+    }
 }
 
 function updateProgress(logArea, details) {
@@ -693,8 +743,7 @@ function limpiarDatos(event) {
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
 
-            const cardBody = button.closest('.card-body');
-            cardBody.insertBefore(alertDiv, cardBody.firstChild);
+            safeInsertAlert(button, alertDiv);
 
             // Restaurar botón
             button.innerHTML = originalText;
@@ -719,8 +768,7 @@ function limpiarDatos(event) {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
 
-        const cardBody = button.closest('.card-body');
-        cardBody.insertBefore(alertDiv, cardBody.firstChild);
+        safeInsertAlert(button, alertDiv);
 
         // Restaurar botón
         button.innerHTML = originalText;
