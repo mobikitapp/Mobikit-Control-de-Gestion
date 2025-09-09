@@ -5,11 +5,11 @@
 {% block head %}
 <style>
     .capacitacion-sidebar {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--mobikit-red) 0%, var(--mobikit-red-dark) 100%);
         min-height: calc(100vh - 160px);
         border-radius: 12px;
-        color: white;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        color: var(--mobikit-white);
+        box-shadow: 0 8px 32px rgba(239, 26, 31, 0.1);
     }
     
     .capacitacion-nav {
@@ -17,7 +17,7 @@
     }
     
     .capacitacion-nav h5 {
-        color: #ffffff;
+        color: var(--mobikit-white);
         font-weight: 600;
         margin-bottom: 1.5rem;
         text-align: center;
@@ -28,7 +28,7 @@
     }
     
     .nav-link-capacitacion {
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(253, 253, 253, 0.8);
         text-decoration: none;
         padding: 0.75rem 1rem;
         border-radius: 8px;
@@ -38,53 +38,53 @@
     }
     
     .nav-link-capacitacion:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
+        background: rgba(253, 253, 253, 0.1);
+        color: var(--mobikit-white);
         transform: translateX(5px);
     }
     
     .nav-link-capacitacion.active {
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
+        background: rgba(253, 253, 253, 0.2);
+        color: var(--mobikit-white);
         font-weight: 600;
     }
     
     .contenido-capacitacion {
-        background: white;
+        background: var(--mobikit-white);
         border-radius: 12px;
         padding: 2rem;
         min-height: calc(100vh - 160px);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 16px rgba(98, 99, 99, 0.1);
     }
     
     .modulo-header {
-        border-bottom: 3px solid #667eea;
+        border-bottom: 3px solid var(--mobikit-red);
         padding-bottom: 1rem;
         margin-bottom: 2rem;
     }
     
     .modulo-header h2 {
-        color: #333;
+        color: var(--mobikit-gray);
         font-weight: 700;
         margin: 0;
     }
     
     .modulo-header p {
-        color: #666;
+        color: var(--mobikit-light-gray);
         margin: 0.5rem 0 0 0;
         font-size: 1.1rem;
     }
     
     .proceso-step {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, var(--mobikit-light-bg) 0%, var(--mobikit-hover) 100%);
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
-        border-left: 4px solid #667eea;
+        border-left: 4px solid var(--mobikit-red);
     }
     
     .proceso-step h4 {
-        color: #333;
+        color: var(--mobikit-gray);
         font-weight: 600;
         margin-bottom: 1rem;
     }
@@ -93,13 +93,13 @@
         max-width: 100%;
         height: auto;
         border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 16px rgba(98, 99, 99, 0.1);
         margin: 1.5rem 0;
     }
     
     .caracteristica-item {
-        background: white;
-        border: 1px solid #e9ecef;
+        background: var(--mobikit-white);
+        border: 1px solid var(--mobikit-border);
         border-radius: 8px;
         padding: 1rem;
         margin-bottom: 1rem;
@@ -107,34 +107,34 @@
     }
     
     .caracteristica-item:hover {
-        border-color: #667eea;
+        border-color: var(--mobikit-red);
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 12px rgba(239, 26, 31, 0.1);
     }
     
     .caracteristica-item h6 {
-        color: #667eea;
+        color: var(--mobikit-red);
         font-weight: 600;
         margin-bottom: 0.5rem;
     }
     
     .alert-tip {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        background: linear-gradient(135deg, var(--mobikit-success) 0%, #20c997 100%);
         border: none;
         border-radius: 12px;
-        color: white;
+        color: var(--mobikit-white);
         padding: 1rem 1.5rem;
         margin: 1.5rem 0;
     }
     
     .alert-tip .alert-heading {
-        color: white;
+        color: var(--mobikit-white);
         font-weight: 600;
     }
     
     .badge-modulo {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: linear-gradient(135deg, var(--mobikit-gray) 0%, var(--mobikit-dark-gray) 100%);
+        color: var(--mobikit-white);
         padding: 0.5rem 1rem;
         border-radius: 20px;
         font-weight: 500;
@@ -150,7 +150,7 @@
     }
     
     .conexion-card {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, var(--mobikit-light-bg) 0%, var(--mobikit-hover) 100%);
         border-radius: 12px;
         padding: 1.5rem;
         text-align: center;
@@ -159,14 +159,14 @@
     }
     
     .conexion-card:hover {
-        border-color: #667eea;
+        border-color: var(--mobikit-red);
         transform: translateY(-5px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 8px 24px rgba(239, 26, 31, 0.1);
     }
     
     .conexion-icon {
         font-size: 2.5rem;
-        color: #667eea;
+        color: var(--mobikit-red);
         margin-bottom: 1rem;
     }
     
@@ -175,23 +175,23 @@
         justify-content: space-between;
         margin-top: 3rem;
         padding-top: 2rem;
-        border-top: 1px solid #e9ecef;
+        border-top: 1px solid var(--mobikit-border);
     }
     
     .btn-modulo {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--mobikit-red) 0%, var(--mobikit-red-dark) 100%);
         border: none;
         padding: 0.75rem 1.5rem;
         border-radius: 25px;
-        color: white;
+        color: var(--mobikit-white);
         font-weight: 600;
         transition: all 0.3s ease;
     }
     
     .btn-modulo:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        color: white;
+        box-shadow: 0 6px 20px rgba(239, 26, 31, 0.4);
+        color: var(--mobikit-white);
     }
 </style>
 {% endblock %}
