@@ -125,7 +125,22 @@
                                         <div class="fw-medium">${{ "{:,.0f}".format(pendiente.monto_neto) }}</div>
                                     </td>
                                     <td>
-                                        {{ pendiente.fecha_programada.strftime('%d/%m/%Y') if pendiente.fecha_programada else '-' }}
+                                        {% if pendiente.fecha_programada %}
+                                            {{ pendiente.fecha_programada.strftime('%d/%m/%Y') }}
+                                            <button type="button" class="btn btn-xs btn-outline-secondary ms-1" 
+                                                    onclick="editarFechaProgramada({{ pendiente.id }}, '{{ pendiente.numero_oc }}', '{{ pendiente.fecha_programada.strftime('%Y-%m-%d') }}')" 
+                                                    title="Editar fecha">
+                                                <i data-feather="calendar" style="width: 10px; height: 10px;"></i>
+                                            </button>
+                                        {% else %}
+                                            <span class="text-muted">Indefinida</span>
+                                            <button type="button" class="btn btn-xs btn-primary ms-1" 
+                                                    onclick="definirFechaProgramada({{ pendiente.id }}, '{{ pendiente.numero_oc }}')" 
+                                                    title="Definir fecha programada">
+                                                <i data-feather="calendar-plus" style="width: 10px; height: 10px;"></i>
+                                                Definir
+                                            </button>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <span class="badge bg-{{ 'success' if pendiente.estado.value == 'PAGADO' else ('info' if pendiente.estado.value == 'FACTURADO' else 'warning') }}">
@@ -133,12 +148,12 @@
                                         </span>
                                     </td>
                                     <td>
-                                        {% if pendiente.dias_vencimiento is not none %}
+                                        {% if pendiente.fecha_programada and pendiente.dias_vencimiento is not none %}
                                             <span class="badge bg-{{ 'danger' if pendiente.esta_vencido else ('warning' if pendiente.dias_vencimiento <= 5 else 'secondary') }}">
                                                 {{ pendiente.dias_vencimiento }} días
                                             </span>
                                         {% else %}
-                                            <span class="text-muted">-</span>
+                                            <span class="text-muted">Sin fecha</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -1340,5 +1355,69 @@ function initializeCascadeSelects() {
 }
 
 // Treasury functions now centralized in app.js
+
+// Functions for managing scheduled dates
+function definirFechaProgramada(pendienteId, numeroOc) {
+    const fechaInput = prompt(`Definir fecha programada para OC ${numeroOc} (YYYY-MM-DD):`);
+    if (fechaInput === null) return; // User cancelled
+    
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(fechaInput)) {
+        alert('Formato de fecha inválido. Use YYYY-MM-DD');
+        return;
+    }
+    
+    actualizarFechaProgramada(pendienteId, numeroOc, fechaInput);
+}
+
+function editarFechaProgramada(pendienteId, numeroOc, fechaActual) {
+    const fechaInput = prompt(`Editar fecha programada para OC ${numeroOc} (YYYY-MM-DD):`, fechaActual);
+    if (fechaInput === null) return; // User cancelled
+    
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(fechaInput)) {
+        alert('Formato de fecha inválido. Use YYYY-MM-DD');
+        return;
+    }
+    
+    actualizarFechaProgramada(pendienteId, numeroOc, fechaInput);
+}
+
+function actualizarFechaProgramada(pendienteId, numeroOc, nuevaFecha) {
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    fetch(`/proyectos/pendientes-facturar/${pendienteId}/actualizar-fecha-programada`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            fecha_programada: nuevaFecha
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', `Fecha programada actualizada para OC ${numeroOc}`);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', 'Error: ' + data.message);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error al actualizar fecha programada');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
 </script>
 {% endblock %}

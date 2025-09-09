@@ -273,7 +273,24 @@
                                                                 {{ factura.estado.value }}
                                                             </span>
                                                         </td>
-                                                        <td>{{ factura.fecha_programada.strftime('%d/%m/%Y') if factura.fecha_programada else '-' }}</td>
+                                                        <td>
+                                                                {% if factura.fecha_programada %}
+                                                                    {{ factura.fecha_programada.strftime('%d/%m/%Y') }}
+                                                                    <button type="button" class="btn btn-xs btn-outline-secondary ms-1" 
+                                                                            onclick="editarFechaProgramada({{ factura.id }}, '{{ factura.numero_oc }}', '{{ factura.fecha_programada.strftime('%Y-%m-%d') }}')" 
+                                                                            title="Editar fecha">
+                                                                        <i data-feather="calendar" style="width: 10px; height: 10px;"></i>
+                                                                    </button>
+                                                                {% else %}
+                                                                    <span class="text-muted">Indefinida</span>
+                                                                    <button type="button" class="btn btn-xs btn-primary ms-1" 
+                                                                            onclick="definirFechaProgramada({{ factura.id }}, '{{ factura.numero_oc }}')" 
+                                                                            title="Definir fecha programada">
+                                                                        <i data-feather="calendar-plus" style="width: 10px; height: 10px;"></i>
+                                                                        Definir
+                                                                    </button>
+                                                                {% endif %}
+                                                            </td>
                                                         <td>
                                                             {% if factura.estado.value == 'PENDIENTE' %}
                                                             <button type="button" class="btn btn-xs btn-success" 

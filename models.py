@@ -1212,7 +1212,7 @@ class PendienteFacturar(db.Model):
     
     # Estado y fechas
     estado = db.Column(db.Enum(EstadoPendienteFacturar), default=EstadoPendienteFacturar.PENDIENTE, nullable=False)
-    fecha_programada = db.Column(db.Date, nullable=False)  # Fecha programada de facturación
+    fecha_programada = db.Column(db.Date, nullable=True)  # Fecha programada de facturación (indefinida por defecto)
     fecha_facturado = db.Column(db.Date, nullable=True)    # Cuando se facturó
     fecha_pagado = db.Column(db.Date, nullable=True)       # Cuando se pagó
     

@@ -62,9 +62,13 @@ class TreasuryIntegrationService:
                 logger.warning(f"OC {contrato.numero_oc} no tiene monto válido para crear como pendiente de facturar")
                 return None
 
-            # Fecha programada: 30 días desde emisión o desde hoy
-            fecha_base = contrato.fecha_emision or datetime.now().date()
-            fecha_programada = fecha_base + timedelta(days=30)
+            # Fecha programada: 30 días desde emisión o desde hoy, o indefinida si no hay fecha
+            fecha_programada: Optional[date] = None
+            if contrato.fecha_emision:
+                fecha_programada = contrato.fecha_emision + timedelta(days=30)
+            else:
+                fecha_programada = datetime.now().date() + timedelta(days=30)
+
 
             # Crear registro en Pendientes de Facturar
             pendiente_facturar = PendienteFacturar()
