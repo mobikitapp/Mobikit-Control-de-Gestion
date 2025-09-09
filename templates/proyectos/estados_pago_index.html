@@ -119,22 +119,22 @@
                                                         {{ proyecto_data.proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto_data.proyecto.estado_comercial else 'N/A' }}
                                                     </span>
                                                 </p>
-                                                {% if proyecto_data.resumen_financiero %}
+                                                {% if proyecto_data.resumen %}
                                                 <div class="mb-2">
                                                     <div class="progress" style="height: 20px;">
-                                                        <div class="progress-bar bg-success" style="width: {{ proyecto_data.resumen_financiero.porcentaje_pagado }}%" 
-                                                             title="Pagado: {{ '%.1f'|format(proyecto_data.resumen_financiero.porcentaje_pagado) }}%"></div>
-                                                        <div class="progress-bar bg-info" style="width: {{ proyecto_data.resumen_financiero.porcentaje_facturado - proyecto_data.resumen_financiero.porcentaje_pagado }}%" 
-                                                             title="Facturado no pagado: {{ '%.1f'|format(proyecto_data.resumen_financiero.porcentaje_facturado - proyecto_data.resumen_financiero.porcentaje_pagado) }}%"></div>
+                                                        <div class="progress-bar bg-success" style="width: {{ proyecto_data.resumen.porcentaje_pagado }}%" 
+                                                             title="Pagado: {{ '%.1f'|format(proyecto_data.resumen.porcentaje_pagado) }}%"></div>
+                                                        <div class="progress-bar bg-info" style="width: {{ proyecto_data.resumen.porcentaje_facturado - proyecto_data.resumen.porcentaje_pagado }}%" 
+                                                             title="Facturado no pagado: {{ '%.1f'|format(proyecto_data.resumen.porcentaje_facturado - proyecto_data.resumen.porcentaje_pagado) }}%"></div>
                                                     </div>
                                                     <small class="text-muted">
-                                                        Pagado: {{ '%.1f'|format(proyecto_data.resumen_financiero.porcentaje_pagado) }}% | 
-                                                        Facturado: {{ '%.1f'|format(proyecto_data.resumen_financiero.porcentaje_facturado) }}%
+                                                        Pagado: {{ '%.1f'|format(proyecto_data.resumen.porcentaje_pagado) }}% | 
+                                                        Facturado: {{ '%.1f'|format(proyecto_data.resumen.porcentaje_facturado) }}%
                                                     </small>
                                                 </div>
                                                 <div class="d-flex justify-content-between small">
-                                                    <span>Total: ${{ "{:,.0f}".format(proyecto_data.resumen_financiero.total_monto) }}</span>
-                                                    <span class="text-success">Pagado: ${{ "{:,.0f}".format(proyecto_data.resumen_financiero.total_pagado) }}</span>
+                                                    <span>Total: ${{ "{:,.0f}".format(proyecto_data.resumen.total_monto) }}</span>
+                                                    <span class="text-success">Pagado: ${{ "{:,.0f}".format(proyecto_data.resumen.total_pagado) }}</span>
                                                 </div>
                                                 {% endif %}
                                                 <div class="mt-2">

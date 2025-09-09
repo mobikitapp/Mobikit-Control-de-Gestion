@@ -655,16 +655,7 @@ def estados_pago_index():
         treasury_service = TreasuryIntegrationService()
         
         # Get all projects with payment states grouped by client
-        proyectos_por_cliente_dict = treasury_service.get_projects_grouped_by_client()
-        
-        # Convert the dictionary to list format expected by template
-        proyectos_por_cliente = []
-        for cliente_nombre, cliente_data in proyectos_por_cliente_dict.items():
-            proyectos_por_cliente.append({
-                'cliente': {'nombre': cliente_nombre},
-                'proyectos': cliente_data.get('proyectos', []),
-                'resumen_cliente': cliente_data.get('resumen_cliente', {})
-            })
+        proyectos_por_cliente = treasury_service.get_projects_grouped_by_client()
         
         # Get contracts that need manual treasury state creation (only CONTRATOS)
         contratos_pendientes = treasury_service.get_contracts_without_treasury_states()

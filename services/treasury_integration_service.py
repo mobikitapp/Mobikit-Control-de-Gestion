@@ -488,11 +488,23 @@ class TreasuryIntegrationService:
                     resumen['porcentaje_pagado'] = (resumen['total_pagado'] / resumen['total_monto']) * 100
                     resumen['porcentaje_facturado'] = (resumen['total_facturado'] / resumen['total_monto']) * 100
 
-            return proyectos_por_cliente
+            # Convert dictionary to list format expected by template
+            result = []
+            for cliente_nombre, cliente_data in proyectos_por_cliente.items():
+                # Get the actual cliente object from the first project
+                cliente_obj = cliente_data['proyectos'][0]['proyecto'].cliente if cliente_data['proyectos'] else None
+                
+                result.append({
+                    'cliente': cliente_obj,
+                    'proyectos': cliente_data['proyectos'],
+                    'resumen_cliente': cliente_data['resumen_cliente']
+                })
+
+            return result
 
         except Exception as e:
             logger.error(f"Error agrupando proyectos por cliente: {str(e)}")
-            return {}
+            return []
 
     def get_project_treasury_detail(self, proyecto_id: int) -> Dict[str, Any]:
         """
