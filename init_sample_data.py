@@ -34,6 +34,8 @@ def init_sample_data():
         print("🚀 Inicializando datos de ejemplo...")
         
         try:
+            # Verificar tabla usuarios y actualizar estructura si es necesaria
+            check_and_update_users_table()
             # Limpiar datos existentes
             print("🧹 Limpiando datos existentes...")
             clear_existing_data()
