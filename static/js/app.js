@@ -851,5 +851,5 @@ function dv(T) {
         });
 
 // Export for use in other scripts
-window.ManufacturingApp = ManufacturingApp;
+window.ManufacturingApp = ManufacturingApp;ngApp;
 window.API = API;

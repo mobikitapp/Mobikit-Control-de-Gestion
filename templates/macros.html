@@ -85,9 +85,5 @@
 {% endmacro %}
 
 {% macro moment() %}
-    {{ moment_obj() }}
+    {{ moment_global() }}
 {% endmacro %}
-
-{# Function to get current date for calculations #}
-{% set moment_obj = moment_fn %}
-{% set moment_fn = now %}

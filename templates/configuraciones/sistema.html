@@ -508,18 +508,18 @@ async function updateCapacityFactors(event) {
     }
 }
 
-function limpiarCache() {
+function limpiarCache(event) {
     // Mostrar confirmación
     if (!confirm('¿Está seguro de que desea limpiar la caché? Esto forzará una recarga completa del sistema.')) {
         return;
     }
-    
+
     // Mostrar indicador de carga
     const button = event.target.closest('button');
     const originalText = button.innerHTML;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpiando...';
     button.disabled = true;
-    
+
     // Enviar solicitud al servidor
     fetch('/configuraciones/limpiar-cache', { 
         method: 'POST',
@@ -538,26 +538,26 @@ function limpiarCache() {
                 <strong>Éxito:</strong> ${data.message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
-            
+
             const cardBody = button.closest('.card-body');
             cardBody.insertBefore(alertDiv, cardBody.firstChild);
-            
+
             // Restaurar botón
             button.innerHTML = originalText;
             button.disabled = false;
-            
+
             // Auto-recargar después de 2 segundos
             setTimeout(() => {
                 location.reload(true);
             }, 2000);
-            
+
         } else {
             throw new Error(data.message || 'Error desconocido');
         }
     })
     .catch(error => {
         console.error('Error limpiando caché:', error);
-        
+
         // Mostrar error
         const alertDiv = document.createElement('div');
         alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
@@ -566,10 +566,10 @@ function limpiarCache() {
             <strong>Error:</strong> ${error.message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
-        
+
         const cardBody = button.closest('.card-body');
         cardBody.insertBefore(alertDiv, cardBody.firstChild);
-        
+
         // Restaurar botón
         button.innerHTML = originalText;
         button.disabled = false;
