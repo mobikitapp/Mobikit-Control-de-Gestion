@@ -52,12 +52,14 @@ class EstadosPagoService:
             db.session.commit()
 
             # Log audit
-            AuditService.log_action(
-                'estados_pago', 
-                estado_pago.id, 
-                'CREATE', 
-                datos_nuevos=serialize_model(estado_pago)
-            )
+            datos_nuevos = serialize_model(estado_pago)
+            if datos_nuevos:
+                AuditService.log_action(
+                    'estados_pago', 
+                    estado_pago.id, 
+                    'CREATE', 
+                    datos_nuevos=datos_nuevos
+                )
 
             logger.info(f"Estado de pago creado: {estado_pago.id} - {estado_pago.titulo_display}")
             return estado_pago
@@ -92,13 +94,15 @@ class EstadosPagoService:
             db.session.commit()
 
             # Log audit
-            AuditService.log_action(
-                'estados_pago', 
-                estado_pago_id, 
-                'UPDATE',
-                datos_anteriores=datos_anteriores,
-                datos_nuevos=serialize_model(estado_pago_actualizado)
-            )
+            datos_nuevos = serialize_model(estado_pago_actualizado)
+            if datos_anteriores and datos_nuevos:
+                AuditService.log_action(
+                    'estados_pago', 
+                    estado_pago_id, 
+                    'UPDATE',
+                    datos_anteriores=datos_anteriores,
+                    datos_nuevos=datos_nuevos
+                )
 
             logger.info(f"Estado de pago actualizado: {estado_pago_id}")
             return estado_pago_actualizado
@@ -126,12 +130,13 @@ class EstadosPagoService:
                 db.session.commit()
 
                 # Log audit
-                AuditService.log_action(
-                    'estados_pago', 
-                    estado_pago_id, 
-                    'DELETE',
-                    datos_anteriores=datos_anteriores
-                )
+                if datos_anteriores:
+                    AuditService.log_action(
+                        'estados_pago', 
+                        estado_pago_id, 
+                        'DELETE',
+                        datos_anteriores=datos_anteriores
+                    )
 
                 logger.info(f"Estado de pago eliminado: {estado_pago_id}")
                 return True
@@ -249,13 +254,15 @@ class EstadosPagoService:
             db.session.commit()
             
             # Log audit
-            AuditService.log_action(
-                'estados_pago', 
-                estado_pago_id, 
-                'UPDATE',
-                datos_anteriores=datos_anteriores,
-                datos_nuevos=serialize_model(updated_estado)
-            )
+            datos_nuevos = serialize_model(updated_estado)
+            if datos_anteriores and datos_nuevos:
+                AuditService.log_action(
+                    'estados_pago', 
+                    estado_pago_id, 
+                    'UPDATE',
+                    datos_anteriores=datos_anteriores,
+                    datos_nuevos=datos_nuevos
+                )
             
             logger.info(f"Estado de pago marcado como pagado: {estado_pago_id}")
             return updated_estado
@@ -331,13 +338,15 @@ class EstadosPagoService:
             db.session.commit()
             
             # Log audit
-            AuditService.log_action(
-                'estados_pago', 
-                estado_pago.id, 
-                'UPDATE',
-                datos_anteriores=datos_anteriores,
-                datos_nuevos=serialize_model(updated_estado)
-            )
+            datos_nuevos = serialize_model(updated_estado)
+            if datos_anteriores and datos_nuevos:
+                AuditService.log_action(
+                    'estados_pago', 
+                    estado_pago.id, 
+                    'UPDATE',
+                    datos_anteriores=datos_anteriores,
+                    datos_nuevos=datos_nuevos
+                )
             
             logger.info(f"Estado de pago {estado_pago_id} marcado como facturado")
             return True
@@ -373,8 +382,8 @@ class EstadosPagoService:
                     if hasattr(ep, 'facturado') and ep.facturado:
                         total_facturado += monto
                     
-                    # Check if it's paid
-                    if ep.estado and ep.estado.value == 'PAGADO':
+                    # Check if it's paid - safer access to enum value
+                    if ep.estado and hasattr(ep.estado, 'value') and ep.estado.value == 'PAGADO':
                         total_pagado += monto
                         
             elif contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA:
