@@ -53,6 +53,12 @@ class EstadoDespacho(Enum):
     ENTREGADO = "ENTREGADO"
     OBSERVADO = "OBSERVADO"
 
+class TipoEstadoPago(Enum):
+    PENDIENTE_FACTURAR = "PENDIENTE_FACTURAR"
+    FACTURADO = "FACTURADO"
+    PAGADO = "PAGADO"
+    ANULADO = "ANULADO"
+
 
 class TipoAdjunto(Enum):
     CONTRATO = "contrato"
@@ -1120,6 +1126,153 @@ class EventoEntrega(db.Model):
             from datetime import timedelta
             return self.fecha_evento - timedelta(days=self.recordatorio_dias)
         return None
+
+
+class EstadoPago(db.Model):
+    __tablename__ = 'estados_pago'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=False)
+    numero_documento = db.Column(db.String(100))  # Número de factura, boleta, etc.
+    tipo_estado = db.Column(db.Enum(TipoEstadoPago), nullable=False)
+    fecha_estado = db.Column(db.Date, nullable=False)
+    monto = db.Column(db.Numeric(15, 2))
+    descripcion = db.Column(db.Text)
+    fecha_programada_pago = db.Column(db.Date)  # Para pagos programados
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    contrato = db.relationship('Contrato', backref='estados_pago')
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_estado_pago_contrato', 'contrato_id'),
+        Index('idx_estado_pago_tipo', 'tipo_estado'),
+        Index('idx_estado_pago_fecha', 'fecha_estado'),
+    )
+    
+    def __repr__(self):
+        return f'<EstadoPago {self.contrato.numero_oc}-{self.tipo_estado.value}>'
+
+
+# =============================================================================
+# MODELOS FINANCIEROS
+# =============================================================================
+
+class TipoMovimiento(Enum):
+    INGRESO = "INGRESO"
+    EGRESO = "EGRESO"
+    TRANSFERENCIA = "TRANSFERENCIA"
+
+class TipoCentroCosto(Enum):
+    PROYECTO = "PROYECTO"
+    AREA = "AREA"
+    COMPARTIDO = "COMPARTIDO"
+
+class EstadoMovimiento(Enum):
+    PENDIENTE = "PENDIENTE"
+    CONFIRMADO = "CONFIRMADO"
+    CANCELADO = "CANCELADO"
+
+class CuentaBancaria(db.Model):
+    __tablename__ = 'cuentas_bancarias'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), nullable=False)
+    numero_cuenta = db.Column(db.String(50))
+    banco = db.Column(db.String(100))
+    tipo_cuenta = db.Column(db.String(50))  # Corriente, Vista, Ahorro
+    saldo_actual = db.Column(db.Numeric(15, 2), default=0)
+    moneda = db.Column(db.String(3), default='CLP', nullable=False)
+    activa = db.Column(db.Boolean, default=True, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    movimientos = db.relationship('MovimientoFinanciero', backref='cuenta_bancaria', lazy=True)
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    def __repr__(self):
+        return f'<CuentaBancaria {self.nombre}>'
+
+class CentroCosto(db.Model):
+    __tablename__ = 'centros_costo'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), unique=True, nullable=False)
+    nombre = db.Column(db.String(100), nullable=False)
+    descripcion = db.Column(db.Text)
+    tipo = db.Column(db.Enum(TipoCentroCosto), nullable=False)
+    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=True)
+    presupuesto_mensual = db.Column(db.Numeric(15, 2))
+    responsable_id = db.Column(db.String, db.ForeignKey('users.id'))
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    proyecto = db.relationship('Proyecto', backref='centros_costo')
+    responsable = db.relationship('User', foreign_keys=[responsable_id])
+    movimientos = db.relationship('MovimientoFinanciero', backref='centro_costo', lazy=True)
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_centro_costo_tipo', 'tipo'),
+        Index('idx_centro_costo_proyecto', 'proyecto_id'),
+    )
+    
+    def __repr__(self):
+        return f'<CentroCosto {self.codigo}-{self.nombre}>'
+
+class MovimientoFinanciero(db.Model):
+    __tablename__ = 'movimientos_financieros'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.Date, nullable=False)
+    tipo = db.Column(db.Enum(TipoMovimiento), nullable=False)
+    monto = db.Column(db.Numeric(15, 2), nullable=False)
+    descripcion = db.Column(db.Text, nullable=False)
+    referencia = db.Column(db.String(100))  # Número de factura, boleta, etc.
+    
+    # Relaciones opcionales
+    cuenta_bancaria_id = db.Column(db.Integer, db.ForeignKey('cuentas_bancarias.id'))
+    centro_costo_id = db.Column(db.Integer, db.ForeignKey('centros_costo.id'))
+    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'))
+    contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'))
+    
+    # Estado y tracking
+    estado = db.Column(db.Enum(EstadoMovimiento), default=EstadoMovimiento.CONFIRMADO, nullable=False)
+    fecha_confirmacion = db.Column(db.DateTime)
+    
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    proyecto = db.relationship('Proyecto', backref='movimientos_financieros')
+    contrato = db.relationship('Contrato', backref='movimientos_financieros')
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_movimiento_fecha', 'fecha'),
+        Index('idx_movimiento_tipo', 'tipo'),
+        Index('idx_movimiento_proyecto', 'proyecto_id'),
+        Index('idx_movimiento_contrato', 'contrato_id'),
+        Index('idx_movimiento_centro_costo', 'centro_costo_id'),
+    )
+    
+    def __repr__(self):
+        return f'<MovimientoFinanciero {self.fecha}-{self.tipo.value}-{self.monto}>'
 
 
 # =============================================================================
