@@ -271,10 +271,20 @@
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i data-feather="dollar-sign" class="me-2"></i>
-                        KPI Financiero
-                    </h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i data-feather="dollar-sign" class="me-2"></i>
+                            KPI Financiero
+                        </h5>
+                        {% if current_user.rol.value in ['admin', 'general'] %}
+                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                onclick="limpiarKpiFinanciero({{ proyecto.id }})" 
+                                title="Limpiar datos financieros de KPI">
+                            <i data-feather="trash-2" style="width: 12px; height: 12px;"></i>
+                            Limpiar
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="card-body">
                     {% set kpi = stats.kpi_financiero or {} %}
@@ -388,10 +398,20 @@
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i data-feather="clock" class="me-2"></i>
-                        Eficiencia por Área
-                    </h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i data-feather="clock" class="me-2"></i>
+                            Eficiencia por Área
+                        </h5>
+                        {% if current_user.rol.value in ['admin', 'general'] %}
+                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                onclick="limpiarKpiEficiencia({{ proyecto.id }})" 
+                                title="Limpiar datos de eficiencia por área">
+                            <i data-feather="trash-2" style="width: 12px; height: 12px;"></i>
+                            Limpiar
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="card-body">
                     {% set eficiencia = stats.eficiencia_por_area or {} %}
@@ -1037,5 +1057,95 @@
                     // Mostrar un indicador de error en la UI
                     updateCobranzaKPI(0, true);
                 });
+
+    // KPI Deletion Functions
+    function limpiarKpiFinanciero(proyectoId) {
+        if (!confirm('¿Está seguro de limpiar todos los datos financieros de KPI?\n\nEsto eliminará:\n- Estados de pago del proyecto\n- Pendientes de facturación\n- Cálculos financieros\n\nEsta acción no se puede deshacer.')) {
+            return;
+        }
+        
+        limpiarDatosKpi(proyectoId, 'financiero', 'KPI Financiero');
+    }
+    
+    function limpiarKpiEficiencia(proyectoId) {
+        if (!confirm('¿Está seguro de limpiar todos los datos de eficiencia por área?\n\nEsto eliminará:\n- Registros de progreso por área\n- Tiempos de procesamiento\n- Métricas de eficiencia\n\nEsta acción no se puede deshacer.')) {
+            return;
+        }
+        
+        limpiarDatosKpi(proyectoId, 'eficiencia', 'Eficiencia por Área');
+    }
+    
+    function limpiarDatosKpi(proyectoId, tipo, nombreSeccion) {
+        const button = event.target.closest('button');
+        const originalText = button.innerHTML;
+        
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Limpiando...';
+        
+        fetch(`/proyectos/${proyectoId}/limpiar-kpi`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                tipo: tipo
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', `${nombreSeccion} limpiado exitosamente`);
+                // Mostrar detalles si están disponibles
+                if (data.detalles && data.detalles.length > 0) {
+                    console.log('Detalles de limpieza:', data.detalles.join(', '));
+                }
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('danger', 'Error: ' + data.message);
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', `Error al limpiar ${nombreSeccion.toLowerCase()}`);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        });
+    }
+
+    // Utility function to show alerts (if not already defined)
+    function showAlert(type, message) {
+        // Find existing alert container or create one
+        let alertContainer = document.querySelector('.alert-container');
+        if (!alertContainer) {
+            alertContainer = document.createElement('div');
+            alertContainer.className = 'alert-container position-fixed';
+            alertContainer.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            document.body.appendChild(alertContainer);
+        }
+        
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            <i data-feather="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        alertContainer.appendChild(alertDiv);
+        
+        // Replace feather icons in the new alert
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
     </script>
 {% endblock %}
