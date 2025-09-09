@@ -43,15 +43,8 @@ def process_form_data(form_data, is_update=False):
                 processed[key] = datetime.strptime(value, '%Y-%m-%d').date() if value else None
             except ValueError:
                 processed[key] = None
-        elif key == 'categoria_ids':
-            # Handle multiple category IDs if they come as list
-            if isinstance(value, list):
-                processed[key] = [int(v) for v in value if v]
-            else:
-                processed[key] = [int(value)] if value else []
         elif key == 'estado_comercial':
-            # Estado comercial default value
-            processed[key] = value if value else 'PENDIENTE_PRESUPUESTO'
+            processed[key] = value if value else None
         else:
             processed[key] = value
 
@@ -60,415 +53,215 @@ def process_form_data(form_data, is_update=False):
 @proyectos_bp.route('/')
 @require_login
 def index():
-    """Lista de proyectos con filtros"""
+    """Lista de proyectos con filtros y paginación"""
     try:
-        # Build search filters
-        filters = ProyectoSearchFilters(
-            cliente_id=request.args.get('cliente_id', type=int),
-            nombre=request.args.get('nombre'),
-            vendedor_id=request.args.get('vendedor_id'),
-            fecha_inicio_desde=request.args.get('fecha_inicio_desde', type=lambda x: datetime.strptime(x, '%Y-%m-%d').date() if x else None),
-            fecha_inicio_hasta=request.args.get('fecha_inicio_hasta', type=lambda x: datetime.strptime(x, '%Y-%m-%d').date() if x else None),
-            page=request.args.get('page', 1, type=int),
-            per_page=request.args.get('per_page', 20, type=int)
-        )
+        # Get search parameters
+        filters_data = {
+            'page': request.args.get('page', 1, type=int),
+            'per_page': request.args.get('per_page', 10, type=int)
+        }
 
-        # Search proyectos
+        # Add optional filters only if they exist
+        if request.args.get('nombre', '').strip():
+            filters_data['nombre'] = request.args.get('nombre').strip()
+
+        if request.args.get('cliente_id'):
+            try:
+                filters_data['cliente_id'] = int(request.args.get('cliente_id'))
+            except (ValueError, TypeError):
+                pass
+
+        if request.args.get('estado_comercial', '').strip():
+            filters_data['estado_comercial'] = request.args.get('estado_comercial').strip()
+
+        if request.args.get('tipo_proyecto', '').strip():
+            filters_data['tipo_proyecto'] = request.args.get('tipo_proyecto').strip()
+
+        # Validate filters
+        filters = ProyectoSearchFilters(**filters_data)
+
+        # Search projects
         proyectos, total_count = proyectos_service.search_proyectos(filters)
 
-        # Get data for filters
-        clientes = clientes_service.get_active_clientes()
-        from services.user_service import UserService
-        vendedores = UserService.get_users_by_roles(['ventas', 'admin'])
+        # Calculate pagination
+        total_pages = math.ceil(total_count / filters.per_page)
+
+        # Get clients for filter dropdown
+        clientes = clientes_service.get_all_clientes()
 
         return render_template('proyectos/index.html',
                              proyectos=proyectos,
                              clientes=clientes,
-                             vendedores=vendedores,
                              filters=filters,
+                             current_page=filters.page,
+                             total_pages=total_pages,
                              total_count=total_count,
-                             total_pages=math.ceil(total_count / filters.per_page) if total_count > 0 else 1,
-                             has_prev=filters.page > 1,
-                             has_next=filters.page < math.ceil(total_count / filters.per_page) if total_count > 0 else False)
+                             current_user=current_user,
+                             title="Proyectos")
 
     except ValidationError as e:
-        flash('Filtros inválidos', 'error')
+        logger.warning(f"Error de validación en filtros de proyectos: {str(e)}")
+        flash('Error en filtros de búsqueda', 'error')
         return redirect(url_for('proyectos.index'))
     except Exception as e:
-        logger.error(f"Error en lista de proyectos: {str(e)}")
+        logger.error(f"Error loading projects index: {str(e)}")
         flash('Error al cargar proyectos', 'error')
-        return redirect(url_for('index'))
-
-@proyectos_bp.route('/nuevo')
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
-def nuevo():
-    """Formulario para nuevo proyecto"""
-    try:
-        clientes = clientes_service.get_active_clientes()
-        categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
-        usuarios = User.query.filter_by(activo=True).all()
-        vendedores = User.query.filter_by(activo=True).all()  # Filtrar por rol si necesario
-
-        return render_template('proyectos/form.html',
-                             proyecto=None,
-                             clientes=clientes,
-                             categorias=categorias,
-                             usuarios=usuarios,
-                             vendedores=vendedores,
-                             title="Nuevo Proyecto")
-    except Exception as e:
-        logger.error(f"Error cargando formulario nuevo proyecto: {str(e)}")
-        flash('Error al cargar formulario', 'error')
         return redirect(url_for('proyectos.index'))
 
-@proyectos_bp.route('/crear', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
-def crear():
+@proyectos_bp.route('/nuevo', methods=['GET', 'POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
+def nuevo():
     """Crear nuevo proyecto"""
-    try:
-        # Process and validate form data
-        form_data = process_form_data(request.form.to_dict())
-        proyecto_data = ProyectoCreate(**form_data)
+    if request.method == 'GET':
+        try:
+            clientes = clientes_service.get_all_clientes()
+            return render_template('proyectos/form.html',
+                                 clientes=clientes,
+                                 current_user=current_user,
+                                 title="Nuevo Proyecto")
+        except Exception as e:
+            logger.error(f"Error loading new project form: {str(e)}")
+            flash('Error al cargar formulario', 'error')
+            return redirect(url_for('proyectos.index'))
 
-        # Create proyecto
-        proyecto = proyectos_service.create_proyecto(proyecto_data.dict(), current_user.id)
+    elif request.method == 'POST':
+        try:
+            # Process form data
+            form_data = process_form_data(request.form.to_dict())
 
-        flash(f'Proyecto {proyecto.nombre} creado exitosamente', 'success')
-        return redirect(url_for('proyectos.detalle', proyecto_id=proyecto.id))
+            # Validate data with Pydantic
+            proyecto_data = ProyectoCreate(**form_data)
 
-    except ValidationError as e:
-        error_messages = []
-        for error in e.errors():
-            field_name = error['loc'][0] if error['loc'] else 'campo'
-            # Traducir nombres de campos al español
-            field_translations = {
-                'cliente_id': 'Cliente',
-                'nombre': 'Nombre del proyecto',
-                'fecha_inicio': 'Fecha de inicio',
-                'fecha_fin_estimada': 'Fecha de fin estimada',
-                'monto_provision_presupuestado': 'Monto de provisión',
-                'monto_instalacion_presupuestado': 'Monto de instalación'
-            }
-            field_display = field_translations.get(field_name, field_name)
-            error_messages.append(f"{field_display}: {error['msg']}")
+            # Create project
+            proyecto = proyectos_service.create_proyecto(proyecto_data, current_user.id)
 
-        for msg in error_messages:
-            flash(msg, 'error')
+            flash(f'Proyecto "{proyecto.nombre}" creado exitosamente', 'success')
+            return redirect(url_for('proyectos.detalle', proyecto_id=proyecto.id))
 
-        clientes = clientes_service.get_active_clientes()
-        categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
-        usuarios = User.query.filter_by(activo=True).all()
-        vendedores = User.query.filter_by(activo=True).all()
-        return render_template('proyectos/form.html',
-                             proyecto=None,
-                             clientes=clientes,
-                             categorias=categorias,
-                             usuarios=usuarios,
-                             vendedores=vendedores,
-                             title="Nuevo Proyecto")
-    except Exception as e:
-        logger.error(f"Error creando proyecto: {str(e)}")
-        flash(f'Error inesperado al crear proyecto: {str(e)}', 'error')
-        clientes = clientes_service.get_active_clientes()
-        categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
-        usuarios = User.query.filter_by(activo=True).all()
-        vendedores = User.query.filter_by(activo=True).all()
-        return render_template('proyectos/form.html',
-                             proyecto=None,
-                             clientes=clientes,
-                             categorias=categorias,
-                             usuarios=usuarios,
-                             vendedores=vendedores,
-                             title="Nuevo Proyecto")
+        except ValidationError as e:
+            logger.warning(f"Validation error creating project: {str(e)}")
+            flash('Error de validación en los datos del proyecto', 'error')
+            clientes = clientes_service.get_all_clientes()
+            return render_template('proyectos/form.html',
+                                 clientes=clientes,
+                                 proyecto_data=request.form.to_dict(),
+                                 current_user=current_user,
+                                 title="Nuevo Proyecto")
+        except Exception as e:
+            logger.error(f"Error creating project: {str(e)}")
+            flash('Error al crear proyecto', 'error')
+            return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/<int:proyecto_id>')
 @require_login
 def detalle(proyecto_id):
-    """Detalle de proyecto con estadísticas"""
+    """Ver detalles del proyecto"""
     try:
         proyecto_data = proyectos_service.get_proyecto_with_stats(proyecto_id)
+        
         if not proyecto_data:
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('proyectos.index'))
 
-        response = make_response(render_template('proyectos/detalle.html',
-                                               proyecto=proyecto_data['proyecto'],
-                                               stats=proyecto_data['stats']))
-        
-        # Add headers to prevent caching of financial data
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        
-        return response
+        return render_template('proyectos/detalle.html',
+                             proyecto=proyecto_data['proyecto'],
+                             stats=proyecto_data['stats'],
+                             current_user=current_user,
+                             title=f"Proyecto: {proyecto_data['proyecto'].nombre}")
 
     except Exception as e:
-        logger.error(f"Error obteniendo proyecto {proyecto_id}: {str(e)}")
-        flash('Error al cargar proyecto', 'error')
+        logger.error(f"Error loading project detail {proyecto_id}: {str(e)}")
+        flash('Error al cargar detalle del proyecto', 'error')
         return redirect(url_for('proyectos.index'))
 
-@proyectos_bp.route('/<int:proyecto_id>/editar')
+@proyectos_bp.route('/<int:proyecto_id>/editar', methods=['GET', 'POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def editar(proyecto_id):
-    """Formulario de edición de proyecto"""
-    try:
-        proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
-        if not proyecto:
-            flash('Proyecto no encontrado', 'error')
-            return redirect(url_for('proyectos.index'))
+    """Editar proyecto"""
+    if request.method == 'GET':
+        try:
+            proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
+            if not proyecto:
+                flash('Proyecto no encontrado', 'error')
+                return redirect(url_for('proyectos.index'))
 
-        clientes = clientes_service.get_active_clientes()
-        categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
-        usuarios = User.query.filter_by(activo=True).all()
-        vendedores = User.query.filter_by(activo=True).all()  # Filtrar por rol si necesario
+            clientes = clientes_service.get_all_clientes()
+            return render_template('proyectos/form.html',
+                                 proyecto=proyecto,
+                                 clientes=clientes,
+                                 current_user=current_user,
+                                 title=f"Editar: {proyecto.nombre}")
 
-        return render_template('proyectos/form.html',
-                             proyecto=proyecto,
-                             clientes=clientes,
-                             categorias=categorias,
-                             usuarios=usuarios,
-                             vendedores=vendedores,
-                             title=f"Editar Proyecto - {proyecto.nombre}")
+        except Exception as e:
+            logger.error(f"Error loading edit form for project {proyecto_id}: {str(e)}")
+            flash('Error al cargar formulario de edición', 'error')
+            return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
 
-    except Exception as e:
-        logger.error(f"Error obteniendo proyecto para editar {proyecto_id}: {str(e)}")
-        flash('Error al cargar proyecto', 'error')
-        return redirect(url_for('proyectos.index'))
+    elif request.method == 'POST':
+        try:
+            # Process form data for update
+            form_data = process_form_data(request.form.to_dict(), is_update=True)
 
-@proyectos_bp.route('/<int:proyecto_id>/actualizar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
-def actualizar(proyecto_id):
-    """Actualizar proyecto existente"""
-    try:
-        proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
-        if not proyecto:
-            flash('Proyecto no encontrado', 'error')
-            return redirect(url_for('proyectos.index'))
+            # Validate data with Pydantic
+            proyecto_data = ProyectoUpdate(**form_data)
 
-        # Process and validate form data
-        form_data = process_form_data(request.form.to_dict(), is_update=True)
-        update_data = ProyectoUpdate(**form_data)
+            # Update project
+            proyecto = proyectos_service.update_proyecto(proyecto_id, proyecto_data, current_user.id)
 
-        # Update proyecto
-        proyecto_actualizado = proyectos_service.update_proyecto(proyecto_id, update_data.dict(exclude_unset=True))
+            if proyecto:
+                flash(f'Proyecto "{proyecto.nombre}" actualizado exitosamente', 'success')
+                return redirect(url_for('proyectos.detalle', proyecto_id=proyecto.id))
+            else:
+                flash('Error al actualizar proyecto', 'error')
+                return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
 
-        flash(f'Proyecto {proyecto_actualizado.nombre} actualizado exitosamente', 'success')
-        return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
-
-    except ValidationError as e:
-        for error in e.errors():
-            flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
-        clientes = clientes_service.get_active_clientes()
-        categorias = CategoriaMuebleModel.query.filter_by(activo=True).all()
-        usuarios = User.query.filter_by(activo=True).all()
-        vendedores = User.query.filter_by(activo=True).all()
-        return render_template('proyectos/form.html',
-                             proyecto=proyecto,
-                             clientes=clientes,
-                             categorias=categorias,
-                             usuarios=usuarios,
-                             vendedores=vendedores,
-                             title=f"Editar Proyecto - {proyecto.nombre}" if proyecto else "Editar Proyecto")
-    except Exception as e:
-        logger.error(f"Error actualizando proyecto {proyecto_id}: {str(e)}")
-        flash('Error al actualizar proyecto', 'error')
-        return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
+        except ValidationError as e:
+            logger.warning(f"Validation error updating project {proyecto_id}: {str(e)}")
+            flash('Error de validación en los datos del proyecto', 'error')
+            proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
+            clientes = clientes_service.get_all_clientes()
+            return render_template('proyectos/form.html',
+                                 proyecto=proyecto,
+                                 clientes=clientes,
+                                 proyecto_data=request.form.to_dict(),
+                                 current_user=current_user,
+                                 title=f"Editar: {proyecto.nombre}")
+        except Exception as e:
+            logger.error(f"Error updating project {proyecto_id}: {str(e)}")
+            flash('Error al actualizar proyecto', 'error')
+            return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
 
 @proyectos_bp.route('/<int:proyecto_id>/eliminar', methods=['POST'])
-@require_role(RolUsuario.ADMIN)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
 def eliminar(proyecto_id):
-    """Eliminar proyecto"""
+    """Eliminar proyecto (soft delete)"""
     try:
-        success = proyectos_service.delete_proyecto(proyecto_id)
+        proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
+        if not proyecto:
+            flash('Proyecto no encontrado', 'error')
+            return redirect(url_for('proyectos.index'))
+
+        success = proyectos_service.delete_proyecto(proyecto_id, current_user.id)
+        
         if success:
-            flash('Proyecto eliminado exitosamente', 'success')
+            flash(f'Proyecto "{proyecto.nombre}" eliminado exitosamente', 'success')
         else:
             flash('Error al eliminar proyecto', 'error')
 
-    except Exception as e:
-        logger.error(f"Error eliminando proyecto {proyecto_id}: {str(e)}")
-        flash('Error al eliminar proyecto', 'error')
-
-    return redirect(url_for('proyectos.index'))
-
-@proyectos_bp.route('/api/by-cliente/<int:cliente_id>')
-@require_login
-def api_by_cliente(cliente_id):
-    """API endpoint para obtener proyectos por cliente"""
-    try:
-        proyectos = proyectos_service.get_proyectos_by_cliente(cliente_id)
-        return jsonify([{
-            'id': p.id,
-            'nombre': p.nombre,
-            'estado': p.estado_comercial.value
-        } for p in proyectos])
-
-    except Exception as e:
-        logger.error(f"Error en API proyectos por cliente: {str(e)}")
-        return jsonify({'error': 'Error al cargar proyectos'}), 500
-
-# Add main API endpoint for testing
-@proyectos_bp.route('/<int:proyecto_id>/cambiar-estado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
-def cambiar_estado(proyecto_id):
-    """Cambiar estado comercial de un proyecto"""
-    try:
-        data = request.get_json()
-        nuevo_estado = data.get('estado')
-        observacion = data.get('observacion', '')
-
-        if not nuevo_estado:
-            return jsonify({'success': False, 'message': 'Estado requerido'}), 400
-
-        # Validate estado is valid
-        from models import EstadoComercial
-        try:
-            estado_enum = EstadoComercial(nuevo_estado)
-        except ValueError:
-            return jsonify({'success': False, 'message': 'Estado inválido'}), 400
-
-        # Get proyecto
-        proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
-        if not proyecto:
-            return jsonify({'success': False, 'message': 'Proyecto no encontrado'}), 404
-
-        # Update estado
-        update_data = {
-            'estado_comercial': nuevo_estado
-        }
-        if observacion:
-            current_notas = proyecto.notas_comerciales or ''
-            update_data['notas_comerciales'] = f"{current_notas}\n[{datetime.now().strftime('%d/%m/%Y %H:%M')}] Cambio de estado a {nuevo_estado}: {observacion}".strip()
-
-        proyecto_actualizado = proyectos_service.update_proyecto(proyecto_id, update_data)
-
-        return jsonify({
-            'success': True,
-            'message': f'Estado cambiado a {nuevo_estado}',
-            'nuevo_estado': proyecto_actualizado.estado_comercial.value
-        })
-
-    except Exception as e:
-        logger.error(f"Error cambiando estado del proyecto {proyecto_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
-
-@proyectos_bp.route('/api/', methods=['GET'])
-def api_proyectos():
-    """API endpoint principal para proyectos - usado en tests"""
-    try:
-        # Get recent projects for testing
-        from repositories.proyectos_repo import ProyectosRepository
-        repo = ProyectosRepository()
-        proyectos = repo.get_recent_proyectos(limit=10)
-
-        return jsonify({
-            'success': True,
-            'data': [{
-                'id': p.id,
-                'nombre': p.nombre,
-                'cliente_id': p.cliente_id,
-                'estado': p.estado_comercial.value if hasattr(p, 'estado_comercial') else 'PENDIENTE'
-            } for p in proyectos]
-        })
-
-    except Exception as e:
-        logger.error(f"Error en API proyectos: {str(e)}")
-        return jsonify({'error': 'Error al cargar proyectos'}), 500
-
-@proyectos_bp.route('/<int:proyecto_id>/adjuntos', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
-def subir_adjunto(proyecto_id):
-    """Upload attachment to project"""
-    try:
-        if 'archivo' not in request.files:
-            return jsonify({'success': False, 'message': 'No se seleccionó archivo'}), 400
-
-        file = request.files['archivo']
-        if file.filename == '':
-            return jsonify({'success': False, 'message': 'No se seleccionó archivo'}), 400
-
-        tipo = request.form.get('tipo', 'especificacion')
-        descripcion = request.form.get('descripcion', '')
-
-        # Validate file type
-        allowed_types = ['presupuesto', 'eett', 'especificacion', 'plano', 'contrato', 'foto', 'qa']
-        if tipo not in allowed_types:
-            tipo = 'especificacion'
-
-        adjunto = proyectos_service.add_project_attachment(
-            proyecto_id, file, tipo, descripcion, current_user.id
-        )
-
-        return jsonify({
-            'success': True,
-            'message': 'Documento subido exitosamente',
-            'adjunto': {
-                'id': adjunto.id,
-                'filename': adjunto.filename,
-                'tipo': adjunto.tipo.value,
-                'descripcion': adjunto.descripcion,
-                'created_at': adjunto.created_at.strftime('%d/%m/%Y %H:%M')
-            }
-        })
-
-    except Exception as e:
-        logger.error(f"Error uploading attachment to proyecto {proyecto_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al subir documento: {str(e)}'}), 500
-
-@proyectos_bp.route('/<int:proyecto_id>/adjuntos', methods=['GET'])
-@require_login
-def get_adjuntos(proyecto_id):
-    """Get project attachments"""
-    try:
-        adjuntos = proyectos_service.get_project_attachments(proyecto_id)
-
-        return jsonify({
-            'success': True,
-            'adjuntos': [{
-                'id': adj.id,
-                'filename': adj.filename,
-                'tipo': adj.tipo.value,
-                'descripcion': adj.descripcion,
-                'size_mb': round(adj.size_bytes / 1024 / 1024, 2),
-                'created_at': adj.created_at.strftime('%d/%m/%Y %H:%M'),
-                'created_by': adj.creator.nombre_completo if adj.creator else 'Usuario desconocido'
-            } for adj in adjuntos]
-        })
-
-    except Exception as e:
-        logger.error(f"Error getting adjuntos for proyecto {proyecto_id}: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error al cargar documentos'}), 500
-
-@proyectos_bp.route('/adjuntos/<int:adjunto_id>/descargar')
-@require_login
-def descargar_adjunto(adjunto_id):
-    """Download project attachment"""
-    try:
-        from repositories.proyecto_adjuntos_repo import ProyectoAdjuntosRepository
-        from services.storage_service import StorageService
-
-        adjuntos_repo = ProyectoAdjuntosRepository()
-        adjunto = adjuntos_repo.get_by_id(adjunto_id)
-
-        if not adjunto:
-            flash('Documento no encontrado', 'error')
-            return redirect(url_for('proyectos.index'))
-
-        storage_service = StorageService()
-        return storage_service.serve_file(adjunto.storage_key, adjunto.filename)
-
-    except Exception as e:
-        logger.error(f"Error downloading adjunto {adjunto_id}: {str(e)}")
-        flash('Error al descargar documento', 'error')
         return redirect(url_for('proyectos.index'))
+
+    except Exception as e:
+        logger.error(f"Error deleting project {proyecto_id}: {str(e)}")
+        flash('Error al eliminar proyecto', 'error')
+        return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
 
 @proyectos_bp.route('/adjuntos/<int:adjunto_id>/eliminar', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def eliminar_adjunto(adjunto_id):
     """Delete project attachment"""
     try:
-        success = proyectos_service.delete_project_attachment(adjunto_id, current_user.id)
-
+        success = proyectos_service.delete_adjunto(adjunto_id, current_user.id)
+        
         if success:
             return jsonify({'success': True, 'message': 'Documento eliminado exitosamente'})
         else:
@@ -499,748 +292,3 @@ def api_contratos_activos(proyecto_id):
     except Exception as e:
         logger.error(f"Error en API contratos activos: {str(e)}")
         return jsonify({'error': 'Error al cargar contratos'}), 500
-
-
-@proyectos_bp.route('/<int:proyecto_id>/estados-pago', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
-def crear_estado_pago(proyecto_id):
-    """Create payment state for project"""
-    try:
-        from services.estados_pago_service import EstadosPagoService
-        from models import TipoEstadoPago
-        from decimal import Decimal
-
-        data = request.get_json()
-        estados_pago_service = EstadosPagoService()
-
-        tipo = data.get('tipo')
-
-        # Only Contract Payment States are supported now - OCs are handled separately as PendienteFacturar
-        if tipo != TipoEstadoPago.ESTADO_PAGO_CONTRATO.value:
-            return jsonify({'success': False, 'message': 'Solo se permiten Estados de Pago de Contrato. Las OCs se gestionan automáticamente.'}), 400
-
-        # Create Contract Payment State
-        estado_pago = estados_pago_service.create_estado_pago_contrato(
-            proyecto_id=proyecto_id,
-            contrato_id=data.get('contrato_id'),
-            descripcion=data.get('descripcion'),
-            porcentaje_avance=Decimal(str(data.get('porcentaje_avance', 0))),
-            monto_estado_pago=Decimal(str(data.get('monto_estado_pago', 0))),
-            fecha_programada=datetime.strptime(data.get('fecha_programada'), '%Y-%m-%d').date() if data.get('fecha_programada') else None,
-            observaciones=data.get('observaciones'),
-            created_by=current_user.id
-        )
-
-        return jsonify({
-            'success': True,
-            'message': 'Estado de pago creado exitosamente',
-            'estado_pago': {
-                'id': estado_pago.id,
-                'titulo': estado_pago.titulo_display,
-                'monto': float(estado_pago.monto_efectivo),
-                'estado': estado_pago.estado.value
-            }
-        })
-
-    except Exception as e:
-        logger.error(f"Error creating estado pago for proyecto {proyecto_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al crear estado de pago: {str(e)}'}), 500
-
-@proyectos_bp.route('/estados-pago/<int:estado_pago_id>/marcar-pagado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
-def marcar_estado_pago_pagado(estado_pago_id):
-    """Mark payment state as paid - siguiendo el mismo patrón que las OCs"""
-    try:
-        from services.estados_pago_service import EstadosPagoService
-        from models import EstadoPagoContrato
-
-        # Handle both JSON and form data
-        if request.is_json:
-            data = request.get_json() or {}
-        else:
-            data = request.form.to_dict()
-        
-        estados_pago_service = EstadosPagoService()
-
-        # Verificar que el estado de pago existe
-        estado_pago = estados_pago_service.get_estado_pago_by_id(estado_pago_id)
-        if not estado_pago:
-            return jsonify({'success': False, 'message': 'Estado de pago no encontrado'}), 404
-
-        # Verificar que está facturado antes de poder marcarlo como pagado
-        if not hasattr(estado_pago, 'facturado') or not estado_pago.facturado:
-            return jsonify({'success': False, 'message': 'El estado de pago debe estar facturado antes de marcarlo como pagado'}), 400
-
-        # Verificar que no esté ya pagado - direct enum comparison
-        if estado_pago.estado == EstadoPagoContrato.PAGADO:
-            return jsonify({'success': False, 'message': 'El estado de pago ya está marcado como pagado'}), 400
-
-        fecha_pago = None
-        if data.get('fecha_pago'):
-            try:
-                fecha_pago = datetime.strptime(data.get('fecha_pago'), '%Y-%m-%d').date()
-            except ValueError:
-                return jsonify({'success': False, 'message': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
-
-        logger.info(f"Marcando estado de pago {estado_pago_id} como pagado. Estado actual: {estado_pago.estado.value if estado_pago.estado else 'None'}")
-
-        estado_pago_actualizado = estados_pago_service.marcar_como_pagado(
-            estado_pago_id=estado_pago_id,
-            fecha_pago=fecha_pago,
-            observaciones=data.get('observaciones')
-        )
-
-        logger.info(f"Estado de pago {estado_pago_id} actualizado. Nuevo estado: {estado_pago_actualizado.estado.value if estado_pago_actualizado.estado else 'None'}")
-
-        return jsonify({
-            'success': True,
-            'message': 'Estado de pago marcado como pagado exitosamente',
-            'estado_pago': {
-                'id': estado_pago_actualizado.id,
-                'estado': estado_pago_actualizado.estado.value if estado_pago_actualizado.estado else None,
-                'fecha_pago': estado_pago_actualizado.fecha_pago.strftime('%d/%m/%Y') if estado_pago_actualizado.fecha_pago else None,
-                'facturado': getattr(estado_pago_actualizado, 'facturado', False),
-                'monto_efectivo': float(estado_pago_actualizado.monto_efectivo or 0)
-            }
-        })
-
-    except ValueError as ve:
-        logger.warning(f"Validation error marking estado pago as paid {estado_pago_id}: {str(ve)}")
-        return jsonify({'success': False, 'message': str(ve)}), 400
-    except Exception as e:
-        logger.error(f"Error marking estado pago as paid {estado_pago_id}: {str(e)}")
-        db.session.rollback()
-        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
-
-@proyectos_bp.route('/estados-pago')
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def estados_pago_index():
-    """Tesorería - Lista de proyectos agrupados por cliente y contratos pendientes"""
-    try:
-        from services.estados_pago_service import EstadosPagoService
-        from services.treasury_integration_service import TreasuryIntegrationService
-        
-        estados_pago_service = EstadosPagoService()
-        treasury_service = TreasuryIntegrationService()
-        
-        # Get all projects with payment states grouped by client
-        proyectos_por_cliente = treasury_service.get_projects_grouped_by_client()
-        
-        # Get contracts that need manual treasury state creation (only CONTRATOS)
-        contratos_pendientes = treasury_service.get_contracts_without_treasury_states()
-        
-        # Get OCs as pending invoices (separate concept)
-        pendientes_facturar = treasury_service.get_pending_invoices()
-        
-        # Get clients with contracts data for the dropdown functionality
-        clientes_contratos = []
-        
-        # Get active projects grouped by client
-        from models import Proyecto, EstadoComercial
-        from sqlalchemy.orm import joinedload
-        
-        # Get all active projects with their clients
-        proyectos_activos = (db.session.query(Proyecto)
-                           .options(joinedload(Proyecto.cliente))
-                           .filter(Proyecto.estado_comercial.in_([
-                               EstadoComercial.EN_DESARROLLO, 
-                               EstadoComercial.ADJUDICADO
-                           ]))
-                           .all())
-        
-        # Group projects by client
-        clientes_proyectos = {}
-        for proyecto in proyectos_activos:
-            if proyecto.cliente and proyecto.cliente_id not in clientes_proyectos:
-                clientes_proyectos[proyecto.cliente_id] = {
-                    'cliente': proyecto.cliente,
-                    'proyectos_activos': []
-                }
-            if proyecto.cliente:
-                clientes_proyectos[proyecto.cliente_id]['proyectos_activos'].append(proyecto)
-        
-        # Convert to list format expected by template
-        for cliente_data in clientes_proyectos.values():
-            cliente_data['count_proyectos_activos'] = len(cliente_data['proyectos_activos'])
-            clientes_contratos.append(cliente_data)
-        
-        return render_template('proyectos/estados_pago_index.html', 
-                             proyectos_por_cliente=proyectos_por_cliente,
-                             contratos_pendientes=contratos_pendientes,
-                             pendientes_facturar=pendientes_facturar,
-                             clientes_contratos=clientes_contratos,
-                             title="Tesorería")
-        
-    except Exception as e:
-        logger.error(f"Error loading estados pago index: {str(e)}")
-        flash('Error al cargar Tesorería', 'error')
-        return redirect(url_for('proyectos.index'))
-
-@proyectos_bp.route('/estados-pago/<int:proyecto_id>')
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def estados_pago_detalle(proyecto_id):
-    """Estados de Pago - Detalle de un proyecto específico con estructura jerárquica"""
-    try:
-        from services.treasury_integration_service import TreasuryIntegrationService
-        from services.estados_pago_service import EstadosPagoService
-        
-        treasury_service = TreasuryIntegrationService()
-        estados_pago_service = EstadosPagoService()
-
-        # Get structured project treasury data
-        proyecto_data = treasury_service.get_project_treasury_detail(proyecto_id)
-        if not proyecto_data:
-            flash('Proyecto no encontrado', 'error')
-            return redirect(url_for('proyectos.estados_pago_index'))
-
-        # Get all payment states for legacy compatibility (used in modal)
-        estados_pago = estados_pago_service.get_estados_pago_by_proyecto(proyecto_id)
-        
-        # Get all contracts for modal dropdown (legacy)
-        contratos_legacy = []
-        if proyecto_data.get('contratos'):
-            contratos_legacy.extend([c['contrato'] for c in proyecto_data['contratos']])
-        if proyecto_data.get('ordenes_compra'):
-            contratos_legacy.extend([oc['oc'] for oc in proyecto_data['ordenes_compra']])
-
-        return render_template('proyectos/estados_pago_detalle.html',
-                             proyecto_data=proyecto_data,
-                             proyecto=proyecto_data.get('proyecto'),
-                             cliente=proyecto_data.get('cliente'),
-                             estados_pago=estados_pago,
-                             contratos=contratos_legacy,
-                             title=f"Estados de Pago - {proyecto_data.get('proyecto', {}).nombre if proyecto_data.get('proyecto') else 'Proyecto'}")
-
-    except Exception as e:
-        logger.error(f"Error loading estados pago detalle for proyecto {proyecto_id}: {str(e)}")
-        flash('Error al cargar detalle de Tesorería', 'error')
-        return redirect(url_for('proyectos.estados_pago_index'))
-
-@proyectos_bp.route('/dashboard-financiero')
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def dashboard_financiero():
-    """Dashboard de seguimiento financiero integral - Fase 1"""
-    try:
-        from services.contratos_financial_service import ContratosFinancialService
-        financial_service = ContratosFinancialService()
-
-        # Obtener resumen de cartera general
-        portfolio_summary = financial_service.get_portfolio_summary()
-
-        # Obtener contratos pendientes de facturación
-        pending_invoicing = financial_service.get_contracts_requiring_invoicing()
-
-        # Obtener proyectos con resúmenes financieros (top 10)
-        from services.proyectos_service import ProyectosService
-        proyectos_service = ProyectosService()
-
-        # Obtener proyectos recientes para mostrar sus resúmenes financieros
-        from schemas.proyectos import ProyectoSearchFilters
-        filters = ProyectoSearchFilters(page=1, per_page=10)
-        proyectos, _ = proyectos_service.search_proyectos(filters)
-
-        # Enriquecer cada proyecto con su resumen financiero
-        proyectos_financieros = []
-        for proyecto in proyectos:
-            resumen_financiero = financial_service.get_financial_summary_by_project(proyecto.id)
-            proyectos_financieros.append({
-                'proyecto': proyecto,
-                'resumen': resumen_financiero
-            })
-
-        return render_template('proyectos/dashboard_financiero.html',
-                             portfolio_summary=portfolio_summary,
-                             pending_invoicing=pending_invoicing,
-                             proyectos_financieros=proyectos_financieros,
-                             title="Dashboard Financiero")
-
-    except Exception as e:
-        logger.error(f"Error loading dashboard financiero: {str(e)}")
-        flash('Error al cargar dashboard financiero', 'error')
-        return redirect(url_for('proyectos.index'))
-
-@proyectos_bp.route('/estados-pago/<int:estado_pago_id>/marcar-facturado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def marcar_facturado(estado_pago_id):
-    """Mark payment state as invoiced"""
-    try:
-        from services.estados_pago_service import EstadosPagoService
-        from datetime import datetime, date
-
-        data = request.get_json()
-        estados_pago_service = EstadosPagoService()
-
-        # Mark as invoiced
-        success = estados_pago_service.marcar_como_facturado(
-            estado_pago_id=estado_pago_id,
-            numero_factura=data.get('numero_factura'),
-            updated_by=current_user.id if current_user else 'system'
-        )
-
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'Estado marcado como facturado exitosamente'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'Error al marcar como facturado'
-            }), 500
-
-    except Exception as e:
-        logger.error(f"Error marking estado pago as invoiced {estado_pago_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al marcar como facturado: {str(e)}'}), 500
-
-@proyectos_bp.route('/sync-financial-totals/<int:proyecto_id>', methods=['POST'])
-@require_role(RolUsuario.ADMIN)
-def sync_financial_totals(proyecto_id):
-    """Sync financial totals for all contracts in a project - temporary fix endpoint"""
-    try:
-        from services.estados_pago_service import EstadosPagoService
-        
-        estados_pago_service = EstadosPagoService()
-        updated_count = estados_pago_service.sync_all_contracts_for_project(proyecto_id)
-        
-        return jsonify({
-            'success': True, 
-            'message': f'Synchronized {updated_count} contracts for project {proyecto_id}'
-        })
-        
-    except Exception as e:
-        logger.error(f"Error syncing financial totals for project {proyecto_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error syncing: {str(e)}'}), 500
-
-@proyectos_bp.route('/estados-pago/<int:estado_pago_id>/sync-status', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def sync_payment_state_status(estado_pago_id):
-    """Sync payment state status and contract totals - fix inconsistencies"""
-    try:
-        from services.estados_pago_service import EstadosPagoService
-        
-        estados_pago_service = EstadosPagoService()
-        estado_pago = estados_pago_service.get_estado_pago_by_id(estado_pago_id)
-        
-        if not estado_pago:
-            return jsonify({'success': False, 'message': 'Estado de pago no encontrado'}), 404
-        
-        # Force update contract financial totals
-        if estado_pago.contrato_id:
-            estados_pago_service._update_contract_financial_totals(estado_pago.contrato_id)
-            db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Estado de pago sincronizado correctamente',
-            'estado_pago': {
-                'id': estado_pago.id,
-                'estado': estado_pago.estado.value,
-                'facturado': estado_pago.facturado,
-                'fecha_pago': estado_pago.fecha_pago.strftime('%d/%m/%Y') if estado_pago.fecha_pago else None
-            }
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error syncing payment state {estado_pago_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error sincronizando: {str(e)}'}), 500
-
-@proyectos_bp.route('/estados-pago/<int:estado_pago_id>', methods=['DELETE'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
-def eliminar_estado_pago(estado_pago_id):
-    """Delete payment state"""
-    try:
-        from services.estados_pago_service import EstadosPagoService
-        estados_pago_service = EstadosPagoService()
-
-        success = estados_pago_service.delete_estado_pago(estado_pago_id)
-
-        if success:
-            return jsonify({'success': True, 'message': 'Estado de pago eliminado exitosamente'})
-        else:
-            return jsonify({'success': False, 'message': 'Error al eliminar estado de pago'}), 500
-
-    except Exception as e:
-        logger.error(f"Error deleting estado pago {estado_pago_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al eliminar estado de pago: {str(e)}'}), 500
-
-@proyectos_bp.route('/contratos/<int:contrato_id>/crear-estados-tesoreria', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def crear_estados_tesoreria_contrato(contrato_id):
-    """Crear estados de pago en tesorería para un contrato existente"""
-    try:
-        from services.treasury_integration_service import TreasuryIntegrationService
-        treasury_service = TreasuryIntegrationService()
-
-        # Create treasury states for existing contract
-        estados_creados = treasury_service.create_states_for_existing_contract(
-            contrato_id=contrato_id,
-            created_by=current_user.id
-        )
-
-        if estados_creados:
-            return jsonify({
-                'success': True,
-                'message': f'{len(estados_creados)} estados de pago creados exitosamente en tesorería',
-                'estados_creados': len(estados_creados)
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'No se pudieron crear estados de pago (es posible que ya existan)'
-            }), 400
-
-    except Exception as e:
-        logger.error(f"Error creando estados tesorería para contrato {contrato_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al crear estados de tesorería: {str(e)}'}), 500
-
-@proyectos_bp.route('/pendientes-facturar/<int:pendiente_id>/marcar-facturado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def marcar_pendiente_facturado(pendiente_id):
-    """Marcar un pendiente de facturar como facturado"""
-    try:
-        from services.treasury_integration_service import TreasuryIntegrationService
-        from models import EstadoPendienteFacturar
-        treasury_service = TreasuryIntegrationService()
-
-        data = request.get_json() or {}
-        numero_factura = data.get('numero_factura', '')
-
-        success = treasury_service.update_pending_invoice_status(
-            pendiente_id=pendiente_id,
-            nuevo_estado=EstadoPendienteFacturar.FACTURADO,
-            updated_by=current_user.id,
-            numero_factura=numero_factura
-        )
-
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'OC marcada como facturada exitosamente'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'No se pudo actualizar el estado de la OC'
-            }), 400
-
-    except Exception as e:
-        logger.error(f"Error marcando OC {pendiente_id} como facturada: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al marcar como facturada: {str(e)}'}), 500
-
-@proyectos_bp.route('/pendientes-facturar/<int:pendiente_id>/marcar-pagado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def marcar_pendiente_pagado(pendiente_id):
-    """Marcar un pendiente de facturar como pagado"""
-    try:
-        from services.treasury_integration_service import TreasuryIntegrationService
-        from models import EstadoPendienteFacturar
-        treasury_service = TreasuryIntegrationService()
-
-        success = treasury_service.update_pending_invoice_status(
-            pendiente_id=pendiente_id,
-            nuevo_estado=EstadoPendienteFacturar.PAGADO,
-            updated_by=current_user.id
-        )
-
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'OC marcada como pagada exitosamente'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'No se pudo actualizar el estado de la OC'
-            }), 400
-
-    except Exception as e:
-        logger.error(f"Error marcando OC {pendiente_id} como pagada: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al marcar como pagada: {str(e)}'}), 500
-
-@proyectos_bp.route('/pendientes-facturar/<int:pendiente_id>/actualizar-fecha-programada', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def actualizar_fecha_programada_pendiente(pendiente_id):
-    """Actualizar la fecha programada de un pendiente de facturar"""
-    try:
-        from models import PendienteFacturar
-        from datetime import datetime
-        
-        data = request.get_json() or {}
-        nueva_fecha_str = data.get('fecha_programada')
-        
-        if not nueva_fecha_str:
-            return jsonify({'success': False, 'message': 'Fecha programada requerida'}), 400
-        
-        # Validate and parse date
-        try:
-            nueva_fecha = datetime.strptime(nueva_fecha_str, '%Y-%m-%d').date()
-        except ValueError:
-            return jsonify({'success': False, 'message': 'Formato de fecha inválido'}), 400
-        
-        # Get pendiente
-        pendiente = PendienteFacturar.query.get(pendiente_id)
-        if not pendiente:
-            return jsonify({'success': False, 'message': 'Pendiente de facturar no encontrado'}), 404
-        
-        # Update date
-        pendiente.fecha_programada = nueva_fecha
-        pendiente.updated_by = current_user.id
-        pendiente.updated_at = datetime.utcnow()
-        
-        db.session.add(pendiente)
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Fecha programada actualizada exitosamente'
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error actualizando fecha programada para pendiente {pendiente_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al actualizar fecha: {str(e)}'}), 500
-
-@proyectos_bp.route('/estados-pago/<int:estado_pago_id>/marcar-facturado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def marcar_estado_pago_facturado(estado_pago_id):
-    """Marcar un estado de pago como facturado - siguiendo el mismo patrón que las OCs"""
-    try:
-        from services.estados_pago_service import EstadosPagoService
-        estados_pago_service = EstadosPagoService()
-
-        # Handle both JSON and form data
-        if request.is_json:
-            data = request.get_json() or {}
-        else:
-            data = request.form.to_dict()
-            
-        numero_factura = data.get('numero_factura', '').strip()
-
-        if not numero_factura:
-            return jsonify({
-                'success': False,
-                'message': 'El número de factura es requerido'
-            }), 400
-
-        # Verificar que el estado de pago existe
-        estado_pago = estados_pago_service.get_estado_pago_by_id(estado_pago_id)
-        if not estado_pago:
-            return jsonify({
-                'success': False,
-                'message': 'Estado de pago no encontrado'
-            }), 404
-
-        # Verificar que no esté ya facturado
-        if hasattr(estado_pago, 'facturado') and estado_pago.facturado:
-            return jsonify({
-                'success': False,
-                'message': f'El estado de pago ya está marcado como facturado (Factura: {estado_pago.numero_factura})'
-            }), 400
-
-        # Verificar que no esté ya pagado (no se puede facturar algo ya pagado)
-        if hasattr(estado_pago, 'estado') and estado_pago.estado.value == 'PAGADO':
-            return jsonify({
-                'success': False,
-                'message': 'No se puede facturar un estado de pago que ya está pagado'
-            }), 400
-
-        # Update payment state as invoiced
-        success = estados_pago_service.marcar_como_facturado(
-            estado_pago_id=estado_pago_id,
-            numero_factura=numero_factura,
-            updated_by=current_user.id if current_user else 'system'
-        )
-
-        if success:
-            return jsonify({
-                'success': True,
-                'message': f'Estado de pago marcado como facturado exitosamente (Factura: {numero_factura})',
-                'estado_pago': {
-                    'id': estado_pago_id,
-                    'facturado': True,
-                    'numero_factura': numero_factura
-                }
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'No se pudo marcar el estado de pago como facturado'
-            }), 500
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error marcando estado de pago {estado_pago_id} como facturado: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
-
-@proyectos_bp.route('/api/<int:proyecto_id>/contratos')
-@login_required
-def api_get_contratos(proyecto_id):
-    """API: Get contracts for a project"""
-    try:
-        contratos = Contrato.query.filter_by(proyecto_id=proyecto_id).all()
-        return jsonify([{
-            'id': c.id,
-            'numero_oc': c.numero_oc,
-            'monto_total': float(c.monto_total) if c.monto_total else 0,
-            'estado': c.estado.value
-        } for c in contratos])
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@proyectos_bp.route('/estados-pago/marcar-facturado/<int:contrato_id>', methods=['POST'])
-@login_required
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES)
-def marcar_contrato_facturado(contrato_id):
-    """API: Mark contract as invoiced"""
-    try:
-        from services.contratos_service import ContratosService
-
-        service = ContratosService()
-        contrato = Contrato.query.get_or_404(contrato_id)
-
-        # Update invoice status
-        if contrato.tipo_documento == TipoDocumento.ORDEN_COMPRA:
-            # For OCs, update the pending invoice status
-            treasury_service = TreasuryIntegrationService()
-            pendiente = PendienteFacturar.query.filter_by(contrato_id=contrato_id).first()
-
-            if pendiente:
-                success = treasury_service.update_pending_invoice_status(
-                    pendiente.id,
-                    EstadoPendienteFacturar.FACTURADO,
-                    current_user.id
-                )
-                if success:
-                    return jsonify({
-                        'success': True,
-                        'message': f'OC {contrato.numero_oc} marcada como facturada'
-                    })
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': 'No se encontró registro en pendientes de facturar'
-                }), 404
-        else:
-            # For contracts, update contract status
-            contrato.estado_facturacion = EstadoFacturacion.FACTURADO
-            contrato.monto_facturado = contrato.monto_total
-            db.session.commit()
-
-            return jsonify({
-                'success': True,
-                'message': f'Contrato {contrato.numero_oc} marcado como facturado'
-            })
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': f'Error al marcar como facturado: {str(e)}'
-        }), 500
-@proyectos_bp.route('/<int:proyecto_id>/limpiar-kpi', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
-def limpiar_datos_kpi(proyecto_id):
-    """Limpiar/resetear datos de KPI del proyecto"""
-    try:
-        from models import EstadoPago, OrdenAreaProgreso, PendienteFacturar
-        
-        data = request.get_json() or {}
-        tipo_limpieza = data.get('tipo', 'todo')  # 'financiero', 'eficiencia', 'todo'
-        
-        # Verificar que el proyecto existe
-        proyecto = Proyecto.query.get_or_404(proyecto_id)
-        
-        eliminaciones = []
-        
-        if tipo_limpieza in ['financiero', 'todo']:
-            # Eliminar estados de pago relacionados con contratos del proyecto
-            estados_eliminados = 0
-            for contrato in proyecto.contratos:
-                estados_pago = EstadoPago.query.filter_by(contrato_id=contrato.id).all()
-                for estado in estados_pago:
-                    estado.deleted = True
-                    estado.updated_by = current_user.id
-                    estados_eliminados += 1
-            
-            # Eliminar pendientes de facturación relacionados
-            pendientes_eliminados = 0
-            pendientes = PendienteFacturar.query.join(Contrato).filter(
-                Contrato.proyecto_id == proyecto_id
-            ).all()
-            
-            for pendiente in pendientes:
-                pendiente.deleted = True
-                pendiente.updated_by = current_user.id
-                pendientes_eliminados += 1
-            
-            eliminaciones.append(f"Estados de pago financiero: {estados_eliminados}")
-            eliminaciones.append(f"Pendientes de facturación: {pendientes_eliminados}")
-        
-        if tipo_limpieza in ['eficiencia', 'todo']:
-            # Eliminar datos de progreso por área
-            progreso_eliminados = 0
-            progresos = OrdenAreaProgreso.query.join(OrdenFabricacion).filter(
-                OrdenFabricacion.proyecto_id == proyecto_id
-            ).all()
-            
-            for progreso in progresos:
-                db.session.delete(progreso)
-                progreso_eliminados += 1
-            
-            eliminaciones.append(f"Registros de progreso por área: {progreso_eliminados}")
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': f'Datos de KPI limpiados exitosamente',
-            'detalles': eliminaciones,
-            'proyecto': proyecto.nombre
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error limpiando KPI para proyecto {proyecto_id}: {str(e)}")
-        return jsonify({
-            'success': False, 
-            'message': f'Error al limpiar datos de KPI: {str(e)}'
-        }), 500
-
-@proyectos_bp.route('/<int:proyecto_id>/debug-financial-status')
-@require_role(RolUsuario.ADMIN)
-def debug_financial_status(proyecto_id):
-    """Debug endpoint to check financial status calculations"""
-    try:
-        from services.treasury_integration_service import TreasuryIntegrationService
-        from services.estados_pago_service import EstadosPagoService
-        
-        treasury_service = TreasuryIntegrationService()
-        estados_service = EstadosPagoService()
-        
-        # Get project data
-        proyecto_data = treasury_service.get_project_treasury_detail(proyecto_id)
-        
-        # Get financial KPI
-        kpi_data = proyectos_service.get_proyecto_with_stats(proyecto_id)
-        
-        debug_info = {
-            'proyecto_id': proyecto_id,
-            'proyecto_data_treasury': {
-                'contratos_count': len(proyecto_data.get('contratos', [])),
-                'ocs_count': len(proyecto_data.get('ordenes_compra', [])),
-                'resumen_financiero': proyecto_data.get('resumen_financiero', {})
-            },
-            'kpi_data': kpi_data.get('stats', {}) if kpi_data else {},
-            'raw_treasury_data': proyecto_data
-        }
-        
-        return jsonify({
-            'success': True,
-            'debug_info': debug_info
-        })
-        
-    except Exception as e:
-        logger.error(f"Error en debug financial status {proyecto_id}: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
