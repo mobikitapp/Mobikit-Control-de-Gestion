@@ -580,7 +580,7 @@ def crear_estado_pago(proyecto_id):
 @proyectos_bp.route('/estados-pago/<int:estado_pago_id>/marcar-pagado', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def marcar_estado_pago_pagado(estado_pago_id):
-    """Mark payment state as paid"""
+    """Mark payment state as paid - siguiendo el mismo patrón que las OCs"""
     try:
         from services.estados_pago_service import EstadosPagoService
 
@@ -592,6 +592,19 @@ def marcar_estado_pago_pagado(estado_pago_id):
         
         estados_pago_service = EstadosPagoService()
 
+        # Verificar que el estado de pago existe
+        estado_pago = estados_pago_service.get_estado_pago_by_id(estado_pago_id)
+        if not estado_pago:
+            return jsonify({'success': False, 'message': 'Estado de pago no encontrado'}), 404
+
+        # Verificar que está facturado antes de poder marcarlo como pagado
+        if not hasattr(estado_pago, 'facturado') or not estado_pago.facturado:
+            return jsonify({'success': False, 'message': 'El estado de pago debe estar facturado antes de marcarlo como pagado'}), 400
+
+        # Verificar que no esté ya pagado
+        if hasattr(estado_pago, 'estado') and estado_pago.estado.value == 'PAGADO':
+            return jsonify({'success': False, 'message': 'El estado de pago ya está marcado como pagado'}), 400
+
         fecha_pago = None
         if data.get('fecha_pago'):
             try:
@@ -599,28 +612,29 @@ def marcar_estado_pago_pagado(estado_pago_id):
             except ValueError:
                 return jsonify({'success': False, 'message': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
 
-        estado_pago = estados_pago_service.marcar_como_pagado(
+        estado_pago_actualizado = estados_pago_service.marcar_como_pagado(
             estado_pago_id=estado_pago_id,
             fecha_pago=fecha_pago,
             observaciones=data.get('observaciones')
         )
 
-        if not estado_pago:
-            return jsonify({'success': False, 'message': 'No se pudo encontrar el estado de pago'}), 404
-
         return jsonify({
             'success': True,
-            'message': 'Estado de pago marcado como pagado',
+            'message': 'Estado de pago marcado como pagado exitosamente',
             'estado_pago': {
-                'id': estado_pago.id,
-                'estado': estado_pago.estado.value,
-                'fecha_pago': estado_pago.fecha_pago.strftime('%d/%m/%Y') if estado_pago.fecha_pago else None
+                'id': estado_pago_actualizado.id,
+                'estado': estado_pago_actualizado.estado.value,
+                'fecha_pago': estado_pago_actualizado.fecha_pago.strftime('%d/%m/%Y') if estado_pago_actualizado.fecha_pago else None,
+                'facturado': estado_pago_actualizado.facturado
             }
         })
 
+    except ValueError as ve:
+        logger.warning(f"Validation error marking estado pago as paid {estado_pago_id}: {str(ve)}")
+        return jsonify({'success': False, 'message': str(ve)}), 400
     except Exception as e:
         logger.error(f"Error marking estado pago as paid {estado_pago_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al marcar como pagado: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
 
 @proyectos_bp.route('/estados-pago')
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
@@ -1001,7 +1015,7 @@ def actualizar_fecha_programada_pendiente(pendiente_id):
 @proyectos_bp.route('/estados-pago/<int:estado_pago_id>/marcar-facturado', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
 def marcar_estado_pago_facturado(estado_pago_id):
-    """Marcar un estado de pago como facturado"""
+    """Marcar un estado de pago como facturado - siguiendo el mismo patrón que las OCs"""
     try:
         from services.estados_pago_service import EstadosPagoService
         estados_pago_service = EstadosPagoService()
@@ -1012,9 +1026,9 @@ def marcar_estado_pago_facturado(estado_pago_id):
         else:
             data = request.form.to_dict()
             
-        numero_factura = data.get('numero_factura', '')
+        numero_factura = data.get('numero_factura', '').strip()
 
-        if not numero_factura.strip():
+        if not numero_factura:
             return jsonify({
                 'success': False,
                 'message': 'El número de factura es requerido'
@@ -1032,7 +1046,14 @@ def marcar_estado_pago_facturado(estado_pago_id):
         if hasattr(estado_pago, 'facturado') and estado_pago.facturado:
             return jsonify({
                 'success': False,
-                'message': 'El estado de pago ya está marcado como facturado'
+                'message': f'El estado de pago ya está marcado como facturado (Factura: {estado_pago.numero_factura})'
+            }), 400
+
+        # Verificar que no esté ya pagado (no se puede facturar algo ya pagado)
+        if hasattr(estado_pago, 'estado') and estado_pago.estado.value == 'PAGADO':
+            return jsonify({
+                'success': False,
+                'message': 'No se puede facturar un estado de pago que ya está pagado'
             }), 400
 
         # Update payment state as invoiced
@@ -1045,7 +1066,12 @@ def marcar_estado_pago_facturado(estado_pago_id):
         if success:
             return jsonify({
                 'success': True,
-                'message': f'Estado de pago marcado como facturado (Factura: {numero_factura})'
+                'message': f'Estado de pago marcado como facturado exitosamente (Factura: {numero_factura})',
+                'estado_pago': {
+                    'id': estado_pago_id,
+                    'facturado': True,
+                    'numero_factura': numero_factura
+                }
             })
         else:
             return jsonify({

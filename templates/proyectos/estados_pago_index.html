@@ -437,24 +437,35 @@
                                                                             <td>{{ estado.fecha_programada.strftime('%d/%m/%Y') if estado.fecha_programada else '-' }}</td>
                                                                             <td>
                                                                                 <div class="btn-group btn-group-sm" role="group">
-                                                                                    {% if not estado.facturado %}
-                                                                                    <button type="button" class="btn btn-outline-warning btn-xs" 
-                                                                                            onclick="marcarComoFacturado({{ estado.id }})" 
-                                                                                            title="Marcar como facturado">
-                                                                                        <i data-feather="file-text" style="width: 10px; height: 10px;"></i>
-                                                                                    </button>
-                                                                                    {% elif estado.facturado and estado.estado.value != 'PAGADO' %}
-                                                                                    <button type="button" class="btn btn-outline-success btn-xs" 
-                                                                                            onclick="marcarComoPagado({{ estado.id }})" 
-                                                                                            title="Marcar como pagado">
-                                                                                        <i data-feather="dollar-sign" style="width: 10px; height: 10px;"></i>
-                                                                                    </button>
+                                                                                    {% if estado.estado.value != 'PAGADO' %}
+                                                                                        {% if not estado.facturado %}
+                                                                                        <button type="button" class="btn btn-xs btn-warning" 
+                                                                                                onclick="marcarComoFacturado({{ estado.id }})" 
+                                                                                                title="Marcar como facturado">
+                                                                                            <i data-feather="file-text" style="width: 10px; height: 10px;"></i>
+                                                                                            Facturar
+                                                                                        </button>
+                                                                                        {% elif estado.facturado %}
+                                                                                        <button type="button" class="btn btn-xs btn-success" 
+                                                                                                onclick="marcarComoPagado({{ estado.id }})" 
+                                                                                                title="Marcar como pagado">
+                                                                                            <i data-feather="dollar-sign" style="width: 10px; height: 10px;"></i>
+                                                                                            Pagar
+                                                                                        </button>
+                                                                                        {% endif %}
+                                                                                    {% else %}
+                                                                                        <span class="text-success small">
+                                                                                            <i data-feather="check-circle" style="width: 12px; height: 12px;"></i>
+                                                                                            Completado
+                                                                                        </span>
                                                                                     {% endif %}
-                                                                                    <button type="button" class="btn btn-outline-danger btn-xs" 
+                                                                                    {% if estado.estado.value != 'PAGADO' %}
+                                                                                    <button type="button" class="btn btn-xs btn-outline-danger ms-1" 
                                                                                             onclick="eliminarEstadoPago({{ estado.id }})" 
                                                                                             title="Eliminar estado">
                                                                                         <i data-feather="trash-2" style="width: 10px; height: 10px;"></i>
                                                                                     </button>
+                                                                                    {% endif %}
                                                                                 </div>
                                                                             </td>
                                                                         </tr>
@@ -1340,7 +1351,7 @@ function initializeCascadeSelects() {
         const clienteSelect = document.getElementById('clienteIdModal');
         const proyectoSelect = document.getElementById('proyectoIdModal');
         const contratoSelect = document.getElementById('contratoIdModal');
-        
+
         if (clienteSelect && proyectoSelect && contratoSelect) {
             clienteSelect.addEventListener('change', function() {
                 if (this.value) {
@@ -1358,7 +1369,7 @@ function initializeCascadeSelects() {
                     contratoSelect.innerHTML = '<option value="">Seleccione un contrato</option>';
                 }
             });
-            
+
             console.log('Cascade selects initialized');
         }
     } catch (error) {
@@ -1455,7 +1466,7 @@ function confirmarFechaProgramada() {
     const selectedDate = new Date(nuevaFecha);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (selectedDate < today) {
         if (!confirm('La fecha seleccionada es anterior a hoy. ¿Está seguro de continuar?')) {
             return;
