@@ -424,13 +424,13 @@
                                                                                 <div class="btn-group btn-group-sm" role="group">
                                                                                     {% if not estado.facturado %}
                                                                                     <button type="button" class="btn btn-outline-warning btn-xs" 
-                                                                                            onclick="marcarEstadoPagoFacturado({{ estado.id }})" 
+                                                                                            onclick="marcarComoFacturado({{ estado.id }})" 
                                                                                             title="Marcar como facturado">
                                                                                         <i data-feather="file-text" style="width: 10px; height: 10px;"></i>
                                                                                     </button>
                                                                                     {% elif estado.facturado and estado.estado.value != 'PAGADO' %}
                                                                                     <button type="button" class="btn btn-outline-success btn-xs" 
-                                                                                            onclick="marcarEstadoPagoPagado({{ estado.id }})" 
+                                                                                            onclick="marcarComoPagado({{ estado.id }})" 
                                                                                             title="Marcar como pagado">
                                                                                         <i data-feather="dollar-sign" style="width: 10px; height: 10px;"></i>
                                                                                     </button>
@@ -1251,64 +1251,7 @@ function guardarEstadoPagoModal() {
     });
 }
 
-// Functions for contract payment states (different from OC functions)
-function marcarEstadoPagoFacturado(estadoPagoId) {
-    const numeroFactura = prompt('Número de factura (opcional):');
-    
-    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-facturado`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            numero_factura: numeroFactura || ''
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', 'Estado de pago marcado como facturado');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            alert('Error: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al marcar como facturado');
-    });
-}
-
-function marcarEstadoPagoPagado(estadoPagoId) {
-    const fechaPago = prompt('Fecha de pago (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
-    if (!fechaPago) return;
-
-    const observaciones = prompt('Observaciones (opcional):');
-
-    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            fecha_pago: fechaPago,
-            observaciones: observaciones
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', 'Estado de pago marcado como pagado');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            alert('Error: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al marcar como pagado');
-    });
-}
+// Treasury functions are in app.js - remove duplicates
 
 function eliminarEstadoPago(estadoPagoId) {
     if (!confirm('¿Está seguro de eliminar este estado de pago?')) {
@@ -1396,42 +1339,6 @@ function initializeCascadeSelects() {
     });
 }
 
-function marcarEstadoPagoPagado(estadoPagoId) {
-    const fechaPago = prompt('Fecha de pago (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
-    if (!fechaPago) return;
-
-    const observaciones = prompt('Observaciones (opcional):');
-
-    fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-pagado`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            fecha_pago: fechaPago,
-            observaciones: observaciones
-        })
-    })
-    .then(data => {
-        if (data.success) {
-            showAlert('success', 'Estado de pago marcado como pagado exitosamente');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showAlert('error', 'Error: ' + data.message);
-            if (button) {
-                button.disabled = false;
-                button.innerHTML = originalText;
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('error', 'Error al marcar como pagado');
-        if (button) {
-            button.disabled = false;
-            button.innerHTML = originalText;
-        }
-    });
-}
+// Removed duplicate function - use marcarComoPagado from app.js
 </script>
 {% endblock %}

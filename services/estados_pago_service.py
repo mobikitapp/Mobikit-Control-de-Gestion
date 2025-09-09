@@ -236,9 +236,10 @@ class EstadosPagoService:
             if not estado_pago.facturado:
                 raise ValueError("El estado de pago debe estar facturado antes de marcarlo como pagado")
             
-            # Check if already paid
+            # Check if already paid - be more specific with the error message
             if estado_pago.estado == EstadoPagoContrato.PAGADO:
-                raise ValueError("El estado de pago ya está marcado como pagado")
+                logger.warning(f"Estado de pago {estado_pago_id} ya está pagado, ignorando solicitud")
+                return estado_pago  # Return existing estado instead of raising error
 
             # Store original data for audit
             datos_anteriores = serialize_model(estado_pago)
