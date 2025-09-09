@@ -189,13 +189,11 @@
                                                                         Completado
                                                                     </span>
                                                                 {% endif %}
-                                                                {% if estado.estado.value != 'PAGADO' %}
                                                                 <button type="button" class="btn btn-xs btn-outline-danger ms-1"
-                                                                        onclick="eliminarEstadoPago({{ estado.id }})" 
+                                                                        onclick="eliminarEstadoPago({{ estado.id }}, '{{ estado.descripcion }}', '{{ estado.estado.value }}')" 
                                                                         title="Eliminar estado de pago">
                                                                     <i data-feather="trash-2" style="width: 10px; height: 10px;"></i>
                                                                 </button>
-                                                                {% endif %}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -628,8 +626,23 @@ function marcarComoPagado(estadoPagoId) {
     });
 }
 
-function eliminarEstadoPago(estadoPagoId) {
-    if (!confirm('¿Está seguro de eliminar este estado de pago?')) return;
+function eliminarEstadoPago(estadoPagoId, descripcion, estado) {
+    // Show detailed confirmation based on payment state
+    let mensaje = `¿Está seguro de eliminar este estado de pago?\n\n`;
+    mensaje += `Descripción: ${descripcion}\n`;
+    mensaje += `Estado actual: ${estado}\n\n`;
+    
+    if (estado === 'PAGADO') {
+        mensaje += `⚠️ ATENCIÓN: Este estado de pago está marcado como PAGADO.\n`;
+        mensaje += `Eliminarlo afectará los totales financieros del contrato.\n\n`;
+    } else if (estado === 'FACTURADO' || estado === 'PAGO_PARCIAL') {
+        mensaje += `⚠️ ATENCIÓN: Este estado de pago tiene progreso financiero.\n`;
+        mensaje += `Eliminarlo puede afectar los totales del contrato.\n\n`;
+    }
+    
+    mensaje += `Esta acción no se puede deshacer.`;
+
+    if (!confirm(mensaje)) return;
 
     const button = event.target.closest('button');
     const originalText = button.innerHTML;
@@ -647,7 +660,7 @@ function eliminarEstadoPago(estadoPagoId) {
     .then(data => {
         if (data.success) {
             showAlert('success', 'Estado de pago eliminado exitosamente');
-            setTimeout(() => location.reload(), 1000);
+            setTimeout(() => location.reload(), 1500);
         } else {
             showAlert('danger', 'Error: ' + data.message);
             button.disabled = false;
