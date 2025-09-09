@@ -46,7 +46,7 @@ class EstadosPagoService:
                     raise ValueError("Monto del estado de pago es requerido")
 
             # Create estado pago
-            estado_pago = self.repo.create(estado_pago_data, created_by)
+            estado_pago = self.repo.create(estado_pago_data, created_by or 'system')
 
             # Commit transaction
             db.session.commit()

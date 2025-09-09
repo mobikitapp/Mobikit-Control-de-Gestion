@@ -156,36 +156,46 @@
                                                         <td>{{ estado.descripcion or 'Estado de pago' }}</td>
                                                         <td>${{ "{:,.0f}".format(estado.monto_estado_pago or 0) }}</td>
                                                         <td>
-                                                            <span class="badge bg-{{ 'success' if estado.estado.value == 'PAGADO' else 'warning' }}">
-                                                                {{ estado.estado.value }}
-                                                            </span>
+                                                            {% if estado.estado.value == 'PAGADO' %}
+                                                                <span class="badge bg-success">Pagado</span>
+                                                            {% elif estado.facturado %}
+                                                                <span class="badge bg-info">Facturado</span>
+                                                            {% else %}
+                                                                <span class="badge bg-warning">Pendiente</span>
+                                                            {% endif %}
                                                         </td>
                                                         <td>{{ estado.fecha_programada.strftime('%d/%m/%Y') if estado.fecha_programada else '-' }}</td>
                                                         <td>
-                                                            <div class="btn-group" role="group">
-                                                                {% if estado.estado.value == 'PENDIENTE' %}
-                                                                <button type="button" class="btn btn-xs btn-outline-success" 
-                                                                        onclick="marcarComoPagado({{ estado.id }})">
-                                                                    <i data-feather="check" style="width: 12px; height: 12px;"></i>
+                                                            <div class="btn-group action-buttons" role="group">
+                                                                {% if estado.estado.value != 'PAGADO' %}
+                                                                    {% if not estado.facturado %}
+                                                                        <button type="button" class="btn btn-xs btn-info" 
+                                                                                onclick="marcarComoFacturado({{ estado.id }})" 
+                                                                                title="Marcar como facturado">
+                                                                            <i data-feather="file-text" style="width: 10px; height: 10px;"></i>
+                                                                            Facturar
+                                                                        </button>
+                                                                    {% else %}
+                                                                        <button type="button" class="btn btn-xs btn-success" 
+                                                                                onclick="marcarComoPagado({{ estado.id }})" 
+                                                                                title="Marcar como pagado">
+                                                                            <i data-feather="dollar-sign" style="width: 10px; height: 10px;"></i>
+                                                                            Pagar
+                                                                        </button>
+                                                                    {% endif %}
+                                                                {% else %}
+                                                                    <span class="text-success small">
+                                                                        <i data-feather="check-circle" style="width: 12px; height: 12px;"></i>
+                                                                        Completado
+                                                                    </span>
+                                                                {% endif %}
+                                                                {% if estado.estado.value != 'PAGADO' %}
+                                                                <button type="button" class="btn btn-xs btn-outline-danger ms-1"
+                                                                        onclick="eliminarEstadoPago({{ estado.id }})" 
+                                                                        title="Eliminar estado de pago">
+                                                                    <i data-feather="trash-2" style="width: 10px; height: 10px;"></i>
                                                                 </button>
                                                                 {% endif %}
-                                                                {% if not estado.facturado %}
-                                                                <button type="button" class="btn btn-xs btn-outline-warning" 
-                                                                        onclick="marcarComoFacturado({{ estado.id }})" 
-                                                                        title="Marcar como facturado">
-                                                                    <i data-feather="file-text" style="width: 10px; height: 10px;"></i>
-                                                                </button>
-                                                                {% elif estado.facturado and estado.estado.value != 'PAGADO' %}
-                                                                <button type="button" class="btn btn-xs btn-outline-success" 
-                                                                        onclick="marcarComoPagado({{ estado.id }})" 
-                                                                        title="Marcar como pagado">
-                                                                    <i data-feather="dollar-sign" style="width: 10px; height: 10px;"></i>
-                                                                </button>
-                                                                {% endif %}
-                                                                <button type="button" class="btn btn-xs btn-outline-danger"
-                                                                        onclick="eliminarEstadoPago({{ estado.id }})">
-                                                                    <i data-feather="trash-2" style="width: 12px; height: 12px;"></i>
-                                                                </button>
                                                             </div>
                                                         </td>
                                                     </tr>
