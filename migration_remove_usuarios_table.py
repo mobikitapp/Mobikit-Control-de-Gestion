@@ -74,7 +74,18 @@ def migrate_remove_usuarios_table():
                 "ALTER TABLE auditoria DROP CONSTRAINT IF EXISTS auditoria_usuario_id_fkey",
                 "ALTER TABLE recordatorios DROP CONSTRAINT IF EXISTS recordatorios_usuario_id_fkey",
                 "ALTER TABLE documentos_proyecto DROP CONSTRAINT IF EXISTS documentos_proyecto_usuario_subida_id_fkey"
-            ]</old_str>
+            ]
+            
+            for constraint_sql in additional_constraints:
+                try:
+                    cursor.execute(constraint_sql)
+                    print(f"✓ Dropped additional constraint: {constraint_sql.split()[-1]}")
+                except Exception as e:
+                    print(f"Warning: Could not drop constraint: {e}")
+            
+            # Now drop the usuarios table with CASCADE to handle any remaining references
+            cursor.execute("DROP TABLE IF EXISTS usuarios CASCADE")
+            print("✓ Dropped usuarios table with CASCADE")</old_str>
             
             for constraint_sql in additional_constraints:
                 try:
