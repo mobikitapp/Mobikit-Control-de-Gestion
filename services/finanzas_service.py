@@ -348,56 +348,54 @@ class FinanzasService:
     def get_contratos_aggregates(self, proyecto_ids: Optional[List[int]] = None) -> List[Dict]:
         """Obtiene agregaciones financieras por contrato con cálculos dinámicos"""
         try:
-            # Base query para agregaciones
+            # Consulta simplificada - obtener contratos básicos primero
             query = db.session.query(
-                Contrato.id.label('contrato_id'),
+                Contrato.id,
                 Contrato.numero_oc,
                 Contrato.monto_total,
                 Contrato.moneda_original,
                 Proyecto.nombre.label('proyecto_nombre'),
-                func.coalesce(func.sum(
-                    func.case([
-                        (EstadoPago.tipo_estado == TipoEstadoPago.FACTURADO, EstadoPago.monto),
-                        (EstadoPago.tipo_estado == TipoEstadoPago.PAGADO, EstadoPago.monto)
-                    ], else_=0)
-                ), 0).label('total_facturado'),
-                func.coalesce(func.sum(
-                    func.case([
-                        (EstadoPago.tipo_estado == TipoEstadoPago.PAGADO, EstadoPago.monto)
-                    ], else_=0)
-                ), 0).label('total_pagado')
-            ).select_from(Contrato).join(Proyecto).outerjoin(EstadoPago)
+                Proyecto.cliente_id
+            ).join(Proyecto)
             
             # Filtrar por proyectos específicos si se proporciona
             if proyecto_ids:
                 query = query.filter(Proyecto.id.in_(proyecto_ids))
             
-            # Agrupar y ejecutar
-            query = query.group_by(
-                Contrato.id, Contrato.numero_oc, Contrato.monto_total, 
-                Contrato.moneda_original, Proyecto.nombre
-            )
+            contratos = query.all()
             
-            resultados = query.all()
-            
-            # Procesar resultados y calcular campos dinámicos
+            # Calcular agregaciones manualmente para cada contrato (más confiable)
             agregaciones = []
-            for resultado in resultados:
-                monto_total = float(resultado.monto_total or 0)
-                total_facturado = float(resultado.total_facturado or 0)
-                total_pagado = float(resultado.total_pagado or 0)
+            for contrato in contratos:
+                # Calcular totales para este contrato
+                estados = db.session.query(EstadoPago).filter(
+                    EstadoPago.contrato_id == contrato.id
+                ).all()
+                
+                total_facturado = sum(
+                    float(estado.monto or 0) 
+                    for estado in estados 
+                    if estado.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO]
+                )
+                
+                total_pagado = sum(
+                    float(estado.monto or 0) 
+                    for estado in estados 
+                    if estado.tipo_estado == TipoEstadoPago.PAGADO
+                )
                 
                 # Cálculos dinámicos
+                monto_total = float(contrato.monto_total or 0)
                 pendiente_facturar = max(0, monto_total - total_facturado)
                 pendiente_cobro = max(0, total_facturado - total_pagado)
                 
                 agregaciones.append({
-                    'contrato_id': resultado.contrato_id,
-                    'numero_oc': resultado.numero_oc,
-                    'proyecto_nombre': resultado.proyecto_nombre,
-                    'cliente_nombre': 'Cliente',  # Esto se puede mejorar con un JOIN adicional si es necesario
+                    'contrato_id': contrato.id,
+                    'numero_oc': contrato.numero_oc,
+                    'proyecto_nombre': contrato.proyecto_nombre,
+                    'cliente_nombre': 'Cliente',  # Se puede mejorar con JOIN si es necesario
                     'monto_total': monto_total,
-                    'moneda_original': resultado.moneda_original,
+                    'moneda_original': contrato.moneda_original,
                     'total_facturado': total_facturado,
                     'total_pagado': total_pagado,
                     'pendiente_facturar': pendiente_facturar,
