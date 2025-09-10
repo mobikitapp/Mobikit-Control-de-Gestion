@@ -117,8 +117,16 @@ def nuevo():
     if request.method == 'GET':
         try:
             clientes = clientes_service.get_active_clientes()
+            # Get active vendors (sales + admin users)
+            vendedores = (db.session.query(User)
+                         .filter(User.rol.in_([RolUsuario.VENTAS, RolUsuario.ADMIN]))
+                         .filter_by(activo=True)
+                         .order_by(User.first_name, User.last_name)
+                         .all())
+            
             return render_template('proyectos/form.html',
                                  clientes=clientes,
+                                 vendedores=vendedores,
                                  current_user=current_user,
                                  title="Nuevo Proyecto")
         except Exception as e:
@@ -144,8 +152,16 @@ def nuevo():
             logger.warning(f"Validation error creating project: {str(e)}")
             flash('Error de validación en los datos del proyecto', 'error')
             clientes = clientes_service.get_active_clientes()
+            # Get active vendors (sales + admin users)
+            vendedores = (db.session.query(User)
+                         .filter(User.rol.in_([RolUsuario.VENTAS, RolUsuario.ADMIN]))
+                         .filter_by(activo=True)
+                         .order_by(User.first_name, User.last_name)
+                         .all())
+            
             return render_template('proyectos/form.html',
                                  clientes=clientes,
+                                 vendedores=vendedores,
                                  proyecto_data=request.form.to_dict(),
                                  current_user=current_user,
                                  title="Nuevo Proyecto")
@@ -188,9 +204,17 @@ def editar(proyecto_id):
                 return redirect(url_for('proyectos.index'))
 
             clientes = clientes_service.get_active_clientes()
+            # Get active vendors (sales + admin users)
+            vendedores = (db.session.query(User)
+                         .filter(User.rol.in_([RolUsuario.VENTAS, RolUsuario.ADMIN]))
+                         .filter_by(activo=True)
+                         .order_by(User.first_name, User.last_name)
+                         .all())
+            
             return render_template('proyectos/form.html',
                                  proyecto=proyecto,
                                  clientes=clientes,
+                                 vendedores=vendedores,
                                  current_user=current_user,
                                  title=f"Editar: {proyecto.nombre}")
 
@@ -222,9 +246,17 @@ def editar(proyecto_id):
             flash('Error de validación en los datos del proyecto', 'error')
             proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
             clientes = clientes_service.get_active_clientes()
+            # Get active vendors (sales + admin users)
+            vendedores = (db.session.query(User)
+                         .filter(User.rol.in_([RolUsuario.VENTAS, RolUsuario.ADMIN]))
+                         .filter_by(activo=True)
+                         .order_by(User.first_name, User.last_name)
+                         .all())
+            
             return render_template('proyectos/form.html',
                                  proyecto=proyecto,
                                  clientes=clientes,
+                                 vendedores=vendedores,
                                  proyecto_data=request.form.to_dict(),
                                  current_user=current_user,
                                  title=f"Editar: {proyecto.nombre}")
