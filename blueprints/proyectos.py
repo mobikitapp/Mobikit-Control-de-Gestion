@@ -255,12 +255,104 @@ def eliminar(proyecto_id):
         flash('Error al eliminar proyecto', 'error')
         return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
 
+@proyectos_bp.route('/<int:proyecto_id>/adjuntos', methods=['GET', 'POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def adjuntos(proyecto_id):
+    """Handle project attachments - GET to list, POST to upload"""
+    if request.method == 'GET':
+        try:
+            adjuntos = proyectos_service.get_project_attachments(proyecto_id)
+            
+            adjuntos_data = []
+            for adj in adjuntos:
+                adjuntos_data.append({
+                    'id': adj.id,
+                    'filename': adj.filename,
+                    'tipo': adj.tipo.value if adj.tipo else 'especificacion',
+                    'descripcion': adj.descripcion or '',
+                    'size_mb': round(adj.size_bytes / (1024 * 1024), 2) if adj.size_bytes else 0,
+                    'created_at': adj.created_at.strftime('%d/%m/%Y %H:%M') if adj.created_at else '',
+                    'created_by': adj.created_by_user.nombre_completo if hasattr(adj, 'created_by_user') and adj.created_by_user else adj.created_by
+                })
+            
+            return jsonify({'success': True, 'adjuntos': adjuntos_data})
+            
+        except Exception as e:
+            logger.error(f"Error loading adjuntos for proyecto {proyecto_id}: {str(e)}")
+            return jsonify({'success': False, 'message': f'Error al cargar documentos: {str(e)}'}), 500
+    
+    elif request.method == 'POST':
+        try:
+            if 'archivo' not in request.files:
+                return jsonify({'success': False, 'message': 'No se seleccionó archivo'}), 400
+
+            file = request.files['archivo']
+            if file.filename == '':
+                return jsonify({'success': False, 'message': 'No se seleccionó archivo'}), 400
+
+            tipo = request.form.get('tipo', 'especificacion')
+            descripcion = request.form.get('descripcion', '')
+
+            # Validate file type
+            allowed_types = ['presupuesto', 'eett', 'especificacion', 'plano', 'contrato', 'foto', 'qa']
+            if tipo not in allowed_types:
+                tipo = 'especificacion'
+
+            adjunto = proyectos_service.add_project_attachment(
+                proyecto_id, file, tipo, descripcion, current_user.id
+            )
+
+            return jsonify({
+                'success': True,
+                'message': 'Documento subido exitosamente',
+                'adjunto': {
+                    'id': adjunto.id,
+                    'filename': adjunto.filename,
+                    'tipo': adjunto.tipo.value,
+                    'descripcion': adjunto.descripcion,
+                    'created_at': adjunto.created_at.strftime('%d/%m/%Y %H:%M')
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error uploading attachment to proyecto {proyecto_id}: {str(e)}")
+            return jsonify({'success': False, 'message': f'Error al subir documento: {str(e)}'}), 500
+
+@proyectos_bp.route('/adjuntos/<int:adjunto_id>/descargar')
+@require_login
+def descargar_adjunto(adjunto_id):
+    """Download project attachment"""
+    try:
+        from repositories.proyecto_adjuntos_repo import ProyectoAdjuntosRepository
+        from services.storage_service import StorageService
+        
+        adjuntos_repo = ProyectoAdjuntosRepository()
+        adjunto = adjuntos_repo.get_by_id(adjunto_id)
+        
+        if not adjunto:
+            flash('Documento no encontrado', 'error')
+            return redirect(url_for('proyectos.index'))
+        
+        storage_service = StorageService()
+        file_content = storage_service.get_file(adjunto.storage_key)
+        
+        response = make_response(file_content)
+        response.headers['Content-Disposition'] = f'attachment; filename={adjunto.filename}'
+        response.headers['Content-Type'] = adjunto.mime_type or 'application/octet-stream'
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error downloading adjunto {adjunto_id}: {str(e)}")
+        flash('Error al descargar documento', 'error')
+        return redirect(url_for('proyectos.index'))
+
 @proyectos_bp.route('/adjuntos/<int:adjunto_id>/eliminar', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def eliminar_adjunto(adjunto_id):
     """Delete project attachment"""
     try:
-        success = proyectos_service.delete_adjunto(adjunto_id, current_user.id)
+        success = proyectos_service.delete_project_attachment(adjunto_id, current_user.id)
 
         if success:
             return jsonify({'success': True, 'message': 'Documento eliminado exitosamente'})
@@ -308,3 +400,79 @@ def api_by_cliente(cliente_id):
     except Exception as e:
         logger.error(f"Error en API proyectos por cliente: {str(e)}")
         return jsonify({'error': 'Error al cargar proyectos'}), 500
+
+@proyectos_bp.route('/api/<int:proyecto_id>/kpi-cobranza')
+@require_login
+def api_kpi_cobranza(proyecto_id):
+    """API endpoint para obtener KPI de cobranza de un proyecto"""
+    try:
+        kpi_data = proyectos_service._calculate_financial_kpi_with_treasury(proyecto_id)
+        
+        return jsonify({
+            'success': True,
+            'porcentaje_cobrado': kpi_data.get('porcentaje_cobrado', 0),
+            'porcentaje_facturado': kpi_data.get('porcentaje_facturado', 0),
+            'monto_pagado': kpi_data.get('monto_pagado', 0),
+            'monto_facturado': kpi_data.get('monto_facturado', 0),
+            'monto_contratado': kpi_data.get('monto_contratado', 0)
+        })
+
+    except Exception as e:
+        logger.error(f"Error en API KPI cobranza: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al obtener KPI: {str(e)}'}), 500
+
+@proyectos_bp.route('/<int:proyecto_id>/limpiar-kpi', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def limpiar_kpi(proyecto_id):
+    """Limpiar datos de KPI del proyecto"""
+    try:
+        data = request.get_json()
+        tipo = data.get('tipo', 'financiero')
+        
+        if tipo == 'financiero':
+            # Limpiar estados de pago relacionados al proyecto
+            from models import EstadoPago, Contrato
+            contratos = Contrato.query.filter_by(proyecto_id=proyecto_id).all()
+            estados_eliminados = 0
+            
+            for contrato in contratos:
+                estados = EstadoPago.query.filter_by(contrato_id=contrato.id).all()
+                for estado in estados:
+                    db.session.delete(estado)
+                    estados_eliminados += 1
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'KPI financiero limpiado. {estados_eliminados} estados de pago eliminados.',
+                'detalles': [f'{estados_eliminados} estados de pago eliminados']
+            })
+            
+        elif tipo == 'eficiencia':
+            # Limpiar progreso de áreas relacionado al proyecto
+            from models import OrdenAreaProgreso, OrdenFabricacion
+            ordenes = OrdenFabricacion.query.filter_by(proyecto_id=proyecto_id).all()
+            progresos_eliminados = 0
+            
+            for orden in ordenes:
+                progresos = OrdenAreaProgreso.query.filter_by(orden_fabricacion_id=orden.id).all()
+                for progreso in progresos:
+                    db.session.delete(progreso)
+                    progresos_eliminados += 1
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'KPI de eficiencia limpiado. {progresos_eliminados} registros de progreso eliminados.',
+                'detalles': [f'{progresos_eliminados} registros de progreso por área eliminados']
+            })
+        
+        else:
+            return jsonify({'success': False, 'message': 'Tipo de KPI no válido'}), 400
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error limpiando KPI {tipo} del proyecto {proyecto_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al limpiar KPI: {str(e)}'}), 500
