@@ -14,7 +14,7 @@ import logging
 
 from app import db
 from models import (
-    Proyecto, Contrato, EstadoPago, Cliente,
+    Proyecto, Contrato, EstadoPago, Cliente, EstadoContrato,
     TipoEstadoPago, RolUsuario, CostoProyecto, CategoriaCosto
 )
 from services.inflacion_service import InflacionService
@@ -46,13 +46,14 @@ def finanzas_required(f):
 def dashboard():
     """Dashboard principal de finanzas - Lista de proyectos con contratos"""
     try:
-        # Obtener todos los proyectos activos con sus contratos
-        proyectos = db.session.query(Proyecto).filter(
-            Proyecto.activo == True
+        # Obtener solo proyectos activos que tengan al menos un contrato vigente
+        proyectos = db.session.query(Proyecto).join(Contrato).filter(
+            Proyecto.activo == True,
+            Contrato.estado == EstadoContrato.VIGENTE
         ).options(
             joinedload(Proyecto.cliente),
             joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
-        ).order_by(Proyecto.nombre).all()
+        ).distinct().order_by(Proyecto.nombre).all()
         
         # Usar FinanzasService para cálculos optimizados
         finanzas_service = FinanzasService()
@@ -165,6 +166,48 @@ def dashboard():
         logger.error(f"Error en dashboard financiero: {e}")
         flash('Error al cargar el dashboard financiero', 'error')
         return redirect(url_for('index'))
+
+@finanzas_bp.route('/proyectos-terminados')
+@login_required
+@finanzas_required
+def proyectos_terminados():
+    """Vista de proyectos terminados con resumen financiero completo"""
+    try:
+        finanzas_service = FinanzasService()
+        proyectos_terminados = finanzas_service.get_proyectos_terminados_resumen()
+        
+        # Calcular totales generales
+        total_proyectos = len(proyectos_terminados)
+        total_contratos_valor = sum(p['total_contratos'] for p in proyectos_terminados)
+        total_facturado_valor = sum(p['total_facturado'] for p in proyectos_terminados)
+        total_pagado_valor = sum(p['total_pagado'] for p in proyectos_terminados)
+        total_costos_valor = sum(p['total_costos'] for p in proyectos_terminados)
+        total_margen = sum(p['margen_bruto'] for p in proyectos_terminados)
+        
+        # Indicadores agregados
+        proyectos_cerrados_financieramente = sum(1 for p in proyectos_terminados if p['proyecto_cerrado_financieramente'])
+        porcentaje_cerrados = (proyectos_cerrados_financieramente / total_proyectos * 100) if total_proyectos > 0 else 0
+        
+        resumen_general = {
+            'total_proyectos': total_proyectos,
+            'proyectos_cerrados_financieramente': proyectos_cerrados_financieramente,
+            'porcentaje_cerrados': porcentaje_cerrados,
+            'total_contratos': total_contratos_valor,
+            'total_facturado': total_facturado_valor,
+            'total_pagado': total_pagado_valor,
+            'total_costos': total_costos_valor,
+            'margen_total': total_margen,
+            'margen_promedio_pct': (total_margen / total_facturado_valor * 100) if total_facturado_valor > 0 else 0
+        }
+        
+        return render_template('finanzas/proyectos_terminados.html', 
+                             proyectos=proyectos_terminados,
+                             resumen=resumen_general)
+                             
+    except Exception as e:
+        logger.error(f"Error cargando proyectos terminados: {str(e)}")
+        flash(f'Error cargando proyectos terminados: {str(e)}', 'error')
+        return redirect(url_for('finanzas.dashboard'))
 
 @finanzas_bp.route('/proyecto/<int:proyecto_id>')
 @login_required

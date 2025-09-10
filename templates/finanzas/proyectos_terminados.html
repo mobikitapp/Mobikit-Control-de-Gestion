@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}Proyectos Terminados - Resumen Financiero{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Proyectos Terminados</h1>
+        <a href="{{ url_for('finanzas.dashboard') }}" class="btn btn-outline-secondary">
+            <i data-feather="arrow-left" class="me-2"></i>Volver a Dashboard
+        </a>
+    </div>
+    
+    <!-- KPIs Generales -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Total Proyectos</h6>
+                    <h3>{{ resumen.total_proyectos }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Valor Total</h6>
+                    <h4>$ {{ "{:,.0f}".format(resumen.total_contratos) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h6 class="text-info">Facturado</h6>
+                    <h4>$ {{ "{:,.0f}".format(resumen.total_facturado) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h6 class="text-success">Cobrado</h6>
+                    <h4>$ {{ "{:,.0f}".format(resumen.total_pagado) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h6 class="text-warning">Costos</h6>
+                    <h4>$ {{ "{:,.0f}".format(resumen.total_costos) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card {{ 'border-success' if resumen.margen_promedio_pct > 0 else 'border-danger' }}">
+                <div class="card-body text-center">
+                    <h6 class="{{ 'text-success' if resumen.margen_promedio_pct > 0 else 'text-danger' }}">Margen Promedio</h6>
+                    <h3>{{ "{:.1f}%".format(resumen.margen_promedio_pct) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Indicadores de Cierre -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info d-flex align-items-center">
+                <i data-feather="check-circle" class="me-2"></i>
+                <div>
+                    <strong>Estado de Cierre Financiero:</strong>
+                    {{ resumen.proyectos_cerrados_financieramente }} de {{ resumen.total_proyectos }} proyectos ({{ "{:.1f}%".format(resumen.porcentaje_cerrados) }}) 
+                    están completamente cerrados financieramente (facturación y cobranza completa).
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros y Búsqueda -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text"><i data-feather="search"></i></span>
+                <input type="text" class="form-control" id="searchInput" placeholder="Buscar proyecto o cliente...">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select class="form-select" id="filtroEstado">
+                <option value="">Todos los estados</option>
+                <option value="cerrado">Solo cerrados financieramente</option>
+                <option value="pendiente">Con pendientes</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select class="form-select" id="ordenarPor">
+                <option value="proyecto">Ordenar por proyecto</option>
+                <option value="cliente">Ordenar por cliente</option>
+                <option value="margen_desc">Ordenar por margen (mayor)</option>
+                <option value="margen_asc">Ordenar por margen (menor)</option>
+            </select>
+        </div>
+    </div>
+    
+    <!-- Tabla de Proyectos Terminados -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Proyectos con Estado TERMINADO y Contratos CERRADOS</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="tablaProyectos">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Proyecto</th>
+                            <th>Cliente</th>
+                            <th>CC</th>
+                            <th>Contratos</th>
+                            <th class="text-end">Valor Total</th>
+                            <th class="text-end">Facturado</th>
+                            <th class="text-end">Cobrado</th>
+                            <th class="text-end">Costos</th>
+                            <th class="text-end">Margen</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for proyecto in proyectos %}
+                        <tr data-estado="{{ 'cerrado' if proyecto.proyecto_cerrado_financieramente else 'pendiente' }}">
+                            <td>
+                                <strong>{{ proyecto.proyecto_nombre }}</strong>
+                                <div class="small text-muted">ID: {{ proyecto.proyecto_id }}</div>
+                            </td>
+                            <td>{{ proyecto.cliente_nombre }}</td>
+                            <td>{{ proyecto.centro_costo or '-' }}</td>
+                            <td>
+                                <span class="badge bg-primary">{{ proyecto.num_contratos }} contrato{{ 's' if proyecto.num_contratos != 1 else '' }}</span>
+                            </td>
+                            <td class="text-end">$ {{ "{:,.0f}".format(proyecto.total_contratos) }}</td>
+                            <td class="text-end">
+                                $ {{ "{:,.0f}".format(proyecto.total_facturado) }}
+                                <div class="small text-muted">{{ "{:.1f}%".format(proyecto.avance_facturacion) }}</div>
+                            </td>
+                            <td class="text-end">
+                                $ {{ "{:,.0f}".format(proyecto.total_pagado) }}
+                                <div class="small text-muted">{{ "{:.1f}%".format(proyecto.avance_cobranza) }}</div>
+                            </td>
+                            <td class="text-end">$ {{ "{:,.0f}".format(proyecto.total_costos) }}</td>
+                            <td class="text-end">
+                                <span class="{{ 'text-success' if proyecto.margen_bruto > 0 else 'text-danger' }}">
+                                    $ {{ "{:,.0f}".format(proyecto.margen_bruto) }}
+                                    <div class="small">{{ "{:.1f}%".format(proyecto.margen_bruto_pct) }}</div>
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                {% if proyecto.proyecto_cerrado_financieramente %}
+                                    <span class="badge bg-success">
+                                        <i data-feather="check-circle" class="feather-12"></i> Cerrado
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning">
+                                        <i data-feather="clock" class="feather-12"></i> Pendiente
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#detalle-{{ proyecto.proyecto_id }}">
+                                    <i data-feather="eye" class="feather-12"></i>
+                                </button>
+                                <a href="{{ url_for('finanzas.detalle_proyecto', proyecto_id=proyecto.proyecto_id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i data-feather="external-link" class="feather-12"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        <!-- Detalle desplegable de contratos -->
+                        <tr class="collapse" id="detalle-{{ proyecto.proyecto_id }}">
+                            <td colspan="11">
+                                <div class="bg-light p-3">
+                                    <h6>Detalle de Contratos:</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Número OC</th>
+                                                    <th class="text-end">Monto</th>
+                                                    <th>Moneda</th>
+                                                    <th>Estado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for contrato in proyecto.contratos %}
+                                                <tr>
+                                                    <td>{{ contrato.numero_oc }}</td>
+                                                    <td class="text-end">$ {{ "{:,.0f}".format(contrato.monto_total) }}</td>
+                                                    <td>{{ contrato.moneda }}</td>
+                                                    <td><span class="badge bg-secondary">{{ contrato.estado }}</span></td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <!-- Indicadores adicionales -->
+                                    <div class="row mt-3">
+                                        <div class="col-md-3">
+                                            <div class="d-flex align-items-center">
+                                                <i data-feather="{{ 'check-circle' if proyecto.facturacion_completa else 'clock' }}" class="me-2 {{ 'text-success' if proyecto.facturacion_completa else 'text-warning' }}"></i>
+                                                <span>Facturación {{ 'Completa' if proyecto.facturacion_completa else 'Pendiente' }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="d-flex align-items-center">
+                                                <i data-feather="{{ 'check-circle' if proyecto.cobranza_completa else 'clock' }}" class="me-2 {{ 'text-success' if proyecto.cobranza_completa else 'text-warning' }}"></i>
+                                                <span>Cobranza {{ 'Completa' if proyecto.cobranza_completa else 'Pendiente' }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    {% if not proyectos %}
+    <div class="text-center py-5">
+        <i data-feather="folder" class="mb-3" style="width: 48px; height: 48px; opacity: 0.5;"></i>
+        <h5 class="text-muted">No hay proyectos terminados con contratos cerrados</h5>
+        <p class="text-muted">Los proyectos aparecerán aquí cuando estén en estado TERMINADO y todos sus contratos estén CERRADOS.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filtros y búsqueda
+    const searchInput = document.getElementById('searchInput');
+    const filtroEstado = document.getElementById('filtroEstado');
+    const ordenarPor = document.getElementById('ordenarPor');
+    const tabla = document.getElementById('tablaProyectos');
+    const filas = Array.from(tabla.querySelectorAll('tbody tr:not(.collapse)'));
+
+    function filtrarTabla() {
+        const busqueda = searchInput.value.toLowerCase();
+        const estado = filtroEstado.value;
+        
+        filas.forEach(fila => {
+            const texto = fila.textContent.toLowerCase();
+            const estadoFila = fila.dataset.estado;
+            
+            const coincideBusqueda = !busqueda || texto.includes(busqueda);
+            const coincideEstado = !estado || estadoFila === estado;
+            
+            fila.style.display = (coincideBusqueda && coincideEstado) ? '' : 'none';
+            
+            // Ocultar también la fila de detalle si existe
+            const siguiente = fila.nextElementSibling;
+            if (siguiente && siguiente.classList.contains('collapse')) {
+                siguiente.style.display = fila.style.display;
+            }
+        });
+    }
+
+    function ordenarTabla() {
+        const criterio = ordenarPor.value;
+        const tbody = tabla.querySelector('tbody');
+        
+        filas.sort((a, b) => {
+            let valA, valB;
+            
+            switch(criterio) {
+                case 'cliente':
+                    valA = a.cells[1].textContent;
+                    valB = b.cells[1].textContent;
+                    break;
+                case 'margen_desc':
+                    valA = parseFloat(a.cells[8].textContent.replace(/[$,\s]/g, ''));
+                    valB = parseFloat(b.cells[8].textContent.replace(/[$,\s]/g, ''));
+                    return valB - valA; // Descendente
+                case 'margen_asc':
+                    valA = parseFloat(a.cells[8].textContent.replace(/[$,\s]/g, ''));
+                    valB = parseFloat(b.cells[8].textContent.replace(/[$,\s]/g, ''));
+                    return valA - valB; // Ascendente
+                default:
+                    valA = a.cells[0].textContent;
+                    valB = b.cells[0].textContent;
+            }
+            
+            return valA.localeCompare(valB);
+        });
+        
+        // Reordenar en el DOM
+        filas.forEach(fila => {
+            tbody.appendChild(fila);
+            // Mover también la fila de detalle si existe
+            const siguiente = document.getElementById(`detalle-${fila.dataset.proyectoId}`);
+            if (siguiente) {
+                tbody.appendChild(siguiente);
+            }
+        });
+    }
+
+    searchInput.addEventListener('input', filtrarTabla);
+    filtroEstado.addEventListener('change', filtrarTabla);
+    ordenarPor.addEventListener('change', ordenarTabla);
+});
+</script>
+{% endblock %}

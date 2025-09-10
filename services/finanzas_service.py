@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 from app import db
 from models import (
     Proyecto, Contrato, EstadoContrato, EstadoPago, TipoEstadoPago,
-    EstadoComercial, MovimientoFinanciero, TipoMovimiento,
+    EstadoComercial, Cliente, MovimientoFinanciero, TipoMovimiento,
     CentroCosto, TipoCentroCosto, ObjetivoMensual
 )
 import logging
@@ -345,8 +345,13 @@ class FinanzasService:
         except:
             return Decimal(0)
     
-    def get_contratos_aggregates(self, proyecto_ids: Optional[List[int]] = None) -> List[Dict]:
-        """Obtiene agregaciones financieras por contrato con cálculos dinámicos"""
+    def get_contratos_aggregates(self, proyecto_ids: Optional[List[int]] = None, solo_vigentes: bool = True) -> List[Dict]:
+        """Obtiene agregaciones financieras por contrato con cálculos dinámicos
+        
+        Args:
+            proyecto_ids: Lista opcional de IDs de proyectos específicos
+            solo_vigentes: Si True, solo incluye contratos VIGENTES (default: True)
+        """
         try:
             # Consulta simplificada - obtener contratos básicos primero
             query = db.session.query(
@@ -354,9 +359,15 @@ class FinanzasService:
                 Contrato.numero_oc,
                 Contrato.monto_total,
                 Contrato.moneda_original,
+                Contrato.estado,
                 Proyecto.nombre.label('proyecto_nombre'),
-                Proyecto.cliente_id
+                Proyecto.cliente_id,
+                Proyecto.estado_comercial
             ).join(Proyecto)
+            
+            # Filtrar solo contratos vigentes por defecto
+            if solo_vigentes:
+                query = query.filter(Contrato.estado == EstadoContrato.VIGENTE)
             
             # Filtrar por proyectos específicos si se proporciona
             if proyecto_ids:
@@ -394,6 +405,8 @@ class FinanzasService:
                     'numero_oc': contrato.numero_oc,
                     'proyecto_nombre': contrato.proyecto_nombre,
                     'cliente_nombre': 'Cliente',  # Se puede mejorar con JOIN si es necesario
+                    'estado_contrato': contrato.estado.value if contrato.estado else 'SIN_ESTADO',
+                    'estado_proyecto': contrato.estado_comercial.value if contrato.estado_comercial else 'SIN_ESTADO',
                     'monto_total': monto_total,
                     'moneda_original': contrato.moneda_original,
                     'total_facturado': total_facturado,
@@ -406,6 +419,87 @@ class FinanzasService:
             
         except Exception as e:
             logger.error(f"Error obteniendo agregaciones de contratos: {str(e)}")
+            return []
+    
+    def get_proyectos_terminados_resumen(self) -> List[Dict]:
+        """Obtiene proyectos terminados con todos sus contratos cerrados y resumen financiero completo"""
+        try:
+            # Obtener proyectos TERMINADO con contratos CERRADOS
+            query = db.session.query(
+                Proyecto.id,
+                Proyecto.nombre,
+                Proyecto.centro_costo,
+                Cliente.nombre.label('cliente_nombre')
+            ).join(Cliente).filter(
+                Proyecto.estado_comercial == EstadoComercial.TERMINADO
+            )
+            
+            proyectos_terminados = []
+            
+            for proyecto in query.all():
+                # Verificar que todos los contratos estén cerrados
+                contratos = db.session.query(Contrato).filter(
+                    Contrato.proyecto_id == proyecto.id
+                ).all()
+                
+                # Solo incluir si TODOS los contratos están CERRADOS
+                if not contratos or not all(c.estado == EstadoContrato.CERRADO for c in contratos):
+                    continue
+                
+                # Obtener agregaciones para este proyecto (incluyendo contratos cerrados)
+                agregaciones = self.get_contratos_aggregates(
+                    proyecto_ids=[proyecto.id], 
+                    solo_vigentes=False  # Incluir todos los estados para resumen final
+                )
+                
+                if not agregaciones:
+                    continue
+                
+                # Calcular resumen financiero completo
+                total_contratos = sum(agg['monto_total'] for agg in agregaciones)
+                total_facturado = sum(agg['total_facturado'] for agg in agregaciones)
+                total_pagado = sum(agg['total_pagado'] for agg in agregaciones)
+                
+                # Calcular costos del proyecto
+                total_costos = float(self._calcular_total_costos(Proyecto.query.get(proyecto.id)))
+                
+                # Calcular márgenes
+                margen_bruto = total_facturado - total_costos
+                margen_bruto_pct = (margen_bruto / total_facturado * 100) if total_facturado > 0 else 0
+                
+                # Indicadores de finalización
+                facturacion_completa = total_facturado >= total_contratos * 0.95  # 95% tolerancia
+                cobranza_completa = total_pagado >= total_facturado * 0.95  # 95% tolerancia
+                
+                proyectos_terminados.append({
+                    'proyecto_id': proyecto.id,
+                    'proyecto_nombre': proyecto.nombre,
+                    'centro_costo': proyecto.centro_costo,
+                    'cliente_nombre': proyecto.cliente_nombre,
+                    'num_contratos': len(contratos),
+                    'total_contratos': total_contratos,
+                    'total_facturado': total_facturado,
+                    'total_pagado': total_pagado,
+                    'total_costos': total_costos,
+                    'margen_bruto': margen_bruto,
+                    'margen_bruto_pct': margen_bruto_pct,
+                    'avance_facturacion': (total_facturado / total_contratos * 100) if total_contratos > 0 else 0,
+                    'avance_cobranza': (total_pagado / total_facturado * 100) if total_facturado > 0 else 0,
+                    'facturacion_completa': facturacion_completa,
+                    'cobranza_completa': cobranza_completa,
+                    'proyecto_cerrado_financieramente': facturacion_completa and cobranza_completa,
+                    'contratos': [{
+                        'numero_oc': agg['numero_oc'],
+                        'monto_total': agg['monto_total'],
+                        'moneda': agg['moneda_original'],
+                        'estado': agg['estado_contrato']
+                    } for agg in agregaciones]
+                })
+            
+            return proyectos_terminados
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo proyectos terminados: {str(e)}")
             return []
     
     def get_totales_proyecto_dinamicos(self, proyecto_id: int) -> Dict:
