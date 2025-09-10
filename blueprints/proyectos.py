@@ -7,6 +7,8 @@ from models import RolUsuario, Contrato, TipoDocumento
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
 from schemas.proyectos import ProyectoCreate, ProyectoUpdate, ProyectoSearchFilters
+from schemas.bitacora import BitacoraProyectoCreate, BitacoraProyectoFilters
+from services.bitacora_service import bitacora_service
 from models import CategoriaMuebleModel, User
 import logging
 from datetime import datetime, date
@@ -476,3 +478,120 @@ def limpiar_kpi(proyecto_id):
         db.session.rollback()
         logger.error(f"Error limpiando KPI {tipo} del proyecto {proyecto_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al limpiar KPI: {str(e)}'}), 500
+
+@proyectos_bp.route('/<int:proyecto_id>/bitacora', methods=['GET', 'POST'])
+@require_login
+def bitacora(proyecto_id):
+    """Gestión de bitácora del proyecto"""
+    if request.method == 'GET':
+        try:
+            # Verificar que el proyecto existe
+            proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
+            if not proyecto:
+                return jsonify({'success': False, 'message': 'Proyecto no encontrado'}), 404
+            
+            # Obtener filtros de query parameters
+            tipo = request.args.get('tipo')
+            usuario_id = request.args.get('usuario_id')
+            limit = int(request.args.get('limit', 50))
+            
+            filters = BitacoraProyectoFilters(
+                proyecto_id=proyecto_id,
+                tipo=tipo,
+                usuario_id=usuario_id,
+                limit=limit
+            )
+            
+            comentarios = bitacora_service.get_comentarios_proyecto(filters)
+            
+            # Convertir a formato JSON serializable
+            comentarios_data = []
+            for comentario in comentarios:
+                comentarios_data.append({
+                    'id': comentario.id,
+                    'usuario_nombre': comentario.usuario_nombre,
+                    'comentario': comentario.comentario,
+                    'tipo': comentario.tipo.value,
+                    'fecha_comentario': comentario.fecha_comentario.strftime('%d/%m/%Y %H:%M')
+                })
+            
+            return jsonify({
+                'success': True,
+                'comentarios': comentarios_data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error getting bitacora for project {proyecto_id}: {str(e)}")
+            return jsonify({'success': False, 'message': f'Error al cargar bitácora: {str(e)}'}), 500
+    
+    elif request.method == 'POST':
+        try:
+            # Verificar que el proyecto existe
+            proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
+            if not proyecto:
+                return jsonify({'success': False, 'message': 'Proyecto no encontrado'}), 404
+            
+            # Validar datos del formulario
+            comentario_text = request.form.get('comentario', '').strip()
+            tipo = request.form.get('tipo', 'general')
+            
+            if not comentario_text:
+                return jsonify({'success': False, 'message': 'El comentario es requerido'}), 400
+            
+            if len(comentario_text) > 1000:
+                return jsonify({'success': False, 'message': 'El comentario no puede superar 1000 caracteres'}), 400
+            
+            # Crear comentario
+            from models import TipoBitacora
+            tipo_enum = TipoBitacora.GENERAL
+            if tipo in ['especificacion', 'cambio', 'nota', 'general']:
+                tipo_enum = getattr(TipoBitacora, tipo.upper())
+            
+            bitacora_data = BitacoraProyectoCreate(
+                proyecto_id=proyecto_id,
+                comentario=comentario_text,
+                tipo=tipo_enum
+            )
+            
+            comentario = bitacora_service.create_comentario(bitacora_data, current_user.id)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Comentario agregado exitosamente',
+                'comentario': {
+                    'id': comentario.id,
+                    'usuario_nombre': current_user.nombre_completo,
+                    'comentario': comentario.comentario,
+                    'tipo': comentario.tipo.value,
+                    'fecha_comentario': comentario.fecha_comentario.strftime('%d/%m/%Y %H:%M')
+                }
+            })
+            
+        except ValidationError as e:
+            logger.warning(f"Validation error creating bitacora comment: {str(e)}")
+            return jsonify({'success': False, 'message': 'Error de validación en los datos'}), 400
+        except Exception as e:
+            logger.error(f"Error creating bitacora comment for project {proyecto_id}: {str(e)}")
+            return jsonify({'success': False, 'message': f'Error al agregar comentario: {str(e)}'}), 500
+
+@proyectos_bp.route('/bitacora/<int:comentario_id>/eliminar', methods=['POST'])
+@require_login
+def eliminar_comentario_bitacora(comentario_id):
+    """Eliminar comentario de bitácora"""
+    try:
+        success = bitacora_service.delete_comentario(comentario_id, current_user.id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Comentario eliminado exitosamente'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'No se pudo eliminar el comentario'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error deleting bitacora comment {comentario_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al eliminar comentario: {str(e)}'}), 500
