@@ -15,7 +15,7 @@ import logging
 from app import db
 from models import (
     Proyecto, Contrato, EstadoPago, Cliente,
-    TipoEstadoPago, RolUsuario
+    TipoEstadoPago, RolUsuario, CostoProyecto, CategoriaCosto
 )
 from services.inflacion_service import InflacionService
 
@@ -134,14 +134,28 @@ def detalle_proyecto(proyecto_id):
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('finanzas.dashboard'))
         
-        # Obtener costos manuales del proyecto (tabla se creará si es necesaria)
-        costos = []  # Por ahora vacío hasta implementar tabla de costos
+        # Obtener costos reales registrados del proyecto
+        costos_registrados = db.session.query(CostoProyecto).filter_by(
+            proyecto_id=proyecto_id
+        ).order_by(CostoProyecto.fecha_registro.desc()).all()
         
         # Calcular totales
         total_ingresos = float(sum(c.monto_total or 0 for c in proyecto.contratos))
         
-        # Calcular costos estimados basados en márgenes de venta hasta que se ingresen costos reales
-        if not costos:  # Si no hay costos reales, usar estimados
+        # Usar costos reales si están disponibles, sino estimados
+        if costos_registrados:
+            total_costos = float(sum(costo.monto for costo in costos_registrados))
+            costos_son_estimados = False
+            
+            # Resumen por categorías
+            resumen_costos = {}
+            for costo in costos_registrados:
+                categoria = costo.categoria.value
+                if categoria not in resumen_costos:
+                    resumen_costos[categoria] = 0
+                resumen_costos[categoria] += float(costo.monto)
+        else:
+            # Calcular costos estimados basados en márgenes de venta
             costo_estimado_provision = 0.0
             costo_estimado_instalacion = 0.0
             
@@ -157,16 +171,20 @@ def detalle_proyecto(proyecto_id):
                 
             total_costos = costo_estimado_provision + costo_estimado_instalacion
             costos_son_estimados = True
-        else:
-            total_costos = sum(c.get('monto', 0) for c in costos)
-            costos_son_estimados = False
+            resumen_costos = {
+                'Provisión (estimado)': costo_estimado_provision,
+                'Instalación (estimado)': costo_estimado_instalacion
+            }
         
         margen = total_ingresos - total_costos
         margen_porcentaje = (margen / total_ingresos * 100) if total_ingresos > 0 else 0
         
         return render_template('finanzas/detalle_proyecto.html',
                              proyecto=proyecto,
-                             costos=costos,
+                             costos_registrados=costos_registrados,
+                             costos=costos_registrados,  # Para compatibilidad con template
+                             resumen_costos=resumen_costos,
+                             num_costos=len(costos_registrados),
                              total_ingresos=total_ingresos,
                              total_costos=total_costos,
                              margen=margen,
@@ -312,37 +330,137 @@ def nuevo_estado_pago(contrato_id):
         flash('Error al crear el estado de pago', 'error')
         return redirect(url_for('finanzas.estados_pago_contrato', contrato_id=contrato_id))
 
-@finanzas_bp.route('/proyecto/<int:proyecto_id>/costos', methods=['GET', 'POST'])
+@finanzas_bp.route('/proyecto/<int:proyecto_id>/costos')
 @login_required
 @finanzas_required
 def costos_proyecto(proyecto_id):
-    """Gestión de costos manuales del proyecto"""
+    """Lista de costos registrados del proyecto"""
     try:
-        proyecto = db.session.query(Proyecto).filter_by(id=proyecto_id).first()
+        proyecto = db.session.query(Proyecto).options(
+            joinedload('cliente')
+        ).filter_by(id=proyecto_id).first()
         
         if not proyecto:
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('finanzas.dashboard'))
         
-        if request.method == 'POST':
-            # Aquí se implementará el guardado de costos cuando se cree la tabla
-            flash('Funcionalidad de costos en desarrollo', 'info')
-            return redirect(url_for('finanzas.costos_proyecto', proyecto_id=proyecto_id))
+        # Obtener costos del proyecto ordenados por fecha
+        costos = db.session.query(CostoProyecto).filter_by(
+            proyecto_id=proyecto_id
+        ).order_by(CostoProyecto.fecha_registro.desc()).all()
         
-        # Por ahora solo mostrar la vista vacía
-        costos = []
+        # Calcular totales por categoría
+        resumen_categorias = {}
         total_costos = 0
+        
+        for costo in costos:
+            categoria = costo.categoria.value
+            monto = float(costo.monto)
+            
+            if categoria not in resumen_categorias:
+                resumen_categorias[categoria] = {
+                    'categoria': categoria,
+                    'total': 0,
+                    'cantidad': 0
+                }
+            
+            resumen_categorias[categoria]['total'] += monto
+            resumen_categorias[categoria]['cantidad'] += 1
+            total_costos += monto
         
         return render_template('finanzas/costos_proyecto.html',
                              proyecto=proyecto,
                              costos=costos,
+                             resumen_categorias=list(resumen_categorias.values()),
                              total_costos=total_costos,
+                             categorias=CategoriaCosto,
                              current_user=current_user)
                              
     except Exception as e:
         logger.error(f"Error en costos del proyecto: {e}")
         flash('Error al cargar los costos del proyecto', 'error')
         return redirect(url_for('finanzas.dashboard'))
+
+@finanzas_bp.route('/proyecto/<int:proyecto_id>/costo/nuevo', methods=['GET', 'POST'])
+@login_required
+@finanzas_required
+def nuevo_costo_proyecto(proyecto_id):
+    """Registrar nuevo costo desde ERP"""
+    try:
+        proyecto = db.session.query(Proyecto).options(
+            joinedload('cliente')
+        ).filter_by(id=proyecto_id).first()
+        
+        if not proyecto:
+            flash('Proyecto no encontrado', 'error')
+            return redirect(url_for('finanzas.dashboard'))
+        
+        if request.method == 'POST':
+            # Validar datos del formulario
+            categoria_str = request.form.get('categoria')
+            descripcion = request.form.get('descripcion', '').strip()
+            monto_str = request.form.get('monto', '0')
+            fecha_registro_str = request.form.get('fecha_registro')
+            
+            # Campos opcionales
+            codigo_erp = request.form.get('codigo_erp', '').strip()
+            documento_referencia = request.form.get('documento_referencia', '').strip()
+            proveedor = request.form.get('proveedor', '').strip()
+            
+            # Validaciones
+            if not categoria_str or not descripcion or not fecha_registro_str:
+                flash('Categoría, descripción y fecha son requeridos', 'error')
+                return redirect(url_for('finanzas.nuevo_costo_proyecto', proyecto_id=proyecto_id))
+            
+            try:
+                # Validar categoria usando enum
+                categoria = CategoriaCosto[categoria_str]
+                monto = Decimal(monto_str.replace(',', ''))  # Remover separadores de miles
+                fecha_registro = datetime.strptime(fecha_registro_str, '%Y-%m-%d').date()
+                
+                if monto <= 0:
+                    flash('El monto debe ser mayor a 0', 'error')
+                    return redirect(url_for('finanzas.nuevo_costo_proyecto', proyecto_id=proyecto_id))
+                    
+                # Validar fecha no futura
+                from datetime import date
+                if fecha_registro > date.today():
+                    flash('La fecha no puede ser futura', 'error')
+                    return redirect(url_for('finanzas.nuevo_costo_proyecto', proyecto_id=proyecto_id))
+                    
+            except (ValueError, KeyError) as e:
+                flash(f'Error en los datos ingresados: {str(e)}', 'error')
+                return redirect(url_for('finanzas.nuevo_costo_proyecto', proyecto_id=proyecto_id))
+            
+            # Crear nuevo costo
+            costo = CostoProyecto(
+                proyecto_id=proyecto_id,
+                categoria=categoria,
+                descripcion=descripcion,
+                monto=monto,
+                fecha_registro=fecha_registro,
+                codigo_erp=codigo_erp if codigo_erp else None,
+                documento_referencia=documento_referencia if documento_referencia else None,
+                proveedor=proveedor if proveedor else None,
+                created_by=current_user.id
+            )
+            
+            db.session.add(costo)
+            db.session.commit()
+            
+            flash(f'Costo registrado exitosamente: {categoria.value} - ${monto:,.0f}', 'success')
+            return redirect(url_for('finanzas.costos_proyecto', proyecto_id=proyecto_id))
+        
+        return render_template('finanzas/nuevo_costo.html',
+                             proyecto=proyecto,
+                             categorias=CategoriaCosto,
+                             current_user=current_user)
+                             
+    except Exception as e:
+        logger.error(f"Error registrando costo: {e}")
+        db.session.rollback()
+        flash('Error al registrar el costo', 'error')
+        return redirect(url_for('finanzas.costos_proyecto', proyecto_id=proyecto_id))
 
 @finanzas_bp.route('/reportes')
 @login_required

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Nuevo Costo - Proyecto {{ proyecto.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Registrar Nuevo Costo desde ERP</h1>
+                <a href="{{ url_for('finanzas.costos_proyecto', proyecto_id=proyecto.id) }}" 
+                   class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver a Costos
+                </a>
+            </div>
+            
+            <!-- Info del Proyecto -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted">Proyecto:</h6>
+                    <h5 class="card-title">{{ proyecto.nombre }}</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small><strong>Cliente:</strong> {{ proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente' }}</small>
+                        </div>
+                        <div class="col-md-6">
+                            <small><strong>Centro de Costo:</strong> {{ proyecto.centro_costo or 'No asignado' }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Formulario de Nuevo Costo -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Datos del Costo</h5>
+                    <small class="text-muted">Complete la información del costo registrado en el ERP</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <!-- Categoría -->
+                            <div class="col-md-6 mb-3">
+                                <label for="categoria" class="form-label">Categoría <span class="text-danger">*</span></label>
+                                <select class="form-select" id="categoria" name="categoria" required>
+                                    <option value="">Seleccione una categoría...</option>
+                                    {% for categoria in categorias %}
+                                    <option value="{{ categoria.name }}">{{ categoria.value }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    Categoría según clasificación de manufactura chilena
+                                </div>
+                            </div>
+                            
+                            <!-- Monto -->
+                            <div class="col-md-6 mb-3">
+                                <label for="monto" class="form-label">Monto (CLP) <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="monto" name="monto" 
+                                           step="0.01" min="0.01" placeholder="0.00" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- Descripción -->
+                            <div class="col-md-12 mb-3">
+                                <label for="descripcion" class="form-label">Descripción <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="descripcion" name="descripcion" rows="3" 
+                                          placeholder="Detalle del costo registrado..." required></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- Fecha de Registro -->
+                            <div class="col-md-4 mb-3">
+                                <label for="fecha_registro" class="form-label">Fecha de Registro <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="fecha_registro" name="fecha_registro" 
+                                       value="{{ date.today() }}" max="{{ date.today() }}" required>
+                            </div>
+                            
+                            <!-- Código ERP -->
+                            <div class="col-md-4 mb-3">
+                                <label for="codigo_erp" class="form-label">Código ERP</label>
+                                <input type="text" class="form-control" id="codigo_erp" name="codigo_erp" 
+                                       maxlength="50" placeholder="Código del ERP Mobikit">
+                                <div class="form-text">Referencia para linking con ERP</div>
+                            </div>
+                            
+                            <!-- Documento Referencia -->
+                            <div class="col-md-4 mb-3">
+                                <label for="documento_referencia" class="form-label">Documento Referencia</label>
+                                <input type="text" class="form-control" id="documento_referencia" name="documento_referencia" 
+                                       maxlength="100" placeholder="Nº Factura, guía, etc.">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- Proveedor -->
+                            <div class="col-md-12 mb-3">
+                                <label for="proveedor" class="form-label">Proveedor</label>
+                                <input type="text" class="form-control" id="proveedor" name="proveedor" 
+                                       maxlength="200" placeholder="Nombre del proveedor o empresa">
+                            </div>
+                        </div>
+                        
+                        <!-- Botones -->
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('finanzas.costos_proyecto', proyecto_id=proyecto.id) }}" 
+                               class="btn btn-outline-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Registrar Costo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-focus en categoría al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('categoria').focus();
+    
+    // Formatear monto con separadores de miles mientras se escribe
+    const montoInput = document.getElementById('monto');
+    montoInput.addEventListener('blur', function() {
+        if (this.value) {
+            const formatted = parseFloat(this.value).toLocaleString('es-CL', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+            // Solo mostrar formato visual sin alterar valor real
+            this.dataset.formatted = formatted;
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1369,6 +1369,14 @@ class EstadoMovimiento(Enum):
     CONFIRMADO = "CONFIRMADO"
     CANCELADO = "CANCELADO"
 
+class CategoriaCosto(Enum):
+    """Categorías de costos para manufactura chilena"""
+    MATERIALES = "MATERIALES"
+    INSTALACION = "INSTALACIÓN"
+    GASTO_GARANTIAS = "GASTO GARANTÍAS"
+    FLETES = "FLETES"
+    OTROS_GASTOS_MENORES = "OTROS GASTOS MENORES"
+
 class CuentaBancaria(db.Model):
     __tablename__ = 'cuentas_bancarias'
     
@@ -1606,3 +1614,40 @@ class NotificationPreferences(db.Model):
     
     def __repr__(self):
         return f"<NotificationPreferences(user_id={self.user_id})>"
+
+
+class CostoProyecto(db.Model):
+    """Costos registrados desde el ERP para proyectos"""
+    __tablename__ = 'costos_proyecto'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
+    categoria = db.Column(db.Enum(CategoriaCosto), nullable=False)
+    descripcion = db.Column(db.Text, nullable=False)
+    monto = db.Column(db.Numeric(15, 2), nullable=False)
+    fecha_registro = db.Column(db.Date, nullable=False)
+    
+    # Referencia al ERP (opcional)
+    codigo_erp = db.Column(db.String(50))  # Para linking con ERP Mobikit
+    documento_referencia = db.Column(db.String(100))  # Factura, guía, etc.
+    proveedor = db.Column(db.String(200))
+    
+    # Campos de auditoría
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+    
+    # Relationships
+    proyecto = db.relationship('Proyecto', backref='costos')
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_costo_proyecto', 'proyecto_id'),
+        Index('idx_costo_categoria', 'categoria'),
+        Index('idx_costo_fecha', 'fecha_registro'),
+        Index('idx_costo_erp', 'codigo_erp'),
+    )
+    
+    def __repr__(self):
+        return f'<CostoProyecto {self.proyecto_id}-{self.categoria.value}-{self.monto}>'

@@ -128,37 +128,70 @@
             </a>
         </div>
         <div class="card-body">
-            {% if costos %}
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Descripción</th>
-                            <th>Categoría</th>
-                            <th class="text-end">Monto</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for costo in costos %}
-                        <tr>
-                            <td>{{ costo.fecha }}</td>
-                            <td>{{ costo.descripcion }}</td>
-                            <td>{{ costo.categoria }}</td>
-                            <td class="text-end">$ {{ "{:,.0f}".format(costo.monto) }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            {% if resumen_costos %}
+            <div class="row">
+                {% for categoria, monto in resumen_costos.items() %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card border-primary h-100">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <small class="text-muted">{{ categoria }}</small>
+                                    <h6 class="mb-0">$ {{ "{:,.0f}".format(monto) }}</h6>
+                                </div>
+                                <div class="text-right">
+                                    {% if 'MATERIALES' in categoria %}
+                                        <i class="fas fa-boxes text-primary fa-lg"></i>
+                                    {% elif 'INSTALACIÓN' in categoria or 'Instalación' in categoria %}
+                                        <i class="fas fa-tools text-success fa-lg"></i>
+                                    {% elif 'GARANTÍAS' in categoria %}
+                                        <i class="fas fa-shield-alt text-warning fa-lg"></i>
+                                    {% elif 'FLETES' in categoria %}
+                                        <i class="fas fa-truck text-info fa-lg"></i>
+                                    {% elif 'Provisión' in categoria %}
+                                        <i class="fas fa-warehouse text-primary fa-lg"></i>
+                                    {% else %}
+                                        <i class="fas fa-receipt text-secondary fa-lg"></i>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
+            
+            {% if not costos_son_estimados %}
+            <div class="mt-3">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle"></i>
+                    Total de {{ num_costos }} registro{{ 's' if num_costos != 1 else '' }} desde el ERP.
+                </small>
+            </div>
+            {% endif %}
+            
             {% else %}
-            <p class="text-muted text-center py-3">No se han registrado costos para este proyecto</p>
-            <p class="text-center">
-                <a href="{{ url_for('finanzas.costos_proyecto', proyecto_id=proyecto.id) }}" 
-                   class="btn btn-outline-primary">
-                    <i class="bi bi-calculator"></i> Ingresar primer costo
-                </a>
-            </p>
+            <div class="text-center py-4">
+                <i class="fas fa-calculator text-muted fa-3x"></i>
+                <p class="text-muted mt-3 mb-1">No hay costos registrados desde el ERP</p>
+                <p class="small text-muted">Se están mostrando estimaciones basadas en márgenes de venta</p>
+                <div class="mt-3">
+                    <a href="{{ url_for('finanzas.nuevo_costo_proyecto', proyecto_id=proyecto.id) }}" 
+                       class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Registrar Primer Costo desde ERP
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if costos_son_estimados %}
+            <div class="alert alert-info mt-3 mb-0">
+                <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Costos Estimados</h6>
+                <p class="mb-0 small">
+                    Los costos mostrados son estimaciones calculadas a partir de los márgenes de venta configurados 
+                    en el presupuesto del proyecto. Para obtener márgenes precisos, registre los costos reales desde su ERP.
+                </p>
+            </div>
             {% endif %}
         </div>
     </div>
