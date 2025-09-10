@@ -127,7 +127,7 @@ class FinanzasService:
                 
                 # Margen actual
                 margen = total_facturado - total_costos if total_facturado > 0 else Decimal(0)
-                margen_pct = (margen / total_facturado * 100) if total_facturado > 0 else 0
+                margen_pct = float(margen / total_facturado * 100) if total_facturado > 0 else 0
                 
                 resumen.append({
                     'id': proyecto.id,
@@ -141,7 +141,7 @@ class FinanzasService:
                     'costos': float(total_costos),
                     'margen': float(margen),
                     'margen_pct': float(margen_pct),
-                    'avance_facturacion': float((total_facturado / total_presupuestado * 100) if total_presupuestado > 0 else 0)
+                    'avance_facturacion': float(total_facturado / total_presupuestado * 100) if total_presupuestado > 0 else 0
                 })
             
             return resumen
@@ -422,8 +422,8 @@ class FinanzasService:
             total_pendiente_cobro = sum(agg['pendiente_cobro'] for agg in agregaciones)
             
             # Calcular porcentajes
-            avance_facturacion = (total_facturado / total_contratos * 100) if total_contratos > 0 else 0
-            avance_cobro = (total_pagado / total_contratos * 100) if total_contratos > 0 else 0
+            avance_facturacion = float(total_facturado / total_contratos * 100) if total_contratos > 0 else 0
+            avance_cobro = float(total_pagado / total_contratos * 100) if total_contratos > 0 else 0
             
             return {
                 'total_contratos': total_contratos,
