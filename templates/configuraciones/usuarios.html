@@ -18,13 +18,20 @@
         </div>
         <div class="col-md-4">
             <div class="card">
-                <div class="card-body text-center">
-                    <a href="{{ url_for('configuraciones.nuevo_usuario') }}" class="btn btn-success">
-                        <i class="fas fa-user-plus"></i> Nuevo Usuario
-                    </a>
-                    <a href="{{ url_for('configuraciones.dashboard') }}" class="btn btn-outline-secondary ms-2">
-                        <i class="fas fa-arrow-left"></i> Volver
-                    </a>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('configuraciones.nuevo_usuario') }}" class="btn btn-success btn-lg">
+                            <i class="fas fa-user-plus"></i> Nuevo Usuario
+                        </a>
+                        <div class="btn-group">
+                            <a href="{{ url_for('configuraciones.dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Dashboard
+                            </a>
+                            <a href="{{ url_for('configuraciones.roles') }}" class="btn btn-outline-info">
+                                <i class="fas fa-shield-alt"></i> Roles
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -160,14 +167,17 @@
                                     <td>
                                         <div class="btn-group" role="group">
                                             <a href="{{ url_for('configuraciones.editar_usuario', usuario_id=usuario.id) }}" 
-                                               class="btn btn-outline-primary btn-sm" title="Editar">
+                                               class="btn btn-outline-primary btn-sm" 
+                                               data-bs-toggle="tooltip" 
+                                               title="Editar información del usuario">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                             
                                             {% if usuario.id != current_user.id %}
                                             <button type="button" class="btn btn-outline-warning btn-sm" 
-                                                    title="Restablecer Contraseña"
-                                                    onclick="resetearPassword('{{ usuario.id }}', '{{ usuario.nombre_completo }}')">
+                                                    data-bs-toggle="tooltip" 
+                                                    title="Resetear contraseña - Genera nueva contraseña temporal"
+                                                    onclick="resetearPassword('{{ usuario.id }}', '{{ (usuario.first_name or '') + ' ' + (usuario.last_name or '') }}')">
                                                 <i class="fas fa-key"></i>
                                             </button>
                                             
@@ -176,10 +186,17 @@
                                                   onsubmit="return confirm('¿Estás seguro de {{ 'desactivar' if usuario.activo else 'activar' }} este usuario?')">
                                                 <button type="submit" 
                                                         class="btn btn-outline-{{ 'danger' if usuario.activo else 'success' }} btn-sm" 
-                                                        title="{{ 'Desactivar' if usuario.activo else 'Activar' }}">
-                                                    <i class="fas fa-{{ 'times' if usuario.activo else 'check' }}"></i>
+                                                        data-bs-toggle="tooltip" 
+                                                        title="{{ 'Desactivar usuario - No podrá iniciar sesión' if usuario.activo else 'Activar usuario - Permitir acceso al sistema' }}">
+                                                    <i class="fas fa-{{ 'ban' if usuario.activo else 'check' }}"></i>
                                                 </button>
                                             </form>
+                                            {% else %}
+                                            <span class="btn btn-outline-secondary btn-sm disabled" 
+                                                  data-bs-toggle="tooltip" 
+                                                  title="No puedes modificar tu propia cuenta">
+                                                <i class="fas fa-lock"></i>
+                                            </span>
                                             {% endif %}
                                         </div>
                                     </td>
@@ -282,5 +299,13 @@ function exportarUsuarios() {
     // Implementar exportación de usuarios
     alert('Funcionalidad de exportación próximamente disponible');
 }
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
 </script>
 {% endblock %}
