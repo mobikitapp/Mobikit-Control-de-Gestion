@@ -106,7 +106,7 @@ def dashboard():
         # Agrupar proyectos por cliente para estructura desplegable
         proyectos_por_cliente = {}
         for proyecto in resumen_proyectos:
-            cliente_nombre = proyecto['cliente_nombre']
+            cliente_nombre = proyecto['proyecto'].cliente.nombre if proyecto['proyecto'].cliente else 'Sin Cliente'
             if cliente_nombre not in proyectos_por_cliente:
                 proyectos_por_cliente[cliente_nombre] = {
                     'nombre': cliente_nombre,
