@@ -111,6 +111,24 @@ The system follows a modular blueprint architecture with clear separation of con
 - **Database schema updated**: New centro_costo column added to proyectos table
 - **Purpose**: Enable linking projects between the app and ERP Mobikit system through numeric cost center codes
 
+### 2025-09-10: Project Log/Journal (Bitácora) System Implementation
+- **Created comprehensive project documentation system** for tracking technical specifications and project changes
+- **Key Features**:
+  - New "Bitácora" tab in project details with organized comment system
+  - Categorized comments: Especificación, Cambio, Nota, General with color-coded badges
+  - Real-time comment loading with filtering by type
+  - Character counter (1000 max) with visual feedback
+  - Delete functionality with confirmation dialog
+  - Responsive modal interface for adding comments
+- **Technical Implementation**:
+  - BitacoraProyecto model with TipoBitacora enum for comment categorization
+  - Complete Pydantic schemas for validation (BitacoraProyectoCreate, BitacoraProyectoFilters)
+  - Dedicated service layer (bitacora_service) for business logic
+  - RESTful API endpoints (/proyectos/{id}/bitacora) supporting GET, POST, DELETE operations
+  - Client-side JavaScript for real-time UI updates and form handling
+- **Database Structure**: New bitacora_proyecto table with foreign keys to proyectos and users
+- **Purpose**: Enable documentation of technical specification changes, project modifications, and important notes throughout project lifecycle
+
 ### 2025-09-08: Database Redundancy Elimination
 - **Removed redundant `usuarios` table**: Consolidated to use only the `users` table
 - **Fixed cache cleaning and production data cleaning functions**: Added real-time logging and progress indicators
