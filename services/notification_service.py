@@ -28,34 +28,87 @@ class NotificationService:
         """Verifica si las notificaciones están habilitadas"""
         return bool(self.sendgrid_api_key and self.default_sender)
     
-    def get_admin_emails(self) -> List[str]:
-        """Obtiene emails de usuarios administradores activos"""
+    def get_admin_emails(self, notification_type: str = None) -> List[str]:
+        """Obtiene emails de usuarios administradores activos que han habilitado el tipo de notificación"""
         try:
-            from models import RolUsuario
-            admins = db.session.query(User).filter(
+            from models import RolUsuario, NotificationPreferences
+            
+            # Query base para admins activos
+            query = db.session.query(User).filter(
                 User.rol == RolUsuario.ADMIN,
                 User.activo == True
-            ).all()
+            )
+            
+            # Si se especifica tipo de notificación, filtrar por preferencias
+            if notification_type:
+                query = query.outerjoin(NotificationPreferences).filter(
+                    db.or_(
+                        # Usuario sin preferencias (por defecto habilitado)
+                        NotificationPreferences.id.is_(None),
+                        # Usuario con preferencias y email habilitado globalmente
+                        db.and_(
+                            NotificationPreferences.email_enabled == True,
+                            self._get_preference_filter(notification_type)
+                        )
+                    )
+                )
+            
+            admins = query.all()
             return [admin.email for admin in admins if admin.email]
         except Exception as e:
             logger.error(f"Error obteniendo emails de admins: {str(e)}")
             return []
     
-    def get_project_team_emails(self, proyecto_id: int) -> List[str]:
-        """Obtiene emails del equipo asociado al proyecto"""
+    def _get_preference_filter(self, notification_type: str):
+        """Obtiene el filtro de preferencia según el tipo de notificación"""
+        from models import NotificationPreferences
+        
+        type_mapping = {
+            'nuevo_proyecto': NotificationPreferences.nuevo_proyecto_email,
+            'comentario_bitacora': NotificationPreferences.comentario_bitacora_email,
+            'cambio_estado_of': NotificationPreferences.cambio_estado_of_email,
+            'vencimiento_contrato': NotificationPreferences.vencimiento_contrato_email,
+            'retraso_proyecto': NotificationPreferences.retraso_proyecto_email
+        }
+        
+        return type_mapping.get(notification_type, True)
+    
+    def get_project_team_emails(self, proyecto_id: int, notification_type: str = None) -> List[str]:
+        """Obtiene emails del equipo asociado al proyecto que han habilitado el tipo de notificación"""
         try:
-            from models import Proyecto, RolUsuario
+            from models import Proyecto, RolUsuario, NotificationPreferences
             proyecto = db.session.get(Proyecto, proyecto_id)
             if not proyecto:
                 return []
             
             emails = []
             
+            # Función auxiliar para verificar preferencias
+            def user_accepts_notification(user):
+                if not notification_type:
+                    return True
+                
+                # Obtener preferencias del usuario
+                prefs = db.session.query(NotificationPreferences).filter_by(user_id=user.id).first()
+                
+                # Si no tiene preferencias, aceptar por defecto
+                if not prefs:
+                    return True
+                
+                # Si tiene email deshabilitado globalmente, rechazar
+                if not prefs.email_enabled:
+                    return False
+                
+                # Verificar preferencia específica
+                return getattr(prefs, f"{notification_type}_email", True)
+            
             # Responsable del proyecto
-            if proyecto.responsable_user and proyecto.responsable_user.email:
+            if (proyecto.responsable_user and 
+                proyecto.responsable_user.email and 
+                user_accepts_notification(proyecto.responsable_user)):
                 emails.append(proyecto.responsable_user.email)
             
-            # Cliente contacto si tiene email
+            # Cliente contacto si tiene email (sin verificar preferencias ya que es externo)
             if proyecto.cliente and proyecto.cliente.email:
                 emails.append(proyecto.cliente.email)
             
@@ -66,7 +119,9 @@ class NotificationService:
             ).all()
             
             for user in team_users:
-                if user.email and user.email not in emails:
+                if (user.email and 
+                    user.email not in emails and 
+                    user_accepts_notification(user)):
                     emails.append(user.email)
             
             return emails
@@ -141,8 +196,8 @@ class NotificationService:
                 return False
             
             # Obtener destinatarios (admins + equipo del proyecto)
-            admin_emails = self.get_admin_emails()
-            team_emails = self.get_project_team_emails(proyecto_id)
+            admin_emails = self.get_admin_emails('nuevo_proyecto')
+            team_emails = self.get_project_team_emails(proyecto_id, 'nuevo_proyecto')
             
             # Combinar y eliminar duplicados
             all_emails = list(set(admin_emails + team_emails))
@@ -217,7 +272,7 @@ Estado comercial: {proyecto.estado_comercial.value.replace('_', ' ').title() if 
                 return False
             
             # Obtener destinatarios del equipo del proyecto
-            team_emails = self.get_project_team_emails(proyecto_id)
+            team_emails = self.get_project_team_emails(proyecto_id, 'comentario_bitacora')
             
             # Remover email del creador para evitar autonotificación
             if created_by_user.email in team_emails:
@@ -297,10 +352,10 @@ Se ha agregado un nuevo comentario en la bitácora del proyecto:
                 return False
             
             # Obtener destinatarios del equipo del proyecto
-            team_emails = self.get_project_team_emails(orden.proyecto_id)
+            team_emails = self.get_project_team_emails(orden.proyecto_id, 'cambio_estado_of')
             
             # Agregar admins para cambios críticos
-            admin_emails = self.get_admin_emails()
+            admin_emails = self.get_admin_emails('cambio_estado_of')
             all_emails = list(set(team_emails + admin_emails))
             
             # Remover email del usuario que hizo el cambio
