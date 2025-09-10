@@ -313,6 +313,14 @@ class Proyecto(db.Model):
     margen_venta_provision = db.Column(db.Numeric(5, 2))  # Porcentaje de ganancia sobre provisión
     monto_instalacion_presupuestado = db.Column(db.Numeric(15, 2))  # Monto neto de venta por instalación
     margen_venta_instalacion = db.Column(db.Numeric(5, 2))  # Porcentaje de ganancia sobre instalación
+    
+    # Campos para soporte de UF en presupuestos
+    monto_provision_presupuestado_uf = db.Column(db.Numeric(15, 4))  # Monto provisión en UF
+    monto_instalacion_presupuestado_uf = db.Column(db.Numeric(15, 4))  # Monto instalación en UF
+    valor_uf_presupuesto = db.Column(db.Numeric(15, 2))  # Valor UF usado en presupuesto
+    fecha_conversion_presupuesto_uf = db.Column(db.Date)  # Fecha conversión presupuesto
+    moneda_original_presupuesto = db.Column(db.String(3))  # Moneda original ('UF' o 'CLP')
+    
     fecha_presupuesto = db.Column(db.Date)
     fecha_adjudicacion = db.Column(db.Date)
     notas_comerciales = db.Column(db.Text)
@@ -352,6 +360,68 @@ class Proyecto(db.Model):
 
     def __repr__(self):
         return f'<Proyecto {self.nombre}>'
+    
+    @property
+    def presupuesto_actualizado_uf(self):
+        """Obtiene presupuestos actualizados según UF actual si fueron ingresados en UF"""
+        from services.uf_conversion_service import UfConversionService
+        from decimal import Decimal
+        
+        result = {
+            'provision': {
+                'monto_clp': self.monto_provision_presupuestado,
+                'fue_ingresado_en_uf': self.moneda_original_presupuesto == 'UF'
+            },
+            'instalacion': {
+                'monto_clp': self.monto_instalacion_presupuestado,
+                'fue_ingresado_en_uf': self.moneda_original_presupuesto == 'UF'
+            }
+        }
+        
+        # Actualizar provisión si fue ingresada en UF
+        if (self.moneda_original_presupuesto == 'UF' and 
+            self.monto_provision_presupuestado_uf):
+            conversion = UfConversionService.convert_uf_to_clp(
+                Decimal(str(self.monto_provision_presupuestado_uf))
+            )
+            if conversion:
+                result['provision']['monto_clp_actualizado'] = conversion['clp_amount']
+                result['provision']['monto_uf_original'] = self.monto_provision_presupuestado_uf
+        
+        # Actualizar instalación si fue ingresada en UF
+        if (self.moneda_original_presupuesto == 'UF' and 
+            self.monto_instalacion_presupuestado_uf):
+            conversion = UfConversionService.convert_uf_to_clp(
+                Decimal(str(self.monto_instalacion_presupuestado_uf))
+            )
+            if conversion:
+                result['instalacion']['monto_clp_actualizado'] = conversion['clp_amount']
+                result['instalacion']['monto_uf_original'] = self.monto_instalacion_presupuestado_uf
+        
+        # Agregar información de conversión
+        result['valor_uf_presupuesto'] = self.valor_uf_presupuesto
+        result['fecha_conversion'] = self.fecha_conversion_presupuesto_uf
+        
+        return result
+    
+    @property
+    def monto_total_presupuestado(self):
+        """Calcula el monto total presupuestado (provisión + instalación)"""
+        provision = self.monto_provision_presupuestado or 0
+        instalacion = self.monto_instalacion_presupuestado or 0
+        return provision + instalacion
+    
+    @property
+    def monto_total_presupuestado_actualizado(self):
+        """Monto total presupuestado con valores UF actualizados"""
+        presupuesto = self.presupuesto_actualizado_uf
+        
+        provision = (presupuesto['provision'].get('monto_clp_actualizado') or 
+                    presupuesto['provision']['monto_clp'] or 0)
+        instalacion = (presupuesto['instalacion'].get('monto_clp_actualizado') or 
+                      presupuesto['instalacion']['monto_clp'] or 0)
+        
+        return provision + instalacion
 
 # Tablas de asociación para relaciones many-to-many
 proyecto_categorias = db.Table('proyecto_categorias',
@@ -421,6 +491,13 @@ class Contrato(db.Model):
     numero_oc = db.Column(db.String(50), unique=True, nullable=False)
     monto_total = db.Column(db.Numeric(15, 2))
     moneda = db.Column(db.String(3), default='CLP', nullable=False)
+    
+    # Campos para soporte de UF
+    monto_total_uf = db.Column(db.Numeric(15, 4))  # Monto original en UF (mayor precisión)
+    valor_uf_conversion = db.Column(db.Numeric(15, 2))  # Valor UF usado para conversión
+    fecha_conversion_uf = db.Column(db.Date)  # Fecha de conversión UF a CLP
+    moneda_original = db.Column(db.String(3))  # Moneda original de entrada ('UF' o 'CLP')
+    
     estado = db.Column(db.Enum(EstadoContrato), default=EstadoContrato.BORRADOR, nullable=False)
     fecha_emision = db.Column(db.Date)
     fecha_vencimiento = db.Column(db.Date)
@@ -450,6 +527,36 @@ class Contrato(db.Model):
 
     def __repr__(self):
         return f'<Contrato {self.numero_oc}>'
+    
+    @property
+    def monto_total_actualizado(self):
+        """Obtiene el monto total actualizado según UF actual si fue ingresado en UF"""
+        if self.moneda_original == 'UF' and self.monto_total_uf:
+            from services.uf_conversion_service import UfConversionService
+            from decimal import Decimal
+            
+            conversion = UfConversionService.convert_uf_to_clp(Decimal(str(self.monto_total_uf)))
+            if conversion:
+                return conversion['clp_amount']
+        
+        return self.monto_total
+    
+    @property
+    def monto_display_info(self):
+        """Información completa para mostrar el monto con contexto UF"""
+        info = {
+            'monto_clp': self.monto_total,
+            'moneda': self.moneda,
+            'fue_ingresado_en_uf': self.moneda_original == 'UF',
+            'monto_uf_original': self.monto_total_uf,
+            'valor_uf_conversion': self.valor_uf_conversion,
+            'fecha_conversion': self.fecha_conversion_uf
+        }
+        
+        if self.moneda_original == 'UF':
+            info['monto_clp_actualizado'] = self.monto_total_actualizado
+        
+        return info
 
 
 class ContratoAdjunto(db.Model):
