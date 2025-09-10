@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% set title = "Preferencias de Notificaciones" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">
+                                <i class="fas fa-bell text-primary"></i>
+                                Preferencias de Notificaciones
+                            </h4>
+                            <p class="mb-0 text-muted">Configura cómo y cuándo recibir notificaciones por email</p>
+                        </div>
+                        <a href="{{ url_for('configuraciones.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver a Configuraciones
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Info -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-left-primary">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Estado de Notificaciones
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% if preferences.email_enabled %}
+                                    <span class="text-success">
+                                        <i class="fas fa-check-circle"></i> Activo
+                                    </span>
+                                {% else %}
+                                    <span class="text-warning">
+                                        <i class="fas fa-pause-circle"></i> Pausado
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-envelope fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Form -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-cog"></i> Configurar Notificaciones
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('configuraciones.actualizar_notificaciones') }}">
+                        <!-- General Settings -->
+                        <div class="form-group mb-4">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="email_enabled" 
+                                       name="email_enabled" {% if preferences.email_enabled %}checked{% endif %}>
+                                <label class="custom-control-label" for="email_enabled">
+                                    <strong>Habilitar notificaciones por email</strong>
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                Cuando está deshabilitado, no recibirás ninguna notificación por email
+                            </small>
+                        </div>
+
+                        <hr>
+
+                        <!-- Notification Types -->
+                        <h6 class="mb-3">
+                            <i class="fas fa-list-check"></i> Tipos de Notificación
+                        </h6>
+
+                        {% for key, config in tipos_notificacion.items() %}
+                        <div class="form-group mb-3">
+                            <div class="card border-left-info">
+                                <div class="card-body py-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">{{ config.nombre }}</h6>
+                                            <small class="text-muted">{{ config.descripcion }}</small>
+                                        </div>
+                                        <div class="custom-control custom-switch">
+                                            <input type="checkbox" class="custom-control-input" 
+                                                   id="{{ key }}_email" name="{{ key }}_email"
+                                                   {% if config.habilitado %}checked{% endif %}>
+                                            <label class="custom-control-label" for="{{ key }}_email"></label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <!-- Submit Button -->
+                        <div class="form-group mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Guardar Preferencias
+                            </button>
+                            <a href="{{ url_for('configuraciones.dashboard') }}" class="btn btn-secondary ml-2">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Information Panel -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Información
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-primary">
+                            <i class="fas fa-lightbulb"></i> ¿Cómo funciona?
+                        </h6>
+                        <p class="text-muted small">
+                            Las notificaciones se envían automáticamente cuando ocurren eventos importantes 
+                            en proyectos donde participas.
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6 class="text-success">
+                            <i class="fas fa-shield-alt"></i> Privacidad
+                        </h6>
+                        <p class="text-muted small">
+                            Solo recibirás notificaciones de proyectos donde tienes acceso. 
+                            Tu información personal está protegida.
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6 class="text-info">
+                            <i class="fas fa-clock"></i> Frecuencia
+                        </h6>
+                        <p class="text-muted small">
+                            Las notificaciones se envían inmediatamente cuando ocurre el evento. 
+                            No hay notificaciones duplicadas.
+                        </p>
+                    </div>
+
+                    <div class="alert alert-warning small">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Nota:</strong> Algunos emails pueden llegar a tu carpeta de spam. 
+                        Agrega nuestro remitente a tu lista de contactos.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity (placeholder) -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history"></i> Actividad Reciente
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-envelope fa-2x mb-2"></i>
+                        <p class="mb-0 small">
+                            El historial de notificaciones estará disponible próximamente
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const emailEnabledSwitch = document.getElementById('email_enabled');
+    const notificationSwitches = document.querySelectorAll('input[type="checkbox"]:not(#email_enabled)');
+    
+    function toggleNotificationSwitches() {
+        notificationSwitches.forEach(function(switchEl) {
+            switchEl.disabled = !emailEnabledSwitch.checked;
+            if (!emailEnabledSwitch.checked) {
+                switchEl.parentElement.parentElement.style.opacity = '0.5';
+            } else {
+                switchEl.parentElement.parentElement.style.opacity = '1';
+            }
+        });
+    }
+    
+    // Initialize state
+    toggleNotificationSwitches();
+    
+    // Listen for changes
+    emailEnabledSwitch.addEventListener('change', toggleNotificationSwitches);
+});
+</script>
+{% endblock %}

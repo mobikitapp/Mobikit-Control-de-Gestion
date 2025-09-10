@@ -9,7 +9,7 @@ from models import User, RolUsuario
 from services.configuraciones_service import ConfiguracionesService
 from services.permisos_service import PermisosService
 from utils.auth import role_required
-from models.notification_preferences import NotificationPreferences, TipoNotificacion
+from models import NotificationPreferences, TipoNotificacion
 
 # Create blueprint
 configuraciones_bp = Blueprint('configuraciones', __name__)

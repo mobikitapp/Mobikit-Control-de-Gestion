@@ -77,6 +77,13 @@ class TipoBitacora(Enum):
     NOTA = "nota"
     GENERAL = "general"
 
+class TipoNotificacion(Enum):
+    NUEVO_PROYECTO = 'nuevo_proyecto'
+    COMENTARIO_BITACORA = 'comentario_bitacora'
+    CAMBIO_ESTADO_OF = 'cambio_estado_of'
+    VENCIMIENTO_CONTRATO = 'vencimiento_contrato'
+    RETRASO_PROYECTO = 'retraso_proyecto'
+
 class RolUsuario(Enum):
     ADMIN = "admin"
     GENERAL = "general"
@@ -1391,3 +1398,36 @@ class BitacoraProyecto(db.Model):
 
     def __repr__(self):
         return f'<BitacoraProyecto {self.id}: {self.proyecto_id}>'
+
+
+class NotificationPreferences(db.Model):
+    """Preferencias de notificación por usuario"""
+    __tablename__ = 'notification_preferences'
+    
+    id = db.Column(db.String, primary_key=True, default=lambda: str(db.func.gen_random_uuid()))
+    user_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
+    
+    # Preferencias específicas por tipo de notificación
+    nuevo_proyecto_email = db.Column(db.Boolean, default=True)
+    comentario_bitacora_email = db.Column(db.Boolean, default=True) 
+    cambio_estado_of_email = db.Column(db.Boolean, default=True)
+    vencimiento_contrato_email = db.Column(db.Boolean, default=True)
+    retraso_proyecto_email = db.Column(db.Boolean, default=True)
+    
+    # Configuraciones generales
+    email_enabled = db.Column(db.Boolean, default=True)
+    
+    # Audit fields
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    
+    # Relationships
+    user = db.relationship('User', backref='notification_preferences')
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_notification_preferences_user', 'user_id'),
+    )
+    
+    def __repr__(self):
+        return f"<NotificationPreferences(user_id={self.user_id})>"
