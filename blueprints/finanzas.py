@@ -423,8 +423,7 @@ def nuevo_costo_proyecto(proyecto_id):
                     return redirect(url_for('finanzas.nuevo_costo_proyecto', proyecto_id=proyecto_id))
                     
                 # Validar fecha no futura
-                from datetime import date
-                if fecha_registro > date.today():
+                if fecha_registro > datetime.now().date():
                     flash('La fecha no puede ser futura', 'error')
                     return redirect(url_for('finanzas.nuevo_costo_proyecto', proyecto_id=proyecto_id))
                     
