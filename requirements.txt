@@ -35,3 +35,5 @@ pytest
 requests
 pendulum
 pendulum
+python-dotenv
+sendgrid
