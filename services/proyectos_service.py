@@ -846,23 +846,23 @@ class ProyectosService:
                 )
 
             # === ÓRDENES DE COMPRA ===
-            # Obtener pendientes de facturar para OCs
+            # Por ahora usar estados de pago de OCs como contratos regulares
             monto_facturado_ocs = 0
             monto_pagado_ocs = 0
 
             if ordenes_compra:
-                pendientes_facturar = PendienteFacturar.query.filter(
-                    PendienteFacturar.contrato_id.in_([oc.id for oc in ordenes_compra])
+                estados_pago_ocs = EstadoPago.query.filter(
+                    EstadoPago.contrato_id.in_([oc.id for oc in ordenes_compra])
                 ).all()
 
                 monto_facturado_ocs = sum(
-                    float(pf.monto_neto or 0) for pf in pendientes_facturar 
-                    if pf.estado in [EstadoPendienteFacturar.FACTURADO, EstadoPendienteFacturar.PAGADO]
+                    float(ep.monto_estado_pago or 0) for ep in estados_pago_ocs 
+                    if ep.facturado
                 )
 
                 monto_pagado_ocs = sum(
-                    float(pf.monto_neto or 0) for pf in pendientes_facturar 
-                    if pf.estado == EstadoPendienteFacturar.PAGADO
+                    float(ep.monto_estado_pago or 0) for ep in estados_pago_ocs 
+                    if ep.tipo_estado == TipoEstadoPago.PAGADO
                 )
 
             # === TOTALES COMBINADOS ===
@@ -983,18 +983,18 @@ class ProyectosService:
                 total_pagado_ocs = 0
 
                 if ordenes_compra:
-                    pendientes_facturar = PendienteFacturar.query.filter(
-                        PendienteFacturar.contrato_id.in_([oc.id for oc in ordenes_compra])
+                    estados_pago_ocs = EstadoPago.query.filter(
+                        EstadoPago.contrato_id.in_([oc.id for oc in ordenes_compra])
                     ).all()
 
                     total_facturado_ocs = sum(
-                        float(pf.monto_neto or 0) for pf in pendientes_facturar 
-                        if pf.estado in [EstadoPendienteFacturar.FACTURADO, EstadoPendienteFacturar.PAGADO]
+                        float(ep.monto_estado_pago or 0) for ep in estados_pago_ocs 
+                        if ep.facturado
                     )
 
                     total_pagado_ocs = sum(
-                        float(pf.monto_neto or 0) for pf in pendientes_facturar 
-                        if pf.estado == EstadoPendienteFacturar.PAGADO
+                        float(ep.monto_estado_pago or 0) for ep in estados_pago_ocs 
+                        if ep.tipo_estado == TipoEstadoPago.PAGADO
                     )
 
                 # === TOTALES COMBINADOS ===
