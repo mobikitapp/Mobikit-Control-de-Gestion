@@ -103,8 +103,34 @@ def dashboard():
         total_ganancia_perdida_inflacion_global = sum(r['ganancia_perdida_inflacion'] for r in resumen_proyectos)
         proyectos_con_uf = sum(1 for r in resumen_proyectos if r['tiene_contratos_uf'])
         
+        # Agrupar proyectos por cliente para estructura desplegable
+        proyectos_por_cliente = {}
+        for proyecto in resumen_proyectos:
+            cliente_nombre = proyecto['cliente_nombre']
+            if cliente_nombre not in proyectos_por_cliente:
+                proyectos_por_cliente[cliente_nombre] = {
+                    'nombre': cliente_nombre,
+                    'proyectos': [],
+                    'total_contratos': 0,
+                    'total_facturado': 0,
+                    'total_pagado': 0,
+                    'total_pendiente': 0,
+                    'total_ganancia_perdida_inflacion': 0
+                }
+            
+            proyectos_por_cliente[cliente_nombre]['proyectos'].append(proyecto)
+            proyectos_por_cliente[cliente_nombre]['total_contratos'] += proyecto['num_contratos']
+            proyectos_por_cliente[cliente_nombre]['total_facturado'] += proyecto['total_facturado']
+            proyectos_por_cliente[cliente_nombre]['total_pagado'] += proyecto['total_pagado']
+            proyectos_por_cliente[cliente_nombre]['total_pendiente'] += proyecto['total_pendiente']
+            proyectos_por_cliente[cliente_nombre]['total_ganancia_perdida_inflacion'] += proyecto['ganancia_perdida_inflacion']
+        
+        # Convertir a lista ordenada alfabéticamente por cliente
+        clientes_ordenados = sorted(proyectos_por_cliente.values(), key=lambda x: x['nombre'])
+
         return render_template('finanzas/dashboard_simple.html',
                              resumen_proyectos=resumen_proyectos,
+                             clientes_ordenados=clientes_ordenados,
                              total_proyectos=total_proyectos,
                              total_contratos=total_contratos_global,
                              total_facturado=total_facturado_global,
