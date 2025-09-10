@@ -25,6 +25,17 @@ class BitacoraService:
             db.session.commit()
             
             logger.info(f"Comentario agregado a bitácora del proyecto {data.proyecto_id} por usuario {usuario_id}")
+            
+            # Send notification
+            try:
+                from services.notification_service import notification_service
+                from models import User
+                user = db.session.get(User, usuario_id)
+                if user:
+                    notification_service.notify_bitacora_comment(data.proyecto_id, comentario.id, user)
+            except Exception as e:
+                logger.warning(f"Error enviando notificación de comentario bitácora: {str(e)}")
+            
             return comentario
             
         except Exception as e:

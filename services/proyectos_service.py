@@ -57,6 +57,16 @@ class ProyectosService:
                 'CREATE', 
                 datos_nuevos=serialize_model(proyecto)
             )
+            
+            # Send notification
+            try:
+                from services.notification_service import notification_service
+                from models import User
+                user = db.session.get(User, created_by)
+                if user:
+                    notification_service.notify_new_project(proyecto.id, user)
+            except Exception as e:
+                logger.warning(f"Error enviando notificación de nuevo proyecto: {str(e)}")
 
             logger.info(f"Proyecto creado: {proyecto.id} - {proyecto.nombre}")
             return proyecto
