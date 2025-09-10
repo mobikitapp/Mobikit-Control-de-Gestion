@@ -263,12 +263,13 @@ def nuevo_estado_pago(contrato_id):
                     
                     # Obtener valor UF server-side (no confiar en cliente)
                     from services.uf_conversion_service import UfConversionService
-                    conversion = UfConversionService.convert_uf_to_clp(estado.monto_uf)
+                    clp_amount = UfConversionService.convert_uf_to_clp(estado.monto_uf, estado.fecha_estado)
+                    valor_uf_fecha = UfConversionService.get_uf_value_for_date(estado.fecha_estado)
                     
-                    if conversion:
-                        estado.valor_uf_fecha_estado = conversion['valor_uf']
-                        estado.monto_clp_equivalente = conversion['clp_amount']
-                        estado.monto = estado.monto_clp_equivalente  # Monto principal en CLP
+                    if clp_amount and valor_uf_fecha:
+                        estado.valor_uf_fecha_estado = valor_uf_fecha
+                        estado.monto_clp_equivalente = clp_amount
+                        estado.monto = clp_amount  # Monto principal en CLP
                         estado.fecha_conversion_uf = estado.fecha_estado
                     else:
                         flash('Error obteniendo valor UF para conversión', 'error')

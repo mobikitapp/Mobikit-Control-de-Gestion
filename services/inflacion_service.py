@@ -102,12 +102,14 @@ class InflacionService:
                 conversion_actual = UfConversionService.convert_uf_to_clp(
                     Decimal(str(contrato.monto_total_uf))
                 )
-                if conversion_actual and contrato.valor_uf_conversion:
+                valor_uf_actual = UfConversionService.get_current_uf_value()
+                
+                if conversion_actual and contrato.valor_uf_conversion and valor_uf_actual:
                     monto_clp_original = Decimal(str(contrato.monto_total_uf)) * Decimal(str(contrato.valor_uf_conversion))
-                    monto_clp_actual = conversion_actual['clp_amount']
+                    monto_clp_actual = conversion_actual  # convert_uf_to_clp retorna Decimal directamente
                     resumen['diferencia_uf_actual'] = monto_clp_actual - monto_clp_original
                     resumen['valor_uf_contrato'] = contrato.valor_uf_conversion
-                    resumen['valor_uf_actual'] = conversion_actual['valor_uf']
+                    resumen['valor_uf_actual'] = valor_uf_actual
             
             return resumen
             
