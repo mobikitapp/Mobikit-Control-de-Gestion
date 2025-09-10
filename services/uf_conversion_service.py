@@ -298,5 +298,4 @@ def get_current_uf() -> Optional[Decimal]:
 # Función de conveniencia para conversión UF a CLP
 def convert_uf_to_clp(uf_amount: Decimal, conversion_date: Optional[date] = None) -> Optional[Decimal]:
     """Función de conveniencia para convertir UF a CLP"""
-    result = UfConversionService.convert_uf_to_clp(uf_amount, conversion_date)
-    return result['clp_amount'] if result else None
+    return UfConversionService.convert_uf_to_clp(uf_amount, conversion_date)
