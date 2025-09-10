@@ -18,6 +18,7 @@ from models import (
     TipoEstadoPago, RolUsuario, CostoProyecto, CategoriaCosto
 )
 from services.inflacion_service import InflacionService
+from services.finanzas_service import FinanzasService
 
 logger = logging.getLogger(__name__)
 
@@ -53,41 +54,61 @@ def dashboard():
             joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
         ).order_by(Proyecto.nombre).all()
         
+        # Usar FinanzasService para cálculos optimizados
+        finanzas_service = FinanzasService()
+        
+        # Obtener todas las agregaciones de una vez para mejor rendimiento
+        proyecto_ids = [p.id for p in proyectos]
+        agregaciones_contratos = finanzas_service.get_contratos_aggregates(proyecto_ids)
+        
+        # Agrupar agregaciones por proyecto
+        agregaciones_por_proyecto = {}
+        for agg in agregaciones_contratos:
+            proyecto_id = None
+            # Encontrar el proyecto_id del contrato
+            for proyecto in proyectos:
+                for contrato in proyecto.contratos:
+                    if contrato.id == agg['contrato_id']:
+                        proyecto_id = proyecto.id
+                        break
+                if proyecto_id:
+                    break
+            
+            if proyecto_id:
+                if proyecto_id not in agregaciones_por_proyecto:
+                    agregaciones_por_proyecto[proyecto_id] = []
+                agregaciones_por_proyecto[proyecto_id].append(agg)
+        
         # Calcular resumen por proyecto con efectos de inflación UF
         resumen_proyectos = []
         for proyecto in proyectos:
-            # Calcular totales de contratos
-            total_contratos = sum(c.monto_total or 0 for c in proyecto.contratos)
-            total_facturado = 0
-            total_pagado = 0
-            total_pendiente = 0
+            # Usar agregaciones precalculadas en lugar de loops manuales
+            agregaciones_proyecto = agregaciones_por_proyecto.get(proyecto.id, [])
+            
+            # Sumar totales usando agregaciones
+            total_contratos = sum(agg['monto_total'] for agg in agregaciones_proyecto)
+            total_facturado = sum(agg['total_facturado'] for agg in agregaciones_proyecto)
+            total_pagado = sum(agg['total_pagado'] for agg in agregaciones_proyecto)
+            total_pendiente = sum(agg['pendiente_facturar'] for agg in agregaciones_proyecto)  # Calculado dinámicamente
             total_ganancia_perdida_inflacion = 0
             tiene_contratos_uf = False
             
+            # Verificar efectos de inflación UF solo si es necesario
             for contrato in proyecto.contratos:
-                # Verificar si tiene contratos UF
                 if contrato.moneda_original == 'UF':
                     tiene_contratos_uf = True
                     # Calcular efectos de inflación para este contrato
                     resumen_inflacion = InflacionService.calcular_resumen_inflacion_contrato(contrato)
                     if resumen_inflacion.get('total_ganancia_perdida'):
                         total_ganancia_perdida_inflacion += float(resumen_inflacion['total_ganancia_perdida'])
-                
-                for estado in contrato.estados_pago:
-                    if estado.tipo_estado == TipoEstadoPago.FACTURADO:
-                        total_facturado += estado.monto or 0
-                    elif estado.tipo_estado == TipoEstadoPago.PAGADO:
-                        total_pagado += estado.monto or 0
-                    elif estado.tipo_estado == TipoEstadoPago.PENDIENTE_FACTURAR:
-                        total_pendiente += estado.monto or 0
             
             resumen_proyectos.append({
                 'proyecto': proyecto,
-                'num_contratos': len(proyecto.contratos),
+                'num_contratos': len(agregaciones_proyecto),
                 'total_contratos': total_contratos,
                 'total_facturado': total_facturado,
                 'total_pagado': total_pagado,
-                'total_pendiente': total_pendiente,
+                'total_pendiente': total_pendiente,  # Ahora calculado dinámicamente
                 'avance_facturacion': (total_facturado / total_contratos * 100) if total_contratos > 0 else 0,
                 'avance_cobro': (total_pagado / total_contratos * 100) if total_contratos > 0 else 0,
                 'tiene_contratos_uf': tiene_contratos_uf,
@@ -238,14 +259,25 @@ def estados_pago_contrato(contrato_id):
             flash('Contrato no encontrado', 'error')
             return redirect(url_for('finanzas.dashboard'))
         
-        # Calcular resumen de estados
-        total_contrato = contrato.monto_total or 0
-        total_facturado = sum(e.monto for e in contrato.estados_pago 
-                            if e.tipo_estado == TipoEstadoPago.FACTURADO)
-        total_pagado = sum(e.monto for e in contrato.estados_pago 
-                         if e.tipo_estado == TipoEstadoPago.PAGADO)
-        total_pendiente = sum(e.monto for e in contrato.estados_pago 
-                            if e.tipo_estado == TipoEstadoPago.PENDIENTE_FACTURAR)
+        # Usar FinanzasService para cálculos dinámicos
+        finanzas_service = FinanzasService()
+        agregaciones = finanzas_service.get_contratos_aggregates()
+        
+        # Encontrar agregación para este contrato
+        agg_contrato = next((agg for agg in agregaciones if agg['contrato_id'] == contrato_id), None)
+        
+        if agg_contrato:
+            total_facturado = agg_contrato['total_facturado']
+            total_pagado = agg_contrato['total_pagado']
+            total_pendiente = agg_contrato['pendiente_facturar']  # Calculado dinámicamente
+        else:
+            # Fallback a cálculo manual (sin incluir PENDIENTE_FACTURAR)
+            total_facturado = sum(e.monto for e in contrato.estados_pago 
+                                if e.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO])
+            total_pagado = sum(e.monto for e in contrato.estados_pago 
+                             if e.tipo_estado == TipoEstadoPago.PAGADO)
+            total_contrato = contrato.monto_total or 0
+            total_pendiente = max(0, total_contrato - total_facturado)
         
         return render_template('finanzas/estados_pago.html',
                              contrato=contrato,
@@ -282,6 +314,11 @@ def nuevo_estado_pago(contrato_id):
             
             if not tipo_estado_str or not fecha_estado_str:
                 flash('Tipo de estado y fecha son requeridos', 'error')
+                return redirect(url_for('finanzas.nuevo_estado_pago', contrato_id=contrato_id))
+            
+            # NUEVA VALIDACIÓN: Rechazar creación de PENDIENTE_FACTURAR
+            if tipo_estado_str == 'PENDIENTE_FACTURAR':
+                flash('Ya no es posible crear estados "Pendiente por Facturar" manualmente. Los montos pendientes se calculan automáticamente.', 'error')
                 return redirect(url_for('finanzas.nuevo_estado_pago', contrato_id=contrato_id))
             
             # Determinar tipo de moneda del estado de pago
@@ -344,10 +381,32 @@ def nuevo_estado_pago(contrato_id):
         # Definir tipos de estado típicos para contratos
         tipos_comunes = ['ANTICIPO', 'AVANCE', 'RETENCION']
         
+        # Calcular saldos disponibles correctos usando FinanzasService
+        finanzas_service = FinanzasService()
+        agregaciones = finanzas_service.get_contratos_aggregates()
+        
+        # Encontrar agregación para este contrato
+        agg_contrato = next((agg for agg in agregaciones if agg['contrato_id'] == contrato_id), None)
+        
+        if agg_contrato:
+            saldo_disponible_facturar = agg_contrato['pendiente_facturar']
+            saldo_disponible_cobrar = agg_contrato['pendiente_cobro']
+        else:
+            # Fallback a cálculo manual
+            total_contrato = contrato.monto_total or 0
+            total_facturado = sum(e.monto for e in contrato.estados_pago 
+                                if e.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO])
+            total_pagado = sum(e.monto for e in contrato.estados_pago 
+                             if e.tipo_estado == TipoEstadoPago.PAGADO)
+            saldo_disponible_facturar = max(0, total_contrato - total_facturado)
+            saldo_disponible_cobrar = max(0, total_facturado - total_pagado)
+        
         return render_template('finanzas/nuevo_estado_pago.html',
                              contrato=contrato,
                              tipos_estado=TipoEstadoPago,
                              tipos_comunes=tipos_comunes,
+                             saldo_disponible_facturar=saldo_disponible_facturar,
+                             saldo_disponible_cobrar=saldo_disponible_cobrar,
                              current_user=current_user)
                              
     except Exception as e:

@@ -151,20 +151,37 @@ class FinanzasService:
             return []
     
     def get_cartera_pendiente(self) -> List[Dict]:
-        """Obtiene listado de pagos pendientes"""
+        """Obtiene listado de pagos pendientes - solo facturas por cobrar y contratos por facturar"""
         try:
-            # Obtener estados de pago pendientes de facturar y por cobrar
-            estados_pendientes = EstadoPago.query.filter(
-                EstadoPago.tipo_estado.in_([
-                    TipoEstadoPago.PENDIENTE_FACTURAR,
-                    TipoEstadoPago.FACTURADO
-                ])
+            # Obtener agregaciones por contrato para calcular pendientes dinámicamente
+            agregaciones = self.get_contratos_aggregates()
+            
+            cartera = []
+            
+            # Agregar contratos con monto pendiente por facturar
+            for agg in agregaciones:
+                if agg['pendiente_facturar'] > 0:
+                    cartera.append({
+                        'id': f"contrato_{agg['contrato_id']}_pendiente",
+                        'proyecto': agg['proyecto_nombre'],
+                        'cliente': agg['cliente_nombre'],
+                        'numero_oc': agg['numero_oc'],
+                        'tipo': 'POR_FACTURAR',
+                        'monto': float(agg['pendiente_facturar']),
+                        'fecha_programada': None,
+                        'dias_vencimiento': 0,
+                        'estado_vencimiento': 'pendiente'
+                    })
+            
+            # Obtener facturas emitidas pero no cobradas (FACTURADO)
+            estados_facturados = EstadoPago.query.filter(
+                EstadoPago.tipo_estado == TipoEstadoPago.FACTURADO
             ).join(Contrato).join(Proyecto).order_by(
                 EstadoPago.fecha_programada_pago
             ).all()
             
-            cartera = []
-            for estado in estados_pendientes:
+            # Agregar facturas por cobrar
+            for estado in estados_facturados:
                 dias_vencimiento = 0
                 if estado.fecha_programada_pago:
                     dias_vencimiento = (estado.fecha_programada_pago - date.today()).days
@@ -174,12 +191,15 @@ class FinanzasService:
                     'proyecto': estado.contrato.proyecto.nombre if estado.contrato.proyecto else 'Sin proyecto',
                     'cliente': estado.contrato.proyecto.cliente.nombre if estado.contrato.proyecto and estado.contrato.proyecto.cliente else 'Sin cliente',
                     'numero_oc': estado.contrato.numero_oc,
-                    'tipo': estado.tipo_estado.value,
+                    'tipo': 'POR_COBRAR',
                     'monto': float(estado.monto) if estado.monto else 0,
                     'fecha_programada': estado.fecha_programada_pago.isoformat() if estado.fecha_programada_pago else None,
                     'dias_vencimiento': dias_vencimiento,
                     'estado_vencimiento': 'vencido' if dias_vencimiento < 0 else 'por_vencer' if dias_vencimiento <= 7 else 'vigente'
                 })
+            
+            # Ordenar por fecha programada y días de vencimiento
+            cartera.sort(key=lambda x: (x['dias_vencimiento'] if x['fecha_programada'] else 999, x['monto']), reverse=True)
             
             return cartera
             
@@ -281,20 +301,17 @@ class FinanzasService:
         return provision + instalacion
     
     def _calcular_total_facturado(self, proyecto: Proyecto) -> Decimal:
-        """Calcula el total facturado de un proyecto"""
+        """Calcula el total facturado de un proyecto (solo estados FACTURADO y PAGADO)"""
         try:
-            total = Decimal(0)
-            for contrato in proyecto.contratos:
-                facturado = db.session.query(
-                    func.sum(EstadoPago.monto)
-                ).filter(
-                    EstadoPago.contrato_id == contrato.id,
-                    EstadoPago.tipo_estado.in_([
-                        TipoEstadoPago.FACTURADO,
-                        TipoEstadoPago.PAGADO
-                    ])
-                ).scalar() or Decimal(0)
-                total += facturado
+            total = db.session.query(
+                func.sum(EstadoPago.monto)
+            ).join(Contrato).filter(
+                Contrato.proyecto_id == proyecto.id,
+                EstadoPago.tipo_estado.in_([
+                    TipoEstadoPago.FACTURADO,
+                    TipoEstadoPago.PAGADO
+                ])
+            ).scalar() or Decimal(0)
             return total
         except:
             return Decimal(0)
@@ -327,3 +344,104 @@ class FinanzasService:
             return total
         except:
             return Decimal(0)
+    
+    def get_contratos_aggregates(self, proyecto_ids: Optional[List[int]] = None) -> List[Dict]:
+        """Obtiene agregaciones financieras por contrato con cálculos dinámicos"""
+        try:
+            # Base query para agregaciones
+            query = db.session.query(
+                Contrato.id.label('contrato_id'),
+                Contrato.numero_oc,
+                Contrato.monto_total,
+                Contrato.moneda_original,
+                Proyecto.nombre.label('proyecto_nombre'),
+                func.coalesce(func.sum(
+                    func.case([
+                        (EstadoPago.tipo_estado == TipoEstadoPago.FACTURADO, EstadoPago.monto),
+                        (EstadoPago.tipo_estado == TipoEstadoPago.PAGADO, EstadoPago.monto)
+                    ], else_=0)
+                ), 0).label('total_facturado'),
+                func.coalesce(func.sum(
+                    func.case([
+                        (EstadoPago.tipo_estado == TipoEstadoPago.PAGADO, EstadoPago.monto)
+                    ], else_=0)
+                ), 0).label('total_pagado')
+            ).select_from(Contrato).join(Proyecto).outerjoin(EstadoPago)
+            
+            # Filtrar por proyectos específicos si se proporciona
+            if proyecto_ids:
+                query = query.filter(Proyecto.id.in_(proyecto_ids))
+            
+            # Agrupar y ejecutar
+            query = query.group_by(
+                Contrato.id, Contrato.numero_oc, Contrato.monto_total, 
+                Contrato.moneda_original, Proyecto.nombre
+            )
+            
+            resultados = query.all()
+            
+            # Procesar resultados y calcular campos dinámicos
+            agregaciones = []
+            for resultado in resultados:
+                monto_total = float(resultado.monto_total or 0)
+                total_facturado = float(resultado.total_facturado or 0)
+                total_pagado = float(resultado.total_pagado or 0)
+                
+                # Cálculos dinámicos
+                pendiente_facturar = max(0, monto_total - total_facturado)
+                pendiente_cobro = max(0, total_facturado - total_pagado)
+                
+                agregaciones.append({
+                    'contrato_id': resultado.contrato_id,
+                    'numero_oc': resultado.numero_oc,
+                    'proyecto_nombre': resultado.proyecto_nombre,
+                    'cliente_nombre': 'Cliente',  # Esto se puede mejorar con un JOIN adicional si es necesario
+                    'monto_total': monto_total,
+                    'moneda_original': resultado.moneda_original,
+                    'total_facturado': total_facturado,
+                    'total_pagado': total_pagado,
+                    'pendiente_facturar': pendiente_facturar,
+                    'pendiente_cobro': pendiente_cobro
+                })
+            
+            return agregaciones
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo agregaciones de contratos: {str(e)}")
+            return []
+    
+    def get_totales_proyecto_dinamicos(self, proyecto_id: int) -> Dict:
+        """Calcula totales financieros de un proyecto usando cálculos dinámicos"""
+        try:
+            # Obtener agregaciones para este proyecto
+            agregaciones = self.get_contratos_aggregates([proyecto_id])
+            
+            # Sumar totales
+            total_contratos = sum(agg['monto_total'] for agg in agregaciones)
+            total_facturado = sum(agg['total_facturado'] for agg in agregaciones)
+            total_pagado = sum(agg['total_pagado'] for agg in agregaciones)
+            total_pendiente_facturar = sum(agg['pendiente_facturar'] for agg in agregaciones)
+            total_pendiente_cobro = sum(agg['pendiente_cobro'] for agg in agregaciones)
+            
+            # Calcular porcentajes
+            avance_facturacion = (total_facturado / total_contratos * 100) if total_contratos > 0 else 0
+            avance_cobro = (total_pagado / total_contratos * 100) if total_contratos > 0 else 0
+            
+            return {
+                'total_contratos': total_contratos,
+                'total_facturado': total_facturado,
+                'total_pagado': total_pagado,
+                'total_pendiente_facturar': total_pendiente_facturar,
+                'total_pendiente_cobro': total_pendiente_cobro,
+                'avance_facturacion': avance_facturacion,
+                'avance_cobro': avance_cobro,
+                'num_contratos': len(agregaciones)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculando totales dinámicos del proyecto {proyecto_id}: {str(e)}")
+            return {
+                'total_contratos': 0, 'total_facturado': 0, 'total_pagado': 0,
+                'total_pendiente_facturar': 0, 'total_pendiente_cobro': 0,
+                'avance_facturacion': 0, 'avance_cobro': 0, 'num_contratos': 0
+            }

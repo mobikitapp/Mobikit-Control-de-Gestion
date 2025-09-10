@@ -24,7 +24,8 @@
                 </div>
                 <div class="col-md-6">
                     <p><strong>Monto Total:</strong> $ {{ "{:,.0f}".format(contrato.monto_total or 0) }}</p>
-                    <p><strong>Saldo Disponible:</strong> $ {{ "{:,.0f}".format((contrato.monto_total or 0) - (contrato.estados_pago|sum(attribute='monto'))) }}</p>
+                    <p><strong>Pendiente por Facturar:</strong> <span class="text-warning">$ {{ "{:,.0f}".format(saldo_disponible_facturar) }}</span></p>
+                    <p><strong>Pendiente por Cobrar:</strong> <span class="text-info">$ {{ "{:,.0f}".format(saldo_disponible_cobrar) }}</span></p>
                 </div>
             </div>
         </div>
@@ -43,10 +44,13 @@
                             <label for="tipo_estado" class="form-label">Estado <span class="text-danger">*</span></label>
                             <select class="form-select" id="tipo_estado" name="tipo_estado" required>
                                 <option value="">Seleccione...</option>
-                                <option value="PENDIENTE_FACTURAR" selected>Pendiente por Facturar</option>
-                                <option value="FACTURADO">Facturado</option>
+                                <option value="FACTURADO" selected>Facturado</option>
                                 <option value="PAGADO">Pagado</option>
                             </select>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i> 
+                                Los montos pendientes de facturar se calculan automáticamente: <strong>Monto Contrato - Facturado - Pagado</strong>
+                            </small>
                         </div>
                         
                         <div class="mb-3">
@@ -81,7 +85,7 @@
                                 <input type="number" class="form-control" id="monto" name="monto" 
                                        step="0.01" min="0" {% if not contrato.moneda_original == 'UF' %}required{% endif %}>
                             </div>
-                            <small class="text-muted">Saldo disponible: $ {{ "{:,.0f}".format((contrato.monto_total or 0) - (contrato.estados_pago|sum(attribute='monto'))) }}</small>
+                            <small class="text-muted">Pendiente por facturar: $ {{ "{:,.0f}".format(saldo_disponible_facturar) }}</small>
                         </div>
                         
                         <!-- Monto en UF (solo para contratos UF) -->

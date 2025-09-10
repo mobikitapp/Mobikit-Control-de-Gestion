@@ -95,6 +95,8 @@
                     </thead>
                     <tbody>
                         {% for estado in contrato.estados_pago|sort(attribute='fecha_estado', reverse=True) %}
+                        <!-- Ocultar estados PENDIENTE_FACTURAR que ya no se usan -->
+                        {% if estado.tipo_estado.value != 'PENDIENTE_FACTURAR' %}
                         <tr>
                             <td>{{ estado.fecha_estado.strftime('%d/%m/%Y') }}</td>
                             <td>
@@ -136,6 +138,7 @@
                                 {% endif %}
                             </td>
                         </tr>
+                        {% endif %}
                         {% endfor %}
                     </tbody>
                     <tfoot>
