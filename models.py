@@ -309,6 +309,9 @@ class Proyecto(db.Model):
     tipo_vivienda = db.Column(db.Enum(TipoVivienda))  # Casa, Departamento
     numero_viviendas = db.Column(db.Integer)  # Número de viviendas
     ubicacion_obra = db.Column(db.String(500))  # Ubicación de la obra (se relaciona con direcciones de despacho)
+    
+    # Campo para integración con ERP Mobikit
+    centro_costo = db.Column(db.Integer)  # Centro de costo para enlace con ERP
 
     activo = db.Column(db.Boolean, default=True, nullable=False)
 
