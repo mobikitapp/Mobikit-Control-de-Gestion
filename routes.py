@@ -1,9 +1,10 @@
-from flask import session, render_template, redirect, url_for, jsonify
+from flask import session, render_template, redirect, url_for, jsonify, request
 from flask_login import current_user
 from app import app, db
 from replit_auth import require_login, make_replit_blueprint
 import os
 import logging
+from datetime import datetime
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -234,6 +235,84 @@ def api_areas_dashboard_data():
         }), 500
 
 # Note: Cache and data cleaning endpoints moved to blueprints/configuraciones.py
+
+# API endpoints for UF conversion
+@app.route('/api/uf/current')
+def api_uf_current():
+    """API endpoint para obtener el valor UF actual"""
+    try:
+        from services.uf_conversion_service import UfConversionService
+        uf_service = UfConversionService()
+        valor_uf = uf_service.get_current_uf_value()
+        
+        return jsonify({
+            'success': True,
+            'valor_uf': float(valor_uf),
+            'fecha': datetime.now().strftime('%Y-%m-%d')
+        })
+    except Exception as e:
+        logger.error(f"Error obteniendo valor UF actual: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Error al obtener valor UF'
+        }), 500
+
+@app.route('/api/uf/convert')
+def api_uf_convert():
+    """API endpoint para convertir entre UF y CLP"""
+    try:
+        from services.uf_conversion_service import UfConversionService
+        
+        # Obtener parámetros
+        monto = request.args.get('monto', type=float)
+        from_currency = request.args.get('from', 'UF').upper()  # UF o CLP
+        
+        if monto is None:
+            return jsonify({
+                'success': False,
+                'error': 'Monto es requerido'
+            }), 400
+            
+        if from_currency not in ['UF', 'CLP']:
+            return jsonify({
+                'success': False,
+                'error': 'Moneda debe ser UF o CLP'
+            }), 400
+        
+        uf_service = UfConversionService()
+        valor_uf = uf_service.get_current_uf_value()
+        
+        if from_currency == 'UF':
+            # Convertir UF a CLP
+            clp_amount = uf_service.convert_uf_to_clp(monto)
+            return jsonify({
+                'success': True,
+                'original_amount': monto,
+                'original_currency': 'UF',
+                'converted_amount': float(clp_amount),
+                'converted_currency': 'CLP',
+                'uf_value': float(valor_uf),
+                'fecha': datetime.now().strftime('%Y-%m-%d')
+            })
+        else:
+            # Convertir CLP a UF
+            uf_amount = uf_service.convert_clp_to_uf(monto)
+            return jsonify({
+                'success': True,
+                'original_amount': monto,
+                'original_currency': 'CLP',
+                'converted_amount': float(uf_amount),
+                'converted_currency': 'UF',
+                'uf_value': float(valor_uf),
+                'fecha': datetime.now().strftime('%Y-%m-%d')
+            })
+            
+    except Exception as e:
+        logger.error(f"Error en conversión UF: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Error en conversión'
+        }), 500
 
 
 @app.errorhandler(404)

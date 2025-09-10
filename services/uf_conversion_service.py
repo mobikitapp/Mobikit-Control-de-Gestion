@@ -5,7 +5,7 @@ Utiliza la API gratuita de mindicador.cl
 
 import requests
 from datetime import datetime, date, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 import logging
 from decimal import Decimal
 import json
@@ -139,7 +139,7 @@ class UfConversionService:
         return None
     
     @classmethod
-    def convert_uf_to_clp(cls, uf_amount: Decimal, conversion_date: Optional[date] = None) -> Optional[Dict[str, Any]]:
+    def convert_uf_to_clp(cls, uf_amount: Union[float, Decimal], conversion_date: Optional[date] = None) -> Optional[Decimal]:
         """
         Convierte un monto en UF a Pesos Chilenos
         
@@ -148,11 +148,14 @@ class UfConversionService:
             conversion_date: Fecha para la conversión (usa hoy si no se especifica)
             
         Returns:
-            Dict con información de conversión o None si hay error
+            Decimal: Monto convertido a CLP, None si hay error
         """
-        if not uf_amount or uf_amount <= 0:
+        if uf_amount is None or uf_amount < 0:
             logger.warning("Monto UF inválido para conversión")
             return None
+        
+        # Convert to Decimal for consistent calculation
+        uf_amount = Decimal(str(uf_amount))
         
         # Usar fecha actual si no se especifica
         if not conversion_date:
@@ -171,19 +174,11 @@ class UfConversionService:
         # Realizar conversión
         clp_amount = uf_amount * uf_value
         
-        result = {
-            'uf_amount': uf_amount,
-            'uf_value': uf_value,
-            'clp_amount': clp_amount,
-            'conversion_date': conversion_date,
-            'conversion_timestamp': datetime.now()
-        }
-        
         logger.info(f"Conversión realizada: {uf_amount} UF = {clp_amount} CLP (UF: {uf_value})")
-        return result
+        return clp_amount
     
     @classmethod
-    def convert_clp_to_uf(cls, clp_amount: Decimal, conversion_date: Optional[date] = None) -> Optional[Dict[str, Any]]:
+    def convert_clp_to_uf(cls, clp_amount: Union[float, Decimal], conversion_date: Optional[date] = None) -> Optional[Decimal]:
         """
         Convierte un monto en Pesos Chilenos a UF
         
@@ -192,11 +187,14 @@ class UfConversionService:
             conversion_date: Fecha para la conversión (usa hoy si no se especifica)
             
         Returns:
-            Dict con información de conversión o None si hay error
+            Decimal: Monto convertido a UF, None si hay error
         """
-        if not clp_amount or clp_amount <= 0:
+        if clp_amount is None or clp_amount < 0:
             logger.warning("Monto CLP inválido para conversión")
             return None
+        
+        # Convert to Decimal for consistent calculation
+        clp_amount = Decimal(str(clp_amount))
         
         # Usar fecha actual si no se especifica
         if not conversion_date:
@@ -215,16 +213,8 @@ class UfConversionService:
         # Realizar conversión
         uf_amount = clp_amount / uf_value
         
-        result = {
-            'clp_amount': clp_amount,
-            'uf_value': uf_value,
-            'uf_amount': uf_amount,
-            'conversion_date': conversion_date,
-            'conversion_timestamp': datetime.now()
-        }
-        
         logger.info(f"Conversión realizada: {clp_amount} CLP = {uf_amount} UF (UF: {uf_value})")
-        return result
+        return uf_amount
     
     @classmethod
     def get_uf_info(cls) -> Dict[str, Any]:

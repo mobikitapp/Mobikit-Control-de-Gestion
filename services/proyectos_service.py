@@ -3,10 +3,12 @@ from app import db
 from repositories.proyectos_repo import ProyectosRepository
 from repositories.clientes_repo import ClientesRepository
 from services.audit_service import AuditService, serialize_model
+from services.uf_conversion_service import UfConversionService
 from schemas.proyectos import ProyectoSearchFilters
 from models import Proyecto, OrdenFabricacion, Contrato, EstadoContrato # Imported models used in the change
 import logging
-from datetime import datetime
+from datetime import datetime, date
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,53 @@ class ProyectosService:
         from repositories.contratos_repo import ContratosRepository
         self.contratos_repo = ContratosRepository()
         from models import EstadoContrato  # Import here to avoid circular imports
+        self.uf_service = UfConversionService()
 
+    def _process_uf_conversion(self, proyecto_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Process UF conversion for proyecto budget data if applicable
+        
+        Args:
+            proyecto_data: Proyecto data dictionary
+            
+        Returns:
+            Processed proyecto data with UF conversion
+        """
+        # Check if any UF amounts are provided
+        monto_provision_uf = proyecto_data.get('monto_provision_presupuestado_uf')
+        monto_instalacion_uf = proyecto_data.get('monto_instalacion_presupuestado_uf')
+        
+        # If any UF field is provided, process conversions
+        if monto_provision_uf or monto_instalacion_uf:
+            try:
+                valor_uf_actual = self.uf_service.get_current_uf_value()
+                conversiones_realizadas = []
+                
+                # Convert provision budget from UF to CLP
+                if monto_provision_uf:
+                    monto_provision_uf_decimal = Decimal(str(monto_provision_uf))
+                    monto_provision_clp = self.uf_service.convert_uf_to_clp(monto_provision_uf_decimal)
+                    proyecto_data['monto_provision_presupuestado'] = monto_provision_clp
+                    conversiones_realizadas.append(f"Provisión: {monto_provision_uf} UF = ${monto_provision_clp:,.0f} CLP")
+                
+                # Convert installation budget from UF to CLP  
+                if monto_instalacion_uf:
+                    monto_instalacion_uf_decimal = Decimal(str(monto_instalacion_uf))
+                    monto_instalacion_clp = self.uf_service.convert_uf_to_clp(monto_instalacion_uf_decimal)
+                    proyecto_data['monto_instalacion_presupuestado'] = monto_instalacion_clp
+                    conversiones_realizadas.append(f"Instalación: {monto_instalacion_uf} UF = ${monto_instalacion_clp:,.0f} CLP")
+                
+                # Store UF conversion metadata
+                proyecto_data['valor_uf_presupuesto'] = valor_uf_actual
+                proyecto_data['fecha_conversion_uf_presupuesto'] = date.today()
+                
+                logger.info(f"Conversiones UF presupuesto: {'; '.join(conversiones_realizadas)} (UF: ${valor_uf_actual:,.2f})")
+                
+            except Exception as e:
+                logger.error(f"Error en conversión UF presupuesto: {str(e)}")
+                raise ValueError(f"Error al convertir presupuestos UF: {str(e)}")
+        
+        return proyecto_data
 
     def create_proyecto(self, proyecto_data: Dict[str, Any], created_by: str) -> Proyecto:
         """
@@ -40,6 +88,9 @@ class ProyectosService:
                 raise ValueError(f"Cliente {proyecto_data['cliente_id']} no encontrado")
             if not cliente.activo:
                 raise ValueError(f"Cliente {cliente.nombre} está inactivo")
+
+            # Process UF conversion if applicable
+            proyecto_data = self._process_uf_conversion(proyecto_data)
 
             # Create proyecto
             proyecto = self.repo.create(proyecto_data, created_by)

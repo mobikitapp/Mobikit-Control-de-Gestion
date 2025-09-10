@@ -120,22 +120,99 @@
                             <!-- Información Comercial -->
                             <div class="col-12">
                                 <h6 class="border-bottom pb-2 mb-3">Información Comercial</h6>
-                            </div>
-
-                            <!-- Monto Provisión -->
-                            <div class="col-md-6">
-                                <label for="monto_provision_presupuestado" class="form-label">Monto Neto Venta Provisión</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="monto_provision_presupuestado" 
-                                           name="monto_provision_presupuestado" min="0" step="1000"
-                                           value="{{ proyecto.monto_provision_presupuestado if proyecto else '' }}" 
-                                           placeholder="0">
+                                
+                                <!-- Selector de moneda de presupuesto -->
+                                <div class="mb-3">
+                                    <label class="form-label">Moneda del Presupuesto</label>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="tipo_moneda_presupuesto" id="presupuesto_clp" value="CLP" 
+                                               {% if not proyecto or not proyecto.moneda_original_presupuesto or proyecto.moneda_original_presupuesto == 'CLP' %}checked{% endif %}>
+                                        <label class="form-check-label" for="presupuesto_clp">CLP</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="tipo_moneda_presupuesto" id="presupuesto_uf" value="UF"
+                                               {% if proyecto and proyecto.moneda_original_presupuesto == 'UF' %}checked{% endif %}>
+                                        <label class="form-check-label" for="presupuesto_uf">UF</label>
+                                    </div>
                                 </div>
-                                <small class="text-muted">Precio neto de venta al cliente por provisión de materiales</small>
                             </div>
 
-                            <!-- Margen Provisión -->
+                            <!-- Presupuesto en CLP -->
+                            <div id="presupuesto_clp_section" class="row g-3" style="{% if proyecto and proyecto.moneda_original_presupuesto == 'UF' %}display: none;{% endif %}">
+                                <!-- Monto Provisión CLP -->
+                                <div class="col-md-6">
+                                    <label for="monto_provision_presupuestado" class="form-label">Monto Neto Venta Provisión</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="monto_provision_presupuestado" 
+                                               name="monto_provision_presupuestado" min="0" step="1000"
+                                               value="{{ proyecto.monto_provision_presupuestado if proyecto and proyecto.moneda_original_presupuesto != 'UF' else '' }}" 
+                                               placeholder="0">
+                                        <span class="input-group-text">CLP</span>
+                                    </div>
+                                    <small class="text-muted">Precio neto de venta al cliente por provisión de materiales</small>
+                                </div>
+
+                                <!-- Monto Instalación CLP -->
+                                <div class="col-md-6">
+                                    <label for="monto_instalacion_presupuestado" class="form-label">Monto Neto Venta Instalación</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="monto_instalacion_presupuestado" 
+                                               name="monto_instalacion_presupuestado" min="0" step="1000"
+                                               value="{{ proyecto.monto_instalacion_presupuestado if proyecto and proyecto.moneda_original_presupuesto != 'UF' else '' }}" 
+                                               placeholder="0">
+                                        <span class="input-group-text">CLP</span>
+                                    </div>
+                                    <small class="text-muted">Precio neto de venta al cliente por instalación</small>
+                                </div>
+                            </div>
+
+                            <!-- Presupuesto en UF -->
+                            <div id="presupuesto_uf_section" class="row g-3" style="{% if not proyecto or proyecto.moneda_original_presupuesto != 'UF' %}display: none;{% endif %}">
+                                <!-- Monto Provisión UF -->
+                                <div class="col-md-6">
+                                    <label for="monto_provision_presupuestado_uf" class="form-label">Monto Neto Venta Provisión</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">UF</span>
+                                        <input type="number" class="form-control" id="monto_provision_presupuestado_uf" 
+                                               name="monto_provision_presupuestado_uf" min="0" step="0.01"
+                                               value="{{ proyecto.monto_provision_presupuestado_uf if proyecto and proyecto.moneda_original_presupuesto == 'UF' else '' }}" 
+                                               placeholder="0.00">
+                                    </div>
+                                    <small class="text-muted">Precio neto de venta al cliente por provisión de materiales</small>
+                                </div>
+
+                                <!-- Monto Instalación UF -->
+                                <div class="col-md-6">
+                                    <label for="monto_instalacion_presupuestado_uf" class="form-label">Monto Neto Venta Instalación</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">UF</span>
+                                        <input type="number" class="form-control" id="monto_instalacion_presupuestado_uf" 
+                                               name="monto_instalacion_presupuestado_uf" min="0" step="0.01"
+                                               value="{{ proyecto.monto_instalacion_presupuestado_uf if proyecto and proyecto.moneda_original_presupuesto == 'UF' else '' }}" 
+                                               placeholder="0.00">
+                                    </div>
+                                    <small class="text-muted">Precio neto de venta al cliente por instalación</small>
+                                </div>
+                            </div>
+
+                            <!-- Información de conversión UF para proyectos -->
+                            <div id="conversion_info_proyecto" class="col-12 mt-2" style="display: none;">
+                                <div class="card border-info">
+                                    <div class="card-body py-2 px-3">
+                                        <small class="text-muted">
+                                            <div><strong>Conversión a CLP:</strong></div>
+                                            <div id="conversion_provision_text"></div>
+                                            <div id="conversion_instalacion_text"></div>
+                                            <div id="conversion_total_text"></div>
+                                            <div class="mt-1">Valor UF: $<span id="valor_uf_display_proyecto">-</span> (actualizado hoy)</div>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Márgenes (comunes para CLP y UF) -->
                             <div class="col-md-6">
                                 <label for="margen_venta_provision" class="form-label">Margen Ganancia Provisión (%)</label>
                                 <input type="number" class="form-control" id="margen_venta_provision" 
@@ -145,20 +222,6 @@
                                 <small class="text-muted">Porcentaje de ganancia sobre el monto neto</small>
                             </div>
 
-                            <!-- Monto Instalación -->
-                            <div class="col-md-6">
-                                <label for="monto_instalacion_presupuestado" class="form-label">Monto Neto Venta Instalación</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="monto_instalacion_presupuestado" 
-                                           name="monto_instalacion_presupuestado" min="0" step="1000"
-                                           value="{{ proyecto.monto_instalacion_presupuestado if proyecto else '' }}" 
-                                           placeholder="0">
-                                </div>
-                                <small class="text-muted">Precio neto de venta al cliente por instalación</small>
-                            </div>
-
-                            <!-- Margen Instalación -->
                             <div class="col-md-6">
                                 <label for="margen_venta_instalacion" class="form-label">Margen Ganancia Instalación (%)</label>
                                 <input type="number" class="form-control" id="margen_venta_instalacion" 
@@ -167,6 +230,11 @@
                                        placeholder="15.0">
                                 <small class="text-muted">Porcentaje de ganancia sobre el monto neto</small>
                             </div>
+                            
+                            <!-- Campos ocultos para datos UF -->
+                            <input type="hidden" id="moneda_original_presupuesto" name="moneda_original_presupuesto" value="{{ proyecto.moneda_original_presupuesto if proyecto else 'CLP' }}">
+                            <input type="hidden" id="valor_uf_presupuesto" name="valor_uf_presupuesto" value="{{ proyecto.valor_uf_presupuesto if proyecto else '' }}">
+                            <input type="hidden" id="fecha_conversion_presupuesto_uf" name="fecha_conversion_presupuesto_uf" value="{{ proyecto.fecha_conversion_presupuesto_uf.strftime('%Y-%m-%d') if proyecto and proyecto.fecha_conversion_presupuesto_uf else '' }}">
 
                             <!-- Notas Comerciales -->
                             <div class="col-12">
@@ -389,6 +457,142 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         alertContainer.appendChild(alertDiv);
+    }
+
+    // UF conversion functionality for projects
+    const presupuestoClpRadio = document.getElementById('presupuesto_clp');
+    const presupuestoUfRadio = document.getElementById('presupuesto_uf');
+    const presupuestoClpSection = document.getElementById('presupuesto_clp_section');
+    const presupuestoUfSection = document.getElementById('presupuesto_uf_section');
+    const conversionInfoProyecto = document.getElementById('conversion_info_proyecto');
+    
+    // Campos CLP
+    const montoProvisionClp = document.getElementById('monto_provision_presupuestado');
+    const montoInstalacionClp = document.getElementById('monto_instalacion_presupuestado');
+    
+    // Campos UF
+    const montoProvisionUf = document.getElementById('monto_provision_presupuestado_uf');
+    const montoInstalacionUf = document.getElementById('monto_instalacion_presupuestado_uf');
+    
+    // Elementos de conversión
+    const conversionProvisionText = document.getElementById('conversion_provision_text');
+    const conversionInstalacionText = document.getElementById('conversion_instalacion_text');
+    const conversionTotalText = document.getElementById('conversion_total_text');
+    const valorUfDisplayProyecto = document.getElementById('valor_uf_display_proyecto');
+    
+    // Campos ocultos
+    const monedaOriginalPresupuesto = document.getElementById('moneda_original_presupuesto');
+    const valorUfPresupuesto = document.getElementById('valor_uf_presupuesto');
+    const fechaConversionPresupuesto = document.getElementById('fecha_conversion_presupuesto_uf');
+    
+    let currentUfValueProyecto = 0;
+    
+    // Obtener valor UF actual para proyectos
+    async function loadCurrentUfValueProyecto() {
+        try {
+            const response = await fetch('/api/uf/current');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    currentUfValueProyecto = data.valor_uf;
+                    valorUfDisplayProyecto.textContent = new Intl.NumberFormat('es-CL').format(currentUfValueProyecto);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading UF value for projects:', error);
+        }
+    }
+    
+    // Cambiar entre secciones CLP y UF
+    function togglePresupuestoSections() {
+        if (presupuestoClpRadio.checked) {
+            presupuestoClpSection.style.display = 'flex';
+            presupuestoUfSection.style.display = 'none';
+            conversionInfoProyecto.style.display = 'none';
+            monedaOriginalPresupuesto.value = 'CLP';
+            
+            // Limpiar campos UF
+            montoProvisionUf.value = '';
+            montoInstalacionUf.value = '';
+            valorUfPresupuesto.value = '';
+            fechaConversionPresupuesto.value = '';
+        } else {
+            presupuestoClpSection.style.display = 'none';
+            presupuestoUfSection.style.display = 'flex';
+            monedaOriginalPresupuesto.value = 'UF';
+            
+            // Limpiar campos CLP
+            montoProvisionClp.value = '';
+            montoInstalacionClp.value = '';
+            
+            updatePresupuestoConversionDisplay();
+        }
+    }
+    
+    // Actualizar visualización de conversión para presupuestos
+    function updatePresupuestoConversionDisplay() {
+        const provisionUf = parseFloat(montoProvisionUf.value) || 0;
+        const instalacionUf = parseFloat(montoInstalacionUf.value) || 0;
+        
+        if ((provisionUf > 0 || instalacionUf > 0) && currentUfValueProyecto > 0) {
+            let hasConversion = false;
+            
+            // Conversión provisión
+            if (provisionUf > 0) {
+                const provisionClp = provisionUf * currentUfValueProyecto;
+                conversionProvisionText.textContent = `Provisión: UF ${new Intl.NumberFormat('es-CL', {minimumFractionDigits: 2}).format(provisionUf)} = $${new Intl.NumberFormat('es-CL').format(provisionClp)} CLP`;
+                hasConversion = true;
+            } else {
+                conversionProvisionText.textContent = '';
+            }
+            
+            // Conversión instalación
+            if (instalacionUf > 0) {
+                const instalacionClp = instalacionUf * currentUfValueProyecto;
+                conversionInstalacionText.textContent = `Instalación: UF ${new Intl.NumberFormat('es-CL', {minimumFractionDigits: 2}).format(instalacionUf)} = $${new Intl.NumberFormat('es-CL').format(instalacionClp)} CLP`;
+                hasConversion = true;
+            } else {
+                conversionInstalacionText.textContent = '';
+            }
+            
+            // Total
+            if (provisionUf > 0 || instalacionUf > 0) {
+                const totalUf = provisionUf + instalacionUf;
+                const totalClp = totalUf * currentUfValueProyecto;
+                conversionTotalText.innerHTML = `<strong>Total: UF ${new Intl.NumberFormat('es-CL', {minimumFractionDigits: 2}).format(totalUf)} = $${new Intl.NumberFormat('es-CL').format(totalClp)} CLP</strong>`;
+            } else {
+                conversionTotalText.textContent = '';
+            }
+            
+            if (hasConversion) {
+                conversionInfoProyecto.style.display = 'block';
+                
+                // Actualizar campos ocultos
+                valorUfPresupuesto.value = currentUfValueProyecto;
+                fechaConversionPresupuesto.value = new Date().toISOString().split('T')[0];
+            } else {
+                conversionInfoProyecto.style.display = 'none';
+            }
+        } else {
+            conversionInfoProyecto.style.display = 'none';
+            valorUfPresupuesto.value = '';
+            fechaConversionPresupuesto.value = '';
+        }
+    }
+    
+    // Event listeners para UF proyectos
+    if (presupuestoClpRadio && presupuestoUfRadio) {
+        presupuestoClpRadio.addEventListener('change', togglePresupuestoSections);
+        presupuestoUfRadio.addEventListener('change', togglePresupuestoSections);
+        
+        if (montoProvisionUf && montoInstalacionUf) {
+            montoProvisionUf.addEventListener('input', updatePresupuestoConversionDisplay);
+            montoInstalacionUf.addEventListener('input', updatePresupuestoConversionDisplay);
+        }
+        
+        // Cargar valor UF y configurar estado inicial
+        loadCurrentUfValueProyecto();
+        togglePresupuestoSections();
     }
 
     // Limpiar errores cuando el usuario comience a escribir

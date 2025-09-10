@@ -35,7 +35,9 @@ def process_form_data(form_data, is_update=False):
             processed[key] = int(value) if value else None
 
         elif key in ['monto_provision_presupuestado', 'margen_venta_provision',
-                     'monto_instalacion_presupuestado', 'margen_venta_instalacion']:
+                     'monto_instalacion_presupuestado', 'margen_venta_instalacion',
+                     'monto_provision_presupuestado_uf', 'monto_instalacion_presupuestado_uf',
+                     'valor_uf_presupuesto']:
             processed[key] = Decimal(str(value)) if value else None
         elif key == 'numero_viviendas':
             processed[key] = int(value) if value else None

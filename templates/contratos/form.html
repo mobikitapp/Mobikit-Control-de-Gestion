@@ -103,18 +103,60 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- Monto Total -->
+                            <!-- Monto Total con soporte UF -->
                             <div class="col-md-6">
                                 <label for="monto_total" class="form-label">Monto Total</label>
-                                <div class="input-group">
-                                    <select class="form-select" id="moneda" name="moneda" style="max-width: 100px;">
-                                        <option value="CLP" {% if not contrato or contrato.moneda == 'CLP' %}selected{% endif %}>CLP</option>
-                                        <option value="USD" {% if contrato and contrato.moneda == 'USD' %}selected{% endif %}>USD</option>
-                                        <option value="EUR" {% if contrato and contrato.moneda == 'EUR' %}selected{% endif %}>EUR</option>
-                                    </select>
-                                    <input type="number" class="form-control" id="monto_total" name="monto_total" 
-                                           value="{{ contrato.monto_total if contrato else '' }}" min="0" step="0.01">
+                                
+                                <!-- Selector de moneda de entrada -->
+                                <div class="mb-2">
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="tipo_moneda" id="tipo_clp" value="CLP" 
+                                               {% if not contrato or not contrato.moneda_original or contrato.moneda_original == 'CLP' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_clp">CLP</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="tipo_moneda" id="tipo_uf" value="UF"
+                                               {% if contrato and contrato.moneda_original == 'UF' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_uf">UF</label>
+                                    </div>
                                 </div>
+                                
+                                <!-- Campo de entrada CLP -->
+                                <div id="input_clp" class="input-group mb-2" style="{% if contrato and contrato.moneda_original == 'UF' %}display: none;{% endif %}">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="monto_total" name="monto_total" 
+                                           value="{{ contrato.monto_total if contrato and contrato.moneda_original != 'UF' else '' }}" 
+                                           min="0" step="1000" placeholder="0">
+                                    <span class="input-group-text">CLP</span>
+                                </div>
+                                
+                                <!-- Campo de entrada UF -->
+                                <div id="input_uf" class="input-group mb-2" style="{% if not contrato or contrato.moneda_original != 'UF' %}display: none;{% endif %}">
+                                    <span class="input-group-text">UF</span>
+                                    <input type="number" class="form-control" id="monto_total_uf" name="monto_total_uf" 
+                                           value="{{ contrato.monto_total_uf if contrato and contrato.moneda_original == 'UF' else '' }}" 
+                                           min="0" step="0.01" placeholder="0.00">
+                                </div>
+                                
+                                <!-- Información de conversión en tiempo real -->
+                                <div id="conversion_info" class="mt-2" style="display: none;">
+                                    <div class="card border-info">
+                                        <div class="card-body py-2 px-3">
+                                            <small class="text-muted">
+                                                <div id="conversion_text"></div>
+                                                <div>Valor UF: $<span id="valor_uf_display">-</span> (actualizado hoy)</div>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Campos ocultos para enviar datos UF -->
+                                <input type="hidden" id="moneda_original" name="moneda_original" value="{{ contrato.moneda_original if contrato else 'CLP' }}">
+                                <input type="hidden" id="valor_uf_conversion" name="valor_uf_conversion" value="{{ contrato.valor_uf_conversion if contrato else '' }}">
+                                <input type="hidden" id="fecha_conversion_uf" name="fecha_conversion_uf" value="{{ contrato.fecha_conversion_uf.strftime('%Y-%m-%d') if contrato and contrato.fecha_conversion_uf else '' }}">
+                                
+                                <!-- Mantener moneda legacy para compatibilidad -->
+                                <input type="hidden" name="moneda" value="CLP">
                             </div>
                             
                             <!-- Fecha Emisión -->
@@ -375,6 +417,93 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // UF conversion functionality
+    const tipoClpRadio = document.getElementById('tipo_clp');
+    const tipoUfRadio = document.getElementById('tipo_uf');
+    const inputClpDiv = document.getElementById('input_clp');
+    const inputUfDiv = document.getElementById('input_uf');
+    const montoTotalInput = document.getElementById('monto_total');
+    const montoTotalUfInput = document.getElementById('monto_total_uf');
+    const conversionInfoDiv = document.getElementById('conversion_info');
+    const conversionText = document.getElementById('conversion_text');
+    const valorUfDisplay = document.getElementById('valor_uf_display');
+    const monedaOriginalInput = document.getElementById('moneda_original');
+    const valorUfConversionInput = document.getElementById('valor_uf_conversion');
+    const fechaConversionInput = document.getElementById('fecha_conversion_uf');
+    
+    let currentUfValue = 0;
+    
+    // Obtener valor UF actual
+    async function loadCurrentUfValue() {
+        try {
+            const response = await fetch('/api/uf/current');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    currentUfValue = data.valor_uf;
+                    valorUfDisplay.textContent = new Intl.NumberFormat('es-CL').format(currentUfValue);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading UF value:', error);
+        }
+    }
+    
+    // Cambiar entre CLP y UF
+    function toggleCurrencyInputs() {
+        if (tipoClpRadio.checked) {
+            inputClpDiv.style.display = 'flex';
+            inputUfDiv.style.display = 'none';
+            conversionInfoDiv.style.display = 'none';
+            monedaOriginalInput.value = 'CLP';
+            
+            // Limpiar campos UF
+            montoTotalUfInput.value = '';
+            valorUfConversionInput.value = '';
+            fechaConversionInput.value = '';
+        } else {
+            inputClpDiv.style.display = 'none';
+            inputUfDiv.style.display = 'flex';
+            monedaOriginalInput.value = 'UF';
+            
+            // Limpiar campo CLP
+            montoTotalInput.value = '';
+            
+            if (montoTotalUfInput.value) {
+                updateConversionDisplay();
+            }
+        }
+    }
+    
+    // Actualizar visualización de conversión
+    function updateConversionDisplay() {
+        const ufAmount = parseFloat(montoTotalUfInput.value);
+        if (ufAmount && currentUfValue > 0) {
+            const clpAmount = ufAmount * currentUfValue;
+            conversionText.textContent = `UF ${new Intl.NumberFormat('es-CL', {minimumFractionDigits: 2}).format(ufAmount)} = $${new Intl.NumberFormat('es-CL').format(clpAmount)} CLP`;
+            conversionInfoDiv.style.display = 'block';
+            
+            // Actualizar campos ocultos
+            valorUfConversionInput.value = currentUfValue;
+            fechaConversionInput.value = new Date().toISOString().split('T')[0];
+        } else {
+            conversionInfoDiv.style.display = 'none';
+            valorUfConversionInput.value = '';
+            fechaConversionInput.value = '';
+        }
+    }
+    
+    // Event listeners para UF
+    tipoClpRadio.addEventListener('change', toggleCurrencyInputs);
+    tipoUfRadio.addEventListener('change', toggleCurrencyInputs);
+    montoTotalUfInput.addEventListener('input', updateConversionDisplay);
+    
+    // Cargar valor UF al inicializar
+    loadCurrentUfValue();
+    
+    // Configurar estado inicial
+    toggleCurrencyInputs();
+    
     // Form submission validation
     form.addEventListener('submit', function(e) {
         let isValid = true;
@@ -391,6 +520,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 isValid = false;
             }
         });
+        
+        // Validate that either CLP or UF amount is provided
+        const hasClpAmount = montoTotalInput.value && parseFloat(montoTotalInput.value) > 0;
+        const hasUfAmount = montoTotalUfInput.value && parseFloat(montoTotalUfInput.value) > 0;
+        
+        if (!hasClpAmount && !hasUfAmount) {
+            // Mostrar error en el campo activo
+            if (tipoClpRadio.checked) {
+                montoTotalInput.classList.add('is-invalid');
+            } else {
+                montoTotalUfInput.classList.add('is-invalid');
+            }
+            isValid = false;
+        }
         
         // Validate dates
         if (!validateDates()) {
