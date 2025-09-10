@@ -1263,6 +1263,14 @@ class EstadoPago(db.Model):
     descripcion = db.Column(db.Text)
     fecha_programada_pago = db.Column(db.Date)  # Para pagos programados
     
+    # Campos para tracking de inflación UF
+    monto_uf = db.Column(db.Numeric(15, 4))  # Monto en UF si aplica
+    valor_uf_fecha_estado = db.Column(db.Numeric(15, 2))  # Valor UF en fecha del estado
+    monto_clp_equivalente = db.Column(db.Numeric(15, 2))  # Monto CLP equivalente calculado
+    ganancia_perdida_inflacion = db.Column(db.Numeric(15, 2))  # Ganancia/pérdida por inflación
+    moneda_original = db.Column(db.String(3), default='CLP')  # 'CLP' o 'UF'
+    fecha_conversion_uf = db.Column(db.Date)  # Fecha de conversión UF utilizada
+    
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
@@ -1276,10 +1284,70 @@ class EstadoPago(db.Model):
         Index('idx_estado_pago_contrato', 'contrato_id'),
         Index('idx_estado_pago_tipo', 'tipo_estado'),
         Index('idx_estado_pago_fecha', 'fecha_estado'),
+        Index('idx_estado_pago_moneda', 'moneda_original'),
+        Index('idx_estado_pago_inflacion', 'ganancia_perdida_inflacion'),
     )
     
     def __repr__(self):
         return f'<EstadoPago {self.contrato.numero_oc}-{self.tipo_estado.value}>'
+    
+    @property
+    def efectos_inflacion(self):
+        """Calcula efectos de inflación para estados de pago UF"""
+        if self.moneda_original != 'UF' or not self.monto_uf:
+            return None
+            
+        from services.uf_conversion_service import UfConversionService
+        from decimal import Decimal
+        import datetime
+        
+        # Si es facturación en UF
+        if self.tipo_estado == TipoEstadoPago.FACTURADO:
+            conversion_actual = UfConversionService.convert_uf_to_clp(
+                Decimal(str(self.monto_uf))
+            )
+            if conversion_actual and self.valor_uf_fecha_estado:
+                monto_clp_original = Decimal(str(self.monto_uf)) * Decimal(str(self.valor_uf_fecha_estado))
+                monto_clp_actual = conversion_actual['clp_amount']
+                diferencia = monto_clp_actual - monto_clp_original
+                
+                return {
+                    'monto_uf': self.monto_uf,
+                    'valor_uf_facturacion': self.valor_uf_fecha_estado,
+                    'valor_uf_actual': conversion_actual['valor_uf'],
+                    'monto_clp_facturacion': monto_clp_original,
+                    'monto_clp_actual': monto_clp_actual,
+                    'ganancia_perdida': diferencia,
+                    'porcentaje_variacion': (diferencia / monto_clp_original * 100) if monto_clp_original > 0 else 0
+                }
+        
+        # Si es pago en CLP de factura UF
+        elif self.tipo_estado == TipoEstadoPago.PAGADO:
+            # Buscar el estado FACTURADO correspondiente para comparar
+            estado_facturado = None
+            for estado in self.contrato.estados_pago:
+                if (estado.tipo_estado == TipoEstadoPago.FACTURADO and 
+                    estado.numero_documento and estado.numero_documento == self.numero_documento):
+                    estado_facturado = estado
+                    break
+            
+            if estado_facturado and estado_facturado.monto_uf:
+                # Calcular la ganancia/pérdida respecto al monto facturado
+                monto_facturado_uf_clp = (Decimal(str(estado_facturado.monto_uf)) * 
+                                        Decimal(str(self.valor_uf_fecha_estado)))
+                diferencia = Decimal(str(self.monto)) - monto_facturado_uf_clp
+                
+                return {
+                    'monto_facturado_uf': estado_facturado.monto_uf,
+                    'valor_uf_facturacion': estado_facturado.valor_uf_fecha_estado,
+                    'valor_uf_pago': self.valor_uf_fecha_estado,
+                    'monto_clp_facturado': monto_facturado_uf_clp,
+                    'monto_clp_pagado': self.monto,
+                    'ganancia_perdida': diferencia,
+                    'porcentaje_variacion': (diferencia / monto_facturado_uf_clp * 100) if monto_facturado_uf_clp > 0 else 0
+                }
+        
+        return None
 
 
 # =============================================================================
