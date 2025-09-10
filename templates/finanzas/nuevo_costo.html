@@ -78,8 +78,7 @@
                             <!-- Fecha de Registro -->
                             <div class="col-md-4 mb-3">
                                 <label for="fecha_registro" class="form-label">Fecha de Registro <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" id="fecha_registro" name="fecha_registro" 
-                                       value="{{ date.today() }}" max="{{ date.today() }}" required>
+                                <input type="date" class="form-control" id="fecha_registro" name="fecha_registro" required>
                             </div>
                             
                             <!-- Código ERP -->
@@ -127,6 +126,12 @@
 // Auto-focus en categoría al cargar
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('categoria').focus();
+    
+    // Establecer fecha actual por defecto
+    const fechaInput = document.getElementById('fecha_registro');
+    const today = new Date().toISOString().split('T')[0];
+    fechaInput.value = today;
+    fechaInput.max = today;
     
     // Formatear monto con separadores de miles mientras se escribe
     const montoInput = document.getElementById('monto');
