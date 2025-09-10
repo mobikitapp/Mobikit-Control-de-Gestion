@@ -352,21 +352,21 @@
                         </div>
 
                         <!-- Payment Summary -->
-                        {% if kpi.monto_pendiente > 0 or kpi.monto_parcial > 0 %}
+                        {% if kpi.get('monto_pendiente', 0) > 0 or kpi.get('monto_parcial', 0) > 0 %}
                         <div class="col-12">
                             <div class="row g-2 mt-2">
-                                {% if kpi.monto_pendiente > 0 %}
+                                {% if kpi.get('monto_pendiente', 0) > 0 %}
                                 <div class="col-6">
                                     <div class="text-center p-2 bg-warning bg-opacity-10 rounded">
-                                        <div class="fw-bold text-warning">${{ "{:,.0f}".format(kpi.monto_pendiente) }}</div>
+                                        <div class="fw-bold text-warning">${{ "{:,.0f}".format(kpi.get('monto_pendiente', 0)) }}</div>
                                         <small class="text-muted">Pendiente</small>
                                     </div>
                                 </div>
                                 {% endif %}
-                                {% if kpi.monto_parcial > 0 %}
+                                {% if kpi.get('monto_parcial', 0) > 0 %}
                                 <div class="col-6">
                                     <div class="text-center p-2 bg-info bg-opacity-10 rounded">
-                                        <div class="fw-bold text-info">${{ "{:,.0f}".format(kpi.monto_parcial) }}</div>
+                                        <div class="fw-bold text-info">${{ "{:,.0f}".format(kpi.get('monto_parcial', 0)) }}</div>
                                         <small class="text-muted">Parcial</small>
                                     </div>
                                 </div>

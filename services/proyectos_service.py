@@ -778,9 +778,8 @@ class ProyectosService:
         Calcula KPI financiero del proyecto usando datos de tesorería (contratos + OCs)
         """
         try:
-            from models import Contrato, EstadoPago, TipoDocumento, Proyecto
+            from models import Contrato, EstadoPago, TipoDocumento, Proyecto, TipoEstadoPago
             from schemas.contratos import EstadoContratoEnum
-            from schemas.estados_pago import EstadoPagoEnum, EstadoPendienteFacturar
 
             # Obtener proyecto para presupuesto
             proyecto = Proyecto.query.get(proyecto_id)
@@ -843,7 +842,7 @@ class ProyectosService:
 
                 monto_pagado_contratos = sum(
                     float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
-                    if ep.estado == EstadoPagoEnum.PAGADO
+                    if ep.tipo_estado == TipoEstadoPago.PAGADO
                 )
 
             # === ÓRDENES DE COMPRA ===
@@ -928,9 +927,8 @@ class ProyectosService:
         Obtiene resumen financiero de proyectos para dashboard usando datos de tesorería
         """
         try:
-            from models import Proyecto, Cliente, Contrato, EstadoPago, TipoDocumento
+            from models import Proyecto, Cliente, Contrato, EstadoPago, TipoDocumento, TipoEstadoPago
             from schemas.contratos import EstadoContratoEnum
-            from schemas.estados_pago import EstadoPagoEnum, EstadoPendienteFacturar
 
             proyectos = db.session.query(Proyecto, Cliente)\
                 .join(Cliente, Proyecto.cliente_id == Cliente.id)\
@@ -976,7 +974,7 @@ class ProyectosService:
 
                     total_pagado_contratos = sum(
                         float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
-                        if ep.estado == EstadoPagoEnum.PAGADO
+                        if ep.tipo_estado == TipoEstadoPago.PAGADO
                     )
 
                 # === ÓRDENES DE COMPRA ===
