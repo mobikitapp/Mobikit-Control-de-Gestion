@@ -245,6 +245,12 @@ def api_uf_current():
         uf_service = UfConversionService()
         valor_uf = uf_service.get_current_uf_value()
         
+        if valor_uf is None:
+            return jsonify({
+                'success': False,
+                'error': 'No se pudo obtener el valor UF'
+            }), 500
+        
         return jsonify({
             'success': True,
             'valor_uf': float(valor_uf),
@@ -282,9 +288,21 @@ def api_uf_convert():
         uf_service = UfConversionService()
         valor_uf = uf_service.get_current_uf_value()
         
+        if valor_uf is None:
+            return jsonify({
+                'success': False,
+                'error': 'No se pudo obtener el valor UF'
+            }), 500
+        
         if from_currency == 'UF':
             # Convertir UF a CLP
             clp_amount = uf_service.convert_uf_to_clp(monto)
+            if clp_amount is None:
+                return jsonify({
+                    'success': False,
+                    'error': 'Error en conversión UF a CLP'
+                }), 500
+                
             return jsonify({
                 'success': True,
                 'original_amount': monto,
@@ -297,6 +315,12 @@ def api_uf_convert():
         else:
             # Convertir CLP a UF
             uf_amount = uf_service.convert_clp_to_uf(monto)
+            if uf_amount is None:
+                return jsonify({
+                    'success': False,
+                    'error': 'Error en conversión CLP a UF'
+                }), 500
+                
             return jsonify({
                 'success': True,
                 'original_amount': monto,
