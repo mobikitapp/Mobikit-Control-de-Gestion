@@ -204,8 +204,8 @@ def estados_pago_contrato(contrato_id):
     """Gestión de estados de pago de un contrato"""
     try:
         contrato = db.session.query(Contrato).options(
-            joinedload('proyecto').joinedload('cliente'),
-            joinedload('estados_pago')
+            joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
+            joinedload(Contrato.estados_pago)
         ).filter_by(id=contrato_id).first()
         
         if not contrato:
@@ -241,7 +241,7 @@ def nuevo_estado_pago(contrato_id):
     """Crear nuevo estado de pago para un contrato"""
     try:
         contrato = db.session.query(Contrato).options(
-            joinedload('proyecto')
+            joinedload(Contrato.proyecto)
         ).filter_by(id=contrato_id).first()
         
         if not contrato:
@@ -337,7 +337,7 @@ def costos_proyecto(proyecto_id):
     """Lista de costos registrados del proyecto"""
     try:
         proyecto = db.session.query(Proyecto).options(
-            joinedload('cliente')
+            joinedload(Proyecto.cliente)
         ).filter_by(id=proyecto_id).first()
         
         if not proyecto:
@@ -388,7 +388,7 @@ def nuevo_costo_proyecto(proyecto_id):
     """Registrar nuevo costo desde ERP"""
     try:
         proyecto = db.session.query(Proyecto).options(
-            joinedload('cliente')
+            joinedload(Proyecto.cliente)
         ).filter_by(id=proyecto_id).first()
         
         if not proyecto:
@@ -480,8 +480,8 @@ def reporte_analisis_proyectos():
         proyectos = db.session.query(Proyecto).filter(
             Proyecto.activo == True
         ).options(
-            joinedload('cliente'),
-            joinedload('contratos').joinedload('estados_pago')
+            joinedload(Proyecto.cliente),
+            joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
         ).all()
         
         analisis = []
