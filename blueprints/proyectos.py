@@ -142,8 +142,8 @@ def nuevo():
             # Validate data with Pydantic
             proyecto_data = ProyectoCreate(**form_data)
 
-            # Create project
-            proyecto = proyectos_service.create_proyecto(proyecto_data, current_user.id)
+            # Create project - convert Pydantic model to dict
+            proyecto = proyectos_service.create_proyecto(proyecto_data.model_dump(), current_user.id)
 
             flash(f'Proyecto "{proyecto.nombre}" creado exitosamente', 'success')
             return redirect(url_for('proyectos.detalle', proyecto_id=proyecto.id))
@@ -231,8 +231,8 @@ def editar(proyecto_id):
             # Validate data with Pydantic
             proyecto_data = ProyectoUpdate(**form_data)
 
-            # Update project
-            proyecto = proyectos_service.update_proyecto(proyecto_id, proyecto_data, current_user.id)
+            # Update project - convert Pydantic model to dict (exclude unset/none for partial updates)
+            proyecto = proyectos_service.update_proyecto(proyecto_id, proyecto_data.model_dump(exclude_unset=True, exclude_none=True), current_user.id)
 
             if proyecto:
                 flash(f'Proyecto "{proyecto.nombre}" actualizado exitosamente', 'success')

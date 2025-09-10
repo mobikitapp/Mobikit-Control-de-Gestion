@@ -361,19 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Validar categorías seleccionadas
-        const checkedCategorias = document.querySelectorAll('.categoria-checkbox:checked');
-        const categoriaFeedback = document.querySelector('.categoria-checkbox').closest('.col-12').querySelector('.invalid-feedback');
-        if (checkedCategorias.length === 0) {
-            if (categoriaFeedback) {
-                categoriaFeedback.style.display = 'block';
-            }
-            hasErrors = true;
-        } else {
-            if (categoriaFeedback) {
-                categoriaFeedback.style.display = 'none';
-            }
-        }
+        // Skip categoria validation for projects form (not applicable)
 
         if (hasErrors) {
             e.preventDefault();
