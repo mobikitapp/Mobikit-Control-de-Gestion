@@ -13,6 +13,7 @@
                 <div class="card-body text-center">
                     <h6 class="text-muted">Proyectos</h6>
                     <h3>{{ total_proyectos }}</h3>
+                    <small class="text-muted">{{ proyectos_con_uf }} con UF</small>
                 </div>
             </div>
         </div>
@@ -58,6 +59,24 @@
         </div>
     </div>
     
+    <!-- KPI de Efectos de Inflación UF -->
+    {% if total_ganancia_perdida_inflacion != 0 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert {{ 'alert-success' if total_ganancia_perdida_inflacion > 0 else 'alert-warning' }} d-flex align-items-center">
+                <i data-feather="{{ 'trending-up' if total_ganancia_perdida_inflacion > 0 else 'trending-down' }}" class="me-2"></i>
+                <div>
+                    <strong>Efectos de Inflación UF:</strong>
+                    {{ "Ganancia" if total_ganancia_perdida_inflacion > 0 else "Pérdida" }} por 
+                    ${{ "{:,.0f}".format(abs(total_ganancia_perdida_inflacion)) }} CLP
+                    debido a variaciones en el valor de la UF entre facturación y pago.
+                    <small class="d-block">Basado en {{ proyectos_con_uf }} proyectos con contratos en UF</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- Lista de Proyectos -->
     <div class="card">
         <div class="card-header bg-light">
@@ -76,6 +95,7 @@
                             <th class="text-end">Pendiente</th>
                             <th class="text-end">Facturado</th>
                             <th class="text-end">Pagado</th>
+                            <th class="text-end">Efectos UF</th>
                             <th>% Facturación</th>
                             <th>% Cobro</th>
                             <th>Acciones</th>
@@ -108,6 +128,23 @@
                             </td>
                             <td class="text-end text-success">
                                 $ {{ "{:,.0f}".format(item.total_pagado) }}
+                            </td>
+                            <td class="text-end">
+                                {% if item.tiene_contratos_uf and item.ganancia_perdida_inflacion != 0 %}
+                                    {% set efecto = item.ganancia_perdida_inflacion %}
+                                    <span class="badge {{ 'bg-success' if efecto > 0 else 'bg-warning' }} d-flex align-items-center" 
+                                          title="Efecto inflación UF">
+                                        <i data-feather="{{ 'trending-up' if efecto > 0 else 'trending-down' }}" class="me-1" style="width: 12px; height: 12px;"></i>
+                                        ${{ "{:,.0f}".format(abs(efecto)) }}
+                                    </span>
+                                {% elif item.tiene_contratos_uf %}
+                                    <span class="badge bg-light text-dark" title="Contrato UF sin efectos calculados">
+                                        <i data-feather="more-horizontal" style="width: 12px; height: 12px;"></i>
+                                        UF
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
                             </td>
                             <td>
                                 <div class="progress" style="min-width: 80px; height: 20px;">

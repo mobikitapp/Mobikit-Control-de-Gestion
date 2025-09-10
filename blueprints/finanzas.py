@@ -17,6 +17,7 @@ from models import (
     Proyecto, Contrato, EstadoPago, Cliente,
     TipoEstadoPago, RolUsuario
 )
+from services.inflacion_service import InflacionService
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +49,11 @@ def dashboard():
         proyectos = db.session.query(Proyecto).filter(
             Proyecto.activo == True
         ).options(
-            joinedload('cliente'),
-            joinedload('contratos').joinedload('estados_pago')
+            joinedload(Proyecto.cliente),
+            joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
         ).order_by(Proyecto.nombre).all()
         
-        # Calcular resumen por proyecto
+        # Calcular resumen por proyecto con efectos de inflación UF
         resumen_proyectos = []
         for proyecto in proyectos:
             # Calcular totales de contratos
@@ -60,8 +61,18 @@ def dashboard():
             total_facturado = 0
             total_pagado = 0
             total_pendiente = 0
+            total_ganancia_perdida_inflacion = 0
+            tiene_contratos_uf = False
             
             for contrato in proyecto.contratos:
+                # Verificar si tiene contratos UF
+                if contrato.moneda_original == 'UF':
+                    tiene_contratos_uf = True
+                    # Calcular efectos de inflación para este contrato
+                    resumen_inflacion = InflacionService.calcular_resumen_inflacion_contrato(contrato)
+                    if resumen_inflacion.get('total_ganancia_perdida'):
+                        total_ganancia_perdida_inflacion += float(resumen_inflacion['total_ganancia_perdida'])
+                
                 for estado in contrato.estados_pago:
                     if estado.tipo_estado == TipoEstadoPago.FACTURADO:
                         total_facturado += estado.monto or 0
@@ -78,15 +89,19 @@ def dashboard():
                 'total_pagado': total_pagado,
                 'total_pendiente': total_pendiente,
                 'avance_facturacion': (total_facturado / total_contratos * 100) if total_contratos > 0 else 0,
-                'avance_cobro': (total_pagado / total_contratos * 100) if total_contratos > 0 else 0
+                'avance_cobro': (total_pagado / total_contratos * 100) if total_contratos > 0 else 0,
+                'tiene_contratos_uf': tiene_contratos_uf,
+                'ganancia_perdida_inflacion': total_ganancia_perdida_inflacion
             })
         
-        # Calcular KPIs generales
+        # Calcular KPIs generales incluyendo efectos de inflación
         total_proyectos = len(proyectos)
         total_contratos_global = sum(r['total_contratos'] for r in resumen_proyectos)
         total_facturado_global = sum(r['total_facturado'] for r in resumen_proyectos)
         total_pagado_global = sum(r['total_pagado'] for r in resumen_proyectos)
         total_pendiente_global = sum(r['total_pendiente'] for r in resumen_proyectos)
+        total_ganancia_perdida_inflacion_global = sum(r['ganancia_perdida_inflacion'] for r in resumen_proyectos)
+        proyectos_con_uf = sum(1 for r in resumen_proyectos if r['tiene_contratos_uf'])
         
         return render_template('finanzas/dashboard_simple.html',
                              resumen_proyectos=resumen_proyectos,
@@ -95,6 +110,8 @@ def dashboard():
                              total_facturado=total_facturado_global,
                              total_pagado=total_pagado_global,
                              total_pendiente=total_pendiente_global,
+                             total_ganancia_perdida_inflacion=total_ganancia_perdida_inflacion_global,
+                             proyectos_con_uf=proyectos_con_uf,
                              current_user=current_user)
                              
     except Exception as e:
@@ -109,8 +126,8 @@ def detalle_proyecto(proyecto_id):
     """Vista detallada de un proyecto con sus contratos y estados de pago"""
     try:
         proyecto = db.session.query(Proyecto).options(
-            joinedload('cliente'),
-            joinedload('contratos').joinedload('estados_pago')
+            joinedload(Proyecto.cliente),
+            joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
         ).filter_by(id=proyecto_id).first()
         
         if not proyecto:
@@ -223,18 +240,57 @@ def nuevo_estado_pago(contrato_id):
                 flash('Tipo de estado y fecha son requeridos', 'error')
                 return redirect(url_for('finanzas.nuevo_estado_pago', contrato_id=contrato_id))
             
+            # Determinar tipo de moneda del estado de pago
+            moneda_tipo = request.form.get('moneda_tipo', 'CLP')
+            
             # Crear nuevo estado de pago
             estado = EstadoPago()
             estado.contrato_id = contrato_id
             estado.tipo_estado = TipoEstadoPago[tipo_estado_str]
             estado.numero_documento = request.form.get('numero_documento')
             estado.fecha_estado = datetime.strptime(fecha_estado_str, '%Y-%m-%d').date()
-            estado.monto = Decimal(request.form.get('monto', 0))
             estado.descripcion = request.form.get('descripcion')
             estado.fecha_programada_pago = datetime.strptime(fecha_programada_str, '%Y-%m-%d').date() if fecha_programada_str else None
+            estado.moneda_original = moneda_tipo
             estado.created_by = current_user.id
             
+            # Configurar campos según el tipo de moneda (validación server-side)
+            if moneda_tipo == 'UF':
+                # Estado en UF - usar servicio UF para conversión server-side
+                monto_uf_input = request.form.get('monto_uf', '0')
+                if monto_uf_input:
+                    estado.monto_uf = Decimal(monto_uf_input)
+                    
+                    # Obtener valor UF server-side (no confiar en cliente)
+                    from services.uf_conversion_service import UfConversionService
+                    conversion = UfConversionService.convert_uf_to_clp(estado.monto_uf)
+                    
+                    if conversion:
+                        estado.valor_uf_fecha_estado = conversion['valor_uf']
+                        estado.monto_clp_equivalente = conversion['clp_amount']
+                        estado.monto = estado.monto_clp_equivalente  # Monto principal en CLP
+                        estado.fecha_conversion_uf = estado.fecha_estado
+                    else:
+                        flash('Error obteniendo valor UF para conversión', 'error')
+                        return redirect(url_for('finanzas.nuevo_estado_pago', contrato_id=contrato_id))
+                else:
+                    flash('Monto UF es requerido para estados en UF', 'error')
+                    return redirect(url_for('finanzas.nuevo_estado_pago', contrato_id=contrato_id))
+            else:
+                # Estado en CLP tradicional
+                monto_clp_input = request.form.get('monto', '0')
+                estado.monto = Decimal(monto_clp_input)
+            
             db.session.add(estado)
+            db.session.flush()  # Para obtener ID antes de commit
+            
+            # Calcular efectos de inflación si es aplicable
+            if moneda_tipo == 'UF':
+                try:
+                    InflacionService.actualizar_ganancias_perdidas_estado(estado)
+                except Exception as e:
+                    logger.warning(f"Error calculando efectos inflación para estado {estado.id}: {e}")
+            
             db.session.commit()
             
             flash(f'Estado de pago creado exitosamente', 'success')

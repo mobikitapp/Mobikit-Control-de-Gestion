@@ -55,15 +55,63 @@
                                    value="{{ today.strftime('%Y-%m-%d') if today else '' }}" required>
                         </div>
                         
+                        <!-- Selector de Moneda -->
                         <div class="mb-3">
-                            <label for="monto" class="form-label">Monto <span class="text-danger">*</span></label>
+                            <label class="form-label">Moneda del Estado <span class="text-danger">*</span></label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="moneda_tipo" id="moneda_clp" value="CLP" 
+                                           {% if not contrato.moneda_original == 'UF' %}checked{% endif %}>
+                                    <label class="form-check-label" for="moneda_clp">CLP</label>
+                                </div>
+                                {% if contrato.moneda_original == 'UF' %}
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="moneda_tipo" id="moneda_uf" value="UF" checked>
+                                    <label class="form-check-label" for="moneda_uf">UF</label>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Monto en CLP -->
+                        <div class="mb-3" id="monto_clp_group" {% if contrato.moneda_original == 'UF' %}style="display: none;"{% endif %}>
+                            <label for="monto" class="form-label">Monto CLP <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text">$</span>
                                 <input type="number" class="form-control" id="monto" name="monto" 
-                                       step="0.01" min="0" required>
+                                       step="0.01" min="0" {% if not contrato.moneda_original == 'UF' %}required{% endif %}>
                             </div>
                             <small class="text-muted">Saldo disponible: $ {{ "{:,.0f}".format((contrato.monto_total or 0) - (contrato.estados_pago|sum(attribute='monto'))) }}</small>
                         </div>
+                        
+                        <!-- Monto en UF (solo para contratos UF) -->
+                        {% if contrato.moneda_original == 'UF' %}
+                        <div class="mb-3" id="monto_uf_group">
+                            <label for="monto_uf" class="form-label">Monto UF <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">UF</span>
+                                <input type="number" class="form-control" id="monto_uf" name="monto_uf" 
+                                       step="0.0001" min="0" required>
+                            </div>
+                            <small class="text-muted">UF actual: $<span id="valor_uf_display">-</span> CLP</small>
+                        </div>
+                        
+                        <!-- Información de conversión UF -->
+                        <div class="mb-3" id="conversion_info_uf" style="display: none;">
+                            <div class="alert alert-info d-flex align-items-center">
+                                <i data-feather="info" class="me-2"></i>
+                                <div>
+                                    <strong>Conversión UF:</strong>
+                                    <span id="conversion_text_estado">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Campos ocultos para tracking UF -->
+                        <input type="hidden" id="valor_uf_fecha_estado" name="valor_uf_fecha_estado">
+                        <input type="hidden" id="fecha_conversion_uf" name="fecha_conversion_uf">
+                        <input type="hidden" id="monto_clp_equivalente" name="monto_clp_equivalente">
+                        {% endif %}
                     </div>
                     
                     <div class="col-md-6">
@@ -126,7 +174,118 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const monedaClpRadio = document.getElementById('moneda_clp');
+    const monedaUfRadio = document.getElementById('moneda_uf');
+    const montoClpGroup = document.getElementById('monto_clp_group');
+    const montoUfGroup = document.getElementById('monto_uf_group');
+    const montoClpInput = document.getElementById('monto');
+    const montoUfInput = document.getElementById('monto_uf');
+    const conversionInfoUf = document.getElementById('conversion_info_uf');
+    const valorUfDisplay = document.getElementById('valor_uf_display');
+    const conversionTextEstado = document.getElementById('conversion_text_estado');
+    const valorUfFechaEstadoInput = document.getElementById('valor_uf_fecha_estado');
+    const fechaConversionUfInput = document.getElementById('fecha_conversion_uf');
+    const montoClpEquivalenteInput = document.getElementById('monto_clp_equivalente');
+    
+    let currentUfValue = 0;
+    
+    // Solo configurar si hay elementos UF (contratos UF)
+    if (monedaUfRadio) {
+        // Obtener valor UF actual
+        async function loadCurrentUfValue() {
+            try {
+                const response = await fetch('/api/uf/current');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        currentUfValue = data.valor_uf;
+                        if (valorUfDisplay) {
+                            valorUfDisplay.textContent = new Intl.NumberFormat('es-CL').format(currentUfValue);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading UF value:', error);
+            }
+        }
+        
+        // Cambiar entre CLP y UF
+        function toggleCurrencyInputs() {
+            if (monedaClpRadio.checked) {
+                montoClpGroup.style.display = 'block';
+                montoUfGroup.style.display = 'none';
+                conversionInfoUf.style.display = 'none';
+                montoUfInput.value = '';
+                montoUfInput.removeAttribute('required');
+                montoClpInput.setAttribute('required', 'required');
+            } else if (monedaUfRadio.checked) {
+                montoClpGroup.style.display = 'none';
+                montoUfGroup.style.display = 'block';
+                montoClpInput.value = '';
+                montoClpInput.removeAttribute('required');
+                montoUfInput.setAttribute('required', 'required');
+                updateConversionDisplay();
+            }
+        }
+        
+        // Actualizar visualización de conversión UF
+        function updateConversionDisplay() {
+            const ufAmount = parseFloat(montoUfInput.value);
+            if (ufAmount && currentUfValue > 0) {
+                const clpAmount = ufAmount * currentUfValue;
+                conversionTextEstado.textContent = `UF ${new Intl.NumberFormat('es-CL', {minimumFractionDigits: 4}).format(ufAmount)} = $${new Intl.NumberFormat('es-CL').format(clpAmount)} CLP`;
+                conversionInfoUf.style.display = 'block';
+                
+                // Actualizar campos ocultos
+                valorUfFechaEstadoInput.value = currentUfValue;
+                fechaConversionUfInput.value = new Date().toISOString().split('T')[0];
+                montoClpEquivalenteInput.value = clpAmount.toFixed(2);
+            } else {
+                conversionInfoUf.style.display = 'none';
+                valorUfFechaEstadoInput.value = '';
+                fechaConversionUfInput.value = '';
+                montoClpEquivalenteInput.value = '';
+            }
+        }
+        
+        // Event listeners
+        monedaClpRadio.addEventListener('change', toggleCurrencyInputs);
+        monedaUfRadio.addEventListener('change', toggleCurrencyInputs);
+        montoUfInput.addEventListener('input', updateConversionDisplay);
+        
+        // Cargar valor UF al inicializar
+        loadCurrentUfValue();
+        
+        // Configurar estado inicial
+        toggleCurrencyInputs();
+    }
+    
+    // Form validation before submit
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        // Limpiar campos no utilizados antes del envío
+        if (monedaUfRadio && monedaUfRadio.checked) {
+            // En modo UF, limpiar campo CLP si está vacío
+            if (!montoClpInput.value || montoClpInput.value.trim() === '') {
+                montoClpInput.disabled = true;
+            }
+        } else {
+            // En modo CLP, limpiar campos UF si están vacíos
+            if (montoUfInput && (!montoUfInput.value || montoUfInput.value.trim() === '')) {
+                montoUfInput.disabled = true;
+                if (valorUfFechaEstadoInput) valorUfFechaEstadoInput.disabled = true;
+                if (fechaConversionUfInput) fechaConversionUfInput.disabled = true;
+                if (montoClpEquivalenteInput) montoClpEquivalenteInput.disabled = true;
+            }
+        }
+    });
+});
+
 function setDescripcion(text) {
     document.getElementById('descripcion').value = text;
     
@@ -136,7 +295,19 @@ function setDescripcion(text) {
     if (match) {
         const porcentaje = parseInt(match[1]);
         const monto = montoTotal * (porcentaje / 100);
-        document.getElementById('monto').value = monto.toFixed(2);
+        
+        // Asignar monto al campo activo
+        const monedaUfRadio = document.getElementById('moneda_uf');
+        if (monedaUfRadio && monedaUfRadio.checked) {
+            // Si está en modo UF, convertir CLP a UF
+            const currentUfValue = parseFloat(document.getElementById('valor_uf_fecha_estado').value) || 39485; // Valor por defecto
+            const montoUf = monto / currentUfValue;
+            document.getElementById('monto_uf').value = montoUf.toFixed(4);
+            // Trigger update para mostrar conversión
+            document.getElementById('monto_uf').dispatchEvent(new Event('input'));
+        } else {
+            document.getElementById('monto').value = monto.toFixed(2);
+        }
     }
 }
 </script>
