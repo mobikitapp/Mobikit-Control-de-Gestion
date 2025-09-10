@@ -168,6 +168,21 @@ class AreasService:
             )
 
             logger.info(f"Estado cambiado para orden {orden_fabricacion_id}: {nuevo_estado.nombre}")
+            
+            # Send notification
+            try:
+                from services.notification_service import notification_service
+                from models import User
+                user = db.session.get(User, responsable_id) if responsable_id else None
+                if user:
+                    area = db.session.get(Area, updated_progress.area_id)
+                    area_nombre = area.nombre if area else "Área desconocida"
+                    notification_service.notify_of_status_change(
+                        orden_fabricacion_id, nuevo_estado.nombre, area_nombre, user
+                    )
+            except Exception as e:
+                logger.warning(f"Error enviando notificación de cambio de estado: {str(e)}")
+            
             return updated_progress
 
         except Exception as e:
