@@ -31,7 +31,7 @@
                     <!-- Alert container for form errors -->
                     <div id="form-alerts"></div>
 
-                    <form method="POST" action="{{ url_for('proyectos.crear') if not proyecto else url_for('proyectos.actualizar', proyecto_id=proyecto.id) }}" data-validate="true" novalidate>
+                    <form method="POST" action="{{ url_for('proyectos.crear') if not proyecto else url_for('proyectos.editar', proyecto_id=proyecto.id) }}" data-validate="true" novalidate>
                         <div class="row g-3">
                             <!-- Cliente -->
                             <div class="col-md-6">
