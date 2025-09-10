@@ -43,7 +43,7 @@
                             <div class="col-md-4">
                                 <label class="form-label">Teléfono</label>
                                 <input type="tel" class="form-control" name="telefono" 
-                                       value="{{ usuario.telefono if usuario and hasattr(usuario, 'telefono') else '' }}" 
+                                       value="{{ usuario.telefono or '' if usuario else '' }}" 
                                        maxlength="20">
                             </div>
                         </div>
@@ -92,14 +92,26 @@
                         </div>
                         {% endif %}
 
-                        <div class="d-flex justify-content-between">
-                            <a href="{{ url_for('configuraciones.usuarios') }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-times"></i> Cancelar
-                            </a>
-                            <button type="submit" class="btn btn-{{ 'success' if accion == 'crear' else 'primary' }}">
-                                <i class="fas fa-{{ 'save' if accion == 'crear' else 'edit' }}"></i>
-                                {{ "Crear Usuario" if accion == "crear" else "Actualizar Usuario" }}
-                            </button>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                            <div class="btn-group">
+                                <a href="{{ url_for('configuraciones.usuarios') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left"></i> Volver a Lista
+                                </a>
+                                <a href="{{ url_for('configuraciones.dashboard') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-home"></i> Dashboard
+                                </a>
+                            </div>
+                            <div class="btn-group">
+                                {% if accion == 'editar' and usuario %}
+                                <button type="button" class="btn btn-outline-warning" onclick="resetPassword('{{ usuario.id }}')">
+                                    <i class="fas fa-key"></i> Reset Password
+                                </button>
+                                {% endif %}
+                                <button type="submit" class="btn btn-{{ 'success' if accion == 'crear' else 'primary' }} btn-lg">
+                                    <i class="fas fa-{{ 'save' if accion == 'crear' else 'edit' }}"></i>
+                                    {{ "Crear Usuario" if accion == "crear" else "Actualizar Usuario" }}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -159,5 +171,28 @@ document.querySelector('form').addEventListener('submit', function(e) {
         return false;
     }
 });
+
+// Reset password function
+function resetPassword(userId) {
+    if (confirm('¿Estás seguro de que quieres resetear la contraseña de este usuario?')) {
+        fetch(`/configuraciones/api/usuarios/${userId}/reset-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Contraseña reseteada exitosamente. Nueva contraseña: ${data.nueva_password}`);
+            } else {
+                alert(`Error: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            alert('Error al resetear contraseña: ' + error);
+        });
+    }
+}
 </script>
 {% endblock %}
