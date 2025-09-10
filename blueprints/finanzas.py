@@ -119,7 +119,7 @@ def dashboard():
                 }
             
             proyectos_por_cliente[cliente_nombre]['proyectos'].append(proyecto)
-            proyectos_por_cliente[cliente_nombre]['total_contratos'] += proyecto['num_contratos']
+            proyectos_por_cliente[cliente_nombre]['total_contratos'] += proyecto['total_contratos']  # Corregido: usar monto total, no cantidad
             proyectos_por_cliente[cliente_nombre]['total_facturado'] += proyecto['total_facturado']
             proyectos_por_cliente[cliente_nombre]['total_pagado'] += proyecto['total_pagado']
             proyectos_por_cliente[cliente_nombre]['total_pendiente'] += proyecto['total_pendiente']
