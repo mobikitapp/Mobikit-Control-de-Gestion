@@ -236,10 +236,21 @@
                                 <i data-feather="percent" class="me-2"></i> Comisiones
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.notificaciones') }}">
+                                <i data-feather="bell" class="me-2"></i> Notificaciones
+                            </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('configuraciones.configuracion_sistema') }}">
                                 <i data-feather="tool" class="me-2"></i> Sistema
                             </a></li>
                         </ul>
+                    </li>
+                    {% else %}
+                    <!-- Configuraciones para usuarios no-admin (solo notificaciones) -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('configuraciones.notificaciones') }}">
+                            <i data-feather="bell" class="me-1"></i>
+                            Notificaciones
+                        </a>
                     </li>
                     {% endif %}
 
