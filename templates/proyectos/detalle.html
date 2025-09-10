@@ -343,12 +343,14 @@
                                      data-porcentaje="{{ kpi.get('porcentaje_cobrado', 0) }}">
                                 </div>
                             </div>
-                            <!-- Debug info (remove in production) -->
+                            <!-- Información de márgenes (alineado con finanzas) -->
+                            {% if kpi.get('costos_estimados', 0) > 0 %}
                             <small class="text-muted">
-                                Debug: Facturado: ${{ "{:,.0f}".format(kpi.get('monto_facturado', 0)) }} | 
-                                Pagado: ${{ "{:,.0f}".format(kpi.get('monto_pagado', 0)) }} | 
-                                % Cobrado: {{ "%.2f"|format(kpi.get('porcentaje_cobrado', 0)) }}%
+                                Costos estimados: ${{ "{:,.0f}".format(kpi.get('costos_estimados', 0)) }} | 
+                                Margen: {{ "%.1f"|format(kpi.get('margen_porcentaje', 0)) }}% 
+                                ($ {{ "{:,.0f}".format(kpi.get('margen_real', 0)) }})
                             </small>
+                            {% endif %}
                         </div>
 
                         <!-- Payment Summary -->

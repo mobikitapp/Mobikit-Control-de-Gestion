@@ -775,7 +775,7 @@ class ProyectosService:
 
     def _calculate_financial_kpi_with_treasury(self, proyecto_id: int) -> Dict[str, Any]:
         """
-        Calcula KPI financiero del proyecto usando datos de tesorería (contratos + OCs)
+        Calcula KPI financiero del proyecto alineado con módulo de finanzas
         """
         try:
             from models import Contrato, EstadoPago, TipoDocumento, Proyecto, TipoEstadoPago
@@ -786,10 +786,27 @@ class ProyectosService:
             if not proyecto:
                 return {'estado': 'sin_proyecto'}
 
-            # Calcular presupuesto total
+            # Calcular presupuesto total (ingresos esperados)
             presupuesto_provision = float(proyecto.monto_provision_presupuestado or 0)
             presupuesto_instalacion = float(proyecto.monto_instalacion_presupuestado or 0)
             presupuesto_total = presupuesto_provision + presupuesto_instalacion
+            
+            # Calcular costos estimados basados en márgenes de venta (alineado con finanzas)
+            costo_estimado_provision = 0.0
+            costo_estimado_instalacion = 0.0
+            
+            if proyecto.monto_provision_presupuestado and proyecto.margen_venta_provision:
+                monto_provision = float(proyecto.monto_provision_presupuestado)
+                margen_provision = float(proyecto.margen_venta_provision)
+                costo_estimado_provision = monto_provision * (1 - margen_provision / 100)
+            
+            if proyecto.monto_instalacion_presupuestado and proyecto.margen_venta_instalacion:
+                monto_instalacion = float(proyecto.monto_instalacion_presupuestado) 
+                margen_instalacion = float(proyecto.margen_venta_instalacion)
+                costo_estimado_instalacion = monto_instalacion * (1 - margen_instalacion / 100)
+                
+            costos_estimados_total = costo_estimado_provision + costo_estimado_instalacion
+            margen_esperado = presupuesto_total - costos_estimados_total
 
             # Obtener contratos vigentes (separar por tipo)
             contratos_regulares = Contrato.query.filter_by(
@@ -892,6 +909,10 @@ class ProyectosService:
             else:
                 estado = 'sin_presupuesto' if total_contratado > 0 else 'sin_datos'
 
+            # Calcular margen real vs esperado (alineado con finanzas)
+            margen_real = total_contratado - costos_estimados_total
+            margen_porcentaje = (margen_real / total_contratado * 100) if total_contratado > 0 else 0
+
             return {
                 'estado': estado,
                 'presupuesto_total': presupuesto_total,
@@ -902,6 +923,12 @@ class ProyectosService:
                 'monto_parcial': monto_parcial,
                 'porcentaje_facturado': round(porcentaje_facturado, 1),
                 'porcentaje_cobrado': round(porcentaje_cobrado, 1),
+                # Campos alineados con módulo de finanzas
+                'costos_estimados': costos_estimados_total,
+                'margen_esperado': margen_esperado,
+                'margen_real': margen_real,
+                'margen_porcentaje': round(margen_porcentaje, 1),
+                'costos_son_estimados': True,
                 'desglose': {
                     'contratos_regulares': {
                         'monto_total': total_contratos_regulares,
