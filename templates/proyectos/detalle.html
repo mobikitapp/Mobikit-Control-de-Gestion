@@ -377,6 +377,30 @@
                         </div>
                         {% endif %}
 
+                        <!-- Resumen de márgenes (alineado con finanzas) -->
+                        {% if kpi.get('costos_estimados', 0) > 0 %}
+                        <div class="col-12">
+                            <div class="border-top pt-3 mt-3">
+                                <h6 class="text-muted mb-3">Análisis de Márgenes</h6>
+                                <div class="row g-2">
+                                    <div class="col-4 text-center">
+                                        <div class="text-muted small">Ingresos</div>
+                                        <div class="fw-bold text-primary">${{ "{:,.0f}".format(kpi.get('monto_contratado', 0)) }}</div>
+                                    </div>
+                                    <div class="col-4 text-center">
+                                        <div class="text-muted small">Costos Est.</div>
+                                        <div class="fw-bold text-warning">${{ "{:,.0f}".format(kpi.get('costos_estimados', 0)) }}</div>
+                                    </div>
+                                    <div class="col-4 text-center">
+                                        <div class="text-muted small">Margen</div>
+                                        <div class="fw-bold {% if kpi.get('margen_real', 0) >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {{ "%.1f"|format(kpi.get('margen_porcentaje', 0)) }}%
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
 
                     </div>
                     {% else %}
