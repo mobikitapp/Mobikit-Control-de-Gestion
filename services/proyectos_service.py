@@ -732,7 +732,7 @@ class ProyectosService:
         Obtiene estadísticas completas del proyecto incluyendo KPI financiero y eficiencia por área
         """
         try:
-            from models import Contrato, OrdenFabricacion, Despacho, EstadoPago, PendienteFacturar
+            from models import Contrato, OrdenFabricacion, Despacho, EstadoPago
             from schemas.contratos import EstadoContratoEnum
             from schemas.fabricacion import EstadoOrdenFabricacion
             from services.treasury_integration_service import TreasuryIntegrationService
@@ -778,7 +778,7 @@ class ProyectosService:
         Calcula KPI financiero del proyecto usando datos de tesorería (contratos + OCs)
         """
         try:
-            from models import Contrato, EstadoPago, PendienteFacturar, TipoDocumento, Proyecto
+            from models import Contrato, EstadoPago, TipoDocumento, Proyecto
             from schemas.contratos import EstadoContratoEnum
             from schemas.estados_pago import EstadoPagoEnum, EstadoPendienteFacturar
 
@@ -928,7 +928,7 @@ class ProyectosService:
         Obtiene resumen financiero de proyectos para dashboard usando datos de tesorería
         """
         try:
-            from models import Proyecto, Cliente, Contrato, EstadoPago, PendienteFacturar, TipoDocumento
+            from models import Proyecto, Cliente, Contrato, EstadoPago, TipoDocumento
             from schemas.contratos import EstadoContratoEnum
             from schemas.estados_pago import EstadoPagoEnum, EstadoPendienteFacturar
 
