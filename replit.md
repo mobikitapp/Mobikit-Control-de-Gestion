@@ -103,6 +103,14 @@ The system follows a modular blueprint architecture with clear separation of con
 - **Purpose**: Ensure consistency between database values and code, preventing runtime errors from mismatched enum values
 - **Impact**: All state comparisons now work correctly with database values
 
+### 2025-09-10: Centro de Costo (CC) Field Addition
+- **Added centro_costo field to Proyecto model**: Numeric field for ERP Mobikit integration
+- **Updated Pydantic schemas**: Added centro_costo to ProyectoBase, ProyectoUpdate, and ProyectoResponse
+- **Modified project forms**: Added Centro de Costo input field in creation and editing forms
+- **Enhanced project detail view**: Centro de Costo displays in additional information section
+- **Database schema updated**: New centro_costo column added to proyectos table
+- **Purpose**: Enable linking projects between the app and ERP Mobikit system through numeric cost center codes
+
 ### 2025-09-08: Database Redundancy Elimination
 - **Removed redundant `usuarios` table**: Consolidated to use only the `users` table
 - **Fixed cache cleaning and production data cleaning functions**: Added real-time logging and progress indicators
