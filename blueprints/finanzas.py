@@ -48,8 +48,8 @@ def dashboard():
         proyectos = db.session.query(Proyecto).filter(
             Proyecto.activo == True
         ).options(
-            joinedload(Proyecto.cliente),
-            joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
+            joinedload('cliente'),
+            joinedload('contratos').joinedload('estados_pago')
         ).order_by(Proyecto.nombre).all()
         
         # Calcular resumen por proyecto
@@ -108,12 +108,14 @@ def dashboard():
 def detalle_proyecto(proyecto_id):
     """Vista detallada de un proyecto con sus contratos y estados de pago"""
     try:
-        proyecto = db.session.query(Proyecto).filter(
-            Proyecto.id == proyecto_id
-        ).options(
-            joinedload(Proyecto.cliente),
-            joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
-        ).first_or_404()
+        proyecto = db.session.query(Proyecto).options(
+            joinedload('cliente'),
+            joinedload('contratos').joinedload('estados_pago')
+        ).filter_by(id=proyecto_id).first()
+        
+        if not proyecto:
+            flash('Proyecto no encontrado', 'error')
+            return redirect(url_for('finanzas.dashboard'))
         
         # Obtener costos manuales del proyecto (tabla se creará si es necesaria)
         costos = []  # Por ahora vacío hasta implementar tabla de costos
@@ -166,12 +168,14 @@ def detalle_proyecto(proyecto_id):
 def estados_pago_contrato(contrato_id):
     """Gestión de estados de pago de un contrato"""
     try:
-        contrato = db.session.query(Contrato).filter(
-            Contrato.id == contrato_id
-        ).options(
-            joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
-            joinedload(Contrato.estados_pago)
-        ).first_or_404()
+        contrato = db.session.query(Contrato).options(
+            joinedload('proyecto').joinedload('cliente'),
+            joinedload('estados_pago')
+        ).filter_by(id=contrato_id).first()
+        
+        if not contrato:
+            flash('Contrato no encontrado', 'error')
+            return redirect(url_for('finanzas.dashboard'))
         
         # Calcular resumen de estados
         total_contrato = contrato.monto_total or 0
@@ -201,24 +205,34 @@ def estados_pago_contrato(contrato_id):
 def nuevo_estado_pago(contrato_id):
     """Crear nuevo estado de pago para un contrato"""
     try:
-        contrato = db.session.query(Contrato).filter(
-            Contrato.id == contrato_id
-        ).options(
-            joinedload(Contrato.proyecto)
-        ).first_or_404()
+        contrato = db.session.query(Contrato).options(
+            joinedload('proyecto')
+        ).filter_by(id=contrato_id).first()
+        
+        if not contrato:
+            flash('Contrato no encontrado', 'error')
+            return redirect(url_for('finanzas.estados_pago_contrato', contrato_id=contrato_id))
         
         if request.method == 'POST':
+            # Validar datos requeridos
+            tipo_estado_str = request.form.get('tipo_estado')
+            fecha_estado_str = request.form.get('fecha_estado')
+            fecha_programada_str = request.form.get('fecha_programada_pago')
+            
+            if not tipo_estado_str or not fecha_estado_str:
+                flash('Tipo de estado y fecha son requeridos', 'error')
+                return redirect(url_for('finanzas.nuevo_estado_pago', contrato_id=contrato_id))
+            
             # Crear nuevo estado de pago
-            estado = EstadoPago(
-                contrato_id=contrato_id,
-                tipo_estado=TipoEstadoPago[request.form.get('tipo_estado')],
-                numero_documento=request.form.get('numero_documento'),
-                fecha_estado=datetime.strptime(request.form.get('fecha_estado'), '%Y-%m-%d').date(),
-                monto=Decimal(request.form.get('monto', 0)),
-                descripcion=request.form.get('descripcion'),
-                fecha_programada_pago=datetime.strptime(request.form.get('fecha_programada_pago'), '%Y-%m-%d').date() if request.form.get('fecha_programada_pago') else None,
-                created_by=current_user.id
-            )
+            estado = EstadoPago()
+            estado.contrato_id = contrato_id
+            estado.tipo_estado = TipoEstadoPago[tipo_estado_str]
+            estado.numero_documento = request.form.get('numero_documento')
+            estado.fecha_estado = datetime.strptime(fecha_estado_str, '%Y-%m-%d').date()
+            estado.monto = Decimal(request.form.get('monto', 0))
+            estado.descripcion = request.form.get('descripcion')
+            estado.fecha_programada_pago = datetime.strptime(fecha_programada_str, '%Y-%m-%d').date() if fecha_programada_str else None
+            estado.created_by = current_user.id
             
             db.session.add(estado)
             db.session.commit()
@@ -247,9 +261,11 @@ def nuevo_estado_pago(contrato_id):
 def costos_proyecto(proyecto_id):
     """Gestión de costos manuales del proyecto"""
     try:
-        proyecto = db.session.query(Proyecto).filter(
-            Proyecto.id == proyecto_id
-        ).first_or_404()
+        proyecto = db.session.query(Proyecto).filter_by(id=proyecto_id).first()
+        
+        if not proyecto:
+            flash('Proyecto no encontrado', 'error')
+            return redirect(url_for('finanzas.dashboard'))
         
         if request.method == 'POST':
             # Aquí se implementará el guardado de costos cuando se cree la tabla
@@ -289,8 +305,8 @@ def reporte_analisis_proyectos():
         proyectos = db.session.query(Proyecto).filter(
             Proyecto.activo == True
         ).options(
-            joinedload(Proyecto.cliente),
-            joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
+            joinedload('cliente'),
+            joinedload('contratos').joinedload('estados_pago')
         ).all()
         
         analisis = []
