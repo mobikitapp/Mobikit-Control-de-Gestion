@@ -87,7 +87,7 @@ def index():
         total_pages = math.ceil(total_count / filters.per_page)
 
         # Get clients for filter dropdown
-        clientes = clientes_service.get_all_clientes()
+        clientes = clientes_service.get_active_clientes()
 
         return render_template('proyectos/index.html',
                              proyectos=proyectos,
@@ -114,7 +114,7 @@ def nuevo():
     """Crear nuevo proyecto"""
     if request.method == 'GET':
         try:
-            clientes = clientes_service.get_all_clientes()
+            clientes = clientes_service.get_active_clientes()
             return render_template('proyectos/form.html',
                                  clientes=clientes,
                                  current_user=current_user,
@@ -141,7 +141,7 @@ def nuevo():
         except ValidationError as e:
             logger.warning(f"Validation error creating project: {str(e)}")
             flash('Error de validación en los datos del proyecto', 'error')
-            clientes = clientes_service.get_all_clientes()
+            clientes = clientes_service.get_active_clientes()
             return render_template('proyectos/form.html',
                                  clientes=clientes,
                                  proyecto_data=request.form.to_dict(),
@@ -185,7 +185,7 @@ def editar(proyecto_id):
                 flash('Proyecto no encontrado', 'error')
                 return redirect(url_for('proyectos.index'))
 
-            clientes = clientes_service.get_all_clientes()
+            clientes = clientes_service.get_active_clientes()
             return render_template('proyectos/form.html',
                                  proyecto=proyecto,
                                  clientes=clientes,
@@ -219,7 +219,7 @@ def editar(proyecto_id):
             logger.warning(f"Validation error updating project {proyecto_id}: {str(e)}")
             flash('Error de validación en los datos del proyecto', 'error')
             proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
-            clientes = clientes_service.get_all_clientes()
+            clientes = clientes_service.get_active_clientes()
             return render_template('proyectos/form.html',
                                  proyecto=proyecto,
                                  clientes=clientes,
@@ -292,3 +292,19 @@ def api_contratos_activos(proyecto_id):
     except Exception as e:
         logger.error(f"Error en API contratos activos: {str(e)}")
         return jsonify({'error': 'Error al cargar contratos'}), 500
+
+@proyectos_bp.route('/api/by-cliente/<int:cliente_id>')
+@require_login
+def api_by_cliente(cliente_id):
+    """API endpoint para obtener proyectos por cliente"""
+    try:
+        proyectos = proyectos_service.get_proyectos_by_cliente(cliente_id)
+        return jsonify([{
+            'id': p.id,
+            'nombre': p.nombre,
+            'estado': p.estado_comercial.value if p.estado_comercial else 'sin_estado'
+        } for p in proyectos])
+
+    except Exception as e:
+        logger.error(f"Error en API proyectos por cliente: {str(e)}")
+        return jsonify({'error': 'Error al cargar proyectos'}), 500
