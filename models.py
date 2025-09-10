@@ -71,6 +71,12 @@ class TipoAdjunto(Enum):
     FOTO = "foto"
     QA = "qa"
 
+class TipoBitacora(Enum):
+    ESPECIFICACION = "especificacion"
+    CAMBIO = "cambio"
+    NOTA = "nota"
+    GENERAL = "general"
+
 class RolUsuario(Enum):
     ADMIN = "admin"
     GENERAL = "general"
@@ -1361,3 +1367,27 @@ class AuditoriaPermisos(db.Model):
 
     def __repr__(self):
         return f'<AuditoriaPermisos {self.rol.value}-{self.modulo_codigo}-{self.tipo_permiso.value}>'
+
+class BitacoraProyecto(db.Model):
+    __tablename__ = 'bitacora_proyecto'
+
+    id = db.Column(db.Integer, primary_key=True)
+    proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
+    usuario_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
+    comentario = db.Column(db.Text, nullable=False)
+    tipo = db.Column(db.Enum(TipoBitacora), default=TipoBitacora.GENERAL, nullable=False)
+    fecha_comentario = db.Column(db.DateTime, default=utc_now, nullable=False)
+
+    # Relationships
+    proyecto = db.relationship('Proyecto', backref='bitacora', lazy=True)
+    usuario = db.relationship('User', foreign_keys=[usuario_id])
+
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_bitacora_proyecto', 'proyecto_id'),
+        Index('idx_bitacora_fecha', 'fecha_comentario'),
+        Index('idx_bitacora_tipo', 'tipo'),
+    )
+
+    def __repr__(self):
+        return f'<BitacoraProyecto {self.id}: {self.proyecto_id}>'
