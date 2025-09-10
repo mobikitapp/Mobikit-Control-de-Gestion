@@ -37,6 +37,9 @@ class ProyectoBase(BaseModel):
     tipo_vivienda: Optional[str] = Field(None, description="Tipo de vivienda (Casa, Departamento)")
     numero_viviendas: Optional[int] = Field(None, description="Número de viviendas", gt=0)
     ubicacion_obra: Optional[str] = Field(None, description="Ubicación de la obra", max_length=500)
+    
+    # Campo para integración con ERP Mobikit
+    centro_costo: Optional[int] = Field(None, description="Centro de costo para enlace con ERP Mobikit")
 
     @validator('fecha_fin_estimada')
     def validate_fecha_fin_estimada(cls, v, values):
@@ -80,6 +83,9 @@ class ProyectoUpdate(BaseModel):
     tipo_vivienda: Optional[str] = None
     numero_viviendas: Optional[int] = Field(None, gt=0)
     ubicacion_obra: Optional[str] = Field(None, max_length=500)
+    
+    # Campo para integración con ERP Mobikit
+    centro_costo: Optional[int] = None
 
 class ProyectoResponse(ProyectoBase):
     id: int
