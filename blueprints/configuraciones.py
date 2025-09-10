@@ -9,6 +9,7 @@ from models import User, RolUsuario
 from services.configuraciones_service import ConfiguracionesService
 from services.permisos_service import PermisosService
 from utils.auth import role_required
+from models.notification_preferences import NotificationPreferences, TipoNotificacion
 
 # Create blueprint
 configuraciones_bp = Blueprint('configuraciones', __name__)
@@ -971,3 +972,99 @@ def limpiar_datos():
             'message': error_msg,
             'error_type': type(e).__name__
         }), 500
+
+
+# =============================================================================
+# PREFERENCIAS DE NOTIFICACIONES
+# =============================================================================
+
+@configuraciones_bp.route('/notificaciones')
+@login_required
+def notificaciones():
+    """Panel de configuración de notificaciones del usuario"""
+    try:
+        # Get or create user notification preferences
+        preferences = NotificationPreferences.query.filter_by(user_id=current_user.id).first()
+        
+        if not preferences:
+            # Create default preferences
+            preferences = NotificationPreferences(
+                user_id=current_user.id,
+                nuevo_proyecto_email=True,
+                comentario_bitacora_email=True,
+                cambio_estado_of_email=True,
+                vencimiento_contrato_email=True,
+                retraso_proyecto_email=True,
+                email_enabled=True
+            )
+            db.session.add(preferences)
+            db.session.commit()
+        
+        # Get notification types for template
+        tipos_notificacion = {
+            'nuevo_proyecto': {
+                'nombre': 'Nuevos Proyectos',
+                'descripcion': 'Notificaciones cuando se crean nuevos proyectos',
+                'habilitado': preferences.nuevo_proyecto_email
+            },
+            'comentario_bitacora': {
+                'nombre': 'Comentarios en Bitácora',
+                'descripcion': 'Notificaciones cuando se agregan comentarios a proyectos',
+                'habilitado': preferences.comentario_bitacora_email
+            },
+            'cambio_estado_of': {
+                'nombre': 'Cambios de Estado OF',
+                'descripcion': 'Notificaciones cuando cambia el estado de órdenes de fabricación',
+                'habilitado': preferences.cambio_estado_of_email
+            },
+            'vencimiento_contrato': {
+                'nombre': 'Vencimientos de Contrato',
+                'descripcion': 'Alertas de contratos próximos a vencer',
+                'habilitado': preferences.vencimiento_contrato_email
+            },
+            'retraso_proyecto': {
+                'nombre': 'Retrasos en Proyectos',
+                'descripcion': 'Alertas cuando un proyecto se atrasa',
+                'habilitado': preferences.retraso_proyecto_email
+            }
+        }
+        
+        return render_template('configuraciones/notificaciones.html', 
+                             preferences=preferences,
+                             tipos_notificacion=tipos_notificacion)
+        
+    except Exception as e:
+        flash(f'Error al cargar preferencias de notificaciones: {str(e)}', 'error')
+        return redirect(url_for('configuraciones.dashboard'))
+
+
+@configuraciones_bp.route('/notificaciones', methods=['POST'])
+@login_required
+def actualizar_notificaciones():
+    """Actualizar preferencias de notificaciones del usuario"""
+    try:
+        # Get or create user notification preferences
+        preferences = NotificationPreferences.query.filter_by(user_id=current_user.id).first()
+        
+        if not preferences:
+            preferences = NotificationPreferences(user_id=current_user.id)
+            db.session.add(preferences)
+        
+        # Update preferences from form
+        preferences.email_enabled = 'email_enabled' in request.form
+        preferences.nuevo_proyecto_email = 'nuevo_proyecto_email' in request.form
+        preferences.comentario_bitacora_email = 'comentario_bitacora_email' in request.form
+        preferences.cambio_estado_of_email = 'cambio_estado_of_email' in request.form
+        preferences.vencimiento_contrato_email = 'vencimiento_contrato_email' in request.form
+        preferences.retraso_proyecto_email = 'retraso_proyecto_email' in request.form
+        preferences.updated_at = datetime.now()
+        
+        db.session.commit()
+        flash('Preferencias de notificaciones actualizadas exitosamente', 'success')
+        
+        return redirect(url_for('configuraciones.notificaciones'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar preferencias: {str(e)}', 'error')
+        return redirect(url_for('configuraciones.notificaciones'))
