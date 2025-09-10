@@ -583,7 +583,7 @@
             </div>
 
             <!-- Información Adicional del Proyecto -->
-            {% if proyecto.tipo_proyecto or proyecto.tipo_vivienda or proyecto.numero_viviendas or proyecto.ubicacion_obra %}
+            {% if proyecto.tipo_proyecto or proyecto.tipo_vivienda or proyecto.numero_viviendas or proyecto.ubicacion_obra or proyecto.centro_costo %}
             <div class="card mt-4">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
@@ -631,6 +631,17 @@
                             <div class="form-control-plaintext">
                                 <i data-feather="map-pin" class="me-1"></i>
                                 {{ proyecto.ubicacion_obra }}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if proyecto.centro_costo %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">CC (Centro de Costo)</label>
+                            <div class="form-control-plaintext">
+                                <i data-feather="hash" class="me-1"></i>
+                                <span class="fs-5 fw-bold">{{ proyecto.centro_costo }}</span>
+                                <small class="text-muted">ERP Mobikit</small>
                             </div>
                         </div>
                         {% endif %}
