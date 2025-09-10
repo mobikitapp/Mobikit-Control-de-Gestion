@@ -270,6 +270,15 @@
                                                        placeholder="Ej: Las Condes, Santiago">
                                                 <small class="text-muted">Dirección o zona donde se realizará el proyecto</small>
                                             </div>
+
+                                            <!-- Centro de Costo -->
+                                            <div class="col-md-6">
+                                                <label for="centro_costo" class="form-label">CC (Centro de Costo)</label>
+                                                <input type="number" class="form-control" id="centro_costo" name="centro_costo" 
+                                                       min="1" value="{{ proyecto.centro_costo if proyecto and proyecto.centro_costo else '' }}"
+                                                       placeholder="Ej: 12345">
+                                                <small class="text-muted">Código numérico para enlace con ERP Mobikit</small>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
