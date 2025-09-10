@@ -396,12 +396,37 @@ document.addEventListener('DOMContentLoaded', function() {
             alertContainer.innerHTML = '';
         }
 
+        // Limpiar datos del formulario antes del envío para evitar errores de validación
+        if (presupuestoUfRadio && presupuestoUfRadio.checked) {
+            // Si estamos en modo UF, deshabilitar campos CLP vacíos
+            if (montoProvisionClp && (!montoProvisionClp.value || montoProvisionClp.value.trim() === '')) {
+                montoProvisionClp.disabled = true;
+            }
+            if (montoInstalacionClp && (!montoInstalacionClp.value || montoInstalacionClp.value.trim() === '')) {
+                montoInstalacionClp.disabled = true;
+            }
+        } else if (presupuestoClpRadio && presupuestoClpRadio.checked) {
+            // Si estamos en modo CLP, deshabilitar campos UF vacíos
+            if (montoProvisionUf && (!montoProvisionUf.value || montoProvisionUf.value.trim() === '')) {
+                montoProvisionUf.disabled = true;
+            }
+            if (montoInstalacionUf && (!montoInstalacionUf.value || montoInstalacionUf.value.trim() === '')) {
+                montoInstalacionUf.disabled = true;
+            }
+            if (valorUfPresupuesto && (!valorUfPresupuesto.value || valorUfPresupuesto.value.trim() === '')) {
+                valorUfPresupuesto.disabled = true;
+            }
+            if (fechaConversionPresupuesto && (!fechaConversionPresupuesto.value || fechaConversionPresupuesto.value.trim() === '')) {
+                fechaConversionPresupuesto.disabled = true;
+            }
+        }
+
         // Validar campos requeridos
         let hasErrors = false;
         const requiredFields = form.querySelectorAll('[required]');
 
         requiredFields.forEach(field => {
-            if (!field.value || field.value.trim() === '') {
+            if (!field.disabled && (!field.value || field.value.trim() === '')) {
                 field.classList.add('is-invalid');
                 hasErrors = true;
             }
@@ -432,6 +457,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Skip categoria validation for projects form (not applicable)
 
         if (hasErrors) {
+            // Re-enable disabled fields if validation fails
+            form.querySelectorAll('input[disabled]').forEach(el => el.disabled = false);
             e.preventDefault();
             showFormError('Por favor corrija los errores en el formulario');
             // Scroll to first error

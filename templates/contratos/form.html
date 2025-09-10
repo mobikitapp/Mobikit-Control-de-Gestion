@@ -511,6 +511,32 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset previous validation
         form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
         
+        // Clean up form data before submission
+        if (tipoUfRadio.checked) {
+            // Si estamos en modo UF, limpiar campos CLP para evitar errores de validación
+            if (!montoTotalInput.value || montoTotalInput.value.trim() === '') {
+                montoTotalInput.disabled = true;  // Disable para que no se envíe
+            }
+        } else {
+            // Si estamos en modo CLP, limpiar campos UF
+            if (!montoTotalUfInput.value || montoTotalUfInput.value.trim() === '') {
+                montoTotalUfInput.disabled = true;
+                valorUfConversionInput.disabled = true;
+                fechaConversionInput.disabled = true;
+            }
+        }
+        
+        // Limpiar campos de fecha vacíos para evitar errores de validación
+        const fechaEmisionInput = document.getElementById('fecha_emision');
+        const fechaVencimientoInput = document.getElementById('fecha_vencimiento');
+        
+        if (fechaEmisionInput && fechaEmisionInput.value.trim() === '') {
+            fechaEmisionInput.disabled = true;
+        }
+        if (fechaVencimientoInput && fechaVencimientoInput.value.trim() === '') {
+            fechaVencimientoInput.disabled = true;
+        }
+        
         // Validate required fields
         const requiredFields = ['proyecto_id', 'numero_oc'];
         requiredFields.forEach(fieldName => {
@@ -528,8 +554,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!hasClpAmount && !hasUfAmount) {
             // Mostrar error en el campo activo
             if (tipoClpRadio.checked) {
+                montoTotalInput.disabled = false; // Re-enable para mostrar error
                 montoTotalInput.classList.add('is-invalid');
             } else {
+                montoTotalUfInput.disabled = false; // Re-enable para mostrar error
                 montoTotalUfInput.classList.add('is-invalid');
             }
             isValid = false;
@@ -541,6 +569,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (!isValid) {
+            // Re-enable disabled fields if validation fails
+            form.querySelectorAll('input[disabled]').forEach(el => el.disabled = false);
             e.preventDefault();
             e.stopPropagation();
         }
