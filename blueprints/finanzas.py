@@ -186,7 +186,7 @@ def proyectos_terminados():
         
         # Indicadores agregados
         proyectos_cerrados_financieramente = sum(1 for p in proyectos_terminados if p['proyecto_cerrado_financieramente'])
-        porcentaje_cerrados = (proyectos_cerrados_financieramente / total_proyectos * 100) if total_proyectos > 0 else 0
+        porcentaje_cerrados = (float(proyectos_cerrados_financieramente) / float(total_proyectos) * 100) if total_proyectos > 0 else 0
         
         resumen_general = {
             'total_proyectos': total_proyectos,
@@ -197,7 +197,7 @@ def proyectos_terminados():
             'total_pagado': total_pagado_valor,
             'total_costos': total_costos_valor,
             'margen_total': total_margen,
-            'margen_promedio_pct': (total_margen / total_facturado_valor * 100) if total_facturado_valor > 0 else 0
+            'margen_promedio_pct': (float(total_margen) / float(total_facturado_valor) * 100) if total_facturado_valor > 0 else 0
         }
         
         return render_template('finanzas/proyectos_terminados.html', 
@@ -646,8 +646,8 @@ def reporte_analisis_proyectos():
                 'total_costos': total_costos,
                 'margen': margen,
                 'margen_porcentaje': margen_porcentaje,
-                'avance_facturacion': (total_facturado / total_contratos * 100) if total_contratos > 0 else 0,
-                'avance_cobro': (total_pagado / total_contratos * 100) if total_contratos > 0 else 0
+                'avance_facturacion': (float(total_facturado) / float(total_contratos) * 100) if total_contratos > 0 else 0,
+                'avance_cobro': (float(total_pagado) / float(total_contratos) * 100) if total_contratos > 0 else 0
             })
         
         # Ordenar por margen

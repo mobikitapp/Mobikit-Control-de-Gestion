@@ -75,7 +75,7 @@ class FinanzasService:
             
             # Calcular avance del objetivo
             facturado_mes = self._calcular_facturado_mes(today.year, today.month)
-            avance_objetivo = (facturado_mes / objetivo_total * 100) if objetivo_total > 0 else 0
+            avance_objetivo = (float(facturado_mes) / float(objetivo_total) * 100) if objetivo_total > 0 else 0
             
             return {
                 'ingresos_mes': float(ingresos_mes),
@@ -127,7 +127,7 @@ class FinanzasService:
                 
                 # Margen actual
                 margen = total_facturado - total_costos if total_facturado > 0 else Decimal(0)
-                margen_pct = float(margen / total_facturado * 100) if total_facturado > 0 else 0
+                margen_pct = float(float(margen) / float(total_facturado) * 100) if total_facturado > 0 else 0
                 
                 resumen.append({
                     'id': proyecto.id,
@@ -228,7 +228,7 @@ class FinanzasService:
                 ).scalar() or Decimal(0)
                 
                 presupuesto = centro.presupuesto_mensual or Decimal(0)
-                consumido_pct = (gastos_mes / presupuesto * 100) if presupuesto > 0 else 0
+                consumido_pct = (float(gastos_mes) / float(presupuesto) * 100) if presupuesto > 0 else 0
                 
                 resumen.append({
                     'id': centro.id,
@@ -465,7 +465,7 @@ class FinanzasService:
                 
                 # Calcular márgenes
                 margen_bruto = total_facturado - total_costos
-                margen_bruto_pct = (margen_bruto / total_facturado * 100) if total_facturado > 0 else 0
+                margen_bruto_pct = (float(margen_bruto) / float(total_facturado) * 100) if total_facturado > 0 else 0
                 
                 # Indicadores de finalización
                 facturacion_completa = total_facturado >= total_contratos * 0.95  # 95% tolerancia
