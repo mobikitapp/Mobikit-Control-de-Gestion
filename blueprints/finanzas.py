@@ -597,6 +597,165 @@ def reportes():
     return render_template('finanzas/reportes_simple.html',
                          current_user=current_user)
 
+@finanzas_bp.route('/proyecto/<int:proyecto_id>/resumen-financiero')
+@login_required
+@finanzas_required
+def resumen_financiero_proyecto(proyecto_id):
+    """Resumen financiero detallado e imprimible del proyecto"""
+    try:
+        from datetime import date
+        from services.inflacion_service import InflacionService
+
+        proyecto = db.session.query(Proyecto).options(
+            joinedload(Proyecto.cliente),
+            joinedload(Proyecto.contratos).joinedload(Contrato.estados_pago)
+        ).filter_by(id=proyecto_id).first()
+
+        if not proyecto:
+            flash('Proyecto no encontrado', 'error')
+            return redirect(url_for('finanzas.dashboard'))
+
+        # === INGRESOS DEL PROYECTO ===
+        
+        # Obtener contratos y calcular totales
+        contratos_detalle = []
+        total_contratos_clp = Decimal(0)
+        total_diferencia_uf = Decimal(0)
+        
+        for contrato in proyecto.contratos:
+            contrato_info = {
+                'numero_oc': contrato.numero_oc,
+                'tipo': contrato.tipo_documento.value,
+                'monto_original': float(contrato.monto_total or 0),
+                'moneda_original': contrato.moneda_original,
+                'diferencia_uf': 0
+            }
+            
+            # Si el contrato fue en UF, calcular diferencia por inflación
+            if contrato.moneda_original == 'UF':
+                resumen_inflacion = InflacionService.calcular_resumen_inflacion_contrato(contrato)
+                if resumen_inflacion.get('total_ganancia_perdida'):
+                    contrato_info['diferencia_uf'] = float(resumen_inflacion['total_ganancia_perdida'])
+                    total_diferencia_uf += Decimal(str(contrato_info['diferencia_uf']))
+            
+            contratos_detalle.append(contrato_info)
+            total_contratos_clp += Decimal(str(contrato_info['monto_original']))
+
+        total_ingresos_proyecto = total_contratos_clp + total_diferencia_uf
+
+        # === COSTOS DEL PROYECTO ===
+        
+        # Obtener costos registrados del ERP
+        costos_registrados = db.session.query(CostoProyecto).filter_by(
+            proyecto_id=proyecto_id
+        ).order_by(CostoProyecto.fecha_registro.desc()).all()
+
+        # Agrupar costos por categoría
+        costos_por_categoria = {}
+        total_costos_reales = Decimal(0)
+        
+        for costo in costos_registrados:
+            categoria = costo.categoria.value
+            if categoria not in costos_por_categoria:
+                costos_por_categoria[categoria] = {
+                    'total': Decimal(0),
+                    'registros': []
+                }
+            
+            costos_por_categoria[categoria]['total'] += costo.monto
+            costos_por_categoria[categoria]['registros'].append(costo)
+            total_costos_reales += costo.monto
+
+        # === CÁLCULOS DE MÁRGENES ===
+        
+        # Margen operacional (ingresos - costos provisión/materiales)
+        costo_provision_materiales = costos_por_categoria.get('MATERIALES_PROVISION', {}).get('total', Decimal(0))
+        resultado_operacional = total_ingresos_proyecto - costo_provision_materiales
+        margen_operacional_pct = (float(resultado_operacional) / float(total_ingresos_proyecto) * 100) if total_ingresos_proyecto > 0 else 0
+
+        # Margen presupuestado provisión
+        margen_presupuestado_provision = Decimal(0)
+        if proyecto.monto_provision_presupuestado and proyecto.margen_venta_provision:
+            monto_provision = Decimal(str(proyecto.monto_provision_presupuestado))
+            margen_provision = Decimal(str(proyecto.margen_venta_provision))
+            margen_presupuestado_provision = monto_provision * (margen_provision / 100)
+        
+        diferencia_margen_operacional = resultado_operacional - margen_presupuestado_provision
+
+        # Otros costos
+        costo_instalacion = costos_por_categoria.get('INSTALACION', {}).get('total', Decimal(0))
+        costo_flete = costos_por_categoria.get('FLETES_DESPACHO', {}).get('total', Decimal(0))
+        costo_garantias = costos_por_categoria.get('GARANTIAS_SERVICIO', {}).get('total', Decimal(0))
+        costo_otros = sum(
+            info['total'] for cat, info in costos_por_categoria.items() 
+            if cat not in ['MATERIALES_PROVISION', 'INSTALACION', 'FLETES_DESPACHO', 'GARANTIAS_SERVICIO']
+        )
+
+        total_gastos = costo_instalacion + costo_flete + costo_garantias + costo_otros
+
+        # Resultado final
+        resultado_final = total_ingresos_proyecto - total_costos_reales
+        margen_final_pct = (float(resultado_final) / float(total_ingresos_proyecto) * 100) if total_ingresos_proyecto > 0 else 0
+
+        # Margen general presupuestado (provisión + instalación)
+        margen_presupuestado_instalacion = Decimal(0)
+        if proyecto.monto_instalacion_presupuestado and proyecto.margen_venta_instalacion:
+            monto_instalacion = Decimal(str(proyecto.monto_instalacion_presupuestado))
+            margen_instalacion = Decimal(str(proyecto.margen_venta_instalacion))
+            margen_presupuestado_instalacion = monto_instalacion * (margen_instalacion / 100)
+
+        margen_presupuestado_total = margen_presupuestado_provision + margen_presupuestado_instalacion
+
+        # Resultado fábrica (provisión - costos materiales)
+        resultado_fabrica = float(proyecto.monto_provision_presupuestado or 0) - float(costo_provision_materiales)
+        margen_fabrica_pct = (resultado_fabrica / float(proyecto.monto_provision_presupuestado or 1) * 100) if proyecto.monto_provision_presupuestado else 0
+
+        # Preparar datos para el template
+        resumen_datos = {
+            'proyecto': proyecto,
+            'fecha_reporte': date.today(),
+            'contratos_detalle': contratos_detalle,
+            'total_contratos_clp': float(total_contratos_clp),
+            'total_diferencia_uf': float(total_diferencia_uf),
+            'total_ingresos_proyecto': float(total_ingresos_proyecto),
+            
+            # Costos por categoría
+            'costo_provision_materiales': float(costo_provision_materiales),
+            'costo_instalacion': float(costo_instalacion),
+            'costo_flete': float(costo_flete),
+            'costo_garantias': float(costo_garantias),
+            'costo_otros': float(costo_otros),
+            'total_gastos': float(total_gastos),
+            'total_costos_reales': float(total_costos_reales),
+            
+            # Resultados y márgenes
+            'resultado_operacional': float(resultado_operacional),
+            'margen_operacional_pct': margen_operacional_pct,
+            'margen_presupuestado_provision': float(margen_presupuestado_provision),
+            'diferencia_margen_operacional': float(diferencia_margen_operacional),
+            
+            'resultado_final': float(resultado_final),
+            'margen_final_pct': margen_final_pct,
+            'margen_presupuestado_total': float(margen_presupuestado_total),
+            
+            'resultado_fabrica': resultado_fabrica,
+            'margen_fabrica_pct': margen_fabrica_pct,
+            
+            # Datos adicionales
+            'costos_por_categoria': {cat: float(info['total']) for cat, info in costos_por_categoria.items()},
+            'hay_costos_registrados': len(costos_registrados) > 0,
+            'num_costos_registrados': len(costos_registrados)
+        }
+
+        return render_template('finanzas/resumen_financiero_proyecto.html',
+                             resumen=resumen_datos,
+                             current_user=current_user)
+
+    except Exception as e:
+        logger.error(f"Error en resumen financiero del proyecto {proyecto_id}: {e}")
+        flash('Error al generar el resumen financiero del proyecto', 'error')
+        return redirect(url_for('finanzas.detalle_proyecto', proyecto_id=proyecto_id))
+
 @finanzas_bp.route('/reporte/analisis-proyectos')
 @login_required
 @finanzas_required

@@ -10,7 +10,7 @@
             <i data-feather="check-circle" class="me-2"></i>Ver Proyectos Terminados
         </a>
     </div>
-    
+
     <!-- KPIs Generales -->
     <div class="row mb-4">
         <div class="col-md-2">
@@ -63,7 +63,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- KPI de Efectos de Inflación UF -->
     {% if total_ganancia_perdida_inflacion != 0 %}
     <div class="row mb-4">
@@ -81,7 +81,7 @@
         </div>
     </div>
     {% endif %}
-    
+
     <!-- Lista de Proyectos Agrupados por Cliente -->
     <div class="card">
         <div class="card-header bg-light">
@@ -209,8 +209,12 @@
                                             <td>
                                                 <div class="btn-group btn-group-sm">
                                                     <a href="{{ url_for('finanzas.detalle_proyecto', proyecto_id=proyecto.proyecto.id) }}" 
-                                                       class="btn btn-outline-primary" title="Ver detalle">
-                                                        <i class="fas fa-eye"></i>
+                                                       class="btn btn-outline-primary me-1">
+                                                        <i class="fas fa-eye"></i> Ver Detalle
+                                                    </a>
+                                                    <a href="{{ url_for('finanzas.resumen_financiero_proyecto', proyecto_id=proyecto.proyecto.id) }}" 
+                                                       class="btn btn-sm btn-primary">
+                                                        <i class="fas fa-chart-line"></i> Resumen
                                                     </a>
                                                     {% if proyecto.num_contratos > 0 %}
                                                     <a href="{{ url_for('finanzas.costos_proyecto', proyecto_id=proyecto.proyecto.id) }}" 
@@ -238,7 +242,7 @@
             {% endif %}
         </div>
     </div>
-    
+
     <!-- Acciones rápidas -->
     <div class="mt-4">
         <a href="{{ url_for('finanzas.reportes') }}" class="btn btn-outline-primary">
