@@ -310,17 +310,17 @@ def estados_pago_contrato(contrato_id):
         agg_contrato = next((agg for agg in agregaciones if agg['contrato_id'] == contrato_id), None)
 
         if agg_contrato:
-            total_facturado = agg_contrato['total_facturado']
-            total_pagado = agg_contrato['total_pagado']
-            total_pendiente = agg_contrato['pendiente_facturar']  # Calculado dinámicamente
+            total_facturado = Decimal(str(agg_contrato['total_facturado']))
+            total_pagado = Decimal(str(agg_contrato['total_pagado']))
+            total_pendiente = Decimal(str(agg_contrato['pendiente_facturar']))  # Calculado dinámicamente
         else:
             # Fallback a cálculo manual (sin incluir PENDIENTE_FACTURAR)
             total_facturado = sum(e.monto for e in contrato.estados_pago 
                                 if e.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO])
             total_pagado = sum(e.monto for e in contrato.estados_pago 
                              if e.tipo_estado == TipoEstadoPago.PAGADO)
-            total_contrato = contrato.monto_total or 0
-            total_pendiente = max(0, total_contrato - total_facturado)
+            total_contrato = contrato.monto_total or Decimal(0)
+            total_pendiente = max(Decimal(0), total_contrato - total_facturado)
 
         return render_template('finanzas/estados_pago.html',
                              contrato=contrato,

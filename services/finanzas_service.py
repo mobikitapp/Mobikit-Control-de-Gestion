@@ -395,10 +395,10 @@ class FinanzasService:
                     if estado.tipo_estado == TipoEstadoPago.PAGADO
                 )
 
-                # Cálculos dinámicos
+                # Cálculos dinámicos - mantener consistencia de tipos
                 monto_total = float(contrato.monto_total or 0)
-                pendiente_facturar = max(0, monto_total - total_facturado)
-                pendiente_cobro = max(0, total_facturado - total_pagado)
+                pendiente_facturar = max(0.0, monto_total - total_facturado)
+                pendiente_cobro = max(0.0, total_facturado - total_pagado)
 
                 agregaciones.append({
                     'contrato_id': contrato.id,
