@@ -706,9 +706,7 @@ def resumen_financiero_proyecto(proyecto_id):
 
         margen_presupuestado_total = margen_presupuestado_provision + margen_presupuestado_instalacion
 
-        # Resultado fábrica (provisión - costos materiales)
-        resultado_fabrica = float(proyecto.monto_provision_presupuestado or 0) - float(costo_provision_materiales)
-        margen_fabrica_pct = (resultado_fabrica / float(proyecto.monto_provision_presupuestado or 1) * 100) if proyecto.monto_provision_presupuestado else 0
+        
 
         # Preparar datos para el template
         resumen_datos = {
@@ -737,9 +735,6 @@ def resumen_financiero_proyecto(proyecto_id):
             'resultado_final': float(resultado_final),
             'margen_final_pct': margen_final_pct,
             'margen_presupuestado_total': float(margen_presupuestado_total),
-            
-            'resultado_fabrica': resultado_fabrica,
-            'margen_fabrica_pct': margen_fabrica_pct,
             
             # Datos adicionales
             'costos_por_categoria': {cat: float(info['total']) for cat, info in costos_por_categoria.items()},
