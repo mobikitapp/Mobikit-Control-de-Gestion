@@ -141,7 +141,7 @@ class FinanzasService:
                     'costos': float(total_costos),
                     'margen': float(margen),
                     'margen_pct': float(margen_pct),
-                    'avance_facturacion': float(total_facturado / total_presupuestado * 100) if total_presupuestado > 0 else 0
+                    'avance_facturacion': float(float(total_facturado) / float(total_presupuestado) * 100) if total_presupuestado > 0 else 0
                 })
             
             return resumen
@@ -483,8 +483,8 @@ class FinanzasService:
                     'total_costos': total_costos,
                     'margen_bruto': margen_bruto,
                     'margen_bruto_pct': margen_bruto_pct,
-                    'avance_facturacion': (total_facturado / total_contratos * 100) if total_contratos > 0 else 0,
-                    'avance_cobranza': (total_pagado / total_facturado * 100) if total_facturado > 0 else 0,
+                    'avance_facturacion': (float(total_facturado) / float(total_contratos) * 100) if total_contratos > 0 else 0,
+                    'avance_cobranza': (float(total_pagado) / float(total_facturado) * 100) if total_facturado > 0 else 0,
                     'facturacion_completa': facturacion_completa,
                     'cobranza_completa': cobranza_completa,
                     'proyecto_cerrado_financieramente': facturacion_completa and cobranza_completa,
@@ -516,8 +516,8 @@ class FinanzasService:
             total_pendiente_cobro = sum(agg['pendiente_cobro'] for agg in agregaciones)
             
             # Calcular porcentajes
-            avance_facturacion = float(total_facturado / total_contratos * 100) if total_contratos > 0 else 0
-            avance_cobro = float(total_pagado / total_contratos * 100) if total_contratos > 0 else 0
+            avance_facturacion = float(float(total_facturado) / float(total_contratos) * 100) if total_contratos > 0 else 0
+            avance_cobro = float(float(total_pagado) / float(total_contratos) * 100) if total_contratos > 0 else 0
             
             return {
                 'total_contratos': total_contratos,

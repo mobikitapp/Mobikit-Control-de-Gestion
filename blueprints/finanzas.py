@@ -110,8 +110,8 @@ def dashboard():
                 'total_facturado': total_facturado,
                 'total_pagado': total_pagado,
                 'total_pendiente': total_pendiente,  # Ahora calculado dinámicamente
-                'avance_facturacion': (total_facturado / total_contratos * 100) if total_contratos > 0 else 0,
-                'avance_cobro': (total_pagado / total_contratos * 100) if total_contratos > 0 else 0,
+                'avance_facturacion': (float(total_facturado) / float(total_contratos) * 100) if total_contratos > 0 else 0,
+                'avance_cobro': (float(total_pagado) / float(total_contratos) * 100) if total_contratos > 0 else 0,
                 'tiene_contratos_uf': tiene_contratos_uf,
                 'ganancia_perdida_inflacion': total_ganancia_perdida_inflacion
             })
@@ -267,7 +267,7 @@ def detalle_proyecto(proyecto_id):
             }
         
         margen = total_ingresos - total_costos
-        margen_porcentaje = (margen / total_ingresos * 100) if total_ingresos > 0 else 0
+        margen_porcentaje = (float(margen) / float(total_ingresos) * 100) if total_ingresos > 0 else 0
         
         return render_template('finanzas/detalle_proyecto.html',
                              proyecto=proyecto,
@@ -635,7 +635,7 @@ def reporte_analisis_proyectos():
                 
             total_costos = costo_estimado_provision + costo_estimado_instalacion
             margen = total_contratos - total_costos
-            margen_porcentaje = (margen / total_contratos * 100) if total_contratos > 0 else 0
+            margen_porcentaje = (float(margen) / float(total_contratos) * 100) if total_contratos > 0 else 0
             
             analisis.append({
                 'proyecto': proyecto,
