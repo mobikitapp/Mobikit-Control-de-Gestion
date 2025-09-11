@@ -109,6 +109,7 @@
                                     <th>Total Ventas</th>
                                     <th>Ganancias</th>
                                     <th>Margen Pond.</th>
+                                    <th>Margen B.E.</th>
                                     <th>Objetivo</th>
                                     <th>% Objetivo</th>
                                 </tr>
@@ -154,6 +155,13 @@
                                         {% endif %}
                                     </td>
                                     <td>
+                                        {% if mes_data.margen_break_even %}
+                                        <span class="badge bg-info">{{ "{:.1f}".format(mes_data.margen_break_even) }}%</span>
+                                        {% else %}
+                                        <small class="text-muted">N/A</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
                                         {% if objetivo_total %}
                                         <small class="text-muted">${{ "{:,.0f}".format(objetivo_total) }}</small>
                                         {% else %}
@@ -177,7 +185,7 @@
                                 <!-- Expandable projects row for this month -->
                                 {% if mes_data.proyectos|length > 0 %}
                                 <tr id="proyectos-mes-{{ periodo_key }}" class="proyectos-detail" style="display: none;">
-                                    <td colspan="8" class="p-0">
+                                    <td colspan="9" class="p-0">
                                         <div class="bg-light border-top">
                                             <div class="p-3">
                                                 <h6 class="mb-3">Proyectos en {{ mes_data.periodo_label }}</h6>

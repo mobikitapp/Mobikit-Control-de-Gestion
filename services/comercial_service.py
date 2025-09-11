@@ -11,6 +11,7 @@ from models import (
     Proyecto, Cliente, User, TareaComercial, ObjetivoMensual,
     EstadoComercial, RolUsuario
 )
+from services.revenue_service import RevenueService
 
 
 class ComercialService:
@@ -734,6 +735,7 @@ class ComercialService:
                 'valor_provision': Decimal('0'),
                 'valor_instalacion': Decimal('0'),
                 'margen_ponderado': Decimal('0'),
+                'margen_break_even': Decimal('0'),
                 'ganancias': Decimal('0')
             }
         
@@ -792,12 +794,16 @@ class ComercialService:
                     matriz[periodo_key]['valor_instalacion'] += valor_instalacion_mes
                     matriz[periodo_key]['ganancias'] += ganancia_total_mes
 
-        # Calculate weighted average margin per month
+        # Calculate weighted average margin and break even margin per month
+        revenue_service = RevenueService()
+        
         for periodo_key in matriz:
             valor_total_mes = matriz[periodo_key]['valor_provision'] + matriz[periodo_key]['valor_instalacion']
             if valor_total_mes > 0:
                 # Calculate weighted margin based on value proportions
                 margen_ponderado = Decimal('0')
+                margen_break_even_ponderado = Decimal('0')
+                
                 for proyecto_mes in matriz[periodo_key]['proyectos']:
                     valor_proyecto_mes = proyecto_mes['valor_provision_mes'] + proyecto_mes['valor_instalacion_mes']
                     peso = valor_proyecto_mes / valor_total_mes
@@ -815,8 +821,13 @@ class ComercialService:
                             margen_proyecto += (valor_inst / valor_total_proyecto) * proyecto_mes['margen_instalacion']
                         
                         margen_ponderado += peso * margen_proyecto
+                        
+                        # Calculate break even margin for this project value
+                        margen_be_proyecto = Decimal(str(revenue_service.required_margin(float(valor_total_proyecto))))
+                        margen_break_even_ponderado += peso * margen_be_proyecto
                 
                 matriz[periodo_key]['margen_ponderado'] = margen_ponderado
+                matriz[periodo_key]['margen_break_even'] = margen_break_even_ponderado
 
         return matriz
 
@@ -832,6 +843,7 @@ class ComercialService:
                 'valor_provision': Decimal('0'),
                 'valor_instalacion': Decimal('0'),
                 'margen_ponderado': Decimal('0'),
+                'margen_break_even': Decimal('0'),
                 'ganancias': Decimal('0')
             }
 
@@ -890,12 +902,16 @@ class ComercialService:
                     matriz[mes]['valor_instalacion'] += valor_instalacion_mes
                     matriz[mes]['ganancias'] += ganancia_total_mes
 
-        # Calculate weighted average margin per month
+        # Calculate weighted average margin and break even margin per month
+        revenue_service = RevenueService()
+        
         for mes in matriz:
             valor_total_mes = matriz[mes]['valor_provision'] + matriz[mes]['valor_instalacion']
             if valor_total_mes > 0:
                 # Calculate weighted margin based on value proportions
                 margen_ponderado = Decimal('0')
+                margen_break_even_ponderado = Decimal('0')
+                
                 for proyecto_mes in matriz[mes]['proyectos']:
                     valor_proyecto_mes = proyecto_mes['valor_provision_mes'] + proyecto_mes['valor_instalacion_mes']
                     peso = valor_proyecto_mes / valor_total_mes
@@ -913,8 +929,13 @@ class ComercialService:
                             margen_proyecto += (valor_inst / valor_total_proyecto) * proyecto_mes['margen_instalacion']
                         
                         margen_ponderado += peso * margen_proyecto
+                        
+                        # Calculate break even margin for this project value
+                        margen_be_proyecto = Decimal(str(revenue_service.required_margin(float(valor_total_proyecto))))
+                        margen_break_even_ponderado += peso * margen_be_proyecto
                 
                 matriz[mes]['margen_ponderado'] = margen_ponderado
+                matriz[mes]['margen_break_even'] = margen_break_even_ponderado
 
         return matriz
 
@@ -1037,6 +1058,7 @@ class ComercialService:
                 'valor_provision': mes_data['valor_provision'],
                 'valor_instalacion': mes_data['valor_instalacion'],
                 'margen_ponderado': mes_data['margen_ponderado'],
+                'margen_break_even': mes_data['margen_break_even'],
                 'ganancias': mes_data['ganancias'],
                 'proyectos_count': len(mes_data['proyectos'])
             }
