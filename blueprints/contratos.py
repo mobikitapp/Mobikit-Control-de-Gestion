@@ -592,6 +592,24 @@ def api_by_proyecto(proyecto_id):
         logger.error(f"Error en API contratos por proyecto: {str(e)}")
         return jsonify({'error': 'Error al cargar contratos'}), 500
 
+@contratos_bp.route('/api/by-cliente/<int:cliente_id>')
+@require_login
+def api_by_cliente(cliente_id):
+    """API endpoint para obtener contratos por cliente"""
+    try:
+        contratos = contratos_service.get_contratos_by_cliente(cliente_id)
+        return jsonify([{
+            'id': c.id,
+            'numero_oc': c.numero_oc,
+            'estado': c.estado.value,
+            'monto_total': float(c.monto_total) if c.monto_total else 0,
+            'proyecto_nombre': c.proyecto.nombre
+        } for c in contratos])
+
+    except Exception as e:
+        logger.error(f"Error en API contratos por cliente: {str(e)}")
+        return jsonify({'error': 'Error al cargar contratos'}), 500
+
 @contratos_bp.route('/api/users/active')
 @login_required
 def api_users_active():

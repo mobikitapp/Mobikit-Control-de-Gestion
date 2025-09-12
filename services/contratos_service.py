@@ -27,36 +27,36 @@ class ContratosService:
     def _process_uf_conversion(self, contrato_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Process UF conversion for contrato data if applicable
-        
+
         Args:
             contrato_data: Contrato data dictionary
-            
+
         Returns:
             Processed contrato data with UF conversion
         """
         # Check if UF amount is provided
         monto_uf = contrato_data.get('monto_total_uf')
         moneda_original = contrato_data.get('moneda_original', 'CLP')
-        
+
         if monto_uf and moneda_original == 'UF':
             try:
                 # Convert UF to CLP
                 monto_uf_decimal = Decimal(str(monto_uf))
                 valor_uf_actual = self.uf_service.get_current_uf_value()
                 monto_clp = self.uf_service.convert_uf_to_clp(monto_uf_decimal)
-                
+
                 # Update contrato data with conversion
                 contrato_data['monto_total'] = monto_clp
                 contrato_data['valor_uf_conversion'] = valor_uf_actual
                 contrato_data['fecha_conversion_uf'] = date.today()
                 contrato_data['moneda'] = 'CLP'  # Always store as CLP in legacy field
-                
+
                 logger.info(f"Conversión UF: {monto_uf} UF = ${monto_clp:,.0f} CLP (UF: ${valor_uf_actual:,.2f})")
-                
+
             except Exception as e:
                 logger.error(f"Error en conversión UF: {str(e)}")
                 raise ValueError(f"Error al convertir monto UF: {str(e)}")
-        
+
         return contrato_data
 
     def create_contrato(self, contrato_data: Dict[str, Any], created_by: str) -> Contrato:
@@ -108,10 +108,10 @@ class ContratosService:
                 from services.treasury_integration_service import TreasuryIntegrationService
                 treasury_service = TreasuryIntegrationService()
                 estados_creados = treasury_service.process_contract_creation(contrato, created_by)
-                
+
                 if estados_creados:
                     logger.info(f"Tesorería: {len(estados_creados)} estados de pago creados automáticamente para contrato {contrato.id}")
-                    
+
             except Exception as treasury_error:
                 logger.warning(f"Error en integración con Tesorería para contrato {contrato.id}: {str(treasury_error)}")
                 # No interrumpir creación del contrato si falla la integración
@@ -401,17 +401,19 @@ class ContratosService:
             raise
 
     def get_contratos_by_proyecto(self, proyecto_id: int) -> List[Contrato]:
-        """Get all contratos for a proyecto"""
+        """Get contracts by project"""
         try:
-            contratos = self.repo.get_by_proyecto(proyecto_id)
-
-            # Enrich each contract with additional info
-            for contrato in contratos:
-                self._enrich_contrato_with_ofs_info(contrato)
-
-            return contratos
+            return self.repo.get_by_proyecto(proyecto_id)
         except Exception as e:
-            logger.error(f"Error getting contratos for proyecto {proyecto_id}: {str(e)}")
+            logger.error(f"Error getting contratos by proyecto: {str(e)}")
+            raise
+
+    def get_contratos_by_cliente(self, cliente_id: int) -> List[Contrato]:
+        """Get contracts by client"""
+        try:
+            return self.repo.get_by_cliente_id(cliente_id)
+        except Exception as e:
+            logger.error(f"Error getting contratos by cliente: {str(e)}")
             raise
 
     def get_all_contratos(self) -> List[Contrato]:

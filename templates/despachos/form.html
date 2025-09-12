@@ -314,32 +314,52 @@ async function updateProyectos() {
 
 async function updateContratos() {
     const clienteSelect = document.getElementById('cliente_id');
+    const proyectoSelect = document.getElementById('proyecto_id');
     const contratoSelect = document.getElementById('contrato_id');
     const clienteId = clienteSelect.value;
+    const proyectoId = proyectoSelect.value;
 
-    // Clear current options (except selected one)
+    // Store currently selected contrato
     const selectedContrato = contratoSelect.value;
     contratoSelect.innerHTML = '<option value="">Sin contrato asociado</option>';
 
-    if (clienteId) {
+    // Priorizar filtrado por proyecto si está disponible, sino por cliente
+    if (proyectoId) {
         try {
-            const response = await fetch(`{{ url_for('despachos.api_contratos_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
+            const response = await fetch(`{{ url_for('contratos.api_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId));
             if (response.ok) {
                 const contratos = await response.json();
                 contratos.forEach(contrato => {
                     const option = document.createElement('option');
                     option.value = contrato.id;
-                    option.textContent = contrato.numero_oc + ' - ' + contrato.proyecto_nombre;
+                    option.textContent = `${contrato.numero_oc} (${contrato.estado})`;
                     if (contrato.id == selectedContrato) {
                         option.selected = true;
                     }
                     contratoSelect.appendChild(option);
                 });
-
-                // Si hay un contrato seleccionado, actualizar hitos
-                if (selectedContrato) {
-                    updateHitosByContrato(selectedContrato);
-                }
+            } else {
+                console.error('Error response loading contratos:', response.status);
+            }
+        } catch (error) {
+            console.error('Error loading contratos:', error);
+            contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
+        }
+    } else if (clienteId) {
+        // Solo si no hay proyecto seleccionado, filtrar por cliente
+        try {
+            const response = await fetch(`/api/contratos/by-cliente/${clienteId}`);
+            if (response.ok) {
+                const contratos = await response.json();
+                contratos.forEach(contrato => {
+                    const option = document.createElement('option');
+                    option.value = contrato.id;
+                    option.textContent = `${contrato.numero_oc} (${contrato.estado})`;
+                    if (contrato.id == selectedContrato) {
+                        option.selected = true;
+                    }
+                    contratoSelect.appendChild(option);
+                });
             } else {
                 console.error('Error response loading contratos:', response.status);
             }
@@ -434,9 +454,9 @@ function clearOFs() {
 async function updateOFsByProyecto() {
     const proyectoSelect = document.getElementById('proyecto_id');
     const contratoSelect = document.getElementById('contrato_id');
-    
+
     if (!proyectoSelect) return;
-    
+
     const proyectoId = proyectoSelect.value;
 
     // Si hay un contrato seleccionado, usar ese método en su lugar
@@ -450,9 +470,9 @@ async function updateOFsByProyecto() {
 
 async function updateOFsByContrato() {
     const contratoSelect = document.getElementById('contrato_id');
-    
+
     if (!contratoSelect) return;
-    
+
     const contratoId = contratoSelect.value;
 
     // Use the new OF loading system instead of the old select
@@ -494,8 +514,10 @@ async function updateHitosByContrato(contratoId) {
 
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize cascade selects functionality
-    console.log('Cascade selects initialized');
+    // Initialize feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
 
     // Custom form validation
     const form = document.getElementById('despachoForm'); // Assuming your form has id="despachoForm"
@@ -745,12 +767,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
 
-    // Actualizar la función existente si es necesario
-    // const originalUpdateOFsByProyecto = window.updateOFsByProyecto;
-    window.updateOFsByProyecto = function() {
-        updateAvailableOFs();
-        // No need to call originalUpdateOFsByProyecto if updateAvailableOFs handles everything
-    };
+    // Update onchange events to call updateContratos when project changes
+    const proyectoSelectElement = document.getElementById('proyecto_id');
+    if (proyectoSelectElement) {
+        proyectoSelectElement.addEventListener('change', updateContratos);
+    }
 
     // Initialize Feather Icons
     if (typeof feather !== 'undefined') {
