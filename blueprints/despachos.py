@@ -34,7 +34,7 @@ proyectos_repo = ProyectosRepository()
 contratos_repo = ContratosRepository()
 fabrication_repo = FabricacionRepository()
 
-@despachos_bp.route('/api/contratos/cliente/<int:cliente_id>')
+@despachos_bp.route('/api/contratos_by_cliente/<int:cliente_id>')
 @require_login
 def api_contratos_by_cliente(cliente_id):
     """API endpoint to get contratos by cliente"""
