@@ -381,7 +381,7 @@ async function updateContratos() {
 
     // Update dispatch number when contract changes
     updateDespachoNumber();
-    
+
     // Clear and update OFs when contracts change
     clearAndUpdateOFs();
 }
@@ -469,7 +469,7 @@ function clearOFs() {
         if (emptyAlert) emptyAlert.style.display = 'none';
         list.style.display = 'none';
         list.innerHTML = '';
-        
+
         // Clear selected OFs input
         const hiddenField = document.getElementById('selected_ofs');
         if (hiddenField) {
@@ -481,7 +481,7 @@ function clearOFs() {
 function clearAndUpdateOFs() {
     // Clear current OFs and update based on new selection
     clearOFs();
-    
+
     // Small delay to ensure DOM is updated before loading new OFs
     setTimeout(() => {
         updateAvailableOFs();
@@ -548,392 +548,554 @@ async function updateHitosByContrato(contratoId) {
 
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize feather icons
-    if (typeof feather !== 'undefined') {
-        feather.replace();
-    }
+    console.log('Despachos form initialized');
 
-    // Custom form validation
-    const form = document.getElementById('despachoForm'); // Assuming your form has id="despachoForm"
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            const numeroDespachoInput = document.getElementById('numero_despacho');
+    // Initialize form elements
+    const clienteSelect = document.getElementById('cliente_id');
+    const contratoSelect = document.getElementById('contrato_id');
+    const hitoSelect = document.getElementById('hito_entrega_id');
 
-            // For new dispatches (placeholder field), don't require manual input if empty
-            if (numeroDespachoInput.placeholder && numeroDespachoInput.placeholder.includes("Se generará automáticamente") && !numeroDespachoInput.value.trim()) {
-                numeroDespachoInput.removeAttribute('required');
+    // Add event listeners for cascade selects
+    if (clienteSelect) {
+        clienteSelect.addEventListener('change', function() {
+            const clienteId = this.value;
+            console.log('Cliente changed to:', clienteId);
+
+            // Clear dependent selects
+            if (contratoSelect) {
+                contratoSelect.innerHTML = '<option value="">Seleccione un contrato</option>';
+            }
+            if (hitoSelect) {
+                hitoSelect.innerHTML = '<option value="">Seleccione un hito (opcional)</option>';
+            }
+
+            // Clear OFs
+            clearOFs();
+
+            if (clienteId) {
+                updateContratosByCliente(clienteId);
             }
         });
     }
 
-    // Nueva función para cargar OFs disponibles
-    window.updateAvailableOFs = function() {
-        const proyectoSelect = document.getElementById('proyecto_id');
+    if (contratoSelect) {
+        contratoSelect.addEventListener('change', function() {
+            const contratoId = this.value;
+            console.log('Contrato changed to:', contratoId);
+
+            // Clear dependent selects
+            if (hitoSelect) {
+                hitoSelect.innerHTML = '<option value="">Seleccione un hito (opcional)</option>';
+            }
+
+            if (contratoId) {
+                updateHitosByContrato(contratoId);
+                loadOFs(contratoId);
+            } else {
+                clearOFs();
+            }
+        });
+    }
+
+    // Si hay valores pre-cargados (para edición), cargar los datos
+    if (clienteSelect && clienteSelect.value) {
+        updateContratosByCliente(clienteSelect.value, contratoSelect ? contratoSelect.value : null);
+    }
+
+    if (contratoSelect && contratoSelect.value) {
+        updateHitosByContrato(contratoSelect.value, hitoSelect ? hitoSelect.value : null);
+
+        // Cargar OFs si hay contrato seleccionado
+        const selectedOfs = [];
+        {% if despacho and despacho.ordenes_fabricacion_detalle %}
+            {% for despacho_of in despacho.ordenes_fabricacion_detalle %}
+            selectedOfs.push({
+                of_id: {{ despacho_of.orden_fabricacion_id }},
+                tipo_despacho: '{{ despacho_of.tipo_despacho.value }}',
+                cantidad_despachada: {{ despacho_of.cantidad_despachada }},
+                observaciones: '{{ despacho_of.observaciones or "" }}'
+            });
+            {% endfor %}
+        {% endif %}
+
+        loadOFs(contratoSelect.value, selectedOfs);
+    }
+});
+
+// Function to update form data before submit
+function updateFormDataBeforeSubmit() {
+    updateSelectedOFsInput(); // Ensure the hidden field is up-to-date
+}
+
+// Initialize cascade selects on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Despachos form initialized');
+
+        // Initialize form elements
+        const clienteSelect = document.getElementById('cliente_id');
         const contratoSelect = document.getElementById('contrato_id');
         const hitoSelect = document.getElementById('hito_entrega_id');
 
-        const proyectoId = proyectoSelect ? proyectoSelect.value : null;
-        const contratoId = contratoSelect ? contratoSelect.value : null;
-        const hitoId = hitoSelect ? hitoSelect.value : null;
+        // Add event listeners for cascade selects
+        if (clienteSelect) {
+            clienteSelect.addEventListener('change', function() {
+                const clienteId = this.value;
+                console.log('Cliente changed to:', clienteId);
 
-        const container = document.getElementById('ofs-container');
+                // Clear dependent selects
+                if (contratoSelect) {
+                    contratoSelect.innerHTML = '<option value="">Seleccione un contrato</option>';
+                }
+                if (hitoSelect) {
+                    hitoSelect.innerHTML = '<option value="">Seleccione un hito (opcional)</option>';
+                }
+
+                // Clear OFs
+                clearOFs();
+
+                if (clienteId) {
+                    updateContratosByCliente(clienteId);
+                }
+            });
+        }
+
+        if (contratoSelect) {
+            contratoSelect.addEventListener('change', function() {
+                const contratoId = this.value;
+                console.log('Contrato changed to:', contratoId);
+
+                // Clear dependent selects
+                if (hitoSelect) {
+                    hitoSelect.innerHTML = '<option value="">Seleccione un hito (opcional)</option>';
+                }
+
+                if (contratoId) {
+                    updateHitosByContrato(contratoId);
+                    loadOFs(contratoId);
+                } else {
+                    clearOFs();
+                }
+            });
+        }
+
+        // Si hay valores pre-cargados (para edición), cargar los datos
+        if (clienteSelect && clienteSelect.value) {
+            updateContratosByCliente(clienteSelect.value, contratoSelect ? contratoSelect.value : null);
+        }
+
+        if (contratoSelect && contratoSelect.value) {
+            updateHitosByContrato(contratoSelect.value, hitoSelect ? hitoSelect.value : null);
+
+            // Cargar OFs si hay contrato seleccionado
+            const selectedOfs = [];
+            {% if despacho and despacho.ordenes_fabricacion_detalle %}
+                {% for despacho_of in despacho.ordenes_fabricacion_detalle %}
+                selectedOfs.push({
+                    of_id: {{ despacho_of.orden_fabricacion_id }},
+                    tipo_despacho: '{{ despacho_of.tipo_despacho.value }}',
+                    cantidad_despachada: {{ despacho_of.cantidad_despachada }},
+                    observaciones: '{{ despacho_of.observaciones or "" }}'
+                });
+                {% endfor %}
+            {% endif %}
+
+            loadOFs(contratoSelect.value, selectedOfs);
+        }
+    });
+
+    // Function to clear OFs selection
+    function clearOFs() {
+        const container = document.getElementById('ofs-selection-container');
         const placeholder = document.getElementById('ofs-placeholder');
-        const emptyAlert = document.getElementById('ofs-empty');
         const list = document.getElementById('ofs-list');
 
-        // Verificar que los elementos existan
-        if (!container || !list) {
-            console.error('Critical elements not found for OF loading:', {
-                container: !!container,
-                placeholder: !!placeholder,
-                emptyAlert: !!emptyAlert,
-                list: !!list
-            });
-            return;
+        if (container) {
+            container.style.display = 'none';
         }
-
-        // Prioritize filtering by Contrato, then Proyecto, then Hito
-        let apiUrl = null;
-        let placeholderText = 'Selecciona un contrato o proyecto para ver las órdenes de fabricación disponibles.';
-        let emptyMessage = 'No hay órdenes de fabricación disponibles.';
-
-        if (contratoId) {
-            apiUrl = `{{ url_for('despachos.api_fabricacion_by_contrato', contrato_id=0) }}`.replace('0', contratoId);
-            placeholderText = 'Cargando órdenes de fabricación del contrato...';
-            emptyMessage = 'No hay órdenes de fabricación disponibles para este contrato.';
-        } else if (proyectoId) {
-            apiUrl = `{{ url_for('despachos.api_fabricacion_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId);
-            placeholderText = 'Cargando órdenes de fabricación del proyecto...';
-            emptyMessage = 'No hay órdenes de fabricación disponibles para este proyecto.';
-        } else if (hitoId) {
-            apiUrl = `{{ url_for('despachos.api_fabricacion_by_hito', hito_id=0) }}`.replace('0', hitoId);
-            placeholderText = 'Cargando órdenes de fabricación del hito...';
-            emptyMessage = 'No hay órdenes de fabricación disponibles para este hito.';
-        } else {
-            // No criteria selected, show placeholder
-            if (placeholder) {
-                placeholder.style.display = 'block';
-                const icon = placeholder.querySelector('i');
-                const text = placeholder.querySelector('strong');
-                if (icon) icon.className = 'bi bi-info-circle me-2';
-                if (text) text.textContent = placeholderText;
-            }
-            if (emptyAlert) emptyAlert.style.display = 'none';
-            list.style.display = 'none';
-            list.innerHTML = '';
-            return;
-        }
-
-        // Show loading state
         if (placeholder) {
-            placeholder.style.display = 'block';
-            const icon = placeholder.querySelector('i');
-            const text = placeholder.querySelector('strong');
-            if (icon) icon.className = 'bi bi-hourglass me-2';
-            if (text) text.textContent = placeholderText;
+            placeholder.innerHTML = '<i class="fas fa-info-circle text-muted"></i> Seleccione un contrato para ver las órdenes de fabricación disponibles';
         }
-        if (emptyAlert) emptyAlert.style.display = 'none';
-        list.style.display = 'none';
-        list.innerHTML = '';
+        if (list) {
+            list.innerHTML = '';
+        }
+    }
 
-        // Cargar OFs del contrato o proyecto
-        fetch(apiUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Check if response has error
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                const ofs = Array.isArray(data) ? data : [];
+    // Function to update form data before submit
+</new_str>
+Corregir función de carga de OFs y manejo de errores
+Replacing
+<old_str>
+async function loadOFs(contratoId, selectedOfs = []) {
+    const container = document.getElementById('ofs-selection-container');
+    const placeholder = document.getElementById('ofs-placeholder');
+    const list = document.getElementById('ofs-list');
 
-                if (ofs.length === 0) {
-                    if (placeholder) placeholder.style.display = 'none';
-                    if (emptyAlert) {
-                        emptyAlert.style.display = 'block';
-                        const messageSpan = emptyAlert.querySelector('.empty-message');
-                        if (messageSpan) {
-                            messageSpan.textContent = emptyMessage;
-                        } else {
-                            emptyAlert.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i><span class="empty-message">${emptyMessage}</span> <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>`;
-                        }
-                    }
-                    list.style.display = 'none';
-                    list.innerHTML = '';
-                } else {
-                    let html = '<div class="row g-3">';
-                    ofs.forEach(function(of) {
-                        // Determinar si tiene despachos parciales previos
-                        const tieneParciales = of.tiene_despachos_parciales || false;
-                        const cantidadDespachadaPrevia = of.cantidad_despachada_previa || 0;
-                        const cantidadTotal = of.cantidad_total || 0;
-                        const cantidadDisponible = of.cantidad_disponible || cantidadTotal; // Use cantidad_disponible if available
+    console.log('Elements not found for OF loading:', {
+        container: !!container,
+        placeholder: !!placeholder,
+        list: !!list
+    });
 
-                        let infoAdicional = '';
-                        if (tieneParciales) {
-                            infoAdicional = `
-                                <div class="alert alert-info alert-sm mt-2">
-                                    <i data-feather="info" class="me-1"></i>
-                                    <strong>Despacho Parcial Previo:</strong> ${cantidadDespachadaPrevia} tableros ya despachados. 
-                                    Disponibles: ${cantidadDisponible} tableros.
+    if (!container || !list) {
+        console.error('Required elements not found for OF loading');
+        return;
+    }
+
+    // Show loading state
+    container.style.display = 'block';
+    if (placeholder) {
+        placeholder.style.display = 'block';
+        placeholder.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando órdenes de fabricación...';
+    }
+    list.innerHTML = '';
+
+    if (!contratoId) {
+        if (placeholder) {
+            placeholder.innerHTML = '<i class="fas fa-info-circle text-muted"></i> Seleccione un contrato para ver las órdenes de fabricación disponibles';
+        }
+        return;
+    }
+
+    try {
+        const response = await fetch(`{{ url_for('despachos.api_fabricacion_by_contrato', contrato_id=0) }}`.replace('0', contratoId));
+        if (response.ok) {
+            const ofs = await response.json();
+
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+
+            if (ofs && ofs.length > 0) {
+                ofs.forEach((of, index) => {
+                    const isSelected = selectedOfs.some(selected => selected.of_id == of.id);
+                    const selectedOf = selectedOfs.find(selected => selected.of_id == of.id);
+
+                    const ofItem = document.createElement('div');
+                    ofItem.className = 'card mb-3 of-item';
+                    ofItem.innerHTML = `
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-1">
+                                    <div class="form-check">
+                                        <input class="form-check-input of-checkbox" type="checkbox" 
+                                               id="of_${of.id}" value="${of.id}" ${isSelected ? 'checked' : ''}>
+                                    </div>
                                 </div>
-                            `;
-                        }
-
-                        // Add data attributes for easy access in JS
-                        const ofItemHtml = `
-                            <div class="col-lg-6 col-md-12">
-                                <div class="of-card border rounded p-3 mb-3" 
-                                     data-of-id="${of.id}" 
-                                     data-cantidad-total="${cantidadTotal}"
-                                     data-cantidad-disponible="${cantidadDisponible}">
+                                <div class="col-md-3">
+                                    <h6 class="mb-1">${of.codigo}</h6>
+                                    <small class="text-muted">${of.descripcion}</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="badge bg-info">${of.cantidad_total} tableros</span>
+                                    ${of.cantidad_despachada_previa > 0 ? 
+                                        `<br><small class="text-warning">Despachado: ${of.cantidad_despachada_previa}</small>` : ''}
+                                </div>
+                                <div class="col-md-2">
+                                    <small class="text-muted">Estado: ${of.estado}</small>
+                                    <br><small class="text-muted">Área: ${of.area}</small>
+                                </div>
+                                <div class="col-md-4 of-options" style="display: ${isSelected ? 'block' : 'none'};">
                                     <div class="row">
-                                        <div class="col-md-8">
-                                            <h6 class="mb-2">${of.codigo}</h6>
-                                            <p class="text-muted mb-1">${of.descripcion}</p>
-                                            <div class="mb-2">
-                                                <small class="badge bg-secondary me-1">${of.area || 'Sin área'}</small>
-                                                <small class="badge bg-info">${of.estado}</small>
-                                                ${tieneParciales ? '<small class="badge bg-warning">Despacho Parcial Previo</small>' : ''}
-                                            </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Tipo Despacho</label>
+                                            <select class="form-select form-select-sm tipo-despacho" data-of-id="${of.id}">
+                                                <option value="TOTAL" ${!selectedOf || selectedOf.tipo_despacho === 'TOTAL' ? 'selected' : ''}>Total</option>
+                                                <option value="PARCIAL" ${selectedOf && selectedOf.tipo_despacho === 'PARCIAL' ? 'selected' : ''}>Parcial</option>
+                                            </select>
                                         </div>
-                                        <div class="col-md-4 text-end">
-                                            <div class="mb-2">
-                                                <strong>Cantidad Total:</strong> ${cantidadTotal}
-                                            </div>
-                                            ${of.cantidad_despachada_previa > 0 ? `<div class="mb-2"><small class="text-muted">Despachado previamente: ${of.cantidad_despachada_previa}</small></div>` : ''}
-                                        </div>
-                                    </div>
-                                    <div class="mt-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input of-checkbox" type="checkbox" 
-                                                   value="${of.id}" id="of_${of.id}" 
-                                                   data-of-codigo="${of.codigo}"
-                                                   data-of-descripcion="${of.descripcion}"
-                                                   data-of-area="${of.area}"
-                                                   data-of-estado="${of.estado}"
-                                                   data-of-cantidad-total="${cantidadTotal}"
-                                                   data-of-cantidad-disponible="${cantidadDisponible}"
-                                                   data-of-tiene-parciales="${tieneParciales}">
-                                            <label class="form-check-label fw-bold" for="of_${of.id}">
-                                                Seleccionar para Despacho
-                                            </label>
+                                        <div class="col-md-6 cantidad-container" style="display: ${selectedOf && selectedOf.tipo_despacho === 'PARCIAL' ? 'block' : 'none'};">
+                                            <label class="form-label small">Cantidad</label>
+                                            <input type="number" class="form-control form-control-sm cantidad-parcial" 
+                                                   data-of-id="${of.id}" 
+                                                   min="1" max="${of.cantidad_disponible || of.cantidad_total}" 
+                                                   value="${selectedOf && selectedOf.tipo_despacho === 'PARCIAL' ? selectedOf.cantidad_despachada : 1}">
                                         </div>
                                     </div>
-                                    <div class="mt-2 of-despacho-options" style="display: none;">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <label class="form-label">Tipo de Despacho</label>
-                                                <select class="form-select tipo-despacho" data-of-id="${of.id}">
-                                                    ${!tieneParciales ? `<option value="TOTAL">Total (${cantidadTotal} tableros)</option>` : ''}
-                                                    <option value="PARCIAL" ${tieneParciales ? 'selected' : ''}>Parcial</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-6 cantidad-parcial-container" ${!tieneParciales ? 'style="display: none;"' : ''}>
-                                                <label class="form-label">Cantidad a Despachar</label>
-                                                <input type="number" class="form-control cantidad-parcial" 
-                                                       min="1" max="${cantidadDisponible}" value="1">
-                                                <small class="text-muted">Máximo disponible: ${cantidadDisponible}</small>
-                                            </div>
-                                        </div>
-                                        <div class="mt-2">
-                                            <label class="form-label">Observaciones</label>
-                                            <textarea class="form-control observaciones-of" rows="2" 
-                                                      placeholder="Observaciones para esta OF..."></textarea>
-                                        </div>
+                                    <div class="mt-2">
+                                        <label class="form-label small">Observaciones</label>
+                                        <textarea class="form-control form-control-sm observaciones-of" data-of-id="${of.id}" rows="2" 
+                                                  placeholder="Observaciones específicas para esta OF">${selectedOf ? selectedOf.observaciones || '' : ''}</textarea>
                                     </div>
-                                    ${infoAdicional}
                                 </div>
                             </div>
-                        `;
-                        list.innerHTML += ofItemHtml;
-                    });
-                    html = list.innerHTML; // Get the generated HTML
-                    list.innerHTML = html; // Set it back to the list element
-                    list.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    if (emptyAlert) emptyAlert.style.display = 'none';
+                        </div>
+                    `;
 
-                    // Add event listeners after appending to DOM
-                    document.querySelectorAll('.of-checkbox').forEach(checkbox => {
-                        checkbox.addEventListener('change', function() {
-                            toggleOFSelection(this);
-                        });
-                    });
-                    document.querySelectorAll('.tipo-despacho').forEach(select => {
-                        select.addEventListener('change', function() {
-                            const ofId = this.getAttribute('data-of-id');
-                            updateQuantityField(ofId);
-                        });
-                    });
-                    document.querySelectorAll('.cantidad-parcial').forEach(input => {
-                        input.addEventListener('input', function() {
-                            const ofId = this.closest('.of-card').querySelector('.of-checkbox').value;
-                            updateSelectedOFsInput(); // Update on quantity change
-                        });
-                    });
-                    document.querySelectorAll('.observaciones-of').forEach(textarea => {
-                        textarea.addEventListener('input', function() {
-                            const ofId = this.closest('.of-card').querySelector('.of-checkbox').value;
-                            updateSelectedOFsInput(); // Update on observation change
-                        });
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error loading OFs:', error);
-                list.innerHTML = '<p class="text-danger text-center">Error al cargar las órdenes de fabricación.</p>';
-                list.style.display = 'block';
-                placeholder.style.display = 'none';
-                if (emptyAlert) emptyAlert.style.display = 'none';
-            });
-    };
+                    list.appendChild(ofItem);
+                });
 
-    // Funciones para manejar selección de OFs
-    window.toggleOFSelection = function(checkbox) {
-        const ofId = checkbox.value;
-        const ofCard = checkbox.closest('.of-card');
-        const quantitySection = ofCard.querySelector('.of-despacho-options');
+                // Add event listeners
+                attachOFEventListeners();
 
-        if (checkbox.checked) {
-            quantitySection.style.display = 'block';
-            const tieneParciales = checkbox.getAttribute('data-of-tiene-parciales') === 'true';
-            const tipoDespachoSelect = quantitySection.querySelector('.tipo-despacho');
-            const cantidadInput = quantitySection.querySelector('.cantidad-parcial');
-
-            if (tieneParciales) {
-                tipoDespachoSelect.value = 'PARCIAL';
-                cantidadInput.style.display = 'block';
-                cantidadInput.value = 1; // Default to 1 for partial
             } else {
-                tipoDespachoSelect.value = 'TOTAL';
-                cantidadInput.style.display = 'none';
+                if (placeholder) {
+                    placeholder.style.display = 'block';
+                    placeholder.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> No hay órdenes de fabricación disponibles para este contrato';
+                }
             }
-            updateQuantityField(ofId); // Update the hidden input field
         } else {
-            quantitySection.style.display = 'none';
-        }
-        updateSelectedOFsInput();
-    };
-
-    window.updateQuantityField = function(ofId) {
-        const ofCard = document.querySelector(`.of-card[data-of-id="${ofId}"]`);
-        if (!ofCard) return;
-
-        const checkbox = ofCard.querySelector('.of-checkbox');
-        const tipo = ofCard.querySelector('.tipo-despacho').value;
-        const cantidadInput = ofCard.querySelector('.cantidad-parcial');
-        const cantidadDisponible = parseInt(checkbox.getAttribute('data-of-cantidad-disponible'));
-
-        if (tipo === 'TOTAL') {
-            cantidadInput.style.display = 'none';
-        } else { // PARCIAL
-            cantidadInput.style.display = 'block';
-            cantidadInput.max = cantidadDisponible; // Ensure max is set correctly
-            if (parseInt(cantidadInput.value) > cantidadDisponible) {
-                cantidadInput.value = cantidadDisponible;
-            }
-            if (parseInt(cantidadInput.value) < 1) {
-                cantidadInput.value = 1;
+            console.error('Error response loading OFs:', response.status);
+            if (placeholder) {
+                placeholder.style.display = 'block';
+                placeholder.innerHTML = '<i class="fas fa-exclamation-triangle text-danger"></i> Error al cargar órdenes de fabricación';
             }
         }
-        updateSelectedOFsInput();
-    };
-
-    // Actualizar campo hidden con OFs seleccionadas
-    window.updateSelectedOFsInput = function() {
-        const selectedOFs = [];
-        document.querySelectorAll('.of-checkbox:checked').forEach(checkbox => {
-            const ofId = checkbox.value;
-            const ofCard = checkbox.closest('.of-card');
-            const tipo = ofCard.querySelector('.tipo-despacho').value;
-            const cantidadInput = ofCard.querySelector('.cantidad-parcial');
-            const cantidad = (tipo === 'PARCIAL') ? parseInt(cantidadInput.value) : parseInt(checkbox.getAttribute('data-of-cantidad-total'));
-            const observaciones = ofCard.querySelector('.observaciones-of').value;
-
-            selectedOFs.push({
-                of_id: ofId,
-                tipo_despacho: tipo.toUpperCase(),
-                cantidad_despachada: cantidad,
-                observaciones: observaciones
-            });
-        });
-
-        // Crear campo hidden si no existe
-        let hiddenField = document.getElementById('selected_ofs');
-        const form = document.querySelector('form');
-        if (!hiddenField && form) {
-            hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.id = 'selected_ofs';
-            hiddenField.name = 'selected_ofs';
-            form.appendChild(hiddenField);
+    } catch (error) {
+        console.error('Error loading OFs:', error);
+        if (placeholder) {
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = '<i class="fas fa-exclamation-triangle text-danger"></i> Error de conexión al cargar órdenes de fabricación';
         }
-        hiddenField.value = JSON.stringify(selectedOFs);
-    };
+    }
+}
+</old_str>
+with
+<new_str>
+async function loadOFs(contratoId, selectedOfs = []) {
+    const container = document.getElementById('ofs-selection-container');
+    const placeholder = document.getElementById('ofs-placeholder');
+    const list = document.getElementById('ofs-list');
 
-    // Función para generar número de despacho manualmente
-    window.generateNumeroDespacho = function() {
-        const proyectoSelect = document.getElementById('proyecto_id');
+    console.log('Loading OFs for contrato:', contratoId);
+    console.log('Elements found:', {
+        container: !!container,
+        placeholder: !!placeholder,
+        list: !!list
+    });
+
+    if (!container || !list) {
+        console.error('Required elements not found for OF loading');
+        return;
+    }
+
+    // Show loading state
+    container.style.display = 'block';
+    if (placeholder) {
+        placeholder.style.display = 'block';
+        placeholder.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando órdenes de fabricación...';
+    }
+    list.innerHTML = '';
+
+    if (!contratoId) {
+        if (placeholder) {
+            placeholder.innerHTML = '<i class="fas fa-info-circle text-muted"></i> Seleccione un contrato para ver las órdenes de fabricación disponibles';
+        }
+        return;
+    }
+
+    try {
+        const url = `{{ url_for('despachos.api_fabricacion_by_contrato', contrato_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', contratoId);
+        console.log('Fetching OFs from:', url);
+
+        const response = await fetch(url);
+        console.log('Response status:', response.status);
+
+        if (response.ok) {
+            const ofs = await response.json();
+            console.log('OFs loaded:', ofs);
+
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+
+            if (ofs && ofs.length > 0) {
+                ofs.forEach((of, index) => {
+                    const isSelected = selectedOfs.some(selected => selected.of_id == of.id);
+                    const selectedOf = selectedOfs.find(selected => selected.of_id == of.id);
+
+                    const ofItem = document.createElement('div');
+                    ofItem.className = 'card mb-3 of-item';
+                    ofItem.innerHTML = `
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-1">
+                                    <div class="form-check">
+                                        <input class="form-check-input of-checkbox" type="checkbox" 
+                                               id="of_${of.id}" value="${of.id}" ${isSelected ? 'checked' : ''}>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6 class="mb-1">${of.codigo}</h6>
+                                    <small class="text-muted">${of.descripcion}</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="badge bg-info">${of.cantidad_total} tableros</span>
+                                    ${of.cantidad_despachada_previa > 0 ? 
+                                        `<br><small class="text-warning">Despachado: ${of.cantidad_despachada_previa}</small>` : ''}
+                                </div>
+                                <div class="col-md-2">
+                                    <small class="text-muted">Estado: ${of.estado}</small>
+                                    <br><small class="text-muted">Área: ${of.area}</small>
+                                </div>
+                                <div class="col-md-4 of-options" style="display: ${isSelected ? 'block' : 'none'};">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Tipo Despacho</label>
+                                            <select class="form-select form-select-sm tipo-despacho" data-of-id="${of.id}">
+                                                <option value="TOTAL" ${!selectedOf || selectedOf.tipo_despacho === 'TOTAL' ? 'selected' : ''}>Total</option>
+                                                <option value="PARCIAL" ${selectedOf && selectedOf.tipo_despacho === 'PARCIAL' ? 'selected' : ''}>Parcial</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 cantidad-container" style="display: ${selectedOf && selectedOf.tipo_despacho === 'PARCIAL' ? 'block' : 'none'};">
+                                            <label class="form-label small">Cantidad</label>
+                                            <input type="number" class="form-control form-control-sm cantidad-parcial" 
+                                                   data-of-id="${of.id}" 
+                                                   min="1" max="${of.cantidad_disponible || of.cantidad_total}" 
+                                                   value="${selectedOf && selectedOf.tipo_despacho === 'PARCIAL' ? selectedOf.cantidad_despachada : 1}">
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label class="form-label small">Observaciones</label>
+                                        <textarea class="form-control form-control-sm observaciones-of" data-of-id="${of.id}" rows="2" 
+                                                  placeholder="Observaciones específicas para esta OF">${selectedOf ? selectedOf.observaciones || '' : ''}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    list.appendChild(ofItem);
+                });
+
+                // Add event listeners
+                attachOFEventListeners();
+
+            } else {
+                if (placeholder) {
+                    placeholder.style.display = 'block';
+                    placeholder.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> No hay órdenes de fabricación disponibles para este contrato';
+                }
+            }
+        } else {
+            console.error('Error response loading OFs:', response.status);
+            const errorText = await response.text();
+            console.error('Error details:', errorText);
+            if (placeholder) {
+                placeholder.style.display = 'block';
+                placeholder.innerHTML = '<i class="fas fa-exclamation-triangle text-danger"></i> Error al cargar órdenes de fabricación (Error ' + response.status + ')';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading OFs:', error);
+        if (placeholder) {
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = '<i class="fas fa-exclamation-triangle text-danger"></i> Error de conexión al cargar órdenes de fabricación';
+        }
+    }
+}
+</new_str>
+Corregir inicialización de cascade selects
+Replacing
+<old_str>
+// Initialize cascade selects on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Cascade selects initialized');
+        initCascadeSelects();
+
+        // Si hay valores pre-cargados (para edición), cargar los datos
+        const clienteSelect = document.getElementById('cliente_id');
         const contratoSelect = document.getElementById('contrato_id');
-        const numeroDespachoInput = document.getElementById('numero_despacho');
 
-        const proyectoId = proyectoSelect.value;
-        const contratoId = contratoSelect.value || null;
-
-        if (!proyectoId) {
-            alert('Por favor selecciona un proyecto primero');
-            return;
+        if (clienteSelect && clienteSelect.value) {
+            updateContratosByCliente(clienteSelect.value, contratoSelect.value);
         }
 
-        // Llamar al API para generar el número
-        fetch(`{{ url_for('despachos.api_generate_numero') }}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contrato_id: contratoId,
-                proyecto_id: parseInt(proyectoId)
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.numero_despacho) {
-                numeroDespachoInput.value = data.numero_despacho;
-            } else if (data.error) {
-                alert('Error generando número: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error generating dispatch number:', error);
-            alert('Error al generar número de despacho');
-        });
-    };
+        if (contratoSelect && contratoSelect.value) {
+            const hitoSelect = document.getElementById('hito_entrega_id');
+            updateHitosByContrato(contratoSelect.value, hitoSelect ? hitoSelect.value : null);
 
-    // Update onchange events to call updateContratos when project changes
-    const proyectoSelectElement = document.getElementById('proyecto_id');
-    if (proyectoSelectElement) {
-        proyectoSelectElement.addEventListener('change', updateContratos);
-    }
-    const contratoSelectElement = document.getElementById('contrato_id');
-    if (contratoSelectElement) {
-        contratoSelectElement.addEventListener('change', updateAvailableOFs);
-    }
-    const hitoSelectElement = document.getElementById('hito_entrega_id');
-    if (hitoSelectElement) {
-        hitoSelectElement.addEventListener('change', updateAvailableOFs);
-    }
+            // Cargar OFs si hay contrato seleccionado
+            const selectedOfs = [];
+            {% if despacho and despacho.ordenes_fabricacion_detalle %}
+                {% for despacho_of in despacho.ordenes_fabricacion_detalle %}
+                selectedOfs.push({
+                    of_id: {{ despacho_of.orden_fabricacion_id }},
+                    tipo_despacho: '{{ despacho_of.tipo_despacho.value }}',
+                    cantidad_despachada: {{ despacho_of.cantidad_despachada }},
+                    observaciones: '{{ despacho_of.observaciones or "" }}'
+                });
+                {% endfor %}
+            {% endif %}
 
+            loadOFs(contratoSelect.value, selectedOfs);
+        }
+    });
+</old_str>
+with
+<new_str>
+// Initialize cascade selects on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Despachos form initialized');
 
-    // Initialize Feather Icons
-    if (typeof feather !== 'undefined') {
-        feather.replace();
-    }
-});
-</script>
-{% endblock %}
+        // Initialize form elements
+        const clienteSelect = document.getElementById('cliente_id');
+        const contratoSelect = document.getElementById('contrato_id');
+        const hitoSelect = document.getElementById('hito_entrega_id');
+
+        // Add event listeners for cascade selects
+        if (clienteSelect) {
+            clienteSelect.addEventListener('change', function() {
+                const clienteId = this.value;
+                console.log('Cliente changed to:', clienteId);
+
+                // Clear dependent selects
+                if (contratoSelect) {
+                    contratoSelect.innerHTML = '<option value="">Seleccione un contrato</option>';
+                }
+                if (hitoSelect) {
+                    hitoSelect.innerHTML = '<option value="">Seleccione un hito (opcional)</option>';
+                }
+
+                // Clear OFs
+                clearOFs();
+
+                if (clienteId) {
+                    updateContratosByCliente(clienteId);
+                }
+            });
+        }
+
+        if (contratoSelect) {
+            contratoSelect.addEventListener('change', function() {
+                const contratoId = this.value;
+                console.log('Contrato changed to:', contratoId);
+
+                // Clear dependent selects
+                if (hitoSelect) {
+                    hitoSelect.innerHTML = '<option value="">Seleccione un hito (opcional)</option>';
+                }
+
+                if (contratoId) {
+                    updateHitosByContrato(contratoId);
+                    loadOFs(contratoId);
+                } else {
+                    clearOFs();
+                }
+            });
+        }
+
+        // Si hay valores pre-cargados (para edición), cargar los datos
+        if (clienteSelect && clienteSelect.value) {
+            updateContratosByCliente(clienteSelect.value, contratoSelect ? contratoSelect.value : null);
+        }
+
+        if (contratoSelect && contratoSelect.value) {
+            updateHitosByContrato(contratoSelect.value, hitoSelect ? hitoSelect.value : null);
+
+            // Cargar OFs si hay contrato seleccionado
+            const selectedOfs = [];
+            {% if despacho and despacho.ordenes_fabricacion_detalle %}
+                {% for despacho_of in despacho.ordenes_fabricacion_detalle %}
+                selectedOfs.push({
+                    of_id: {{ despacho_of.orden_fabricacion_id }},
+                    tipo_despacho: '{{ despacho_of.tipo_despacho.value }}',
+                    cantidad_despachada: {{ despacho_of.cantidad_despachada }},
+                    observaciones: '{{ despacho_of.observaciones or "" }}'
+                });
+                {% endfor %}
+            {% endif %}
+
+            loadOFs(contratoSelect.value, selectedOfs);
+        }
+    });
+</new_str>

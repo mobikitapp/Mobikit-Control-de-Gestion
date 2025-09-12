@@ -71,21 +71,31 @@ def api_fabricacion_by_proyecto(proyecto_id):
 def api_fabricacion_by_contrato(contrato_id):
     """API endpoint to get órdenes de fabricación disponibles para despacho por contrato"""
     try:
+        logger.info(f"Loading OFs for contrato {contrato_id}")
         ofs_disponibles = fabricacion_service.get_ofs_disponibles_para_despacho(contrato_id)
-        return jsonify([{
-            'id': of.id,
-            'codigo': of.codigo,
-            'descripcion': of.descripcion or 'Sin descripción',
-            'cantidad_total': of.cantidad_tableros or 0,
-            'cantidad_despachada_previa': getattr(of, 'cantidad_despachada_previa', 0),
-            'cantidad_disponible': getattr(of, 'cantidad_disponible_despacho', of.cantidad_tableros or 0),
-            'tiene_despachos_parciales': getattr(of, 'tiene_despachos_parciales', False),
-            'estado': getattr(of, 'estado_actual_nombre', 'Sin estado'),
-            'area': getattr(of, 'area_actual_nombre', 'Sin área')
-        } for of in ofs_disponibles])
+        logger.info(f"Found {len(ofs_disponibles)} OFs for contrato {contrato_id}")
+        
+        result = []
+        for of in ofs_disponibles:
+            of_data = {
+                'id': of.id,
+                'codigo': of.codigo,
+                'descripcion': of.descripcion or 'Sin descripción',
+                'cantidad_total': of.cantidad_tableros or 0,
+                'cantidad_despachada_previa': getattr(of, 'cantidad_despachada_previa', 0),
+                'cantidad_disponible': getattr(of, 'cantidad_disponible_despacho', of.cantidad_tableros or 0),
+                'tiene_despachos_parciales': getattr(of, 'tiene_despachos_parciales', False),
+                'estado': getattr(of, 'estado_actual_nombre', 'Sin estado'),
+                'area': getattr(of, 'area_actual_nombre', 'Sin área')
+            }
+            result.append(of_data)
+            
+        return jsonify(result)
     except Exception as e:
         logger.error(f"Error loading OFs for contrato {contrato_id}: {str(e)}")
-        return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'Error al cargar órdenes de fabricación', 'details': str(e)}), 500
 
 @despachos_bp.route('/api/fabricacion/by_hito/<int:hito_id>')
 @require_login
