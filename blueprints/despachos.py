@@ -169,9 +169,19 @@ def nuevo():
 def crear():
     """Crear nuevo despacho"""
     try:
-        # Validar datos del formulario
-        # Se asume que el formulario enviará 'proyecto_id' o 'contrato_id'
+        # Validar y limpiar datos del formulario
         form_data = request.form.to_dict()
+        
+        # Clean empty strings to None for optional integer fields
+        if 'hito_entrega_id' in form_data and form_data['hito_entrega_id'] == '':
+            del form_data['hito_entrega_id']
+        
+        if 'contrato_id' in form_data and form_data['contrato_id'] == '':
+            del form_data['contrato_id']
+            
+        # Clean empty numero_despacho to let it be auto-generated
+        if 'numero_despacho' in form_data and form_data['numero_despacho'].strip() == '':
+            form_data['numero_despacho'] = ''  # Will be auto-generated in service
 
         # Lógica para determinar si se usa proyecto o contrato
         if 'contrato_id' in form_data and form_data['contrato_id']:
@@ -233,6 +243,13 @@ def crear():
             # of_ids = request.form.getlist('ordenes_fabricacion') # This line is no longer needed as 'ordenes_fabricacion' is now a processed list
             # despacho_data.ordenes_fabricacion_ids = [int(id) for id in of_ids] # This line is no longer needed
         elif 'proyecto_id' in form_data and form_data['proyecto_id']:
+            # Clean empty strings for this case as well
+            if 'hito_entrega_id' in form_data and form_data['hito_entrega_id'] == '':
+                del form_data['hito_entrega_id']
+            
+            if 'contrato_id' in form_data and form_data['contrato_id'] == '':
+                del form_data['contrato_id']
+                
             # Convert estado to uppercase for enum compatibility
             if 'estado' in form_data:
                 form_data['estado'] = form_data['estado'].upper()

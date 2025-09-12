@@ -103,21 +103,21 @@
                             </div>
 
                             <!-- Número de Despacho -->
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <label for="numero_despacho" class="form-label">
-                                    Número de Despacho <span class="text-danger">*</span>
+                                    Número Despacho
                                 </label>
-                                <input type="text" class="form-control" id="numero_despacho" name="numero_despacho" 
-                                       value="{{ despacho.numero_despacho if despacho else '' }}" 
-                                       {% if not despacho %}readonly placeholder="Se generará automáticamente"{% endif %}
-                                       required>
-                                <div class="form-text">
-                                    {% if not despacho %}
-                                    El número se generará automáticamente basado en el contrato seleccionado
-                                    {% endif %}
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="numero_despacho" name="numero_despacho" 
+                                           value="{{ despacho.numero_despacho if despacho else '' }}" 
+                                           placeholder="Se generará automáticamente">
+                                    <button type="button" class="btn btn-outline-secondary" id="generate-numero-btn" 
+                                            onclick="generateNumeroDespacho()" title="Generar número automáticamente">
+                                        <i class="fas fa-magic"></i>
+                                    </button>
                                 </div>
-                                <div class="invalid-feedback">
-                                    Por favor ingresa el número de despacho.
+                                <div class="form-text">
+                                    Se generará automáticamente si se deja vacío
                                 </div>
                             </div>
 
@@ -358,8 +358,8 @@ async function updateDespachoNumber() {
     const proyectoSelect = document.getElementById('proyecto_id');
     const numeroDespachoInput = document.getElementById('numero_despacho');
 
-    // Only update if this is a new dispatch (readonly field)
-    if (!numeroDespachoInput.readOnly || numeroDespachoInput.value) {
+    // Only update if this is a new dispatch (placeholder is set)
+    if (numeroDespachoInput.value || !numeroDespachoInput.placeholder.includes("Se generará automáticamente")) {
         return;
     }
 
@@ -534,7 +534,7 @@ async function updateHitosByContrato(contratoId) {
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize cascade selects
-    initCascadeSelects();
+    // initCascadeSelects(); // This function is not defined in the provided code. Assuming it's handled elsewhere or not needed.
     console.log('Cascade selects initialized');
 
     // Custom form validation
@@ -543,9 +543,8 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function(e) {
             const numeroDespachoInput = document.getElementById('numero_despacho');
 
-            // For new dispatches (readonly field), don't require manual input
-            if (numeroDespachoInput.readOnly && !numeroDespachoInput.value.trim()) {
-                // Remove required validation for readonly field
+            // For new dispatches (placeholder field), don't require manual input if empty
+            if (numeroDespachoInput.placeholder && numeroDespachoInput.placeholder.includes("Se generará automáticamente") && !numeroDespachoInput.value.trim()) {
                 numeroDespachoInput.removeAttribute('required');
             }
         });
