@@ -539,11 +539,16 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`{{ url_for('despachos.api_fabricacion_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId))
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 return response.json();
             })
-            .then(ofs => {
+            .then(data => {
+                // Check if response has error
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                const ofs = Array.isArray(data) ? data : [];
                 placeholder.style.display = 'none';
                 list.innerHTML = '';
 
@@ -556,7 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     ofs.forEach(function(of) {
                         html += `
                             <div class="col-md-6">
-                                <div class="card">
+                                <div class="card" data-cantidad-total="${of.cantidad_total || 0}">
                                     <div class="card-body">
                                         <div class="form-check mb-2">
                                             <input class="form-check-input of-checkbox" type="checkbox" 
@@ -569,11 +574,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <p class="small text-muted mb-2">${of.descripcion || 'Sin descripción'}</p>
                                         <div class="row g-2 text-small">
                                             <div class="col-6">
-                                                <strong>Cantidad:</strong> ${of.cantidad_total || 0}
+                                                <strong>Cantidad:</strong> ${of.cantidad_total || 0} tableros
                                             </div>
                                             <div class="col-6">
                                                 <strong>Estado:</strong> 
-                                                <span class="badge bg-${of.estado === 'terminada' ? 'success' : 'warning'}">${of.estado}</span>
+                                                <span class="badge bg-${of.estado && of.estado.toLowerCase().includes('terminad') ? 'success' : 'warning'}">${of.estado || 'Sin estado'}</span>
                                             </div>
                                         </div>
 
@@ -673,7 +678,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const cantidad = cantidadInput ? cantidadInput.value : '';
             const ofCodigo = checkbox.closest('.card-body').querySelector('.form-check-label').textContent.trim();
             const ofDescripcion = checkbox.closest('.card-body').querySelector('.small.text-muted').textContent.trim();
-            const ofCantidadTotal = parseInt(checkbox.closest('.card-body').querySelector('div.col-6:first-of-type strong:last-child').nextSibling.textContent.trim()) || 0;
+            // Extract cantidad_total from the OF data (stored in data attribute)
+                            const card = checkbox.closest('.card');
+                            const ofCantidadTotal = parseInt(card.dataset.cantidadTotal) || 0;
 
 
             if (tipo) {

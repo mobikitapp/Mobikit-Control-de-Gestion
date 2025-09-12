@@ -58,9 +58,9 @@ def api_fabricacion_by_proyecto(proyecto_id):
         return jsonify([{
             'id': of.id,
             'codigo': of.codigo,
-            'descripcion': of.descripcion,
-            'cantidad_total': of.cantidad_total,
-            'estado': of.estado.value if hasattr(of.estado, 'value') else str(of.estado)
+            'descripcion': of.descripcion or 'Sin descripción',
+            'cantidad_total': of.cantidad_tableros or 0,
+            'estado': of.estado_actual.nombre if of.estado_actual else 'Sin estado'
         } for of in ofs])
     except Exception as e:
         logger.error(f"Error loading OFs for proyecto {proyecto_id}: {str(e)}")
