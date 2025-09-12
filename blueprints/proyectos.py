@@ -437,6 +437,26 @@ def api_by_cliente(cliente_id):
         logger.error(f"Error en API proyectos por cliente: {str(e)}")
         return jsonify({'error': 'Error al cargar proyectos'}), 500
 
+@proyectos_bp.route('/api/proyecto-destino/<int:proyecto_id>')
+@require_login
+def api_proyecto_destino(proyecto_id):
+    """API endpoint para obtener información de destino del proyecto"""
+    try:
+        proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
+        if not proyecto:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        
+        return jsonify({
+            'id': proyecto.id,
+            'nombre': proyecto.nombre,
+            'ubicacion_obra': proyecto.ubicacion_obra or '',
+            'cliente_nombre': proyecto.cliente.nombre if proyecto.cliente else ''
+        })
+
+    except Exception as e:
+        logger.error(f"Error obteniendo destino del proyecto {proyecto_id}: {str(e)}")
+        return jsonify({'error': 'Error al cargar información del proyecto'}), 500
+
 @proyectos_bp.route('/api/<int:proyecto_id>/kpi-cobranza')
 @require_login
 def api_kpi_cobranza(proyecto_id):

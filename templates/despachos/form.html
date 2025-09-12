@@ -48,7 +48,7 @@
                                 <label for="proyecto_id" class="form-label">
                                     Proyecto <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateContratos(); updateOFsByProyecto(); updateDespachoNumber()" required>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateContratos(); updateOFsByProyecto(); updateDespachoNumber(); updateDestinoSuggestion()" required>
                                     <option value="">Seleccionar proyecto</option>
                                     {% if despacho %}
                                     <option value="{{ despacho.proyecto_id }}" selected>{{ despacho.proyecto.nombre }}</option>
@@ -170,6 +170,11 @@
                                 </label>
                                 <textarea class="form-control" id="destino" name="destino" rows="3" required 
                                           placeholder="Dirección completa de entrega">{{ despacho.destino if despacho else '' }}</textarea>
+                                <div class="form-text">
+                                    {% if not despacho %}
+                                    Se sugerirá automáticamente la ubicación de la obra del proyecto seleccionado
+                                    {% endif %}
+                                </div>
                                 <div class="invalid-feedback">
                                     Por favor ingresa la dirección de destino.
                                 </div>
@@ -387,6 +392,35 @@ async function updateDespachoNumber() {
         }
     } catch (error) {
         console.error('Error generating dispatch number:', error);
+    }
+}
+
+async function updateDestinoSuggestion() {
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const destinoTextarea = document.getElementById('destino');
+    const proyectoId = proyectoSelect.value;
+
+    // Only update if destino is empty for new dispatches
+    if (!proyectoId || destinoTextarea.value.trim()) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`{{ url_for('proyectos.api_proyecto_destino', proyecto_id=0) }}`.replace('0', proyectoId));
+        if (response.ok) {
+            const data = await response.json();
+            if (data.ubicacion_obra) {
+                destinoTextarea.placeholder = data.ubicacion_obra;
+                // Optionally auto-fill if empty
+                if (!destinoTextarea.value.trim()) {
+                    destinoTextarea.value = data.ubicacion_obra;
+                }
+            }
+        } else {
+            console.error('Error loading proyecto destination:', response.status);
+        }
+    } catch (error) {
+        console.error('Error loading proyecto destination:', error);
     }
 }
 
