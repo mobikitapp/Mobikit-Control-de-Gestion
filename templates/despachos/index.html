@@ -2,6 +2,38 @@
 
 {% block title %}Despachos - Sistema de Manufactura{% endblock %}
 
+{% block styles %}
+<style>
+.collapse-row td {
+    border-top: none !important;
+}
+
+.collapse-row .card-body {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    background-color: #f8f9fa;
+}
+
+.table-sm.table-bordered th,
+.table-sm.table-bordered td {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+[data-bs-toggle="collapse"] {
+    position: relative;
+}
+
+[data-bs-toggle="collapse"]:not(.collapsed)::after {
+    transform: rotate(180deg);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row">
@@ -24,7 +56,7 @@
                     {% endif %}
                 </div>
             </div>
-            
+
             <!-- Nueva Funcionalidad Alert -->
             <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
                 <div class="d-flex align-items-center">
@@ -39,7 +71,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-header">
@@ -109,7 +141,7 @@
             </form>
         </div>
     </div>
-    
+
     <!-- Results -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -190,24 +222,140 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <div class="btn-group btn-group-sm" role="group">
+                                <div class="d-flex gap-1">
+                                    <!-- Toggle button for OF details -->
+                                    {% if despacho.ordenes_fabricacion_detalle %}
+                                    <button type="button" class="btn btn-sm btn-outline-info" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#of-details-{{ despacho.id }}" 
+                                            aria-expanded="false" 
+                                            aria-controls="of-details-{{ despacho.id }}"
+                                            title="Ver órdenes de fabricación">
+                                        <i data-feather="package"></i>
+                                        <span class="badge bg-secondary ms-1">{{ despacho.ordenes_fabricacion_detalle|length }}</span>
+                                    </button>
+                                    {% endif %}
+
                                     <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" 
-                                       class="btn btn-outline-primary" title="Ver detalles">
+                                       class="btn btn-sm btn-outline-primary" title="Ver detalle">
                                         <i data-feather="eye"></i>
                                     </a>
-                                    {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica'] %}
                                     <a href="{{ url_for('despachos.editar', despacho_id=despacho.id) }}" 
-                                       class="btn btn-outline-secondary" title="Editar">
+                                       class="btn btn-sm btn-outline-warning" title="Editar">
                                         <i data-feather="edit"></i>
                                     </a>
+                                    {% endif %}
+                                    {% if current_user.rol.value == 'admin' %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                            onclick="confirmarEliminacion({{ despacho.id }}, '{{ despacho.numero_despacho }}')" 
+                                            title="Eliminar">
+                                        <i data-feather="trash-2"></i>
+                                    </button>
                                     {% endif %}
                                 </div>
                             </td>
                         </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+
+                            <!-- Expandable OF details row -->
+                            {% if despacho.ordenes_fabricacion_detalle %}
+                            <tr class="collapse-row">
+                                <td colspan="8" class="p-0">
+                                    <div class="collapse" id="of-details-{{ despacho.id }}">
+                                        <div class="card card-body mx-3 mb-2 bg-light">
+                                            <h6 class="mb-3">
+                                                <i data-feather="package" class="me-2"></i>
+                                                Órdenes de Fabricación Asociadas
+                                            </h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-bordered">
+                                                    <thead class="table-secondary">
+                                                        <tr>
+                                                            <th>Código OF</th>
+                                                            <th>Descripción</th>
+                                                            <th>Área Actual</th>
+                                                            <th>Estado</th>
+                                                            <th>Tipo Despacho</th>
+                                                            <th>Cantidad</th>
+                                                            <th>Total Tableros</th>
+                                                            <th>Observaciones</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for despacho_of in despacho.ordenes_fabricacion_detalle %}
+                                                        <tr>
+                                                            <td>
+                                                                <a href="{{ url_for('fabricacion.detalle', of_id=despacho_of.orden_fabricacion.id) }}" 
+                                                                   class="text-decoration-none">
+                                                                    <strong>{{ despacho_of.orden_fabricacion.codigo }}</strong>
+                                                                </a>
+                                                            </td>
+                                                            <td class="small">
+                                                                {{ despacho_of.orden_fabricacion.descripcion or 'Sin descripción' }}
+                                                            </td>
+                                                            <td>
+                                                                {% if despacho_of.orden_fabricacion.area_actual %}
+                                                                    <span class="badge bg-info">
+                                                                        {{ despacho_of.orden_fabricacion.area_actual.nombre }}
+                                                                    </span>
+                                                                {% else %}
+                                                                    <span class="badge bg-secondary">Sin área</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                {% if despacho_of.orden_fabricacion.estado_actual %}
+                                                                    <span class="badge bg-{% if 'terminad' in despacho_of.orden_fabricacion.estado_actual.nombre.lower() %}success{% elif 'proceso' in despacho_of.orden_fabricacion.estado_actual.nombre.lower() %}warning{% elif 'pendiente' in despacho_of.orden_fabricacion.estado_actual.nombre.lower() %}secondary{% else %}primary{% endif %}">
+                                                                        {{ despacho_of.orden_fabricacion.estado_actual.nombre }}
+                                                                    </span>
+                                                                {% else %}
+                                                                    <span class="badge bg-secondary">Sin estado</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-{% if despacho_of.tipo_despacho.value == 'TOTAL' %}success{% else %}warning{% endif %}">
+                                                                    {{ despacho_of.tipo_despacho.value.title() }}
+                                                                </span>
+                                                            </td>
+                                                            <td class="text-end">
+                                                                <strong>{{ despacho_of.cantidad_despachada }}</strong>
+                                                            </td>
+                                                            <td class="text-end">
+                                                                {{ despacho_of.cantidad_total or despacho_of.orden_fabricacion.cantidad_tableros or 0 }}
+                                                            </td>
+                                                            <td class="small text-muted">
+                                                                {{ despacho_of.observaciones or '-' }}
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            {% if despacho.ordenes_fabricacion_detalle|length > 1 %}
+                                            <div class="row mt-2">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">
+                                                        <strong>Total OFs:</strong> {{ despacho.ordenes_fabricacion_detalle|length }}
+                                                    </small>
+                                                </div>
+                                                <div class="col-md-6 text-end">
+                                                    <small class="text-muted">
+                                                        <strong>Total Tableros Despachados:</strong> 
+                                                        {{ despacho.ordenes_fabricacion_detalle | sum(attribute='cantidad_despachada') }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
+
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             {% else %}
             <div class="text-center py-5">
                 <i data-feather="truck" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
@@ -222,7 +370,7 @@
             </div>
             {% endif %}
         </div>
-        
+
         {% if total_pages > 1 %}
         <div class="card-footer">
             <nav>
@@ -234,7 +382,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    
+
                     {% for page_num in range(1, total_pages + 1) %}
                         {% if page_num == filters.page %}
                         <li class="page-item active">
@@ -252,7 +400,7 @@
                         </li>
                         {% endif %}
                     {% endfor %}
-                    
+
                     {% if has_next %}
                     <li class="page-item">
                         <a class="page-link" href="{{ url_for('despachos.index', page=filters.page+1, **request.args) }}">
@@ -276,11 +424,11 @@ async function updateProyectosFilter() {
     const proyectoSelect = document.getElementById('proyecto_id');
     const ofSelect = document.getElementById('of_id');
     const clienteId = clienteSelect.value;
-    
+
     // Clear current options
     proyectoSelect.innerHTML = '<option value="">Todos los proyectos</option>';
     ofSelect.innerHTML = '<option value="">Todas las OF</option>';
-    
+
     if (clienteId) {
         try {
             const response = await fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
@@ -303,10 +451,10 @@ async function updateOFsFilter() {
     const proyectoSelect = document.getElementById('proyecto_id');
     const ofSelect = document.getElementById('of_id');
     const proyectoId = proyectoSelect.value;
-    
+
     // Clear current options
     ofSelect.innerHTML = '<option value="">Todas las OF</option>';
-    
+
     if (proyectoId) {
         try {
             const response = await fetch(`{{ url_for('fabricacion.api_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId));
@@ -330,11 +478,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const proyectoId = urlParams.get('proyecto_id');
     const ofId = urlParams.get('of_id');
-    
+
     if (proyectoId || ofId) {
         // This would need a more complex implementation to find and set the filters
         console.log('Initialize filters for proyecto:', proyectoId, 'of:', ofId);
     }
+
+    // Initialize feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+
+    // Handle collapse button icon rotation
+    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(button => {
+        const target = document.querySelector(button.getAttribute('data-bs-target'));
+        if (target) {
+            target.addEventListener('show.bs.collapse', () => {
+                const icon = button.querySelector('i[data-feather="package"]');
+                if (icon) {
+                    icon.setAttribute('data-feather', 'package-open');
+                    feather.replace();
+                }
+            });
+
+            target.addEventListener('hide.bs.collapse', () => {
+                const icon = button.querySelector('i[data-feather="package-open"]');
+                if (icon) {
+                    icon.setAttribute('data-feather', 'package');
+                    feather.replace();
+                }
+            });
+        }
+    });
 });
 </script>
 {% endblock %}

@@ -820,6 +820,7 @@ class Despacho(db.Model):
 
     # Relationships
     adjuntos = db.relationship('DespachoAdjunto', backref='despacho', lazy=True, cascade='all, delete-orphan')
+    ordenes_fabricacion_detalle = db.relationship('DespachoOrdenFabricacion', back_populates='despacho', lazy=True)
     contrato = db.relationship('Contrato', foreign_keys=[contrato_id])
     hito_entrega = db.relationship('HitoEntrega', foreign_keys=[hito_entrega_id], overlaps="despachos,hito_entrega_rel")
     creator = db.relationship('User', foreign_keys=[created_by])
