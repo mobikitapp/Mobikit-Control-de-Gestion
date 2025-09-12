@@ -26,28 +26,21 @@ class PlanificacionDespachosService:
         organizada por Cliente → Proyecto → Hitos de Entrega
         """
         try:
-            # Obtener hitos de entrega pendientes con sus proyectos y clientes
-            from models import PlanEntrega, Contrato
-            hitos_query = db.session.query(HitoEntrega).join(
-                PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id
-            ).join(
-                Contrato, PlanEntrega.contrato_id == Contrato.id
-            ).join(
+            # Obtener todos los contratos activos con sus proyectos y clientes
+            from models import PlanEntrega, Contrato, EstadoContrato
+            
+            contratos_activos = db.session.query(Contrato).join(
                 Proyecto, Contrato.proyecto_id == Proyecto.id
             ).join(
                 Cliente, Proyecto.cliente_id == Cliente.id
             ).filter(
-                HitoEntrega.estado.in_([EstadoHitoEntrega.PENDIENTE, EstadoHitoEntrega.ATRASADO])
+                Contrato.estado == EstadoContrato.VIGENTE
             ).options(
-                selectinload(HitoEntrega.plan_entrega)
-                .selectinload(PlanEntrega.contrato)
-                .selectinload(Contrato.proyecto)
-                .selectinload(Proyecto.cliente),
-                selectinload(HitoEntrega.despachos)
+                selectinload(Contrato.proyecto).selectinload(Proyecto.cliente),
+                selectinload(Contrato.plan_entrega).selectinload(PlanEntrega.hitos)
             ).order_by(
                 Cliente.nombre,
-                Proyecto.nombre,
-                HitoEntrega.fecha_programada
+                Proyecto.nombre
             ).all()
 
             # Organizar datos por cliente
@@ -56,14 +49,9 @@ class PlanificacionDespachosService:
             total_hitos_proximos = 0
             fecha_limite_proximos = date.today() + timedelta(days=7)
 
-            for hito in hitos_query:
-                cliente = hito.plan_entrega.contrato.proyecto.cliente
-                proyecto = hito.plan_entrega.contrato.proyecto
-
-                # Contar totales
-                total_hitos_pendientes += 1
-                if hito.fecha_programada <= fecha_limite_proximos:
-                    total_hitos_proximos += 1
+            for contrato in contratos_activos:
+                cliente = contrato.proyecto.cliente
+                proyecto = contrato.proyecto
 
                 # Organizar por cliente
                 if cliente.id not in clientes_dict:
@@ -81,62 +69,97 @@ class PlanificacionDespachosService:
                         'hitos_entrega': []
                     }
 
-                # Verificar si ya tiene despacho creado - manejar de forma segura
-                despacho_creado = False
-                despacho_id = None
+                # Procesar hitos del plan de entrega si existe
+                if contrato.plan_entrega and contrato.plan_entrega.hitos:
+                    for hito in contrato.plan_entrega.hitos:
+                        # Solo incluir hitos pendientes o atrasados
+                        if hito.estado in [EstadoHitoEntrega.PENDIENTE, EstadoHitoEntrega.ATRASADO]:
+                            # Contar totales
+                            total_hitos_pendientes += 1
+                            if hito.fecha_programada <= fecha_limite_proximos:
+                                total_hitos_proximos += 1
 
-                if hasattr(hito, 'despachos') and hito.despachos:
-                    despacho_creado = len(hito.despachos) > 0
-                    if despacho_creado:
-                        primer_despacho = hito.despachos[0]
-                        # Verificar si es un objeto o diccionario
-                        if hasattr(primer_despacho, 'id'):
-                            despacho_id = primer_despacho.id
-                        elif isinstance(primer_despacho, dict) and 'id' in primer_despacho:
-                            despacho_id = primer_despacho['id']
+                            # Verificar si ya tiene despacho creado
+                            despacho_creado = False
+                            despacho_id = None
 
-                # Obtener OFs disponibles para este hito
-                ofs_disponibles = PlanificacionDespachosService._get_ofs_disponibles_para_hito(hito.id)
+                            if hasattr(hito, 'despachos') and hito.despachos:
+                                despacho_creado = len(hito.despachos) > 0
+                                if despacho_creado and hito.despachos:
+                                    despacho_id = hito.despachos[0].id
 
-                # Crear datos del hito
-                hito_data = {
-                    'id': hito.id,
-                    'contrato_id': hito.plan_entrega.contrato_id,
-                    'contrato_numero_oc': hito.plan_entrega.contrato.numero_oc,
-                    'descripcion': hito.descripcion,
-                    'fecha_entrega': hito.fecha_programada,
-                    'estado': hito.estado.value,
-                    'despacho_creado': despacho_creado,
-                    'despacho_id': despacho_id,
-                    'ordenes_fabricacion_disponibles': ofs_disponibles
-                }
+                            # Obtener OFs disponibles para este hito
+                            ofs_disponibles = PlanificacionDespachosService._get_ofs_disponibles_para_hito(hito.id)
 
-                clientes_dict[cliente.id]['proyectos'][proyecto.id]['hitos_entrega'].append(hito_data)
+                            # Crear datos del hito
+                            hito_data = {
+                                'id': hito.id,
+                                'contrato_id': contrato.id,
+                                'contrato_numero_oc': contrato.numero_oc,
+                                'descripcion': hito.descripcion or hito.titulo,
+                                'fecha_entrega': hito.fecha_programada,
+                                'estado': hito.estado.value,
+                                'despacho_creado': despacho_creado,
+                                'despacho_id': despacho_id,
+                                'ordenes_fabricacion_disponibles': ofs_disponibles
+                            }
 
-            # Convertir a formato de respuesta como diccionarios simples
+                            clientes_dict[cliente.id]['proyectos'][proyecto.id]['hitos_entrega'].append(hito_data)
+
+                # Si no hay plan de entrega pero sí fecha comprometida, crear hito virtual
+                elif contrato.fecha_entrega_comprometida:
+                    # Verificar si ya tiene despacho para esta fecha comprometida
+                    despachos_contrato = db.session.query(Despacho).filter_by(contrato_id=contrato.id).all()
+                    despacho_creado = len(despachos_contrato) > 0
+                    despacho_id = despachos_contrato[0].id if despachos_contrato else None
+
+                    # Obtener OFs disponibles para este contrato
+                    ofs_disponibles = PlanificacionDespachosService.get_ofs_disponibles_para_contrato(contrato.id)
+
+                    # Crear hito virtual basado en fecha comprometida
+                    hito_virtual = {
+                        'id': f"virtual_{contrato.id}",
+                        'contrato_id': contrato.id,
+                        'contrato_numero_oc': contrato.numero_oc,
+                        'descripcion': f"Entrega comprometida - {contrato.numero_oc}",
+                        'fecha_entrega': contrato.fecha_entrega_comprometida,
+                        'estado': 'PENDIENTE',
+                        'despacho_creado': despacho_creado,
+                        'despacho_id': despacho_id,
+                        'ordenes_fabricacion_disponibles': ofs_disponibles,
+                        'es_virtual': True  # Flag para identificar hitos virtuales
+                    }
+
+                    # Contar como hito pendiente
+                    total_hitos_pendientes += 1
+                    if contrato.fecha_entrega_comprometida <= fecha_limite_proximos:
+                        total_hitos_proximos += 1
+
+                    clientes_dict[cliente.id]['proyectos'][proyecto.id]['hitos_entrega'].append(hito_virtual)
+
+            # Convertir a formato de respuesta
             clientes_response = []
             for cliente_data in clientes_dict.values():
                 proyectos_response = []
                 for proyecto_data in cliente_data['proyectos'].values():
-                    # Convertir fecha_entrega a objeto datetime para cada hito
-                    hitos_response = []
-                    for hito in proyecto_data['hitos_entrega']:
-                        if isinstance(hito['fecha_entrega'], str):
-                            from datetime import datetime
-                            hito['fecha_entrega'] = datetime.strptime(hito['fecha_entrega'], '%Y-%m-%d').date()
-                        hitos_response.append(hito)
+                    # Solo incluir proyectos que tengan hitos
+                    if proyecto_data['hitos_entrega']:
+                        # Ordenar hitos por fecha
+                        hitos_ordenados = sorted(proyecto_data['hitos_entrega'], 
+                                               key=lambda x: x['fecha_entrega'])
+                        
+                        proyectos_response.append({
+                            'id': proyecto_data['id'],
+                            'nombre': proyecto_data['nombre'],
+                            'hitos_entrega': hitos_ordenados
+                        })
 
-                    proyectos_response.append({
-                        'id': proyecto_data['id'],
-                        'nombre': proyecto_data['nombre'],
-                        'hitos_entrega': hitos_response
+                if proyectos_response:  # Solo incluir clientes con proyectos que tengan hitos
+                    clientes_response.append({
+                        'id': cliente_data['id'],
+                        'nombre': cliente_data['nombre'],
+                        'proyectos': proyectos_response
                     })
-
-                clientes_response.append({
-                    'id': cliente_data['id'],
-                    'nombre': cliente_data['nombre'],
-                    'proyectos': proyectos_response
-                })
 
             return {
                 'clientes': clientes_response,

@@ -576,6 +576,36 @@ def api_hitos_by_contrato(contrato_id):
         logger.error(f"Error obteniendo hitos para contrato {contrato_id}: {str(e)}")
         return jsonify([]), 500
 
+@despachos_bp.route('/crear-desde-hito/<int:hito_id>')
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+def crear_despacho_desde_hito(hito_id):
+    """Crear despacho desde un hito de entrega"""
+    try:
+        from models import HitoEntrega, PlanEntrega
+        
+        # Obtener hito con sus relaciones
+        hito = db.session.query(HitoEntrega).options(
+            joinedload(HitoEntrega.plan_entrega).joinedload(PlanEntrega.contrato).joinedload(Contrato.proyecto).joinedload(Proyecto.cliente)
+        ).filter_by(id=hito_id).first()
+        
+        if not hito:
+            flash('Hito de entrega no encontrado', 'error')
+            return redirect(url_for('despachos.planificacion'))
+        
+        contrato = hito.plan_entrega.contrato
+        proyecto = contrato.proyecto
+        
+        # Redirigir al formulario de nuevo despacho con datos pre-cargados
+        return redirect(url_for('despachos.nuevo', 
+                              contrato_id=contrato.id,
+                              hito_entrega_id=hito.id,
+                              fecha_programada=hito.fecha_programada.isoformat()))
+        
+    except Exception as e:
+        logger.error(f"Error creando despacho desde hito {hito_id}: {str(e)}")
+        flash('Error al crear despacho desde hito', 'error')
+        return redirect(url_for('despachos.planificacion'))
+
 @despachos_bp.route('/api/generate_numero', methods=['POST'])
 @require_login
 def api_generate_numero():

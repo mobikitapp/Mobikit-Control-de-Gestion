@@ -198,6 +198,15 @@
                                                         <tr>
                                                             <td>
                                                                 <strong>{{ hito['descripcion'] }}</strong>
+                                                                {% if hito.get('es_virtual', False) %}
+                                                                <br><span class="badge bg-warning text-dark">
+                                                                    <i class="fas fa-calendar-check"></i> Fecha Comprometida
+                                                                </span>
+                                                                {% else %}
+                                                                <br><span class="badge bg-success text-white">
+                                                                    <i class="fas fa-flag-checkered"></i> Hito del Plan
+                                                                </span>
+                                                                {% endif %}
                                                                 {% if proyecto['nombre'] %}
                                                                 <br><span class="badge bg-info text-dark">
                                                                     <i class="fas fa-project-diagram"></i> {{ proyecto['nombre'] }}
@@ -238,15 +247,26 @@
                                                             </td>
                                                             <td>
                                                                 {% if not hito['despacho_creado'] and hito['ordenes_fabricacion_disponibles'] %}
-                                                                    <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito['id']) }}" 
-                                                                       class="btn btn-sm btn-success">
-                                                                        <i class="fas fa-plus"></i> Crear Despacho
-                                                                    </a>
-                                                                {% elif hito['despacho_creado'] %}
+                                                                    {% if hito.get('es_virtual', False) %}
+                                                                        <a href="{{ url_for('despachos.nuevo') }}?contrato_id={{ hito['contrato_id'] }}" 
+                                                                           class="btn btn-sm btn-success">
+                                                                            <i class="fas fa-plus"></i> Crear Despacho
+                                                                        </a>
+                                                                    {% else %}
+                                                                        <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito['id']) }}" 
+                                                                           class="btn btn-sm btn-success">
+                                                                            <i class="fas fa-plus"></i> Crear Despacho
+                                                                        </a>
+                                                                    {% endif %}
+                                                                {% elif hito['despacho_creado'] and hito['despacho_id'] %}
                                                                     <a href="{{ url_for('despachos.detalle', despacho_id=hito['despacho_id']) }}" 
                                                                        class="btn btn-sm btn-outline-primary">
                                                                         <i class="fas fa-eye"></i> Ver Despacho
                                                                     </a>
+                                                                {% elif not hito['ordenes_fabricacion_disponibles'] %}
+                                                                    <span class="text-muted">
+                                                                        <i class="fas fa-info-circle"></i> Sin OFs disponibles
+                                                                    </span>
                                                                 {% endif %}
                                                             </td>
                                                         </tr>
