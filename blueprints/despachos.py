@@ -34,7 +34,7 @@ proyectos_repo = ProyectosRepository()
 contratos_repo = ContratosRepository()
 fabrication_repo = FabricacionRepository()
 
-@despachos_bp.route('/api/contratos/cliente/<int:cliente_id>')
+@despachos_bp.route('/api/contratos/by-cliente/<int:cliente_id>')
 @require_login
 def api_contratos_by_cliente(cliente_id):
     """API endpoint to get contratos by cliente"""
@@ -43,7 +43,8 @@ def api_contratos_by_cliente(cliente_id):
         return jsonify([{
             'id': c.id,
             'numero_oc': c.numero_oc,
-            'proyecto_nombre': c.proyecto.nombre
+            'estado': c.estado.value if hasattr(c.estado, 'value') else str(c.estado),
+            'proyecto_nombre': c.proyecto.nombre if c.proyecto else 'Sin proyecto'
         } for c in contratos])
     except Exception as e:
         logger.error(f"Error loading contratos for cliente {cliente_id}: {str(e)}")

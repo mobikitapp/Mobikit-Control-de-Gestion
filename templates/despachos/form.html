@@ -90,12 +90,12 @@
                                 <!-- Container para OFs disponibles -->
                                 <div id="ofs-container" class="border rounded p-3 mb-3" style="min-height: 200px; background-color: #f8f9fa;">
                                     <div id="ofs-placeholder" class="alert alert-info" style="display: block;">
-                                        <i class="bi bi-info-circle me-2"></i>
+                                        <i class="fas fa-info-circle me-2"></i>
                                         <strong>Selecciona un contrato para ver las órdenes de fabricación disponibles.</strong>
                                     </div>
 
                                     <div id="ofs-empty" class="alert alert-warning" style="display: none;">
-                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
                                         No hay órdenes de fabricación disponibles para este contrato. 
                                         <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>
                                     </div>
@@ -356,7 +356,7 @@ async function updateContratos() {
     } else if (clienteId) {
         // Solo si no hay proyecto seleccionado, filtrar por cliente
         try {
-            const response = await fetch(`/api/contratos/by-cliente/${clienteId}`);
+            const response = await fetch(`{{ url_for('contratos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
             if (response.ok) {
                 const contratos = await response.json();
                 contratos.forEach(contrato => {
@@ -585,7 +585,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 placeholder: !!placeholder,
                 list: !!list
             });
-            return;
+            
+            // Try to find elements again or create them if missing
+            if (!placeholder) {
+                const placeholderEl = document.createElement('div');
+                placeholderEl.id = 'ofs-placeholder';
+                placeholderEl.className = 'alert alert-info';
+                placeholderEl.innerHTML = '<i class="fas fa-info-circle me-2"></i><strong>Selecciona un contrato para ver las órdenes de fabricación disponibles.</strong>';
+                container.appendChild(placeholderEl);
+            }
+            
+            if (!list) {
+                const listEl = document.createElement('div');
+                listEl.id = 'ofs-list';
+                listEl.style.display = 'none';
+                container.appendChild(listEl);
+            }
+            
+            // Update references
+            placeholder = document.getElementById('ofs-placeholder');
+            list = document.getElementById('ofs-list');
+            
+            if (!placeholder || !list) {
+                console.error('Could not create missing elements');
+                return;
+            }
         }
 
         // Prioritize filtering by Contrato, then Proyecto, then Hito
@@ -656,7 +680,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (tieneParciales) {
                             infoAdicional = `
                                 <div class="alert alert-info alert-sm mt-2">
-                                    <i data-feather="info" class="me-1"></i>
+                                    <i class="fas fa-info-circle me-1"></i>
                                     <strong>Despacho Parcial Previo:</strong> ${cantidadDespachadaPrevia} tableros ya despachados. 
                                     Disponibles: ${cantidadDisponible} tableros.
                                 </div>
@@ -693,8 +717,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                                    value="${of.id}" id="of_${of.id}" 
                                                    data-of-codigo="${of.codigo}"
                                                    data-of-descripcion="${of.descripcion}"
-                                                   data-of-area="${of.area}"
-                                                   data-of-estado="${of.estado}"
+                                                   data-of-area="${of.area || ''}"
+                                                   data-of-estado="${of.estado || ''}"
                                                    data-of-cantidad-total="${cantidadTotal}"
                                                    data-of-cantidad-disponible="${cantidadDisponible}"
                                                    data-of-tiene-parciales="${tieneParciales}">
