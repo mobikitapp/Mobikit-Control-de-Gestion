@@ -880,7 +880,7 @@ class DespachoOrdenFabricacion(db.Model):
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
 
     # Relationships
-    despacho = db.relationship('Despacho', backref=db.backref('ordenes_fabricacion_detalle', lazy=True))
+    despacho = db.relationship('Despacho', back_populates='ordenes_fabricacion_detalle')
     orden_fabricacion = db.relationship('OrdenFabricacion', backref=db.backref('despachos_detalle', lazy=True))
     creator = db.relationship('User', foreign_keys=[created_by])
 
