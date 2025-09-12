@@ -346,9 +346,46 @@ class ConfiguracionesService:
         print(f"AUDIT: {accion} - Usuario: {usuario_id} - Por: {realizado_por} - {descripcion}")
 
     def _get_permisos_por_rol(self, rol: RolUsuario) -> Dict[str, List[str]]:
-        """Get permissions for a specific role"""
+        """Get permissions for a specific role using dynamic system with static fallback"""
         
-        permisos = {
+        # Intentar usar el sistema dinámico primero
+        try:
+            from services.permisos_service import PermisosService
+            service = PermisosService()
+            
+            # Obtener matriz de permisos dinámicos
+            resultado = service.obtener_matriz_permisos_completa()
+            
+            if resultado['success'] and rol.value in resultado['matriz']:
+                permisos_dinamicos = {'leer': [], 'crear': [], 'editar': [], 'eliminar': []}
+                
+                # Mapear permisos dinámicos al formato esperado (soportar ambos formatos)
+                tipos_mapeo = {
+                    'lectura': 'leer',
+                    'creacion': 'crear', 
+                    'edicion': 'editar',
+                    'eliminacion': 'eliminar',
+                    # También soportar formato ya normalizado
+                    'leer': 'leer',
+                    'crear': 'crear',
+                    'editar': 'editar',
+                    'eliminar': 'eliminar'
+                }
+                
+                for modulo_codigo, permisos_modulo in resultado['matriz'][rol.value].items():
+                    for tipo_permiso, permitido in permisos_modulo.items():
+                        if permitido and tipo_permiso in tipos_mapeo:
+                            tipo_traducido = tipos_mapeo[tipo_permiso]
+                            permisos_dinamicos[tipo_traducido].append(modulo_codigo)
+                
+                return permisos_dinamicos
+                
+        except Exception as e:
+            # Si falla el sistema dinámico, usar fallback estático
+            pass
+        
+        # Permisos estáticos como fallback (incluyendo rol finanzas)
+        permisos_estaticos = {
             RolUsuario.ADMIN: {
                 'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional', 'areas', 'configuraciones'],
                 'crear': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional', 'areas', 'configuraciones'],
@@ -378,10 +415,22 @@ class ConfiguracionesService:
                 'crear': ['despachos'],
                 'editar': ['despachos', 'areas'],
                 'eliminar': []
+            },
+            RolUsuario.GENERAL: {
+                'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional', 'areas'],
+                'crear': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional'],
+                'editar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional', 'areas'],
+                'eliminar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial']
+            },
+            RolUsuario.FINANZAS: {
+                'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional'],
+                'crear': ['contratos', 'comercial'],
+                'editar': ['contratos', 'comercial'],
+                'eliminar': []
             }
         }
         
-        return permisos.get(rol, {'leer': [], 'crear': [], 'editar': [], 'eliminar': []})
+        return permisos_estaticos.get(rol, {'leer': [], 'crear': [], 'editar': [], 'eliminar': []})
 
     def _get_rol_descripcion(self, rol: RolUsuario) -> str:
         """Get role description"""
@@ -391,7 +440,9 @@ class ConfiguracionesService:
             RolUsuario.OPERACIONES: "Acceso completo excepto edición de configuraciones y gestión de usuarios",
             RolUsuario.VENTAS: "Gestión comercial, clientes y seguimiento de ventas",
             RolUsuario.PRODUCCION: "Gestión de fabricación y control de producción",
-            RolUsuario.LOGISTICA: "Gestión de despachos y logística de entrega"
+            RolUsuario.LOGISTICA: "Gestión de despachos y logística de entrega",
+            RolUsuario.GENERAL: "Acceso general al sistema con permisos de gestión operativa",
+            RolUsuario.FINANZAS: "Gestión financiera, contratos y reportes comerciales"
         }
         
         return descripciones.get(rol, "Rol sin descripción")
