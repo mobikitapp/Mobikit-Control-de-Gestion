@@ -343,7 +343,7 @@ async function updateContratos() {
             contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
         }
     }
-    
+
     // Update dispatch number when contract changes
     updateDespachoNumber();
 }
@@ -352,20 +352,20 @@ async function updateDespachoNumber() {
     const contratoSelect = document.getElementById('contrato_id');
     const proyectoSelect = document.getElementById('proyecto_id');
     const numeroDespachoInput = document.getElementById('numero_despacho');
-    
+
     // Only update if this is a new dispatch (readonly field)
     if (!numeroDespachoInput.readOnly || numeroDespachoInput.value) {
         return;
     }
-    
+
     const contratoId = contratoSelect.value || null;
     const proyectoId = proyectoSelect.value;
-    
+
     if (!proyectoId) {
         numeroDespachoInput.placeholder = "Se generará automáticamente";
         return;
     }
-    
+
     try {
         const url = `{{ url_for('despachos.api_generate_numero') }}`;
         const response = await fetch(url, {
@@ -378,7 +378,7 @@ async function updateDespachoNumber() {
                 proyecto_id: parseInt(proyectoId)
             })
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             numeroDespachoInput.placeholder = data.numero_despacho;
@@ -499,42 +499,23 @@ async function updateHitosByContrato(contratoId) {
 
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize cascade selects
+    initCascadeSelects();
     console.log('Cascade selects initialized');
 
-    // Form validation
-    const form = document.querySelector('form');
-    const clienteSelect = document.getElementById('cliente_id');
+    // Custom form validation
+    const form = document.getElementById('despachoForm'); // Assuming your form has id="despachoForm"
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const numeroDespachoInput = document.getElementById('numero_despacho');
 
-    // Initialize proyectos, contratos and OFs if cliente is pre-selected
-    if (clienteSelect.value) {
-        updateProyectos();
-        updateContratos();
-    }
-
-    // Form submission validation
-    form.addEventListener('submit', function(e) {
-        let isValid = true;
-
-        // Reset previous validation
-        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-
-        // Validate required fields
-        const requiredFields = ['proyecto_id', 'numero_despacho', 'destino'];
-        requiredFields.forEach(fieldName => {
-            const field = document.getElementById(fieldName);
-            if (!field.value.trim()) {
-                field.classList.add('is-invalid');
-                isValid = false;
+            // For new dispatches (readonly field), don't require manual input
+            if (numeroDespachoInput.readOnly && !numeroDespachoInput.value.trim()) {
+                // Remove required validation for readonly field
+                numeroDespachoInput.removeAttribute('required');
             }
         });
-
-        if (!isValid) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        form.classList.add('was-validated');
-    });
+    }
 
     // Nueva función para cargar OFs disponibles
     window.updateAvailableOFs = function() {
