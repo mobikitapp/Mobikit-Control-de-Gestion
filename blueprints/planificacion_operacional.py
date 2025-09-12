@@ -13,6 +13,7 @@ from models import (
 )
 from services.planificacion_operacional_service import PlanificacionOperacionalService
 from services.planificacion_prioridades_service import PlanificacionPrioridadesService
+from services.configuraciones_service import ConfiguracionesService
 from utils.auth import require_role
 
 # Create blueprint
@@ -328,14 +329,26 @@ def capacidad_produccion():
         # Get strategic capacity analysis data
         if vista == 'estrategico':
             # New strategic capacity planning data
+            try:
+                rolling_plan_data = service.calcular_rolling_plan_con_backlog(año, horizonte_meses)
+                demanda_jerarquica_data = service.calcular_demanda_mensual_jerarquica(año, horizonte_meses)
+                resumen_capacidad_data = service.get_resumen_capacidad_estrategica()
+                escenarios_data = ConfiguracionesService().get_escenarios_deficit()
+            except Exception as e:
+                print(f"Error calculando datos estratégicos: {e}")
+                rolling_plan_data = {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+                demanda_jerarquica_data = {'demanda_por_mes': {}}
+                resumen_capacidad_data = {}
+                escenarios_data = {}
+                
             data = {
                 'año': año,
                 'vista': vista,
                 'horizonte_meses': horizonte_meses,
-                'resumen_capacidad': service.get_resumen_capacidad_estrategica(),
-                'demanda_jerarquica': service.calcular_demanda_mensual_jerarquica(año, horizonte_meses),
-                'rolling_plan': service.calcular_rolling_plan_con_backlog(año, horizonte_meses),
-                'escenarios_deficit': ConfiguracionesService().get_escenarios_deficit()
+                'resumen_capacidad': resumen_capacidad_data,
+                'demanda_jerarquica': demanda_jerarquica_data,
+                'rolling_plan': rolling_plan_data,
+                'escenarios_deficit': escenarios_data
             }
         else:
             # Legacy capacity analysis for backward compatibility

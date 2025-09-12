@@ -930,6 +930,60 @@ class ConfiguracionesService:
             print(f"Error updating operational parameters: {e}")
             return False
 
+    def get_escenarios_deficit(self):
+        """Get deficit response scenarios for capacity planning"""
+        return {
+            'escenarios_individuales': {
+                'capacidad_base': {
+                    'descripcion': 'Capacidad base actual sin modificaciones',
+                    'capacidad_adicional': 0,
+                    'costo_adicional_factor': 0,
+                    'recomendacion': 'Escenario de referencia'
+                },
+                'horas_extra': {
+                    'descripcion': 'Implementar horas extra hasta 25% adicional',
+                    'capacidad_adicional': self.calcular_capacidad_teorica()['horas_efectivas_mes'] * 0.25,
+                    'costo_adicional_factor': 0.5,
+                    'recomendacion': 'Para déficits menores a 100 horas'
+                },
+                'turno_adicional': {
+                    'descripcion': 'Agregar turno adicional temporal',
+                    'capacidad_adicional': self.calcular_capacidad_teorica()['horas_nominales_mes'] * 0.7,
+                    'costo_adicional_factor': 0.8,
+                    'recomendacion': 'Para déficits mayores a 150 horas'
+                },
+                'subcontratacion': {
+                    'descripcion': 'Subcontratar hasta 30% de la producción',
+                    'capacidad_adicional': self.calcular_capacidad_teorica()['horas_efectivas_mes'] * 0.3,
+                    'costo_adicional_factor': 1.2,
+                    'recomendacion': 'Para déficits críticos o emergencias'
+                }
+            },
+            'recomendaciones_uso': [
+                {
+                    'situacion': 'deficit_menor',
+                    'rango_deficit': '< 100 horas',
+                    'escenario_recomendado': 'horas_extra',
+                    'justificacion': 'Solución costo-efectiva para déficits pequeños',
+                    'costo_relativo': 'Bajo'
+                },
+                {
+                    'situacion': 'deficit_moderado',
+                    'rango_deficit': '100-200 horas',
+                    'escenario_recomendado': 'turno_adicional',
+                    'justificacion': 'Balance entre costo y capacidad adicional',
+                    'costo_relativo': 'Medio'
+                },
+                {
+                    'situacion': 'deficit_critico',
+                    'rango_deficit': '> 200 horas',
+                    'escenario_recomendado': 'subcontratacion',
+                    'justificacion': 'Solución rápida para déficits críticos',
+                    'costo_relativo': 'Alto'
+                }
+            ]
+        }
+
     def calcular_capacidad_teorica(self, parametros=None):
         """Calculate theoretical capacity based on operational parameters"""
         if parametros is None:
