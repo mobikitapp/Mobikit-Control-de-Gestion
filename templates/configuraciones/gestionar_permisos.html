@@ -16,20 +16,31 @@
     }
     
     .permisos-table {
-        min-width: 1200px;
+        min-width: 1400px;
         margin-bottom: 0;
         table-layout: fixed;
         /* Crítico para sticky columns */
         border-spacing: 0;
         border-collapse: separate;
+        font-size: 0.875rem;
     }
     
     .rol-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        color: white !important;
         text-align: center;
         vertical-align: middle;
         position: relative;
+        padding: 1rem 0.5rem;
+        height: 80px;
+    }
+    
+    .permiso-type-header {
+        background: #f8f9fa !important;
+        border: 1px solid #dee2e6;
+        padding: 0.75rem 0.25rem !important;
+        height: 70px;
+        vertical-align: middle;
     }
     
     /* COLUMNA FIJA DE MÓDULOS - Implementación robusta tipo Excel */
@@ -37,9 +48,9 @@
         background: #f8f9fa !important;
         font-weight: 600;
         border-right: 3px solid #007bff;
-        width: 220px;
-        min-width: 220px;
-        max-width: 220px;
+        width: 200px;
+        min-width: 200px;
+        max-width: 200px;
         
         /* Sticky positioning crítico */
         position: -webkit-sticky; /* Safari */
@@ -50,14 +61,15 @@
         /* Asegurar visibilidad */
         box-shadow: 2px 0 8px rgba(0,0,0,0.15);
         
-        /* Prevenir text wrapping */
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        /* Prevenir text wrapping pero permitir contenido multi-línea */
+        overflow: visible;
         
         /* Asegurar que no se mueva */
         transform: translateZ(0);
         -webkit-transform: translateZ(0);
+        
+        /* Mejorar la legibilidad */
+        line-height: 1.4;
     }
     
     /* Específicamente para thead y tbody */
@@ -84,13 +96,14 @@
     .permiso-cell {
         text-align: center;
         vertical-align: middle;
-        padding: 8px;
+        padding: 12px 8px;
         border: 1px solid #e9ecef;
         background: #fff;
-        min-width: 100px;
-        width: 100px;
+        min-width: 80px;
+        width: 80px;
         /* Asegurar alineación consistente */
         position: relative;
+        height: 60px;
     }
     
     .permiso-switch {
@@ -399,20 +412,45 @@
                         <table class="table permisos-table">
                             <thead>
                                 <tr>
-                                    <th class="modulo-header">Módulo</th>
+                                    <th class="modulo-header" style="width: 200px; min-width: 200px;">
+                                        <div class="text-center">
+                                            <i data-feather="grid" class="me-1"></i>
+                                            <strong>Módulo</strong>
+                                        </div>
+                                    </th>
                                     {% for rol in roles %}
-                                    <th colspan="{{ tipos_permiso|length }}" class="rol-header rol-column">
-                                        {{ rol.nombre }}
-                                        <br><small>{{ rol.codigo }}</small>
+                                    <th colspan="{{ tipos_permiso|length }}" class="rol-header rol-column" style="min-width: {{ tipos_permiso|length * 80 }}px;">
+                                        <div class="text-center">
+                                            <i data-feather="user" class="me-1"></i>
+                                            <strong>{{ rol.nombre }}</strong>
+                                            <br><small class="text-white-50">{{ rol.codigo }}</small>
+                                        </div>
                                     </th>
                                     {% endfor %}
                                 </tr>
                                 <tr>
-                                    <th class="modulo-header"></th>
+                                    <th class="modulo-header" style="width: 200px; min-width: 200px;">
+                                        <div class="text-center">
+                                            <small class="text-muted">Funcionalidad</small>
+                                        </div>
+                                    </th>
                                     {% for rol in roles %}
                                         {% for tipo_permiso in tipos_permiso %}
-                                        <th class="text-center bg-light">
-                                            <small>{{ tipo_permiso.nombre }}</small>
+                                        <th class="text-center bg-light permiso-type-header" style="width: 80px; min-width: 80px;">
+                                            <div class="d-flex flex-column align-items-center">
+                                                {% if tipo_permiso.codigo == 'view' %}
+                                                    <i data-feather="eye" class="text-success mb-1" style="width: 16px; height: 16px;"></i>
+                                                {% elif tipo_permiso.codigo == 'create' %}
+                                                    <i data-feather="plus" class="text-primary mb-1" style="width: 16px; height: 16px;"></i>
+                                                {% elif tipo_permiso.codigo == 'edit' %}
+                                                    <i data-feather="edit" class="text-warning mb-1" style="width: 16px; height: 16px;"></i>
+                                                {% elif tipo_permiso.codigo == 'delete' %}
+                                                    <i data-feather="trash-2" class="text-danger mb-1" style="width: 16px; height: 16px;"></i>
+                                                {% else %}
+                                                    <i data-feather="settings" class="text-info mb-1" style="width: 16px; height: 16px;"></i>
+                                                {% endif %}
+                                                <small class="fw-bold" style="font-size: 0.7rem;">{{ tipo_permiso.nombre[:4] }}</small>
+                                            </div>
                                         </th>
                                         {% endfor %}
                                     {% endfor %}
@@ -421,9 +459,28 @@
                             <tbody>
                                 {% for modulo in modulos %}
                                 <tr>
-                                    <td class="modulo-header">
-                                        <div class="modulo-nombre">{{ modulo.nombre }}</div>
-                                        <small class="text-muted">{{ modulo.codigo }}</small>
+                                    <td class="modulo-header" style="padding: 1rem;">
+                                        <div class="d-flex align-items-center">
+                                            {% if modulo.codigo == 'clientes' %}
+                                                <i data-feather="users" class="text-primary me-2"></i>
+                                            {% elif modulo.codigo == 'proyectos' %}
+                                                <i data-feather="folder" class="text-success me-2"></i>
+                                            {% elif modulo.codigo == 'contratos' %}
+                                                <i data-feather="file-text" class="text-warning me-2"></i>
+                                            {% elif modulo.codigo == 'fabricacion' %}
+                                                <i data-feather="settings" class="text-danger me-2"></i>
+                                            {% elif modulo.codigo == 'despachos' %}
+                                                <i data-feather="truck" class="text-info me-2"></i>
+                                            {% elif modulo.codigo == 'configuraciones' %}
+                                                <i data-feather="sliders" class="text-secondary me-2"></i>
+                                            {% else %}
+                                                <i data-feather="box" class="text-muted me-2"></i>
+                                            {% endif %}
+                                            <div>
+                                                <div class="modulo-nombre fw-bold" style="font-size: 0.9rem;">{{ modulo.nombre }}</div>
+                                                <small class="text-muted" style="font-size: 0.75rem;">{{ modulo.codigo }}</small>
+                                            </div>
+                                        </div>
                                     </td>
                                     {% for rol in roles %}
                                         {% for tipo_permiso in tipos_permiso %}
