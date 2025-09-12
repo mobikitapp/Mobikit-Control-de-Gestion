@@ -72,6 +72,10 @@ class PermisosService:
                     self._crear_permisos_defecto(modulo, user_id)
             
             db.session.commit()
+            
+            # Sincronizar permisos por defecto para todos los módulos (nuevos y existentes)
+            self.sincronizar_permisos_defecto(user_id, only_missing=False)
+            
             return True, "Módulos inicializados correctamente"
             
         except Exception as e:
@@ -105,7 +109,8 @@ class PermisosService:
                 'ventas': ['lectura'],
                 'operaciones': [],
                 'produccion': [],
-                'logistica': []
+                'logistica': [],
+                'finanzas': ['lectura']
             },
             'proyectos': {
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
@@ -113,7 +118,8 @@ class PermisosService:
                 'ventas': ['lectura', 'creacion', 'edicion'],
                 'operaciones': ['lectura'],
                 'produccion': [],
-                'logistica': []
+                'logistica': [],
+                'finanzas': ['lectura']
             },
             'contratos': {
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
@@ -121,7 +127,8 @@ class PermisosService:
                 'ventas': ['lectura', 'creacion'],
                 'operaciones': ['lectura'],
                 'produccion': [],
-                'logistica': []
+                'logistica': [],
+                'finanzas': ['lectura', 'creacion', 'edicion']
             },
             'fabricacion': {
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
@@ -129,7 +136,8 @@ class PermisosService:
                 'ventas': [],
                 'operaciones': ['lectura', 'creacion', 'edicion'],
                 'produccion': ['lectura', 'creacion', 'edicion'],
-                'logistica': []
+                'logistica': [],
+                'finanzas': ['lectura']
             },
             'despachos': {
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
@@ -137,7 +145,8 @@ class PermisosService:
                 'ventas': [],
                 'operaciones': ['lectura', 'creacion', 'edicion'],
                 'produccion': [],
-                'logistica': ['lectura', 'creacion', 'edicion']
+                'logistica': ['lectura', 'creacion', 'edicion'],
+                'finanzas': ['lectura']
             },
             'comercial': {
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
@@ -145,7 +154,8 @@ class PermisosService:
                 'ventas': [],
                 'operaciones': [],
                 'produccion': [],
-                'logistica': []
+                'logistica': [],
+                'finanzas': ['lectura', 'creacion', 'edicion']
             },
             'mi_dashboard': {
                 'admin': [],
@@ -153,7 +163,8 @@ class PermisosService:
                 'ventas': ['lectura', 'creacion', 'edicion'],
                 'operaciones': [],
                 'produccion': [],
-                'logistica': []
+                'logistica': [],
+                'finanzas': []
             },
             'planificacion': {
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
@@ -161,7 +172,8 @@ class PermisosService:
                 'ventas': ['lectura'],
                 'operaciones': ['lectura'],
                 'produccion': [],
-                'logistica': []
+                'logistica': [],
+                'finanzas': ['lectura']
             },
             'configuraciones': {
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
@@ -169,11 +181,59 @@ class PermisosService:
                 'ventas': [],
                 'operaciones': [],
                 'produccion': [],
-                'logistica': []
+                'logistica': [],
+                'finanzas': []
             }
         }
         
         return permisos_defecto.get(codigo_modulo, {})
+    
+    def sincronizar_permisos_defecto(self, user_id, only_missing=True):
+        """Sincroniza todos los permisos con los valores por defecto"""
+        try:
+            modulos = Modulo.query.filter_by(activo=True).all()
+            cambios_realizados = 0
+            
+            for modulo in modulos:
+                permisos_defecto = self._obtener_permisos_defecto_por_modulo(modulo.codigo)
+                
+                for rol in RolUsuario:
+                    for tipo_permiso in TipoPermiso:
+                        permitido_defecto = self._evaluar_permiso_defecto(
+                            rol.value, modulo.codigo, tipo_permiso.value, permisos_defecto
+                        )
+                        
+                        # Buscar permiso existente
+                        permiso_existente = PermisoRol.query.filter_by(
+                            rol=rol,
+                            modulo_id=modulo.id,
+                            tipo_permiso=tipo_permiso
+                        ).first()
+                        
+                        if permiso_existente:
+                            # Actualizar solo si está mal configurado y no es only_missing
+                            if not only_missing and permiso_existente.permitido != permitido_defecto:
+                                permiso_existente.permitido = permitido_defecto
+                                permiso_existente.updated_by = user_id
+                                cambios_realizados += 1
+                        else:
+                            # Crear permiso faltante
+                            nuevo_permiso = PermisoRol(
+                                rol=rol,
+                                modulo_id=modulo.id,
+                                tipo_permiso=tipo_permiso,
+                                permitido=permitido_defecto,
+                                updated_by=user_id
+                            )
+                            db.session.add(nuevo_permiso)
+                            cambios_realizados += 1
+            
+            db.session.commit()
+            return True, f"Sincronización completa. {cambios_realizados} permisos actualizados"
+            
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Error en sincronización: {str(e)}"
     
     def _evaluar_permiso_defecto(self, rol, modulo_codigo, tipo_permiso, permisos_defecto):
         """Evalúa si un rol tiene un permiso específico por defecto"""
@@ -369,7 +429,8 @@ class PermisosService:
                     Modulo.activo == True
                 ).first()
             
-            return permiso.permitido if permiso else False
+            # Retornar el valor del permiso si existe, None si no existe (para permitir fallback)
+            return permiso.permitido if permiso is not None else None
             
         except Exception as e:
             # En caso de error, usar el sistema de permisos original como fallback

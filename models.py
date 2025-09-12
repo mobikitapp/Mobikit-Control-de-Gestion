@@ -91,6 +91,7 @@ class RolUsuario(Enum):
     VENTAS = "ventas"
     PRODUCCION = "produccion"
     LOGISTICA = "logistica"
+    FINANZAS = "finanzas"
 
 class EstadoComercial(Enum):
     PENDIENTE_PRESUPUESTO = "PENDIENTE_PRESUPUESTO"
