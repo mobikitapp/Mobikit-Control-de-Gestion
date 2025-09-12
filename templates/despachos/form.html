@@ -620,13 +620,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <label class="form-check-label small" for="parcial_${of.id}">Parcial</label>
                                             </div>
 
-                                            <div class="quantity-input mt-2" style="display: none;">
-                                                <label class="form-label small">Cantidad a despachar:</label>
-                                                <input type="number" class="form-control form-control-sm" 
-                                                       id="cantidad_${of.id}" name="cantidad_${of.id}"
-                                                       min="1" max="${of.cantidad_total || 999}"
-                                                       placeholder="Ingrese cantidad">
-                                            </div>
+                                            
                                         </div>
                                     </div>
                                 </div>
@@ -667,26 +661,13 @@ document.addEventListener('DOMContentLoaded', function() {
             quantitySection.style.display = 'none';
             // Limpiar selecciones
             document.querySelectorAll(`input[name="tipo_despacho_${ofId}"]`).forEach(input => input.checked = false);
-            const quantityInput = document.getElementById(`cantidad_${ofId}`);
-            if (quantityInput) quantityInput.value = '';
         }
         updateSelectedOFsInput();
     };
 
     window.updateQuantityField = function(ofId) {
         const tipo = document.querySelector(`input[name="tipo_despacho_${ofId}"]:checked`)?.value;
-        const quantityInputContainer = document.getElementById(`cantidad_${ofId}`).closest('.quantity-input');
-
-        if (tipo === 'parcial') {
-            if (quantityInputContainer) quantityInputContainer.style.display = 'block';
-            const quantityInput = document.getElementById(`cantidad_${ofId}`);
-            if (quantityInput) quantityInput.required = true;
-        } else {
-            if (quantityInputContainer) quantityInputContainer.style.display = 'none';
-            const quantityInput = document.getElementById(`cantidad_${ofId}`);
-            if (quantityInput) quantityInput.required = false;
-            if (quantityInput) quantityInput.value = '';
-        }
+        // No se requiere campo de cantidad para despachos parciales
         updateSelectedOFsInput();
     };
 
@@ -697,19 +678,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const ofId = checkbox.value;
             const tipo = document.querySelector(`input[name="tipo_despacho_${ofId}"]:checked`)?.value;
             const cantidadInput = document.getElementById(`cantidad_${ofId}`);
-            const cantidad = cantidadInput ? cantidadInput.value : '';
             const ofCodigo = checkbox.closest('.card-body').querySelector('.form-check-label').textContent.trim();
             const ofDescripcion = checkbox.closest('.card-body').querySelector('.small.text-muted').textContent.trim();
             // Extract cantidad_total from the OF data (stored in data attribute)
-                            const card = checkbox.closest('.card');
-                            const ofCantidadTotal = parseInt(card.dataset.cantidadTotal) || 0;
-
+            const card = checkbox.closest('.card');
+            const ofCantidadTotal = parseInt(card.dataset.cantidadTotal) || 0;
 
             if (tipo) {
                 selectedOFs.push({
                     of_id: ofId,
                     tipo_despacho: tipo.toUpperCase(),
-                    cantidad_despachada: tipo === 'total' ? ofCantidadTotal : (parseInt(cantidad) || 0),
+                    cantidad_despachada: tipo === 'total' ? ofCantidadTotal : ofCantidadTotal, // Para parcial también usar cantidad total
                     observaciones: ''
                 });
             }
