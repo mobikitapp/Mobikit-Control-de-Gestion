@@ -287,13 +287,122 @@
 
 {% block scripts %}
 <script>
+// Global variables
+let isInitialized = false;
+
+// Initialize page when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Despacho form page initialized');
+    
+    if (isInitialized) {
+        return; // Prevent double initialization
+    }
+    isInitialized = true;
+
+    // Initialize feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Initialize available OFs display
+    initializeOFsDisplay();
+});
+
+function setupEventListeners() {
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const contratoSelect = document.getElementById('contrato_id');
+    const hitoSelect = document.getElementById('hito_entrega_id');
+    const clienteSelect = document.getElementById('cliente_id');
+
+    if (proyectoSelect) {
+        proyectoSelect.addEventListener('change', function() {
+            updateContratos();
+            updateDestinoSuggestion();
+            updateDespachoNumber();
+            updateAvailableOFs();
+        });
+    }
+
+    if (contratoSelect) {
+        contratoSelect.addEventListener('change', function() {
+            updateHitosByContrato(this.value);
+            updateDespachoNumber();
+            updateAvailableOFs();
+        });
+    }
+
+    if (hitoSelect) {
+        hitoSelect.addEventListener('change', function() {
+            updateAvailableOFs();
+        });
+    }
+
+    if (clienteSelect) {
+        clienteSelect.addEventListener('change', function() {
+            updateProyectos();
+            clearOFs();
+        });
+    }
+
+    // Form validation
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const numeroDespachoInput = document.getElementById('numero_despacho');
+            if (numeroDespachoInput && numeroDespachoInput.placeholder && 
+                numeroDespachoInput.placeholder.includes("Se generará automáticamente") && 
+                !numeroDespachoInput.value.trim()) {
+                numeroDespachoInput.removeAttribute('required');
+            }
+        });
+    }
+}
+
+function initializeOFsDisplay() {
+    const container = document.getElementById('ofs-container');
+    if (!container) return;
+
+    // Ensure required elements exist
+    let placeholder = document.getElementById('ofs-placeholder');
+    let list = document.getElementById('ofs-list');
+    let emptyAlert = document.getElementById('ofs-empty');
+
+    if (!placeholder) {
+        placeholder = document.createElement('div');
+        placeholder.id = 'ofs-placeholder';
+        placeholder.className = 'alert alert-info';
+        placeholder.innerHTML = '<i class="fas fa-info-circle me-2"></i><strong>Selecciona un contrato para ver las órdenes de fabricación disponibles.</strong>';
+        container.appendChild(placeholder);
+    }
+
+    if (!list) {
+        list = document.createElement('div');
+        list.id = 'ofs-list';
+        list.style.display = 'none';
+        container.appendChild(list);
+    }
+
+    if (!emptyAlert) {
+        emptyAlert = document.createElement('div');
+        emptyAlert.id = 'ofs-empty';
+        emptyAlert.className = 'alert alert-warning';
+        emptyAlert.style.display = 'none';
+        container.appendChild(emptyAlert);
+    }
+}
+
 async function updateProyectos() {
     const clienteSelect = document.getElementById('cliente_id');
     const proyectoSelect = document.getElementById('proyecto_id');
+    
+    if (!clienteSelect || !proyectoSelect) return;
+    
     const clienteId = clienteSelect.value;
-
-    // Clear current options (except selected one)
     const selectedProyecto = proyectoSelect.value;
+    
     proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto</option>';
 
     if (clienteId) {
@@ -301,7 +410,12 @@ async function updateProyectos() {
             const response = await fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
             if (response.ok) {
                 const proyectos = await response.json();
-                proyectos.forEach(proyecto => {
+                // Remove duplicates based on id
+                const uniqueProyectos = proyectos.filter((proyecto, index, self) => 
+                    index === self.findIndex(p => p.id === proyecto.id)
+                );
+                
+                uniqueProyectos.forEach(proyecto => {
                     const option = document.createElement('option');
                     option.value = proyecto.id;
                     option.textContent = proyecto.nombre;
@@ -321,45 +435,27 @@ async function updateProyectos() {
 }
 
 async function updateContratos() {
-    const clienteSelect = document.getElementById('cliente_id');
     const proyectoSelect = document.getElementById('proyecto_id');
     const contratoSelect = document.getElementById('contrato_id');
-    const clienteId = clienteSelect.value;
+    
+    if (!proyectoSelect || !contratoSelect) return;
+    
     const proyectoId = proyectoSelect.value;
-
-    // Store currently selected contrato
     const selectedContrato = contratoSelect.value;
+    
     contratoSelect.innerHTML = '<option value="">Sin contrato asociado</option>';
 
-    // Priorizar filtrado por proyecto si está disponible, sino por cliente
     if (proyectoId) {
         try {
             const response = await fetch(`{{ url_for('contratos.api_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId));
             if (response.ok) {
                 const contratos = await response.json();
-                contratos.forEach(contrato => {
-                    const option = document.createElement('option');
-                    option.value = contrato.id;
-                    option.textContent = `${contrato.numero_oc} (${contrato.estado})`;
-                    if (contrato.id == selectedContrato) {
-                        option.selected = true;
-                    }
-                    contratoSelect.appendChild(option);
-                });
-            } else {
-                console.error('Error response loading contratos:', response.status);
-            }
-        } catch (error) {
-            console.error('Error loading contratos:', error);
-            contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
-        }
-    } else if (clienteId) {
-        // Solo si no hay proyecto seleccionado, filtrar por cliente
-        try {
-            const response = await fetch(`{{ url_for('contratos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
-            if (response.ok) {
-                const contratos = await response.json();
-                contratos.forEach(contrato => {
+                // Remove duplicates based on id
+                const uniqueContratos = contratos.filter((contrato, index, self) => 
+                    index === self.findIndex(c => c.id === contrato.id)
+                );
+                
+                uniqueContratos.forEach(contrato => {
                     const option = document.createElement('option');
                     option.value = contrato.id;
                     option.textContent = `${contrato.numero_oc} (${contrato.estado})`;
@@ -376,124 +472,13 @@ async function updateContratos() {
             contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
         }
     }
-
-    // Update dispatch number when contract changes
-    updateDespachoNumber();
 }
 
-async function updateDespachoNumber() {
-    const contratoSelect = document.getElementById('contrato_id');
-    const proyectoSelect = document.getElementById('proyecto_id');
-    const numeroDespachoInput = document.getElementById('numero_despacho');
-
-    // Only update if this is a new dispatch (placeholder is set)
-    if (numeroDespachoInput.value || !numeroDespachoInput.placeholder.includes("Se generará automáticamente")) {
-        return;
-    }
-
-    const contratoId = contratoSelect.value || null;
-    const proyectoId = proyectoSelect.value;
-
-    if (!proyectoId) {
-        numeroDespachoInput.placeholder = "Se generará automáticamente";
-        return;
-    }
-
-    try {
-        const url = `{{ url_for('despachos.api_generate_numero') }}`;
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contrato_id: contratoId,
-                proyecto_id: parseInt(proyectoId)
-            })
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            numeroDespachoInput.placeholder = data.numero_despacho;
-        } else {
-            console.error('Error generating dispatch number:', response.status);
-        }
-    } catch (error) {
-        console.error('Error generating dispatch number:', error);
-    }
-}
-
-async function updateDestinoSuggestion() {
-    const proyectoSelect = document.getElementById('proyecto_id');
-    const destinoTextarea = document.getElementById('destino');
-    const proyectoId = proyectoSelect.value;
-
-    // Only update if destino is empty for new dispatches
-    if (!proyectoId || destinoTextarea.value.trim()) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`{{ url_for('proyectos.api_proyecto_destino', proyecto_id=0) }}`.replace('0', proyectoId));
-        if (response.ok) {
-            const data = await response.json();
-            if (data.ubicacion_obra) {
-                destinoTextarea.placeholder = data.ubicacion_obra;
-                // Optionally auto-fill if empty
-                if (!destinoTextarea.value.trim()) {
-                    destinoTextarea.value = data.ubicacion_obra;
-                }
-            }
-        } else {
-            console.error('Error loading proyecto destination:', response.status);
-        }
-    } catch (error) {
-        console.error('Error loading proyecto destination:', error);
-    }
-}
-
-function clearOFs() {
-    const ofSelect = document.getElementById('of_id');
-    if (ofSelect) {
-        ofSelect.innerHTML = '<option value="">Sin OF asociada</option>';
-    }
-}
-
-async function updateOFsByProyecto() {
-    const proyectoSelect = document.getElementById('proyecto_id');
-    const contratoSelect = document.getElementById('contrato_id');
-
-    if (!proyectoSelect) return;
-
-    const proyectoId = proyectoSelect.value;
-
-    // Si hay un contrato seleccionado, usar ese método en su lugar
-    if (contratoSelect && contratoSelect.value) {
-        return updateOFsByContrato();
-    }
-
-    // Use the new OF loading system instead of the old select
-    updateAvailableOFs();
-}
-
-async function updateOFsByContrato() {
-    const contratoSelect = document.getElementById('contrato_id');
-
-    if (!contratoSelect) return;
-
-    const contratoId = contratoSelect.value;
-
-    // Use the new OF loading system instead of the old select
-    updateAvailableOFs();
-}
-
-// Helper function to populate Hitos based on Contrato
 async function updateHitosByContrato(contratoId) {
     const hitoSelect = document.getElementById('hito_entrega_id');
-
+    
     if (!hitoSelect) return;
 
-    // Clear current options
     const selectedHito = hitoSelect.value;
     hitoSelect.innerHTML = '<option value="">Sin hito asociado</option>';
 
@@ -504,11 +489,16 @@ async function updateHitosByContrato(contratoId) {
         if (response.ok) {
             const hitos = await response.json();
             if (hitos && hitos.length > 0) {
-                hitos.forEach(hito => {
+                // Remove duplicates based on id
+                const uniqueHitos = hitos.filter((hito, index, self) => 
+                    index === self.findIndex(h => h.id === hito.id)
+                );
+                
+                uniqueHitos.forEach(hito => {
                     const option = document.createElement('option');
                     option.value = hito.id;
-                    // Mostrar descripción y fecha programada
-                    const fechaFormateada = hito.fecha_programada ? new Date(hito.fecha_programada).toLocaleDateString('es-CL') : 'Sin fecha';
+                    const fechaFormateada = hito.fecha_programada ? 
+                        new Date(hito.fecha_programada).toLocaleDateString('es-CL') : 'Sin fecha';
                     option.textContent = `${hito.descripcion || hito.titulo} - ${fechaFormateada}`;
                     if (hito.id == selectedHito) {
                         option.selected = true;
@@ -516,7 +506,6 @@ async function updateHitosByContrato(contratoId) {
                     hitoSelect.appendChild(option);
                 });
             } else {
-                // Si no hay hitos, mostrar mensaje informativo
                 const option = document.createElement('option');
                 option.value = '';
                 option.textContent = 'No hay hitos pendientes para este contrato';
@@ -525,418 +514,420 @@ async function updateHitosByContrato(contratoId) {
             }
         } else {
             console.error('Error response loading hitos:', response.status);
-            // Agregar opción de error
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'Error cargando hitos';
-            option.disabled = true;
-            hitoSelect.appendChild(option);
         }
     } catch (error) {
         console.error('Error loading hitos:', error);
-        // Agregar opción de error
-        const option = document.createElement('option');
-        option.value = '';
-        option.textContent = 'Error de conexión';
-        option.disabled = true;
-        hitoSelect.appendChild(option);
     }
 }
 
+async function updateAvailableOFs() {
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const contratoSelect = document.getElementById('contrato_id');
+    const hitoSelect = document.getElementById('hito_entrega_id');
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize feather icons
-    if (typeof feather !== 'undefined') {
-        feather.replace();
+    const proyectoId = proyectoSelect ? proyectoSelect.value : null;
+    const contratoId = contratoSelect ? contratoSelect.value : null;
+    const hitoId = hitoSelect ? hitoSelect.value : null;
+
+    const container = document.getElementById('ofs-container');
+    const placeholder = document.getElementById('ofs-placeholder');
+    const emptyAlert = document.getElementById('ofs-empty');
+    const list = document.getElementById('ofs-list');
+
+    if (!container) return;
+
+    // Ensure elements exist
+    initializeOFsDisplay();
+
+    // Determine API URL
+    let apiUrl = null;
+    let placeholderText = '';
+
+    if (contratoId) {
+        apiUrl = `{{ url_for('despachos.api_fabricacion_by_contrato', contrato_id=0) }}`.replace('0', contratoId);
+        placeholderText = 'Contrato seleccionado - cargando órdenes...';
+    } else if (proyectoId) {
+        apiUrl = `{{ url_for('despachos.api_fabricacion_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId);
+        placeholderText = 'Proyecto seleccionado - cargando órdenes...';
+    } else {
+        placeholder.style.display = 'block';
+        placeholder.innerHTML = '<i class="fas fa-info-circle me-2"></i><strong>Selecciona un contrato o proyecto para ver las órdenes de fabricación disponibles.</strong>';
+        if (emptyAlert) emptyAlert.style.display = 'none';
+        list.style.display = 'none';
+        list.innerHTML = '';
+        return;
     }
 
-    // Custom form validation
-    const form = document.getElementById('despachoForm'); // Assuming your form has id="despachoForm"
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            const numeroDespachoInput = document.getElementById('numero_despacho');
+    // Show loading state
+    placeholder.style.display = 'block';
+    placeholder.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i><strong>${placeholderText}</strong>`;
+    if (emptyAlert) emptyAlert.style.display = 'none';
+    list.style.display = 'none';
 
-            // For new dispatches (placeholder field), don't require manual input if empty
-            if (numeroDespachoInput.placeholder && numeroDespachoInput.placeholder.includes("Se generará automáticamente") && !numeroDespachoInput.value.trim()) {
-                numeroDespachoInput.removeAttribute('required');
-            }
-        });
-    }
-
-    // Nueva función para cargar OFs disponibles
-    window.updateAvailableOFs = function() {
-        const proyectoSelect = document.getElementById('proyecto_id');
-        const contratoSelect = document.getElementById('contrato_id');
-        const hitoSelect = document.getElementById('hito_entrega_id');
-
-        const proyectoId = proyectoSelect ? proyectoSelect.value : null;
-        const contratoId = contratoSelect ? contratoSelect.value : null;
-        const hitoId = hitoSelect ? hitoSelect.value : null;
-
-        const container = document.getElementById('ofs-container');
-        const placeholder = document.getElementById('ofs-placeholder');
-        const emptyAlert = document.getElementById('ofs-empty');
-        const list = document.getElementById('ofs-list');
-
-        // Verificar que los elementos existan
-        if (!container || !placeholder || !list) {
-            console.error('Elements not found for OF loading:', {
-                container: !!container,
-                placeholder: !!placeholder,
-                list: !!list
-            });
-            
-            // Try to find elements again or create them if missing
-            if (!placeholder) {
-                const placeholderEl = document.createElement('div');
-                placeholderEl.id = 'ofs-placeholder';
-                placeholderEl.className = 'alert alert-info';
-                placeholderEl.innerHTML = '<i class="fas fa-info-circle me-2"></i><strong>Selecciona un contrato para ver las órdenes de fabricación disponibles.</strong>';
-                container.appendChild(placeholderEl);
-            }
-            
-            if (!list) {
-                const listEl = document.createElement('div');
-                listEl.id = 'ofs-list';
-                listEl.style.display = 'none';
-                container.appendChild(listEl);
-            }
-            
-            // Update references
-            placeholder = document.getElementById('ofs-placeholder');
-            list = document.getElementById('ofs-list');
-            
-            if (!placeholder || !list) {
-                console.error('Could not create missing elements');
-                return;
-            }
+    try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        
+        const data = await response.json();
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        const ofs = Array.isArray(data) ? data : [];
+        
+        // Remove duplicates based on id
+        const uniqueOFs = ofs.filter((of, index, self) => 
+            index === self.findIndex(o => o.id === of.id)
+        );
 
-        // Prioritize filtering by Contrato, then Proyecto, then Hito
-        let apiUrl = null;
-        let placeholderText = '';
-
-        if (contratoId) {
-            apiUrl = `{{ url_for('despachos.api_fabricacion_by_contrato', contrato_id=0) }}`.replace('0', contratoId);
-            placeholderText = 'Selecciona un contrato para ver las órdenes de fabricación disponibles.';
-        } else if (proyectoId) {
-            apiUrl = `{{ url_for('despachos.api_fabricacion_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId);
-            placeholderText = 'Selecciona un proyecto para ver las órdenes de fabricación disponibles.';
-        } else if (hitoId) {
-            apiUrl = `{{ url_for('despachos.api_fabricacion_by_hito', hito_id=0) }}`.replace('0', hitoId);
-            placeholderText = 'Selecciona un hito para ver las órdenes de fabricación disponibles.';
-        } else {
-            // No criteria selected, show placeholder
-            placeholder.style.display = 'block';
-            placeholder.querySelector('i').className = 'bi bi-info-circle me-2';
-            placeholder.querySelector('strong').textContent = placeholderText || 'Selecciona un contrato o proyecto para ver las órdenes de fabricación disponibles.';
-            if (emptyAlert) emptyAlert.style.display = 'none';
+        if (uniqueOFs.length === 0) {
+            placeholder.style.display = 'none';
+            if (emptyAlert) {
+                emptyAlert.style.display = 'block';
+                const message = contratoId ? 'este contrato' : 'este proyecto';
+                emptyAlert.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>No hay órdenes de fabricación disponibles para ${message}. <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>`;
+            }
             list.style.display = 'none';
             list.innerHTML = '';
-            return;
-        }
-
-        // Update placeholder text based on selection priority
-        placeholder.querySelector('strong').textContent = placeholderText;
-        placeholder.querySelector('i').className = 'bi bi-info-circle me-2';
-
-
-        // Cargar OFs del contrato o proyecto
-        fetch(apiUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Check if response has error
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                const ofs = Array.isArray(data) ? data : [];
-
-                if (ofs.length === 0) {
-                    placeholder.style.display = 'none';
-                    if (emptyAlert) emptyAlert.style.display = 'block';
-                    // Update empty alert text based on the selected filter
-                    const emptyAlertMessage = contratoId ? `No hay órdenes de fabricación disponibles para este contrato.` :
-                                              proyectoId ? `No hay órdenes de fabricación disponibles para este proyecto.` :
-                                              hitoId ? `No hay órdenes de fabricación disponibles para este hito.` :
-                                              `No hay órdenes de fabricación disponibles.`;
-                    emptyAlert.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i>${emptyAlertMessage} <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>`;
-                    list.style.display = 'none';
-                    list.innerHTML = '';
-                } else {
-                    let html = '<div class="row g-3">';
-                    ofs.forEach(function(of) {
-                        // Determinar si tiene despachos parciales previos
-                        const tieneParciales = of.tiene_despachos_parciales || false;
-                        const cantidadDespachadaPrevia = of.cantidad_despachada_previa || 0;
-                        const cantidadTotal = of.cantidad_total || 0;
-                        const cantidadDisponible = of.cantidad_disponible || cantidadTotal; // Use cantidad_disponible if available
-
-                        let infoAdicional = '';
-                        if (tieneParciales) {
-                            infoAdicional = `
-                                <div class="alert alert-info alert-sm mt-2">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    <strong>Despacho Parcial Previo:</strong> ${cantidadDespachadaPrevia} tableros ya despachados. 
-                                    Disponibles: ${cantidadDisponible} tableros.
-                                </div>
-                            `;
-                        }
-
-                        // Add data attributes for easy access in JS
-                        const ofItemHtml = `
-                            <div class="col-lg-6 col-md-12">
-                                <div class="of-card border rounded p-3 mb-3" 
-                                     data-of-id="${of.id}" 
-                                     data-cantidad-total="${cantidadTotal}"
-                                     data-cantidad-disponible="${cantidadDisponible}">
-                                    <div class="row">
-                                        <div class="col-md-8">
-                                            <h6 class="mb-2">${of.codigo}</h6>
-                                            <p class="text-muted mb-1">${of.descripcion}</p>
-                                            <div class="mb-2">
-                                                <small class="badge bg-secondary me-1">${of.area || 'Sin área'}</small>
-                                                <small class="badge bg-info">${of.estado}</small>
-                                                ${tieneParciales ? '<small class="badge bg-warning">Despacho Parcial Previo</small>' : ''}
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4 text-end">
-                                            <div class="mb-2">
-                                                <strong>Cantidad Total:</strong> ${cantidadTotal}
-                                            </div>
-                                            ${of.cantidad_despachada_previa > 0 ? `<div class="mb-2"><small class="text-muted">Despachado previamente: ${of.cantidad_despachada_previa}</small></div>` : ''}
-                                        </div>
-                                    </div>
-                                    <div class="mt-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input of-checkbox" type="checkbox" 
-                                                   value="${of.id}" id="of_${of.id}" 
-                                                   data-of-codigo="${of.codigo}"
-                                                   data-of-descripcion="${of.descripcion}"
-                                                   data-of-area="${of.area || ''}"
-                                                   data-of-estado="${of.estado || ''}"
-                                                   data-of-cantidad-total="${cantidadTotal}"
-                                                   data-of-cantidad-disponible="${cantidadDisponible}"
-                                                   data-of-tiene-parciales="${tieneParciales}">
-                                            <label class="form-check-label fw-bold" for="of_${of.id}">
-                                                Seleccionar para Despacho
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="mt-2 of-despacho-options" style="display: none;">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <label class="form-label">Tipo de Despacho</label>
-                                                <select class="form-select tipo-despacho" data-of-id="${of.id}">
-                                                    ${!tieneParciales ? `<option value="TOTAL">Total (${cantidadTotal} tableros)</option>` : ''}
-                                                    <option value="PARCIAL" ${tieneParciales ? 'selected' : ''}>Parcial</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-6 cantidad-parcial-container" ${!tieneParciales ? 'style="display: none;"' : ''}>
-                                                <label class="form-label">Cantidad a Despachar</label>
-                                                <input type="number" class="form-control cantidad-parcial" 
-                                                       min="1" max="${cantidadDisponible}" value="1">
-                                                <small class="text-muted">Máximo disponible: ${cantidadDisponible}</small>
-                                            </div>
-                                        </div>
-                                        <div class="mt-2">
-                                            <label class="form-label">Observaciones</label>
-                                            <textarea class="form-control observaciones-of" rows="2" 
-                                                      placeholder="Observaciones para esta OF..."></textarea>
-                                        </div>
-                                    </div>
-                                    ${infoAdicional}
-                                </div>
-                            </div>
-                        `;
-                        list.innerHTML += ofItemHtml;
-                    });
-                    html = list.innerHTML; // Get the generated HTML
-                    list.innerHTML = html; // Set it back to the list element
-                    list.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    if (emptyAlert) emptyAlert.style.display = 'none';
-
-                    // Add event listeners after appending to DOM
-                    document.querySelectorAll('.of-checkbox').forEach(checkbox => {
-                        checkbox.addEventListener('change', function() {
-                            toggleOFSelection(this);
-                        });
-                    });
-                    document.querySelectorAll('.tipo-despacho').forEach(select => {
-                        select.addEventListener('change', function() {
-                            const ofId = this.getAttribute('data-of-id');
-                            updateQuantityField(ofId);
-                        });
-                    });
-                    document.querySelectorAll('.cantidad-parcial').forEach(input => {
-                        input.addEventListener('input', function() {
-                            const ofId = this.closest('.of-card').querySelector('.of-checkbox').value;
-                            updateSelectedOFsInput(); // Update on quantity change
-                        });
-                    });
-                    document.querySelectorAll('.observaciones-of').forEach(textarea => {
-                        textarea.addEventListener('input', function() {
-                            const ofId = this.closest('.of-card').querySelector('.of-checkbox').value;
-                            updateSelectedOFsInput(); // Update on observation change
-                        });
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error loading OFs:', error);
-                list.innerHTML = '<p class="text-danger text-center">Error al cargar las órdenes de fabricación.</p>';
-                list.style.display = 'block';
-                placeholder.style.display = 'none';
-                if (emptyAlert) emptyAlert.style.display = 'none';
-            });
-    };
-
-    // Funciones para manejar selección de OFs
-    window.toggleOFSelection = function(checkbox) {
-        const ofId = checkbox.value;
-        const ofCard = checkbox.closest('.of-card');
-        const quantitySection = ofCard.querySelector('.of-despacho-options');
-
-        if (checkbox.checked) {
-            quantitySection.style.display = 'block';
-            const tieneParciales = checkbox.getAttribute('data-of-tiene-parciales') === 'true';
-            const tipoDespachoSelect = quantitySection.querySelector('.tipo-despacho');
-            const cantidadInput = quantitySection.querySelector('.cantidad-parcial');
-
-            if (tieneParciales) {
-                tipoDespachoSelect.value = 'PARCIAL';
-                cantidadInput.style.display = 'block';
-                cantidadInput.value = 1; // Default to 1 for partial
-            } else {
-                tipoDespachoSelect.value = 'TOTAL';
-                cantidadInput.style.display = 'none';
-            }
-            updateQuantityField(ofId); // Update the hidden input field
         } else {
-            quantitySection.style.display = 'none';
+            renderOFsList(uniqueOFs);
+            placeholder.style.display = 'none';
+            if (emptyAlert) emptyAlert.style.display = 'none';
+            list.style.display = 'block';
         }
-        updateSelectedOFsInput();
-    };
+    } catch (error) {
+        console.error('Error loading OFs:', error);
+        list.innerHTML = '<p class="text-danger text-center">Error al cargar las órdenes de fabricación.</p>';
+        list.style.display = 'block';
+        placeholder.style.display = 'none';
+        if (emptyAlert) emptyAlert.style.display = 'none';
+    }
+}
 
-    window.updateQuantityField = function(ofId) {
-        const ofCard = document.querySelector(`.of-card[data-of-id="${ofId}"]`);
-        if (!ofCard) return;
+function renderOFsList(ofs) {
+    const list = document.getElementById('ofs-list');
+    if (!list) return;
 
-        const checkbox = ofCard.querySelector('.of-checkbox');
+    let html = '<div class="row g-3">';
+    
+    ofs.forEach(function(of) {
+        const tieneParciales = of.tiene_despachos_parciales || false;
+        const cantidadDespachadaPrevia = of.cantidad_despachada_previa || 0;
+        const cantidadTotal = of.cantidad_total || 0;
+        const cantidadDisponible = of.cantidad_disponible || cantidadTotal;
+
+        let infoAdicional = '';
+        if (tieneParciales) {
+            infoAdicional = `
+                <div class="alert alert-info alert-sm mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    <strong>Despacho Parcial Previo:</strong> ${cantidadDespachadaPrevia} tableros ya despachados. 
+                    Disponibles: ${cantidadDisponible} tableros.
+                </div>
+            `;
+        }
+
+        html += `
+            <div class="col-lg-6 col-md-12">
+                <div class="of-card border rounded p-3 mb-3" 
+                     data-of-id="${of.id}" 
+                     data-cantidad-total="${cantidadTotal}"
+                     data-cantidad-disponible="${cantidadDisponible}">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6 class="mb-2">${of.codigo}</h6>
+                            <p class="text-muted mb-1">${of.descripcion || 'Sin descripción'}</p>
+                            <div class="mb-2">
+                                <small class="badge bg-secondary me-1">${of.area || 'Sin área'}</small>
+                                <small class="badge bg-info">${of.estado || 'Sin estado'}</small>
+                                ${tieneParciales ? '<small class="badge bg-warning">Despacho Parcial Previo</small>' : ''}
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="mb-2">
+                                <strong>Cantidad Total:</strong> ${cantidadTotal}
+                            </div>
+                            ${cantidadDespachadaPrevia > 0 ? `<div class="mb-2"><small class="text-muted">Despachado previamente: ${cantidadDespachadaPrevia}</small></div>` : ''}
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="form-check">
+                            <input class="form-check-input of-checkbox" type="checkbox" 
+                                   value="${of.id}" id="of_${of.id}" 
+                                   data-of-codigo="${of.codigo}"
+                                   data-of-descripcion="${of.descripcion || ''}"
+                                   data-of-area="${of.area || ''}"
+                                   data-of-estado="${of.estado || ''}"
+                                   data-of-cantidad-total="${cantidadTotal}"
+                                   data-of-cantidad-disponible="${cantidadDisponible}"
+                                   data-of-tiene-parciales="${tieneParciales}">
+                            <label class="form-check-label fw-bold" for="of_${of.id}">
+                                Seleccionar para Despacho
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mt-2 of-despacho-options" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Tipo de Despacho</label>
+                                <select class="form-select tipo-despacho" data-of-id="${of.id}">
+                                    ${!tieneParciales ? `<option value="TOTAL">Total (${cantidadTotal} tableros)</option>` : ''}
+                                    <option value="PARCIAL" ${tieneParciales ? 'selected' : ''}>Parcial</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 cantidad-parcial-container" ${!tieneParciales ? 'style="display: none;"' : ''}>
+                                <label class="form-label">Cantidad a Despachar</label>
+                                <input type="number" class="form-control cantidad-parcial" 
+                                       min="1" max="${cantidadDisponible}" value="1">
+                                <small class="text-muted">Máximo disponible: ${cantidadDisponible}</small>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <label class="form-label">Observaciones</label>
+                            <textarea class="form-control observaciones-of" rows="2" 
+                                      placeholder="Observaciones para esta OF..."></textarea>
+                        </div>
+                    </div>
+                    ${infoAdicional}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    list.innerHTML = html;
+
+    // Add event listeners
+    setupOFEventListeners();
+}
+
+function setupOFEventListeners() {
+    document.querySelectorAll('.of-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            toggleOFSelection(this);
+        });
+    });
+    
+    document.querySelectorAll('.tipo-despacho').forEach(select => {
+        select.addEventListener('change', function() {
+            const ofId = this.getAttribute('data-of-id');
+            updateQuantityField(ofId);
+        });
+    });
+    
+    document.querySelectorAll('.cantidad-parcial').forEach(input => {
+        input.addEventListener('input', function() {
+            updateSelectedOFsInput();
+        });
+    });
+    
+    document.querySelectorAll('.observaciones-of').forEach(textarea => {
+        textarea.addEventListener('input', function() {
+            updateSelectedOFsInput();
+        });
+    });
+}
+
+function toggleOFSelection(checkbox) {
+    const ofCard = checkbox.closest('.of-card');
+    const quantitySection = ofCard.querySelector('.of-despacho-options');
+
+    if (checkbox.checked) {
+        quantitySection.style.display = 'block';
+        const tieneParciales = checkbox.getAttribute('data-of-tiene-parciales') === 'true';
+        const tipoDespachoSelect = quantitySection.querySelector('.tipo-despacho');
+        const cantidadContainer = quantitySection.querySelector('.cantidad-parcial-container');
+
+        if (tieneParciales) {
+            tipoDespachoSelect.value = 'PARCIAL';
+            cantidadContainer.style.display = 'block';
+        } else {
+            tipoDespachoSelect.value = 'TOTAL';
+            cantidadContainer.style.display = 'none';
+        }
+        updateQuantityField(checkbox.value);
+    } else {
+        quantitySection.style.display = 'none';
+    }
+    updateSelectedOFsInput();
+}
+
+function updateQuantityField(ofId) {
+    const ofCard = document.querySelector(`.of-card[data-of-id="${ofId}"]`);
+    if (!ofCard) return;
+
+    const checkbox = ofCard.querySelector('.of-checkbox');
+    const tipo = ofCard.querySelector('.tipo-despacho').value;
+    const cantidadInput = ofCard.querySelector('.cantidad-parcial');
+    const cantidadContainer = ofCard.querySelector('.cantidad-parcial-container');
+    const cantidadDisponible = parseInt(checkbox.getAttribute('data-of-cantidad-disponible'));
+
+    if (tipo === 'TOTAL') {
+        cantidadContainer.style.display = 'none';
+    } else {
+        cantidadContainer.style.display = 'block';
+        cantidadInput.max = cantidadDisponible;
+        if (parseInt(cantidadInput.value) > cantidadDisponible) {
+            cantidadInput.value = cantidadDisponible;
+        }
+        if (parseInt(cantidadInput.value) < 1) {
+            cantidadInput.value = 1;
+        }
+    }
+    updateSelectedOFsInput();
+}
+
+function updateSelectedOFsInput() {
+    const selectedOFs = [];
+    document.querySelectorAll('.of-checkbox:checked').forEach(checkbox => {
+        const ofCard = checkbox.closest('.of-card');
         const tipo = ofCard.querySelector('.tipo-despacho').value;
         const cantidadInput = ofCard.querySelector('.cantidad-parcial');
-        const cantidadDisponible = parseInt(checkbox.getAttribute('data-of-cantidad-disponible'));
+        const cantidad = (tipo === 'PARCIAL') ? 
+            parseInt(cantidadInput.value) : 
+            parseInt(checkbox.getAttribute('data-of-cantidad-total'));
+        const observaciones = ofCard.querySelector('.observaciones-of').value;
 
-        if (tipo === 'TOTAL') {
-            cantidadInput.style.display = 'none';
-        } else { // PARCIAL
-            cantidadInput.style.display = 'block';
-            cantidadInput.max = cantidadDisponible; // Ensure max is set correctly
-            if (parseInt(cantidadInput.value) > cantidadDisponible) {
-                cantidadInput.value = cantidadDisponible;
-            }
-            if (parseInt(cantidadInput.value) < 1) {
-                cantidadInput.value = 1;
-            }
-        }
-        updateSelectedOFsInput();
-    };
-
-    // Actualizar campo hidden con OFs seleccionadas
-    window.updateSelectedOFsInput = function() {
-        const selectedOFs = [];
-        document.querySelectorAll('.of-checkbox:checked').forEach(checkbox => {
-            const ofId = checkbox.value;
-            const ofCard = checkbox.closest('.of-card');
-            const tipo = ofCard.querySelector('.tipo-despacho').value;
-            const cantidadInput = ofCard.querySelector('.cantidad-parcial');
-            const cantidad = (tipo === 'PARCIAL') ? parseInt(cantidadInput.value) : parseInt(checkbox.getAttribute('data-of-cantidad-total'));
-            const observaciones = ofCard.querySelector('.observaciones-of').value;
-
-            selectedOFs.push({
-                of_id: ofId,
-                tipo_despacho: tipo.toUpperCase(),
-                cantidad_despachada: cantidad,
-                observaciones: observaciones
-            });
+        selectedOFs.push({
+            of_id: checkbox.value,
+            tipo_despacho: tipo.toUpperCase(),
+            cantidad_despachada: cantidad,
+            observaciones: observaciones
         });
+    });
 
-        // Crear campo hidden si no existe
-        let hiddenField = document.getElementById('selected_ofs');
-        const form = document.querySelector('form');
-        if (!hiddenField && form) {
-            hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.id = 'selected_ofs';
-            hiddenField.name = 'selected_ofs';
-            form.appendChild(hiddenField);
-        }
+    let hiddenField = document.getElementById('selected_ofs');
+    const form = document.querySelector('form');
+    if (!hiddenField && form) {
+        hiddenField = document.createElement('input');
+        hiddenField.type = 'hidden';
+        hiddenField.id = 'selected_ofs';
+        hiddenField.name = 'selected_ofs';
+        form.appendChild(hiddenField);
+    }
+    if (hiddenField) {
         hiddenField.value = JSON.stringify(selectedOFs);
-    };
+    }
+}
 
-    // Función para generar número de despacho manualmente
-    window.generateNumeroDespacho = function() {
-        const proyectoSelect = document.getElementById('proyecto_id');
-        const contratoSelect = document.getElementById('contrato_id');
-        const numeroDespachoInput = document.getElementById('numero_despacho');
+async function updateDespachoNumber() {
+    const contratoSelect = document.getElementById('contrato_id');
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const numeroDespachoInput = document.getElementById('numero_despacho');
 
-        const proyectoId = proyectoSelect.value;
-        const contratoId = contratoSelect.value || null;
+    if (!numeroDespachoInput || numeroDespachoInput.value || 
+        !numeroDespachoInput.placeholder.includes("Se generará automáticamente")) {
+        return;
+    }
 
-        if (!proyectoId) {
-            alert('Por favor selecciona un proyecto primero');
-            return;
-        }
+    const contratoId = contratoSelect ? contratoSelect.value || null : null;
+    const proyectoId = proyectoSelect ? proyectoSelect.value : null;
 
-        // Llamar al API para generar el número
-        fetch(`{{ url_for('despachos.api_generate_numero') }}`, {
+    if (!proyectoId) {
+        numeroDespachoInput.placeholder = "Se generará automáticamente";
+        return;
+    }
+
+    try {
+        const response = await fetch(`{{ url_for('despachos.api_generate_numero') }}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contrato_id: contratoId,
                 proyecto_id: parseInt(proyectoId)
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.numero_despacho) {
-                numeroDespachoInput.value = data.numero_despacho;
-            } else if (data.error) {
-                alert('Error generando número: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error generating dispatch number:', error);
-            alert('Error al generar número de despacho');
         });
-    };
 
-    // Update onchange events to call updateContratos when project changes
-    const proyectoSelectElement = document.getElementById('proyecto_id');
-    if (proyectoSelectElement) {
-        proyectoSelectElement.addEventListener('change', updateContratos);
+        if (response.ok) {
+            const data = await response.json();
+            numeroDespachoInput.placeholder = data.numero_despacho;
+        }
+    } catch (error) {
+        console.error('Error generating dispatch number:', error);
     }
-    const contratoSelectElement = document.getElementById('contrato_id');
-    if (contratoSelectElement) {
-        contratoSelectElement.addEventListener('change', updateAvailableOFs);
-    }
-    const hitoSelectElement = document.getElementById('hito_entrega_id');
-    if (hitoSelectElement) {
-        hitoSelectElement.addEventListener('change', updateAvailableOFs);
+}
+
+async function updateDestinoSuggestion() {
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const destinoTextarea = document.getElementById('destino');
+    
+    if (!proyectoSelect || !destinoTextarea) return;
+    
+    const proyectoId = proyectoSelect.value;
+
+    if (!proyectoId || destinoTextarea.value.trim()) {
+        return;
     }
 
-
-    // Initialize Feather Icons
-    if (typeof feather !== 'undefined') {
-        feather.replace();
+    try {
+        const response = await fetch(`{{ url_for('proyectos.api_proyecto_destino', proyecto_id=0) }}`.replace('0', proyectoId));
+        if (response.ok) {
+            const data = await response.json();
+            if (data.ubicacion_obra) {
+                destinoTextarea.placeholder = data.ubicacion_obra;
+                if (!destinoTextarea.value.trim()) {
+                    destinoTextarea.value = data.ubicacion_obra;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error loading proyecto destination:', error);
     }
-});
+}
+
+function clearOFs() {
+    const list = document.getElementById('ofs-list');
+    const placeholder = document.getElementById('ofs-placeholder');
+    const emptyAlert = document.getElementById('ofs-empty');
+    
+    if (list) {
+        list.innerHTML = '';
+        list.style.display = 'none';
+    }
+    if (placeholder) {
+        placeholder.style.display = 'block';
+        placeholder.innerHTML = '<i class="fas fa-info-circle me-2"></i><strong>Selecciona un contrato o proyecto para ver las órdenes de fabricación disponibles.</strong>';
+    }
+    if (emptyAlert) {
+        emptyAlert.style.display = 'none';
+    }
+}
+
+function generateNumeroDespacho() {
+    const proyectoSelect = document.getElementById('proyecto_id');
+    const contratoSelect = document.getElementById('contrato_id');
+    const numeroDespachoInput = document.getElementById('numero_despacho');
+
+    const proyectoId = proyectoSelect ? proyectoSelect.value : null;
+    const contratoId = contratoSelect ? contratoSelect.value || null : null;
+
+    if (!proyectoId) {
+        alert('Por favor selecciona un proyecto primero');
+        return;
+    }
+
+    fetch(`{{ url_for('despachos.api_generate_numero') }}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contrato_id: contratoId,
+            proyecto_id: parseInt(proyectoId)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.numero_despacho) {
+            numeroDespachoInput.value = data.numero_despacho;
+        } else if (data.error) {
+            alert('Error generando número: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error generating dispatch number:', error);
+        alert('Error al generar número de despacho');
+    });
+}
 </script>
 {% endblock %}

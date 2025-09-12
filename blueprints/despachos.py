@@ -595,21 +595,31 @@ def api_hitos_by_contrato(contrato_id):
     try:
         from models import HitoEntrega, PlanEntrega, EstadoHitoEntrega
 
-        hitos = db.session.query(HitoEntrega).join(
-            PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id
-        ).filter(
-            PlanEntrega.contrato_id == contrato_id,
-            HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE
-        ).order_by(HitoEntrega.fecha_programada, HitoEntrega.orden).all()
+        # First check if the contract exists
+        contrato = contratos_service.get_contrato_by_id(contrato_id)
+        if not contrato:
+            return jsonify({'error': 'Contrato no encontrado'}), 404
 
-        return jsonify([{
-            'id': hito.id,
-            'titulo': hito.titulo,
-            'descripcion': hito.descripcion,
-            'fecha_programada': hito.fecha_programada.isoformat() if hito.fecha_programada else None,
-            'orden': hito.orden,
-            'estado': hito.estado.value
-        } for hito in hitos])
+        # Get delivery milestones for this contract
+        hitos = []
+        if contrato.plan_entrega and contrato.plan_entrega.hitos:
+            for hito in contrato.plan_entrega.hitos:
+                # Only include pending milestones
+                if hito.estado == EstadoHitoEntrega.PENDIENTE:
+                    hitos.append({
+                        'id': hito.id,
+                        'titulo': hito.titulo,
+                        'descripcion': hito.descripcion or hito.titulo,
+                        'fecha_programada': hito.fecha_programada.isoformat() if hito.fecha_programada else None,
+                        'orden': hito.orden,
+                        'estado': hito.estado.value
+                    })
+
+        # Sort by date and order
+        hitos.sort(key=lambda x: (x['fecha_programada'] or '9999-12-31', x['orden']))
+
+        logger.info(f"Found {len(hitos)} pending hitos for contrato {contrato_id}")
+        return jsonify(hitos)
 
     except Exception as e:
         logger.error(f"Error obteniendo hitos para contrato {contrato_id}: {str(e)}")

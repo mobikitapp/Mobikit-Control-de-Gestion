@@ -471,14 +471,20 @@ class FabricacionService:
             contrato_id: ID del contrato
             
         Returns:
-            Lista de OFs disponibles para despacho
+            Lista de OFs disponibles para despacho (sin duplicados)
         """
         try:
             # Obtener todas las OFs del contrato (sin filtros de área o estado)
             ofs_contrato = self.get_ordenes_by_contrato(contrato_id)
             ofs_disponibles = []
+            ofs_processed_ids = set()  # Track processed OF IDs to avoid duplicates
             
             for of in ofs_contrato:
+                # Skip if already processed (avoid duplicates)
+                if of.id in ofs_processed_ids:
+                    continue
+                ofs_processed_ids.add(of.id)
+                
                 # Obtener progreso actual (opcional, para información)
                 progreso_actual = db.session.query(OrdenAreaProgreso).filter_by(
                     orden_fabricacion_id=of.id,
@@ -517,7 +523,6 @@ class FabricacionService:
                     continue
                 
                 # Agregar información del progreso y despachos como atributos temporales
-                # No podemos asignar a @property, así que usamos setattr
                 setattr(of, '_progreso_actual_temp', progreso_actual)
                 setattr(of, 'area_actual_nombre', progreso_actual.area.nombre if progreso_actual and progreso_actual.area else "Sin área asignada")
                 setattr(of, 'estado_actual_nombre', progreso_actual.estado.nombre if progreso_actual and progreso_actual.estado else "Sin estado")
@@ -535,7 +540,10 @@ class FabricacionService:
                 
                 ofs_disponibles.append(of)
             
-            logger.info(f"Encontradas {len(ofs_disponibles)} OFs disponibles para despacho del contrato {contrato_id}")
+            # Sort by codigo for consistent ordering
+            ofs_disponibles.sort(key=lambda x: x.codigo)
+            
+            logger.info(f"Encontradas {len(ofs_disponibles)} OFs únicas disponibles para despacho del contrato {contrato_id}")
             return ofs_disponibles
             
         except Exception as e:
