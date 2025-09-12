@@ -516,13 +516,13 @@ class FabricacionService:
                     logger.debug(f"OF {of.codigo} no disponible: asignada a despacho TOTAL activo")
                     continue
                 
-                # Agregar información del progreso y despachos para uso en la respuesta
-                of.progreso_actual = progreso_actual
-                of.estado_actual = progreso_actual.estado if progreso_actual else None
-                of.area_actual_nombre = progreso_actual.area.nombre if progreso_actual and progreso_actual.area else "Sin área asignada"
-                of.estado_actual_nombre = progreso_actual.estado.nombre if progreso_actual and progreso_actual.estado else "Sin estado"
-                of.tiene_despachos_parciales = tiene_despachos_parciales
-                of.tiene_despacho_total = tiene_despacho_total
+                # Agregar información del progreso y despachos como atributos temporales
+                # No podemos asignar a @property, así que usamos setattr
+                setattr(of, '_progreso_actual_temp', progreso_actual)
+                setattr(of, 'area_actual_nombre', progreso_actual.area.nombre if progreso_actual and progreso_actual.area else "Sin área asignada")
+                setattr(of, 'estado_actual_nombre', progreso_actual.estado.nombre if progreso_actual and progreso_actual.estado else "Sin estado")
+                setattr(of, 'tiene_despachos_parciales', tiene_despachos_parciales)
+                setattr(of, 'tiene_despacho_total', tiene_despacho_total)
                 
                 # Calcular información de despachos previos (para mostrar en UI)
                 cantidad_despachada_total = sum(
@@ -530,8 +530,8 @@ class FabricacionService:
                     for asignacion in asignaciones_existentes
                 ) if asignaciones_existentes else 0
                 
-                of.cantidad_despachada_previa = cantidad_despachada_total
-                of.cantidad_disponible_despacho = (of.cantidad_tableros or 0) - cantidad_despachada_total
+                setattr(of, 'cantidad_despachada_previa', cantidad_despachada_total)
+                setattr(of, 'cantidad_disponible_despacho', (of.cantidad_tableros or 0) - cantidad_despachada_total)
                 
                 ofs_disponibles.append(of)
             
