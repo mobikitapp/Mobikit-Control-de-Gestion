@@ -252,67 +252,31 @@ class PlanificacionDespachosService:
     def get_ofs_disponibles_para_contrato(contrato_id: int) -> List[Dict[str, Any]]:
         """
         Obtiene las órdenes de fabricación disponibles para un contrato específico
+        NUEVA LÓGICA: Mostrar todas las OFs excepto las asignadas TOTALMENTE
         """
         try:
-            # Obtener el contrato con su proyecto
-            contrato = db.session.query(Contrato).options(
-                selectinload(Contrato.proyecto)
-            ).filter_by(id=contrato_id).first()
-            if not contrato:
-                return []
+            # Usar el servicio de fabricación que ya tiene la nueva lógica
+            from services.fabricacion_service import FabricacionService
+            fabricacion_service = FabricacionService()
 
-            # Obtener todas las OFs del proyecto
-            from models import EstadoOF
-            ofs_proyecto = db.session.query(OrdenFabricacion).filter(
-                OrdenFabricacion.proyecto_id == contrato.proyecto_id
-            ).all()
+            ofs_disponibles_obj = fabricacion_service.get_ofs_disponibles_para_despacho(contrato_id)
 
+            # Convertir a formato dict para compatibilidad con la API
             ofs_disponibles = []
-            for of in ofs_proyecto:
+            for of in ofs_disponibles_obj:
                 try:
-                    # Verificar si la OF está en estado que permite despacho
-                    # Buscar primero en el sistema de áreas
-                    progreso_actual = db.session.query(OrdenAreaProgreso).filter_by(
-                        orden_fabricacion_id=of.id,
-                        es_actual=True
-                    ).first()
-
-                    # Determinar si está lista para despacho
-                    lista_para_despacho = False
-                    estado_descripcion = 'Sin estado'
-
-                    if progreso_actual and progreso_actual.area and progreso_actual.estado:
-                        # Si está en área BODEGA con estado 'listo_para_despacho'
-                        if (progreso_actual.area.tipo == TipoArea.BODEGA and
-                            progreso_actual.estado.codigo == 'listo_para_despacho'):
-                            lista_para_despacho = True
-                            estado_descripcion = progreso_actual.estado.nombre or 'Listo para despacho'
-                    else:
-                        # Fallback: verificar por estado tradicional de OF
-                        if hasattr(of, 'estado') and of.estado:
-                            if of.estado == EstadoOF.COMPLETADO or of.estado == EstadoOF.LISTO_EMBALAJE:
-                                lista_para_despacho = True
-                                estado_descripcion = of.estado.value if hasattr(of.estado, 'value') else str(of.estado)
-
-                    # Si está lista para despacho, calcular cantidades
-                    if lista_para_despacho:
-                        cantidad_total = PlanificacionDespachosService._calcular_cantidad_total_of(of.id)
-                        cantidad_despachada = PlanificacionDespachosService._calcular_cantidad_despachada_of(of.id)
-                        cantidad_disponible = cantidad_total - cantidad_despachada
-
-                        # Solo incluir si hay cantidad disponible
-                        if cantidad_disponible > 0:
-                            ofs_disponibles.append({
-                                'id': of.id,
-                                'codigo': of.codigo,
-                                'descripcion': of.descripcion or 'Sin descripción',
-                                'cantidad_total': float(cantidad_total),
-                                'cantidad_despachada': float(cantidad_despachada),
-                                'cantidad_disponible': float(cantidad_disponible),
-                                'estado': estado_descripcion,
-                                'fecha_entrega_of': of.fecha_entrega_fabrica.isoformat() if of.fecha_entrega_fabrica else None
-                            })
-
+                    ofs_disponibles.append({
+                        'id': of.id,
+                        'codigo': of.codigo,
+                        'descripcion': of.descripcion or 'Sin descripción',
+                        'cantidad_total': float(of.cantidad_tableros or 0),
+                        'cantidad_despachada': float(getattr(of, 'cantidad_despachada_previa', 0)),
+                        'cantidad_disponible': float(getattr(of, 'cantidad_disponible_despacho', of.cantidad_tableros or 0)),
+                        'estado': getattr(of, 'estado_actual_nombre', 'Sin estado'),
+                        'area': getattr(of, 'area_actual_nombre', 'Sin área'),
+                        'tiene_despachos_parciales': getattr(of, 'tiene_despachos_parciales', False),
+                        'fecha_entrega_of': of.fecha_entrega_fabrica.isoformat() if of.fecha_entrega_fabrica else None
+                    })
                 except Exception as of_error:
                     logger.warning(f"Error procesando OF {of.id}: {str(of_error)}")
                     continue
@@ -323,6 +287,7 @@ class PlanificacionDespachosService:
         except Exception as e:
             logger.error(f"Error obteniendo OFs disponibles para contrato {contrato_id}: {str(e)}")
             return []
+
 
     @staticmethod
     def _calcular_cantidad_total_of(of_id: int) -> float:

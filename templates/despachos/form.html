@@ -61,7 +61,7 @@
 
                             <div class="col-md-3">
                                 <label for="contrato_id" class="form-label">Contrato/OC (Opcional)</label>
-                                <select class="form-select" id="contrato_id" name="contrato_id" onchange="updateHitosByContrato(this.value); updateDespachoNumber()">
+                                <select class="form-select" id="contrato_id" name="contrato_id" onchange="updateHitosByContrato(this.value); updateDespachoNumber(); updateAvailableOFs()">
                                     <option value="">Sin contrato asociado</option>
                                     {% if despacho and despacho.contrato %}
                                     <option value="{{ despacho.contrato_id }}" selected>{{ despacho.contrato.numero_oc }}</option>
@@ -91,15 +91,14 @@
                                 <div id="ofs-container" class="border rounded p-3 mb-3" style="min-height: 200px; background-color: #f8f9fa;">
                                     <div id="ofs-placeholder" class="alert alert-info" style="display: block;">
                                         <i class="bi bi-info-circle me-2"></i>
-                                        Selecciona un proyecto para ver las órdenes de fabricación disponibles.
+                                        Selecciona un contrato para ver las órdenes de fabricación disponibles.
                                     </div>
 
                                     <div id="ofs-empty" class="alert alert-warning" style="display: none;">
                                         <i class="bi bi-exclamation-triangle me-2"></i>
-                                        No hay órdenes de fabricación disponibles para este proyecto. 
+                                        No hay órdenes de fabricación disponibles para este contrato. 
                                         <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>
                                     </div>
-
                                     <div id="ofs-list" style="display: none;">
                                         <!-- Las OFs se cargarán aquí dinámicamente -->
                                     </div>
@@ -544,7 +543,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Nueva función para cargar OFs disponibles
     window.updateAvailableOFs = function() {
         const proyectoSelect = document.getElementById('proyecto_id');
+        const contratoSelect = document.getElementById('contrato_id');
+        const hitoSelect = document.getElementById('hito_entrega_id');
+
         const proyectoId = proyectoSelect ? proyectoSelect.value : null;
+        const contratoId = contratoSelect ? contratoSelect.value : null;
+        const hitoId = hitoSelect ? hitoSelect.value : null;
+
         const container = document.getElementById('ofs-container');
         const placeholder = document.getElementById('ofs-placeholder');
         const emptyAlert = document.getElementById('ofs-empty');
@@ -560,16 +565,37 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (!proyectoId) {
+        // Prioritize filtering by Contrato, then Proyecto, then Hito
+        let apiUrl = null;
+        let placeholderText = '';
+
+        if (contratoId) {
+            apiUrl = `{{ url_for('despachos.api_fabricacion_by_contrato', contrato_id=0) }}`.replace('0', contratoId);
+            placeholderText = 'Selecciona un contrato para ver las órdenes de fabricación disponibles.';
+        } else if (proyectoId) {
+            apiUrl = `{{ url_for('despachos.api_fabricacion_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId);
+            placeholderText = 'Selecciona un proyecto para ver las órdenes de fabricación disponibles.';
+        } else if (hitoId) {
+            apiUrl = `{{ url_for('despachos.api_fabricacion_by_hito', hito_id=0) }}`.replace('0', hitoId);
+            placeholderText = 'Selecciona un hito para ver las órdenes de fabricación disponibles.';
+        } else {
+            // No criteria selected, show placeholder
             placeholder.style.display = 'block';
+            placeholder.querySelector('i').className = 'bi bi-info-circle me-2';
+            placeholder.querySelector('strong').textContent = placeholderText || 'Selecciona un contrato o proyecto para ver las órdenes de fabricación disponibles.';
             if (emptyAlert) emptyAlert.style.display = 'none';
             list.style.display = 'none';
             list.innerHTML = '';
             return;
         }
 
-        // Cargar OFs del proyecto
-        fetch(`{{ url_for('despachos.api_fabricacion_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId))
+        // Update placeholder text based on selection priority
+        placeholder.querySelector('strong').textContent = placeholderText;
+        placeholder.querySelector('i').className = 'bi bi-info-circle me-2';
+
+
+        // Cargar OFs del contrato o proyecto
+        fetch(apiUrl)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -586,101 +612,132 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (ofs.length === 0) {
                     placeholder.style.display = 'none';
                     if (emptyAlert) emptyAlert.style.display = 'block';
+                    // Update empty alert text based on the selected filter
+                    const emptyAlertMessage = contratoId ? `No hay órdenes de fabricación disponibles para este contrato.` :
+                                              proyectoId ? `No hay órdenes de fabricación disponibles para este proyecto.` :
+                                              hitoId ? `No hay órdenes de fabricación disponibles para este hito.` :
+                                              `No hay órdenes de fabricación disponibles.`;
+                    emptyAlert.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i>${emptyAlertMessage} <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>`;
                     list.style.display = 'none';
                     list.innerHTML = '';
                 } else {
                     let html = '<div class="row g-3">';
                     ofs.forEach(function(of) {
-                        const ofItem = document.createElement('div');
-                        ofItem.className = 'card mb-2 of-card';
-
                         // Determinar si tiene despachos parciales previos
                         const tieneParciales = of.tiene_despachos_parciales || false;
-                        const cantidadDespachada = of.cantidad_despachada_previa || 0;
-                        const cantidadDisponible = of.cantidad_disponible || of.cantidad_total;
+                        const cantidadDespachadaPrevia = of.cantidad_despachada_previa || 0;
+                        const cantidadTotal = of.cantidad_total || 0;
+                        const cantidadDisponible = of.cantidad_disponible || cantidadTotal; // Use cantidad_disponible if available
 
                         let infoAdicional = '';
                         if (tieneParciales) {
                             infoAdicional = `
                                 <div class="alert alert-info alert-sm mt-2">
                                     <i data-feather="info" class="me-1"></i>
-                                    <strong>Despacho Parcial Previo:</strong> ${cantidadDespachada} tableros ya despachados. 
+                                    <strong>Despacho Parcial Previo:</strong> ${cantidadDespachadaPrevia} tableros ya despachados. 
                                     Disponibles: ${cantidadDisponible} tableros.
                                 </div>
                             `;
                         }
 
-                        ofItem.innerHTML = `
-                            <div class="card-body">
-                                <div class="form-check">
-                                    <input class="form-check-input of-checkbox" type="checkbox" 
-                                           value="${of.id}" id="of_${of.id}">
-                                    <label class="form-check-label fw-bold" for="of_${of.id}">
-                                        ${of.codigo} - ${of.descripcion}
-                                        ${tieneParciales ? '<span class="badge bg-warning ms-2">Parcial Previo</span>' : ''}
-                                    </label>
-                                </div>
-                                <div class="mt-2">
-                                    <small class="text-muted">
-                                        <strong>Estado:</strong> ${of.estado} | 
-                                        <strong>Área:</strong> ${of.area_actual} |
-                                        <strong>Cantidad Total:</strong> ${of.cantidad_total} tableros
-                                        ${tieneParciales ? ` | <strong>Disponible:</strong> ${cantidadDisponible} tableros` : ''}
-                                    </small>
-                                </div>
-                                ${infoAdicional}
-                                <div class="mt-2 of-despacho-options" style="display: none;">
+                        // Add data attributes for easy access in JS
+                        const ofItemHtml = `
+                            <div class="col-lg-6 col-md-12">
+                                <div class="of-card border rounded p-3 mb-3" 
+                                     data-of-id="${of.id}" 
+                                     data-cantidad-total="${cantidadTotal}"
+                                     data-cantidad-disponible="${cantidadDisponible}">
                                     <div class="row">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Tipo de Despacho</label>
-                                            <select class="form-select tipo-despacho" data-of-id="${of.id}">
-                                                ${!tieneParciales ? `<option value="TOTAL">Total (${of.cantidad_total} tableros)</option>` : ''}
-                                                <option value="PARCIAL">Parcial</option>
-                                            </select>
+                                        <div class="col-md-8">
+                                            <h6 class="mb-2">${of.codigo}</h6>
+                                            <p class="text-muted mb-1">${of.descripcion}</p>
+                                            <div class="mb-2">
+                                                <small class="badge bg-secondary me-1">${of.area || 'Sin área'}</small>
+                                                <small class="badge bg-info">${of.estado}</small>
+                                                ${tieneParciales ? '<small class="badge bg-warning">Despacho Parcial Previo</small>' : ''}
+                                            </div>
                                         </div>
-                                        <div class="col-md-6 cantidad-parcial-container" ${!tieneParciales ? 'style="display: none;"' : ''}>
-                                            <label class="form-label">Cantidad a Despachar</label>
-                                            <input type="number" class="form-control cantidad-parcial" 
-                                                   min="1" max="${cantidadDisponible}" value="1">
-                                            <small class="text-muted">Máximo disponible: ${cantidadDisponible}</small>
+                                        <div class="col-md-4 text-end">
+                                            <div class="mb-2">
+                                                <strong>Cantidad Total:</strong> ${cantidadTotal}
+                                            </div>
+                                            ${of.cantidad_despachada_previa > 0 ? `<div class="mb-2"><small class="text-muted">Despachado previamente: ${of.cantidad_despachada_previa}</small></div>` : ''}
                                         </div>
                                     </div>
-                                    <div class="mt-2">
-                                        <label class="form-label">Observaciones</label>
-                                        <textarea class="form-control observaciones-of" rows="2" 
-                                                  placeholder="Observaciones para esta OF..."></textarea>
+                                    <div class="mt-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input of-checkbox" type="checkbox" 
+                                                   value="${of.id}" id="of_${of.id}" 
+                                                   data-of-codigo="${of.codigo}"
+                                                   data-of-descripcion="${of.descripcion}"
+                                                   data-of-area="${of.area}"
+                                                   data-of-estado="${of.estado}"
+                                                   data-of-cantidad-total="${cantidadTotal}"
+                                                   data-of-cantidad-disponible="${cantidadDisponible}"
+                                                   data-of-tiene-parciales="${tieneParciales}">
+                                            <label class="form-check-label fw-bold" for="of_${of.id}">
+                                                Seleccionar para Despacho
+                                            </label>
+                                        </div>
                                     </div>
+                                    <div class="mt-2 of-despacho-options" style="display: none;">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Tipo de Despacho</label>
+                                                <select class="form-select tipo-despacho" data-of-id="${of.id}">
+                                                    ${!tieneParciales ? `<option value="TOTAL">Total (${cantidadTotal} tableros)</option>` : ''}
+                                                    <option value="PARCIAL" ${tieneParciales ? 'selected' : ''}>Parcial</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6 cantidad-parcial-container" ${!tieneParciales ? 'style="display: none;"' : ''}>
+                                                <label class="form-label">Cantidad a Despachar</label>
+                                                <input type="number" class="form-control cantidad-parcial" 
+                                                       min="1" max="${cantidadDisponible}" value="1">
+                                                <small class="text-muted">Máximo disponible: ${cantidadDisponible}</small>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label class="form-label">Observaciones</label>
+                                            <textarea class="form-control observaciones-of" rows="2" 
+                                                      placeholder="Observaciones para esta OF..."></textarea>
+                                        </div>
+                                    </div>
+                                    ${infoAdicional}
                                 </div>
                             </div>
                         `;
-                        list.appendChild(ofItem);
-
-                        // Add event listeners after appending to DOM
-                        ofItem.querySelector('.of-checkbox').addEventListener('change', function() {
-                            toggleOFSelection(this);
-                        });
-
-                        // Manejar cambio de tipo de despacho
-                        ofItem.querySelector('.tipo-despacho').addEventListener('change', function() {
-                            const cantidadContainer = this.closest('.of-despacho-options').querySelector('.cantidad-parcial-container');
-                            if (this.value === 'PARCIAL') {
-                                cantidadContainer.style.display = 'block';
-                            } else {
-                                cantidadContainer.style.display = 'none';
-                            }
-                        });
-
-                        // Si tiene despachos parciales previos, mostrar automáticamente el campo de cantidad
-                        if (tieneParciales) {
-                            ofItem.querySelector('.tipo-despacho').value = 'PARCIAL';
-                            ofItem.querySelector('.cantidad-parcial-container').style.display = 'block';
-                        }
+                        list.innerHTML += ofItemHtml;
                     });
                     html = list.innerHTML; // Get the generated HTML
                     list.innerHTML = html; // Set it back to the list element
                     list.style.display = 'block';
                     placeholder.style.display = 'none';
                     if (emptyAlert) emptyAlert.style.display = 'none';
+
+                    // Add event listeners after appending to DOM
+                    document.querySelectorAll('.of-checkbox').forEach(checkbox => {
+                        checkbox.addEventListener('change', function() {
+                            toggleOFSelection(this);
+                        });
+                    });
+                    document.querySelectorAll('.tipo-despacho').forEach(select => {
+                        select.addEventListener('change', function() {
+                            const ofId = this.getAttribute('data-of-id');
+                            updateQuantityField(ofId);
+                        });
+                    });
+                    document.querySelectorAll('.cantidad-parcial').forEach(input => {
+                        input.addEventListener('input', function() {
+                            const ofId = this.closest('.of-card').querySelector('.of-checkbox').value;
+                            updateSelectedOFsInput(); // Update on quantity change
+                        });
+                    });
+                    document.querySelectorAll('.observaciones-of').forEach(textarea => {
+                        textarea.addEventListener('input', function() {
+                            const ofId = this.closest('.of-card').querySelector('.of-checkbox').value;
+                            updateSelectedOFsInput(); // Update on observation change
+                        });
+                    });
                 }
             })
             .catch(error => {
@@ -695,31 +752,51 @@ document.addEventListener('DOMContentLoaded', function() {
     // Funciones para manejar selección de OFs
     window.toggleOFSelection = function(checkbox) {
         const ofId = checkbox.value;
-        const quantitySection = checkbox.closest('.card-body').querySelector('.of-despacho-options');
+        const ofCard = checkbox.closest('.of-card');
+        const quantitySection = ofCard.querySelector('.of-despacho-options');
 
         if (checkbox.checked) {
             quantitySection.style.display = 'block';
-            // Seleccionar "total" por defecto si no tiene parciales previos
-            const totalRadio = document.getElementById(`total_${ofId}`);
-            if (totalRadio) {
-                totalRadio.checked = true;
-                updateQuantityField(ofId);
-            } else { // Si ya tiene parciales, el tipo es PARCIAL por defecto
-                 const parcialRadio = document.getElementById(`parcial_${ofId}`);
-                 if(parcialRadio) parcialRadio.checked = true;
-                 updateQuantityField(ofId);
+            const tieneParciales = checkbox.getAttribute('data-of-tiene-parciales') === 'true';
+            const tipoDespachoSelect = quantitySection.querySelector('.tipo-despacho');
+            const cantidadInput = quantitySection.querySelector('.cantidad-parcial');
+
+            if (tieneParciales) {
+                tipoDespachoSelect.value = 'PARCIAL';
+                cantidadInput.style.display = 'block';
+                cantidadInput.value = 1; // Default to 1 for partial
+            } else {
+                tipoDespachoSelect.value = 'TOTAL';
+                cantidadInput.style.display = 'none';
             }
+            updateQuantityField(ofId); // Update the hidden input field
         } else {
             quantitySection.style.display = 'none';
-            // Limpiar selecciones
-            document.querySelectorAll(`input[name="tipo_despacho_${ofId}"]`).forEach(input => input.checked = false);
         }
         updateSelectedOFsInput();
     };
 
     window.updateQuantityField = function(ofId) {
-        const tipo = document.querySelector(`input[name="tipo_despacho_${ofId}"]:checked`)?.value;
-        // No se requiere campo de cantidad para despachos parciales
+        const ofCard = document.querySelector(`.of-card[data-of-id="${ofId}"]`);
+        if (!ofCard) return;
+
+        const checkbox = ofCard.querySelector('.of-checkbox');
+        const tipo = ofCard.querySelector('.tipo-despacho').value;
+        const cantidadInput = ofCard.querySelector('.cantidad-parcial');
+        const cantidadDisponible = parseInt(checkbox.getAttribute('data-of-cantidad-disponible'));
+
+        if (tipo === 'TOTAL') {
+            cantidadInput.style.display = 'none';
+        } else { // PARCIAL
+            cantidadInput.style.display = 'block';
+            cantidadInput.max = cantidadDisponible; // Ensure max is set correctly
+            if (parseInt(cantidadInput.value) > cantidadDisponible) {
+                cantidadInput.value = cantidadDisponible;
+            }
+            if (parseInt(cantidadInput.value) < 1) {
+                cantidadInput.value = 1;
+            }
+        }
         updateSelectedOFsInput();
     };
 
@@ -728,31 +805,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedOFs = [];
         document.querySelectorAll('.of-checkbox:checked').forEach(checkbox => {
             const ofId = checkbox.value;
-            const tipo = document.querySelector(`input[name="tipo_despacho_${ofId}"]:checked`)?.value;
-            const cantidadInput = document.querySelector(`.of-card input.cantidad-parcial[max]`); // Buscar el input de cantidad por OF
-            const ofCodigo = checkbox.closest('.card-body').querySelector('.form-check-label').textContent.trim();
-            const ofDescripcion = checkbox.closest('.card-body').querySelector('.small.text-muted').textContent.trim();
-            // Extract cantidad_total from the OF data (stored in data attribute)
-            const card = checkbox.closest('.card');
-            const ofCantidadTotal = parseInt(card.dataset.cantidadTotal) || 0;
-            const ofCantidadDisponible = parseInt(card.querySelector('.cantidad-parcial').getAttribute('max')) || ofCantidadTotal;
+            const ofCard = checkbox.closest('.of-card');
+            const tipo = ofCard.querySelector('.tipo-despacho').value;
+            const cantidadInput = ofCard.querySelector('.cantidad-parcial');
+            const cantidad = (tipo === 'PARCIAL') ? parseInt(cantidadInput.value) : parseInt(checkbox.getAttribute('data-of-cantidad-total'));
+            const observaciones = ofCard.querySelector('.observaciones-of').value;
 
-
-            if (tipo === 'TOTAL') {
-                selectedOFs.push({
-                    of_id: ofId,
-                    tipo_despacho: tipo.toUpperCase(),
-                    cantidad_despachada: ofCantidadTotal,
-                    observaciones: card.querySelector('.observaciones-of').value
-                });
-            } else if (tipo === 'PARCIAL' && cantidadInput) {
-                selectedOFs.push({
-                    of_id: ofId,
-                    tipo_despacho: tipo.toUpperCase(),
-                    cantidad_despachada: parseInt(cantidadInput.value),
-                    observaciones: card.querySelector('.observaciones-of').value
-                });
-            }
+            selectedOFs.push({
+                of_id: ofId,
+                tipo_despacho: tipo.toUpperCase(),
+                cantidad_despachada: cantidad,
+                observaciones: observaciones
+            });
         });
 
         // Crear campo hidden si no existe
@@ -812,6 +876,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (proyectoSelectElement) {
         proyectoSelectElement.addEventListener('change', updateContratos);
     }
+    const contratoSelectElement = document.getElementById('contrato_id');
+    if (contratoSelectElement) {
+        contratoSelectElement.addEventListener('change', updateAvailableOFs);
+    }
+    const hitoSelectElement = document.getElementById('hito_entrega_id');
+    if (hitoSelectElement) {
+        hitoSelectElement.addEventListener('change', updateAvailableOFs);
+    }
+
 
     // Initialize Feather Icons
     if (typeof feather !== 'undefined') {
