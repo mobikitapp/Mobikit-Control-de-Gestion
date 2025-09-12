@@ -31,6 +31,23 @@
 [data-bs-toggle="collapse"]:not(.collapsed)::after {
     transform: rotate(180deg);
 }
+
+.collapse-icon {
+    transition: transform 0.2s ease-in-out;
+}
+
+.collapsed .collapse-icon {
+    transform: rotate(180deg);
+}
+
+.card-header .btn-outline-secondary {
+    border: none;
+    padding: 0.25rem 0.5rem;
+}
+
+.card-header .btn-outline-secondary:hover {
+    background-color: rgba(108, 117, 125, 0.1);
+}
 </style>
 {% endblock %}
 
@@ -75,12 +92,22 @@
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-header">
-            <h5 class="card-title mb-0">
-                <i data-feather="filter" class="me-2"></i>
-                Filtros
+            <h5 class="card-title mb-0 d-flex align-items-center justify-content-between">
+                <span>
+                    <i data-feather="filter" class="me-2"></i>
+                    Filtros
+                </span>
+                <button class="btn btn-sm btn-outline-secondary" type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#filtrosDespachos" 
+                        aria-expanded="true" 
+                        aria-controls="filtrosDespachos"
+                        title="Expandir/Colapsar filtros">
+                    <i data-feather="chevron-up" class="collapse-icon"></i>
+                </button>
             </h5>
         </div>
-        <div class="card-body">
+        <div class="card-body collapse show" id="filtrosDespachos">
             <form method="GET" class="row g-3">
                 <div class="col-md-3">
                     <label for="cliente_filtro" class="form-label">Cliente</label>
@@ -479,6 +506,28 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(button => {
         const target = document.querySelector(button.getAttribute('data-bs-target'));
         if (target) {
+            // Handle filters collapse
+            if (target.id === 'filtrosDespachos') {
+                target.addEventListener('show.bs.collapse', () => {
+                    button.classList.remove('collapsed');
+                    const icon = button.querySelector('.collapse-icon');
+                    if (icon) {
+                        icon.setAttribute('data-feather', 'chevron-up');
+                        feather.replace();
+                    }
+                });
+
+                target.addEventListener('hide.bs.collapse', () => {
+                    button.classList.add('collapsed');
+                    const icon = button.querySelector('.collapse-icon');
+                    if (icon) {
+                        icon.setAttribute('data-feather', 'chevron-down');
+                        feather.replace();
+                    }
+                });
+            }
+            
+            // Handle OF details collapse (existing functionality)
             target.addEventListener('show.bs.collapse', () => {
                 const icon = button.querySelector('i[data-feather="package"]');
                 if (icon) {
