@@ -542,8 +542,11 @@ def api_ofs_by_contrato(contrato_id):
         return jsonify([{
             'id': of.id,
             'codigo': of.codigo,
-            'descripcion': of.descripcion,
-            'cantidad_total': of.cantidad_total,
+            'descripcion': of.descripcion or 'Sin descripción',
+            'cantidad_total': of.cantidad_tableros or 0,
+            'cantidad_despachada_previa': getattr(of, 'cantidad_despachada_previa', 0),
+            'cantidad_disponible': getattr(of, 'cantidad_disponible_despacho', of.cantidad_tableros or 0),
+            'tiene_despachos_parciales': getattr(of, 'tiene_despachos_parciales', False),
             'estado': of.estado_actual.nombre if of.estado_actual else 'Sin estado',
             'area_actual': of.progreso_actual.area.nombre if of.progreso_actual else 'Sin área'
         } for of in ofs_disponibles])

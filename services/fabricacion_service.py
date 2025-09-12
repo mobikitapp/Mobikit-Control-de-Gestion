@@ -8,7 +8,7 @@ from services.audit_service import AuditService, serialize_model
 from services.areas_service import AreasService
 from schemas.fabricacion import OrdenFabricacionSearchFilters
 from models import (
-    OrdenFabricacion, OrdenAreaProgreso, AreaEstado, TipoArea, EstadoBodega
+    OrdenFabricacion, OrdenAreaProgreso, AreaEstado, TipoArea, EstadoBodega, Despacho
 )
 from constants.transitions import OF_SPECIAL_VALIDATIONS
 import logging
@@ -462,6 +462,12 @@ class FabricacionService:
         Obtiene las OFs de un contrato que están disponibles para despacho
         (en área BODEGA con estado 'listo_para_despacho')
         
+        LÓGICA DE DISPONIBILIDAD:
+        - OF debe estar en BODEGA[listo_para_despacho]
+        - Si OF NO está asignada a ningún despacho: DISPONIBLE
+        - Si OF está asignada con tipo TOTAL: NO DISPONIBLE
+        - Si OF está asignada con tipo PARCIAL: DISPONIBLE (para despachos adicionales)
+        
         Args:
             contrato_id: ID del contrato
             
@@ -490,10 +496,51 @@ class FabricacionService:
                 # Verificar que esté en estado 'listo_para_despacho'
                 if progreso_actual.estado.codigo != EstadoBodega.LISTO_PARA_DESPACHO.value:
                     continue
-                    
-                # Agregar información del progreso para uso en la respuesta
+                
+                # NUEVA LÓGICA: Verificar asignaciones a despachos existentes
+                from models import DespachoOrdenFabricacion, TipoDespacho, EstadoDespacho
+                
+                # Buscar asignaciones existentes de esta OF a despachos
+                asignaciones_existentes = db.session.query(DespachoOrdenFabricacion).join(
+                    Despacho, DespachoOrdenFabricacion.despacho_id == Despacho.id
+                ).filter(
+                    DespachoOrdenFabricacion.orden_fabricacion_id == of.id,
+                    # Solo considerar despachos no entregados (que aún están activos)
+                    Despacho.estado != EstadoDespacho.ENTREGADO
+                ).all()
+                
+                # Determinar si la OF está disponible según las asignaciones
+                of_disponible = True
+                tiene_despacho_total = False
+                
+                for asignacion in asignaciones_existentes:
+                    if asignacion.tipo_despacho == TipoDespacho.TOTAL:
+                        # Si hay un despacho TOTAL activo, la OF no está disponible
+                        tiene_despacho_total = True
+                        of_disponible = False
+                        break
+                    # Si solo hay despachos PARCIALES, la OF sigue disponible
+                
+                if not of_disponible:
+                    logger.debug(f"OF {of.codigo} no disponible: asignada a despacho TOTAL activo")
+                    continue
+                
+                # Calcular cantidad ya despachada (para información)
+                cantidad_despachada = sum(
+                    asignacion.cantidad_despachada 
+                    for asignacion in asignaciones_existentes
+                    if asignacion.tipo_despacho == TipoDespacho.PARCIAL
+                ) if asignaciones_existentes else 0
+                
+                cantidad_restante = (of.cantidad_tableros or 0) - cantidad_despachada
+                
+                # Agregar información del progreso y despachos para uso en la respuesta
                 of.progreso_actual = progreso_actual
                 of.estado_actual = progreso_actual.estado
+                of.cantidad_despachada_previa = cantidad_despachada
+                of.cantidad_disponible_despacho = cantidad_restante
+                of.tiene_despachos_parciales = len(asignaciones_existentes) > 0
+                
                 ofs_disponibles.append(of)
             
             logger.info(f"Encontradas {len(ofs_disponibles)} OFs disponibles para despacho del contrato {contrato_id}")

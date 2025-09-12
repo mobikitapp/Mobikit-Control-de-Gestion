@@ -582,7 +582,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(data.error);
                 }
                 const ofs = Array.isArray(data) ? data : [];
-                
+
                 if (ofs.length === 0) {
                     placeholder.style.display = 'none';
                     if (emptyAlert) emptyAlert.style.display = 'block';
@@ -591,54 +591,93 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     let html = '<div class="row g-3">';
                     ofs.forEach(function(of) {
-                        html += `
-                            <div class="col-md-6">
-                                <div class="card" data-cantidad-total="${of.cantidad_total || 0}">
-                                    <div class="card-body">
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input of-checkbox" type="checkbox" 
-                                                   id="of_${of.id}" value="${of.id}" 
-                                                   onchange="toggleOFSelection(this)">
-                                            <label class="form-check-label fw-bold" for="of_${of.id}">
-                                                ${of.codigo}
-                                            </label>
-                                        </div>
-                                        <p class="small text-muted mb-2">${of.descripcion || 'Sin descripción'}</p>
-                                        <div class="row g-2 text-small">
-                                            <div class="col-6">
-                                                <strong>Cantidad:</strong> ${of.cantidad_total || 0} tableros
-                                            </div>
-                                            <div class="col-6">
-                                                <strong>Estado:</strong> 
-                                                <span class="badge bg-${of.estado && of.estado.toLowerCase().includes('terminad') ? 'success' : 'warning'}">${of.estado || 'Sin estado'}</span>
-                                            </div>
-                                        </div>
+                        const ofItem = document.createElement('div');
+                        ofItem.className = 'card mb-2 of-card';
 
-                                        <!-- Selector de cantidad -->
-                                        <div class="of-quantity-section mt-3" style="display: none;">
-                                            <label class="form-label small">Tipo de Despacho:</label>
-                                            <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" 
-                                                       name="tipo_despacho_${of.id}" id="total_${of.id}" 
-                                                       value="total" onchange="updateQuantityField(${of.id})">
-                                                <label class="form-check-label small" for="total_${of.id}">Total</label>
-                                            </div>
-                                            <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" 
-                                                       name="tipo_despacho_${of.id}" id="parcial_${of.id}" 
-                                                       value="parcial" onchange="updateQuantityField(${of.id})">
-                                                <label class="form-check-label small" for="parcial_${of.id}">Parcial</label>
-                                            </div>
+                        // Determinar si tiene despachos parciales previos
+                        const tieneParciales = of.tiene_despachos_parciales || false;
+                        const cantidadDespachada = of.cantidad_despachada_previa || 0;
+                        const cantidadDisponible = of.cantidad_disponible || of.cantidad_total;
 
+                        let infoAdicional = '';
+                        if (tieneParciales) {
+                            infoAdicional = `
+                                <div class="alert alert-info alert-sm mt-2">
+                                    <i data-feather="info" class="me-1"></i>
+                                    <strong>Despacho Parcial Previo:</strong> ${cantidadDespachada} tableros ya despachados. 
+                                    Disponibles: ${cantidadDisponible} tableros.
+                                </div>
+                            `;
+                        }
 
+                        ofItem.innerHTML = `
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input of-checkbox" type="checkbox" 
+                                           value="${of.id}" id="of_${of.id}">
+                                    <label class="form-check-label fw-bold" for="of_${of.id}">
+                                        ${of.codigo} - ${of.descripcion}
+                                        ${tieneParciales ? '<span class="badge bg-warning ms-2">Parcial Previo</span>' : ''}
+                                    </label>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>Estado:</strong> ${of.estado} | 
+                                        <strong>Área:</strong> ${of.area_actual} |
+                                        <strong>Cantidad Total:</strong> ${of.cantidad_total} tableros
+                                        ${tieneParciales ? ` | <strong>Disponible:</strong> ${cantidadDisponible} tableros` : ''}
+                                    </small>
+                                </div>
+                                ${infoAdicional}
+                                <div class="mt-2 of-despacho-options" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Tipo de Despacho</label>
+                                            <select class="form-select tipo-despacho" data-of-id="${of.id}">
+                                                ${!tieneParciales ? `<option value="TOTAL">Total (${of.cantidad_total} tableros)</option>` : ''}
+                                                <option value="PARCIAL">Parcial</option>
+                                            </select>
                                         </div>
+                                        <div class="col-md-6 cantidad-parcial-container" ${!tieneParciales ? 'style="display: none;"' : ''}>
+                                            <label class="form-label">Cantidad a Despachar</label>
+                                            <input type="number" class="form-control cantidad-parcial" 
+                                                   min="1" max="${cantidadDisponible}" value="1">
+                                            <small class="text-muted">Máximo disponible: ${cantidadDisponible}</small>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label class="form-label">Observaciones</label>
+                                        <textarea class="form-control observaciones-of" rows="2" 
+                                                  placeholder="Observaciones para esta OF..."></textarea>
                                     </div>
                                 </div>
                             </div>
                         `;
+                        list.appendChild(ofItem);
+
+                        // Add event listeners after appending to DOM
+                        ofItem.querySelector('.of-checkbox').addEventListener('change', function() {
+                            toggleOFSelection(this);
+                        });
+
+                        // Manejar cambio de tipo de despacho
+                        ofItem.querySelector('.tipo-despacho').addEventListener('change', function() {
+                            const cantidadContainer = this.closest('.of-despacho-options').querySelector('.cantidad-parcial-container');
+                            if (this.value === 'PARCIAL') {
+                                cantidadContainer.style.display = 'block';
+                            } else {
+                                cantidadContainer.style.display = 'none';
+                            }
+                        });
+
+                        // Si tiene despachos parciales previos, mostrar automáticamente el campo de cantidad
+                        if (tieneParciales) {
+                            ofItem.querySelector('.tipo-despacho').value = 'PARCIAL';
+                            ofItem.querySelector('.cantidad-parcial-container').style.display = 'block';
+                        }
                     });
-                    html += '</div>';
-                    list.innerHTML = html;
+                    html = list.innerHTML; // Get the generated HTML
+                    list.innerHTML = html; // Set it back to the list element
                     list.style.display = 'block';
                     placeholder.style.display = 'none';
                     if (emptyAlert) emptyAlert.style.display = 'none';
@@ -656,14 +695,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Funciones para manejar selección de OFs
     window.toggleOFSelection = function(checkbox) {
         const ofId = checkbox.value;
-        const quantitySection = checkbox.closest('.card-body').querySelector('.of-quantity-section');
+        const quantitySection = checkbox.closest('.card-body').querySelector('.of-despacho-options');
 
         if (checkbox.checked) {
             quantitySection.style.display = 'block';
-            // Seleccionar "total" por defecto
+            // Seleccionar "total" por defecto si no tiene parciales previos
             const totalRadio = document.getElementById(`total_${ofId}`);
-            if (totalRadio) totalRadio.checked = true;
-            updateQuantityField(ofId);
+            if (totalRadio) {
+                totalRadio.checked = true;
+                updateQuantityField(ofId);
+            } else { // Si ya tiene parciales, el tipo es PARCIAL por defecto
+                 const parcialRadio = document.getElementById(`parcial_${ofId}`);
+                 if(parcialRadio) parcialRadio.checked = true;
+                 updateQuantityField(ofId);
+            }
         } else {
             quantitySection.style.display = 'none';
             // Limpiar selecciones
@@ -684,19 +729,28 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.of-checkbox:checked').forEach(checkbox => {
             const ofId = checkbox.value;
             const tipo = document.querySelector(`input[name="tipo_despacho_${ofId}"]:checked`)?.value;
-            const cantidadInput = document.getElementById(`cantidad_${ofId}`);
+            const cantidadInput = document.querySelector(`.of-card input.cantidad-parcial[max]`); // Buscar el input de cantidad por OF
             const ofCodigo = checkbox.closest('.card-body').querySelector('.form-check-label').textContent.trim();
             const ofDescripcion = checkbox.closest('.card-body').querySelector('.small.text-muted').textContent.trim();
             // Extract cantidad_total from the OF data (stored in data attribute)
             const card = checkbox.closest('.card');
             const ofCantidadTotal = parseInt(card.dataset.cantidadTotal) || 0;
+            const ofCantidadDisponible = parseInt(card.querySelector('.cantidad-parcial').getAttribute('max')) || ofCantidadTotal;
 
-            if (tipo) {
+
+            if (tipo === 'TOTAL') {
                 selectedOFs.push({
                     of_id: ofId,
                     tipo_despacho: tipo.toUpperCase(),
-                    cantidad_despachada: tipo === 'total' ? ofCantidadTotal : ofCantidadTotal, // Para parcial también usar cantidad total
-                    observaciones: ''
+                    cantidad_despachada: ofCantidadTotal,
+                    observaciones: card.querySelector('.observaciones-of').value
+                });
+            } else if (tipo === 'PARCIAL' && cantidadInput) {
+                selectedOFs.push({
+                    of_id: ofId,
+                    tipo_despacho: tipo.toUpperCase(),
+                    cantidad_despachada: parseInt(cantidadInput.value),
+                    observaciones: card.querySelector('.observaciones-of').value
                 });
             }
         });
