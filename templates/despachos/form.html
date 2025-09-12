@@ -500,23 +500,46 @@ async function updateHitosByContrato(contratoId) {
     if (!contratoId) return;
 
     try {
-        const response = await fetch(`{{ url_for('contratos.api_hitos_by_contrato', contrato_id=0) }}`.replace('0', contratoId));
+        const response = await fetch(`{{ url_for('despachos.api_hitos_by_contrato', contrato_id=0) }}`.replace('0', contratoId));
         if (response.ok) {
             const hitos = await response.json();
-            hitos.forEach(hito => {
+            if (hitos && hitos.length > 0) {
+                hitos.forEach(hito => {
+                    const option = document.createElement('option');
+                    option.value = hito.id;
+                    // Mostrar descripción y fecha programada
+                    const fechaFormateada = hito.fecha_programada ? new Date(hito.fecha_programada).toLocaleDateString('es-CL') : 'Sin fecha';
+                    option.textContent = `${hito.descripcion || hito.titulo} - ${fechaFormateada}`;
+                    if (hito.id == selectedHito) {
+                        option.selected = true;
+                    }
+                    hitoSelect.appendChild(option);
+                });
+            } else {
+                // Si no hay hitos, mostrar mensaje informativo
                 const option = document.createElement('option');
-                option.value = hito.id;
-                option.textContent = `${hito.descripcion} - ${hito.fecha_programada}`;
-                if (hito.id == selectedHito) {
-                    option.selected = true;
-                }
+                option.value = '';
+                option.textContent = 'No hay hitos pendientes para este contrato';
+                option.disabled = true;
                 hitoSelect.appendChild(option);
-            });
+            }
         } else {
             console.error('Error response loading hitos:', response.status);
+            // Agregar opción de error
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Error cargando hitos';
+            option.disabled = true;
+            hitoSelect.appendChild(option);
         }
     } catch (error) {
         console.error('Error loading hitos:', error);
+        // Agregar opción de error
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'Error de conexión';
+        option.disabled = true;
+        hitoSelect.appendChild(option);
     }
 }
 

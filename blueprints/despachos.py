@@ -599,17 +599,20 @@ def api_hitos_by_contrato(contrato_id):
         ).filter(
             PlanEntrega.contrato_id == contrato_id,
             HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE
-        ).order_by(HitoEntrega.fecha_programada).all()
+        ).order_by(HitoEntrega.fecha_programada, HitoEntrega.orden).all()
 
         return jsonify([{
             'id': hito.id,
-            'descripcion': hito.descripcion or hito.titulo,
-            'fecha_programada': hito.fecha_programada.isoformat()
+            'titulo': hito.titulo,
+            'descripcion': hito.descripcion,
+            'fecha_programada': hito.fecha_programada.isoformat() if hito.fecha_programada else None,
+            'orden': hito.orden,
+            'estado': hito.estado.value
         } for hito in hitos])
 
     except Exception as e:
         logger.error(f"Error obteniendo hitos para contrato {contrato_id}: {str(e)}")
-        return jsonify([]), 500
+        return jsonify({'error': 'Error al cargar hitos de entrega'}), 500
 
 @despachos_bp.route('/crear-desde-hito/<int:hito_id>')
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
