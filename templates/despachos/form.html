@@ -33,7 +33,7 @@
                             <!-- Cliente, Proyecto, Contrato y OF -->
                             <div class="col-md-3">
                                 <label for="cliente_id" class="form-label">Cliente</label>
-                                <select class="form-select" id="cliente_id" onchange="updateProyectos(); updateContratos(); clearOFs();">
+                                <select class="form-select" id="cliente_id" onchange="updateProyectos(); updateContratos(); clearAndUpdateOFs();">
                                     <option value="">Seleccionar cliente</option>
                                     {% for cliente in clientes %}
                                     <option value="{{ cliente.id }}" 
@@ -48,7 +48,7 @@
                                 <label for="proyecto_id" class="form-label">
                                     Proyecto <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateContratos(); updateOFsByProyecto(); updateDespachoNumber(); updateDestinoSuggestion()" required>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateContratos(); updateDespachoNumber(); updateDestinoSuggestion(); clearAndUpdateOFs();" required>
                                     <option value="">Seleccionar proyecto</option>
                                     {% if despacho %}
                                     <option value="{{ despacho.proyecto_id }}" selected>{{ despacho.proyecto.nombre }}</option>
@@ -61,7 +61,7 @@
 
                             <div class="col-md-3">
                                 <label for="contrato_id" class="form-label">Contrato/OC (Opcional)</label>
-                                <select class="form-select" id="contrato_id" name="contrato_id" onchange="updateHitosByContrato(this.value); updateDespachoNumber(); updateAvailableOFs()">
+                                <select class="form-select" id="contrato_id" name="contrato_id" onchange="updateHitosByContrato(this.value); updateDespachoNumber(); clearAndUpdateOFs();">
                                     <option value="">Sin contrato asociado</option>
                                     {% if despacho and despacho.contrato %}
                                     <option value="{{ despacho.contrato_id }}" selected>{{ despacho.contrato.numero_oc }}</option>
@@ -71,7 +71,7 @@
 
                             <div class="col-md-3">
                                 <label for="hito_entrega_id" class="form-label">Hito de Entrega (Opcional)</label>
-                                <select class="form-select" id="hito_entrega_id" name="hito_entrega_id" onchange="updateAvailableOFs()">
+                                <select class="form-select" id="hito_entrega_id" name="hito_entrega_id" onchange="clearAndUpdateOFs();">
                                     <option value="">Sin hito asociado</option>
                                     {% if despacho and despacho.hito_entrega %}
                                     <option value="{{ despacho.hito_entrega_id }}" selected>{{ despacho.hito_entrega.descripcion }}</option>
@@ -91,12 +91,12 @@
                                 <div id="ofs-container" class="border rounded p-3 mb-3" style="min-height: 200px; background-color: #f8f9fa;">
                                     <div id="ofs-placeholder" class="alert alert-info" style="display: block;">
                                         <i class="bi bi-info-circle me-2"></i>
-                                        <strong>Selecciona un contrato para ver las órdenes de fabricación disponibles.</strong>
+                                        <strong>Selecciona un contrato o proyecto para ver las órdenes de fabricación disponibles.</strong>
                                     </div>
 
                                     <div id="ofs-empty" class="alert alert-warning" style="display: none;">
                                         <i class="bi bi-exclamation-triangle me-2"></i>
-                                        No hay órdenes de fabricación disponibles para este contrato. 
+                                        <span class="empty-message">No hay órdenes de fabricación disponibles para este contrato.</span>
                                         <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>
                                     </div>
                                     <div id="ofs-list" style="display: none;">
@@ -340,7 +340,7 @@ async function updateContratos() {
                 contratos.forEach(contrato => {
                     const option = document.createElement('option');
                     option.value = contrato.id;
-                    option.textContent = `${contrato.numero_oc} (${contrato.estado})`;
+                    option.textContent = `${contrato.numero_oc} (${contrato.estado || 'Sin estado'})`;
                     if (contrato.id == selectedContrato) {
                         option.selected = true;
                     }
@@ -348,21 +348,22 @@ async function updateContratos() {
                 });
             } else {
                 console.error('Error response loading contratos:', response.status);
+                contratoSelect.innerHTML += '<option value="" disabled>Error cargando contratos</option>';
             }
         } catch (error) {
             console.error('Error loading contratos:', error);
-            contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
+            contratoSelect.innerHTML += '<option value="" disabled>Error cargando contratos</option>';
         }
     } else if (clienteId) {
         // Solo si no hay proyecto seleccionado, filtrar por cliente
         try {
-            const response = await fetch(`/api/contratos/by-cliente/${clienteId}`);
+            const response = await fetch(`{{ url_for('despachos.api_contratos_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
             if (response.ok) {
                 const contratos = await response.json();
                 contratos.forEach(contrato => {
                     const option = document.createElement('option');
                     option.value = contrato.id;
-                    option.textContent = `${contrato.numero_oc} (${contrato.estado})`;
+                    option.textContent = `${contrato.numero_oc} - ${contrato.proyecto_nombre}`;
                     if (contrato.id == selectedContrato) {
                         option.selected = true;
                     }
@@ -370,15 +371,19 @@ async function updateContratos() {
                 });
             } else {
                 console.error('Error response loading contratos:', response.status);
+                contratoSelect.innerHTML += '<option value="" disabled>Error cargando contratos</option>';
             }
         } catch (error) {
             console.error('Error loading contratos:', error);
-            contratoSelect.innerHTML = '<option value="">Error cargando contratos</option>';
+            contratoSelect.innerHTML += '<option value="" disabled>Error cargando contratos</option>';
         }
     }
 
     // Update dispatch number when contract changes
     updateDespachoNumber();
+    
+    // Clear and update OFs when contracts change
+    clearAndUpdateOFs();
 }
 
 async function updateDespachoNumber() {
@@ -453,39 +458,37 @@ async function updateDestinoSuggestion() {
 }
 
 function clearOFs() {
-    const ofSelect = document.getElementById('of_id');
-    if (ofSelect) {
-        ofSelect.innerHTML = '<option value="">Sin OF asociada</option>';
+    // Clear OF list and show placeholder
+    const container = document.getElementById('ofs-container');
+    const placeholder = document.getElementById('ofs-placeholder');
+    const emptyAlert = document.getElementById('ofs-empty');
+    const list = document.getElementById('ofs-list');
+
+    if (container && placeholder && list) {
+        placeholder.style.display = 'block';
+        if (emptyAlert) emptyAlert.style.display = 'none';
+        list.style.display = 'none';
+        list.innerHTML = '';
+        
+        // Clear selected OFs input
+        const hiddenField = document.getElementById('selected_ofs');
+        if (hiddenField) {
+            hiddenField.value = JSON.stringify([]);
+        }
     }
 }
 
-async function updateOFsByProyecto() {
-    const proyectoSelect = document.getElementById('proyecto_id');
-    const contratoSelect = document.getElementById('contrato_id');
-
-    if (!proyectoSelect) return;
-
-    const proyectoId = proyectoSelect.value;
-
-    // Si hay un contrato seleccionado, usar ese método en su lugar
-    if (contratoSelect && contratoSelect.value) {
-        return updateOFsByContrato();
-    }
-
-    // Use the new OF loading system instead of the old select
-    updateAvailableOFs();
+function clearAndUpdateOFs() {
+    // Clear current OFs and update based on new selection
+    clearOFs();
+    
+    // Small delay to ensure DOM is updated before loading new OFs
+    setTimeout(() => {
+        updateAvailableOFs();
+    }, 100);
 }
 
-async function updateOFsByContrato() {
-    const contratoSelect = document.getElementById('contrato_id');
-
-    if (!contratoSelect) return;
-
-    const contratoId = contratoSelect.value;
-
-    // Use the new OF loading system instead of the old select
-    updateAvailableOFs();
-}
+// Functions removed - now using clearAndUpdateOFs() directly in onchange events
 
 // Helper function to populate Hitos based on Contrato
 async function updateHitosByContrato(contratoId) {
@@ -579,10 +582,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const list = document.getElementById('ofs-list');
 
         // Verificar que los elementos existan
-        if (!container || !placeholder || !list) {
-            console.error('Elements not found for OF loading:', {
+        if (!container || !list) {
+            console.error('Critical elements not found for OF loading:', {
                 container: !!container,
                 placeholder: !!placeholder,
+                emptyAlert: !!emptyAlert,
                 list: !!list
             });
             return;
@@ -590,32 +594,47 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Prioritize filtering by Contrato, then Proyecto, then Hito
         let apiUrl = null;
-        let placeholderText = '';
+        let placeholderText = 'Selecciona un contrato o proyecto para ver las órdenes de fabricación disponibles.';
+        let emptyMessage = 'No hay órdenes de fabricación disponibles.';
 
         if (contratoId) {
             apiUrl = `{{ url_for('despachos.api_fabricacion_by_contrato', contrato_id=0) }}`.replace('0', contratoId);
-            placeholderText = 'Selecciona un contrato para ver las órdenes de fabricación disponibles.';
+            placeholderText = 'Cargando órdenes de fabricación del contrato...';
+            emptyMessage = 'No hay órdenes de fabricación disponibles para este contrato.';
         } else if (proyectoId) {
             apiUrl = `{{ url_for('despachos.api_fabricacion_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId);
-            placeholderText = 'Selecciona un proyecto para ver las órdenes de fabricación disponibles.';
+            placeholderText = 'Cargando órdenes de fabricación del proyecto...';
+            emptyMessage = 'No hay órdenes de fabricación disponibles para este proyecto.';
         } else if (hitoId) {
             apiUrl = `{{ url_for('despachos.api_fabricacion_by_hito', hito_id=0) }}`.replace('0', hitoId);
-            placeholderText = 'Selecciona un hito para ver las órdenes de fabricación disponibles.';
+            placeholderText = 'Cargando órdenes de fabricación del hito...';
+            emptyMessage = 'No hay órdenes de fabricación disponibles para este hito.';
         } else {
             // No criteria selected, show placeholder
-            placeholder.style.display = 'block';
-            placeholder.querySelector('i').className = 'bi bi-info-circle me-2';
-            placeholder.querySelector('strong').textContent = placeholderText || 'Selecciona un contrato o proyecto para ver las órdenes de fabricación disponibles.';
+            if (placeholder) {
+                placeholder.style.display = 'block';
+                const icon = placeholder.querySelector('i');
+                const text = placeholder.querySelector('strong');
+                if (icon) icon.className = 'bi bi-info-circle me-2';
+                if (text) text.textContent = placeholderText;
+            }
             if (emptyAlert) emptyAlert.style.display = 'none';
             list.style.display = 'none';
             list.innerHTML = '';
             return;
         }
 
-        // Update placeholder text based on selection priority
-        placeholder.querySelector('strong').textContent = placeholderText;
-        placeholder.querySelector('i').className = 'bi bi-info-circle me-2';
-
+        // Show loading state
+        if (placeholder) {
+            placeholder.style.display = 'block';
+            const icon = placeholder.querySelector('i');
+            const text = placeholder.querySelector('strong');
+            if (icon) icon.className = 'bi bi-hourglass me-2';
+            if (text) text.textContent = placeholderText;
+        }
+        if (emptyAlert) emptyAlert.style.display = 'none';
+        list.style.display = 'none';
+        list.innerHTML = '';
 
         // Cargar OFs del contrato o proyecto
         fetch(apiUrl)
@@ -633,14 +652,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const ofs = Array.isArray(data) ? data : [];
 
                 if (ofs.length === 0) {
-                    placeholder.style.display = 'none';
-                    if (emptyAlert) emptyAlert.style.display = 'block';
-                    // Update empty alert text based on the selected filter
-                    const emptyAlertMessage = contratoId ? `No hay órdenes de fabricación disponibles para este contrato.` :
-                                              proyectoId ? `No hay órdenes de fabricación disponibles para este proyecto.` :
-                                              hitoId ? `No hay órdenes de fabricación disponibles para este hito.` :
-                                              `No hay órdenes de fabricación disponibles.`;
-                    emptyAlert.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i>${emptyAlertMessage} <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>`;
+                    if (placeholder) placeholder.style.display = 'none';
+                    if (emptyAlert) {
+                        emptyAlert.style.display = 'block';
+                        const messageSpan = emptyAlert.querySelector('.empty-message');
+                        if (messageSpan) {
+                            messageSpan.textContent = emptyMessage;
+                        } else {
+                            emptyAlert.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i><span class="empty-message">${emptyMessage}</span> <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>`;
+                        }
+                    }
                     list.style.display = 'none';
                     list.innerHTML = '';
                 } else {
