@@ -89,11 +89,20 @@
 
                                 <!-- Container para OFs disponibles -->
                                 <div id="ofs-container" class="border rounded p-3 mb-3" style="min-height: 200px; background-color: #f8f9fa;">
-                                    <div id="ofs-placeholder" class="text-center text-muted py-4">
-                                        <i data-feather="package" class="mb-2" style="width: 48px; height: 48px;"></i>
-                                        <p>Selecciona un proyecto para ver las órdenes de fabricación disponibles</p>
+                                    <div id="ofs-placeholder" class="alert alert-info" style="display: block;">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        Selecciona un proyecto para ver las órdenes de fabricación disponibles.
                                     </div>
-                                    <div id="ofs-list" style="display: none;"></div>
+
+                                    <div id="ofs-empty" class="alert alert-warning" style="display: none;">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        No hay órdenes de fabricación disponibles para este proyecto. 
+                                        <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>
+                                    </div>
+
+                                    <div id="ofs-list" style="display: none;">
+                                        <!-- Las OFs se cargarán aquí dinámicamente -->
+                                    </div>
                                 </div>
                             </div>
 
@@ -538,6 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const proyectoId = proyectoSelect ? proyectoSelect.value : null;
         const container = document.getElementById('ofs-container');
         const placeholder = document.getElementById('ofs-placeholder');
+        const emptyAlert = document.getElementById('ofs-empty');
         const list = document.getElementById('ofs-list');
 
         // Verificar que los elementos existan
@@ -552,6 +562,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!proyectoId) {
             placeholder.style.display = 'block';
+            if (emptyAlert) emptyAlert.style.display = 'none';
             list.style.display = 'none';
             list.innerHTML = '';
             return;
@@ -571,13 +582,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(data.error);
                 }
                 const ofs = Array.isArray(data) ? data : [];
-                placeholder.style.display = 'none';
-                list.innerHTML = '';
-
+                
                 if (ofs.length === 0) {
-                    if (list) {
-                        list.innerHTML = '<p class="text-muted text-center">No hay órdenes de fabricación disponibles para este proyecto.</p>';
-                    }
+                    placeholder.style.display = 'none';
+                    if (emptyAlert) emptyAlert.style.display = 'block';
+                    list.style.display = 'none';
+                    list.innerHTML = '';
                 } else {
                     let html = '<div class="row g-3">';
                     ofs.forEach(function(of) {
@@ -620,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <label class="form-check-label small" for="parcial_${of.id}">Parcial</label>
                                             </div>
 
-                                            
+
                                         </div>
                                     </div>
                                 </div>
@@ -628,21 +638,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         `;
                     });
                     html += '</div>';
-                    if (list) {
-                        list.innerHTML = html;
-                        list.style.display = 'block';
-                    }
+                    list.innerHTML = html;
+                    list.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    if (emptyAlert) emptyAlert.style.display = 'none';
                 }
             })
             .catch(error => {
                 console.error('Error loading OFs:', error);
-                if (list) {
-                    list.innerHTML = '<p class="text-danger text-center">Error al cargar las órdenes de fabricación.</p>';
-                    list.style.display = 'block';
-                }
-                if (placeholder) {
-                    placeholder.style.display = 'none';
-                }
+                list.innerHTML = '<p class="text-danger text-center">Error al cargar las órdenes de fabricación.</p>';
+                list.style.display = 'block';
+                placeholder.style.display = 'none';
+                if (emptyAlert) emptyAlert.style.display = 'none';
             });
     };
 

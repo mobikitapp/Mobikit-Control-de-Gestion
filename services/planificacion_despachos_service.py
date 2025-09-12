@@ -28,7 +28,7 @@ class PlanificacionDespachosService:
         try:
             # Obtener todos los contratos activos con sus proyectos y clientes
             from models import PlanEntrega, Contrato, EstadoContrato
-            
+
             contratos_activos = db.session.query(Contrato).join(
                 Proyecto, Contrato.proyecto_id == Proyecto.id
             ).join(
@@ -145,9 +145,9 @@ class PlanificacionDespachosService:
                     # Solo incluir proyectos que tengan hitos
                     if proyecto_data['hitos_entrega']:
                         # Ordenar hitos por fecha
-                        hitos_ordenados = sorted(proyecto_data['hitos_entrega'], 
+                        hitos_ordenados = sorted(proyecto_data['hitos_entrega'],
                                                key=lambda x: x['fecha_entrega'])
-                        
+
                         proyectos_response.append({
                             'id': proyecto_data['id'],
                             'nombre': proyecto_data['nombre'],
@@ -207,7 +207,7 @@ class PlanificacionDespachosService:
 
                     if progreso_actual and progreso_actual.area and progreso_actual.estado:
                         # Si está en área BODEGA con estado 'listo_para_despacho'
-                        if (progreso_actual.area.tipo == TipoArea.BODEGA and 
+                        if (progreso_actual.area.tipo == TipoArea.BODEGA and
                             progreso_actual.estado.codigo == 'listo_para_despacho'):
                             lista_para_despacho = True
                             estado_descripcion = progreso_actual.estado.nombre or 'Listo para despacho'
@@ -283,7 +283,7 @@ class PlanificacionDespachosService:
 
                     if progreso_actual and progreso_actual.area and progreso_actual.estado:
                         # Si está en área BODEGA con estado 'listo_para_despacho'
-                        if (progreso_actual.area.tipo == TipoArea.BODEGA and 
+                        if (progreso_actual.area.tipo == TipoArea.BODEGA and
                             progreso_actual.estado.codigo == 'listo_para_despacho'):
                             lista_para_despacho = True
                             estado_descripcion = progreso_actual.estado.nombre or 'Listo para despacho'
@@ -333,18 +333,18 @@ class PlanificacionDespachosService:
             total_items = db.session.query(func.sum(OrdenFabricacionItem.cantidad)).filter_by(
                 of_id=of_id
             ).scalar()
-            
+
             if total_items and total_items > 0:
                 return float(total_items)
-            
+
             # Fallback: usar cantidad_tableros de la OF directamente
             of = db.session.query(OrdenFabricacion).filter_by(id=of_id).first()
             if of and of.cantidad_tableros:
                 return float(of.cantidad_tableros)
-                
+
             # Último fallback
             return 1.0
-            
+
         except Exception as e:
             logger.warning(f"Error calculando cantidad total para OF {of_id}: {str(e)}")
             return 1.0

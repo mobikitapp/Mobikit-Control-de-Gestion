@@ -68,6 +68,7 @@ class DespachosService:
             despacho = self.repo.create(despacho_data, created_by)
             
             # Create associated DespachoOrdenFabricacion records
+            # Allow creating despachos without OFs if they are in PROGRAMADO state (pending)
             if ordenes_fabricacion:
                 from models import DespachoOrdenFabricacion, TipoDespacho
                 
@@ -82,6 +83,11 @@ class DespachosService:
                         created_by=created_by
                     )
                     db.session.add(despacho_of)
+            elif despacho.estado != EstadoDespacho.PROGRAMADO:
+                # Only require OFs if despacho is not in PROGRAMADO state
+                logger.warning(f"Despacho {despacho.id} creado sin OFs asociadas - Estado: {despacho.estado}")
+            else:
+                logger.info(f"Despacho {despacho.id} creado sin OFs (PROGRAMADO) - Se pueden asignar posteriormente")
             
             # Commit transaction
             db.session.commit()
