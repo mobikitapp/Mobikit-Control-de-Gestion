@@ -19,10 +19,13 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body text-center">
-                    <a href="{{ url_for('configuraciones.permisos') }}" class="btn btn-info">
-                        <i class="fas fa-shield-alt"></i> Matriz de Permisos
+                    <a href="{{ url_for('configuraciones.permisos') }}" class="btn btn-info me-2">
+                        <i class="fas fa-shield-alt"></i> Ver Permisos
                     </a>
-                    <a href="{{ url_for('configuraciones.dashboard') }}" class="btn btn-outline-secondary ms-2">
+                    <a href="{{ url_for('configuraciones.gestionar_permisos') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-cogs"></i> Gestionar Permisos
+                    </a>
+                    <a href="{{ url_for('configuraciones.dashboard') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left"></i> Volver
                     </a>
                 </div>
@@ -155,8 +158,11 @@
                         {% endfor %}
                     </div>
                     <div class="text-center mt-3">
-                        <a href="{{ url_for('configuraciones.permisos') }}" class="btn btn-primary">
-                            <i class="fas fa-table"></i> Ver Matriz Completa de Permisos
+                        <a href="{{ url_for('configuraciones.permisos') }}" class="btn btn-info me-3">
+                            <i class="fas fa-table"></i> Ver Matriz de Permisos
+                        </a>
+                        <a href="{{ url_for('configuraciones.gestionar_permisos') }}" class="btn btn-primary">
+                            <i class="fas fa-cogs"></i> Gestionar Permisos
                         </a>
                     </div>
                 </div>
