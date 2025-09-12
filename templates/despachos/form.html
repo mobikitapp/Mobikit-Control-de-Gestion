@@ -110,7 +110,7 @@
                                 <div class="input-group">
                                     <input type="text" class="form-control" id="numero_despacho" name="numero_despacho" 
                                            value="{{ despacho.numero_despacho if despacho else '' }}" 
-                                           placeholder="Se generará automáticamente">
+                                           placeholder="Ej: DSP-2024-001">
                                     <button type="button" class="btn btn-outline-secondary" id="generate-numero-btn" 
                                             onclick="generateNumeroDespacho()" title="Generar número automáticamente">
                                         <i class="fas fa-magic"></i>
@@ -434,68 +434,29 @@ function clearOFs() {
 async function updateOFsByProyecto() {
     const proyectoSelect = document.getElementById('proyecto_id');
     const contratoSelect = document.getElementById('contrato_id');
+    
+    if (!proyectoSelect) return;
+    
     const proyectoId = proyectoSelect.value;
 
     // Si hay un contrato seleccionado, usar ese método en su lugar
-    if (contratoSelect.value) {
+    if (contratoSelect && contratoSelect.value) {
         return updateOFsByContrato();
     }
 
-    const ofSelect = document.getElementById('of_id');
-
-    // Clear current options (except selected one)
-    const selectedOF = ofSelect.value;
-    ofSelect.innerHTML = '<option value="">Sin OF asociada</option>';
-
-    if (proyectoId) {
-        try {
-            const response = await fetch(`{{ url_for('fabricacion.api_by_proyecto', proyecto_id=0) }}`.replace('0', proyectoId));
-            if (response.ok) {
-                const ofs = await response.json();
-                ofs.forEach(of => {
-                    const option = document.createElement('option');
-                    option.value = of.id;
-                    option.textContent = of.codigo + ' (' + of.estado + ')';
-                    if (of.id == selectedOF) {
-                        option.selected = true;
-                    }
-                    ofSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading OFs:', error);
-        }
-    }
+    // Use the new OF loading system instead of the old select
+    updateAvailableOFs();
 }
 
 async function updateOFsByContrato() {
     const contratoSelect = document.getElementById('contrato_id');
-    const ofSelect = document.getElementById('of_id');
+    
+    if (!contratoSelect) return;
+    
     const contratoId = contratoSelect.value;
 
-    // Clear current options (except selected one)
-    const selectedOF = ofSelect.value;
-    ofSelect.innerHTML = '<option value="">Sin OF asociada</option>';
-
-    if (contratoId) {
-        try {
-            const response = await fetch(`{{ url_for('despachos.api_ofs_by_contrato', contrato_id=0) }}`.replace('0', contratoId));
-            if (response.ok) {
-                const ofs = await response.json();
-                ofs.forEach(of => {
-                    const option = document.createElement('option');
-                    option.value = of.id;
-                    option.textContent = of.codigo + ' (' + of.estado + ')';
-                    if (of.id == selectedOF) {
-                        option.selected = true;
-                    }
-                    ofSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading OFs:', error);
-        }
-    }
+    // Use the new OF loading system instead of the old select
+    updateAvailableOFs();
 }
 
 // Helper function to populate Hitos based on Contrato
@@ -533,8 +494,7 @@ async function updateHitosByContrato(contratoId) {
 
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize cascade selects
-    // initCascadeSelects(); // This function is not defined in the provided code. Assuming it's handled elsewhere or not needed.
+    // Initialize cascade selects functionality
     console.log('Cascade selects initialized');
 
     // Custom form validation
@@ -737,6 +697,45 @@ document.addEventListener('DOMContentLoaded', function() {
             form.appendChild(hiddenField);
         }
         hiddenField.value = JSON.stringify(selectedOFs);
+    };
+
+    // Función para generar número de despacho manualmente
+    window.generateNumeroDespacho = function() {
+        const proyectoSelect = document.getElementById('proyecto_id');
+        const contratoSelect = document.getElementById('contrato_id');
+        const numeroDespachoInput = document.getElementById('numero_despacho');
+
+        const proyectoId = proyectoSelect.value;
+        const contratoId = contratoSelect.value || null;
+
+        if (!proyectoId) {
+            alert('Por favor selecciona un proyecto primero');
+            return;
+        }
+
+        // Llamar al API para generar el número
+        fetch(`{{ url_for('despachos.api_generate_numero') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contrato_id: contratoId,
+                proyecto_id: parseInt(proyectoId)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.numero_despacho) {
+                numeroDespachoInput.value = data.numero_despacho;
+            } else if (data.error) {
+                alert('Error generando número: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error generating dispatch number:', error);
+            alert('Error al generar número de despacho');
+        });
     };
 
     // Actualizar la función existente si es necesario
