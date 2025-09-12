@@ -47,6 +47,10 @@ class PermisosService:
             'configuraciones': {
                 'nombre': 'Configuraciones del Sistema',
                 'descripcion': 'Administración del sistema y usuarios'
+            },
+            'finanzas': {
+                'nombre': 'Gestión Financiera',
+                'descripcion': 'Control financiero, costos, tesorería y análisis'
             }
         }
     
@@ -183,6 +187,15 @@ class PermisosService:
                 'produccion': [],
                 'logistica': [],
                 'finanzas': []
+            },
+            'finanzas': {
+                'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
+                'general': ['lectura'],
+                'ventas': ['lectura'],
+                'operaciones': ['lectura'],
+                'produccion': [],
+                'logistica': [],
+                'finanzas': ['lectura', 'creacion', 'edicion', 'eliminacion']
             }
         }
         
