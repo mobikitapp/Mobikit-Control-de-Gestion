@@ -66,6 +66,38 @@ def api_fabricacion_by_proyecto(proyecto_id):
         logger.error(f"Error loading OFs for proyecto {proyecto_id}: {str(e)}")
         return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
 
+@despachos_bp.route('/api/fabricacion/by_contrato/<int:contrato_id>')
+@require_login
+def api_fabricacion_by_contrato(contrato_id):
+    """API endpoint to get órdenes de fabricación disponibles para despacho por contrato"""
+    try:
+        ofs_disponibles = fabricacion_service.get_ofs_disponibles_para_despacho(contrato_id)
+        return jsonify([{
+            'id': of.id,
+            'codigo': of.codigo,
+            'descripcion': of.descripcion or 'Sin descripción',
+            'cantidad_total': of.cantidad_tableros or 0,
+            'cantidad_despachada_previa': getattr(of, 'cantidad_despachada_previa', 0),
+            'cantidad_disponible': getattr(of, 'cantidad_disponible_despacho', of.cantidad_tableros or 0),
+            'tiene_despachos_parciales': getattr(of, 'tiene_despachos_parciales', False),
+            'estado': getattr(of, 'estado_actual_nombre', 'Sin estado'),
+            'area': getattr(of, 'area_actual_nombre', 'Sin área')
+        } for of in ofs_disponibles])
+    except Exception as e:
+        logger.error(f"Error loading OFs for contrato {contrato_id}: {str(e)}")
+        return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
+
+@despachos_bp.route('/api/fabricacion/by_hito/<int:hito_id>')
+@require_login
+def api_fabricacion_by_hito(hito_id):
+    """API endpoint to get órdenes de fabricación disponibles para despacho por hito"""
+    try:
+        ofs_disponibles = planificacion_service._get_ofs_disponibles_para_hito(hito_id)
+        return jsonify(ofs_disponibles)
+    except Exception as e:
+        logger.error(f"Error loading OFs for hito {hito_id}: {str(e)}")
+        return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
+
 
 @despachos_bp.route('/')
 @require_login
