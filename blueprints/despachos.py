@@ -34,7 +34,7 @@ proyectos_repo = ProyectosRepository()
 contratos_repo = ContratosRepository()
 fabrication_repo = FabricacionRepository()
 
-@despachos_bp.route('/api/contratos_by_cliente/<int:cliente_id>')
+@despachos_bp.route('/api/contratos/cliente/<int:cliente_id>')
 @require_login
 def api_contratos_by_cliente(cliente_id):
     """API endpoint to get contratos by cliente"""
@@ -71,31 +71,21 @@ def api_fabricacion_by_proyecto(proyecto_id):
 def api_fabricacion_by_contrato(contrato_id):
     """API endpoint to get órdenes de fabricación disponibles para despacho por contrato"""
     try:
-        logger.info(f"Loading OFs for contrato {contrato_id}")
         ofs_disponibles = fabricacion_service.get_ofs_disponibles_para_despacho(contrato_id)
-        logger.info(f"Found {len(ofs_disponibles)} OFs for contrato {contrato_id}")
-
-        result = []
-        for of in ofs_disponibles:
-            of_data = {
-                'id': of.id,
-                'codigo': of.codigo,
-                'descripcion': of.descripcion or 'Sin descripción',
-                'cantidad_total': of.cantidad_tableros or 0,
-                'cantidad_despachada_previa': getattr(of, 'cantidad_despachada_previa', 0),
-                'cantidad_disponible': getattr(of, 'cantidad_disponible_despacho', of.cantidad_tableros or 0),
-                'tiene_despachos_parciales': getattr(of, 'tiene_despachos_parciales', False),
-                'estado': getattr(of, 'estado_actual_nombre', 'Sin estado'),
-                'area': getattr(of, 'area_actual_nombre', 'Sin área')
-            }
-            result.append(of_data)
-
-        return jsonify(result)
+        return jsonify([{
+            'id': of.id,
+            'codigo': of.codigo,
+            'descripcion': of.descripcion or 'Sin descripción',
+            'cantidad_total': of.cantidad_tableros or 0,
+            'cantidad_despachada_previa': getattr(of, 'cantidad_despachada_previa', 0),
+            'cantidad_disponible': getattr(of, 'cantidad_disponible_despacho', of.cantidad_tableros or 0),
+            'tiene_despachos_parciales': getattr(of, 'tiene_despachos_parciales', False),
+            'estado': getattr(of, 'estado_actual_nombre', 'Sin estado'),
+            'area': getattr(of, 'area_actual_nombre', 'Sin área')
+        } for of in ofs_disponibles])
     except Exception as e:
         logger.error(f"Error loading OFs for contrato {contrato_id}: {str(e)}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({'error': 'Error al cargar órdenes de fabricación', 'details': str(e)}), 500
+        return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
 
 @despachos_bp.route('/api/fabricacion/by_hito/<int:hito_id>')
 @require_login
@@ -213,14 +203,14 @@ def crear():
     try:
         # Validar y limpiar datos del formulario
         form_data = request.form.to_dict()
-
+        
         # Clean empty strings to None for optional integer fields
         if 'hito_entrega_id' in form_data and form_data['hito_entrega_id'] == '':
             del form_data['hito_entrega_id']
-
+        
         if 'contrato_id' in form_data and form_data['contrato_id'] == '':
             del form_data['contrato_id']
-
+            
         # Clean empty numero_despacho to let it be auto-generated
         if 'numero_despacho' in form_data and form_data['numero_despacho'].strip() == '':
             form_data['numero_despacho'] = ''  # Will be auto-generated in service
@@ -288,10 +278,10 @@ def crear():
             # Clean empty strings for this case as well
             if 'hito_entrega_id' in form_data and form_data['hito_entrega_id'] == '':
                 del form_data['hito_entrega_id']
-
+            
             if 'contrato_id' in form_data and form_data['contrato_id'] == '':
                 del form_data['contrato_id']
-
+                
             # Convert estado to uppercase for enum compatibility
             if 'estado' in form_data:
                 form_data['estado'] = form_data['estado'].upper()
@@ -630,25 +620,25 @@ def crear_despacho_desde_hito(hito_id):
     """Crear despacho desde un hito de entrega"""
     try:
         from models import HitoEntrega, PlanEntrega
-
+        
         # Obtener hito con sus relaciones
         hito = db.session.query(HitoEntrega).options(
             joinedload(HitoEntrega.plan_entrega).joinedload(PlanEntrega.contrato).joinedload(Contrato.proyecto).joinedload(Proyecto.cliente)
         ).filter_by(id=hito_id).first()
-
+        
         if not hito:
             flash('Hito de entrega no encontrado', 'error')
             return redirect(url_for('despachos.planificacion'))
-
+        
         contrato = hito.plan_entrega.contrato
         proyecto = contrato.proyecto
-
+        
         # Redirigir al formulario de nuevo despacho con datos pre-cargados
         return redirect(url_for('despachos.nuevo', 
                               contrato_id=contrato.id,
                               hito_entrega_id=hito.id,
                               fecha_programada=hito.fecha_programada.isoformat()))
-
+        
     except Exception as e:
         logger.error(f"Error creando despacho desde hito {hito_id}: {str(e)}")
         flash('Error al crear despacho desde hito', 'error')
@@ -662,22 +652,22 @@ def api_generate_numero():
         data = request.get_json()
         proyecto_id = data.get('proyecto_id')
         contrato_id = data.get('contrato_id')
-
+        
         if not proyecto_id:
             return jsonify({'error': 'proyecto_id es requerido'}), 400
-
+            
         # Get proyecto to obtain cliente_id
         proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
         if not proyecto:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
-
+            
         # Generate dispatch number
         numero_despacho = DespachosRepository.generate_next_numero_despacho(
             contrato_id, proyecto.cliente_id
         )
-
+        
         return jsonify({'numero_despacho': numero_despacho})
-
+        
     except Exception as e:
         logger.error(f"Error generando número de despacho: {str(e)}")
         return jsonify({'error': 'Error interno del servidor'}), 500
