@@ -272,12 +272,10 @@
                                                     <thead class="table-secondary">
                                                         <tr>
                                                             <th>Código OF</th>
-                                                            <th>Descripción</th>
+                                                            <th>Glosa</th>
                                                             <th>Área Actual</th>
                                                             <th>Estado</th>
                                                             <th>Tipo Despacho</th>
-                                                            <th>Cantidad</th>
-                                                            <th>Total Tableros</th>
                                                             <th>Observaciones</th>
                                                         </tr>
                                                     </thead>
@@ -291,7 +289,7 @@
                                                                 </a>
                                                             </td>
                                                             <td class="small">
-                                                                {{ despacho_of.orden_fabricacion.descripcion or 'Sin descripción' }}
+                                                                {{ despacho_of.orden_fabricacion.glosa or 'Sin glosa' }}
                                                             </td>
                                                             <td>
                                                                 {% if despacho_of.orden_fabricacion.area_actual %}
@@ -316,12 +314,6 @@
                                                                     {{ despacho_of.tipo_despacho.value.title() }}
                                                                 </span>
                                                             </td>
-                                                            <td class="text-end">
-                                                                <strong>{{ despacho_of.cantidad_despachada }}</strong>
-                                                            </td>
-                                                            <td class="text-end">
-                                                                {{ despacho_of.cantidad_total or despacho_of.orden_fabricacion.cantidad_tableros or 0 }}
-                                                            </td>
                                                             <td class="small text-muted">
                                                                 {{ despacho_of.observaciones or '-' }}
                                                             </td>
@@ -333,15 +325,9 @@
 
                                             {% if despacho.ordenes_fabricacion_detalle|length > 1 %}
                                             <div class="row mt-2">
-                                                <div class="col-md-6">
+                                                <div class="col-md-12">
                                                     <small class="text-muted">
                                                         <strong>Total OFs:</strong> {{ despacho.ordenes_fabricacion_detalle|length }}
-                                                    </small>
-                                                </div>
-                                                <div class="col-md-6 text-end">
-                                                    <small class="text-muted">
-                                                        <strong>Total Tableros Despachados:</strong> 
-                                                        {{ despacho.ordenes_fabricacion_detalle | sum(attribute='cantidad_despachada') }}
                                                     </small>
                                                 </div>
                                             </div>
