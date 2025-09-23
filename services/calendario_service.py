@@ -55,20 +55,7 @@ class CalendarioService:
                 'color': self._get_color_despacho(despacho.estado)
             })
 
-        # Add regular events
-        for evento in eventos_mes:
-            dia = evento.fecha_evento.day
-            if dia not in eventos_por_dia:
-                eventos_por_dia[dia] = []
-            eventos_por_dia[dia].append({
-                'id': evento.id,
-                'titulo': evento.titulo,
-                'tipo': evento.tipo_evento.value,
-                'estado': evento.estado.value,
-                'prioridad': evento.prioridad.value,
-                'hora': evento.hora_evento.strftime('%H:%M') if evento.hora_evento else None,
-                'proyecto': evento.proyecto.nombre if hasattr(evento, 'proyecto') and evento.proyecto else None
-            })
+        # Events are now disabled - only showing dispatches and milestones
 
         # Add hitos as events
         for hito_evento in hitos_eventos:
@@ -369,89 +356,8 @@ class CalendarioService:
 
         return query.order_by(Proyecto.nombre).all()
 
-    def crear_evento(self, datos_evento: Dict[str, Any], created_by: str) -> Tuple[bool, str]:
-        """Create a new event"""
-        try:
-            # Parse date and time
-            fecha_str = datos_evento['fecha_evento']
-            fecha_evento = datetime.strptime(fecha_str, '%Y-%m-%d').date()
-
-            hora_evento = None
-            if datos_evento.get('hora_evento'):
-                hora_str = datos_evento['hora_evento']
-                hora_evento = datetime.strptime(hora_str, '%H:%M').time()
-
-            # Create event instance
-            nuevo_evento = EventoEntrega()
-            nuevo_evento.id = self._generate_evento_id()
-            nuevo_evento.titulo = datos_evento['titulo']
-            nuevo_evento.descripcion = datos_evento.get('descripcion')
-            nuevo_evento.fecha_evento = fecha_evento
-            nuevo_evento.hora_evento = hora_evento
-            nuevo_evento.tipo_evento = TipoEvento(datos_evento['tipo_evento'])
-            nuevo_evento.prioridad = PrioridadEvento(datos_evento.get('prioridad', 'media'))
-            nuevo_evento.estado = EstadoEvento.PENDIENTE
-            nuevo_evento.recordatorio_dias = datos_evento.get('recordatorio_dias', 1)
-            nuevo_evento.notas = datos_evento.get('notas')
-            nuevo_evento.created_by = created_by
-
-            # Link to project if provided
-            if datos_evento.get('proyecto_id'):
-                proyecto = db.session.query(Proyecto).filter_by(id=datos_evento['proyecto_id']).first()
-                if proyecto:
-                    nuevo_evento.proyecto_id = proyecto.id
-
-            db.session.add(nuevo_evento)
-            db.session.commit()
-
-            return True, "Evento creado exitosamente"
-
-        except Exception as e:
-            db.session.rollback()
-            return False, str(e)
-
-    def actualizar_evento(self, evento_id: str, datos_evento: Dict[str, Any], updated_by: str) -> Tuple[bool, str]:
-        """Update existing event"""
-        try:
-            evento = db.session.query(EventoEntrega).filter_by(id=evento_id).first()
-            if not evento:
-                return False, "Evento no encontrado"
-
-            # Parse date and time
-            fecha_str = datos_evento['fecha_evento']
-            fecha_evento = datetime.strptime(fecha_str, '%Y-%m-%d').date()
-
-            hora_evento = None
-            if datos_evento.get('hora_evento'):
-                hora_str = datos_evento['hora_evento']
-                hora_evento = datetime.strptime(hora_str, '%H:%M').time()
-
-            # Update event fields
-            evento.titulo = datos_evento['titulo']
-            evento.descripcion = datos_evento.get('descripcion')
-            evento.fecha_evento = fecha_evento
-            evento.hora_evento = hora_evento
-            evento.tipo_evento = TipoEvento(datos_evento['tipo_evento'])
-            evento.prioridad = PrioridadEvento(datos_evento.get('prioridad', 'media'))
-            evento.recordatorio_dias = datos_evento.get('recordatorio_dias', 1)
-            evento.notas = datos_evento.get('notas')
-            evento.updated_at = datetime.now()
-
-            # Update project link
-            if datos_evento.get('proyecto_id'):
-                proyecto = db.session.query(Proyecto).filter_by(id=datos_evento['proyecto_id']).first()
-                if proyecto:
-                    evento.proyecto_id = proyecto.id
-            else:
-                evento.proyecto_id = None
-
-            db.session.commit()
-
-            return True, "Evento actualizado exitosamente"
-
-        except Exception as e:
-            db.session.rollback()
-            return False, str(e)
+    # Event creation and editing methods have been disabled
+    # Calendar module now focuses only on displaying dispatches and milestones
 
     def completar_evento(self, evento_id: str, completed_by: str) -> Tuple[bool, str]:
         """Mark event as completed"""
@@ -477,9 +383,9 @@ class CalendarioService:
             return False, str(e)
 
     def get_calendario_dashboard(self, usuario_id: str, rol_usuario: RolUsuario) -> Dict[str, Any]:
-        """Get calendar dashboard data including hitos"""
+        """Get calendar dashboard data focused on dispatches and milestones only"""
 
-        # Get events for current month
+        # Get hitos as events for current month
         today = date.today()
         primer_dia = date(today.year, today.month, 1)
         if today.month == 12:
@@ -487,20 +393,10 @@ class CalendarioService:
         else:
             ultimo_dia = date(today.year, today.month + 1, 1) - timedelta(days=1)
 
-        eventos_mes = self._get_eventos_rango_fechas(primer_dia, ultimo_dia, usuario_id, rol_usuario)
-
-        # Get hitos as events for current month
         hitos_eventos_mes = self._get_hitos_como_eventos(primer_dia, ultimo_dia, usuario_id, rol_usuario)
 
-        # Get upcoming events (next 7 days)
-        eventos_proximos = self._get_eventos_rango_fechas(today, today + timedelta(days=7), usuario_id, rol_usuario)
+        # Get upcoming hitos (next 7 days)
         hitos_proximos = self._get_hitos_como_eventos(today, today + timedelta(days=7), usuario_id, rol_usuario)
-
-        # Get overdue events
-        eventos_vencidos = self._get_eventos_rango_fechas(
-            date(2020, 1, 1), today - timedelta(days=1), usuario_id, rol_usuario
-        )
-        eventos_vencidos = [e for e in eventos_vencidos if e.estado == EstadoEvento.PENDIENTE]
 
         # Get overdue hitos
         hitos_vencidos = self._get_hitos_como_eventos(
@@ -508,62 +404,40 @@ class CalendarioService:
         )
         hitos_vencidos = [h for h in hitos_vencidos if h['estado'] == 'pendiente']
 
-        # Combine events and hitos for stats
-        total_eventos_mes = len(eventos_mes) + len(hitos_eventos_mes)
-        total_pendientes = len([e for e in eventos_mes if e.estado == EstadoEvento.PENDIENTE]) + len([h for h in hitos_eventos_mes if h['estado'] == 'pendiente'])
-        total_completados = len([e for e in eventos_mes if e.estado == EstadoEvento.COMPLETADO]) + len([h for h in hitos_eventos_mes if h['estado'] == 'completado'])
-
-        # Statistics
+        # Statistics focused on hitos only
         stats = {
-            'eventos_mes': total_eventos_mes,
-            'eventos_pendientes': total_pendientes,
-            'eventos_completados': total_completados,
-            'eventos_proximos': len(eventos_proximos) + len(hitos_proximos),
-            'eventos_vencidos': len(eventos_vencidos) + len(hitos_vencidos)
+            'eventos_mes': len(hitos_eventos_mes),
+            'eventos_pendientes': len([h for h in hitos_eventos_mes if h['estado'] == 'pendiente']),
+            'eventos_completados': len([h for h in hitos_eventos_mes if h['estado'] == 'completado']),
+            'eventos_proximos': len(hitos_proximos),
+            'eventos_vencidos': len(hitos_vencidos)
         }
 
-        # Events by type (including hitos)
-        eventos_por_tipo = {}
-        for tipo in TipoEvento:
-            eventos_por_tipo[tipo.value] = len([e for e in eventos_mes if e.tipo_evento == tipo])
-        eventos_por_tipo['hito_entrega'] = len(hitos_eventos_mes)
-
-        # Create event-like objects for upcoming events
+        # Create event-like objects for hitos
         class EventoProxy:
-            def __init__(self, data, es_hito=False):
-                if es_hito:
-                    self.id = data['id']
-                    self.titulo = data['titulo']
-                    self.fecha_evento = data['fecha_evento']
-                    self.proyecto = type('obj', (object,), {'nombre': data['proyecto']})() if data['proyecto'] else None
-                    self.contrato = type('obj', (object,), {'numero_oc': data['contrato']})() if data['contrato'] else None
-                    self.tipo_evento = type('obj', (object,), {'value': data['tipo']})()
-                else:
-                    self.id = data.id
-                    self.titulo = data.titulo
-                    self.fecha_evento = data.fecha_evento
-                    self.proyecto = data.proyecto
-                    self.contrato = data.contrato if hasattr(data, 'contrato') else None
-                    self.tipo_evento = data.tipo_evento
+            def __init__(self, data):
+                self.id = data['id']
+                self.titulo = data['titulo']
+                self.fecha_evento = data['fecha_evento']
+                self.proyecto = type('obj', (object,), {'nombre': data['proyecto']})() if data['proyecto'] else None
+                self.contrato = type('obj', (object,), {'numero_oc': data['contrato']})() if data['contrato'] else None
+                self.tipo_evento = type('obj', (object,), {'value': data['tipo']})()
 
-        # Combine upcoming events
-        eventos_proximos_combined = ([EventoProxy(e) for e in eventos_proximos] + 
-                                   [EventoProxy(h, es_hito=True) for h in hitos_proximos])
-        eventos_proximos_combined.sort(key=lambda x: x.fecha_evento)
+        # Convert hitos to event-like objects
+        hitos_proximos_events = [EventoProxy(h) for h in hitos_proximos]
+        hitos_proximos_events.sort(key=lambda x: x.fecha_evento)
 
-        # Combine overdue events  
-        eventos_vencidos_combined = ([EventoProxy(e) for e in eventos_vencidos] + 
-                                   [EventoProxy(h, es_hito=True) for h in hitos_vencidos])
-        eventos_vencidos_combined.sort(key=lambda x: x.fecha_evento)
+        hitos_vencidos_events = [EventoProxy(h) for h in hitos_vencidos]
+        hitos_vencidos_events.sort(key=lambda x: x.fecha_evento)
 
         return {
             'stats': stats,
-            'eventos_proximos': eventos_proximos_combined[:5],  # Limit to 5
-            'eventos_vencidos': eventos_vencidos_combined[:5],  # Limit to 5
-            'eventos_por_tipo': eventos_por_tipo,
+            'eventos_proximos': hitos_proximos_events[:5],  # Limit to 5
+            'eventos_vencidos': hitos_vencidos_events[:5],  # Limit to 5
+            'eventos_por_tipo': {'hito_entrega': len(hitos_eventos_mes)},
             'mes_actual': today.strftime('%B %Y'),
-            'entregas_proximas': eventos_proximos_combined[:5],  # Alias for template compatibility
-            'entregas_vencidas': eventos_vencidos_combined[:5]   # Alias for template compatibility
+            'entregas_proximas': hitos_proximos_events[:5],  # Alias for template compatibility
+            'entregas_vencidas': hitos_vencidos_events[:5]   # Alias for template compatibility
         }
 
     def get_eventos_mes(self, year: int, month: int, usuario_id: str, rol_usuario: RolUsuario) -> List[Dict[str, Any]]:
@@ -746,15 +620,8 @@ class CalendarioService:
         return eventos_hitos
 
     def _get_eventos_rango_fechas(self, fecha_inicio: date, fecha_fin: date, usuario_id: str, rol_usuario: RolUsuario) -> List[EventoEntrega]:
-        """Get events within date range with user access control"""
-
-        query = self._build_eventos_query(usuario_id, rol_usuario)
-        return query.filter(
-            and_(
-                EventoEntrega.fecha_evento >= fecha_inicio,
-                EventoEntrega.fecha_evento <= fecha_fin
-            )
-        ).order_by(EventoEntrega.fecha_evento, EventoEntrega.hora_evento).all()
+        """Get events within date range - now returns empty list as events are disabled"""
+        return []
 
     def _get_despachos_rango_fechas(self, fecha_inicio: date, fecha_fin: date, usuario_id: str, rol_usuario: RolUsuario, 
                                    filtros: Optional[Dict] = None) -> List[Despacho]:
