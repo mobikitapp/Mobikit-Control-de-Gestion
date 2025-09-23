@@ -54,53 +54,37 @@
         </div>
     </div>
 
-    <!-- Calendar Statistics -->
-    <div class="row mb-4">
-        <div class="col-md-2">
-            <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <h5>{{ total_eventos }}</h5>
-                    <small>Eventos</small>
+    <!-- Simplified Statistics - Focus on Dispatches -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white border-0">
+                <div class="card-body text-center py-2">
+                    <h6 class="mb-0">{{ total_despachos }}</h6>
+                    <small>Despachos Total</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card bg-warning text-dark">
-                <div class="card-body text-center">
-                    <h5>{{ total_despachos }}</h5>
-                    <small>Despachos</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <h5>{{ total_hitos }}</h5>
-                    <small>Hitos</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card bg-primary text-white">
-                <div class="card-body text-center">
-                    <h5>{{ eventos_pendientes }}</h5>
-                    <small>Pendientes</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <h5>{{ despachos_programados }}</h5>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark border-0">
+                <div class="card-body text-center py-2">
+                    <h6 class="mb-0">{{ despachos_programados }}</h6>
                     <small>Programados</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card bg-warning text-dark">
-                <div class="card-body text-center">
-                    <h5>{{ hitos_pendientes }}</h5>
-                    <small>Hitos Pend.</small>
+        <div class="col-md-3">
+            <div class="card bg-info text-white border-0">
+                <div class="card-body text-center py-2">
+                    <h6 class="mb-0">{{ total_eventos }}</h6>
+                    <small>Eventos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white border-0">
+                <div class="card-body text-center py-2">
+                    <h6 class="mb-0">{{ total_hitos }}</h6>
+                    <small>Hitos</small>
                 </div>
             </div>
         </div>
@@ -142,30 +126,47 @@
                                     <td class="align-top p-2 {% if dia.es_hoy %}bg-light{% endif %}" style="vertical-align: top;">
                                         <div class="day-content" style="min-height: 580px;">
 
-                                            <!-- Eventos -->
+                                            <!-- Eventos - Simplified -->
                                             {% if dia.eventos %}
-                                                <div class="mb-3">
-                                                    <h6 class="text-primary mb-2">
-                                                        <i class="fas fa-calendar-check"></i> Eventos ({{ dia.eventos|length }})
-                                                    </h6>
+                                                <div class="mb-2">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <i class="fas fa-calendar-check text-secondary me-1"></i>
+                                                        <small class="text-secondary">{{ dia.eventos|length }} Eventos</small>
+                                                    </div>
                                                     {% for evento in dia.eventos %}
-                                                    <div class="card border-{{ evento.color }} mb-1">
-                                                        <div class="card-body p-2">
-                                                            <div class="d-flex justify-content-between align-items-start">
+                                                    <div class="border-start border-{{ evento.color }} border-2 ps-2 mb-1">
+                                                        <div class="small fw-bold text-dark">{{ evento.titulo }}</div>
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <div class="small text-muted">
+                                                                {% if evento.hora %}{{ evento.hora }}{% endif %}
+                                                                {% if evento.proyecto %} - {{ evento.proyecto }}{% endif %}
+                                                            </div>
+                                                            <small class="badge bg-{{ evento.color }}">{{ evento.estado }}</small>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+
+                                            <!-- Despachos - Featured prominently -->
+                                            {% if dia.despachos %}
+                                                <div class="mb-2">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <i class="fas fa-truck text-primary me-1"></i>
+                                                        <small class="fw-bold text-primary">{{ dia.despachos|length }} Despachos</small>
+                                                    </div>
+                                                    {% for despacho in dia.despachos %}
+                                                    <div class="card border-start border-{{ despacho.color }} border-3 mb-1" style="border-left-width: 4px !important;">
+                                                        <div class="card-body p-2 bg-light">
+                                                            <div class="fw-bold small text-dark mb-1">{{ despacho.numero_despacho }}</div>
+                                                            <div class="d-flex justify-content-between align-items-center">
                                                                 <div>
-                                                                    <small class="fw-bold text-{{ evento.color }}">
-                                                                        {% if evento.hora %}{{ evento.hora }}{% endif %}
-                                                                    </small>
-                                                                    <div class="small text-dark fw-bold">{{ evento.titulo }}</div>
-                                                                    {% if evento.proyecto %}
-                                                                    <div class="small fw-bold text-primary">
-                                                                        <i class="fas fa-project-diagram"></i> {{ evento.proyecto }}
-                                                                    </div>
-                                                                    {% else %}
-                                                                    <div class="small text-muted">Sin proyecto</div>
+                                                                    <div class="small text-muted">{{ despacho.cliente }}</div>
+                                                                    {% if despacho.fecha_envio %}
+                                                                    <div class="small text-info"><i class="fas fa-clock"></i> {{ despacho.fecha_envio }}</div>
                                                                     {% endif %}
                                                                 </div>
-                                                                <span class="badge bg-{{ evento.color }} text-white">{{ evento.estado }}</span>
+                                                                <span class="badge bg-{{ despacho.color }} px-2">{{ despacho.estado }}</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -173,58 +174,29 @@
                                                 </div>
                                             {% endif %}
 
-                                            <!-- Despachos -->
-                                            {% if dia.despachos %}
-                                                <div class="mb-3">
-                                                    <h6 class="text-warning mb-2">
-                                                        <i class="fas fa-truck"></i> Despachos ({{ dia.despachos|length }})
-                                                    </h6>
-                                                    {% for despacho in dia.despachos %}
-                                                    <div class="card border-{{ despacho.color }} mb-1">
-                                                        <div class="card-body p-2">
-                                                            <div class="d-flex justify-content-between align-items-start">
-                                                                <div>
-                                                                    <div class="small fw-bold text-dark">{{ despacho.numero_despacho }}</div>
-                                                                    <div class="small text-muted">{{ despacho.cliente }}</div>
-                                                                    <div class="small text-muted">{{ despacho.proyecto }}</div>
-                                                                </div>
-                                                                <div class="text-end">
-                                                                    <span class="badge bg-{{ despacho.color }} text-white">{{ despacho.estado }}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    {% endfor %}
-                                                </div>
-                                            {% endif %}
-
-                                            <!-- Hitos -->
+                                            <!-- Hitos - Simplified -->
                                             {% if dia.hitos %}
-                                                <div class="mb-3">
-                                                    <h6 class="text-success mb-2">
-                                                        <i class="fas fa-flag-checkered"></i> Hitos ({{ dia.hitos|length }})
-                                                    </h6>
+                                                <div class="mb-2">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <i class="fas fa-flag-checkered text-success me-1"></i>
+                                                        <small class="text-success">{{ dia.hitos|length }} Hitos</small>
+                                                    </div>
                                                     {% for hito in dia.hitos %}
-                                                    <div class="card border-{{ hito.color }} mb-1">
-                                                        <div class="card-body p-2">
-                                                            <div class="d-flex justify-content-between align-items-start">
-                                                                <div>
-                                                                    <div class="small fw-bold text-dark">{{ hito.titulo }}</div>
-                                                                    <div class="small text-muted">{{ hito.plan_entrega }}</div>
-                                                                    <div class="small text-muted">{{ hito.contrato }}</div>
-                                                                </div>
-                                                                <span class="badge bg-{{ hito.color }} text-white">{{ hito.estado }}</span>
-                                                            </div>
+                                                    <div class="border-start border-{{ hito.color }} border-2 ps-2 mb-1">
+                                                        <div class="small fw-bold text-dark">{{ hito.titulo }}</div>
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <div class="small text-muted">{{ hito.plan_entrega }}</div>
+                                                            <small class="badge bg-{{ hito.color }}">{{ hito.estado }}</small>
                                                         </div>
                                                     </div>
                                                     {% endfor %}
                                                 </div>
                                             {% endif %}
 
-                                            <!-- Empty state -->
+                                            <!-- Empty state - Minimal -->
                                             {% if not dia.eventos and not dia.despachos and not dia.hitos %}
-                                                <div class="text-center text-muted py-5">
-                                                    <i class="fas fa-calendar-times fa-2x mb-2"></i>
+                                                <div class="text-center text-muted py-3">
+                                                    <i class="fas fa-calendar-times mb-1"></i>
                                                     <div class="small">Sin actividades</div>
                                                 </div>
                                             {% endif %}
@@ -240,32 +212,19 @@
         </div>
     </div>
 
-    <!-- Legend -->
-    <div class="row mt-3">
+    <!-- Simplified Legend -->
+    <div class="row mt-2">
         <div class="col-12">
             <div class="card">
-                <div class="card-body">
-                    <h6 class="mb-3"><i class="fas fa-info-circle"></i> Leyenda de Estados</h6>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <h6 class="text-primary">Eventos:</h6>
-                            <span class="badge bg-primary me-2">Pendiente</span>
-                            <span class="badge bg-success me-2">Completado</span>
-                            <span class="badge bg-secondary">Cancelado</span>
-                        </div>
-                        <div class="col-md-4">
-                            <h6 class="text-warning">Despachos:</h6>
-                            <span class="badge bg-warning text-dark me-2">Programado</span>
-                            <span class="badge bg-info me-2">En Tránsito</span>
-                            <span class="badge bg-success me-2">Entregado</span>
-                            <span class="badge bg-danger">Observado</span>
-                        </div>
-                        <div class="col-md-4">
-                            <h6 class="text-success">Hitos:</h6>
-                            <span class="badge bg-warning text-dark me-2">Pendiente</span>
-                            <span class="badge bg-success me-2">Completado</span>
-                            <span class="badge bg-danger">Atrasado</span>
-                        </div>
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-center align-items-center flex-wrap">
+                        <small class="text-muted me-3"><i class="fas fa-info-circle"></i> Estados:</small>
+                        <span class="badge bg-warning text-dark me-2">Programado</span>
+                        <span class="badge bg-info me-2">En Tránsito</span>
+                        <span class="badge bg-success me-2">Entregado</span>
+                        <span class="badge bg-danger me-2">Observado</span>
+                        <span class="badge bg-primary me-2">Pendiente</span>
+                        <span class="badge bg-secondary">Cancelado</span>
                     </div>
                 </div>
             </div>
