@@ -628,20 +628,8 @@ function renderOFsList(ofs) {
     
     ofs.forEach(function(of) {
         const tieneParciales = of.tiene_despachos_parciales || false;
-        const cantidadDespachadaPrevia = of.cantidad_despachada_previa || 0;
         const cantidadTotal = of.cantidad_total || 0;
         const cantidadDisponible = of.cantidad_disponible || cantidadTotal;
-
-        let infoAdicional = '';
-        if (tieneParciales) {
-            infoAdicional = `
-                <div class="alert alert-info alert-sm mt-2">
-                    <i class="fas fa-info-circle me-1"></i>
-                    <strong>Despacho Parcial Previo:</strong> ${cantidadDespachadaPrevia} tableros ya despachados. 
-                    Disponibles: ${cantidadDisponible} tableros.
-                </div>
-            `;
-        }
 
         html += `
             <div class="col-lg-6 col-md-12">
@@ -650,17 +638,13 @@ function renderOFsList(ofs) {
                      data-cantidad-total="${cantidadTotal}"
                      data-cantidad-disponible="${cantidadDisponible}">
                     <div class="row">
-                        <div class="col-md-8">
+                        <div class="col-md-12">
                             <h6 class="mb-2">${of.codigo}</h6>
                             <p class="text-muted mb-1">${of.descripcion || 'Sin descripción'}</p>
                             <div class="mb-2">
                                 <small class="badge bg-secondary me-1">${of.area || 'Sin área'}</small>
                                 <small class="badge bg-info">${of.estado || 'Sin estado'}</small>
-                                ${tieneParciales ? '<small class="badge bg-warning">Despacho Parcial Previo</small>' : ''}
                             </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            ${cantidadDespachadaPrevia > 0 ? `<div class="mb-2"><small class="text-muted">Despachado previamente: ${cantidadDespachadaPrevia}</small></div>` : ''}
                         </div>
                     </div>
                     <div class="mt-3">
@@ -684,15 +668,9 @@ function renderOFsList(ofs) {
                             <div class="col-md-6">
                                 <label class="form-label">Tipo de Despacho</label>
                                 <select class="form-select tipo-despacho" data-of-id="${of.id}">
-                                    ${!tieneParciales ? `<option value="TOTAL">Total</option>` : ''}
-                                    <option value="PARCIAL" ${tieneParciales ? 'selected' : ''}>Parcial</option>
+                                    <option value="TOTAL">Total</option>
+                                    <option value="PARCIAL">Parcial</option>
                                 </select>
-                            </div>
-                            <div class="col-md-6 cantidad-parcial-container" ${!tieneParciales ? 'style="display: none;"' : ''}>
-                                <label class="form-label">Cantidad a Despachar</label>
-                                <input type="number" class="form-control cantidad-parcial" 
-                                       min="1" max="${cantidadDisponible}" value="1">
-                                <small class="text-muted">Disponible: ${cantidadDisponible}</small>
                             </div>
                         </div>
                         <div class="mt-2">
@@ -701,7 +679,6 @@ function renderOFsList(ofs) {
                                       placeholder="Observaciones para esta OF..."></textarea>
                         </div>
                     </div>
-                    ${infoAdicional}
                 </div>
             </div>
         `;
@@ -723,13 +700,6 @@ function setupOFEventListeners() {
     
     document.querySelectorAll('.tipo-despacho').forEach(select => {
         select.addEventListener('change', function() {
-            const ofId = this.getAttribute('data-of-id');
-            updateQuantityField(ofId);
-        });
-    });
-    
-    document.querySelectorAll('.cantidad-parcial').forEach(input => {
-        input.addEventListener('input', function() {
             updateSelectedOFsInput();
         });
     });
@@ -747,18 +717,8 @@ function toggleOFSelection(checkbox) {
 
     if (checkbox.checked) {
         quantitySection.style.display = 'block';
-        const tieneParciales = checkbox.getAttribute('data-of-tiene-parciales') === 'true';
         const tipoDespachoSelect = quantitySection.querySelector('.tipo-despacho');
-        const cantidadContainer = quantitySection.querySelector('.cantidad-parcial-container');
-
-        if (tieneParciales) {
-            tipoDespachoSelect.value = 'PARCIAL';
-            cantidadContainer.style.display = 'block';
-        } else {
-            tipoDespachoSelect.value = 'TOTAL';
-            cantidadContainer.style.display = 'none';
-        }
-        updateQuantityField(checkbox.value);
+        tipoDespachoSelect.value = 'TOTAL';
     } else {
         quantitySection.style.display = 'none';
     }
@@ -766,27 +726,7 @@ function toggleOFSelection(checkbox) {
 }
 
 function updateQuantityField(ofId) {
-    const ofCard = document.querySelector(`.of-card[data-of-id="${ofId}"]`);
-    if (!ofCard) return;
-
-    const checkbox = ofCard.querySelector('.of-checkbox');
-    const tipo = ofCard.querySelector('.tipo-despacho').value;
-    const cantidadInput = ofCard.querySelector('.cantidad-parcial');
-    const cantidadContainer = ofCard.querySelector('.cantidad-parcial-container');
-    const cantidadDisponible = parseInt(checkbox.getAttribute('data-of-cantidad-disponible'));
-
-    if (tipo === 'TOTAL') {
-        cantidadContainer.style.display = 'none';
-    } else {
-        cantidadContainer.style.display = 'block';
-        cantidadInput.max = cantidadDisponible;
-        if (parseInt(cantidadInput.value) > cantidadDisponible) {
-            cantidadInput.value = cantidadDisponible;
-        }
-        if (parseInt(cantidadInput.value) < 1) {
-            cantidadInput.value = 1;
-        }
-    }
+    // Quantity field removed - no action needed
     updateSelectedOFsInput();
 }
 
@@ -795,16 +735,11 @@ function updateSelectedOFsInput() {
     document.querySelectorAll('.of-checkbox:checked').forEach(checkbox => {
         const ofCard = checkbox.closest('.of-card');
         const tipo = ofCard.querySelector('.tipo-despacho').value;
-        const cantidadInput = ofCard.querySelector('.cantidad-parcial');
-        const cantidad = (tipo === 'PARCIAL') ? 
-            parseInt(cantidadInput.value) : 
-            parseInt(checkbox.getAttribute('data-of-cantidad-total'));
         const observaciones = ofCard.querySelector('.observaciones-of').value;
 
         selectedOFs.push({
             of_id: checkbox.value,
             tipo_despacho: tipo.toUpperCase(),
-            cantidad_despachada: cantidad,
             observaciones: observaciones
         });
     });
