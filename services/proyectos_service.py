@@ -915,7 +915,7 @@ class ProyectosService:
 
                 monto_facturado_contratos = sum(
                     float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
-                    if ep.facturado
+                    if ep.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO]
                 )
 
                 monto_pagado_contratos = sum(
@@ -935,7 +935,7 @@ class ProyectosService:
 
                 monto_facturado_ocs = sum(
                     float(ep.monto_estado_pago or 0) for ep in estados_pago_ocs 
-                    if ep.facturado
+                    if ep.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO]
                 )
 
                 monto_pagado_ocs = sum(
