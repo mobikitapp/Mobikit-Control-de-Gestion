@@ -17,7 +17,7 @@
 
     <!-- Métricas Principales -->
     <div class="row mb-4">
-        <div class="col-md-3 col-sm-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
@@ -39,7 +39,7 @@
             </div>
         </div>
 
-        <div class="col-md-3 col-sm-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
@@ -55,7 +55,7 @@
             </div>
         </div>
 
-        <div class="col-md-3 col-sm-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
@@ -71,7 +71,7 @@
             </div>
         </div>
 
-        <div class="col-md-3 col-sm-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
@@ -87,6 +87,68 @@
             </div>
         </div>
     </div>
+
+    <!-- Métricas de Tasa de Éxito -->
+    {% if tasa_exito %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Efectividad Comercial (últimos 6 meses)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="text-center">
+                                <div class="display-6 fw-bold {% if tasa_exito.success_rate >= 70 %}text-success{% elif tasa_exito.success_rate >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ "%.1f"|format(tasa_exito.success_rate) }}%
+                                </div>
+                                <div class="text-muted">Tasa de Éxito</div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="text-center">
+                                <div class="fs-2 fw-bold text-success">{{ tasa_exito.exitosos }}</div>
+                                <div class="text-muted">Proyectos Exitosos</div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="text-center">
+                                <div class="fs-2 fw-bold text-danger">{{ tasa_exito.perdidos }}</div>
+                                <div class="text-muted">Proyectos Perdidos</div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="text-center">
+                                <div class="fs-2 fw-bold text-primary">{{ tasa_exito.total_oportunidades }}</div>
+                                <div class="text-muted">Total Oportunidades</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Barra de progreso visual -->
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small class="text-muted">Distribución de resultados</small>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            {% set exitoso_pct = (tasa_exito.exitosos / tasa_exito.total_oportunidades * 100) if tasa_exito.total_oportunidades > 0 else 0 %}
+                            {% set perdido_pct = (tasa_exito.perdidos / tasa_exito.total_oportunidades * 100) if tasa_exito.total_oportunidades > 0 else 0 %}
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ exitoso_pct }}%" title="Exitosos: {{ exitoso_pct|round(1) }}%"></div>
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ perdido_pct }}%" title="Perdidos: {{ perdido_pct|round(1) }}%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-success">{{ "%.1f"|format(exitoso_pct) }}% Exitosos</small>
+                            <small class="text-danger">{{ "%.1f"|format(perdido_pct) }}% Perdidos</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Segunda fila: Proyectos y Clientes -->
     <div class="row mb-4">

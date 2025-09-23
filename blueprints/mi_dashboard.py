@@ -25,6 +25,9 @@ def index():
         # Métricas principales
         metricas = dashboard_service.get_metricas_vendedor(vendedor_id)
         
+        # Métricas de tasa de éxito
+        tasa_exito = dashboard_service.get_tasa_exito_vendedor(vendedor_id)
+        
         # Proyectos activos
         proyectos_activos = dashboard_service.get_proyectos_activos(vendedor_id)
         
@@ -36,6 +39,7 @@ def index():
         
         return render_template('mi_dashboard/index.html',
                              metricas=metricas,
+                             tasa_exito=tasa_exito,
                              proyectos_activos=proyectos_activos,
                              clientes_recientes=clientes_recientes,
                              tareas_pendientes=tareas_pendientes)
@@ -44,6 +48,7 @@ def index():
         current_app.logger.error(f"Error en dashboard personal: {e}")
         return render_template('mi_dashboard/index.html',
                              metricas={},
+                             tasa_exito={},
                              proyectos_activos=[],
                              clientes_recientes=[],
                              tareas_pendientes=[])
