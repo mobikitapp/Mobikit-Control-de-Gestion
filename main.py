@@ -16,6 +16,11 @@ try:
     @app.template_global('moment_global')
     def moment_global():
         return datetime.now()
+    
+    # Add timestamp function for cache busting
+    @app.template_global('timestamp')
+    def timestamp():
+        return int(datetime.now().timestamp())
 
     # Initialize database
     with app.app_context():

@@ -293,7 +293,7 @@ let isInitialized = false;
 // Initialize page when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Despacho form page initialized');
-    
+
     if (isInitialized) {
         return; // Prevent double initialization
     }
@@ -306,10 +306,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize available OFs display first
     initializeOFsDisplay();
-    
+
     // Setup event listeners
     setupEventListeners();
-    
+
     // Initialize cascade selects if needed
     const clienteSelect = document.getElementById('cliente_id');
     if (clienteSelect && clienteSelect.value) {
@@ -405,12 +405,12 @@ function initializeOFsDisplay() {
 async function updateProyectos() {
     const clienteSelect = document.getElementById('cliente_id');
     const proyectoSelect = document.getElementById('proyecto_id');
-    
+
     if (!clienteSelect || !proyectoSelect) return;
-    
+
     const clienteId = clienteSelect.value;
     const selectedProyecto = proyectoSelect.value;
-    
+
     proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto</option>';
 
     if (clienteId) {
@@ -422,7 +422,7 @@ async function updateProyectos() {
                 const uniqueProyectos = proyectos.filter((proyecto, index, self) => 
                     index === self.findIndex(p => p.id === proyecto.id)
                 );
-                
+
                 uniqueProyectos.forEach(proyecto => {
                     const option = document.createElement('option');
                     option.value = proyecto.id;
@@ -445,12 +445,12 @@ async function updateProyectos() {
 async function updateContratos() {
     const proyectoSelect = document.getElementById('proyecto_id');
     const contratoSelect = document.getElementById('contrato_id');
-    
+
     if (!proyectoSelect || !contratoSelect) return;
-    
+
     const proyectoId = proyectoSelect.value;
     const selectedContrato = contratoSelect.value;
-    
+
     contratoSelect.innerHTML = '<option value="">Sin contrato asociado</option>';
 
     if (proyectoId) {
@@ -462,7 +462,7 @@ async function updateContratos() {
                 const uniqueContratos = contratos.filter((contrato, index, self) => 
                     index === self.findIndex(c => c.id === contrato.id)
                 );
-                
+
                 uniqueContratos.forEach(contrato => {
                     const option = document.createElement('option');
                     option.value = contrato.id;
@@ -484,7 +484,7 @@ async function updateContratos() {
 
 async function updateHitosByContrato(contratoId) {
     const hitoSelect = document.getElementById('hito_entrega_id');
-    
+
     if (!hitoSelect) return;
 
     const selectedHito = hitoSelect.value;
@@ -501,7 +501,7 @@ async function updateHitosByContrato(contratoId) {
                 const uniqueHitos = hitos.filter((hito, index, self) => 
                     index === self.findIndex(h => h.id === hito.id)
                 );
-                
+
                 uniqueHitos.forEach(hito => {
                     const option = document.createElement('option');
                     option.value = hito.id;
@@ -545,7 +545,7 @@ async function updateAvailableOFs() {
 
     // Ensure elements exist
     initializeOFsDisplay();
-    
+
     const placeholder = document.getElementById('ofs-placeholder');
     const emptyAlert = document.getElementById('ofs-empty');
     const list = document.getElementById('ofs-list');
@@ -580,14 +580,14 @@ async function updateAvailableOFs() {
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
         if (data.error) {
             throw new Error(data.error);
         }
-        
+
         const ofs = Array.isArray(data) ? data : [];
-        
+
         // Remove duplicates based on id
         const uniqueOFs = ofs.filter((of, index, self) => 
             index === self.findIndex(o => o.id === of.id)
@@ -623,9 +623,9 @@ function renderOFsList(ofs) {
 
     // Clear existing content to ensure idempotent updates
     list.innerHTML = '';
-    
+
     let html = '<div class="row g-3">';
-    
+
     ofs.forEach(function(of) {
         const tieneParciales = of.tiene_despachos_parciales || false;
         const cantidadTotal = of.cantidad_total || 0;
@@ -683,7 +683,7 @@ function renderOFsList(ofs) {
             </div>
         `;
     });
-    
+
     html += '</div>';
     list.innerHTML = html;
 
@@ -697,13 +697,13 @@ function setupOFEventListeners() {
             toggleOFSelection(this);
         });
     });
-    
+
     document.querySelectorAll('.tipo-despacho').forEach(select => {
         select.addEventListener('change', function() {
             updateSelectedOFsInput();
         });
     });
-    
+
     document.querySelectorAll('.observaciones-of').forEach(textarea => {
         textarea.addEventListener('input', function() {
             updateSelectedOFsInput();
@@ -798,9 +798,9 @@ async function updateDespachoNumber() {
 async function updateDestinoSuggestion() {
     const proyectoSelect = document.getElementById('proyecto_id');
     const destinoTextarea = document.getElementById('destino');
-    
+
     if (!proyectoSelect || !destinoTextarea) return;
-    
+
     const proyectoId = proyectoSelect.value;
 
     if (!proyectoId || destinoTextarea.value.trim()) {
@@ -827,7 +827,7 @@ function clearOFs() {
     const list = document.getElementById('ofs-list');
     const placeholder = document.getElementById('ofs-placeholder');
     const emptyAlert = document.getElementById('ofs-empty');
-    
+
     if (list) {
         list.innerHTML = '';
         list.style.display = 'none';
