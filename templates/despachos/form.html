@@ -33,7 +33,7 @@
                             <!-- Cliente, Proyecto, Contrato y OF -->
                             <div class="col-md-3">
                                 <label for="cliente_id" class="form-label">Cliente</label>
-                                <select class="form-select" id="cliente_id" onchange="updateProyectos(); updateContratos(); clearOFs();">
+                                <select class="form-select" id="cliente_id">
                                     <option value="">Seleccionar cliente</option>
                                     {% for cliente in clientes %}
                                     <option value="{{ cliente.id }}" 
@@ -48,7 +48,7 @@
                                 <label for="proyecto_id" class="form-label">
                                     Proyecto <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select" id="proyecto_id" name="proyecto_id" onchange="updateContratos(); updateOFsByProyecto(); updateDespachoNumber(); updateDestinoSuggestion()" required>
+                                <select class="form-select" id="proyecto_id" name="proyecto_id" required>
                                     <option value="">Seleccionar proyecto</option>
                                     {% if despacho %}
                                     <option value="{{ despacho.proyecto_id }}" selected>{{ despacho.proyecto.nombre }}</option>
@@ -61,7 +61,7 @@
 
                             <div class="col-md-3">
                                 <label for="contrato_id" class="form-label">Contrato/OC (Opcional)</label>
-                                <select class="form-select" id="contrato_id" name="contrato_id" onchange="updateHitosByContrato(this.value); updateDespachoNumber(); updateAvailableOFs()">
+                                <select class="form-select" id="contrato_id" name="contrato_id">
                                     <option value="">Sin contrato asociado</option>
                                     {% if despacho and despacho.contrato %}
                                     <option value="{{ despacho.contrato_id }}" selected>{{ despacho.contrato.numero_oc }}</option>
@@ -71,7 +71,7 @@
 
                             <div class="col-md-3">
                                 <label for="hito_entrega_id" class="form-label">Hito de Entrega (Opcional)</label>
-                                <select class="form-select" id="hito_entrega_id" name="hito_entrega_id" onchange="updateAvailableOFs()">
+                                <select class="form-select" id="hito_entrega_id" name="hito_entrega_id">
                                     <option value="">Sin hito asociado</option>
                                     {% if despacho and despacho.hito_entrega %}
                                     <option value="{{ despacho.hito_entrega_id }}" selected>{{ despacho.hito_entrega.descripcion }}</option>
@@ -610,6 +610,9 @@ function renderOFsList(ofs) {
     const list = document.getElementById('ofs-list');
     if (!list) return;
 
+    // Clear existing content to ensure idempotent updates
+    list.innerHTML = '';
+    
     let html = '<div class="row g-3">';
     
     ofs.forEach(function(of) {
