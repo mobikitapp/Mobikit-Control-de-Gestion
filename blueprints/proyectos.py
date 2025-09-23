@@ -470,7 +470,15 @@ def api_kpi_cobranza(proyecto_id):
                 'message': f'Proyecto {proyecto_id} no encontrado'
             }), 404
 
-        kpi_data = proyectos_service._calculate_financial_kpi_with_treasury(proyecto_id)
+        # Obtener stats completas del proyecto que incluyen el KPI financiero
+        proyecto_stats = proyectos_service.get_proyecto_with_stats(proyecto_id)
+        if not proyecto_stats or 'stats' not in proyecto_stats:
+            return jsonify({
+                'success': False, 
+                'message': 'No se pudieron obtener las estadísticas del proyecto'
+            }), 500
+
+        kpi_data = proyecto_stats['stats'].get('kpi_financiero', {})
 
         return jsonify({
             'success': True,
