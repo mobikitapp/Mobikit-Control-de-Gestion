@@ -144,30 +144,30 @@
                                         <div class="btn-group btn-group-sm" role="group">
                                             <!-- Ver detalle -->
                                             <a href="{{ url_for('fabricacion.detalle', of_id=order.id) }}" 
-                                               class="btn btn-outline-info btn-sm" title="Ver detalle">
-                                                <i class="fas fa-eye"></i>
+                                               class="btn btn-outline-primary" title="Ver detalles">
+                                                <i data-feather="eye"></i>
                                             </a>
                                             
                                             <!-- Editar orden -->
                                             {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
                                             <a href="{{ url_for('fabricacion.editar', of_id=order.id) }}" 
-                                               class="btn btn-outline-primary btn-sm" title="Editar">
-                                                <i class="fas fa-edit"></i>
+                                               class="btn btn-outline-secondary" title="Editar">
+                                                <i data-feather="edit"></i>
                                             </a>
                                             {% endif %}
                                             
                                             <!-- Cambiar estado -->
                                             {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
                                             <a href="{{ url_for('areas.cambiar_estado_form', orden_id=order.id) }}" 
-                                               class="btn btn-outline-warning btn-sm" title="Cambiar estado">
-                                                <i class="fas fa-cog"></i>
+                                               class="btn btn-outline-warning" title="Cambiar estado">
+                                                <i data-feather="settings"></i>
                                             </a>
                                             {% endif %}
                                             
                                             <!-- Historial -->
                                             <a href="{{ url_for('areas.orden_history', orden_id=order.id) }}" 
-                                               class="btn btn-outline-secondary btn-sm" title="Historial">
-                                                <i class="fas fa-history"></i>
+                                               class="btn btn-outline-info" title="Historial">
+                                                <i data-feather="clock"></i>
                                             </a>
                                         </div>
                                     </td>
@@ -374,5 +374,10 @@ document.addEventListener('keydown', function(e) {
 });
 
 console.log('Area Detail Dashboard initialized for TV display');
+
+// Initialize Feather Icons
+if (typeof feather !== 'undefined') {
+    feather.replace();
+}
 </script>
 {% endblock %}
