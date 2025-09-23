@@ -242,19 +242,18 @@
                                                                         {% endif %}
                                                                     </td>
                                                                     {% endif %}
-                                                                    <td class="text-center">
-                                                                        <div class="btn-group btn-group-sm">
-                                                                            <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" class="btn btn-outline-primary btn-sm" title="Ver contrato">
-                                                                                <i class="bi bi-eye"></i>
+                                                                    <td>
+                                                                        <div class="btn-group btn-group-sm" role="group" aria-label="Acciones del contrato">
+                                                                            <a href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}" 
+                                                                               class="btn btn-success btn-sm" title="Gestionar estados de pago">
+                                                                                <i class="bi bi-cash-stack"></i>
+                                                                                <span class="d-none d-lg-inline ms-1">Estados</span>
                                                                             </a>
-                                                                            <a href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}" class="btn btn-outline-info btn-sm" title="Estados de pago">
-                                                                                <i class="bi bi-credit-card"></i>
+                                                                            <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                                                               class="btn btn-outline-success btn-sm" title="Ver contrato completo">
+                                                                                <i class="bi bi-file-text"></i>
+                                                                                <span class="d-none d-lg-inline ms-1">Contrato</span>
                                                                             </a>
-                                                                            {% if current_user.rol.value in ['admin', 'general'] %}
-                                                                            <a href="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}" class="btn btn-outline-success btn-sm" title="Nuevo estado">
-                                                                                <i class="bi bi-plus"></i>
-                                                                            </a>
-                                                                            {% endif %}
                                                                         </div>
                                                                     </td>
                                                                 </tr>
@@ -287,4 +286,103 @@
         </a>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Mejoras para botones de acción */
+.btn-group-sm .btn {
+    font-size: 0.775rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.btn-group-sm .btn:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.btn-group-sm .btn:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.btn-group-sm .btn:not(:first-child):not(:last-child) {
+    border-radius: 0;
+}
+
+/* Hover effects for action buttons */
+.btn-group-sm .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+/* Responsive button text */
+@media (max-width: 768px) {
+    .btn-group-sm .btn span {
+        display: none !important;
+    }
+
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.4rem;
+    }
+}
+
+@media (min-width: 992px) {
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.75rem;
+    }
+}
+
+/* Table action column width */
+.table td:last-child {
+    min-width: 120px;
+    white-space: nowrap;
+}
+
+/* Icon spacing */
+.btn i + span {
+    margin-left: 0.25rem;
+}
+</style>
+
+<script>
+function toggleCliente(clienteIndex) {
+    const clienteRow = document.getElementById(`cliente-${clienteIndex}`);
+    const icon = document.querySelector(`[onclick="toggleCliente(${clienteIndex})"] i`);
+
+    if (clienteRow.style.display === 'none') {
+        clienteRow.style.display = '';
+        icon.className = 'bi bi-chevron-down';
+    } else {
+        clienteRow.style.display = 'none';
+        icon.className = 'bi bi-chevron-right';
+    }
+}
+
+function toggleProyecto(proyectoId) {
+    const proyectoRow = document.getElementById(`proyecto-${proyectoId}`);
+    const icon = document.querySelector(`[onclick="toggleProyecto(${proyectoId})"] i`);
+
+    if (proyectoRow.style.display === 'none') {
+        proyectoRow.style.display = '';
+        icon.className = 'bi bi-chevron-down';
+    } else {
+        proyectoRow.style.display = 'none';
+        icon.className = 'bi bi-chevron-right';
+    }
+}
+
+// Agregar tooltips para mejor UX
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips de Bootstrap si están disponibles
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+});
+</script>
 {% endblock %}
