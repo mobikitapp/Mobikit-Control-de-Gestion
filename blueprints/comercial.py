@@ -546,7 +546,10 @@ def api_revenue_calcular_proyectos(anio, mes):
                    .first())
 
         if not objetivo:
-            objetivo = ObjetivoMensual(año=anio, mes=mes)
+            objetivo = ObjetivoMensual()
+            objetivo.año = anio
+            objetivo.mes = mes
+            objetivo.created_by = current_user.id
             db.session.add(objetivo)
 
         objetivo.presupuesto_facturacion = Decimal(real_presupuesto) if real_presupuesto else None
