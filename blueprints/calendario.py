@@ -370,6 +370,43 @@ def dashboard():
         return redirect(url_for('index'))
 
 
+@calendario_bp.route('/lista-eventos')
+@login_required
+def lista_eventos():
+    """Lista completa de eventos"""
+    try:
+        service = CalendarioService()
+        
+        # Get filter parameters
+        estado = request.args.get('estado')
+        tipo = request.args.get('tipo')
+        fecha_desde = request.args.get('fecha_desde')
+        fecha_hasta = request.args.get('fecha_hasta')
+        
+        # Get all events with filters
+        eventos = service.get_eventos_filtrados(
+            user_id=current_user.id,
+            user_rol=current_user.rol,
+            estado=estado,
+            tipo=tipo,
+            fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta
+        )
+        
+        return render_template('calendario/lista_eventos.html', 
+                             eventos=eventos,
+                             filtros={
+                                 'estado': estado,
+                                 'tipo': tipo,
+                                 'fecha_desde': fecha_desde,
+                                 'fecha_hasta': fecha_hasta
+                             })
+        
+    except Exception as e:
+        flash(f'Error al cargar lista de eventos: {str(e)}', 'error')
+        return redirect(url_for('calendario.vista_mensual'))
+
+
 @calendario_bp.route('/contratos-con-entregas')
 @login_required
 def contratos_con_entregas():
