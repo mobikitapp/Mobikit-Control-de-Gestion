@@ -1,0 +1,472 @@
+{% extends "base.html" %}
+{% set title = "Calendario Diario - " + nombre_dia + " " + day|string + "/" + month|string + "/" + year|string %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">
+                                <i class="fas fa-calendar-day text-primary"></i>
+                                {{ nombre_dia }} {{ day }} de {{ nombre_mes }} {{ year }}
+                                {% if es_hoy %}
+                                <span class="badge bg-success ms-2">HOY</span>
+                                {% endif %}
+                            </h4>
+                            <p class="mb-0 text-muted">
+                                {{ total_actividades }} actividades programadas
+                                {% if actividades_pendientes > 0 %}
+                                | {{ actividades_pendientes }} pendientes
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <a href="{{ url_for('calendario.vista_diaria', year=dia_anterior.year, month=dia_anterior.month, day=dia_anterior.day) }}" 
+                               class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                            <span class="mx-3">{{ day }}/{{ month }}/{{ year }}</span>
+                            <a href="{{ url_for('calendario.vista_diaria', year=dia_siguiente.year, month=dia_siguiente.month, day=dia_siguiente.day) }}" 
+                               class="btn btn-outline-secondary ms-2">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="btn-group mb-3" role="group" aria-label="Vistas del calendario">
+                        <a href="{{ url_for('calendario.vista_mensual', year=year, month=month) }}" 
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-calendar-alt"></i> Mensual
+                        </a>
+                        <a href="{{ url_for('calendario.vista_semanal', year=year, month=month, day=day) }}" 
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-calendar-week"></i> Semanal
+                        </a>
+                        <a href="{{ url_for('calendario.vista_diaria', year=year, month=month, day=day) }}" 
+                           class="btn btn-primary">
+                            <i class="fas fa-calendar-day"></i> Diaria
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-chart-bar"></i> Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h4>{{ total_despachos }}</h4>
+                    <small><i class="fas fa-truck"></i> Despachos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ total_eventos }}</h4>
+                    <small><i class="fas fa-calendar-check"></i> Eventos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4>{{ total_hitos }}</h4>
+                    <small><i class="fas fa-flag-checkered"></i> Hitos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ ordenes_fabricacion|length }}</h4>
+                    <small><i class="fas fa-cogs"></i> Órdenes de Fab.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Left Column: Despachos -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-truck text-warning"></i>
+                        Despachos del Día ({{ total_despachos }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if despachos %}
+                    {% for despacho in despachos %}
+                    <div class="card border-{{ despacho.color }} mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title text-{{ despacho.color }}">
+                                        <i class="fas fa-truck"></i> {{ despacho.numero_despacho }}
+                                    </h6>
+                                    <div class="text-muted mb-2">
+                                        <strong>Cliente:</strong> {{ despacho.cliente }}<br>
+                                        <strong>Proyecto:</strong> {{ despacho.proyecto }}<br>
+                                        <strong>Destino:</strong> {{ despacho.destino }}
+                                    </div>
+                                    {% if despacho.contacto_destino %}
+                                    <div class="text-muted small">
+                                        <i class="fas fa-user"></i> {{ despacho.contacto_destino }}
+                                        {% if despacho.telefono_contacto %}
+                                        | <i class="fas fa-phone"></i> {{ despacho.telefono_contacto }}
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    {% if despacho.responsable_nombre %}
+                                    <div class="text-muted small">
+                                        <i class="fas fa-user-tie"></i> {{ despacho.responsable_nombre }}
+                                    </div>
+                                    {% endif %}
+                                    {% if despacho.fecha_envio %}
+                                    <div class="text-success small">
+                                        <i class="fas fa-shipping-fast"></i> Enviado: {{ despacho.fecha_envio }}
+                                    </div>
+                                    {% endif %}
+                                    {% if despacho.fecha_entrega %}
+                                    <div class="text-success small">
+                                        <i class="fas fa-check-circle"></i> Entregado: {{ despacho.fecha_entrega }}
+                                    </div>
+                                    {% endif %}
+                                    <div class="mt-2">
+                                        <span class="badge bg-{{ despacho.color }}">{{ despacho.estado }}</span>
+                                        {% if despacho.num_ordenes > 0 %}
+                                        <span class="badge bg-secondary">{{ despacho.num_ordenes }} OF asociadas</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="ms-3">
+                                    <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% if despacho.observaciones %}
+                            <div class="mt-2 p-2 bg-light rounded">
+                                <small class="text-muted">
+                                    <i class="fas fa-comment"></i> {{ despacho.observaciones }}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-truck fa-3x mb-3"></i>
+                        <h6>No hay despachos programados</h6>
+                        <p class="mb-0">No tienes despachos programados para este día</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Events and Milestones -->
+        <div class="col-md-6">
+            <!-- Events Section -->
+            {% if eventos %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-check text-info"></i>
+                        Eventos del Día ({{ total_eventos }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for evento in eventos %}
+                    <div class="card border-{{ evento.color }} mb-2">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-{{ evento.color }}">
+                                        {% if evento.hora %}{{ evento.hora }} - {% endif %}{{ evento.titulo }}
+                                    </h6>
+                                    {% if evento.proyecto %}
+                                    <div class="text-muted small">
+                                        <i class="fas fa-project-diagram"></i> {{ evento.proyecto }}
+                                    </div>
+                                    {% endif %}
+                                    {% if evento.descripcion %}
+                                    <div class="text-muted small mt-1">{{ evento.descripcion }}</div>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-{{ evento.color }}">{{ evento.estado }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Hitos Section -->
+            {% if hitos %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-flag-checkered text-success"></i>
+                        Hitos del Día ({{ total_hitos }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for hito in hitos %}
+                    <div class="card border-{{ hito.color }} mb-2">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-{{ hito.color }}">{{ hito.titulo }}</h6>
+                                    <div class="text-muted small">
+                                        <i class="fas fa-file-contract"></i> {{ hito.contrato }}<br>
+                                        <i class="fas fa-project-diagram"></i> {{ hito.proyecto }}
+                                    </div>
+                                    {% if hito.monto_total %}
+                                    <div class="text-success small">
+                                        <i class="fas fa-dollar-sign"></i> {{ "{:,.0f}".format(hito.monto_total) }} CLP
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-{{ hito.color }}">{{ hito.estado }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Órdenes de Fabricación Section -->
+    {% if ordenes_fabricacion %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs text-primary"></i>
+                        Órdenes de Fabricación Asociadas ({{ ordenes_fabricacion|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Código OF</th>
+                                    <th>Descripción</th>
+                                    <th>Despacho</th>
+                                    <th>Cantidad</th>
+                                    <th>Progreso</th>
+                                    <th>Estado</th>
+                                    <th>Área Actual</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for of in ordenes_fabricacion %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ of.codigo }}</strong>
+                                    </td>
+                                    <td>{{ of.descripcion }}</td>
+                                    <td>
+                                        <a href="{{ url_for('despachos.detalle', despacho_id=of.despacho_id) }}"
+                                           class="text-decoration-none">
+                                            {{ of.despacho_numero }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <div class="small">
+                                            <strong>{{ of.cantidad_despachada }}</strong> / {{ of.cantidad_total }}
+                                            <div class="progress mt-1" style="height: 5px;">
+                                                <div class="progress-bar" role="progressbar" 
+                                                     style="width: {{ of.porcentaje_despachado }}%">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if of.porcentaje_despachado == 100 %}bg-success
+                                            {% elif of.porcentaje_despachado > 50 %}bg-info
+                                            {% else %}bg-warning text-dark{% endif %}">
+                                            {{ "%.1f"|format(of.porcentaje_despachado) }}%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ of.estado_progreso }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ of.estado_area }}</span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('fabricacion.detalle', orden_id=of.id) }}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Empty State -->
+    {% if not despachos and not eventos and not hitos %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                    <h5 class="text-muted">No hay actividades programadas</h5>
+                    <p class="text-muted">No tienes despachos, eventos o hitos programados para este día.</p>
+                    <a href="{{ url_for('despachos.nuevo') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-plus"></i> Crear Despacho
+                    </a>
+                    <a href="{{ url_for('calendario.nuevo_evento') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus"></i> Crear Evento
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Legend -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="mb-3"><i class="fas fa-info-circle"></i> Leyenda de Estados</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="text-warning">Despachos:</h6>
+                            <span class="badge bg-warning text-dark me-2">Programado</span>
+                            <span class="badge bg-info me-2">En Tránsito</span>
+                            <span class="badge bg-success me-2">Entregado</span>
+                            <span class="badge bg-danger">Observado</span>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-info">Eventos:</h6>
+                            <span class="badge bg-primary me-2">Pendiente</span>
+                            <span class="badge bg-success me-2">Completado</span>
+                            <span class="badge bg-secondary">Cancelado</span>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-success">Hitos:</h6>
+                            <span class="badge bg-warning text-dark me-2">Pendiente</span>
+                            <span class="badge bg-success me-2">Completado</span>
+                            <span class="badge bg-danger">Atrasado</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.badge {
+    font-size: 0.75em;
+    font-weight: 600;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+.border-primary { border-color: #007bff !important; }
+.border-success { border-color: #28a745 !important; }
+.border-warning { border-color: #ffc107 !important; }
+.border-danger { border-color: #dc3545 !important; }
+.border-info { border-color: #17a2b8 !important; }
+.border-secondary { border-color: #6c757d !important; }
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,.075);
+}
+
+.btn-group .btn {
+    border-radius: 0.375rem;
+}
+
+.btn-group .btn:not(:last-child) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.btn-group .btn:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Auto-refresh every 5 minutes
+    setTimeout(function() {
+        window.location.reload();
+    }, 300000);
+    
+    // Add click handlers for cards to show more details
+    document.querySelectorAll('.card-body').forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'A' && e.target.tagName !== 'BUTTON') {
+                // Could expand card or show modal with more details
+            }
+        });
+    });
+});
+
+// Function to toggle card expansion (optional)
+function toggleCardDetails(cardId) {
+    const card = document.getElementById(cardId);
+    const details = card.querySelector('.card-details');
+    if (details) {
+        details.classList.toggle('d-none');
+    }
+}
+</script>
+
+{% endblock %}

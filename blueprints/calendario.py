@@ -123,6 +123,44 @@ def vista_semanal():
         return redirect(url_for('calendario.vista_mensual'))
 
 
+@calendario_bp.route('/vista-diaria')
+@login_required
+def vista_diaria():
+    """Vista diaria del calendario enfocada en despachos"""
+    try:
+        service = CalendarioService()
+        
+        # Get date parameters from query params
+        year = request.args.get('year', type=int, default=datetime.now().year)
+        month = request.args.get('month', type=int, default=datetime.now().month)
+        day = request.args.get('day', type=int, default=datetime.now().day)
+        
+        # Validate parameters
+        if month < 1 or month > 12:
+            month = datetime.now().month
+        if year < 2020 or year > 2030:
+            year = datetime.now().year
+        
+        # Get valid day range for the month
+        import calendar as cal
+        last_day_of_month = cal.monthrange(year, month)[1]
+        if day < 1 or day > last_day_of_month:
+            day = min(datetime.now().day, last_day_of_month)
+        
+        # Get daily calendar data
+        data = service.get_calendario_diario(year, month, day, current_user.id, current_user.rol)
+        
+        # Add current datetime for template
+        now = datetime.now()
+        data['now'] = now
+        
+        return render_template('calendario/vista_diaria.html', **data)
+        
+    except Exception as e:
+        flash(f'Error al cargar vista diaria: {str(e)}', 'error')
+        return redirect(url_for('calendario.vista_mensual'))
+
+
 @calendario_bp.route('/evento/<evento_id>')
 @login_required
 def detalle_evento(evento_id):

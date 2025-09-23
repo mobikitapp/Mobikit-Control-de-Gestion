@@ -189,6 +189,129 @@ class CalendarioService:
             'hitos_pendientes': len([h for h in hitos_semana if h.estado == EstadoHitoEntrega.PENDIENTE])
         }
 
+    def get_calendario_diario(self, year: int, month: int, day: int, usuario_id: str, rol_usuario: RolUsuario) -> Dict[str, Any]:
+        """Get daily calendar data with events focused on dispatches"""
+        
+        # Create date for the selected day
+        fecha_dia = date(year, month, day)
+        
+        # Get events for the day
+        eventos_dia = self._get_eventos_rango_fechas(fecha_dia, fecha_dia, usuario_id, rol_usuario)
+        
+        # Get despachos for the day
+        despachos_dia = self._get_despachos_rango_fechas(fecha_dia, fecha_dia, usuario_id, rol_usuario)
+        
+        # Get hitos for the day
+        hitos_dia = self._get_hitos_rango_fechas(fecha_dia, fecha_dia, usuario_id, rol_usuario)
+        
+        # Get ordenes de fabricacion linked to despachos for the day
+        ordenes_fabricacion = []
+        for despacho in despachos_dia:
+            if hasattr(despacho, 'ordenes_fabricacion_detalle') and despacho.ordenes_fabricacion_detalle:
+                detalle_list = list(despacho.ordenes_fabricacion_detalle) if hasattr(despacho.ordenes_fabricacion_detalle, '__iter__') else despacho.ordenes_fabricacion_detalle
+                for detalle in detalle_list:
+                    ordenes_fabricacion.append({
+                    'id': detalle.orden_fabricacion.id,
+                    'codigo': detalle.orden_fabricacion.codigo,
+                    'descripcion': detalle.orden_fabricacion.descripcion or 'Sin descripción',
+                    'cantidad_total': detalle.cantidad_total,
+                    'cantidad_despachada': detalle.cantidad_despachada,
+                    'porcentaje_despachado': detalle.porcentaje_despachado,
+                    'despacho_id': despacho.id,
+                    'despacho_numero': despacho.numero_despacho,
+                    'tipo_despacho': detalle.tipo_despacho.value,
+                    'estado_area': detalle.orden_fabricacion.area_actual.nombre if detalle.orden_fabricacion.area_actual else 'Sin área',
+                    'estado_progreso': detalle.orden_fabricacion.estado_actual.nombre if detalle.orden_fabricacion.estado_actual else 'Sin estado'
+                })
+        
+        # Format events with enhanced details
+        eventos_formateados = []
+        for evento in eventos_dia:
+            eventos_formateados.append({
+                'id': evento.id,
+                'titulo': evento.titulo,
+                'descripcion': evento.descripcion,
+                'tipo': evento.tipo_evento.value,
+                'estado': evento.estado.value,
+                'prioridad': evento.prioridad.value,
+                'hora': evento.hora_evento.strftime('%H:%M') if evento.hora_evento else None,
+                'proyecto': evento.proyecto.nombre if hasattr(evento, 'proyecto') and evento.proyecto else None,
+                'proyecto_id': evento.proyecto_id,
+                'color': self._get_color_evento(evento.tipo_evento, evento.estado),
+                'notas': evento.notas
+            })
+        
+        # Format despachos with enhanced details
+        despachos_formateados = []
+        for despacho in despachos_dia:
+            despachos_formateados.append({
+                'id': despacho.id,
+                'numero_despacho': despacho.numero_despacho,
+                'estado': despacho.estado.value,
+                'cliente': despacho.proyecto.cliente.nombre if hasattr(despacho, 'proyecto') and despacho.proyecto and hasattr(despacho.proyecto, 'cliente') and despacho.proyecto.cliente else 'Sin cliente',
+                'proyecto': despacho.proyecto.nombre if hasattr(despacho, 'proyecto') and despacho.proyecto else 'Sin proyecto',
+                'destino': despacho.destino,
+                'contacto_destino': despacho.contacto_destino,
+                'telefono_contacto': despacho.telefono_contacto,
+                'observaciones': despacho.observaciones,
+                'responsable_nombre': despacho.responsable_nombre,
+                'fecha_envio': despacho.fecha_envio.strftime('%H:%M') if despacho.fecha_envio else None,
+                'fecha_entrega': despacho.fecha_entrega.strftime('%H:%M') if despacho.fecha_entrega else None,
+                'color': self._get_color_despacho(despacho.estado),
+                'num_ordenes': len(list(despacho.ordenes_fabricacion_detalle)) if hasattr(despacho, 'ordenes_fabricacion_detalle') and despacho.ordenes_fabricacion_detalle else 0
+            })
+        
+        # Format hitos with enhanced details
+        hitos_formateados = []
+        for hito in hitos_dia:
+            hitos_formateados.append({
+                'id': hito.id,
+                'titulo': hito.titulo,
+                'descripcion': hito.descripcion,
+                'estado': hito.estado.value,
+                'plan_entrega': hito.plan_entrega.nombre if hasattr(hito, 'plan_entrega') and hito.plan_entrega else 'Sin plan',
+                'contrato': hito.plan_entrega.contrato.numero_oc if hasattr(hito, 'plan_entrega') and hito.plan_entrega and hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato else 'Sin contrato',
+                'monto_total': hito.plan_entrega.contrato.monto_total if hasattr(hito, 'plan_entrega') and hito.plan_entrega and hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato else None,
+                'proyecto': hito.plan_entrega.contrato.proyecto.nombre if hasattr(hito, 'plan_entrega') and hito.plan_entrega and hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato and hasattr(hito.plan_entrega.contrato, 'proyecto') and hito.plan_entrega.contrato.proyecto else 'Sin proyecto',
+                'color': self._get_color_hito(hito.estado)
+            })
+        
+        # Get navigation dates
+        dia_anterior = fecha_dia - timedelta(days=1)
+        dia_siguiente = fecha_dia + timedelta(days=1)
+        
+        # Calculate statistics
+        total_actividades = len(eventos_dia) + len(despachos_dia) + len(hitos_dia)
+        actividades_pendientes = (
+            len([e for e in eventos_dia if e.estado == EstadoEvento.PENDIENTE]) +
+            len([d for d in despachos_dia if d.estado.name == 'PROGRAMADO']) +
+            len([h for h in hitos_dia if h.estado == EstadoHitoEntrega.PENDIENTE])
+        )
+        
+        return {
+            'year': year,
+            'month': month,
+            'day': day,
+            'fecha_dia': fecha_dia,
+            'nombre_dia': fecha_dia.strftime('%A'),
+            'nombre_mes': fecha_dia.strftime('%B'),
+            'es_hoy': fecha_dia == date.today(),
+            'dia_anterior': dia_anterior,
+            'dia_siguiente': dia_siguiente,
+            'eventos': eventos_formateados,
+            'despachos': despachos_formateados,
+            'hitos': hitos_formateados,
+            'ordenes_fabricacion': ordenes_fabricacion,
+            'total_eventos': len(eventos_dia),
+            'total_despachos': len(despachos_dia),
+            'total_hitos': len(hitos_dia),
+            'total_actividades': total_actividades,
+            'actividades_pendientes': actividades_pendientes,
+            'eventos_pendientes': len([e for e in eventos_dia if e.estado == EstadoEvento.PENDIENTE]),
+            'despachos_programados': len([d for d in despachos_dia if d.estado.name == 'PROGRAMADO']),
+            'hitos_pendientes': len([h for h in hitos_dia if h.estado == EstadoHitoEntrega.PENDIENTE])
+        }
+
     def get_eventos_lista(self, fecha_inicio=None, fecha_fin=None, estado=None, tipo_evento=None, 
                          usuario_id=None, rol_usuario=None) -> Dict[str, Any]:
         """Get filtered list of events including hitos"""

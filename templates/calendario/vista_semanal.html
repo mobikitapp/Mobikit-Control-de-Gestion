@@ -44,6 +44,10 @@
                            class="btn btn-primary">
                             <i class="fas fa-calendar-week"></i> Semanal
                         </a>
+                        <a href="{{ url_for('calendario.vista_diaria', year=year, month=month, day=1) }}" 
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-calendar-day"></i> Diaria
+                        </a>
                     </div>
                 </div>
             </div>
