@@ -108,8 +108,12 @@
                                         <strong>$ {{ "{:,.0f}".format(cliente.total_contratos) }}</strong>
                                     </div>
                                     <div class="text-center">
-                                        <small class="text-warning d-block">Pendiente</small>
-                                        <strong class="text-warning">$ {{ "{:,.0f}".format(cliente.total_pendiente) }}</strong>
+                                        <small class="text-warning d-block">Pendiente Facturar</small>
+                                        <strong class="text-warning">$ {{ "{:,.0f}".format(cliente.total_pendiente_facturar) }}</strong>
+                                    </div>
+                                    <div class="text-center">
+                                        <small class="text-primary d-block">Pendiente Cobrar</small>
+                                        <strong class="text-primary">$ {{ "{:,.0f}".format(cliente.total_pendiente_cobrar) }}</strong>
                                     </div>
                                     <div class="text-center">
                                         <small class="text-info d-block">Facturado</small>
@@ -156,11 +160,11 @@
                                                             </thead>
                                                             <tbody>
                                                                 {% for proyecto in cliente.proyectos %}
-                                                                {% for contrato in proyecto.contratos %}
+                                                                {% for contrato in proyecto.proyecto.contratos %}
                                                                 <tr>
                                                                     <td>
-                                                                        <a href="{{ url_for('clientes.detalle', cliente_id=cliente.cliente.id) }}" class="text-decoration-none">
-                                                                            {{ cliente.cliente.nombre }}
+                                                                        <a href="{{ url_for('clientes.detalle', cliente_id=proyecto.proyecto.cliente.id) }}" class="text-decoration-none">
+                                                                            {{ proyecto.proyecto.cliente.nombre }}
                                                                         </a>
                                                                     </td>
                                                                     <td>

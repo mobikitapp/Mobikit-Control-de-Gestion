@@ -143,15 +143,17 @@ def dashboard():
                     'total_contratos': 0,
                     'total_facturado': 0,
                     'total_pagado': 0,
-                    'total_pendiente': 0,
+                    'total_pendiente_facturar': 0,
+                    'total_pendiente_cobrar': 0,
                     'total_ganancia_perdida_inflacion': 0
                 }
 
             proyectos_por_cliente[cliente_nombre]['proyectos'].append(proyecto)
-            proyectos_por_cliente[cliente_nombre]['total_contratos'] += proyecto['total_contratos']  # Corregido: usar monto total, no cantidad
+            proyectos_por_cliente[cliente_nombre]['total_contratos'] += proyecto['total_contratos']
             proyectos_por_cliente[cliente_nombre]['total_facturado'] += proyecto['total_facturado']
             proyectos_por_cliente[cliente_nombre]['total_pagado'] += proyecto['total_pagado']
-            proyectos_por_cliente[cliente_nombre]['total_pendiente'] += proyecto['total_pendiente']
+            proyectos_por_cliente[cliente_nombre]['total_pendiente_facturar'] += proyecto['total_pendiente_facturar']
+            proyectos_por_cliente[cliente_nombre]['total_pendiente_cobrar'] += proyecto['total_pendiente_cobrar']
             proyectos_por_cliente[cliente_nombre]['total_ganancia_perdida_inflacion'] += proyecto['ganancia_perdida_inflacion']
 
         # Convertir a lista ordenada alfabéticamente por cliente

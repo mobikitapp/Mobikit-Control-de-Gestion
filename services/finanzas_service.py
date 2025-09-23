@@ -353,7 +353,7 @@ class FinanzasService:
             solo_vigentes: Si True, solo incluye contratos VIGENTES (default: True)
         """
         try:
-            # Consulta mejorada con JOIN para obtener cliente
+            # Consulta mejorada con JOIN explícito para evitar ambigüedad
             query = db.session.query(
                 Contrato.id,
                 Contrato.numero_oc,
@@ -364,7 +364,11 @@ class FinanzasService:
                 Proyecto.cliente_id,
                 Proyecto.estado_comercial,
                 Cliente.nombre.label('cliente_nombre')
-            ).join(Proyecto).join(Cliente)
+            ).select_from(Contrato).join(
+                Proyecto, Contrato.proyecto_id == Proyecto.id
+            ).join(
+                Cliente, Proyecto.cliente_id == Cliente.id
+            )
 
             # Filtrar solo contratos vigentes por defecto
             if solo_vigentes:
