@@ -16,12 +16,6 @@
                     <p class="text-muted mb-0">Todos los eventos del calendario</p>
                 </div>
                 <div>
-                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'ventas'] %}
-                    <a href="{{ url_for('calendario.nuevo_evento') }}" class="btn btn-primary me-2">
-                        <i data-feather="plus" class="me-1"></i>
-                        Nuevo Evento
-                    </a>
-                    {% endif %}
                     <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-secondary">
                         <i data-feather="calendar" class="me-1"></i>
                         Vista Mensual
@@ -165,12 +159,6 @@
                         <i data-feather="calendar" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
                         <h5 class="text-muted">No hay eventos</h5>
                         <p class="text-muted">No se encontraron eventos con los filtros aplicados.</p>
-                        {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'ventas'] %}
-                        <a href="{{ url_for('calendario.nuevo_evento') }}" class="btn btn-primary">
-                            <i data-feather="plus" class="me-1"></i>
-                            Crear Primer Evento
-                        </a>
-                        {% endif %}
                     </div>
                     {% endif %}
                 </div>

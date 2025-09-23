@@ -189,130 +189,42 @@ def detalle_evento(evento_id):
         return redirect(url_for('calendario.vista_mensual'))
 
 
-@calendario_bp.route('/nuevo-evento')
-@login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
-def nuevo_evento():
-    """Formulario para crear nuevo evento de entrega"""
-    try:
-        service = CalendarioService()
-        
-        # Get projects available for events
-        proyectos = service.get_proyectos_disponibles(current_user.id, current_user.rol)
-        
-        return render_template('calendario/evento_form.html', 
-                             proyectos=proyectos, evento=None, accion='crear')
-        
-    except Exception as e:
-        flash(f'Error al cargar formulario: {str(e)}', 'error')
-        return redirect(url_for('calendario.vista_mensual'))
+# Rutas para crear eventos deshabilitadas
+# @calendario_bp.route('/nuevo-evento')
+# @login_required
+# @role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
+# def nuevo_evento():
+#     """Formulario para crear nuevo evento de entrega"""
+#     flash('La creación de eventos está deshabilitada', 'warning')
+#     return redirect(url_for('calendario.vista_mensual'))
 
 
-@calendario_bp.route('/nuevo-evento', methods=['POST'])
-@login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
-def crear_evento():
-    """Crear nuevo evento de entrega"""
-    try:
-        service = CalendarioService()
-        
-        # Get form data
-        datos_evento = {
-            'proyecto_id': request.form.get('proyecto_id'),
-            'titulo': request.form.get('titulo', '').strip(),
-            'descripcion': request.form.get('descripcion', '').strip(),
-            'fecha_evento': request.form.get('fecha_evento'),
-            'hora_evento': request.form.get('hora_evento'),
-            'tipo_evento': request.form.get('tipo_evento'),
-            'prioridad': request.form.get('prioridad'),
-            'recordatorio_dias': request.form.get('recordatorio_dias', type=int),
-            'notas': request.form.get('notas', '').strip()
-        }
-        
-        # Validate required fields
-        if not all([datos_evento['titulo'], datos_evento['fecha_evento'], datos_evento['tipo_evento']]):
-            flash('Título, fecha y tipo de evento son obligatorios', 'error')
-            return redirect(url_for('calendario.nuevo_evento'))
-        
-        # Create event
-        success, mensaje = service.crear_evento(datos_evento, current_user.id)
-        
-        if success:
-            flash(f'Evento "{datos_evento["titulo"]}" creado exitosamente', 'success')
-            return redirect(url_for('calendario.vista_mensual'))
-        else:
-            flash(f'Error al crear evento: {mensaje}', 'error')
-            return redirect(url_for('calendario.nuevo_evento'))
-        
-    except Exception as e:
-        flash(f'Error: {str(e)}', 'error')
-        return redirect(url_for('calendario.vista_mensual'))
+# @calendario_bp.route('/nuevo-evento', methods=['POST'])
+# @login_required
+# @role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
+# def crear_evento():
+#     """Crear nuevo evento de entrega"""
+#     flash('La creación de eventos está deshabilitada', 'warning')
+#     return redirect(url_for('calendario.vista_mensual'))
 
 
-@calendario_bp.route('/evento/<evento_id>/editar')
-@login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
-def editar_evento(evento_id):
-    """Formulario para editar evento existente"""
-    try:
-        service = CalendarioService()
-        
-        # Get event data
-        evento = service.get_evento_by_id(evento_id, current_user.id, current_user.rol)
-        if not evento:
-            flash('Evento no encontrado', 'error')
-            return redirect(url_for('calendario.vista_mensual'))
-        
-        # Get projects available
-        proyectos = service.get_proyectos_disponibles(current_user.id, current_user.rol)
-        
-        return render_template('calendario/evento_form.html',
-                             proyectos=proyectos, evento=evento, accion='editar')
-        
-    except Exception as e:
-        flash(f'Error al cargar evento: {str(e)}', 'error')
-        return redirect(url_for('calendario.vista_mensual'))
+# Rutas para editar eventos deshabilitadas
+# @calendario_bp.route('/evento/<evento_id>/editar')
+# @login_required
+# @role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
+# def editar_evento(evento_id):
+#     """Formulario para editar evento existente"""
+#     flash('La edición de eventos está deshabilitada', 'warning')
+#     return redirect(url_for('calendario.detalle_evento', evento_id=evento_id))
 
 
-@calendario_bp.route('/evento/<evento_id>/editar', methods=['POST'])
-@login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
-def actualizar_evento(evento_id):
-    """Actualizar evento existente"""
-    try:
-        service = CalendarioService()
-        
-        # Get form data
-        datos_evento = {
-            'proyecto_id': request.form.get('proyecto_id'),
-            'titulo': request.form.get('titulo', '').strip(),
-            'descripcion': request.form.get('descripcion', '').strip(),
-            'fecha_evento': request.form.get('fecha_evento'),
-            'hora_evento': request.form.get('hora_evento'),
-            'tipo_evento': request.form.get('tipo_evento'),
-            'prioridad': request.form.get('prioridad'),
-            'recordatorio_dias': request.form.get('recordatorio_dias', type=int),
-            'notas': request.form.get('notas', '').strip()
-        }
-        
-        # Validate required fields
-        if not all([datos_evento['titulo'], datos_evento['fecha_evento'], datos_evento['tipo_evento']]):
-            flash('Título, fecha y tipo de evento son obligatorios', 'error')
-            return redirect(url_for('calendario.editar_evento', evento_id=evento_id))
-        
-        # Update event
-        success, mensaje = service.actualizar_evento(evento_id, datos_evento, current_user.id)
-        
-        if success:
-            flash(f'Evento actualizado exitosamente', 'success')
-            return redirect(url_for('calendario.detalle_evento', evento_id=evento_id))
-        else:
-            flash(f'Error al actualizar evento: {mensaje}', 'error')
-            return redirect(url_for('calendario.editar_evento', evento_id=evento_id))
-        
-    except Exception as e:
-        flash(f'Error: {str(e)}', 'error')
-        return redirect(url_for('calendario.vista_mensual'))
+# @calendario_bp.route('/evento/<evento_id>/editar', methods=['POST'])
+# @login_required
+# @role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS])
+# def actualizar_evento(evento_id):
+#     """Actualizar evento existente"""
+#     flash('La edición de eventos está deshabilitada', 'warning')
+#     return redirect(url_for('calendario.detalle_evento', evento_id=evento_id))
 
 
 @calendario_bp.route('/evento/<evento_id>/completar', methods=['POST'])
