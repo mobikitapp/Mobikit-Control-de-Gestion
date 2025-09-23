@@ -62,46 +62,52 @@ def dashboard():
         proyecto_ids = [p.id for p in proyectos]
         agregaciones_contratos = finanzas_service.get_contratos_aggregates(proyecto_ids)
 
-        # Agrupar agregaciones por proyecto
+        # Agrupar agregaciones por proyecto usando los datos corregidos
         agregaciones_por_proyecto = {}
         for agg in agregaciones_contratos:
-            proyecto_id = None
-            # Encontrar el proyecto_id del contrato
+            # Buscar el proyecto correspondiente al contrato
             for proyecto in proyectos:
                 for contrato in proyecto.contratos:
                     if contrato.id == agg['contrato_id']:
                         proyecto_id = proyecto.id
+                        if proyecto_id not in agregaciones_por_proyecto:
+                            agregaciones_por_proyecto[proyecto_id] = []
+                        agregaciones_por_proyecto[proyecto_id].append(agg)
                         break
-                if proyecto_id:
-                    break
 
-            if proyecto_id:
-                if proyecto_id not in agregaciones_por_proyecto:
-                    agregaciones_por_proyecto[proyecto_id] = []
-                agregaciones_por_proyecto[proyecto_id].append(agg)
-
-        # Calcular resumen por proyecto con efectos de inflación UF
+        # Calcular resumen por proyecto con datos corregidos
         resumen_proyectos = []
         for proyecto in proyectos:
-            # Usar agregaciones precalculadas en lugar de loops manuales
+            # Usar agregaciones precalculadas
             agregaciones_proyecto = agregaciones_por_proyecto.get(proyecto.id, [])
 
-            # Sumar totales usando agregaciones
+            if not agregaciones_proyecto:
+                continue
+
+            # Sumar totales usando agregaciones corregidas
             total_contratos = sum(agg['monto_total'] for agg in agregaciones_proyecto)
             total_facturado = sum(agg['total_facturado'] for agg in agregaciones_proyecto)
             total_pagado = sum(agg['total_pagado'] for agg in agregaciones_proyecto)
-            total_pendiente = sum(agg['pendiente_facturar'] for agg in agregaciones_proyecto)  # Calculado dinámicamente
+            total_pendiente_facturar = sum(agg['pendiente_facturar'] for agg in agregaciones_proyecto)
+            total_pendiente_cobrar = sum(agg['pendiente_cobro'] for agg in agregaciones_proyecto)
             total_ganancia_perdida_inflacion = 0
             tiene_contratos_uf = False
 
-            # Verificar efectos de inflación UF solo si es necesario
-            for contrato in proyecto.contratos:
-                if contrato.moneda_original == 'UF':
+            # Verificar efectos de inflación UF
+            for agg in agregaciones_proyecto:
+                if agg['moneda_original'] == 'UF':
                     tiene_contratos_uf = True
                     # Calcular efectos de inflación para este contrato
-                    resumen_inflacion = InflacionService.calcular_resumen_inflacion_contrato(contrato)
-                    if resumen_inflacion.get('total_ganancia_perdida'):
-                        total_ganancia_perdida_inflacion += float(resumen_inflacion['total_ganancia_perdida'])
+                    contrato = next((c for c in proyecto.contratos if c.id == agg['contrato_id']), None)
+                    if contrato:
+                        resumen_inflacion = InflacionService.calcular_resumen_inflacion_contrato(contrato)
+                        if resumen_inflacion.get('total_ganancia_perdida'):
+                            total_ganancia_perdida_inflacion += float(resumen_inflacion['total_ganancia_perdida'])
+
+            # Validar consistencia de datos
+            if total_pagado > total_facturado:
+                logger.warning(f"Inconsistencia en proyecto {proyecto.id}: pagado ({total_pagado}) > facturado ({total_facturado})")
+                total_pagado = total_facturado
 
             resumen_proyectos.append({
                 'proyecto': proyecto,
@@ -109,7 +115,8 @@ def dashboard():
                 'total_contratos': total_contratos,
                 'total_facturado': total_facturado,
                 'total_pagado': total_pagado,
-                'total_pendiente': total_pendiente,  # Ahora calculado dinámicamente
+                'total_pendiente_facturar': total_pendiente_facturar,
+                'total_pendiente_cobrar': total_pendiente_cobrar,
                 'avance_facturacion': (float(total_facturado) / float(total_contratos) * 100) if total_contratos > 0 else 0,
                 'avance_cobro': (float(total_pagado) / float(total_contratos) * 100) if total_contratos > 0 else 0,
                 'tiene_contratos_uf': tiene_contratos_uf,

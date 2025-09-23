@@ -353,7 +353,7 @@ class FinanzasService:
             solo_vigentes: Si True, solo incluye contratos VIGENTES (default: True)
         """
         try:
-            # Consulta simplificada - obtener contratos básicos primero
+            # Consulta mejorada con JOIN para obtener cliente
             query = db.session.query(
                 Contrato.id,
                 Contrato.numero_oc,
@@ -362,8 +362,9 @@ class FinanzasService:
                 Contrato.estado,
                 Proyecto.nombre.label('proyecto_nombre'),
                 Proyecto.cliente_id,
-                Proyecto.estado_comercial
-            ).join(Proyecto)
+                Proyecto.estado_comercial,
+                Cliente.nombre.label('cliente_nombre')
+            ).join(Proyecto).join(Cliente)
 
             # Filtrar solo contratos vigentes por defecto
             if solo_vigentes:
@@ -375,27 +376,45 @@ class FinanzasService:
 
             contratos = query.all()
 
-            # Calcular agregaciones manualmente para cada contrato (más confiable)
+            # Obtener todos los estados de pago de una vez para mejor performance
+            contrato_ids = [c.id for c in contratos]
+            estados_por_contrato = {}
+            
+            if contrato_ids:
+                estados = db.session.query(EstadoPago).filter(
+                    EstadoPago.contrato_id.in_(contrato_ids)
+                ).all()
+                
+                for estado in estados:
+                    if estado.contrato_id not in estados_por_contrato:
+                        estados_por_contrato[estado.contrato_id] = []
+                    estados_por_contrato[estado.contrato_id].append(estado)
+
+            # Calcular agregaciones para cada contrato
             agregaciones = []
             for contrato in contratos:
-                # Calcular totales para este contrato
-                estados = db.session.query(EstadoPago).filter(
-                    EstadoPago.contrato_id == contrato.id
-                ).all()
+                estados_contrato = estados_por_contrato.get(contrato.id, [])
 
+                # CÁLCULO CORRECTO: Solo estados FACTURADO y PAGADO cuentan como facturado
                 total_facturado = sum(
                     float(estado.monto or 0) 
-                    for estado in estados 
+                    for estado in estados_contrato 
                     if estado.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO]
                 )
 
+                # CÁLCULO CORRECTO: Solo estados PAGADO cuentan como pagado
                 total_pagado = sum(
                     float(estado.monto or 0) 
-                    for estado in estados 
+                    for estado in estados_contrato 
                     if estado.tipo_estado == TipoEstadoPago.PAGADO
                 )
 
-                # Cálculos dinámicos - mantener consistencia de tipos
+                # Validar consistencia: pagado no puede ser mayor que facturado
+                if total_pagado > total_facturado:
+                    logger.warning(f"Inconsistencia en contrato {contrato.id}: pagado ({total_pagado}) > facturado ({total_facturado})")
+                    total_pagado = total_facturado
+
+                # Cálculos dinámicos
                 monto_total = float(contrato.monto_total or 0)
                 pendiente_facturar = max(0.0, monto_total - total_facturado)
                 pendiente_cobro = max(0.0, total_facturado - total_pagado)
@@ -404,15 +423,17 @@ class FinanzasService:
                     'contrato_id': contrato.id,
                     'numero_oc': contrato.numero_oc,
                     'proyecto_nombre': contrato.proyecto_nombre,
-                    'cliente_nombre': 'Cliente',  # Se puede mejorar con JOIN si es necesario
+                    'cliente_nombre': contrato.cliente_nombre or 'Sin Cliente',
                     'estado_contrato': contrato.estado.value if contrato.estado else 'SIN_ESTADO',
                     'estado_proyecto': contrato.estado_comercial.value if contrato.estado_comercial else 'SIN_ESTADO',
                     'monto_total': monto_total,
-                    'moneda_original': contrato.moneda_original,
+                    'moneda_original': contrato.moneda_original or 'CLP',
                     'total_facturado': total_facturado,
                     'total_pagado': total_pagado,
                     'pendiente_facturar': pendiente_facturar,
-                    'pendiente_cobro': pendiente_cobro
+                    'pendiente_cobro': pendiente_cobro,
+                    'porcentaje_facturado': (total_facturado / monto_total * 100) if monto_total > 0 else 0,
+                    'porcentaje_pagado': (total_pagado / monto_total * 100) if monto_total > 0 else 0
                 })
 
             return agregaciones

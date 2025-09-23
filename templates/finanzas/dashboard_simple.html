@@ -136,99 +136,129 @@
                          aria-labelledby="heading{{ loop.index }}" data-bs-parent="#clientesAccordion">
                         <div class="accordion-body p-0">
                             <div class="table-responsive">
-                                <table class="table table-hover mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Proyecto</th>
-                                            <th>Contratos</th>
-                                            <th class="text-end">Monto Total</th>
-                                            <th class="text-end">Pendiente</th>
-                                            <th class="text-end">Facturado</th>
-                                            <th class="text-end">Pagado</th>
-                                            <th class="text-end">Efectos UF</th>
-                                            <th>% Facturación</th>
-                                            <th>% Cobro</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for proyecto in cliente.proyectos %}
-                                        <tr>
-                                            <td>
-                                                <strong>{{ proyecto.proyecto.nombre }}</strong>
-                                                {% if proyecto.proyecto.centro_costo %}
-                                                <br><small class="text-muted">CC: {{ proyecto.proyecto.centro_costo }}</small>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-secondary">{{ proyecto.num_contratos }}</span>
-                                            </td>
-                                            <td class="text-end">
-                                                $ {{ "{:,.0f}".format(proyecto.total_contratos) }}
-                                            </td>
-                                            <td class="text-end text-warning">
-                                                $ {{ "{:,.0f}".format(proyecto.total_pendiente) }}
-                                            </td>
-                                            <td class="text-end text-info">
-                                                $ {{ "{:,.0f}".format(proyecto.total_facturado) }}
-                                            </td>
-                                            <td class="text-end text-success">
-                                                $ {{ "{:,.0f}".format(proyecto.total_pagado) }}
-                                            </td>
-                                            <td class="text-end">
-                                                {% if proyecto.tiene_contratos_uf and proyecto.ganancia_perdida_inflacion != 0 %}
-                                                    {% set efecto = proyecto.ganancia_perdida_inflacion %}
-                                                    <span class="badge {{ 'bg-success' if efecto > 0 else 'bg-warning' }} d-flex align-items-center" 
-                                                          title="Efecto inflación UF">
-                                                        <i data-feather="{{ 'trending-up' if efecto > 0 else 'trending-down' }}" class="me-1" style="width: 12px; height: 12px;"></i>
-                                                        ${{ "{:,.0f}".format(abs(efecto)) }}
-                                                    </span>
-                                                {% elif proyecto.tiene_contratos_uf %}
-                                                    <span class="badge bg-light text-dark" title="Contrato UF sin efectos calculados">
-                                                        <i data-feather="more-horizontal" style="width: 12px; height: 12px;"></i>
-                                                        UF
-                                                    </span>
-                                                {% else %}
-                                                    <span class="text-muted">-</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <div class="progress" style="min-width: 80px; height: 20px;">
-                                                    <div class="progress-bar bg-info" style="width: {{ min(proyecto.avance_facturacion, 100) }}%">
-                                                        {{ "{:.0f}%".format(proyecto.avance_facturacion) }}
+                                                        <table class="table table-sm table-hover">
+                                                            <thead class="table-dark">
+                                                                <tr>
+                                                                    <th>Cliente</th>
+                                                                    <th>Proyecto</th>
+                                                                    <th>N° Contrato/OC</th>
+                                                                    <th class="text-end">Monto Total</th>
+                                                                    <th class="text-end">Facturado</th>
+                                                                    <th class="text-end">Pagado</th>
+                                                                    <th class="text-end">Pendiente Facturar</th>
+                                                                    <th class="text-end">Pendiente Cobrar</th>
+                                                                    <th class="text-center">Avance</th>
+                                                                    {% if resumen.tiene_contratos_uf %}
+                                                                    <th class="text-end">Efecto UF</th>
+                                                                    {% endif %}
+                                                                    <th class="text-center">Acciones</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {% for proyecto in cliente.proyectos %}
+                                                                {% for contrato in proyecto.contratos %}
+                                                                <tr>
+                                                                    <td>
+                                                                        <a href="{{ url_for('clientes.detalle', cliente_id=cliente.cliente.id) }}" class="text-decoration-none">
+                                                                            {{ cliente.cliente.nombre }}
+                                                                        </a>
+                                                                    </td>
+                                                                    <td>
+                                                                        <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.proyecto.id) }}" class="text-decoration-none">
+                                                                            {{ proyecto.proyecto.nombre }}
+                                                                        </a>
+                                                                    </td>
+                                                                    <td>
+                                                                        <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" class="text-decoration-none fw-medium">
+                                                                            {{ contrato.numero_oc }}
+                                                                        </a>
+                                                                        <br>
+                                                                        <small class="text-muted">
+                                                                            {% if contrato.tipo_documento.value == 'CONTRATO' %}
+                                                                            <span class="badge bg-primary badge-sm">Contrato</span>
+                                                                            {% else %}
+                                                                            <span class="badge bg-info badge-sm">OC</span>
+                                                                            {% endif %}
+                                                                        </small>
+                                                                    </td>
+                                                                    <td class="text-end">
+                                                                        <strong>{{ contrato.moneda }} {{ "{:,.0f}".format(contrato.monto_total or 0) }}</strong>
+                                                                    </td>
+                                                                    <td class="text-end">
+                                                                        {% set facturado = contrato.estados_pago|selectattr('tipo_estado.value', 'in', ['FACTURADO', 'PAGADO'])|sum(attribute='monto') %}
+                                                                        <span class="text-info fw-bold">$ {{ "{:,.0f}".format(facturado or 0) }}</span>
+                                                                        <br>
+                                                                        <small class="text-muted">{{ "{:.1f}%".format((facturado / contrato.monto_total * 100) if contrato.monto_total else 0) }}</small>
+                                                                    </td>
+                                                                    <td class="text-end">
+                                                                        {% set pagado = contrato.estados_pago|selectattr('tipo_estado.value', 'equalto', 'PAGADO')|sum(attribute='monto') %}
+                                                                        <span class="text-success fw-bold">$ {{ "{:,.0f}".format(pagado or 0) }}</span>
+                                                                        <br>
+                                                                        <small class="text-muted">{{ "{:.1f}%".format((pagado / contrato.monto_total * 100) if contrato.monto_total else 0) }}</small>
+                                                                    </td>
+                                                                    <td class="text-end">
+                                                                        {% set pendiente_facturar = (contrato.monto_total or 0) - facturado %}
+                                                                        <span class="text-warning fw-bold">$ {{ "{:,.0f}".format(pendiente_facturar if pendiente_facturar > 0 else 0) }}</span>
+                                                                        <br>
+                                                                        <small class="text-muted">{{ "{:.1f}%".format((pendiente_facturar / contrato.monto_total * 100) if contrato.monto_total and pendiente_facturar > 0 else 0) }}</small>
+                                                                    </td>
+                                                                    <td class="text-end">
+                                                                        {% set pendiente_cobrar = facturado - pagado %}
+                                                                        <span class="text-primary fw-bold">$ {{ "{:,.0f}".format(pendiente_cobrar if pendiente_cobrar > 0 else 0) }}</span>
+                                                                        <br>
+                                                                        <small class="text-muted">{{ "{:.1f}%".format((pendiente_cobrar / contrato.monto_total * 100) if contrato.monto_total and pendiente_cobrar > 0 else 0) }}</small>
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        {% set porcentaje_facturado = (facturado / contrato.monto_total * 100) if contrato.monto_total else 0 %}
+                                                                        {% set porcentaje_pagado = (pagado / contrato.monto_total * 100) if contrato.monto_total else 0 %}
+
+                                                                        <div class="progress mb-1" style="height: 15px;" title="Facturación">
+                                                                            <div class="progress-bar bg-info" style="width: {{ porcentaje_facturado }}%" title="Facturado: {{ "{:.1f}%".format(porcentaje_facturado) }}"></div>
+                                                                        </div>
+                                                                        <div class="progress" style="height: 10px;" title="Cobranza">
+                                                                            <div class="progress-bar bg-success" style="width: {{ porcentaje_pagado }}%" title="Pagado: {{ "{:.1f}%".format(porcentaje_pagado) }}"></div>
+                                                                        </div>
+                                                                        <small class="text-muted">F: {{ "{:.0f}%".format(porcentaje_facturado) }} | P: {{ "{:.0f}%".format(porcentaje_pagado) }}</small>
+                                                                    </td>
+                                                                    {% if resumen.tiene_contratos_uf %}
+                                                                    <td class="text-end">
+                                                                        {% if contrato.moneda_original == 'UF' %}
+                                                                        {% set resumen_inflacion = inflacion_service.calcular_resumen_inflacion_contrato(contrato) %}
+                                                                        {% if resumen_inflacion.total_ganancia_perdida %}
+                                                                        <span class="{% if resumen_inflacion.total_ganancia_perdida > 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                                                            {% if resumen_inflacion.total_ganancia_perdida > 0 %}+{% endif %}$ {{ "{:,.0f}".format(resumen_inflacion.total_ganancia_perdida) }}
+                                                                        </span>
+                                                                        <br>
+                                                                        <small class="text-muted">UF</small>
+                                                                        {% else %}
+                                                                        <span class="text-muted">$ 0</span>
+                                                                        {% endif %}
+                                                                        {% else %}
+                                                                        <span class="text-muted">N/A</span>
+                                                                        {% endif %}
+                                                                    </td>
+                                                                    {% endif %}
+                                                                    <td class="text-center">
+                                                                        <div class="btn-group btn-group-sm">
+                                                                            <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" class="btn btn-outline-primary btn-sm" title="Ver contrato">
+                                                                                <i class="bi bi-eye"></i>
+                                                                            </a>
+                                                                            <a href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}" class="btn btn-outline-info btn-sm" title="Estados de pago">
+                                                                                <i class="bi bi-credit-card"></i>
+                                                                            </a>
+                                                                            {% if current_user.rol.value in ['admin', 'general'] %}
+                                                                            <a href="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}" class="btn btn-outline-success btn-sm" title="Nuevo estado">
+                                                                                <i class="bi bi-plus"></i>
+                                                                            </a>
+                                                                            {% endif %}
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                                {% endfor %}
+                                                            </tbody>
+                                                        </table>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="progress" style="min-width: 80px; height: 20px;">
-                                                    <div class="progress-bar bg-success" style="width: {{ min(proyecto.avance_cobro, 100) }}%">
-                                                        {{ "{:.0f}%".format(proyecto.avance_cobro) }}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="btn-group btn-group-sm">
-                                                    <a href="{{ url_for('finanzas.detalle_proyecto', proyecto_id=proyecto.proyecto.id) }}" 
-                                                       class="btn btn-outline-primary me-1">
-                                                        <i class="fas fa-eye"></i> Ver Detalle
-                                                    </a>
-                                                    <a href="{{ url_for('finanzas.resumen_financiero_proyecto', proyecto_id=proyecto.proyecto.id) }}" 
-                                                       class="btn btn-sm btn-primary">
-                                                        <i class="fas fa-chart-line"></i> Resumen
-                                                    </a>
-                                                    {% if proyecto.num_contratos > 0 %}
-                                                    <a href="{{ url_for('finanzas.costos_proyecto', proyecto_id=proyecto.proyecto.id) }}" 
-                                                       class="btn btn-outline-secondary" title="Ingresar costos">
-                                                        <i class="fas fa-calculator"></i>
-                                                    </a>
-                                                    {% endif %}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
                         </div>
                     </div>
                 </div>
