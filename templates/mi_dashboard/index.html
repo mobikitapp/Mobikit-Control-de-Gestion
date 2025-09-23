@@ -102,21 +102,21 @@
                     <div class="row">
                         <div class="col-lg-3 col-md-6 mb-3">
                             <div class="text-center">
-                                <div class="display-6 fw-bold {% if tasa_exito.success_rate >= 70 %}text-success{% elif tasa_exito.success_rate >= 50 %}text-warning{% else %}text-danger{% endif %}">
-                                    {{ "%.1f"|format(tasa_exito.success_rate) }}%
+                                <div class="display-6 fw-bold {% if tasa_exito.tasa_exito_porcentaje >= 70 %}text-success{% elif tasa_exito.tasa_exito_porcentaje >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ "%.1f"|format(tasa_exito.tasa_exito_porcentaje) }}%
                                 </div>
                                 <div class="text-muted">Tasa de Éxito</div>
                             </div>
                         </div>
                         <div class="col-lg-3 col-md-6 mb-3">
                             <div class="text-center">
-                                <div class="fs-2 fw-bold text-success">{{ tasa_exito.exitosos }}</div>
+                                <div class="fs-2 fw-bold text-success">{{ tasa_exito.proyectos_exitosos }}</div>
                                 <div class="text-muted">Proyectos Exitosos</div>
                             </div>
                         </div>
                         <div class="col-lg-3 col-md-6 mb-3">
                             <div class="text-center">
-                                <div class="fs-2 fw-bold text-danger">{{ tasa_exito.perdidos }}</div>
+                                <div class="fs-2 fw-bold text-danger">{{ tasa_exito.proyectos_perdidos }}</div>
                                 <div class="text-muted">Proyectos Perdidos</div>
                             </div>
                         </div>
@@ -134,8 +134,8 @@
                             <small class="text-muted">Distribución de resultados</small>
                         </div>
                         <div class="progress" style="height: 8px;">
-                            {% set exitoso_pct = (tasa_exito.exitosos / tasa_exito.total_oportunidades * 100) if tasa_exito.total_oportunidades > 0 else 0 %}
-                            {% set perdido_pct = (tasa_exito.perdidos / tasa_exito.total_oportunidades * 100) if tasa_exito.total_oportunidades > 0 else 0 %}
+                            {% set exitoso_pct = (tasa_exito.proyectos_exitosos / tasa_exito.total_oportunidades * 100) if tasa_exito.total_oportunidades > 0 else 0 %}
+                            {% set perdido_pct = (tasa_exito.proyectos_perdidos / tasa_exito.total_oportunidades * 100) if tasa_exito.total_oportunidades > 0 else 0 %}
                             <div class="progress-bar bg-success" role="progressbar" style="width: {{ exitoso_pct }}%" title="Exitosos: {{ exitoso_pct|round(1) }}%"></div>
                             <div class="progress-bar bg-danger" role="progressbar" style="width: {{ perdido_pct }}%" title="Perdidos: {{ perdido_pct|round(1) }}%"></div>
                         </div>

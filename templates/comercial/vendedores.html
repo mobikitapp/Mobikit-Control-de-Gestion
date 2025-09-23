@@ -78,18 +78,18 @@
                     {% if vendedor_data.tasa_exito and vendedor_data.tasa_exito.total_oportunidades > 0 %}
                     <div class="border-top pt-3 mb-3">
                         <div class="text-center">
-                            <div class="display-6 fw-bold {% if vendedor_data.tasa_exito.success_rate >= 70 %}text-success{% elif vendedor_data.tasa_exito.success_rate >= 50 %}text-warning{% else %}text-danger{% endif %}">
-                                {{ "%.1f"|format(vendedor_data.tasa_exito.success_rate) }}%
+                            <div class="display-6 fw-bold {% if vendedor_data.tasa_exito.tasa_exito_porcentaje >= 70 %}text-success{% elif vendedor_data.tasa_exito.tasa_exito_porcentaje >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                {{ "%.1f"|format(vendedor_data.tasa_exito.tasa_exito_porcentaje) }}%
                             </div>
                             <small class="text-muted">Tasa de Éxito</small>
                         </div>
                         <div class="row text-center mt-2">
                             <div class="col-4">
-                                <div class="text-success fw-bold">{{ vendedor_data.tasa_exito.exitosos }}</div>
+                                <div class="text-success fw-bold">{{ vendedor_data.tasa_exito.proyectos_exitosos }}</div>
                                 <small class="text-muted">Exitosos</small>
                             </div>
                             <div class="col-4">
-                                <div class="text-danger fw-bold">{{ vendedor_data.tasa_exito.perdidos }}</div>
+                                <div class="text-danger fw-bold">{{ vendedor_data.tasa_exito.proyectos_perdidos }}</div>
                                 <small class="text-muted">Perdidos</small>
                             </div>
                             <div class="col-4">
