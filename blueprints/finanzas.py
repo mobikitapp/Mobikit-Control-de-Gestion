@@ -128,7 +128,7 @@ def dashboard():
         total_contratos_global = sum(r['total_contratos'] for r in resumen_proyectos)
         total_facturado_global = sum(r['total_facturado'] for r in resumen_proyectos)
         total_pagado_global = sum(r['total_pagado'] for r in resumen_proyectos)
-        total_pendiente_global = sum(r['total_pendiente'] for r in resumen_proyectos)
+        total_pendiente_global = sum(r['total_pendiente_facturar'] for r in resumen_proyectos)
         total_ganancia_perdida_inflacion_global = sum(r['ganancia_perdida_inflacion'] for r in resumen_proyectos)
         proyectos_con_uf = sum(1 for r in resumen_proyectos if r['tiene_contratos_uf'])
 
