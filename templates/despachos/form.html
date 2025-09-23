@@ -304,11 +304,17 @@ document.addEventListener('DOMContentLoaded', function() {
         feather.replace();
     }
 
+    // Initialize available OFs display first
+    initializeOFsDisplay();
+    
     // Setup event listeners
     setupEventListeners();
     
-    // Initialize available OFs display
-    initializeOFsDisplay();
+    // Initialize cascade selects if needed
+    const clienteSelect = document.getElementById('cliente_id');
+    if (clienteSelect && clienteSelect.value) {
+        updateProyectos();
+    }
 });
 
 function setupEventListeners() {
@@ -374,6 +380,7 @@ function initializeOFsDisplay() {
         placeholder = document.createElement('div');
         placeholder.id = 'ofs-placeholder';
         placeholder.className = 'alert alert-info';
+        placeholder.style.display = 'block';
         placeholder.innerHTML = '<i class="fas fa-info-circle me-2"></i><strong>Selecciona un contrato para ver las órdenes de fabricación disponibles.</strong>';
         container.appendChild(placeholder);
     }
@@ -390,6 +397,7 @@ function initializeOFsDisplay() {
         emptyAlert.id = 'ofs-empty';
         emptyAlert.className = 'alert alert-warning';
         emptyAlert.style.display = 'none';
+        emptyAlert.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>No hay órdenes de fabricación disponibles. <strong>Puedes crear el despacho en estado PROGRAMADO y asignar las OFs posteriormente.</strong>';
         container.appendChild(emptyAlert);
     }
 }
@@ -530,14 +538,17 @@ async function updateAvailableOFs() {
     const hitoId = hitoSelect ? hitoSelect.value : null;
 
     const container = document.getElementById('ofs-container');
-    const placeholder = document.getElementById('ofs-placeholder');
-    const emptyAlert = document.getElementById('ofs-empty');
-    const list = document.getElementById('ofs-list');
-
-    if (!container) return;
+    if (!container) {
+        console.error('OF container not found');
+        return;
+    }
 
     // Ensure elements exist
     initializeOFsDisplay();
+    
+    const placeholder = document.getElementById('ofs-placeholder');
+    const emptyAlert = document.getElementById('ofs-empty');
+    const list = document.getElementById('ofs-list');
 
     // Determine API URL
     let apiUrl = null;
@@ -649,9 +660,6 @@ function renderOFsList(ofs) {
                             </div>
                         </div>
                         <div class="col-md-4 text-end">
-                            <div class="mb-2">
-                                <strong>Cantidad Total:</strong> ${cantidadTotal}
-                            </div>
                             ${cantidadDespachadaPrevia > 0 ? `<div class="mb-2"><small class="text-muted">Despachado previamente: ${cantidadDespachadaPrevia}</small></div>` : ''}
                         </div>
                     </div>
@@ -676,7 +684,7 @@ function renderOFsList(ofs) {
                             <div class="col-md-6">
                                 <label class="form-label">Tipo de Despacho</label>
                                 <select class="form-select tipo-despacho" data-of-id="${of.id}">
-                                    ${!tieneParciales ? `<option value="TOTAL">Total (${cantidadTotal} tableros)</option>` : ''}
+                                    ${!tieneParciales ? `<option value="TOTAL">Total</option>` : ''}
                                     <option value="PARCIAL" ${tieneParciales ? 'selected' : ''}>Parcial</option>
                                 </select>
                             </div>
@@ -684,7 +692,7 @@ function renderOFsList(ofs) {
                                 <label class="form-label">Cantidad a Despachar</label>
                                 <input type="number" class="form-control cantidad-parcial" 
                                        min="1" max="${cantidadDisponible}" value="1">
-                                <small class="text-muted">Máximo disponible: ${cantidadDisponible}</small>
+                                <small class="text-muted">Disponible: ${cantidadDisponible}</small>
                             </div>
                         </div>
                         <div class="mt-2">
