@@ -87,58 +87,32 @@ def index():
     if not current_user.is_authenticated:
         return render_template('index.html', show_login=True)
 
-    # Dashboard for authenticated users
-    from repositories.clientes_repo import ClientesRepository
-    from repositories.proyectos_repo import ProyectosRepository
-    from repositories.contratos_repo import ContratosRepository
-    from repositories.fabricacion_repo import FabricacionRepository
-    from repositories.despachos_repo import DespachosRepository
-    # Added: Import for Areas Dashboard data
-    from services.areas_service import AreasService
+    # Dashboard for authenticated users - Dynamic based on role
+    from services.dashboard_service import DashboardService
 
-    # Get dashboard statistics
     try:
-        stats = {
-            'total_clientes': ClientesRepository.count_active(),
-            'proyectos_activos': ProyectosRepository.count_by_status(['PENDIENTE_PRESUPUESTO', 'PRESUPUESTADO', 'ADJUDICADO', 'EN_DESARROLLO']),
-            'contratos_vigentes': ContratosRepository.count_by_status('VIGENTE'),
-            'of_en_produccion': FabricacionRepository.count_by_status([
-                'enviado_a_fabricacion',
-                'seccionando',
-                'enchapando',
-                'mecanizando'
-            ]),
-            'despachos_pendientes': DespachosRepository.count_by_status(['PROGRAMADO', 'EN_TRANSPORTE'])
-        }
+        # Get complete dashboard data based on user role
+        dashboard_service = DashboardService()
+        dashboard_data = dashboard_service.get_dashboard_data(current_user)
+        
+        return render_template('index.html', 
+                             dashboard=dashboard_data,
+                             show_login=False)
+                             
     except Exception as e:
-        logger.error(f"Dashboard stats error: {str(e)}")
-        # Fallback stats if there's an error
-        stats = {
-            'total_clientes': 0,
-            'proyectos_activos': 0,
-            'contratos_vigentes': 0,
-            'of_en_produccion': 0,
-            'despachos_pendientes': 0
-        }
-
-    # Get recent activity
-    try:
-        recent_projects = ProyectosRepository.get_recent(limit=5)
-        pending_ofs = FabricacionRepository.get_pending_by_user(current_user.id, limit=5)
-        # Added: Get areas dashboard data
-        areas_dashboard_data = AreasService().get_areas_dashboard_data()
-    except Exception as e:
-        logger.error(f"Dashboard activity error: {str(e)}")
-        recent_projects = []
-        pending_ofs = []
-        areas_dashboard_data = {} # Default to empty dict if error
-
-    return render_template('index.html',
-                         stats=stats,
-                         recent_projects=recent_projects,
-                         pending_ofs=pending_ofs,
-                         areas_dashboard_data=areas_dashboard_data, # Pass areas dashboard data to template
-                         show_login=False)
+        logger.error(f"Dashboard error: {str(e)}")
+        # Fallback to basic template if there's an error
+        return render_template('index.html',
+                             dashboard={
+                                 'user': current_user,
+                                 'rol': current_user.rol.value if current_user.rol else 'general',
+                                 'nombre_usuario': current_user.id,
+                                 'metrics': {},
+                                 'quick_actions': [],
+                                 'activity': {'recent_projects': [], 'pending_tasks': []},
+                                 'visual': {'dashboard_title': 'Dashboard', 'primary_color': 'primary'}
+                             },
+                             show_login=False)
 
 # Main API endpoints for testing
 @app.route('/api/clientes')
