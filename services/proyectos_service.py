@@ -914,12 +914,12 @@ class ProyectosService:
                 ).all()
 
                 monto_facturado_contratos = sum(
-                    float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
+                    float(ep.monto or 0) for ep in estados_pago_contratos 
                     if ep.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO]
                 )
 
                 monto_pagado_contratos = sum(
-                    float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
+                    float(ep.monto or 0) for ep in estados_pago_contratos 
                     if ep.tipo_estado == TipoEstadoPago.PAGADO
                 )
 
@@ -934,12 +934,12 @@ class ProyectosService:
                 ).all()
 
                 monto_facturado_ocs = sum(
-                    float(ep.monto_estado_pago or 0) for ep in estados_pago_ocs 
+                    float(ep.monto or 0) for ep in estados_pago_ocs 
                     if ep.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO]
                 )
 
                 monto_pagado_ocs = sum(
-                    float(ep.monto_estado_pago or 0) for ep in estados_pago_ocs 
+                    float(ep.monto or 0) for ep in estados_pago_ocs 
                     if ep.tipo_estado == TipoEstadoPago.PAGADO
                 )
 
@@ -1056,12 +1056,12 @@ class ProyectosService:
                     ).all()
 
                     total_facturado_contratos = sum(
-                        float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
-                        if ep.facturado
+                        float(ep.monto or 0) for ep in estados_pago_contratos 
+                        if ep.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO]
                     )
 
                     total_pagado_contratos = sum(
-                        float(ep.monto_estado_pago or 0) for ep in estados_pago_contratos 
+                        float(ep.monto or 0) for ep in estados_pago_contratos 
                         if ep.tipo_estado == TipoEstadoPago.PAGADO
                     )
 
@@ -1076,12 +1076,12 @@ class ProyectosService:
                     ).all()
 
                     total_facturado_ocs = sum(
-                        float(ep.monto_estado_pago or 0) for ep in estados_pago_ocs 
-                        if ep.facturado
+                        float(ep.monto or 0) for ep in estados_pago_ocs 
+                        if ep.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO]
                     )
 
                     total_pagado_ocs = sum(
-                        float(ep.monto_estado_pago or 0) for ep in estados_pago_ocs 
+                        float(ep.monto or 0) for ep in estados_pago_ocs 
                         if ep.tipo_estado == TipoEstadoPago.PAGADO
                     )
 
