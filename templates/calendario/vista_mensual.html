@@ -14,7 +14,7 @@
                                 <i class="fas fa-calendar-alt text-primary"></i>
                                 Calendario de Entregas - {{ nombre_mes }} {{ year }}
                             </h4>
-                            <p class="mb-0 text-muted">{{ total_eventos }} eventos programados</p>
+                            <p class="mb-0 text-muted">{{ total_despachos|default(0) }} despachos | {{ total_eventos|default(0) }} eventos</p>
                         </div>
                         <div class="d-flex align-items-center">
                             <a href="{{ url_for('calendario.vista_mensual', year=mes_anterior.year, month=mes_anterior.month) }}" 
@@ -61,29 +61,37 @@
         </div>
     </div>
 
-    <!-- Calendar Statistics -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <h3>{{ total_eventos }}</h3>
-                    <small>Total Eventos</small>
+    <!-- Simplified Statistics - Focus on Dispatches -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white border-0">
+                <div class="card-body text-center py-2">
+                    <h5 class="mb-0">{{ total_despachos|default(0) }}</h5>
+                    <small>Despachos Total</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card bg-warning text-dark">
-                <div class="card-body text-center">
-                    <h3>{{ eventos_pendientes }}</h3>
-                    <small>Pendientes</small>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark border-0">
+                <div class="card-body text-center py-2">
+                    <h5 class="mb-0">{{ despachos_programados|default(0) }}</h5>
+                    <small>Programados</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <h3>{{ eventos_completados }}</h3>
-                    <small>Completados</small>
+        <div class="col-md-3">
+            <div class="card bg-info text-white border-0">
+                <div class="card-body text-center py-2">
+                    <h5 class="mb-0">{{ total_eventos|default(0) }}</h5>
+                    <small>Eventos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white border-0">
+                <div class="card-body text-center py-2">
+                    <h5 class="mb-0">{{ total_hitos|default(0) }}</h5>
+                    <small>Hitos</small>
                 </div>
             </div>
         </div>
@@ -115,33 +123,54 @@
                                         {% if dia != 0 %}
                                         <div class="day-header">
                                             <span class="day-number">{{ dia }}</span>
-                                            {% if dia in eventos_por_dia %}
-                                            <span class="badge bg-primary events-count">{{ eventos_por_dia[dia]|length }}</span>
-                                            {% endif %}
+                                            <div class="day-counts">
+                                                {% if dia in despachos_por_dia %}
+                                                <span class="badge bg-primary dispatch-count">{{ despachos_por_dia[dia]|length }}D</span>
+                                                {% endif %}
+                                                {% if dia in eventos_por_dia %}
+                                                <span class="badge bg-secondary event-count">{{ eventos_por_dia[dia]|length }}E</span>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                         
-                                        <!-- Events for this day -->
-                                        {% if dia in eventos_por_dia %}
-                                        <div class="day-events">
-                                            {% for evento in eventos_por_dia[dia][:3] %}
-                                            <div class="event-item event-{{ evento.tipo }} event-{{ evento.estado }} event-priority-{{ evento.prioridad }}" 
+                                        <!-- Despachos for this day - Featured prominently -->
+                                        {% if dia in despachos_por_dia %}
+                                        <div class="day-dispatches">
+                                            {% for despacho in despachos_por_dia[dia][:2] %}
+                                            <div class="dispatch-item dispatch-{{ despacho.estado }}" 
                                                  data-bs-toggle="tooltip" 
-                                                 title="{% if evento.proyecto %}🏗️ {{ evento.proyecto }} - {% endif %}{{ evento.titulo }}{% if evento.hora %} - {{ evento.hora }}{% endif %}{% if evento.plan_entrega %} | Plan: {{ evento.plan_entrega }}{% endif %}">
-                                                <div class="event-content">
-                                                    {% if evento.hora %}
-                                                    <small class="event-time">{{ evento.hora }}</small>
-                                                    {% endif %}
-                                                    {% if evento.proyecto %}
-                                                    <small class="event-project">🏗️ {{ evento.proyecto[:15] }}{% if evento.proyecto|length > 15 %}...{% endif %}</small>
-                                                    {% endif %}
-                                                    <span class="event-title">{{ evento.titulo[:20] }}{% if evento.titulo|length > 20 %}...{% endif %}</span>
+                                                 title="🚛 {{ despacho.numero_despacho }} - {{ despacho.cliente }}{% if despacho.fecha_envio %} - {{ despacho.fecha_envio }}{% endif %}">
+                                                <div class="dispatch-content">
+                                                    <small class="dispatch-number">🚛 {{ despacho.numero_despacho }}</small>
+                                                    <span class="dispatch-client">{{ despacho.cliente[:15] }}{% if despacho.cliente|length > 15 %}...{% endif %}</span>
                                                 </div>
                                             </div>
                                             {% endfor %}
                                             
-                                            {% if eventos_por_dia[dia]|length > 3 %}
+                                            {% if despachos_por_dia[dia]|length > 2 %}
+                                            <div class="more-dispatches">
+                                                <small class="text-primary">+{{ despachos_por_dia[dia]|length - 2 }} más</small>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+
+                                        <!-- Events for this day -->
+                                        {% if dia in eventos_por_dia %}
+                                        <div class="day-events">
+                                            {% for evento in eventos_por_dia[dia][:1] %}
+                                            <div class="event-item event-simplified" 
+                                                 data-bs-toggle="tooltip" 
+                                                 title="📅 {{ evento.titulo }}{% if evento.hora %} - {{ evento.hora }}{% endif %}">
+                                                <div class="event-content">
+                                                    <small class="event-simple">📅 {{ evento.titulo[:15] }}{% if evento.titulo|length > 15 %}...{% endif %}</small>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                            
+                                            {% if eventos_por_dia[dia]|length > 1 %}
                                             <div class="more-events">
-                                                <small class="text-muted">+{{ eventos_por_dia[dia]|length - 3 }} más</small>
+                                                <small class="text-muted">+{{ eventos_por_dia[dia]|length - 1 }} eventos</small>
                                             </div>
                                             {% endif %}
                                         </div>
@@ -159,43 +188,21 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="row mt-4">
+    <!-- Simplified Quick Actions -->
+    <div class="row mt-3">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">Acciones Rápidas</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-primary w-100">
-                                <i class="fas fa-truck"></i><br>
-                                <strong>Lista de Entregas</strong><br>
-                                <small class="text-muted">Ver todas</small>
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('calendario.lista_eventos', estado='pendiente') }}" class="btn btn-outline-warning w-100">
-                                <i class="fas fa-clock"></i><br>
-                                <strong>Entregas Pendientes</strong><br>
-                                <small class="text-muted">{{ eventos_pendientes }} entregas</small>
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-info w-100">
-                                <i class="fas fa-calendar-day"></i><br>
-                                <strong>Mes Actual</strong><br>
-                                <small class="text-muted">{{ now.strftime('%B') }}</small>
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-outline-secondary w-100">
-                                <i class="fas fa-chart-pie"></i><br>
-                                <strong>Estadísticas</strong><br>
-                                <small class="text-muted">Dashboard</small>
-                            </a>
-                        </div>
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-center align-items-center flex-wrap">
+                        <a href="{{ url_for('despachos.index') if url_for('despachos.index') else url_for('calendario.lista_eventos') }}" class="btn btn-outline-primary btn-sm me-2">
+                            <i class="fas fa-truck"></i> Ver Despachos
+                        </a>
+                        <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-outline-secondary btn-sm me-2">
+                            <i class="fas fa-chart-bar"></i> Dashboard
+                        </a>
+                        <a href="{{ url_for('contratos.nuevo') }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus"></i> Nuevo Contrato
+                        </a>
                     </div>
                 </div>
             </div>
@@ -203,32 +210,19 @@
     </div>
 </div>
 
-<!-- Event Legend -->
-<div class="row mt-3">
+<!-- Simplified Legend -->
+<div class="row mt-2">
     <div class="col-md-12">
         <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">Leyenda de Eventos</h6>
-            </div>
             <div class="card-body py-2">
-                <div class="row">
-                    <div class="col-md-3">
-                        <strong>Tipo:</strong>
-                        <span class="badge bg-primary ms-1">
-                            <i class="fas fa-truck"></i> Entrega
-                        </span>
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Estados:</strong>
-                        <span class="badge bg-warning ms-1">Pendiente</span>
-                        <span class="badge bg-success ms-1">Completado</span>
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Prioridad:</strong>
-                        <span class="badge bg-secondary ms-1">Baja</span>
-                        <span class="badge bg-primary ms-1">Media</span>
-                        <span class="badge bg-danger ms-1">Alta</span>
-                    </div>
+                <div class="d-flex justify-content-center align-items-center flex-wrap">
+                    <small class="text-muted me-3"><i class="fas fa-info-circle"></i> Estados:</small>
+                    <span class="badge bg-warning text-dark me-2">Programado</span>
+                    <span class="badge bg-info me-2">En Tránsito</span>
+                    <span class="badge bg-success me-2">Entregado</span>
+                    <span class="badge bg-danger me-2">Observado</span>
+                    <span class="badge bg-secondary me-2">Cancelado</span>
+                    <small class="text-muted ms-3">🚛 = Despachos | 📅 = Eventos</small>
                 </div>
             </div>
         </div>
@@ -264,7 +258,79 @@
     font-weight: bold;
 }
 
-.events-count {
+.day-counts {
+    display: flex;
+    gap: 2px;
+}
+
+.dispatch-count, .event-count {
+    font-size: 0.6rem;
+    padding: 1px 3px;
+}
+
+.day-dispatches {
+    margin-bottom: 4px;
+}
+
+.dispatch-item {
+    margin-bottom: 2px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-left: 3px solid;
+}
+
+.dispatch-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.dispatch-number {
+    font-weight: bold;
+    color: #0d6efd;
+}
+
+.dispatch-client {
+    color: #212529;
+    font-size: 0.7rem;
+}
+
+.more-dispatches {
+    text-align: center;
+    margin-top: 2px;
+}
+
+/* Dispatch state colors */
+.dispatch-programado { 
+    background-color: #fff3cd; 
+    border-left-color: #ffc107; 
+}
+.dispatch-en_transito { 
+    background-color: #d1ecf1; 
+    border-left-color: #17a2b8; 
+}
+.dispatch-entregado { 
+    background-color: #d4edda; 
+    border-left-color: #28a745; 
+}
+.dispatch-observado { 
+    background-color: #f8d7da; 
+    border-left-color: #dc3545; 
+}
+.dispatch-cancelado { 
+    background-color: #f8f9fa; 
+    border-left-color: #6c757d; 
+    opacity: 0.7;
+}
+
+.event-simplified {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.event-simple {
     font-size: 0.7rem;
 }
 
