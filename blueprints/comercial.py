@@ -55,8 +55,17 @@ def lista_vendedores():
     """Lista de vendedores con estadísticas"""
     try:
         import calendar
+        from services.dashboard_vendedor_service import DashboardVendedorService
+        
         service = ComercialService()
+        dashboard_service = DashboardVendedorService()
         vendedores_stats = service.get_vendedores_estadisticas()
+
+        # Agregar métricas de tasa de éxito a cada vendedor
+        for vendedor_data in vendedores_stats:
+            vendedor_id = vendedor_data['vendedor'].id
+            tasa_exito = dashboard_service.get_tasa_exito_vendedor(vendedor_id)
+            vendedor_data['tasa_exito'] = tasa_exito
 
         # Preparar datos para el gráfico de comisiones mensuales consolidado
         current_year = datetime.now().year
@@ -101,7 +110,10 @@ def lista_vendedores():
 def vendedor_detalle(vendedor_id):
     """Detalle de un vendedor específico"""
     try:
+        from services.dashboard_vendedor_service import DashboardVendedorService
+        
         service = ComercialService()
+        dashboard_service = DashboardVendedorService()
 
         vendedor_data = service.get_vendedor_detalle(vendedor_id)
         if not vendedor_data:
@@ -110,6 +122,9 @@ def vendedor_detalle(vendedor_id):
 
         # Agregar año actual para el template
         vendedor_data['current_year'] = datetime.now().year
+        
+        # Agregar métricas de tasa de éxito
+        vendedor_data['tasa_exito'] = dashboard_service.get_tasa_exito_vendedor(vendedor_id)
 
         return render_template('comercial/vendedor_detalle.html', **vendedor_data)
 
