@@ -169,6 +169,7 @@ def dashboard():
                              total_pendiente=total_pendiente_global,
                              total_ganancia_perdida_inflacion=total_ganancia_perdida_inflacion_global,
                              proyectos_con_uf=proyectos_con_uf,
+                             inflacion_service=InflacionService,
                              current_user=current_user)
 
     except Exception as e:

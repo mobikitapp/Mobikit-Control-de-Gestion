@@ -152,7 +152,7 @@
                                                                     <th class="text-end">Pendiente Facturar</th>
                                                                     <th class="text-end">Pendiente Cobrar</th>
                                                                     <th class="text-center">Avance</th>
-                                                                    {% if resumen.tiene_contratos_uf %}
+                                                                    {% if proyectos_con_uf > 0 %}
                                                                     <th class="text-end">Efecto UF</th>
                                                                     {% endif %}
                                                                     <th class="text-center">Acciones</th>
@@ -224,7 +224,7 @@
                                                                         </div>
                                                                         <small class="text-muted">F: {{ "{:.0f}%".format(porcentaje_facturado) }} | P: {{ "{:.0f}%".format(porcentaje_pagado) }}</small>
                                                                     </td>
-                                                                    {% if resumen.tiene_contratos_uf %}
+                                                                    {% if proyectos_con_uf > 0 %}
                                                                     <td class="text-end">
                                                                         {% if contrato.moneda_original == 'UF' %}
                                                                         {% set resumen_inflacion = inflacion_service.calcular_resumen_inflacion_contrato(contrato) %}
