@@ -307,20 +307,10 @@
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">
-                            <i data-feather="dollar-sign" class="me-2"></i>
-                            KPI Financiero
-                        </h5>
-                        {% if current_user.rol.value in ['admin', 'general'] %}
-                        <button type="button" class="btn btn-sm btn-outline-danger" 
-                                onclick="limpiarKpiFinanciero({{ proyecto.id }})" 
-                                title="Limpiar datos financieros de KPI">
-                            <i data-feather="trash-2" style="width: 12px; height: 12px;"></i>
-                            Limpiar
-                        </button>
-                        {% endif %}
-                    </div>
+                    <h5 class="card-title mb-0">
+                        <i data-feather="dollar-sign" class="me-2"></i>
+                        KPI Financiero
+                    </h5>
                 </div>
                 <div class="card-body">
                     {% set kpi = stats.kpi_financiero or {} %}
@@ -460,20 +450,10 @@
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">
-                            <i data-feather="clock" class="me-2"></i>
-                            Eficiencia por Área
-                        </h5>
-                        {% if current_user.rol.value in ['admin', 'general'] %}
-                        <button type="button" class="btn btn-sm btn-outline-danger" 
-                                onclick="limpiarKpiEficiencia({{ proyecto.id }})" 
-                                title="Limpiar datos de eficiencia por área">
-                            <i data-feather="trash-2" style="width: 12px; height: 12px;"></i>
-                            Limpiar
-                        </button>
-                        {% endif %}
-                    </div>
+                    <h5 class="card-title mb-0">
+                        <i data-feather="clock" class="me-2"></i>
+                        Eficiencia por Área
+                    </h5>
                 </div>
                 <div class="card-body">
                     {% set eficiencia = stats.eficiencia_por_area or {} %}
