@@ -73,6 +73,7 @@
                                     <option value="ADJUDICADO" {% if proyecto and proyecto.estado_comercial.value == 'ADJUDICADO' %}selected{% endif %}>Adjudicado</option>
                                     <option value="EN_DESARROLLO" {% if proyecto and proyecto.estado_comercial.value == 'EN_DESARROLLO' %}selected{% endif %}>En Desarrollo</option>
                                     <option value="TERMINADO" {% if proyecto and proyecto.estado_comercial.value == 'TERMINADO' %}selected{% endif %}>Terminado</option>
+                                    <option value="PERDIDO" {% if proyecto and proyecto.estado_comercial.value == 'PERDIDO' %}selected{% endif %}>Perdido</option>
                                 </select>
                             </div>
 
