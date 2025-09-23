@@ -145,11 +145,7 @@
                             <li><a class="dropdown-item" href="{{ url_for('calendario.lista_eventos') }}">
                                 <i data-feather="list" class="me-2"></i> Todos los Eventos
                             </a></li>
-                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'ventas'] %}
-                            <li><a class="dropdown-item" href="{{ url_for('calendario.nuevo_evento') }}">
-                                <i data-feather="plus" class="me-2"></i> Nuevo Evento
-                            </a></li>
-                            {% endif %}
+                            
                         </ul>
                     </li>
                     {% endif %}
