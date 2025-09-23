@@ -1,0 +1,194 @@
+<!-- Filtros Avanzados para Despachos -->
+<div class="card mb-3" id="filtros-despachos">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="fas fa-filter text-primary"></i> Filtros de Despachos
+            </h6>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" 
+                    data-bs-target="#filtros-collapse" aria-expanded="false">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+    <div class="collapse" id="filtros-collapse">
+        <div class="card-body">
+            <form id="form-filtros-despachos" method="GET">
+                <div class="row g-3">
+                    <!-- Estado -->
+                    <div class="col-md-3">
+                        <label for="filtro_estado" class="form-label">Estado</label>
+                        <select class="form-select" id="filtro_estado" name="estado">
+                            <option value="">Todos los estados</option>
+                            <option value="PROGRAMADO" {% if request.args.get('estado') == 'PROGRAMADO' %}selected{% endif %}>Programado</option>
+                            <option value="EN_TRANSITO" {% if request.args.get('estado') == 'EN_TRANSITO' %}selected{% endif %}>En Tránsito</option>
+                            <option value="ENTREGADO" {% if request.args.get('estado') == 'ENTREGADO' %}selected{% endif %}>Entregado</option>
+                            <option value="OBSERVADO" {% if request.args.get('estado') == 'OBSERVADO' %}selected{% endif %}>Observado</option>
+                        </select>
+                    </div>
+
+                    <!-- Responsable -->
+                    <div class="col-md-3">
+                        <label for="filtro_responsable" class="form-label">Responsable</label>
+                        <input type="text" class="form-control" id="filtro_responsable" name="responsable_nombre" 
+                               value="{{ request.args.get('responsable_nombre', '') }}" 
+                               placeholder="Nombre del responsable">
+                    </div>
+
+                    <!-- Número de Despacho -->
+                    <div class="col-md-3">
+                        <label for="filtro_numero" class="form-label">Número de Despacho</label>
+                        <input type="text" class="form-control" id="filtro_numero" name="numero_despacho" 
+                               value="{{ request.args.get('numero_despacho', '') }}" 
+                               placeholder="Ej: DSP-2024-001">
+                    </div>
+
+                    <!-- Cliente/Proyecto -->
+                    <div class="col-md-3">
+                        <label for="filtro_proyecto" class="form-label">Proyecto</label>
+                        <select class="form-select" id="filtro_proyecto" name="proyecto_id">
+                            <option value="">Todos los proyectos</option>
+                            {% if proyectos_disponibles %}
+                                {% for proyecto in proyectos_disponibles %}
+                                <option value="{{ proyecto.id }}" 
+                                        {% if request.args.get('proyecto_id') == proyecto.id|string %}selected{% endif %}>
+                                    {{ proyecto.nombre }}
+                                </option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <!-- Fecha Desde -->
+                    <div class="col-md-3">
+                        <label for="filtro_fecha_desde" class="form-label">Fecha Desde</label>
+                        <input type="date" class="form-control" id="filtro_fecha_desde" name="fecha_desde" 
+                               value="{{ request.args.get('fecha_desde', '') }}">
+                    </div>
+
+                    <!-- Fecha Hasta -->
+                    <div class="col-md-3">
+                        <label for="filtro_fecha_hasta" class="form-label">Fecha Hasta</label>
+                        <input type="date" class="form-control" id="filtro_fecha_hasta" name="fecha_hasta" 
+                               value="{{ request.args.get('fecha_hasta', '') }}">
+                    </div>
+
+                    <!-- Solo mostrar despachos con órdenes -->
+                    <div class="col-md-3">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="filtro_con_ordenes" name="con_ordenes" 
+                                   {% if request.args.get('con_ordenes') %}checked{% endif %}>
+                            <label class="form-check-label" for="filtro_con_ordenes">
+                                Solo con órdenes de fabricación
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="col-md-3">
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Filtrar
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="limpiarFiltros()">
+                                <i class="fas fa-times"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtros activos -->
+                {% if filtros_activos %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="d-flex align-items-center flex-wrap">
+                            <small class="text-muted me-2">Filtros activos:</small>
+                            {% for filtro, valor in filtros_activos.items() %}
+                            <span class="badge bg-primary me-1 mb-1">
+                                {{ filtro }}: {{ valor }}
+                                <button type="button" class="btn-close btn-close-white ms-1" 
+                                        onclick="removerFiltro('{{ filtro }}')" aria-label="Remover filtro"></button>
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Mantener parámetros de vista -->
+                <input type="hidden" name="year" value="{{ year }}">
+                <input type="hidden" name="month" value="{{ month }}">
+                {% if day %}<input type="hidden" name="day" value="{{ day }}">{% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Función para limpiar todos los filtros
+function limpiarFiltros() {
+    const form = document.getElementById('form-filtros-despachos');
+    const inputs = form.querySelectorAll('input, select');
+    
+    inputs.forEach(input => {
+        if (input.type === 'checkbox') {
+            input.checked = false;
+        } else if (input.name !== 'year' && input.name !== 'month' && input.name !== 'day') {
+            input.value = '';
+        }
+    });
+    
+    form.submit();
+}
+
+// Función para remover un filtro específico
+function removerFiltro(nombreFiltro) {
+    const form = document.getElementById('form-filtros-despachos');
+    const input = form.querySelector(`[name="${nombreFiltro}"]`);
+    
+    if (input) {
+        if (input.type === 'checkbox') {
+            input.checked = false;
+        } else {
+            input.value = '';
+        }
+    }
+    
+    form.submit();
+}
+
+// Auto-envío del formulario cuando cambien los filtros principales
+document.addEventListener('DOMContentLoaded', function() {
+    const filtrosRapidos = ['filtro_estado', 'filtro_proyecto', 'filtro_con_ordenes'];
+    
+    filtrosRapidos.forEach(id => {
+        const elemento = document.getElementById(id);
+        if (elemento) {
+            elemento.addEventListener('change', function() {
+                document.getElementById('form-filtros-despachos').submit();
+            });
+        }
+    });
+});
+</script>
+
+<style>
+#filtros-despachos .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.badge .btn-close {
+    font-size: 0.6em;
+    margin-left: 0.25rem;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+}
+
+.form-check-label {
+    margin-left: 0.5rem;
+}
+</style>

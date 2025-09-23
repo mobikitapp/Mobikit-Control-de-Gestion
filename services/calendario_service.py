@@ -11,7 +11,8 @@ from models import EventoEntrega, Proyecto, Despacho, Cliente, RolUsuario, TipoE
 class CalendarioService:
     """Service layer for calendar and events management"""
 
-    def get_calendario_mensual(self, year: int, month: int, usuario_id: str, rol_usuario: RolUsuario) -> Dict[str, Any]:
+    def get_calendario_mensual(self, year: int, month: int, usuario_id: str, rol_usuario: RolUsuario, 
+                              filtros_despachos: Optional[Dict] = None) -> Dict[str, Any]:
         """Get monthly calendar data with events"""
         
         # Create date range for the month
@@ -24,6 +25,9 @@ class CalendarioService:
         # Get events for the month
         eventos_mes = self._get_eventos_rango_fechas(primer_dia, ultimo_dia, usuario_id, rol_usuario)
         
+        # Get despachos for the month with filters
+        despachos_mes = self._get_despachos_rango_fechas(primer_dia, ultimo_dia, usuario_id, rol_usuario, filtros_despachos)
+        
         # Get hitos as events for the month
         hitos_eventos = self._get_hitos_como_eventos(primer_dia, ultimo_dia, usuario_id, rol_usuario)
         
@@ -33,6 +37,21 @@ class CalendarioService:
         
         # Organize events by day
         eventos_por_dia = {}
+        despachos_por_dia = {}
+        
+        # Add despachos
+        for despacho in despachos_mes:
+            dia = despacho.fecha_programada.day
+            if dia not in despachos_por_dia:
+                despachos_por_dia[dia] = []
+            despachos_por_dia[dia].append({
+                'id': despacho.id,
+                'numero_despacho': despacho.numero_despacho,
+                'estado': despacho.estado.value,
+                'cliente': despacho.proyecto.cliente.nombre if hasattr(despacho, 'proyecto') and despacho.proyecto and hasattr(despacho.proyecto, 'cliente') and despacho.proyecto.cliente else 'Sin cliente',
+                'fecha_envio': despacho.fecha_envio.strftime('%H:%M') if despacho.fecha_envio else None,
+                'color': self._get_color_despacho(despacho.estado)
+            })
         
         # Add regular events
         for evento in eventos_mes:
@@ -75,20 +94,29 @@ class CalendarioService:
         eventos_pendientes = len([e for e in eventos_mes if e.estado == EstadoEvento.PENDIENTE]) + len([h for h in hitos_eventos if h['estado'] == 'pendiente'])
         eventos_completados = len([e for e in eventos_mes if e.estado == EstadoEvento.COMPLETADO]) + len([h for h in hitos_eventos if h['estado'] == 'completado'])
         
+        # Calculate despachos statistics
+        total_despachos = len(despachos_mes)
+        despachos_programados = len([d for d in despachos_mes if d.estado.name == 'PROGRAMADO'])
+        
         return {
             'year': year,
             'month': month,
             'nombre_mes': primer_dia.strftime('%B'),
             'dias_mes': dias_mes,
             'eventos_por_dia': eventos_por_dia,
+            'despachos_por_dia': despachos_por_dia,
             'mes_anterior': mes_anterior,
             'mes_siguiente': mes_siguiente,
             'total_eventos': total_eventos,
             'eventos_pendientes': eventos_pendientes,
-            'eventos_completados': eventos_completados
+            'eventos_completados': eventos_completados,
+            'total_despachos': total_despachos,
+            'despachos_programados': despachos_programados,
+            'total_hitos': len(hitos_eventos)
         }
 
-    def get_calendario_semanal(self, year: int, month: int, day: int, usuario_id: str, rol_usuario: RolUsuario) -> Dict[str, Any]:
+    def get_calendario_semanal(self, year: int, month: int, day: int, usuario_id: str, rol_usuario: RolUsuario,
+                              filtros_despachos: Optional[Dict] = None) -> Dict[str, Any]:
         """Get weekly calendar data with events"""
         
         # Create date for the selected day
@@ -103,7 +131,7 @@ class CalendarioService:
         eventos_semana = self._get_eventos_rango_fechas(inicio_semana, fin_semana, usuario_id, rol_usuario)
         
         # Get despachos for the week
-        despachos_semana = self._get_despachos_rango_fechas(inicio_semana, fin_semana, usuario_id, rol_usuario)
+        despachos_semana = self._get_despachos_rango_fechas(inicio_semana, fin_semana, usuario_id, rol_usuario, filtros_despachos)
         
         # Get hitos for the week
         hitos_semana = self._get_hitos_rango_fechas(inicio_semana, fin_semana, usuario_id, rol_usuario)
@@ -189,7 +217,8 @@ class CalendarioService:
             'hitos_pendientes': len([h for h in hitos_semana if h.estado == EstadoHitoEntrega.PENDIENTE])
         }
 
-    def get_calendario_diario(self, year: int, month: int, day: int, usuario_id: str, rol_usuario: RolUsuario) -> Dict[str, Any]:
+    def get_calendario_diario(self, year: int, month: int, day: int, usuario_id: str, rol_usuario: RolUsuario,
+                             filtros_despachos: Optional[Dict] = None) -> Dict[str, Any]:
         """Get daily calendar data with events focused on dispatches"""
         
         # Create date for the selected day
@@ -199,7 +228,7 @@ class CalendarioService:
         eventos_dia = self._get_eventos_rango_fechas(fecha_dia, fecha_dia, usuario_id, rol_usuario)
         
         # Get despachos for the day
-        despachos_dia = self._get_despachos_rango_fechas(fecha_dia, fecha_dia, usuario_id, rol_usuario)
+        despachos_dia = self._get_despachos_rango_fechas(fecha_dia, fecha_dia, usuario_id, rol_usuario, filtros_despachos)
         
         # Get hitos for the day
         hitos_dia = self._get_hitos_rango_fechas(fecha_dia, fecha_dia, usuario_id, rol_usuario)
@@ -753,7 +782,8 @@ class CalendarioService:
             )
         ).order_by(EventoEntrega.fecha_evento, EventoEntrega.hora_evento).all()
     
-    def _get_despachos_rango_fechas(self, fecha_inicio: date, fecha_fin: date, usuario_id: str, rol_usuario: RolUsuario) -> List[Despacho]:
+    def _get_despachos_rango_fechas(self, fecha_inicio: date, fecha_fin: date, usuario_id: str, rol_usuario: RolUsuario, 
+                                   filtros: Optional[Dict] = None) -> List[Despacho]:
         """Get despachos for date range with user access control"""
         
         # Build base query with access control  
@@ -776,6 +806,44 @@ class CalendarioService:
                 Despacho.fecha_programada <= fecha_fin
             )
         )
+        
+        # Apply additional filters if provided
+        if filtros:
+            if filtros.get('estado'):
+                try:
+                    from models import EstadoDespacho
+                    estado_enum = EstadoDespacho(filtros['estado'])
+                    query = query.filter(Despacho.estado == estado_enum)
+                except (ValueError, AttributeError):
+                    pass
+            
+            if filtros.get('responsable_nombre'):
+                query = query.filter(Despacho.responsable_nombre.ilike(f"%{filtros['responsable_nombre']}%"))
+            
+            if filtros.get('numero_despacho'):
+                query = query.filter(Despacho.numero_despacho.ilike(f"%{filtros['numero_despacho']}%"))
+            
+            if filtros.get('proyecto_id'):
+                query = query.filter(Despacho.proyecto_id == filtros['proyecto_id'])
+            
+            if filtros.get('fecha_desde'):
+                try:
+                    from datetime import datetime
+                    fecha_desde = datetime.strptime(filtros['fecha_desde'], '%Y-%m-%d').date()
+                    query = query.filter(Despacho.fecha_programada >= fecha_desde)
+                except (ValueError, TypeError):
+                    pass
+            
+            if filtros.get('fecha_hasta'):
+                try:
+                    from datetime import datetime
+                    fecha_hasta = datetime.strptime(filtros['fecha_hasta'], '%Y-%m-%d').date()
+                    query = query.filter(Despacho.fecha_programada <= fecha_hasta)
+                except (ValueError, TypeError):
+                    pass
+            
+            if filtros.get('con_ordenes'):
+                query = query.filter(Despacho.ordenes_fabricacion_detalle.any())
         
         # Join with proyecto and cliente for additional info
         query = query.options(

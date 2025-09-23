@@ -32,12 +32,28 @@ def vista_mensual():
         if year < 2020 or year > 2030:
             year = datetime.now().year
         
+        # Get filter parameters
+        filtros_despachos = {
+            'estado': request.args.get('estado'),
+            'responsable_nombre': request.args.get('responsable_nombre'),
+            'numero_despacho': request.args.get('numero_despacho'),
+            'proyecto_id': request.args.get('proyecto_id', type=int),
+            'fecha_desde': request.args.get('fecha_desde'),
+            'fecha_hasta': request.args.get('fecha_hasta'),
+            'con_ordenes': request.args.get('con_ordenes') is not None
+        }
+        # Remove None values
+        filtros_despachos = {k: v for k, v in filtros_despachos.items() if v is not None and v != ''}
+        
         # Get calendar data
-        data = service.get_calendario_mensual(year, month, current_user.id, current_user.rol)
+        data = service.get_calendario_mensual(year, month, current_user.id, current_user.rol, filtros_despachos)
         
         # Add current datetime for template
         now = datetime.now()
         data['now'] = now
+        
+        # Add filter information for template
+        data['filtros_activos'] = filtros_despachos if filtros_despachos else None
         
         return render_template('calendario/vista_mensual.html', **data)
         
@@ -109,12 +125,28 @@ def vista_semanal():
         if day < 1 or day > 31:
             day = datetime.now().day
         
+        # Get filter parameters for weekly view
+        filtros_despachos = {
+            'estado': request.args.get('estado'),
+            'responsable_nombre': request.args.get('responsable_nombre'),
+            'numero_despacho': request.args.get('numero_despacho'),
+            'proyecto_id': request.args.get('proyecto_id', type=int),
+            'fecha_desde': request.args.get('fecha_desde'),
+            'fecha_hasta': request.args.get('fecha_hasta'),
+            'con_ordenes': request.args.get('con_ordenes') is not None
+        }
+        # Remove None values
+        filtros_despachos = {k: v for k, v in filtros_despachos.items() if v is not None and v != ''}
+        
         # Get weekly calendar data
-        data = service.get_calendario_semanal(year, month, day, current_user.id, current_user.rol)
+        data = service.get_calendario_semanal(year, month, day, current_user.id, current_user.rol, filtros_despachos)
         
         # Add current datetime for template
         now = datetime.now()
         data['now'] = now
+        
+        # Add filter information for template
+        data['filtros_activos'] = filtros_despachos if filtros_despachos else None
         
         return render_template('calendario/vista_semanal.html', **data)
         
@@ -147,12 +179,28 @@ def vista_diaria():
         if day < 1 or day > last_day_of_month:
             day = min(datetime.now().day, last_day_of_month)
         
+        # Get filter parameters for daily view
+        filtros_despachos = {
+            'estado': request.args.get('estado'),
+            'responsable_nombre': request.args.get('responsable_nombre'),
+            'numero_despacho': request.args.get('numero_despacho'),
+            'proyecto_id': request.args.get('proyecto_id', type=int),
+            'fecha_desde': request.args.get('fecha_desde'),
+            'fecha_hasta': request.args.get('fecha_hasta'),
+            'con_ordenes': request.args.get('con_ordenes') is not None
+        }
+        # Remove None values
+        filtros_despachos = {k: v for k, v in filtros_despachos.items() if v is not None and v != ''}
+        
         # Get daily calendar data
-        data = service.get_calendario_diario(year, month, day, current_user.id, current_user.rol)
+        data = service.get_calendario_diario(year, month, day, current_user.id, current_user.rol, filtros_despachos)
         
         # Add current datetime for template
         now = datetime.now()
         data['now'] = now
+        
+        # Add filter information for template
+        data['filtros_activos'] = filtros_despachos if filtros_despachos else None
         
         return render_template('calendario/vista_diaria.html', **data)
         
