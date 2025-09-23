@@ -155,8 +155,8 @@
                     </div>
                     {% endfor %}
                     <div class="text-center">
-                        <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-info btn-sm">
-                            Ver todas las entregas
+                        <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-info btn-sm">
+                            Ver calendario mensual
                         </a>
                     </div>
                     {% else %}
@@ -225,8 +225,8 @@
                     </div>
                     {% endfor %}
                     <div class="text-center">
-                        <a href="{{ url_for('calendario.lista_eventos', estado='pendiente') }}" class="btn btn-outline-danger btn-sm">
-                            Ver entregas pendientes
+                        <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-danger btn-sm">
+                            Ver calendario mensual
                         </a>
                     </div>
                     {% else %}

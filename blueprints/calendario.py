@@ -62,47 +62,7 @@ def vista_mensual():
         return redirect(url_for('index'))
 
 
-@calendario_bp.route('/eventos')
-@login_required
-def lista_eventos():
-    """Lista completa de eventos de entrega"""
-    try:
-        service = CalendarioService()
-        
-        # Get filters from request
-        fecha_inicio = request.args.get('fecha_inicio')
-        fecha_fin = request.args.get('fecha_fin')
-        estado = request.args.get('estado')
-        tipo_evento = request.args.get('tipo')
-        
-        # Convert date strings to datetime objects
-        if fecha_inicio:
-            try:
-                fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
-            except ValueError:
-                fecha_inicio = None
-        
-        if fecha_fin:
-            try:
-                fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
-            except ValueError:
-                fecha_fin = None
-        
-        # Get events data
-        data = service.get_eventos_lista(
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin,
-            estado=estado,
-            tipo_evento=tipo_evento,
-            usuario_id=current_user.id,
-            rol_usuario=current_user.rol
-        )
-        
-        return render_template('calendario/lista_eventos.html', **data)
-        
-    except Exception as e:
-        flash(f'Error al cargar eventos: {str(e)}', 'error')
-        return redirect(url_for('calendario.vista_mensual'))
+
 
 
 @calendario_bp.route('/vista-semanal')
