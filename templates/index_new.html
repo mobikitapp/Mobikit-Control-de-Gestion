@@ -202,45 +202,83 @@
                     </a>
                 </div>
                 <div class="card-body">
-                    {% if dashboard.activity.pending_tasks %}
-                        {% for task in dashboard.activity.pending_tasks %}
-                        <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
-                            <div class="flex-shrink-0">
-                                {% if task.estado_actual %}
-                                <span class="badge bg-{{ 'warning' if 'pendiente' in task.estado_actual.nombre.lower() else 'info' if 'fabrica' in task.estado_actual.nombre.lower() else 'secondary' if 'embalaje' in task.estado_actual.nombre.lower() else 'success' if 'bodega' in task.estado_actual.nombre.lower() else 'primary' }}">
-                                    {{ task.estado_actual.nombre }}
-                                </span>
+                    {% for task in dashboard.activity.pending_tasks %}
+                    <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                        <div class="flex-shrink-0">
+                            {% if task.estado_actual %}
+                            <span class="badge bg-{{ 'warning' if 'pendiente' in task.estado_actual.nombre.lower() else 'info' if 'fabrica' in task.estado_actual.nombre.lower() else 'secondary' if 'embalaje' in task.estado_actual.nombre.lower() else 'success' if 'bodega' in task.estado_actual.nombre.lower() else 'primary' }}">
+                                {{ task.estado_actual.nombre }}
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary">Sin Estado</span>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-medium">
+                                {% if dashboard.rol == 'ventas' %}
+                                <a href="{{ url_for('proyectos.detalle', proyecto_id=task.id) }}" class="text-decoration-none">
+                                    {{ task.nombre }}
+                                </a>
                                 {% else %}
-                                <span class="badge bg-secondary">Sin Estado</span>
+                                <a href="{{ url_for('fabricacion.detalle', of_id=task.id) }}" class="text-decoration-none">
+                                    {{ task.codigo }}
+                                </a>
                                 {% endif %}
                             </div>
-                            <div class="flex-grow-1 ms-3">
-                                <div class="fw-medium">
-                                    {% if dashboard.rol == 'ventas' %}
-                                    <a href="{{ url_for('proyectos.detalle', proyecto_id=task.id) }}" class="text-decoration-none">
-                                        {{ task.nombre }}
-                                    </a>
-                                    {% else %}
-                                    <a href="{{ url_for('fabricacion.detalle', of_id=task.id) }}" class="text-decoration-none">
-                                        {{ task.codigo }}
-                                    </a>
-                                    {% endif %}
-                                </div>
-                                <div class="text-muted small">{{ task.proyecto.nombre if task.proyecto else 'Sin Proyecto' }}</div>
-                            </div>
-                            <div class="flex-shrink-0 text-muted small">
-                                {% if task.fecha_planificada %}
-                                    {{ task.fecha_planificada.strftime('%d/%m') }}
-                                {% endif %}
-                            </div>
+                            <div class="text-muted small">{{ task.proyecto.nombre if task.proyecto else 'Sin Proyecto' }}</div>
                         </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="text-center text-muted py-4">
-                            <i data-feather="check-circle" class="mb-2" style="width: 48px; height: 48px;"></i>
-                            <p>{% if dashboard.rol == 'ventas' %}No tienes cotizaciones pendientes{% else %}No tienes tareas pendientes{% endif %}</p>
+                        <div class="flex-shrink-0 text-muted small">
+                            {% if task.fecha_planificada %}
+                                {{ task.fecha_planificada.strftime('%d/%m') }}
+                            {% endif %}
                         </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if not dashboard.activity.pending_tasks %}
+                    <div class="text-center text-muted py-4">
+                        <i data-feather="check-circle" class="mb-2" style="width: 48px; height: 48px;"></i>
+                        <p>{% if dashboard.rol == 'ventas' %}No tienes cotizaciones pendientes{% else %}No tienes tareas pendientes{% endif %}</p>
+                    </div>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if dashboard.activity.recent_clients and dashboard.rol == 'ventas' %}
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="user-plus" class="me-2"></i>
+                        Clientes Recientes
+                    </h5>
+                    <a href="{{ url_for('clientes.index') }}" class="btn btn-sm btn-outline-secondary">
+                        Ver Todos
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% for cliente in dashboard.activity.recent_clients %}
+                    <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                        <div class="flex-shrink-0">
+                            <div class="avatar-sm bg-{{ dashboard.visual.primary_color or 'primary' }} text-white rounded-circle d-flex align-items-center justify-content-center">
+                                {{ cliente.nombre[0].upper() }}
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-medium">
+                                <a href="{{ url_for('clientes.detalle', cliente_id=cliente.id) }}" class="text-decoration-none">
+                                    {{ cliente.nombre }}
+                                </a>
+                            </div>
+                            <div class="text-muted small">{{ cliente.rut if cliente.rut else 'Sin RUT' }}</div>
+                        </div>
+                        <div class="flex-shrink-0 text-muted small">
+                            {{ cliente.created_at.strftime('%d/%m') if cliente.created_at else '' }}
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
