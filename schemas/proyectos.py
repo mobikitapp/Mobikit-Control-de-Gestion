@@ -11,6 +11,7 @@ class EstadoComercialEnum(str, Enum):
     ADJUDICADO = "ADJUDICADO"
     EN_DESARROLLO = "EN_DESARROLLO"
     TERMINADO = "TERMINADO"
+    PERDIDO = "PERDIDO"
 
 class ProyectoBase(BaseModel):
     cliente_id: int = Field(..., description="ID del cliente")

@@ -99,6 +99,7 @@ class EstadoComercial(Enum):
     ADJUDICADO = "ADJUDICADO"
     EN_DESARROLLO = "EN_DESARROLLO"
     TERMINADO = "TERMINADO"
+    PERDIDO = "PERDIDO"
 
 class TipoProyecto(Enum):
     SOCIAL = "SOCIAL"
