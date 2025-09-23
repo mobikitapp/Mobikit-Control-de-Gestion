@@ -182,7 +182,7 @@ class ProyectosService:
                 'contratos_asociados': self._get_contratos_count(proyecto_id),
                 'despachos_realizados': self._get_despachos_count(proyecto_id),
                 # New financial KPIs - always recalculate from treasury data
-                'kpi_financiero': self._calculate_financial_kpi_with_treasury(proyecto_id),
+                'kpi_financiero': self.calculate_financial_kpi_with_treasury(proyecto_id),
                 # New efficiency metrics by area
                 'eficiencia_por_area': self._calcular_eficiencia_por_area(proyecto_id)
             }
@@ -705,7 +705,7 @@ class ProyectosService:
                 return {'estado': 'sin_proyecto'}
 
             # Use the same logic as treasury integration for consistency
-            return self._calculate_financial_kpi_with_treasury(proyecto.id)
+            return self.calculate_financial_kpi_with_treasury(proyecto.id)
 
         except Exception as e:
             logger.error(f"Error calculando KPI financiero: {str(e)}")
@@ -823,7 +823,7 @@ class ProyectosService:
             stats['ordenes_por_estado'] = ordenes_por_estado
 
             # Financial KPI calculation using Treasury data
-            stats['kpi_financiero'] = self._calculate_financial_kpi_with_treasury(proyecto_id)
+            stats['kpi_financiero'] = self.calculate_financial_kpi_with_treasury(proyecto_id)
 
             # Efficiency by area
             stats['eficiencia_por_area'] = self._calculate_area_efficiency(proyecto_id)
@@ -834,7 +834,7 @@ class ProyectosService:
             logger.error(f"Error getting project stats for {proyecto_id}: {str(e)}")
             return {}
 
-    def _calculate_financial_kpi_with_treasury(self, proyecto_id: int) -> Dict[str, Any]:
+    def calculate_financial_kpi_with_treasury(self, proyecto_id: int) -> Dict[str, Any]:
         """
         Calcula KPI financiero del proyecto alineado con módulo de finanzas
         """

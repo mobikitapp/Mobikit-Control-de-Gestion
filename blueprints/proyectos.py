@@ -465,20 +465,32 @@ def api_kpi_cobranza(proyecto_id):
         # Verificar que el proyecto existe
         proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
         if not proyecto:
+            logger.warning(f"Proyecto {proyecto_id} no encontrado para KPI cobranza")
             return jsonify({
                 'success': False, 
-                'message': f'Proyecto {proyecto_id} no encontrado'
+                'message': f'Proyecto {proyecto_id} no encontrado',
+                'porcentaje_cobrado': 0,
+                'porcentaje_facturado': 0,
+                'monto_pagado': 0,
+                'monto_facturado': 0,
+                'monto_contratado': 0,
+                'estado': 'sin_datos'
             }), 404
 
-        # Obtener stats completas del proyecto que incluyen el KPI financiero
-        proyecto_stats = proyectos_service.get_proyecto_with_stats(proyecto_id)
-        if not proyecto_stats or 'stats' not in proyecto_stats:
+        # Calcular KPI financiero directamente usando el método del servicio
+        kpi_data = proyectos_service.calculate_financial_kpi_with_treasury(proyecto_id)
+        
+        if not kpi_data:
+            logger.warning(f"No se pudo calcular KPI para proyecto {proyecto_id}")
             return jsonify({
-                'success': False, 
-                'message': 'No se pudieron obtener las estadísticas del proyecto'
-            }), 500
-
-        kpi_data = proyecto_stats['stats'].get('kpi_financiero', {})
+                'success': True,
+                'porcentaje_cobrado': 0,
+                'porcentaje_facturado': 0,
+                'monto_pagado': 0,
+                'monto_facturado': 0,
+                'monto_contratado': 0,
+                'estado': 'sin_datos'
+            })
 
         return jsonify({
             'success': True,
@@ -494,10 +506,19 @@ def api_kpi_cobranza(proyecto_id):
         logger.error(f"Error en API KPI cobranza para proyecto {proyecto_id}: {str(e)}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Siempre devolver JSON válido, incluso en caso de error
         return jsonify({
             'success': False, 
-            'message': f'Error al obtener KPI: {str(e)}',
-            'error_type': type(e).__name__
+            'message': f'Error interno del servidor',
+            'error_details': str(e),
+            'error_type': type(e).__name__,
+            'porcentaje_cobrado': 0,
+            'porcentaje_facturado': 0,
+            'monto_pagado': 0,
+            'monto_facturado': 0,
+            'monto_contratado': 0,
+            'estado': 'error'
         }), 500
 
 @proyectos_bp.route('/<int:proyecto_id>/limpiar-kpi', methods=['POST'])
