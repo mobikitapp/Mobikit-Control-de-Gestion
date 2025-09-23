@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ dashboard.visual.dashboard_title or "Dashboard" }} - Mobikit{% endblock %}
+{% block title %}{{ dashboard.visual.dashboard_title if dashboard and dashboard.visual else "Dashboard" }} - Mobikit{% endblock %}
 
 {% block content %}
 {% if show_login %}

@@ -93,7 +93,7 @@ def index():
     try:
         # Get complete dashboard data based on user role
         dashboard_service = DashboardService()
-        dashboard_data = dashboard_service.get_dashboard_data(current_user)
+        dashboard_data = dashboard_service.get_dashboard_data(current_user._get_current_object())
         
         return render_template('index.html', 
                              dashboard=dashboard_data,
