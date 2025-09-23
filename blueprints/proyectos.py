@@ -125,7 +125,7 @@ def nuevo():
                          .filter_by(activo=True)
                          .order_by(User.first_name, User.last_name)
                          .all())
-            
+
             return render_template('proyectos/form.html',
                                  clientes=clientes,
                                  vendedores=vendedores,
@@ -160,7 +160,7 @@ def nuevo():
                          .filter_by(activo=True)
                          .order_by(User.first_name, User.last_name)
                          .all())
-            
+
             return render_template('proyectos/form.html',
                                  clientes=clientes,
                                  vendedores=vendedores,
@@ -212,7 +212,7 @@ def editar(proyecto_id):
                          .filter_by(activo=True)
                          .order_by(User.first_name, User.last_name)
                          .all())
-            
+
             return render_template('proyectos/form.html',
                                  proyecto=proyecto,
                                  clientes=clientes,
@@ -254,7 +254,7 @@ def editar(proyecto_id):
                          .filter_by(activo=True)
                          .order_by(User.first_name, User.last_name)
                          .all())
-            
+
             return render_template('proyectos/form.html',
                                  proyecto=proyecto,
                                  clientes=clientes,
@@ -298,7 +298,7 @@ def adjuntos(proyecto_id):
     if request.method == 'GET':
         try:
             adjuntos = proyectos_service.get_project_attachments(proyecto_id)
-            
+
             adjuntos_data = []
             for adj in adjuntos:
                 adjuntos_data.append({
@@ -310,13 +310,13 @@ def adjuntos(proyecto_id):
                     'created_at': adj.created_at.strftime('%d/%m/%Y %H:%M') if adj.created_at else '',
                     'created_by': adj.created_by_user.nombre_completo if hasattr(adj, 'created_by_user') and adj.created_by_user else adj.created_by
                 })
-            
+
             return jsonify({'success': True, 'adjuntos': adjuntos_data})
-            
+
         except Exception as e:
             logger.error(f"Error loading adjuntos for proyecto {proyecto_id}: {str(e)}")
             return jsonify({'success': False, 'message': f'Error al cargar documentos: {str(e)}'}), 500
-    
+
     elif request.method == 'POST':
         try:
             if 'archivo' not in request.files:
@@ -361,23 +361,23 @@ def descargar_adjunto(adjunto_id):
     try:
         from repositories.proyecto_adjuntos_repo import ProyectoAdjuntosRepository
         from services.storage_service import StorageService
-        
+
         adjuntos_repo = ProyectoAdjuntosRepository()
         adjunto = adjuntos_repo.get_by_id(adjunto_id)
-        
+
         if not adjunto:
             flash('Documento no encontrado', 'error')
             return redirect(url_for('proyectos.index'))
-        
+
         storage_service = StorageService()
         file_content = storage_service.get_file(adjunto.storage_key)
-        
+
         response = make_response(file_content)
         response.headers['Content-Disposition'] = f'attachment; filename={adjunto.filename}'
         response.headers['Content-Type'] = adjunto.mime_type or 'application/octet-stream'
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error downloading adjunto {adjunto_id}: {str(e)}")
         flash('Error al descargar documento', 'error')
@@ -445,7 +445,7 @@ def api_proyecto_destino(proyecto_id):
         proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
         if not proyecto:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
-        
+
         return jsonify({
             'id': proyecto.id,
             'nombre': proyecto.nombre,
@@ -462,20 +462,35 @@ def api_proyecto_destino(proyecto_id):
 def api_kpi_cobranza(proyecto_id):
     """API endpoint para obtener KPI de cobranza de un proyecto"""
     try:
+        # Verificar que el proyecto existe
+        proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
+        if not proyecto:
+            return jsonify({
+                'success': False, 
+                'message': f'Proyecto {proyecto_id} no encontrado'
+            }), 404
+
         kpi_data = proyectos_service._calculate_financial_kpi_with_treasury(proyecto_id)
-        
+
         return jsonify({
             'success': True,
-            'porcentaje_cobrado': kpi_data.get('porcentaje_cobrado', 0),
-            'porcentaje_facturado': kpi_data.get('porcentaje_facturado', 0),
-            'monto_pagado': kpi_data.get('monto_pagado', 0),
-            'monto_facturado': kpi_data.get('monto_facturado', 0),
-            'monto_contratado': kpi_data.get('monto_contratado', 0)
+            'porcentaje_cobrado': float(kpi_data.get('porcentaje_cobrado', 0)),
+            'porcentaje_facturado': float(kpi_data.get('porcentaje_facturado', 0)),
+            'monto_pagado': float(kpi_data.get('monto_pagado', 0)),
+            'monto_facturado': float(kpi_data.get('monto_facturado', 0)),
+            'monto_contratado': float(kpi_data.get('monto_contratado', 0)),
+            'estado': kpi_data.get('estado', 'sin_datos')
         })
 
     except Exception as e:
-        logger.error(f"Error en API KPI cobranza: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error al obtener KPI: {str(e)}'}), 500
+        logger.error(f"Error en API KPI cobranza para proyecto {proyecto_id}: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False, 
+            'message': f'Error al obtener KPI: {str(e)}',
+            'error_type': type(e).__name__
+        }), 500
 
 @proyectos_bp.route('/<int:proyecto_id>/limpiar-kpi', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
@@ -484,47 +499,47 @@ def limpiar_kpi(proyecto_id):
     try:
         data = request.get_json()
         tipo = data.get('tipo', 'financiero')
-        
+
         if tipo == 'financiero':
             # Limpiar estados de pago relacionados al proyecto
             from models import EstadoPago, Contrato
             contratos = Contrato.query.filter_by(proyecto_id=proyecto_id).all()
             estados_eliminados = 0
-            
+
             for contrato in contratos:
                 estados = EstadoPago.query.filter_by(contrato_id=contrato.id).all()
                 for estado in estados:
                     db.session.delete(estado)
                     estados_eliminados += 1
-            
+
             db.session.commit()
-            
+
             return jsonify({
                 'success': True,
                 'message': f'KPI financiero limpiado. {estados_eliminados} estados de pago eliminados.',
                 'detalles': [f'{estados_eliminados} estados de pago eliminados']
             })
-            
+
         elif tipo == 'eficiencia':
             # Limpiar progreso de áreas relacionado al proyecto
             from models import OrdenAreaProgreso, OrdenFabricacion
             ordenes = OrdenFabricacion.query.filter_by(proyecto_id=proyecto_id).all()
             progresos_eliminados = 0
-            
+
             for orden in ordenes:
                 progresos = OrdenAreaProgreso.query.filter_by(orden_fabricacion_id=orden.id).all()
                 for progreso in progresos:
                     db.session.delete(progreso)
                     progresos_eliminados += 1
-            
+
             db.session.commit()
-            
+
             return jsonify({
                 'success': True,
                 'message': f'KPI de eficiencia limpiado. {progresos_eliminados} registros de progreso eliminados.',
                 'detalles': [f'{progresos_eliminados} registros de progreso por área eliminados']
             })
-        
+
         else:
             return jsonify({'success': False, 'message': 'Tipo de KPI no válido'}), 400
 
@@ -543,21 +558,21 @@ def bitacora(proyecto_id):
             proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
             if not proyecto:
                 return jsonify({'success': False, 'message': 'Proyecto no encontrado'}), 404
-            
+
             # Obtener filtros de query parameters
             tipo = request.args.get('tipo')
             usuario_id = request.args.get('usuario_id')
             limit = int(request.args.get('limit', 50))
-            
+
             filters = BitacoraProyectoFilters(
                 proyecto_id=proyecto_id,
                 tipo=tipo,
                 usuario_id=usuario_id,
                 limit=limit
             )
-            
+
             comentarios = bitacora_service.get_comentarios_proyecto(filters)
-            
+
             # Convertir a formato JSON serializable
             comentarios_data = []
             for comentario in comentarios:
@@ -568,47 +583,47 @@ def bitacora(proyecto_id):
                     'tipo': comentario.tipo.value,
                     'fecha_comentario': comentario.fecha_comentario.strftime('%d/%m/%Y %H:%M')
                 })
-            
+
             return jsonify({
                 'success': True,
                 'comentarios': comentarios_data
             })
-            
+
         except Exception as e:
             logger.error(f"Error getting bitacora for project {proyecto_id}: {str(e)}")
             return jsonify({'success': False, 'message': f'Error al cargar bitácora: {str(e)}'}), 500
-    
+
     elif request.method == 'POST':
         try:
             # Verificar que el proyecto existe
             proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
             if not proyecto:
                 return jsonify({'success': False, 'message': 'Proyecto no encontrado'}), 404
-            
+
             # Validar datos del formulario
             comentario_text = request.form.get('comentario', '').strip()
             tipo = request.form.get('tipo', 'general')
-            
+
             if not comentario_text:
                 return jsonify({'success': False, 'message': 'El comentario es requerido'}), 400
-            
+
             if len(comentario_text) > 1000:
                 return jsonify({'success': False, 'message': 'El comentario no puede superar 1000 caracteres'}), 400
-            
+
             # Crear comentario
             from models import TipoBitacora
             tipo_enum = TipoBitacora.GENERAL
             if tipo in ['especificacion', 'cambio', 'nota', 'general']:
                 tipo_enum = getattr(TipoBitacora, tipo.upper())
-            
+
             bitacora_data = BitacoraProyectoCreate(
                 proyecto_id=proyecto_id,
                 comentario=comentario_text,
                 tipo=tipo_enum
             )
-            
+
             comentario = bitacora_service.create_comentario(bitacora_data, current_user.id)
-            
+
             return jsonify({
                 'success': True,
                 'message': 'Comentario agregado exitosamente',
@@ -620,7 +635,7 @@ def bitacora(proyecto_id):
                     'fecha_comentario': comentario.fecha_comentario.strftime('%d/%m/%Y %H:%M')
                 }
             })
-            
+
         except ValidationError as e:
             logger.warning(f"Validation error creating bitacora comment: {str(e)}")
             return jsonify({'success': False, 'message': 'Error de validación en los datos'}), 400
@@ -634,7 +649,7 @@ def eliminar_comentario_bitacora(comentario_id):
     """Eliminar comentario de bitácora"""
     try:
         success = bitacora_service.delete_comentario(comentario_id, current_user.id)
-        
+
         if success:
             return jsonify({
                 'success': True,
@@ -645,7 +660,7 @@ def eliminar_comentario_bitacora(comentario_id):
                 'success': False,
                 'message': 'No se pudo eliminar el comentario'
             }), 400
-            
+
     except Exception as e:
         logger.error(f"Error deleting bitacora comment {comentario_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al eliminar comentario: {str(e)}'}), 500
