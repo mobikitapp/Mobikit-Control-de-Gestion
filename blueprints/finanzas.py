@@ -468,6 +468,160 @@ def nuevo_estado_pago(contrato_id):
         flash('Error al crear el estado de pago', 'error')
         return redirect(url_for('finanzas.estados_pago_contrato', contrato_id=contrato_id))
 
+@finanzas_bp.route('/estado-pago/<int:estado_id>/editar', methods=['GET', 'POST'])
+@login_required
+@finanzas_required
+def editar_estado_pago(estado_id):
+    """Editar un estado de pago existente"""
+    try:
+        estado = db.session.query(EstadoPago).options(
+            joinedload(EstadoPago.contrato).joinedload(Contrato.proyecto)
+        ).filter_by(id=estado_id).first()
+
+        if not estado:
+            flash('Estado de pago no encontrado', 'error')
+            return redirect(url_for('finanzas.dashboard'))
+
+        contrato = estado.contrato
+
+        if request.method == 'POST':
+            # Validar datos requeridos
+            tipo_estado_str = request.form.get('tipo_estado')
+            fecha_estado_str = request.form.get('fecha_estado')
+            fecha_programada_str = request.form.get('fecha_programada_pago')
+
+            if not tipo_estado_str or not fecha_estado_str:
+                flash('Tipo de estado y fecha son requeridos', 'error')
+                return redirect(url_for('finanzas.editar_estado_pago', estado_id=estado_id))
+
+            # VALIDACIÓN: Rechazar edición a PENDIENTE_FACTURAR
+            if tipo_estado_str == 'PENDIENTE_FACTURAR':
+                flash('Ya no es posible usar el estado "Pendiente por Facturar". Los montos pendientes se calculan automáticamente.', 'error')
+                return redirect(url_for('finanzas.editar_estado_pago', estado_id=estado_id))
+
+            # Determinar tipo de moneda del estado de pago
+            moneda_tipo = request.form.get('moneda_tipo', 'CLP')
+
+            # Actualizar estado de pago
+            estado.tipo_estado = TipoEstadoPago[tipo_estado_str]
+            estado.numero_documento = request.form.get('numero_documento')
+            estado.fecha_estado = datetime.strptime(fecha_estado_str, '%Y-%m-%d').date()
+            estado.descripcion = request.form.get('descripcion')
+            estado.fecha_programada_pago = datetime.strptime(fecha_programada_str, '%Y-%m-%d').date() if fecha_programada_str else None
+            estado.moneda_original = moneda_tipo
+
+            # Configurar campos según el tipo de moneda
+            if moneda_tipo == 'UF':
+                # Estado en UF - usar servicio UF para conversión
+                monto_uf_input = request.form.get('monto_uf', '0')
+                if monto_uf_input:
+                    estado.monto_uf = Decimal(monto_uf_input)
+
+                    # Obtener valor UF server-side
+                    from services.uf_conversion_service import UfConversionService
+                    clp_amount = UfConversionService.convert_uf_to_clp(estado.monto_uf, estado.fecha_estado)
+                    valor_uf_fecha = UfConversionService.get_uf_value_for_date(estado.fecha_estado)
+
+                    if clp_amount and valor_uf_fecha:
+                        estado.valor_uf_fecha_estado = valor_uf_fecha
+                        estado.monto_clp_equivalente = clp_amount
+                        estado.monto = clp_amount
+                        estado.fecha_conversion_uf = estado.fecha_estado
+                    else:
+                        flash('Error obteniendo valor UF para conversión', 'error')
+                        return redirect(url_for('finanzas.editar_estado_pago', estado_id=estado_id))
+                else:
+                    flash('Monto UF es requerido para estados en UF', 'error')
+                    return redirect(url_for('finanzas.editar_estado_pago', estado_id=estado_id))
+            else:
+                # Estado en CLP tradicional
+                monto_clp_input = request.form.get('monto', '0')
+                estado.monto = Decimal(monto_clp_input)
+                # Limpiar campos UF si cambia de UF a CLP
+                estado.monto_uf = None
+                estado.valor_uf_fecha_estado = None
+                estado.monto_clp_equivalente = None
+                estado.fecha_conversion_uf = None
+
+            # Actualizar efectos de inflación si es aplicable
+            if moneda_tipo == 'UF':
+                try:
+                    InflacionService.actualizar_ganancias_perdidas_estado(estado)
+                except Exception as e:
+                    logger.warning(f"Error calculando efectos inflación para estado {estado.id}: {e}")
+
+            db.session.commit()
+
+            flash(f'Estado de pago actualizado exitosamente', 'success')
+            return redirect(url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id))
+
+        # Calcular saldos disponibles usando FinanzasService
+        finanzas_service = FinanzasService()
+        agregaciones = finanzas_service.get_contratos_aggregates()
+
+        # Encontrar agregación para este contrato
+        agg_contrato = next((agg for agg in agregaciones if agg['contrato_id'] == contrato.id), None)
+
+        if agg_contrato:
+            saldo_disponible_facturar = agg_contrato['pendiente_facturar']
+            saldo_disponible_cobrar = agg_contrato['pendiente_cobro']
+        else:
+            # Fallback a cálculo manual
+            total_contrato = contrato.monto_total or 0
+            total_facturado = sum(e.monto for e in contrato.estados_pago 
+                                if e.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO])
+            total_pagado = sum(e.monto for e in contrato.estados_pago 
+                             if e.tipo_estado == TipoEstadoPago.PAGADO)
+            saldo_disponible_facturar = max(0, total_contrato - total_facturado)
+            saldo_disponible_cobrar = max(0, total_facturado - total_pagado)
+
+        # Sumar el monto del estado actual para mostrar saldo disponible correcto
+        if estado.tipo_estado in [TipoEstadoPago.FACTURADO, TipoEstadoPago.PAGADO]:
+            saldo_disponible_facturar += float(estado.monto or 0)
+        if estado.tipo_estado == TipoEstadoPago.PAGADO:
+            saldo_disponible_cobrar += float(estado.monto or 0)
+
+        return render_template('finanzas/editar_estado_pago.html',
+                             estado=estado,
+                             contrato=contrato,
+                             tipos_estado=TipoEstadoPago,
+                             saldo_disponible_facturar=saldo_disponible_facturar,
+                             saldo_disponible_cobrar=saldo_disponible_cobrar,
+                             current_user=current_user)
+
+    except Exception as e:
+        logger.error(f"Error editando estado de pago: {e}")
+        db.session.rollback()
+        flash('Error al editar el estado de pago', 'error')
+        return redirect(url_for('finanzas.dashboard'))
+
+@finanzas_bp.route('/estado-pago/<int:estado_id>/eliminar', methods=['DELETE'])
+@login_required
+@finanzas_required
+def eliminar_estado_pago(estado_id):
+    """Eliminar un estado de pago"""
+    try:
+        estado = db.session.query(EstadoPago).filter_by(id=estado_id).first()
+
+        if not estado:
+            return jsonify({'success': False, 'message': 'Estado de pago no encontrado'}), 404
+
+        contrato_id = estado.contrato_id
+        
+        # Verificar permisos (solo admin o creador puede eliminar)
+        if current_user.rol != RolUsuario.ADMIN and estado.created_by != current_user.id:
+            return jsonify({'success': False, 'message': 'No tiene permisos para eliminar este estado'}), 403
+
+        db.session.delete(estado)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Estado de pago eliminado exitosamente'})
+
+    except Exception as e:
+        logger.error(f"Error eliminando estado de pago: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Error al eliminar el estado de pago'}), 500
+
 @finanzas_bp.route('/proyecto/<int:proyecto_id>/costos')
 @login_required
 @finanzas_required

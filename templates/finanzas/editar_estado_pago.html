@@ -1,0 +1,258 @@
+
+{% extends "base.html" %}
+
+{% block title %}Editar Estado de Pago{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('finanzas.dashboard') }}">Dashboard Financiero</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}">{{ contrato.numero_contrato }}</a></li>
+            <li class="breadcrumb-item active">Editar Estado</li>
+        </ol>
+    </nav>
+    
+    <h1 class="h3 mb-4">Editar Estado de Pago</h1>
+    
+    <!-- Información del Contrato -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Contrato:</strong> {{ contrato.numero_contrato }}</p>
+                    <p><strong>Proyecto:</strong> {{ contrato.proyecto.nombre }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Monto Total:</strong> $ {{ "{:,.0f}".format(contrato.monto_total or 0) }}</p>
+                    <p><strong>Pendiente por Facturar:</strong> <span class="text-warning">$ {{ "{:,.0f}".format(saldo_disponible_facturar) }}</span></p>
+                    <p><strong>Pendiente por Cobrar:</strong> <span class="text-info">$ {{ "{:,.0f}".format(saldo_disponible_cobrar) }}</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Formulario -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Editar Estado de Pago</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('finanzas.editar_estado_pago', estado_id=estado.id) }}">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="tipo_estado" class="form-label">Estado <span class="text-danger">*</span></label>
+                            <select class="form-select" id="tipo_estado" name="tipo_estado" required>
+                                <option value="">Seleccione...</option>
+                                <option value="FACTURADO" {% if estado.tipo_estado.value == 'FACTURADO' %}selected{% endif %}>Facturado</option>
+                                <option value="PAGADO" {% if estado.tipo_estado.value == 'PAGADO' %}selected{% endif %}>Pagado</option>
+                            </select>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i> 
+                                Los montos pendientes de facturar se calculan automáticamente
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="fecha_estado" class="form-label">Fecha del Estado <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="fecha_estado" name="fecha_estado" 
+                                   value="{{ estado.fecha_estado.strftime('%Y-%m-%d') if estado.fecha_estado else '' }}" required>
+                        </div>
+                        
+                        <!-- Selector de Moneda -->
+                        <div class="mb-3">
+                            <label class="form-label">Moneda del Estado <span class="text-danger">*</span></label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="moneda_tipo" id="moneda_clp" value="CLP" 
+                                           {% if not estado.moneda_original == 'UF' %}checked{% endif %}>
+                                    <label class="form-check-label" for="moneda_clp">CLP</label>
+                                </div>
+                                {% if contrato.moneda_original == 'UF' or estado.moneda_original == 'UF' %}
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="moneda_tipo" id="moneda_uf" value="UF" 
+                                           {% if estado.moneda_original == 'UF' %}checked{% endif %}>
+                                    <label class="form-check-label" for="moneda_uf">UF</label>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Monto en CLP -->
+                        <div class="mb-3" id="monto_clp_group" {% if estado.moneda_original == 'UF' %}style="display: none;"{% endif %}>
+                            <label for="monto" class="form-label">Monto CLP <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="monto" name="monto" 
+                                       step="0.01" min="0" value="{{ estado.monto or '' }}"
+                                       {% if not estado.moneda_original == 'UF' %}required{% endif %}>
+                            </div>
+                        </div>
+                        
+                        <!-- Monto en UF -->
+                        {% if contrato.moneda_original == 'UF' or estado.moneda_original == 'UF' %}
+                        <div class="mb-3" id="monto_uf_group" {% if not estado.moneda_original == 'UF' %}style="display: none;"{% endif %}>
+                            <label for="monto_uf" class="form-label">Monto UF <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">UF</span>
+                                <input type="number" class="form-control" id="monto_uf" name="monto_uf" 
+                                       step="0.0001" min="0" value="{{ estado.monto_uf or '' }}"
+                                       {% if estado.moneda_original == 'UF' %}required{% endif %}>
+                            </div>
+                            <small class="text-muted">UF actual: $<span id="valor_uf_display">-</span> CLP</small>
+                        </div>
+                        
+                        <!-- Información de conversión UF -->
+                        <div class="mb-3" id="conversion_info_uf" style="display: none;">
+                            <div class="alert alert-info d-flex align-items-center">
+                                <i data-feather="info" class="me-2"></i>
+                                <div>
+                                    <strong>Conversión UF:</strong>
+                                    <span id="conversion_text_estado">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Campos ocultos para tracking UF -->
+                        <input type="hidden" id="valor_uf_fecha_estado" name="valor_uf_fecha_estado">
+                        <input type="hidden" id="fecha_conversion_uf" name="fecha_conversion_uf">
+                        <input type="hidden" id="monto_clp_equivalente" name="monto_clp_equivalente">
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="numero_documento" class="form-label">Número de Documento</label>
+                            <input type="text" class="form-control" id="numero_documento" name="numero_documento" 
+                                   value="{{ estado.numero_documento or '' }}" placeholder="Ej: Factura #1234">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="fecha_programada_pago" class="form-label">Fecha Programada de Pago</label>
+                            <input type="date" class="form-control" id="fecha_programada_pago" name="fecha_programada_pago"
+                                   value="{{ estado.fecha_programada_pago.strftime('%Y-%m-%d') if estado.fecha_programada_pago else '' }}">
+                            <small class="text-muted">Opcional - Para estados pendientes de pago</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="descripcion" class="form-label">Descripción/Concepto <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="descripcion" name="descripcion" rows="3" required 
+                                      placeholder="Ej: Anticipo 30%, Avance 50%, Retención 10%, etc.">{{ estado.descripcion or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Actualizar Estado de Pago
+                    </button>
+                    <a href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}" 
+                       class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const monedaClpRadio = document.getElementById('moneda_clp');
+    const monedaUfRadio = document.getElementById('moneda_uf');
+    const montoClpGroup = document.getElementById('monto_clp_group');
+    const montoUfGroup = document.getElementById('monto_uf_group');
+    const montoClpInput = document.getElementById('monto');
+    const montoUfInput = document.getElementById('monto_uf');
+    const conversionInfoUf = document.getElementById('conversion_info_uf');
+    const valorUfDisplay = document.getElementById('valor_uf_display');
+    const conversionTextEstado = document.getElementById('conversion_text_estado');
+    const valorUfFechaEstadoInput = document.getElementById('valor_uf_fecha_estado');
+    const fechaConversionUfInput = document.getElementById('fecha_conversion_uf');
+    const montoClpEquivalenteInput = document.getElementById('monto_clp_equivalente');
+    
+    let currentUfValue = 0;
+    
+    // Solo configurar si hay elementos UF
+    if (monedaUfRadio) {
+        // Obtener valor UF actual
+        async function loadCurrentUfValue() {
+            try {
+                const response = await fetch('/api/uf/current');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        currentUfValue = data.valor_uf;
+                        if (valorUfDisplay) {
+                            valorUfDisplay.textContent = new Intl.NumberFormat('es-CL').format(currentUfValue);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading UF value:', error);
+            }
+        }
+        
+        // Cambiar entre CLP y UF
+        function toggleCurrencyInputs() {
+            if (monedaClpRadio.checked) {
+                montoClpGroup.style.display = 'block';
+                if (montoUfGroup) montoUfGroup.style.display = 'none';
+                if (conversionInfoUf) conversionInfoUf.style.display = 'none';
+                if (montoUfInput) {
+                    montoUfInput.removeAttribute('required');
+                }
+                montoClpInput.setAttribute('required', 'required');
+            } else if (monedaUfRadio.checked) {
+                montoClpGroup.style.display = 'none';
+                if (montoUfGroup) montoUfGroup.style.display = 'block';
+                montoClpInput.removeAttribute('required');
+                if (montoUfInput) {
+                    montoUfInput.setAttribute('required', 'required');
+                }
+                updateConversionDisplay();
+            }
+        }
+        
+        // Actualizar visualización de conversión UF
+        function updateConversionDisplay() {
+            if (!montoUfInput || !conversionTextEstado) return;
+            
+            const ufAmount = parseFloat(montoUfInput.value);
+            if (ufAmount && currentUfValue > 0) {
+                const clpAmount = ufAmount * currentUfValue;
+                conversionTextEstado.textContent = `UF ${new Intl.NumberFormat('es-CL', {minimumFractionDigits: 4}).format(ufAmount)} = $${new Intl.NumberFormat('es-CL').format(clpAmount)} CLP`;
+                if (conversionInfoUf) conversionInfoUf.style.display = 'block';
+                
+                // Actualizar campos ocultos
+                if (valorUfFechaEstadoInput) valorUfFechaEstadoInput.value = currentUfValue;
+                if (fechaConversionUfInput) fechaConversionUfInput.value = new Date().toISOString().split('T')[0];
+                if (montoClpEquivalenteInput) montoClpEquivalenteInput.value = clpAmount.toFixed(2);
+            } else {
+                if (conversionInfoUf) conversionInfoUf.style.display = 'none';
+                if (valorUfFechaEstadoInput) valorUfFechaEstadoInput.value = '';
+                if (fechaConversionUfInput) fechaConversionUfInput.value = '';
+                if (montoClpEquivalenteInput) montoClpEquivalenteInput.value = '';
+            }
+        }
+        
+        // Event listeners
+        monedaClpRadio.addEventListener('change', toggleCurrencyInputs);
+        monedaUfRadio.addEventListener('change', toggleCurrencyInputs);
+        if (montoUfInput) {
+            montoUfInput.addEventListener('input', updateConversionDisplay);
+        }
+        
+        // Cargar valor UF al inicializar
+        loadCurrentUfValue();
+        
+        // Configurar estado inicial
+        toggleCurrencyInputs();
+    }
+});
+</script>
+{% endblock %}
