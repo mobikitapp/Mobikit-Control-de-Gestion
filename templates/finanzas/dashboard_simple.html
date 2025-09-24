@@ -243,17 +243,96 @@
                                                                     </td>
                                                                     {% endif %}
                                                                     <td>
-                                                                        <div class="btn-group btn-group-sm" role="group" aria-label="Acciones del contrato">
-                                                                            <a href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}" 
-                                                                               class="btn btn-success btn-sm" title="Gestionar estados de pago">
-                                                                                <i class="bi bi-cash-stack"></i>
-                                                                                <span class="d-none d-lg-inline ms-1">Estados</span>
-                                                                            </a>
-                                                                            <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
-                                                                               class="btn btn-outline-success btn-sm" title="Ver contrato completo">
-                                                                                <i class="bi bi-file-text"></i>
-                                                                                <span class="d-none d-lg-inline ms-1">Contrato</span>
-                                                                            </a>
+                                                                        <div class="d-flex flex-column gap-1">
+                                                                            <!-- Estados de Pago Desplegable -->
+                                                                            <div class="dropdown">
+                                                                                <button class="btn btn-outline-primary btn-sm dropdown-toggle w-100" type="button" 
+                                                                                        id="estadosDropdown{{ contrato.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                    <i class="bi bi-cash-stack"></i> Estados de Pago ({{ contrato.estados_pago|length }})
+                                                                                </button>
+                                                                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="estadosDropdown{{ contrato.id }}" style="min-width: 320px;">
+                                                                                    <li><h6 class="dropdown-header">Estados de Pago - {{ contrato.numero_oc }}</h6></li>
+                                                                                    {% if contrato.estados_pago %}
+                                                                                        {% for estado in contrato.estados_pago|sort(attribute='fecha_estado', reverse=True) %}
+                                                                                            {% if estado.tipo_estado.value != 'PENDIENTE_FACTURAR' %}
+                                                                                            <li>
+                                                                                                <div class="dropdown-item-text px-3 py-2 border-bottom">
+                                                                                                    <div class="d-flex justify-content-between align-items-start">
+                                                                                                        <div class="flex-grow-1">
+                                                                                                            <div class="d-flex align-items-center gap-2 mb-1">
+                                                                                                                {% if estado.tipo_estado.value == 'FACTURADO' %}
+                                                                                                                <span class="badge bg-info">Facturado</span>
+                                                                                                                {% elif estado.tipo_estado.value == 'PAGADO' %}
+                                                                                                                <span class="badge bg-success">Pagado</span>
+                                                                                                                {% elif estado.tipo_estado.value == 'ANTICIPO' %}
+                                                                                                                <span class="badge bg-primary">Anticipo</span>
+                                                                                                                {% elif estado.tipo_estado.value == 'AVANCE' %}
+                                                                                                                <span class="badge bg-secondary">Avance</span>
+                                                                                                                {% elif estado.tipo_estado.value == 'RETENCION' %}
+                                                                                                                <span class="badge bg-dark">Retención</span>
+                                                                                                                {% else %}
+                                                                                                                <span class="badge bg-secondary">{{ estado.tipo_estado.value }}</span>
+                                                                                                                {% endif %}
+                                                                                                                <small class="text-muted">{{ estado.fecha_estado.strftime('%d/%m/%Y') }}</small>
+                                                                                                            </div>
+                                                                                                            <div class="fw-bold">$ {{ "{:,.0f}".format(estado.monto or 0) }}</div>
+                                                                                                            {% if estado.descripcion %}
+                                                                                                            <div class="small text-muted">{{ estado.descripcion[:40] }}{% if estado.descripcion|length > 40 %}...{% endif %}</div>
+                                                                                                            {% endif %}
+                                                                                                        </div>
+                                                                                                        <div class="d-flex flex-column gap-1 ms-2">
+                                                                                                            {% if estado.tipo_estado.value == 'FACTURADO' %}
+                                                                                                            <button type="button" class="btn btn-success btn-xs" 
+                                                                                                                    onclick="marcarComoPagadoRapido({{ estado.id }}, {{ estado.monto or 0 }}, '{{ contrato.numero_oc }}')"
+                                                                                                                    title="Marcar como Pagado">
+                                                                                                                <i class="bi bi-check-circle"></i>
+                                                                                                            </button>
+                                                                                                            {% endif %}
+                                                                                                            <a href="{{ url_for('finanzas.editar_estado_pago', estado_id=estado.id) }}" 
+                                                                                                               class="btn btn-outline-primary btn-xs" title="Editar">
+                                                                                                                <i class="bi bi-pencil"></i>
+                                                                                                            </a>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </li>
+                                                                                            {% endif %}
+                                                                                        {% endfor %}
+                                                                                        <li><hr class="dropdown-divider"></li>
+                                                                                        <li>
+                                                                                            <a class="dropdown-item" href="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}">
+                                                                                                <i class="bi bi-plus-circle"></i> Nuevo Estado de Pago
+                                                                                            </a>
+                                                                                        </li>
+                                                                                    {% else %}
+                                                                                        <li>
+                                                                                            <div class="dropdown-item-text text-center text-muted py-3">
+                                                                                                No hay estados de pago registrados
+                                                                                            </div>
+                                                                                        </li>
+                                                                                        <li><hr class="dropdown-divider"></li>
+                                                                                        <li>
+                                                                                            <a class="dropdown-item" href="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}">
+                                                                                                <i class="bi bi-plus-circle"></i> Crear Primer Estado
+                                                                                            </a>
+                                                                                        </li>
+                                                                                    {% endif %}
+                                                                                    <li><hr class="dropdown-divider"></li>
+                                                                                    <li>
+                                                                                        <a class="dropdown-item" href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}">
+                                                                                            <i class="bi bi-list-check"></i> Ver Todos los Estados
+                                                                                        </a>
+                                                                                    </li>
+                                                                                </ul>
+                                                                            </div>
+                                                                            <!-- Botones de Acción -->
+                                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                                <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                                                                   class="btn btn-outline-secondary btn-sm" title="Ver contrato completo">
+                                                                                    <i class="bi bi-file-text"></i>
+                                                                                    <span class="d-none d-lg-inline ms-1">Detalle</span>
+                                                                                </a>
+                                                                            </div>
                                                                         </div>
                                                                     </td>
                                                                 </tr>
@@ -348,41 +427,131 @@
 </style>
 
 <script>
-function toggleCliente(clienteIndex) {
-    const clienteRow = document.getElementById(`cliente-${clienteIndex}`);
-    const icon = document.querySelector(`[onclick="toggleCliente(${clienteIndex})"] i`);
+// Auto-actualizar dashboard cada 5 minutos
+setTimeout(function() {
+    location.reload();
+}, 300000);
 
-    if (clienteRow.style.display === 'none') {
-        clienteRow.style.display = '';
-        icon.className = 'bi bi-chevron-down';
-    } else {
-        clienteRow.style.display = 'none';
-        icon.className = 'bi bi-chevron-right';
+// Función para marcar como pagado rápidamente desde el dropdown
+function marcarComoPagadoRapido(estadoId, monto, numeroOc) {
+    if (!confirm(`¿Confirmar que se ha recibido el pago de $${monto.toLocaleString()} para el contrato ${numeroOc}?`)) {
+        return;
     }
+
+    // Mostrar indicador de carga
+    const loadingToast = document.createElement('div');
+    loadingToast.className = 'toast position-fixed top-0 end-0 m-3';
+    loadingToast.innerHTML = `
+        <div class="toast-body bg-info text-white">
+            <i class="bi bi-clock-history"></i> Procesando pago...
+        </div>
+    `;
+    document.body.appendChild(loadingToast);
+    const toast = new bootstrap.Toast(loadingToast);
+    toast.show();
+
+    // Actualizar el estado existente de FACTURADO a PAGADO
+    const formData = new FormData();
+    formData.append('tipo_estado', 'PAGADO');
+    formData.append('fecha_estado', new Date().toISOString().split('T')[0]);
+    formData.append('monto', monto);
+    formData.append('descripcion', `Pago recibido`);
+    formData.append('moneda_tipo', 'CLP');
+
+    fetch(`/finanzas/estado-pago/${estadoId}/editar`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            // Ocultar toast de carga
+            toast.hide();
+            loadingToast.remove();
+
+            // Mostrar toast de éxito
+            const successToast = document.createElement('div');
+            successToast.className = 'toast position-fixed top-0 end-0 m-3';
+            successToast.innerHTML = `
+                <div class="toast-body bg-success text-white">
+                    <i class="bi bi-check-circle"></i> Pago registrado exitosamente
+                </div>
+            `;
+            document.body.appendChild(successToast);
+            const successToastInstance = new bootstrap.Toast(successToast);
+            successToastInstance.show();
+
+            // Recargar la página después de un breve delay
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            throw new Error('Error en la respuesta del servidor');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+
+        // Ocultar toast de carga
+        toast.hide();
+        loadingToast.remove();
+
+        // Mostrar toast de error
+        const errorToast = document.createElement('div');
+        errorToast.className = 'toast position-fixed top-0 end-0 m-3';
+        errorToast.innerHTML = `
+            <div class="toast-body bg-danger text-white">
+                <i class="bi bi-exclamation-triangle"></i> Error al registrar el pago
+            </div>
+        `;
+        document.body.appendChild(errorToast);
+        const errorToastInstance = new bootstrap.Toast(errorToast);
+        errorToastInstance.show();
+    });
 }
 
-function toggleProyecto(proyectoId) {
-    const proyectoRow = document.getElementById(`proyecto-${proyectoId}`);
-    const icon = document.querySelector(`[onclick="toggleProyecto(${proyectoId})"] i`);
-
-    if (proyectoRow.style.display === 'none') {
-        proyectoRow.style.display = '';
-        icon.className = 'bi bi-chevron-down';
-    } else {
-        proyectoRow.style.display = 'none';
-        icon.className = 'bi bi-chevron-right';
-    }
-}
-
-// Agregar tooltips para mejor UX
-document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar tooltips de Bootstrap si están disponibles
-    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    }
+// Cerrar dropdowns al hacer click fuera
+document.addEventListener('click', function(event) {
+    const dropdowns = document.querySelectorAll('.dropdown-menu.show');
+    dropdowns.forEach(dropdown => {
+        if (!dropdown.closest('.dropdown').contains(event.target)) {
+            const toggle = dropdown.closest('.dropdown').querySelector('[data-bs-toggle="dropdown"]');
+            if (toggle) {
+                bootstrap.Dropdown.getInstance(toggle)?.hide();
+            }
+        }
+    });
 });
 </script>
+
+<style>
+/* Estilos adicionales para los dropdowns de estados de pago */
+.btn-xs {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 0.2rem;
+}
+
+.dropdown-menu {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.dropdown-item-text {
+    white-space: normal;
+}
+
+.dropdown-item-text:hover {
+    background-color: #f8f9fa;
+}
+
+/* Toast positioning */
+.toast {
+    z-index: 1060;
+}
+</style>
 {% endblock %}
