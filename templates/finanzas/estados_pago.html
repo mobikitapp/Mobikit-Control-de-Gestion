@@ -247,8 +247,12 @@ function marcarComoPagado(estadoId, monto) {
     formData.append('descripcion', `Pago recibido`);
     formData.append('moneda_tipo', 'CLP');
 
-    fetch(`{{ url_for('finanzas.editar_estado_pago', estado_id='') }}${estadoId}`, {
+    fetch(`{{ url_for('finanzas.editar_estado_pago', estado_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', estadoId), {
         method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
         body: formData
     })
     .then(response => {

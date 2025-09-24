@@ -303,6 +303,11 @@ def detalle_proyecto(proyecto_id):
 def estados_pago_contrato(contrato_id):
     """Gestión de estados de pago de un contrato"""
     try:
+        # Validar que contrato_id sea un entero válido
+        if not isinstance(contrato_id, int) or contrato_id <= 0:
+            logger.error(f"Invalid contrato_id: {contrato_id}")
+            flash('ID de contrato inválido', 'error')
+            return redirect(url_for('finanzas.dashboard'))
         contrato = db.session.query(Contrato).options(
             joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
             joinedload(Contrato.estados_pago)
@@ -562,7 +567,7 @@ def editar_estado_pago(estado_id):
             db.session.commit()
 
             # Si es una petición AJAX, devolver JSON
-            if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept', '').startswith('application/json'):
                 return jsonify({
                     'success': True,
                     'message': 'Estado de pago actualizado exitosamente'
