@@ -243,23 +243,24 @@
                                                                     </td>
                                                                     {% endif %}
                                                                     <td>
-                                                                        <div class="d-flex flex-column gap-1">
+                                                                        <div class="d-flex flex-column gap-2">
                                                                             <!-- Estados de Pago Desplegable -->
                                                                             <div class="dropdown">
-                                                                                <button class="btn btn-outline-primary btn-sm dropdown-toggle w-100" type="button" 
-                                                                                        id="estadosDropdown{{ contrato.id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                                    <i class="bi bi-cash-stack"></i> Estados de Pago ({{ contrato.estados_pago|length }})
+                                                                                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" 
+                                                                                        id="estadosDropdown{{ contrato.id }}" data-bs-toggle="dropdown" aria-expanded="false" 
+                                                                                        style="min-width: 160px;">
+                                                                                    <i class="bi bi-cash-stack me-1"></i>Estados ({{ contrato.estados_pago|length }})
                                                                                 </button>
-                                                                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="estadosDropdown{{ contrato.id }}" style="min-width: 320px;">
-                                                                                    <li><h6 class="dropdown-header">Estados de Pago - {{ contrato.numero_oc }}</h6></li>
+                                                                                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="estadosDropdown{{ contrato.id }}" style="min-width: 350px; max-height: 400px; overflow-y: auto;">
+                                                                                    <li><h6 class="dropdown-header bg-light fw-bold">Estados de Pago - {{ contrato.numero_oc }}</h6></li>
                                                                                     {% if contrato.estados_pago %}
                                                                                         {% for estado in contrato.estados_pago|sort(attribute='fecha_estado', reverse=True) %}
                                                                                             {% if estado.tipo_estado.value != 'PENDIENTE_FACTURAR' %}
                                                                                             <li>
-                                                                                                <div class="dropdown-item-text px-3 py-2 border-bottom">
+                                                                                                <div class="dropdown-item-text p-3 border-bottom">
                                                                                                     <div class="d-flex justify-content-between align-items-start">
-                                                                                                        <div class="flex-grow-1">
-                                                                                                            <div class="d-flex align-items-center gap-2 mb-1">
+                                                                                                        <div class="flex-grow-1 me-3">
+                                                                                                            <div class="d-flex align-items-center gap-2 mb-2">
                                                                                                                 {% if estado.tipo_estado.value == 'FACTURADO' %}
                                                                                                                 <span class="badge bg-info">Facturado</span>
                                                                                                                 {% elif estado.tipo_estado.value == 'PAGADO' %}
@@ -275,22 +276,27 @@
                                                                                                                 {% endif %}
                                                                                                                 <small class="text-muted">{{ estado.fecha_estado.strftime('%d/%m/%Y') }}</small>
                                                                                                             </div>
-                                                                                                            <div class="fw-bold">$ {{ "{:,.0f}".format(estado.monto or 0) }}</div>
+                                                                                                            <div class="fw-bold text-primary mb-1">$ {{ "{:,.0f}".format(estado.monto or 0) }}</div>
                                                                                                             {% if estado.descripcion %}
-                                                                                                            <div class="small text-muted">{{ estado.descripcion[:40] }}{% if estado.descripcion|length > 40 %}...{% endif %}</div>
+                                                                                                            <div class="small text-muted">{{ estado.descripcion[:45] }}{% if estado.descripcion|length > 45 %}...{% endif %}</div>
                                                                                                             {% endif %}
                                                                                                         </div>
-                                                                                                        <div class="d-flex flex-column gap-1 ms-2">
+                                                                                                        <div class="d-flex gap-1 flex-column">
+                                                                                                            <!-- Botón para marcar como pagado (solo si está facturado) -->
                                                                                                             {% if estado.tipo_estado.value == 'FACTURADO' %}
-                                                                                                            <button type="button" class="btn btn-success btn-xs" 
+                                                                                                            <button type="button" class="btn btn-success btn-sm" 
                                                                                                                     onclick="marcarComoPagadoRapido({{ estado.id }}, {{ estado.monto or 0 }}, '{{ contrato.numero_oc }}')"
                                                                                                                     title="Marcar como Pagado">
-                                                                                                                <i class="bi bi-check-circle"></i>
+                                                                                                                <i class="bi bi-check-circle me-1"></i>
+                                                                                                                <span class="d-none d-lg-inline">Pagado</span>
                                                                                                             </button>
                                                                                                             {% endif %}
+                                                                                                            
+                                                                                                            <!-- Botón editar -->
                                                                                                             <a href="{{ url_for('finanzas.editar_estado_pago', estado_id=estado.id) }}" 
-                                                                                                               class="btn btn-outline-primary btn-xs" title="Editar">
-                                                                                                                <i class="bi bi-pencil"></i>
+                                                                                                               class="btn btn-outline-primary btn-sm" title="Editar Estado de Pago">
+                                                                                                                <i class="bi bi-pencil-square me-1"></i>
+                                                                                                                <span class="d-none d-lg-inline">Editar</span>
                                                                                                             </a>
                                                                                                         </div>
                                                                                                     </div>
@@ -300,39 +306,38 @@
                                                                                         {% endfor %}
                                                                                         <li><hr class="dropdown-divider"></li>
                                                                                         <li>
-                                                                                            <a class="dropdown-item" href="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}">
-                                                                                                <i class="bi bi-plus-circle"></i> Nuevo Estado de Pago
+                                                                                            <a class="dropdown-item text-success" href="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}">
+                                                                                                <i class="bi bi-plus-circle me-2"></i> Nuevo Estado de Pago
                                                                                             </a>
                                                                                         </li>
                                                                                     {% else %}
                                                                                         <li>
-                                                                                            <div class="dropdown-item-text text-center text-muted py-3">
-                                                                                                No hay estados de pago registrados
+                                                                                            <div class="dropdown-item-text text-center text-muted py-4">
+                                                                                                <i class="bi bi-clipboard-x mb-2" style="font-size: 1.5rem;"></i>
+                                                                                                <div>No hay estados de pago registrados</div>
                                                                                             </div>
                                                                                         </li>
                                                                                         <li><hr class="dropdown-divider"></li>
                                                                                         <li>
-                                                                                            <a class="dropdown-item" href="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}">
-                                                                                                <i class="bi bi-plus-circle"></i> Crear Primer Estado
+                                                                                            <a class="dropdown-item text-success" href="{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}">
+                                                                                                <i class="bi bi-plus-circle me-2"></i> Crear Primer Estado
                                                                                             </a>
                                                                                         </li>
                                                                                     {% endif %}
                                                                                     <li><hr class="dropdown-divider"></li>
                                                                                     <li>
-                                                                                        <a class="dropdown-item" href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}">
-                                                                                            <i class="bi bi-list-check"></i> Ver Todos los Estados
+                                                                                        <a class="dropdown-item text-primary" href="{{ url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id) }}">
+                                                                                            <i class="bi bi-list-check me-2"></i> Ver Todos los Estados
                                                                                         </a>
                                                                                     </li>
                                                                                 </ul>
                                                                             </div>
-                                                                            <!-- Botones de Acción -->
-                                                                            <div class="btn-group btn-group-sm" role="group">
-                                                                                <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
-                                                                                   class="btn btn-outline-secondary btn-sm" title="Ver contrato completo">
-                                                                                    <i class="bi bi-file-text"></i>
-                                                                                    <span class="d-none d-lg-inline ms-1">Detalle</span>
-                                                                                </a>
-                                                                            </div>
+                                                                            <!-- Botón de Detalle Contrato -->
+                                                                            <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                                                               class="btn btn-outline-secondary btn-sm" title="Ver contrato completo">
+                                                                                <i class="bi bi-file-text me-1"></i>
+                                                                                <span class="d-none d-lg-inline">Detalle</span>
+                                                                            </a>
                                                                         </div>
                                                                     </td>
                                                                 </tr>
@@ -530,28 +535,106 @@ document.addEventListener('click', function(event) {
 <style>
 /* Estilos adicionales para los dropdowns de estados de pago */
 .btn-xs {
-    padding: 0.125rem 0.25rem;
+    padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
     line-height: 1.2;
-    border-radius: 0.2rem;
+    border-radius: 0.25rem;
+    font-weight: 500;
 }
 
 .dropdown-menu {
-    max-height: 400px;
+    max-height: 450px;
     overflow-y: auto;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
 .dropdown-item-text {
     white-space: normal;
+    transition: background-color 0.15s ease-in-out;
 }
 
 .dropdown-item-text:hover {
     background-color: #f8f9fa;
 }
 
+.dropdown-header {
+    padding: 0.75rem 1rem;
+    margin-bottom: 0;
+    font-size: 0.875rem;
+    color: #495057;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    transition: all 0.15s ease-in-out;
+}
+
+.dropdown-item:hover {
+    background-color: #e9ecef;
+}
+
+.dropdown-item.text-success:hover {
+    background-color: #d1edff;
+    color: #198754 !important;
+}
+
+.dropdown-item.text-primary:hover {
+    background-color: #cff4fc;
+    color: #0d6efd !important;
+}
+
+/* Botones en el dropdown */
+.dropdown .btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    min-width: auto;
+}
+
+.dropdown .btn-success {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.dropdown .btn-success:hover {
+    background-color: #157347;
+    border-color: #146c43;
+    transform: translateY(-1px);
+}
+
+.dropdown .btn-outline-primary {
+    color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.dropdown .btn-outline-primary:hover {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+    transform: translateY(-1px);
+}
+
 /* Toast positioning */
 .toast {
     z-index: 1060;
+}
+
+/* Mejoras responsivas */
+@media (max-width: 768px) {
+    .dropdown-menu {
+        min-width: 280px !important;
+    }
+    
+    .btn-sm span {
+        display: none !important;
+    }
+    
+    .dropdown-item-text {
+        padding: 0.75rem 1rem;
+    }
 }
 </style>
 {% endblock %}
