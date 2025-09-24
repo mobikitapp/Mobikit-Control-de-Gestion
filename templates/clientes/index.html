@@ -146,8 +146,8 @@
                                         <tr>
                                             <th>Proyecto</th>
                                             <th>Estado</th>
-                                            <th>Responsable</th>
                                             <th>Fecha Inicio</th>
+                                            <th>Fecha Fin Est.</th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -166,15 +166,15 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                {% if proyecto.responsable_user %}
-                                                    {{ proyecto.responsable_user.nombre }}
+                                                {% if proyecto.fecha_inicio %}
+                                                    {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') }}
                                                 {% else %}
-                                                    <span class="text-muted">Sin asignar</span>
+                                                    <span class="text-muted">-</span>
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% if proyecto.fecha_inicio %}
-                                                    {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') }}
+                                                {% if proyecto.fecha_fin_estimada %}
+                                                    {{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') }}
                                                 {% else %}
                                                     <span class="text-muted">-</span>
                                                 {% endif %}
