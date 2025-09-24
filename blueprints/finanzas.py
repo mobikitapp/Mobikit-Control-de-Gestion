@@ -500,20 +500,29 @@ def editar_estado_pago(estado_id):
                 return redirect(url_for('finanzas.editar_estado_pago', estado_id=estado_id))
 
             # Determinar tipo de moneda del estado de pago
-            moneda_tipo = request.form.get('moneda_tipo', 'CLP')
+            moneda_tipo = request.form.get('moneda_tipo', estado.moneda_original or 'CLP')
 
             # Actualizar estado de pago
             estado.tipo_estado = TipoEstadoPago[tipo_estado_str]
-            estado.numero_documento = request.form.get('numero_documento')
+            
+            # Solo actualizar campos que vienen en el request
+            if request.form.get('numero_documento') is not None:
+                estado.numero_documento = request.form.get('numero_documento')
+            
             estado.fecha_estado = datetime.strptime(fecha_estado_str, '%Y-%m-%d').date()
-            estado.descripcion = request.form.get('descripcion')
-            estado.fecha_programada_pago = datetime.strptime(fecha_programada_str, '%Y-%m-%d').date() if fecha_programada_str else None
+            
+            if request.form.get('descripcion') is not None:
+                estado.descripcion = request.form.get('descripcion')
+            
+            estado.fecha_programada_pago = datetime.strptime(fecha_programada_str, '%Y-%m-%d').date() if fecha_programada_str else estado.fecha_programada_pago
             estado.moneda_original = moneda_tipo
 
-            # Configurar campos según el tipo de moneda
-            if moneda_tipo == 'UF':
+            # Configurar campos según el tipo de moneda - solo si se proporciona monto
+            monto_clp_input = request.form.get('monto')
+            monto_uf_input = request.form.get('monto_uf')
+            
+            if moneda_tipo == 'UF' and monto_uf_input:
                 # Estado en UF - usar servicio UF para conversión
-                monto_uf_input = request.form.get('monto_uf', '0')
                 if monto_uf_input:
                     estado.monto_uf = Decimal(monto_uf_input)
 
@@ -533,15 +542,15 @@ def editar_estado_pago(estado_id):
                 else:
                     flash('Monto UF es requerido para estados en UF', 'error')
                     return redirect(url_for('finanzas.editar_estado_pago', estado_id=estado_id))
-            else:
-                # Estado en CLP tradicional
-                monto_clp_input = request.form.get('monto', '0')
+            elif moneda_tipo == 'CLP' and monto_clp_input:
+                # Estado en CLP tradicional - solo actualizar si se proporciona monto
                 estado.monto = Decimal(monto_clp_input)
                 # Limpiar campos UF si cambia de UF a CLP
                 estado.monto_uf = None
                 estado.valor_uf_fecha_estado = None
                 estado.monto_clp_equivalente = None
                 estado.fecha_conversion_uf = None
+            # Si no se proporciona monto, mantener el monto existente
 
             # Actualizar efectos de inflación si es aplicable
             if moneda_tipo == 'UF':
@@ -551,6 +560,13 @@ def editar_estado_pago(estado_id):
                     logger.warning(f"Error calculando efectos inflación para estado {estado.id}: {e}")
 
             db.session.commit()
+
+            # Si es una petición AJAX, devolver JSON
+            if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': True,
+                    'message': 'Estado de pago actualizado exitosamente'
+                })
 
             flash(f'Estado de pago actualizado exitosamente', 'success')
             return redirect(url_for('finanzas.estados_pago_contrato', contrato_id=contrato.id))

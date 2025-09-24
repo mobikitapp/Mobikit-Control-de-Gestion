@@ -239,15 +239,15 @@ function marcarComoPagado(estadoId, monto) {
         return;
     }
 
-    // Crear un nuevo estado de pago marcado como PAGADO
+    // Actualizar el estado existente de FACTURADO a PAGADO
     const formData = new FormData();
     formData.append('tipo_estado', 'PAGADO');
     formData.append('fecha_estado', new Date().toISOString().split('T')[0]);
     formData.append('monto', monto);
-    formData.append('descripcion', `Pago recibido - Estado ${estadoId}`);
+    formData.append('descripcion', `Pago recibido`);
     formData.append('moneda_tipo', 'CLP');
 
-    fetch(`{{ url_for('finanzas.nuevo_estado_pago', contrato_id=contrato.id) }}`, {
+    fetch(`{{ url_for('finanzas.editar_estado_pago', estado_id='') }}${estadoId}`, {
         method: 'POST',
         body: formData
     })
