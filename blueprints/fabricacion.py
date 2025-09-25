@@ -503,9 +503,16 @@ def eliminar(of_id):
 def crear_of_desde_despacho(despacho_id):
     """Crear orden de fabricación para un despacho específico"""
     try:
+        # Get glosa from form
+        glosa = request.form.get('glosa', '').strip()
+        if not glosa:
+            flash('La glosa es obligatoria para crear la orden de fabricación', 'error')
+            return redirect(url_for('fabricacion.index'))
+        
         of = fabricacion_service.create_orden_fabricacion_for_despacho(
             despacho_id, 
-            current_user.id
+            current_user.id,
+            glosa=glosa
         )
         
         flash(f'Orden de Fabricación {of.codigo} creada exitosamente para el despacho', 'success')

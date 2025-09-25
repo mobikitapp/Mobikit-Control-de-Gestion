@@ -410,11 +410,24 @@
                     <div class="text-center mb-3">
                         <i data-feather="plus-circle" class="text-success" style="width: 48px; height: 48px;"></i>
                     </div>
-                    <p class="text-center">¿Está seguro que desea crear una orden de fabricación para el despacho <strong id="numeroDespachoModal"></strong>?</p>
+                    <p class="text-center">Crear orden de fabricación para el despacho <strong id="numeroDespachoModal"></strong></p>
+                    
+                    <!-- Campo de Glosa Obligatorio -->
+                    <div class="mb-3">
+                        <label for="glosa_despacho" class="form-label">
+                            Glosa <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" id="glosa_despacho" name="glosa" rows="3" 
+                                  placeholder="Ingrese la glosa para la orden de fabricación" required></textarea>
+                        <div class="invalid-feedback">
+                            Por favor ingrese una glosa para la orden.
+                        </div>
+                    </div>
+                    
                     <div class="alert alert-info">
                         <small>
                             <i data-feather="info" class="me-1"></i>
-                            Se creará una OF automáticamente vinculada a este despacho. Podrá editarla después para ajustar los detalles.
+                            Se creará una OF vinculada a este despacho. El campo "Nota" se llenará automáticamente.
                         </small>
                     </div>
                 </div>
@@ -565,6 +578,9 @@ function archivarOrden(ofId, codigo) {
 function crearOFParaDespacho(despachoId, numeroDespacho) {
     document.getElementById('numeroDespachoModal').textContent = numeroDespacho;
     document.getElementById('crearOFDespachoForm').action = `/fabricacion/${despachoId}/crear-of-desde-despacho`;
+    
+    // Clear the glosa field
+    document.getElementById('glosa_despacho').value = '';
 
     // Refresh feather icons
     if (typeof feather !== 'undefined') {

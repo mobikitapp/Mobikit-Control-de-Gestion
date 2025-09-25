@@ -660,7 +660,7 @@ class FabricacionService:
             logger.error(f"Error obteniendo despachos sin OFs: {str(e)}")
             return []
 
-    def create_orden_fabricacion_for_despacho(self, despacho_id: int, created_by: str) -> OrdenFabricacion:
+    def create_orden_fabricacion_for_despacho(self, despacho_id: int, created_by: str, glosa: str = None) -> OrdenFabricacion:
         """
         Crear una orden de fabricación específica para un despacho y vincularlas
         
@@ -695,12 +695,12 @@ class FabricacionService:
             of_data = {
                 'proyecto_id': despacho.proyecto_id,
                 'contrato_id': despacho.contrato_id,
-                'descripcion': f"OF para despacho {despacho.numero_despacho}",
-                'glosa': f"Orden generada automáticamente para despacho {despacho.numero_despacho}",
+                'descripcion': '',  # Descripción debe quedar en blanco según requerimiento
+                'glosa': glosa if glosa else f"Orden generada automáticamente para despacho {despacho.numero_despacho}",
                 'fecha_entrega_fabrica': despacho.fecha_programada,
                 'fecha_planificada': despacho.fecha_programada,
                 'responsable': created_by,
-                'notas': f"OF creada desde despacho {despacho.numero_despacho} - {despacho.destino}",
+                'notas': f"OF creada desde despacho {despacho.numero_despacho} - {despacho.destino}",  # Solo rellenar automáticamente las notas
                 'cantidad_tableros': 1  # Valor por defecto, se puede editar después
             }
             
