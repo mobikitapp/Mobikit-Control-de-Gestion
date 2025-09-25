@@ -741,7 +741,7 @@ class OrdenFabricacion(db.Model):
                 if self.contrato:
                     if self.contrato.plan_entrega:
                         from models import HitoEntrega, EstadoHitoEntrega
-                        from datetime import date
+                        from datetime import date, datetime
 
                         next_hito = (db.session.query(HitoEntrega)
                                    .filter_by(plan_entrega_id=self.contrato.plan_entrega.id)
@@ -767,7 +767,7 @@ class OrdenFabricacion(db.Model):
         try:
             fecha_entrega = self.fecha_entrega_dinamica
             if fecha_entrega:
-                from datetime import date
+                from datetime import date, datetime
                 today = datetime.now().date()
                 return (fecha_entrega - today).days
             return None

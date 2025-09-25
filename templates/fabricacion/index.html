@@ -354,7 +354,7 @@
                             <td>
                                 {% if despacho.fecha_programada %}
                                     {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
-                                    {% set today = moment().date() %}
+                                    {% set today = moment_global().date() %}
                                     {% set desp_date = despacho.fecha_programada %}
                                     {% set days_diff = (desp_date - today).days %}
                                     {% if days_diff < 0 %}
