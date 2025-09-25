@@ -31,7 +31,8 @@ def modulo(modulo_name):
         modulos_validos = [
             'introduccion', 'flujo-general', 'dashboard', 'clientes', 
             'proyectos', 'contratos', 'fabricacion', 'areas-produccion', 
-            'despachos', 'configuraciones', 'mejores-practicas'
+            'despachos', 'finanzas', 'comercial', 'planificacion-operacional', 
+            'configuraciones', 'mejores-practicas'
         ]
         
         if modulo_name not in modulos_validos:

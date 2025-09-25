@@ -269,6 +269,27 @@
                     </div>
                     
                     <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='finanzas') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'finanzas' else '' }}">
+                            <i class="fas fa-dollar-sign me-2"></i>Finanzas
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='comercial') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'comercial' else '' }}">
+                            <i class="fas fa-handshake me-2"></i>Comercial
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='planificacion-operacional') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'planificacion-operacional' else '' }}">
+                            <i class="fas fa-calculator me-2"></i>Planificación Operacional
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
                         <a href="{{ url_for('capacitacion.modulo', modulo_name='configuraciones') }}" 
                            class="nav-link-capacitacion {{ 'active' if modulo_activo == 'configuraciones' else '' }}">
                             <i class="fas fa-cog me-2"></i>Configuraciones
@@ -1007,13 +1028,263 @@
                         Siempre toma fotos de la entrega y solicita la firma del cliente. Esto protege a la empresa ante reclamos futuros.
                     </div>
                     
+                {% elif modulo_activo == 'finanzas' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-dollar-sign me-3"></i>Módulo de Finanzas</h2>
+                        <p>Control financiero integral de proyectos y estados de pago</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 11</div>
+                    
+                    <h3>¿Qué es el Módulo de Finanzas?</h3>
+                    <p class="lead">El módulo de finanzas te permite hacer seguimiento completo de la situación financiera de tus proyectos, desde la facturación hasta la cobranza.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-line me-2"></i>Dashboard Financiero</h4>
+                        <p>Panel principal con métricas clave:</p>
+                        <ul>
+                            <li><strong>Total Facturado:</strong> Monto total facturado en el período</li>
+                            <li><strong>Total Cobrado:</strong> Montos efectivamente recibidos</li>
+                            <li><strong>Por Cobrar:</strong> Saldo pendiente de cobranza</li>
+                            <li><strong>KPIs de Cobranza:</strong> Porcentajes de efectividad</li>
+                            <li><strong>Análisis por Cliente:</strong> Comportamiento de pago por cliente</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-money-bill-wave me-2"></i>Estados de Pago</h4>
+                        <p>Control detallado de facturación y cobranza:</p>
+                        <ul>
+                            <li><strong>Pendiente de Facturar:</strong> Compromisos no facturados</li>
+                            <li><strong>Facturado:</strong> Facturas emitidas pendientes de pago</li>
+                            <li><strong>Pagado:</strong> Facturas cobradas exitosamente</li>
+                            <li><strong>Vencido:</strong> Facturas con fecha de pago vencida</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-calendar-check me-2"></i>Tesorería</h4>
+                        <p>Gestión de flujos de caja y programación de pagos:</p>
+                        <ul>
+                            <li>Calendario de vencimientos</li>
+                            <li>Proyección de flujo de caja</li>
+                            <li>Alertas de vencimiento</li>
+                            <li>Registro de movimientos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-pie me-2"></i>Reportes Financieros</h4>
+                        <p>Análisis y reportes del módulo:</p>
+                        <ul>
+                            <li><strong>Análisis de Rentabilidad:</strong> Por proyecto y cliente</li>
+                            <li><strong>Flujo de Caja:</strong> Proyecciones y realizado</li>
+                            <li><strong>Aging de Cuentas:</strong> Antigüedad de documentos por cobrar</li>
+                            <li><strong>Comparativas Períodos:</strong> Evolución mensual/anual</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-calculator me-2"></i>Costos por Proyecto</h4>
+                        <p>Control de costos y márgenes:</p>
+                        <ul>
+                            <li>Registro de costos directos e indirectos</li>
+                            <li>Cálculo automático de márgenes</li>
+                            <li>Comparación presupuesto vs real</li>
+                            <li>Alertas de sobrecostos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>Importante</h5>
+                        El módulo de finanzas se integra automáticamente con los contratos y despachos para crear los estados de pago correspondientes.
+                    </div>
+                    
+                {% elif modulo_activo == 'comercial' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-handshake me-3"></i>Módulo Comercial</h2>
+                        <p>Gestión integral del área comercial y ventas</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 12</div>
+                    
+                    <h3>¿Qué es el Módulo Comercial?</h3>
+                    <p class="lead">El módulo comercial te permite gestionar tu equipo de ventas, establecer objetivos, calcular comisiones y hacer seguimiento comercial integral.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-users me-2"></i>Centro de Vendedores</h4>
+                        <p>Gestión del equipo comercial:</p>
+                        <ul>
+                            <li><strong>Perfiles de Vendedores:</strong> Información y configuración</li>
+                            <li><strong>Asignación de Clientes:</strong> Cartera por vendedor</li>
+                            <li><strong>Métricas Individuales:</strong> Rendimiento y resultados</li>
+                            <li><strong>Rankings:</strong> Comparación entre vendedores</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-target me-2"></i>Objetivos y Metas</h4>
+                        <p>Planificación comercial estratégica:</p>
+                        <ul>
+                            <li><strong>Objetivos Mensuales:</strong> Metas por vendedor y período</li>
+                            <li><strong>Seguimiento de Cumplimiento:</strong> % de avance hacia metas</li>
+                            <li><strong>Proyecciones:</strong> Estimaciones de cierre</li>
+                            <li><strong>Alertas de Desempeño:</strong> Notificaciones por bajo rendimiento</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-percent me-2"></i>Sistema de Comisiones</h4>
+                        <p>Cálculo automático de comisiones:</p>
+                        <ul>
+                            <li><strong>Configuración de Comisiones:</strong> % por vendedor</li>
+                            <li><strong>Escalas por Volumen:</strong> Comisiones progresivas</li>
+                            <li><strong>Bonificaciones:</strong> Incentivos por cumplimiento</li>
+                            <li><strong>Liquidaciones:</strong> Cálculo mensual automático</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-line me-2"></i>Revenue Management</h4>
+                        <p>Análisis financiero comercial:</p>
+                        <ul>
+                            <li><strong>Embudo de Ventas:</strong> Conversión por etapa</li>
+                            <li><strong>Análisis de Margen:</strong> Rentabilidad por cliente/proyecto</li>
+                            <li><strong>Forecast de Ventas:</strong> Proyecciones basadas en pipeline</li>
+                            <li><strong>Valor Promedio de Cliente:</strong> Métricas de valor</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-tasks me-2"></i>Gestión de Tareas Comerciales</h4>
+                        <p>Organización de actividades comerciales:</p>
+                        <ul>
+                            <li>Tareas de seguimiento a clientes</li>
+                            <li>Recordatorios de contacto</li>
+                            <li>Programación de reuniones</li>
+                            <li>Follow-up de cotizaciones</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-bar me-2"></i>Reportes Comerciales</h4>
+                        <p>Análisis del desempeño comercial:</p>
+                        <ul>
+                            <li><strong>Reporte de Ventas:</strong> Por período, vendedor, cliente</li>
+                            <li><strong>Análisis de Conversión:</strong> Tasa de éxito por vendedor</li>
+                            <li><strong>Comportamiento de Cliente:</strong> Patrones de compra</li>
+                            <li><strong>Pipeline de Oportunidades:</strong> Proyectos en proceso</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-handshake me-2"></i>Tip Comercial</h5>
+                        Usa el módulo comercial para hacer seguimiento constante de tu pipeline y asegurar el cumplimiento de objetivos mensuales.
+                    </div>
+                    
+                {% elif modulo_activo == 'planificacion-operacional' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-calculator me-3"></i>Planificación Operacional</h2>
+                        <p>Optimización de capacidad y recursos productivos</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 13</div>
+                    
+                    <h3>¿Qué es la Planificación Operacional?</h3>
+                    <p class="lead">Este módulo te permite planificar la capacidad productiva, optimizar recursos y hacer análisis estratégico de la operación.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-table me-2"></i>Matriz Operacional</h4>
+                        <p>Vista estratégica de la operación:</p>
+                        <ul>
+                            <li><strong>Provisión por Período:</strong> Montos comprometidos mensualmente</li>
+                            <li><strong>Tableros Equivalentes:</strong> Conversión a unidades productivas</li>
+                            <li><strong>Capacidad vs Demanda:</strong> Análisis de factibilidad</li>
+                            <li><strong>Alertas de Sobrecarga:</strong> Identificación de cuellos de botella</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-cogs me-2"></i>Análisis de Capacidad</h4>
+                        <p>Evaluación detallada de capacidad productiva:</p>
+                        <ul>
+                            <li><strong>Capacidad Nominal:</strong> Máquinas × Turnos × Horas</li>
+                            <li><strong>Capacidad Efectiva:</strong> Considerando OEE y eficiencias</li>
+                            <li><strong>Capacidad por Tipo:</strong> Social, Estándar, Especial</li>
+                            <li><strong>Factores de Conversión:</strong> Tiempo de fabricación por tipo</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-area me-2"></i>Configuración de Parámetros</h4>
+                        <p>Configuración de factores operacionales:</p>
+                        <ul>
+                            <li><strong>Número de Máquinas:</strong> Recursos disponibles</li>
+                            <li><strong>Turnos de Trabajo:</strong> Configuración de horarios</li>
+                            <li><strong>OEE (Overall Equipment Effectiveness):</strong> Eficiencia global</li>
+                            <li><strong>Días Laborables:</strong> Calendario productivo</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-balance-scale me-2"></i>Factores de Conversión</h4>
+                        <p>Conversión entre tipos de proyecto:</p>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-success">Social</span></h6>
+                                    <p>Proyectos de vivienda social (factor base 1.0)</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-primary">Estándar</span></h6>
+                                    <p>Proyectos regulares (factor típico 1.2)</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="caracteristica-item">
+                                    <h6><span class="badge bg-warning">Especial</span></h6>
+                                    <p>Proyectos complejos (factor típico 1.8)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-line me-2"></i>Análisis Estratégico</h4>
+                        <p>Vistas de alto nivel para toma de decisiones:</p>
+                        <ul>
+                            <li><strong>Vista Estratégica:</strong> Análisis anual por trimestres</li>
+                            <li><strong>Vista Táctica:</strong> Planificación mensual detallada</li>
+                            <li><strong>Vista Operativa:</strong> Seguimiento semanal</li>
+                            <li><strong>Indicadores Clave:</strong> KPIs de productividad</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-calculator me-2"></i>Herramientas de Cálculo</h4>
+                        <p>Calculadoras integradas para planificación:</p>
+                        <ul>
+                            <li><strong>Calculadora de Tableros:</strong> Conversión monto → tableros</li>
+                            <li><strong>Calculadora de Capacidad:</strong> Horas disponibles</li>
+                            <li><strong>Calculadora de Tiempo:</strong> Duración estimada por tipo</li>
+                            <li><strong>Simulador de Escenarios:</strong> Análisis "qué pasaría si"</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>Optimización</h5>
+                        Usa la planificación operacional para balancear la carga de trabajo y optimizar el uso de recursos productivos.
+                    </div>
+                    
                 {% elif modulo_activo == 'configuraciones' %}
                     <div class="modulo-header">
                         <h2><i class="fas fa-cog me-3"></i>Configuraciones del Sistema</h2>
                         <p>Administración y configuración general</p>
                     </div>
                     
-                    <div class="badge-modulo">Módulo 10</div>
+                    <div class="badge-modulo">Módulo 14</div>
                     
                     <h3>Panel de Administración</h3>
                     <p class="lead">Solo los usuarios con rol de administrador pueden acceder a estas configuraciones críticas del sistema.</p>
@@ -1086,7 +1357,7 @@
                         <p>Consejos para maximizar la eficiencia del sistema</p>
                     </div>
                     
-                    <div class="badge-modulo">Módulo 11</div>
+                    <div class="badge-modulo">Módulo 15</div>
                     
                     <h3>Flujo de Trabajo Recomendado</h3>
                     
@@ -1182,6 +1453,9 @@
                         ('fabricacion', 'Fabricación'),
                         ('areas-produccion', 'Áreas de Producción'),
                         ('despachos', 'Despachos'),
+                        ('finanzas', 'Finanzas'),
+                        ('comercial', 'Comercial'),
+                        ('planificacion-operacional', 'Planificación Operacional'),
                         ('configuraciones', 'Configuraciones'),
                         ('mejores-practicas', 'Mejores Prácticas')
                     ] %}
