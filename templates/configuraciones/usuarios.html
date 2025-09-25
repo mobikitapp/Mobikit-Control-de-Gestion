@@ -2,6 +2,109 @@
 {% set title = "Gestión de Usuarios" %}
 
 {% block content %}
+<style>
+/* Botones de acción personalizados con colores Mobikit */
+.action-btn {
+    border-radius: 6px !important;
+    border: 1px solid transparent;
+    transition: all 0.2s ease-in-out;
+    min-width: 34px;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Botón principal - Editar */
+.btn-mobikit-primary {
+    background-color: var(--mobikit-red);
+    color: var(--mobikit-white);
+    border-color: var(--mobikit-red);
+}
+
+.btn-mobikit-primary:hover {
+    background-color: var(--mobikit-red-dark);
+    border-color: var(--mobikit-red-dark);
+    color: var(--mobikit-white);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(239, 26, 31, 0.3);
+}
+
+/* Botón advertencia - Reset Password */
+.btn-mobikit-warning {
+    background-color: #F59E0B;
+    color: var(--mobikit-white);
+    border-color: #F59E0B;
+}
+
+.btn-mobikit-warning:hover {
+    background-color: #D97706;
+    border-color: #D97706;
+    color: var(--mobikit-white);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+/* Botón éxito - Activar */
+.btn-mobikit-success {
+    background-color: #10B981;
+    color: var(--mobikit-white);
+    border-color: #10B981;
+}
+
+.btn-mobikit-success:hover {
+    background-color: #059669;
+    border-color: #059669;
+    color: var(--mobikit-white);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+/* Botón peligro - Desactivar */
+.btn-mobikit-danger {
+    background-color: #EF4444;
+    color: var(--mobikit-white);
+    border-color: #EF4444;
+}
+
+.btn-mobikit-danger:hover {
+    background-color: #DC2626;
+    border-color: #DC2626;
+    color: var(--mobikit-white);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+/* Botón gris - Deshabilitado */
+.btn-mobikit-gray {
+    background-color: var(--mobikit-gray);
+    color: var(--mobikit-white);
+    border-color: var(--mobikit-gray);
+    opacity: 0.6;
+}
+
+.btn-mobikit-gray.disabled {
+    cursor: not-allowed;
+}
+
+/* Mejoras adicionales para la tabla */
+.table td {
+    vertical-align: middle;
+}
+
+/* Tooltips personalizados */
+.tooltip-inner {
+    background-color: var(--mobikit-gray);
+    color: var(--mobikit-white);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.tooltip.bs-tooltip-top .tooltip-arrow::before {
+    border-top-color: var(--mobikit-gray);
+}
+</style>
+
 <div class="container-fluid">
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -189,37 +292,45 @@
                                         </small>
                                     </td>
                                     <td>
-                                        <div class="btn-group" role="group">
+                                        <div class="d-flex gap-1 justify-content-center align-items-center">
+                                            <!-- Botón Editar -->
                                             <a href="{{ url_for('configuraciones.editar_usuario', usuario_id=usuario.id) }}" 
-                                               class="btn btn-outline-primary btn-sm" 
+                                               class="btn btn-mobikit-primary btn-sm action-btn" 
                                                data-bs-toggle="tooltip" 
+                                               data-bs-placement="top"
                                                title="Editar información del usuario">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                             
                                             {% if usuario.id != current_user.id %}
-                                            <button type="button" class="btn btn-outline-warning btn-sm" 
+                                            <!-- Botón Reset Password -->
+                                            <button type="button" class="btn btn-mobikit-warning btn-sm action-btn" 
                                                     data-bs-toggle="tooltip" 
-                                                    title="Resetear contraseña - Genera nueva contraseña temporal"
+                                                    data-bs-placement="top"
+                                                    title="Resetear contraseña"
                                                     onclick="resetearPassword('{{ usuario.id }}', '{{ (usuario.first_name or '') + ' ' + (usuario.last_name or '') }}')">
                                                 <i class="fas fa-key"></i>
                                             </button>
                                             
+                                            <!-- Botón Activar/Desactivar -->
                                             <form method="POST" action="{{ url_for('configuraciones.cambiar_estado_usuario', usuario_id=usuario.id) }}" 
                                                   style="display: inline-block;" 
                                                   onsubmit="return confirm('¿Estás seguro de {{ 'desactivar' if usuario.activo else 'activar' }} este usuario?')">
                                                 <button type="submit" 
-                                                        class="btn btn-outline-{{ 'danger' if usuario.activo else 'success' }} btn-sm" 
+                                                        class="btn btn-mobikit-{{ 'danger' if usuario.activo else 'success' }} btn-sm action-btn" 
                                                         data-bs-toggle="tooltip" 
-                                                        title="{{ 'Desactivar usuario - No podrá iniciar sesión' if usuario.activo else 'Activar usuario - Permitir acceso al sistema' }}">
-                                                    <i class="fas fa-{{ 'ban' if usuario.activo else 'check' }}"></i>
+                                                        data-bs-placement="top"
+                                                        title="{{ 'Desactivar usuario' if usuario.activo else 'Activar usuario' }}">
+                                                    <i class="fas fa-{{ 'user-slash' if usuario.activo else 'user-check' }}"></i>
                                                 </button>
                                             </form>
                                             {% else %}
-                                            <span class="btn btn-outline-secondary btn-sm disabled" 
+                                            <!-- Usuario actual - bloqueado -->
+                                            <span class="btn btn-mobikit-gray btn-sm action-btn disabled" 
                                                   data-bs-toggle="tooltip" 
+                                                  data-bs-placement="top"
                                                   title="No puedes modificar tu propia cuenta">
-                                                <i class="fas fa-lock"></i>
+                                                <i class="fas fa-user-shield"></i>
                                             </span>
                                             {% endif %}
                                         </div>
