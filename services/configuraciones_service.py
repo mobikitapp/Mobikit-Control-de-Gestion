@@ -1,12 +1,12 @@
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import and_, or_, func, desc
 from werkzeug.security import generate_password_hash
 import secrets
 import string
 
 from app import db
-from models import User, RolUsuario, ComisionVendedor
+from models import User, RolUsuario, ComisionVendedor, ContrasenasTemporal
 
 
 class ConfiguracionesService:
@@ -98,6 +98,9 @@ class ConfiguracionesService:
             if existing_user:
                 return False, "Ya existe un usuario con ese email"
             
+            # Generate temporary password
+            password_temporal = self._generate_temp_password()
+            
             # Create user instance
             nuevo_usuario = User()
             nuevo_usuario.id = self._generate_user_id()
@@ -108,6 +111,18 @@ class ConfiguracionesService:
             nuevo_usuario.activo = datos_usuario.get('activo', True)
             
             db.session.add(nuevo_usuario)
+            db.session.flush()  # Para obtener el ID
+            
+            # Guardar contraseña temporal
+            contraseña_temp = ContrasenasTemporal(
+                usuario_id=nuevo_usuario.id,
+                password_temporal=password_temporal,
+                tipo_accion='creacion',
+                generada_por=created_by,
+                fecha_expiracion=datetime.now() + timedelta(days=30)  # Expira en 30 días
+            )
+            db.session.add(contraseña_temp)
+            
             db.session.commit()
             
             # Log the creation
@@ -115,7 +130,7 @@ class ConfiguracionesService:
             self._log_user_action('crear_usuario', nuevo_usuario.id, created_by, 
                                 f"Usuario {nombre_completo} creado con rol {nuevo_usuario.rol.value}")
             
-            return True, "Usuario creado exitosamente"
+            return True, f"Usuario creado exitosamente. Contraseña temporal: {password_temporal}"
             
         except Exception as e:
             db.session.rollback()
@@ -206,6 +221,22 @@ class ConfiguracionesService:
             
             # Generate new temporary password
             nueva_password = self._generate_temp_password()
+            
+            # Desactivar contraseñas temporales anteriores para este usuario
+            db.session.query(ContrasenasTemporal).filter_by(
+                usuario_id=usuario_id, activa=True
+            ).update({'activa': False})
+            
+            # Guardar nueva contraseña temporal
+            contraseña_temp = ContrasenasTemporal(
+                usuario_id=usuario_id,
+                password_temporal=nueva_password,
+                tipo_accion='reset',
+                generada_por=reset_by,
+                fecha_expiracion=datetime.now() + timedelta(days=30)  # Expira en 30 días
+            )
+            db.session.add(contraseña_temp)
+            
             # Note: User model from Replit Auth doesn't have password_hash field
             # This would need to be handled through Replit Auth system
             usuario.updated_at = datetime.now()
@@ -1113,3 +1144,58 @@ class ConfiguracionesService:
         except Exception as e:
             print(f"Error calculating deficit scenarios: {e}")
             return []
+
+    def get_contraseñas_temporales(self, filtros=None):
+        """Obtener lista de contraseñas temporales generadas"""
+        try:
+            # Build base query
+            query = (db.session.query(ContrasenasTemporal)
+                    .join(User, ContrasenasTemporal.usuario_id == User.id)
+                    .join(User.query.filter_by(id=ContrasenasTemporal.generada_por).subquery(), 
+                          ContrasenasTemporal.generada_por == User.id, isouter=True))
+            
+            # Apply filters if provided
+            if filtros:
+                if filtros.get('usuario_id'):
+                    query = query.filter(ContrasenasTemporal.usuario_id == filtros['usuario_id'])
+                if filtros.get('tipo_accion'):
+                    query = query.filter(ContrasenasTemporal.tipo_accion == filtros['tipo_accion'])
+                if filtros.get('activa') is not None:
+                    query = query.filter(ContrasenasTemporal.activa == filtros['activa'])
+                if filtros.get('desde'):
+                    query = query.filter(ContrasenasTemporal.fecha_generacion >= filtros['desde'])
+                if filtros.get('hasta'):
+                    query = query.filter(ContrasenasTemporal.fecha_generacion <= filtros['hasta'])
+            
+            # Order by most recent
+            contraseñas = query.order_by(desc(ContrasenasTemporal.fecha_generacion)).all()
+            
+            return {
+                'contraseñas': contraseñas,
+                'total': len(contraseñas)
+            }
+            
+        except Exception as e:
+            print(f"Error getting temporary passwords: {e}")
+            return {
+                'contraseñas': [],
+                'total': 0
+            }
+
+    def marcar_contraseña_usada(self, contraseña_id: int, usado_por: str) -> bool:
+        """Marcar una contraseña temporal como usada/inactiva"""
+        try:
+            contraseña = db.session.get(ContrasenasTemporal, contraseña_id)
+            if contraseña:
+                contraseña.activa = False
+                db.session.commit()
+                
+                self._log_user_action('contraseña_usada', contraseña.usuario_id, usado_por,
+                                    f"Contraseña temporal marcada como usada")
+                return True
+            return False
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error marking password as used: {e}")
+            return False
