@@ -2,8 +2,9 @@
 import os
 import sys
 import logging
+import base64
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content
+from sendgrid.helpers.mail import Mail, Email, To, Content, Attachment
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,66 @@ class EmailService:
             
         except Exception as e:
             logger.error(f"Error enviando email con SendGrid: {e}")
+            return False
+    
+    def send_email_with_logo(self, to_email: str, from_email: str, subject: str, 
+                   html_content: Optional[str] = None, text_content: Optional[str] = None) -> bool:
+        """
+        Envía un email con el logo de Mobikit embebido usando SendGrid API
+        """
+        if not self.sendgrid_key:
+            logger.error("No se puede enviar email: SENDGRID_API_KEY no configurada")
+            return False
+            
+        if not html_content and not text_content:
+            logger.error("Debe proporcionar al menos html_content o text_content")
+            return False
+        
+        try:
+            # Usar la implementación oficial de SendGrid
+            sg = SendGridAPIClient(self.sendgrid_key)
+
+            message = Mail(
+                from_email=Email(from_email),
+                to_emails=To(to_email),
+                subject=subject
+            )
+
+            # Añadir contenido (HTML tiene prioridad)
+            if html_content:
+                message.content = Content("text/html", html_content)
+            elif text_content:
+                message.content = Content("text/plain", text_content)
+
+            # Agregar logo como attachment embebido
+            try:
+                logo_path = "static/images/mobikit-logo-official.png"
+                if os.path.exists(logo_path):
+                    with open(logo_path, 'rb') as logo_file:
+                        logo_data = logo_file.read()
+                        logo_base64 = base64.b64encode(logo_data).decode()
+                        
+                        attachment = Attachment()
+                        attachment.file_content = logo_base64
+                        attachment.file_type = "image/png"
+                        attachment.file_name = "mobikit-logo.png"
+                        attachment.disposition = "inline"
+                        attachment.content_id = "mobikit_logo"
+                        
+                        message.attachment = attachment
+                else:
+                    logger.warning(f"Logo no encontrado en {logo_path}")
+            except Exception as logo_error:
+                logger.warning(f"Error adjuntando logo: {logo_error}")
+                # Continúa enviando sin logo
+
+            # Enviar el email
+            response = sg.send(message)
+            logger.info(f"Email enviado exitosamente a {to_email}. Status: {response.status_code}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"SendGrid error: {e}")
             return False
     
     def send_new_user_notification(
@@ -243,19 +304,24 @@ class EmailService:
                 .cta-button {{
                     display: inline-block;
                     background: linear-gradient(135deg, #EF1A1F 0%, #C7161A 100%);
-                    color: #FDFDFD;
-                    text-decoration: none;
+                    color: #FFFFFF !important;
+                    text-decoration: none !important;
                     padding: 15px 30px;
                     border-radius: 25px;
-                    font-weight: 600;
+                    font-weight: 700;
                     font-size: 16px;
                     box-shadow: 0 4px 15px rgba(239, 26, 31, 0.3);
-                    transition: transform 0.2s ease;
+                    transition: all 0.2s ease;
+                    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+                    border: 2px solid #FFFFFF;
                 }}
                 
                 .cta-button:hover {{
                     transform: translateY(-2px);
                     box-shadow: 0 6px 20px rgba(239, 26, 31, 0.4);
+                    color: #FFFFFF !important;
+                    text-decoration: none !important;
+                    background: linear-gradient(135deg, #C7161A 0%, #A01419 100%);
                 }}
                 
                 .footer {{ 
@@ -291,7 +357,7 @@ class EmailService:
             <div class="container">
                 <div class="header">
                     <div class="logo">
-                        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiNFRjFBMUYiLz4KPHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHg9IjEwIiB5PSIxMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+CjxwYXRoIGQ9Im0zIDkgOS05IDkgOSI+PC9wYXRoPgo8cGF0aCBkPSJNMjEgMjB2LThoLThhdjgiPjwvcGF0aD4KPC9zdmc+Cjwvc3ZnPgo=" alt="Mobikit Logo" />
+                        <img src="cid:mobikit_logo" alt="Mobikit - Muebles" style="max-width: 120px; height: auto;" />
                     </div>
                     <h1>¡Bienvenido a Mobikit!</h1>
                     <p>Sistema de Control de Gestión</p>
@@ -404,7 +470,7 @@ class EmailService:
             logger.error("SENDGRID_FROM_EMAIL no está configurado; configure un remitente verificado en SendGrid y exponga SENDGRID_FROM_EMAIL")
             return False
         
-        return self.send_email(
+        return self.send_email_with_logo(
             to_email=user_email,
             from_email=from_email,
             subject=subject,
