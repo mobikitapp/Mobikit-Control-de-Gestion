@@ -82,8 +82,14 @@ def index():
         from datetime import date
         today = date.today()
         for of in ofs:
-            if of.fecha_entrega_fabrica:
-                entrega_date = of.fecha_entrega_fabrica.date() if hasattr(of.fecha_entrega_fabrica, 'date') else of.fecha_entrega_fabrica
+            # Use the dynamic delivery date property instead of direct field access
+            fecha_entrega = of.fecha_entrega_dinamica
+            if fecha_entrega:
+                # Ensure we have a date object, not datetime or other type
+                if hasattr(fecha_entrega, 'date'):
+                    entrega_date = fecha_entrega.date()
+                else:
+                    entrega_date = fecha_entrega
                 of.days_remaining = (entrega_date - today).days
             else:
                 of.days_remaining = None
