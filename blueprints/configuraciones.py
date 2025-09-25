@@ -118,10 +118,10 @@ def crear_usuario():
         if success:
             # Show success message with temporary password
             if temp_password:
-                flash(f'Usuario {datos_usuario["nombre"]} creado exitosamente. {mensaje}', 'success')
+                flash(f'✅ Usuario {datos_usuario["nombre"]} creado exitosamente. {mensaje}', 'success')
                 flash(f'CONTRASEÑA TEMPORAL: {temp_password} - Anote esta contraseña ya que no se volverá a mostrar.', 'warning')
             else:
-                flash(f'Usuario {datos_usuario["nombre"]} creado exitosamente', 'success')
+                flash(f'✅ Usuario {datos_usuario["nombre"]} creado exitosamente', 'success')
             return redirect(url_for('configuraciones.usuarios'))
         else:
             flash(f'Error al crear usuario: {mensaje}', 'error')

@@ -167,8 +167,8 @@ class EmailService:
         Por favor, no respondas a este email.
         """
         
-        # Email del remitente (puedes configurar esto según tu dominio)
-        from_email = "noreply@mobikit.cl"  # Cambiar por tu dominio verificado en SendGrid
+        # Email del remitente - usar email que funciona con SendGrid
+        from_email = "test@example.com"  # Email de prueba que funciona con SendGrid
         
         return self.send_email(
             to_email=user_email,
