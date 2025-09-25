@@ -303,8 +303,8 @@ class EmailService:
                 
                 .cta-button {{
                     display: inline-block;
-                    background: linear-gradient(135deg, #EF1A1F 0%, #C7161A 100%);
-                    color: #FFFFFF !important;
+                    background-color: #FFFFFF !important;
+                    color: #EF1A1F !important;
                     text-decoration: none !important;
                     padding: 15px 30px;
                     border-radius: 25px;
@@ -312,16 +312,16 @@ class EmailService:
                     font-size: 16px;
                     box-shadow: 0 4px 15px rgba(239, 26, 31, 0.3);
                     transition: all 0.2s ease;
-                    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-                    border: 2px solid #FFFFFF;
+                    border: 3px solid #EF1A1F !important;
                 }}
                 
                 .cta-button:hover {{
                     transform: translateY(-2px);
                     box-shadow: 0 6px 20px rgba(239, 26, 31, 0.4);
-                    color: #FFFFFF !important;
+                    color: #C7161A !important;
                     text-decoration: none !important;
-                    background: linear-gradient(135deg, #C7161A 0%, #A01419 100%);
+                    background-color: #F8F8F8 !important;
+                    border-color: #C7161A !important;
                 }}
                 
                 .footer {{ 
