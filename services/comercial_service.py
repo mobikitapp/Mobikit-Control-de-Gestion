@@ -364,7 +364,8 @@ class ComercialService:
             'gran_totales': gran_totales,
             'filtros': {
                 'cliente_id': cliente_id,
-                'estado_filter': estado_filter
+                'estado_filter': estado_filter,
+                'curve_type': curve_type
             }
         }
 

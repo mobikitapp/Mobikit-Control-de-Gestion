@@ -57,12 +57,22 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">Estados</label>
                             <select class="form-select" name="estados">
                                 <option value="todos" {% if filtros.estado_filter == 'todos' %}selected{% endif %}>Todos</option>
                                 <option value="presupuestado" {% if filtros.estado_filter == 'presupuestado' %}selected{% endif %}>Solo Presupuestado</option>
                                 <option value="adjudicado" {% if filtros.estado_filter == 'adjudicado' %}selected{% endif %}>Solo Adjudicado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Curva Break Even</label>
+                            <select class="form-select" name="curve_type" onchange="this.form.submit()">
+                                {% for curve_key, curve_name in available_curves.items() %}
+                                <option value="{{ curve_key }}" {% if selected_curve == curve_key %}selected{% endif %}>
+                                    {{ curve_name }}
+                                </option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-4 d-flex align-items-end">
@@ -109,7 +119,7 @@
                                     <th>Total Ventas</th>
                                     <th>Ganancias</th>
                                     <th>Margen Pond.</th>
-                                    <th>Margen B.E.</th>
+                                    <th>Margen B.E. <small class="badge bg-info">{{ selected_curve.title() }}</small></th>
                                     <th>Objetivo</th>
                                     <th>% Objetivo</th>
                                 </tr>
