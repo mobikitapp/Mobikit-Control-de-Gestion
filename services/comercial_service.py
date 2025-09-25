@@ -350,7 +350,8 @@ class ComercialService:
         clientes = db.session.query(Cliente).filter_by(activo=True).order_by(Cliente.nombre).all()
 
         # Calculate grand totals
-        gran_totales = self._calcular_gran_totales(matriz, objetivos)
+        # Calculate grand totals with the new structure
+        gran_totales = self._calcular_gran_totales_nueva_estructura(matriz, objetivos)
 
         return {
             'año': año,
@@ -802,23 +803,23 @@ class ComercialService:
             proyectos_mes_data = proyectos_por_mes.get(mes_key, [])
 
             # Calculate totals for this month
-            provision_mes = sum(p.get('valor_provision', Decimal('0')) for p in proyectos_mes_data)
-            instalacion_mes = sum(p.get('valor_instalacion', Decimal('0')) for p in proyectos_mes_data)
+            provision_mes = sum(p.get('valor_provision_mes', Decimal('0')) for p in proyectos_mes_data)
+            instalacion_mes = sum(p.get('valor_instalacion_mes', Decimal('0')) for p in proyectos_mes_data)
             total_mes = provision_mes + instalacion_mes
 
             # Calculate weighted margin
             margen_ponderado = Decimal('0')
             if total_mes > 0:
                 for p in proyectos_mes_data:
-                    valor_proyecto_mes = p.get('valor_provision', Decimal('0')) + p.get('valor_instalacion', Decimal('0'))
+                    valor_proyecto_mes = p.get('valor_provision_mes', Decimal('0')) + p.get('valor_instalacion_mes', Decimal('0'))
                     if valor_proyecto_mes > 0:
                         peso = valor_proyecto_mes / total_mes
                         margen_provision_contrib = Decimal('0')
-                        if p.get('valor_provision', Decimal('0')) > 0:
-                             margen_provision_contrib = (p.get('valor_provision', Decimal('0')) / valor_proyecto_mes) * p.get('margen_provision', Decimal('0'))
+                        if p.get('valor_provision_mes', Decimal('0')) > 0:
+                             margen_provision_contrib = (p.get('valor_provision_mes', Decimal('0')) / valor_proyecto_mes) * p.get('margen_provision', Decimal('0'))
                         margen_instalacion_contrib = Decimal('0')
-                        if p.get('valor_instalacion', Decimal('0')) > 0:
-                            margen_instalacion_contrib = (p.get('valor_instalacion', Decimal('0')) / valor_proyecto_mes) * p.get('margen_instalacion', Decimal('0'))
+                        if p.get('valor_instalacion_mes', Decimal('0')) > 0:
+                            margen_instalacion_contrib = (p.get('valor_instalacion_mes', Decimal('0')) / valor_proyecto_mes) * p.get('margen_instalacion', Decimal('0'))
                         
                         margen_ponderado += peso * (margen_provision_contrib + margen_instalacion_contrib)
 
@@ -827,7 +828,7 @@ class ComercialService:
             margen_break_even_ponderado = Decimal('0')
             if total_mes > 0:
                  for p in proyectos_mes_data:
-                    valor_proyecto_mes = p.get('valor_provision', Decimal('0')) + p.get('valor_instalacion', Decimal('0'))
+                    valor_proyecto_mes = p.get('valor_provision_mes', Decimal('0')) + p.get('valor_instalacion_mes', Decimal('0'))
                     if valor_proyecto_mes > 0:
                         peso = valor_proyecto_mes / total_mes
                         # Calculate break even margin for this project value
@@ -912,12 +913,12 @@ class ComercialService:
                         proyectos_por_mes[mes] = []
 
                     proyectos_por_mes[mes].append({
-                        'proyecto_id': proyecto.id, # Store project ID
-                        'valor_provision': valor_provision_mes,
-                        'valor_instalacion': valor_instalacion_mes,
-                        'ganancia_provision': ganancia_provision_mes,
-                        'ganancia_instalacion': ganancia_instalacion_mes,
-                        'ganancia_total': ganancia_total_mes,
+                        'proyecto': proyecto,  # Store complete project object
+                        'valor_provision_mes': valor_provision_mes,
+                        'valor_instalacion_mes': valor_instalacion_mes,
+                        'ganancia_provision_mes': ganancia_provision_mes,
+                        'ganancia_instalacion_mes': ganancia_instalacion_mes,
+                        'ganancia_total_mes': ganancia_total_mes,
                         'margen_provision': proyecto.margen_venta_provision or Decimal('0'),
                         'margen_instalacion': proyecto.margen_venta_instalacion or Decimal('0'),
                         'dias_en_mes': dias_en_mes,
@@ -932,23 +933,23 @@ class ComercialService:
             proyectos_mes_data = proyectos_por_mes.get(mes, [])
 
             # Calculate totals for this month
-            provision_mes = sum(p.get('valor_provision', Decimal('0')) for p in proyectos_mes_data)
-            instalacion_mes = sum(p.get('valor_instalacion', Decimal('0')) for p in proyectos_mes_data)
+            provision_mes = sum(p.get('valor_provision_mes', Decimal('0')) for p in proyectos_mes_data)
+            instalacion_mes = sum(p.get('valor_instalacion_mes', Decimal('0')) for p in proyectos_mes_data)
             total_mes = provision_mes + instalacion_mes
 
             # Calculate weighted margin
             margen_ponderado = Decimal('0')
             if total_mes > 0:
                 for p in proyectos_mes_data:
-                    valor_proyecto_mes = p.get('valor_provision', Decimal('0')) + p.get('valor_instalacion', Decimal('0'))
+                    valor_proyecto_mes = p.get('valor_provision_mes', Decimal('0')) + p.get('valor_instalacion_mes', Decimal('0'))
                     if valor_proyecto_mes > 0:
                         peso = valor_proyecto_mes / total_mes
                         margen_provision_contrib = Decimal('0')
-                        if p.get('valor_provision', Decimal('0')) > 0:
-                             margen_provision_contrib = (p.get('valor_provision', Decimal('0')) / valor_proyecto_mes) * p.get('margen_provision', Decimal('0'))
+                        if p.get('valor_provision_mes', Decimal('0')) > 0:
+                             margen_provision_contrib = (p.get('valor_provision_mes', Decimal('0')) / valor_proyecto_mes) * p.get('margen_provision', Decimal('0'))
                         margen_instalacion_contrib = Decimal('0')
-                        if p.get('valor_instalacion', Decimal('0')) > 0:
-                            margen_instalacion_contrib = (p.get('valor_instalacion', Decimal('0')) / valor_proyecto_mes) * p.get('margen_instalacion', Decimal('0'))
+                        if p.get('valor_instalacion_mes', Decimal('0')) > 0:
+                            margen_instalacion_contrib = (p.get('valor_instalacion_mes', Decimal('0')) / valor_proyecto_mes) * p.get('margen_instalacion', Decimal('0'))
                         
                         margen_ponderado += peso * (margen_provision_contrib + margen_instalacion_contrib)
 
@@ -957,24 +958,18 @@ class ComercialService:
             margen_break_even_ponderado = Decimal('0')
             if total_mes > 0:
                  for p in proyectos_mes_data:
-                    valor_proyecto_mes = p.get('valor_provision', Decimal('0')) + p.get('valor_instalacion', Decimal('0'))
+                    valor_proyecto_mes = p.get('valor_provision_mes', Decimal('0')) + p.get('valor_instalacion_mes', Decimal('0'))
                     if valor_proyecto_mes > 0:
                         peso = valor_proyecto_mes / total_mes
                         # Calculate break even margin for this project value
                         margen_be_proyecto = Decimal(str(revenue_service.required_margin(float(valor_proyecto_mes))))
                         margen_break_even_ponderado += peso * margen_be_proyecto
 
-            # Get actual project objects for template display
-            proyecto_ids = [p.get('proyecto_id') for p in proyectos_mes_data if p.get('proyecto_id')]
-            proyectos_objetos = (db.session.query(Proyecto)
-                               .options(joinedload(Proyecto.cliente))
-                               .filter(Proyecto.id.in_(proyecto_ids))
-                               .all()) if proyecto_ids else []
-
-            matriz[mes]['proyectos'] = proyectos_objetos # Use actual project objects
+            # Use the project data we already have (includes project objects)
+            matriz[mes]['proyectos'] = proyectos_mes_data
             matriz[mes]['valor_provision'] = provision_mes
             matriz[mes]['valor_instalacion'] = instalacion_mes
-            matriz[mes]['ganancias'] = sum(p.get('ganancia_total', Decimal('0')) for p in proyectos_mes_data)
+            matriz[mes]['ganancias'] = sum(p.get('ganancia_total_mes', Decimal('0')) for p in proyectos_mes_data)
             matriz[mes]['margen_ponderado'] = margen_ponderado
             matriz[mes]['margen_break_even'] = margen_break_even_ponderado
             matriz[mes]['count'] = len(proyectos_mes_data)
@@ -1248,6 +1243,53 @@ class ComercialService:
 
         return objetivos_dict
 
+    def _calcular_gran_totales_nueva_estructura(self, matriz, objetivos):
+        """Calculate grand totals with the new data structure"""
+        total_provision = Decimal('0')
+        total_instalacion = Decimal('0')
+        total_ganancias = Decimal('0')
+        total_proyectos = 0
+        objetivo_total_provision = Decimal('0')
+        objetivo_total_instalacion = Decimal('0')
+
+        # Sum up matrix values (which come from proyectos_por_mes)
+        for periodo_key, mes_data in matriz.items():
+            total_provision += mes_data.get('valor_provision', Decimal('0'))
+            total_instalacion += mes_data.get('valor_instalacion', Decimal('0'))
+            total_ganancias += mes_data.get('ganancias', Decimal('0'))
+            total_proyectos += len(mes_data.get('proyectos', []))
+
+        # Sum up objectives
+        for periodo_key, objetivo_mes in objetivos.items():
+            if objetivo_mes:
+                if objetivo_mes.objetivo_provision:
+                    objetivo_total_provision += objetivo_mes.objetivo_provision
+                if objetivo_mes.objetivo_instalacion:
+                    objetivo_total_instalacion += objetivo_mes.objetivo_instalacion
+
+        # Calculate overall margin
+        total_ventas = total_provision + total_instalacion
+        margen_global = Decimal('0')
+        if total_ventas > 0:
+            margen_global = (total_ganancias / total_ventas) * Decimal('100')
+
+        # Calculate objective percentage
+        porcentaje_objetivo = Decimal('0')
+        if objetivo_total_provision > 0:
+            porcentaje_objetivo = (total_provision / objetivo_total_provision) * Decimal('100')
+
+        return {
+            'total_provision': total_provision,
+            'total_instalacion': total_instalacion,
+            'total_ganancias': total_ganancias,
+            'total_ventas': total_ventas,
+            'total_proyectos': total_proyectos,
+            'margen_global': margen_global,
+            'objetivo_total_provision': objetivo_total_provision,
+            'objetivo_total_instalacion': objetivo_total_instalacion,
+            'porcentaje_objetivo': porcentaje_objetivo
+        }
+
     def _calcular_gran_totales(self, matriz, objetivos):
         """Calculate grand totals for the entire period"""
         total_provision = Decimal('0')
@@ -1293,13 +1335,13 @@ class ComercialService:
 
         for periodo_key, mes_data in matriz.items():
             for proyecto_mes in mes_data['proyectos']:
-                if proyecto_mes.get('valor_provision', Decimal('0')) > 0:
-                    total_margen_provision_ponderado += proyecto_mes.get('margen_provision', Decimal('0')) * proyecto_mes.get('valor_provision', Decimal('0'))
-                    proyectos_con_provision += proyecto_mes.get('valor_provision', Decimal('0'))
+                if proyecto_mes.get('valor_provision_mes', Decimal('0')) > 0:
+                    total_margen_provision_ponderado += proyecto_mes.get('margen_provision', Decimal('0')) * proyecto_mes.get('valor_provision_mes', Decimal('0'))
+                    proyectos_con_provision += proyecto_mes.get('valor_provision_mes', Decimal('0'))
 
-                if proyecto_mes.get('valor_instalacion', Decimal('0')) > 0:
-                    total_margen_instalacion_ponderado += proyecto_mes.get('margen_instalacion', Decimal('0')) * proyecto_mes.get('valor_instalacion', Decimal('0'))
-                    proyectos_con_instalacion += proyecto_mes.get('valor_instalacion', Decimal('0'))
+                if proyecto_mes.get('valor_instalacion_mes', Decimal('0')) > 0:
+                    total_margen_instalacion_ponderado += proyecto_mes.get('margen_instalacion', Decimal('0')) * proyecto_mes.get('valor_instalacion_mes', Decimal('0'))
+                    proyectos_con_instalacion += proyecto_mes.get('valor_instalacion_mes', Decimal('0'))
 
         if proyectos_con_provision > 0:
             margen_provision_promedio = total_margen_provision_ponderado / proyectos_con_provision

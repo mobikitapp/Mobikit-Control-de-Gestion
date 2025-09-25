@@ -208,15 +208,16 @@
                                                     <div class="card card-sm">
                                                         <div class="card-body p-2">
                                                             <h6 class="card-title mb-1" style="font-size: 0.85rem;">
-                                                                {{ proyecto.nombre }}
+                                                                {{ proyecto.proyecto.nombre }}
                                                             </h6>
                                                             <p class="card-text mb-1" style="font-size: 0.75rem;">
-                                                                <strong>Cliente:</strong> {{ proyecto.cliente.nombre }}<br>
+                                                                <strong>Cliente:</strong> {{ proyecto.proyecto.cliente.nombre }}<br>
                                                                 <strong>Estado:</strong> 
-                                                                <span class="badge bg-{% if proyecto.estado_comercial.value == 'ADJUDICADO' %}success{% else %}warning{% endif %}">
-                                                                    {{ proyecto.estado_comercial.value }}
+                                                                <span class="badge bg-{% if proyecto.proyecto.estado_comercial.value == 'ADJUDICADO' %}success{% else %}warning{% endif %}">
+                                                                    {{ proyecto.proyecto.estado_comercial.value }}
                                                                 </span><br>
-                                                                <strong>Monto:</strong> ${{ "{:,.0f}".format((proyecto.monto_provision_presupuestado or 0) + (proyecto.monto_instalacion_presupuestado or 0)) }}
+                                                                <strong>Provisión:</strong> ${{ "{:,.0f}".format(proyecto.valor_provision_mes / 1000000) }}M<br>
+                                                                <strong>Instalación:</strong> ${{ "{:,.0f}".format(proyecto.valor_instalacion_mes / 1000000) }}M
                                                             </p>
                                                         </div>
                                                     </div>
