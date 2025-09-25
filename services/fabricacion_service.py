@@ -650,6 +650,7 @@ class FabricacionService:
             OrdenFabricacion creada
         """
         try:
+            from sqlalchemy.orm import joinedload
             # Obtener el despacho
             despacho = db.session.query(Despacho).options(
                 joinedload(Despacho.proyecto),
