@@ -114,6 +114,9 @@
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save"></i> Guardar Preferencias
                             </button>
+                            <button type="button" class="btn btn-info ml-2" onclick="testNotification()">
+                                <i class="fas fa-paper-plane"></i> Enviar Email de Prueba
+                            </button>
                             <a href="{{ url_for('configuraciones.dashboard') }}" class="btn btn-secondary ml-2">
                                 <i class="fas fa-times"></i> Cancelar
                             </a>
@@ -212,5 +215,37 @@ document.addEventListener('DOMContentLoaded', function() {
     // Listen for changes
     emailEnabledSwitch.addEventListener('change', toggleNotificationSwitches);
 });
+
+function testNotification() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Show loading state
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+    button.disabled = true;
+    
+    fetch('{{ url_for("configuraciones.test_notificacion") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ ' + data.message);
+        } else {
+            alert('❌ ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('❌ Error: ' + error.message);
+    })
+    .finally(() => {
+        // Restore button state
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
 </script>
 {% endblock %}

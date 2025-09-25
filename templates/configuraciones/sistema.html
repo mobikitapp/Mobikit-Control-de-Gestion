@@ -94,6 +94,9 @@
                                     <span class="badge bg-{{ 'success' if configuraciones.notificaciones_email else 'warning' }}">
                                         {{ 'Habilitadas' if configuraciones.notificaciones_email else 'Deshabilitadas' }}
                                     </span>
+                                    {% if not configuraciones.notificaciones_email %}
+                                    <small class="text-muted d-block">Configurar SENDGRID_API_KEY en variables de entorno</small>
+                                    {% endif %}
                                 </td>
                             </tr>
                         </tbody>
@@ -409,9 +412,13 @@ async function updateFactors(event) {
 function toggleCapacityEditMode() {
     isCapacityEditing = !isCapacityEditing;
     const capacityFields = [
-        'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
-        'horas_disponibles_mes', 'horas_disponibles_semana',
-        'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+        'capacidad_maxima_tableros_mes',
+        'capacidad_maxima_tableros_semana',
+        'horas_disponibles_mes',
+        'horas_disponibles_semana',
+        'horas_por_tablero_social',
+        'horas_por_tablero_estandar',
+        'horas_por_tablero_especial'
     ];
     const editActions = document.getElementById('capacityEditActions');
     const editButton = document.querySelector('button[onclick="toggleCapacityEditMode()"]');
@@ -540,12 +547,12 @@ function limpiarCache(event) {
     .then(data => {
         if (data.success) {
             addLogMessage(logArea, 'Caché limpiada exitosamente', 'success');
-            
+
             // Mostrar detalles si están disponibles
             if (data.details) {
                 updateProgress(logArea, data.details);
             }
-            
+
             addLogMessage(logArea, 'Proceso completado. Recargando página...', 'success');
 
             // Mostrar mensaje de éxito
@@ -643,7 +650,7 @@ function createLogArea(button, logId) {
             <div class="log-messages" style="font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 4px;">
             </div>
         `;
-        
+
         if (cardBody.firstChild) {
             cardBody.insertBefore(logArea, cardBody.firstChild);
         } else {
@@ -662,13 +669,13 @@ function addLogMessage(logArea, message, type = 'info') {
             console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
             return;
         }
-        
+
         const logMessages = logArea.querySelector('.log-messages');
         if (!logMessages) {
             console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
             return;
         }
-        
+
         const timestamp = new Date().toLocaleTimeString();
         const iconMap = {
             'info': 'fas fa-info-circle text-info',
@@ -676,11 +683,11 @@ function addLogMessage(logArea, message, type = 'info') {
             'warning': 'fas fa-exclamation-triangle text-warning',
             'error': 'fas fa-times-circle text-danger'
         };
-        
+
         const logEntry = document.createElement('div');
         logEntry.className = 'mb-1';
         logEntry.innerHTML = `<i class="${iconMap[type] || iconMap['info']} me-2"></i>[${timestamp}] ${message}`;
-        
+
         logMessages.appendChild(logEntry);
         logMessages.scrollTop = logMessages.scrollHeight; // Auto-scroll al final
     } catch (error) {
@@ -733,7 +740,7 @@ function limpiarDatos(event) {
             addLogMessage(logArea, 'Datos de producción limpiados exitosamente', 'success');
             addLogMessage(logArea, 'Todas las tablas de producción han sido vaciadas', 'success');
             addLogMessage(logArea, 'Secuencias de base de datos reseteadas', 'success');
-            
+
             // Mostrar mensaje de éxito
             const alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';

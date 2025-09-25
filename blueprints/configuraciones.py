@@ -3,16 +3,26 @@ from flask_login import current_user, login_required
 from sqlalchemy import and_, or_, func
 from datetime import datetime
 from werkzeug.security import generate_password_hash
+import logging
+import gc
+import tempfile
+import shutil
+import os
+import sys
+from sqlalchemy import text
 
 from app import db
-from models import User, RolUsuario
+from models import User, RolUsuario, NotificationPreferences, TipoNotificacion
 from services.configuraciones_service import ConfiguracionesService
 from services.permisos_service import PermisosService
+from services.notification_service import NotificationService
 from utils.auth import role_required
-from models import NotificationPreferences, TipoNotificacion
 
 # Create blueprint
 configuraciones_bp = Blueprint('configuraciones', __name__)
+
+# Initialize services
+notification_service = NotificationService()
 
 @configuraciones_bp.route('/')
 @configuraciones_bp.route('/dashboard')
@@ -749,23 +759,18 @@ def ver_auditoria_permisos():
 @role_required([RolUsuario.ADMIN])
 def limpiar_cache():
     """Endpoint para limpiar caché de la aplicación"""
-    import logging
     logger = logging.getLogger(__name__)
-    
+
     try:
         logger.info("Iniciando limpieza de caché...")
-        
+
         # Limpiar caché de Python (garbage collection)
-        import gc
         collected = gc.collect()
         logger.info(f"Garbage collection ejecutado: {collected} objetos limpiados")
 
         # Limpiar archivos temporales específicos de la aplicación
-        import tempfile
-        import shutil
-        import os
         temp_dir = tempfile.gettempdir()
-        
+
         temp_files_cleaned = 0
         try:
             # Buscar archivos temporales de la aplicación
@@ -784,7 +789,6 @@ def limpiar_cache():
             logger.warning(f"No se pudieron limpiar algunos archivos temporales: {temp_error}")
 
         # Limpiar caché de SQLAlchemy
-        from app import db
         try:
             # Cerrar todas las sesiones activas
             db.session.close()
@@ -795,7 +799,6 @@ def limpiar_cache():
             logger.warning(f"Error limpiando caché de base de datos: {db_error}")
 
         # Limpiar variables de entorno temporales si existen
-        import sys
         modules_before = len(sys.modules)
         # No eliminar módulos críticos, solo limpiar referencias
         gc.collect()  # Segunda pasada de garbage collection
@@ -825,17 +828,13 @@ def limpiar_cache():
             'message': error_msg
         }), 500
 
+
 @configuraciones_bp.route('/limpiar-datos', methods=['POST'])
 @login_required
 @role_required([RolUsuario.ADMIN])
 def limpiar_datos():
     """Endpoint para limpiar todos los datos de producción"""
     try:
-        from app import db
-        from sqlalchemy import text
-        import logging
-        logger = logging.getLogger(__name__)
-
         # Ejecutar la limpieza usando SQLAlchemy
         with db.engine.connect() as conn:
             with conn.begin():
@@ -911,7 +910,7 @@ def limpiar_datos():
                 # 14. Resetear estados de proyectos
                 logger.info("Reseteando estados de proyectos...")
                 conn.execute(text("""
-                    UPDATE proyectos 
+                    UPDATE proyectos
                     SET estado_comercial = 'PENDIENTE_PRESUPUESTO',
                         fecha_fin_real = NULL,
                         fecha_adjudicacion = NULL,
@@ -921,7 +920,7 @@ def limpiar_datos():
                 # 15. Limpiar auditoría relacionada
                 logger.info("Limpiando registros de auditoría...")
                 conn.execute(text("""
-                    DELETE FROM audit_log 
+                    DELETE FROM audit_log
                     WHERE entidad IN ('ordenes_fabricacion', 'contratos', 'despachos', 'estados_pago')
                 """))
 
@@ -930,7 +929,7 @@ def limpiar_datos():
                 try:
                     sequences = [
                         "ordenes_fabricacion_id_seq",
-                        "contratos_id_seq", 
+                        "contratos_id_seq",
                         "despachos_id_seq",
                         "estados_pago_id_seq",
                         "pendientes_facturar_id_seq"
@@ -953,23 +952,18 @@ def limpiar_datos():
 
     except Exception as e:
         # Asegurar imports en caso de error
-        import logging
-        from app import db
-        logger = logging.getLogger(__name__)
-        
-        error_msg = f"Error al limpiar datos de producción: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        
+        logger.error(f"Error al limpiar datos de producción: {str(e)}", exc_info=True)
+
         # Intentar rollback si hay una transacción activa
         try:
             db.session.rollback()
         except Exception:
             pass
-            
-        flash(error_msg, 'error')
+
+        flash(f"Error al limpiar datos de producción: {str(e)}", 'error')
         return jsonify({
             'success': False,
-            'message': error_msg,
+            'message': f"Error al limpiar datos de producción: {str(e)}",
             'error_type': type(e).__name__
         }), 500
 
@@ -985,7 +979,7 @@ def notificaciones():
     try:
         # Get or create user notification preferences
         preferences = NotificationPreferences.query.filter_by(user_id=current_user.id).first()
-        
+
         if not preferences:
             # Create default preferences
             preferences = NotificationPreferences(
@@ -999,7 +993,7 @@ def notificaciones():
             )
             db.session.add(preferences)
             db.session.commit()
-        
+
         # Get notification types for template
         tipos_notificacion = {
             'nuevo_proyecto': {
@@ -1028,11 +1022,11 @@ def notificaciones():
                 'habilitado': preferences.retraso_proyecto_email
             }
         }
-        
-        return render_template('configuraciones/notificaciones.html', 
+
+        return render_template('configuraciones/notificaciones.html',
                              preferences=preferences,
                              tipos_notificacion=tipos_notificacion)
-        
+
     except Exception as e:
         flash(f'Error al cargar preferencias de notificaciones: {str(e)}', 'error')
         return redirect(url_for('configuraciones.dashboard'))
@@ -1045,11 +1039,11 @@ def actualizar_notificaciones():
     try:
         # Get or create user notification preferences
         preferences = NotificationPreferences.query.filter_by(user_id=current_user.id).first()
-        
+
         if not preferences:
             preferences = NotificationPreferences(user_id=current_user.id)
             db.session.add(preferences)
-        
+
         # Update preferences from form
         preferences.email_enabled = 'email_enabled' in request.form
         preferences.nuevo_proyecto_email = 'nuevo_proyecto_email' in request.form
@@ -1058,13 +1052,75 @@ def actualizar_notificaciones():
         preferences.vencimiento_contrato_email = 'vencimiento_contrato_email' in request.form
         preferences.retraso_proyecto_email = 'retraso_proyecto_email' in request.form
         preferences.updated_at = datetime.now()
-        
+
         db.session.commit()
         flash('Preferencias de notificaciones actualizadas exitosamente', 'success')
-        
+
         return redirect(url_for('configuraciones.notificaciones'))
-        
+
     except Exception as e:
         db.session.rollback()
         flash(f'Error al actualizar preferencias: {str(e)}', 'error')
         return redirect(url_for('configuraciones.notificaciones'))
+
+
+@configuraciones_bp.route('/notificaciones/test', methods=['POST'])
+@login_required
+def test_notificacion():
+    """Enviar notificación de prueba"""
+    try:
+        if not notification_service.is_enabled():
+            return jsonify({
+                'success': False,
+                'message': 'Las notificaciones están deshabilitadas. Verifica la configuración de SENDGRID_API_KEY y MAIL_DEFAULT_SENDER.'
+            }), 400
+
+        # Enviar email de prueba
+        success = notification_service.send_email(
+            to_emails=[current_user.email],
+            subject='🧪 Email de Prueba - Sistema de Gestión Mobikit',
+            content=f"""
+Hola {current_user.nombre_completo},
+
+Este es un email de prueba del sistema de notificaciones.
+
+✅ Las notificaciones por email están funcionando correctamente.
+📧 Tu email: {current_user.email}
+🕒 Fecha y hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+
+Saludos,
+Sistema de Gestión Mobikit
+            """.strip(),
+            html_content=f"""
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <h2>🧪 Email de Prueba</h2>
+    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <p><strong>Hola {current_user.nombre_completo},</strong></p>
+        <p>Este es un email de prueba del sistema de notificaciones.</p>
+        <ul>
+            <li>✅ Las notificaciones por email están funcionando correctamente</li>
+            <li>📧 Tu email: {current_user.email}</li>
+            <li>🕒 Fecha y hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</li>
+        </ul>
+    </div>
+    <p><small>Saludos,<br>Sistema de Gestión Mobikit</small></p>
+</div>
+            """.strip()
+        )
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Email de prueba enviado exitosamente a {current_user.email}'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Error al enviar el email de prueba'
+            }), 500
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
