@@ -312,7 +312,24 @@ class FabricacionService:
             # Store original data for audit
             datos_anteriores = serialize_model(of)
 
-            # Delete items first
+            # If admin, handle dependencies that would prevent deletion
+            if is_admin:
+                # Import here to avoid circular imports
+                from models import DespachoOrdenFabricacion, OrdenAreaProgreso
+                
+                # Delete DespachoOrdenFabricacion records that reference this OF
+                despacho_ofs = db.session.query(DespachoOrdenFabricacion).filter_by(orden_fabricacion_id=of_id).all()
+                for despacho_of in despacho_ofs:
+                    db.session.delete(despacho_of)
+                    logger.info(f"Eliminada relación despacho-OF: despacho_id={despacho_of.despacho_id}, of_id={of_id}")
+
+                # Delete OrdenAreaProgreso records that reference this OF
+                area_progresos = db.session.query(OrdenAreaProgreso).filter_by(orden_fabricacion_id=of_id).all()
+                for progreso in area_progresos:
+                    db.session.delete(progreso)
+                    logger.info(f"Eliminado progreso de área: progreso_id={progreso.id}, of_id={of_id}")
+
+            # Delete items
             self.items_repo.delete_by_of(of_id)
 
             # Delete OF
