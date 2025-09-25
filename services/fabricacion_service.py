@@ -8,7 +8,8 @@ from services.audit_service import AuditService, serialize_model
 from services.areas_service import AreasService
 from schemas.fabricacion import OrdenFabricacionSearchFilters
 from models import (
-    OrdenFabricacion, OrdenAreaProgreso, AreaEstado, TipoArea, EstadoBodega, Despacho
+    OrdenFabricacion, OrdenAreaProgreso, AreaEstado, TipoArea, EstadoBodega, Despacho, 
+    DespachoOrdenFabricacion, TipoDespacho, Proyecto
 )
 from constants.transitions import OF_SPECIAL_VALIDATIONS
 import logging
@@ -604,3 +605,115 @@ class FabricacionService:
         except Exception as e:
             logger.error(f"Error getting archived orders: {str(e)}")
             return [], 0
+
+    def get_despachos_sin_ofs(self) -> List[Despacho]:
+        """
+        Obtener despachos programados que no tienen órdenes de fabricación asociadas
+        
+        Returns:
+            Lista de despachos sin OFs
+        """
+        try:
+            from models import DespachoOrdenFabricacion, EstadoDespacho
+            from sqlalchemy.orm import joinedload
+            
+            # Buscar despachos que no tienen registros en DespachoOrdenFabricacion
+            # y que están en estado PROGRAMADO
+            despachos_sin_ofs = (db.session.query(Despacho)
+                .outerjoin(DespachoOrdenFabricacion, 
+                          DespachoOrdenFabricacion.despacho_id == Despacho.id)
+                .filter(DespachoOrdenFabricacion.id.is_(None))  # No tienen OFs asociadas
+                .filter(Despacho.estado == EstadoDespacho.PROGRAMADO)  # Solo programados
+                .options(
+                    joinedload(Despacho.proyecto).joinedload(Proyecto.cliente),
+                    joinedload(Despacho.contrato)
+                )
+                .order_by(Despacho.fecha_programada.asc(), Despacho.created_at.desc())
+                .all())
+            
+            logger.info(f"Encontrados {len(despachos_sin_ofs)} despachos programados sin OFs")
+            return despachos_sin_ofs
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo despachos sin OFs: {str(e)}")
+            return []
+
+    def create_orden_fabricacion_for_despacho(self, despacho_id: int, created_by: str) -> OrdenFabricacion:
+        """
+        Crear una orden de fabricación específica para un despacho y vincularlas
+        
+        Args:
+            despacho_id: ID del despacho
+            created_by: Usuario que crea la OF
+            
+        Returns:
+            OrdenFabricacion creada
+        """
+        try:
+            # Obtener el despacho
+            despacho = db.session.query(Despacho).options(
+                joinedload(Despacho.proyecto),
+                joinedload(Despacho.contrato)
+            ).filter_by(id=despacho_id).first()
+            
+            if not despacho:
+                raise ValueError(f"Despacho {despacho_id} no encontrado")
+            
+            # Verificar que el despacho no tenga OFs ya asociadas
+            from models import DespachoOrdenFabricacion
+            existing_ofs = db.session.query(DespachoOrdenFabricacion).filter_by(
+                despacho_id=despacho_id
+            ).count()
+            
+            if existing_ofs > 0:
+                raise ValueError("El despacho ya tiene órdenes de fabricación asociadas")
+            
+            # Crear datos de la OF basados en el despacho
+            of_data = {
+                'proyecto_id': despacho.proyecto_id,
+                'contrato_id': despacho.contrato_id,
+                'descripcion': f"OF para despacho {despacho.numero_despacho}",
+                'glosa': f"Orden generada automáticamente para despacho {despacho.numero_despacho}",
+                'fecha_entrega_fabrica': despacho.fecha_programada,
+                'fecha_planificada': despacho.fecha_programada,
+                'responsable': created_by,
+                'notas': f"OF creada desde despacho {despacho.numero_despacho} - {despacho.destino}",
+                'cantidad_tableros': 1  # Valor por defecto, se puede editar después
+            }
+            
+            # Crear la OF usando el método existente
+            of = self.create_orden_fabricacion(of_data, created_by)
+            
+            # Crear la vinculación en DespachoOrdenFabricacion
+            from models import TipoDespacho
+            despacho_of = DespachoOrdenFabricacion(
+                despacho_id=despacho_id,
+                orden_fabricacion_id=of.id,
+                tipo_despacho=TipoDespacho.TOTAL,
+                cantidad_despachada=1,
+                cantidad_total=1,
+                observaciones=f"OF creada automáticamente para despacho {despacho.numero_despacho}",
+                created_by=created_by
+            )
+            db.session.add(despacho_of)
+            db.session.commit()
+            
+            # Log audit
+            AuditService.log_action(
+                'despachos',
+                despacho_id,
+                'CREATE_OF_LINK',
+                datos_nuevos={
+                    'of_id': of.id,
+                    'of_codigo': of.codigo,
+                    'despacho_numero': despacho.numero_despacho
+                }
+            )
+            
+            logger.info(f"OF {of.codigo} creada y vinculada al despacho {despacho.numero_despacho}")
+            return of
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error creando OF para despacho {despacho_id}: {str(e)}")
+            raise

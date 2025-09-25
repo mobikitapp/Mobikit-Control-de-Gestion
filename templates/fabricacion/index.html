@@ -268,7 +268,7 @@
                     </li>
                     {% endif %}
 
-                    {% for page_num in range(1, total__pages + 1) %}
+                    {% for page_num in range(1, total_pages + 1) %}
                         {% if page_num == filters.page %}
                         <li class="page-item active">
                             <span class="page-link">{{ page_num }}</span>
@@ -297,6 +297,136 @@
             </nav>
         </div>
         {% endif %}
+    </div>
+
+    <!-- Sección de Despachos sin OFs -->
+    {% if despachos_sin_ofs %}
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i data-feather="truck" class="me-2"></i>
+                Despachos Programados sin Órdenes de Fabricación ({{ despachos_sin_ofs|length }})
+            </h5>
+            <div class="alert alert-warning mb-0 py-1 px-2">
+                <small><i data-feather="alert-triangle" class="me-1"></i> Estos despachos necesitan OFs asociadas</small>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Número Despacho</th>
+                            <th>Proyecto / Cliente</th>
+                            <th>Contrato</th>
+                            <th>Destino</th>
+                            <th>Fecha Programada</th>
+                            <th>Estado</th>
+                            <th width="150">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for despacho in despachos_sin_ofs %}
+                        <tr>
+                            <td>
+                                <div class="fw-medium">{{ despacho.numero_despacho }}</div>
+                                <small class="text-muted">ID: {{ despacho.id }}</small>
+                            </td>
+                            <td>
+                                <div class="fw-medium">{{ despacho.proyecto.nombre }}</div>
+                                <small class="text-muted">{{ despacho.proyecto.cliente.nombre }}</small>
+                            </td>
+                            <td>
+                                {% if despacho.contrato %}
+                                    <span class="badge bg-info">{{ despacho.contrato.numero_oc }}</span>
+                                {% else %}
+                                    <span class="text-muted">Sin contrato</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 200px;" title="{{ despacho.destino }}">
+                                    {{ despacho.destino }}
+                                </div>
+                                {% if despacho.contacto_destino %}
+                                <small class="text-muted">{{ despacho.contacto_destino }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if despacho.fecha_programada %}
+                                    {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
+                                    {% set today = moment().date() %}
+                                    {% set desp_date = despacho.fecha_programada %}
+                                    {% set days_diff = (desp_date - today).days %}
+                                    {% if days_diff < 0 %}
+                                        <br><span class="badge bg-danger">Vencido</span>
+                                    {% elif days_diff <= 7 %}
+                                        <br><span class="badge bg-warning">Próximo</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Sin fecha</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">
+                                    {{ despacho.estado.value|title|replace('_', ' ') }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" 
+                                       class="btn btn-sm btn-outline-primary" title="Ver despacho">
+                                        <i data-feather="eye"></i>
+                                    </a>
+                                    {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                    <button type="button" class="btn btn-sm btn-success" 
+                                            title="Crear OF para este despacho"
+                                            onclick="crearOFParaDespacho({{ despacho.id }}, '{{ despacho.numero_despacho }}')">
+                                        <i data-feather="plus-circle"></i>
+                                        <span class="d-none d-md-inline">Crear OF</span>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal para confirmar creación de OF desde despacho -->
+<div class="modal fade" id="crearOFDespachoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Crear Orden de Fabricación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="crearOFDespachoForm" method="POST">
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i data-feather="plus-circle" class="text-success" style="width: 48px; height: 48px;"></i>
+                    </div>
+                    <p class="text-center">¿Está seguro que desea crear una orden de fabricación para el despacho <strong id="numeroDespachoModal"></strong>?</p>
+                    <div class="alert alert-info">
+                        <small>
+                            <i data-feather="info" class="me-1"></i>
+                            Se creará una OF automáticamente vinculada a este despacho. Podrá editarla después para ajustar los detalles.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i data-feather="plus-circle" class="me-2"></i>
+                        Crear Orden de Fabricación
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 <!-- Modal para avanzar estado -->
@@ -428,6 +558,21 @@ function archivarOrden(ofId, codigo) {
 
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('archivarOrdenModal'));
+    modal.show();
+}
+
+// Function to create OF from despacho
+function crearOFParaDespacho(despachoId, numeroDespacho) {
+    document.getElementById('numeroDespachoModal').textContent = numeroDespacho;
+    document.getElementById('crearOFDespachoForm').action = `/fabricacion/${despachoId}/crear-of-desde-despacho`;
+
+    // Refresh feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('crearOFDespachoModal'));
     modal.show();
 }
 

@@ -91,6 +91,9 @@ def index():
         # Get data for filter dropdowns
         clientes = clientes_service.get_active_clientes()
 
+        # Get despachos programados sin OFs asociadas
+        despachos_sin_ofs = fabricacion_service.get_despachos_sin_ofs()
+
         # Calculate pagination
         total_pages = (total_count + filters.per_page - 1) // filters.per_page
         has_prev = filters.page > 1
@@ -99,6 +102,7 @@ def index():
         return render_template('fabricacion/index.html',
                              ofs=ofs,
                              clientes=clientes,
+                             despachos_sin_ofs=despachos_sin_ofs,
                              filters=filters,
                              total_count=total_count,
                              total_pages=total_pages,
@@ -486,6 +490,24 @@ def eliminar(of_id):
         flash('Error al eliminar orden de fabricación', 'error')
 
     return redirect(url_for('fabricacion.index'))
+
+@fabricacion_bp.route('/<int:despacho_id>/crear-of-desde-despacho', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+def crear_of_desde_despacho(despacho_id):
+    """Crear orden de fabricación para un despacho específico"""
+    try:
+        of = fabricacion_service.create_orden_fabricacion_for_despacho(
+            despacho_id, 
+            current_user.id
+        )
+        
+        flash(f'Orden de Fabricación {of.codigo} creada exitosamente para el despacho', 'success')
+        return redirect(url_for('fabricacion.detalle', of_id=of.id))
+        
+    except Exception as e:
+        logger.error(f"Error creando OF para despacho {despacho_id}: {str(e)}")
+        flash(f'Error al crear OF: {str(e)}', 'error')
+        return redirect(url_for('fabricacion.index'))
 
 @fabricacion_bp.route('/api/by-proyecto/<int:proyecto_id>')
 @require_login
