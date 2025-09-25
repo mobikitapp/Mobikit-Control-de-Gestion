@@ -458,6 +458,26 @@ def revenue_management():
                 margen_objetivo_pct=75  # Default BE margin
             )
             
+            # Convert project objects to serializable dictionaries
+            proyectos_serializables = []
+            for proyecto_data in mes_data.get('proyectos', []):
+                if 'proyecto' in proyecto_data and hasattr(proyecto_data['proyecto'], 'cliente'):
+                    proyecto = proyecto_data['proyecto']
+                    proyectos_serializables.append({
+                        'proyecto': {
+                            'id': proyecto.id,
+                            'nombre': proyecto.nombre,
+                            'cliente': {
+                                'nombre': proyecto.cliente.nombre
+                            },
+                            'estado_comercial': {
+                                'value': proyecto.estado_comercial.value
+                            }
+                        },
+                        'valor_provision_mes': float(proyecto_data.get('valor_provision_mes', 0)),
+                        'valor_instalacion_mes': float(proyecto_data.get('valor_instalacion_mes', 0))
+                    })
+            
             monthly_data.append({
                 'mes': mes,
                 'mes_nombre': calendar.month_name[mes],
@@ -470,7 +490,7 @@ def revenue_management():
                 'porcentaje_objetivo': porcentaje_objetivo,
                 'estado': estado,
                 'recomendacion': recomendacion,
-                'proyectos': mes_data.get('proyectos', [])
+                'proyectos': proyectos_serializables
             })
 
         return render_template('comercial/revenue_management.html',
