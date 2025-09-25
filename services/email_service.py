@@ -167,8 +167,11 @@ class EmailService:
         Por favor, no respondas a este email.
         """
         
-        # Email del remitente - usar email que funciona con SendGrid
-        from_email = "test@example.com"  # Email de prueba que funciona con SendGrid
+        # Email del remitente - debe estar verificado en SendGrid
+        from_email = os.environ.get("SENDGRID_FROM_EMAIL")
+        if not from_email:
+            logger.error("SENDGRID_FROM_EMAIL no está configurado; configure un remitente verificado en SendGrid y exponga SENDGRID_FROM_EMAIL")
+            return False
         
         return self.send_email(
             to_email=user_email,
