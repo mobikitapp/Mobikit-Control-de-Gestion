@@ -494,59 +494,7 @@ class CalendarioService:
             db.session.rollback()
             return False, str(e)
 
-    def get_eventos_filtrados(self, user_id, user_rol, estado=None, tipo=None, fecha_desde=None, fecha_hasta=None):
-        """Obtener eventos filtrados"""
-        try:
-            query = db.session.query(EventoEntrega)
-
-            # Apply role-based filtering
-            if user_rol != RolUsuario.ADMIN and user_rol != RolUsuario.GENERAL:
-                # For non-admin users, filter by their projects
-                if user_rol == RolUsuario.VENTAS:
-                    query = query.join(Proyecto).filter(Proyecto.vendedor_id == user_id)
-                elif user_rol in [RolUsuario.OPERACIONES, RolUsuario.PRODUCCION]:
-                    # Show all events for operations and production
-                    pass
-                else:
-                    # For other roles, show only their events
-                    query = query.filter(EventoEntrega.created_by == user_id)
-
-            # Apply filters
-            if estado:
-                if estado == 'completado':
-                    query = query.filter(EventoEntrega.completado == True)
-                elif estado == 'pendiente':
-                    query = query.filter(EventoEntrega.completado == False, 
-                                       EventoEntrega.fecha_evento >= datetime.now())
-                elif estado == 'vencido':
-                    query = query.filter(EventoEntrega.completado == False, 
-                                       EventoEntrega.fecha_evento < datetime.now())
-
-            if tipo:
-                query = query.filter(EventoEntrega.tipo_evento == TipoEvento(tipo))
-
-            if fecha_desde:
-                try:
-                    fecha_desde_dt = datetime.strptime(fecha_desde, '%Y-%m-%d')
-                    query = query.filter(EventoEntrega.fecha_evento >= fecha_desde_dt)
-                except ValueError:
-                    pass
-
-            if fecha_hasta:
-                try:
-                    fecha_hasta_dt = datetime.strptime(fecha_hasta, '%Y-%m-%d') + timedelta(days=1)
-                    query = query.filter(EventoEntrega.fecha_evento < fecha_hasta_dt)
-                except ValueError:
-                    pass
-
-            # Order by date
-            eventos = query.order_by(EventoEntrega.fecha_evento.desc()).all()
-
-            return eventos
-
-        except Exception as e:
-            logger.error(f"Error getting filtered events: {str(e)}")
-            return []
+    
 
     # Private helper methods
 
