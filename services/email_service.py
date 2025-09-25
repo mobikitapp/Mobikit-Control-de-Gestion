@@ -325,7 +325,7 @@ class EmailService:
                     <p>Con Mobikit App podrás gestionar proyectos, contratos, órdenes de fabricación y despachos de manera integral.</p>
                     
                     <div class="button-container">
-                        <a href="#" class="cta-button">🚀 Iniciar Sesión</a>
+                        <a href="https://mobikitapp.com" class="cta-button" target="_blank">🚀 Acceder a Mobikit App</a>
                     </div>
                     
                     <p>Si tienes alguna pregunta o necesitas ayuda, no dudes en contactar al administrador del sistema.</p>
@@ -376,6 +376,11 @@ class EmailService:
         • Órdenes de fabricación 
         • Despachos y logística
         • Seguimiento integral de procesos
+        
+        ========================================
+        🌐 ACCESO A LA APLICACIÓN
+        ========================================
+        Ingresa a Mobikit App desde: https://mobikitapp.com
         
         ========================================
         💬 SOPORTE
