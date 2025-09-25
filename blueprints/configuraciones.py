@@ -113,10 +113,15 @@ def crear_usuario():
             return redirect(url_for('configuraciones.nuevo_usuario'))
 
         # Create user
-        success, mensaje = service.crear_usuario(datos_usuario, current_user.id)
+        success, mensaje, temp_password = service.crear_usuario(datos_usuario, current_user.id)
 
         if success:
-            flash(f'Usuario {datos_usuario["nombre"]} creado exitosamente', 'success')
+            # Show success message with temporary password
+            if temp_password:
+                flash(f'Usuario {datos_usuario["nombre"]} creado exitosamente. {mensaje}', 'success')
+                flash(f'CONTRASEÑA TEMPORAL: {temp_password} - Anote esta contraseña ya que no se volverá a mostrar.', 'warning')
+            else:
+                flash(f'Usuario {datos_usuario["nombre"]} creado exitosamente', 'success')
             return redirect(url_for('configuraciones.usuarios'))
         else:
             flash(f'Error al crear usuario: {mensaje}', 'error')
