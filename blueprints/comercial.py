@@ -408,8 +408,8 @@ def revenue_management():
         # Get filters
         año = request.args.get('año', type=int) or datetime.now().year
 
-        # Get real planning data from comercial service
-        planning_data = comercial_service.get_planificacion_comercial(año=año)
+        # Get real planning data from comercial service including all project states
+        planning_data = comercial_service.get_planificacion_comercial(año=año, estado_filter='todos')
         
         # Get KPIs from revenue service
         kpis = revenue_service.calculate_kpis(año)
@@ -422,20 +422,22 @@ def revenue_management():
         # Prepare monthly data with recommendations
         monthly_data = []
         for mes in range(1, 13):
-            mes_data = planning_data['matriz'].get(mes, {})
+            # Use the correct key format from planning data (año-mes)
+            mes_key = f"{año}-{mes:02d}"
+            mes_data = planning_data['matriz'].get(mes_key, {})
             objetivo_mes = planning_data['objetivos'].get(mes)
             
             # Calculate values
-            valor_provision = mes_data.get('valor_provision', 0)
-            valor_instalacion = mes_data.get('valor_instalacion', 0)
+            valor_provision = float(mes_data.get('valor_provision', 0))
+            valor_instalacion = float(mes_data.get('valor_instalacion', 0))
             total_ventas = valor_provision + valor_instalacion
-            margen_ponderado = mes_data.get('margen_ponderado', 0)
+            margen_ponderado = float(mes_data.get('margen_ponderado', 0))
             
             # Calculate objective values
             objetivo_total = 0
             if objetivo_mes:
-                objetivo_provision = objetivo_mes.objetivo_provision or 0
-                objetivo_instalacion = objetivo_mes.objetivo_instalacion or 0
+                objetivo_provision = float(objetivo_mes.objetivo_provision or 0)
+                objetivo_instalacion = float(objetivo_mes.objetivo_instalacion or 0)
                 objetivo_total = objetivo_provision + objetivo_instalacion
             
             # Calculate percentage and status

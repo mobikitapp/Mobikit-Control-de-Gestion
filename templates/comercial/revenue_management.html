@@ -259,33 +259,12 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-header">
-                    <h6 class="mb-0">Simulador</h6>
+                    <h6 class="mb-0">
+                        <i class="fas fa-calculator text-primary"></i>
+                        Simulador Revenue Management
+                    </h6>
                 </div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label">Adjudicado Base (CLP)</label>
-                        <input type="range" class="form-range" id="adjudicado-base" 
-                               min="100000000" max="300000000" step="10000000" value="150000000"
-                               oninput="updateSimulation()">
-                        <small class="text-muted" id="adjudicado-base-value">$150M</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Adjudicado Extra (CLP)</label>
-                        <input type="range" class="form-range" id="adjudicado-extra" 
-                               min="0" max="100000000" step="5000000" value="0"
-                               oninput="updateSimulation()">
-                        <small class="text-muted" id="adjudicado-extra-value">$0M</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Margen Simulado (%)</label>
-                        <input type="range" class="form-range" id="margen-sim" 
-                               min="20" max="60" step="0.5" value="35"
-                               oninput="updateSimulation()">
-                        <small class="text-muted" id="margen-sim-value">35.0%</small>
-                    </div>
-
                     <div class="mb-3">
                         <label class="form-label">Buffer PP (%)</label>
                         <input type="range" class="form-range" id="buffer-pp" 
@@ -295,7 +274,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Utilidad Objetivo (CLP)</label>
+                        <label class="form-label">Utilidad Objetivo Mensual (CLP)</label>
                         <input type="range" class="form-range" id="utilidad-objetivo" 
                                min="0" max="20000000" step="1000000" value="5000000"
                                oninput="updateSimulation()">
@@ -312,11 +291,19 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Buffer Curva (%)</label>
+                        <label class="form-label">Buffer de Curva (%)</label>
                         <input type="range" class="form-range" id="curve-buffer" 
                                min="-10" max="10" step="0.1" value="0"
                                oninput="updateSimulation()">
                         <small class="text-muted" id="curve-buffer-value">0.0%</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Adjudicado de Referencia (CLP)</label>
+                        <input type="range" class="form-range" id="adjudicado-base" 
+                               min="50000000" max="200000000" step="10000000" value="100000000"
+                               oninput="updateSimulation()">
+                        <small class="text-muted" id="adjudicado-base-value">$100M</small>
                     </div>
 
                     <hr>
@@ -472,21 +459,17 @@
 
     // Update simulation
     function updateSimulation() {
-        const adjudicadoBase = parseInt(document.getElementById('adjudicado-base').value);
-        const adjudicadoExtra = parseInt(document.getElementById('adjudicado-extra').value);
-        const margenSim = parseFloat(document.getElementById('margen-sim').value);
         const bufferPp = parseFloat(document.getElementById('buffer-pp').value);
         const utilidadObjetivo = parseInt(document.getElementById('utilidad-objetivo').value);
         const curveType = document.getElementById('curve-type').value;
         const curveBuffer = parseFloat(document.getElementById('curve-buffer').value);
+        const adjudicadoBase = parseInt(document.getElementById('adjudicado-base').value);
 
         // Update display values
-        document.getElementById('adjudicado-base-value').textContent = `$${Math.round(adjudicadoBase/1000000)}M`;
-        document.getElementById('adjudicado-extra-value').textContent = `$${Math.round(adjudicadoExtra/1000000)}M`;
-        document.getElementById('margen-sim-value').textContent = `${margenSim}%`;
-        document.getElementById('buffer-pp-value').textContent = `${bufferPp}%`;
+        document.getElementById('buffer-pp-value').textContent = `${bufferPp.toFixed(1)}%`;
         document.getElementById('utilidad-objetivo-value').textContent = `$${Math.round(utilidadObjetivo/1000000)}M`;
-        document.getElementById('curve-buffer-value').textContent = `${curveBuffer}%`;
+        document.getElementById('curve-buffer-value').textContent = `${curveBuffer.toFixed(1)}%`;
+        document.getElementById('adjudicado-base-value').textContent = `$${Math.round(adjudicadoBase/1000000)}M`;
 
         // Call simulation API
         const data = {
