@@ -277,12 +277,13 @@ class FabricacionService:
             logger.error(f"Error avanzando OF {of_id} a siguiente área: {str(e)}")
             raise
 
-    def delete_orden_fabricacion(self, of_id: int) -> bool:
+    def delete_orden_fabricacion(self, of_id: int, user_role: str = None) -> bool:
         """
         Delete orden de fabricacion with cascade validation
 
         Args:
             of_id: OF ID to delete
+            user_role: Role of the user requesting deletion (optional)
 
         Returns:
             True if deletion was successful
@@ -292,17 +293,21 @@ class FabricacionService:
             if not of:
                 raise ValueError(f"OF {of_id} no encontrada")
 
-            # Check if OF can be deleted (business rules)
-            # Check if OF has advanced beyond initial state
-            progreso = of.area_progreso_actual
-            if progreso:
-                # Can only delete if in initial area (Pendientes) and initial state
-                if progreso.area.tipo.value != 'PENDIENTES_FABRICACION' or not progreso.estado.es_inicial:
-                    raise ValueError("No se puede eliminar una OF que ha avanzado en el proceso de fabricación")
+            # Check if user is admin - admins can delete in any state
+            is_admin = user_role and user_role.lower() == 'admin'
+            
+            if not is_admin:
+                # Apply business rules for non-admin users
+                # Check if OF has advanced beyond initial state
+                progreso = of.area_progreso_actual
+                if progreso:
+                    # Can only delete if in initial area (Pendientes) and initial state
+                    if progreso.area.tipo.value != 'PENDIENTES_FABRICACION' or not progreso.estado.es_inicial:
+                        raise ValueError("No se puede eliminar una OF que ha avanzado en el proceso de fabricación")
 
-            # Check if OF has related despachos
-            if of.despachos:
-                raise ValueError("No se puede eliminar la OF porque tiene despachos asociados")
+                # Check if OF has related despachos
+                if of.despachos:
+                    raise ValueError("No se puede eliminar la OF porque tiene despachos asociados")
 
             # Store original data for audit
             datos_anteriores = serialize_model(of)

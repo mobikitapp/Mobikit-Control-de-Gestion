@@ -485,7 +485,8 @@ def archivos():
 def eliminar(of_id):
     """Eliminar orden de fabricación"""
     try:
-        success = fabricacion_service.delete_orden_fabricacion(of_id)
+        # Pass the current user's role to allow admin override
+        success = fabricacion_service.delete_orden_fabricacion(of_id, current_user.rol.value)
         if success:
             flash('Orden de Fabricación eliminada exitosamente', 'success')
         else:
