@@ -634,7 +634,7 @@ class HitoEntrega(db.Model):
     creator = db.relationship('User', foreign_keys=[created_by])
     completado_por_user = db.relationship('User', foreign_keys=[completado_por])
     evento_entrega = db.relationship('EventoEntrega', backref='hito', uselist=False)
-    despachos = db.relationship('Despacho', foreign_keys='Despacho.hito_entrega_id', overlaps="despachos_hito,hito_entrega")
+    despachos = db.relationship('Despacho', foreign_keys='Despacho.hito_entrega_id', overlaps="despachos_hito,hito_entrega", lazy=True)
 
     # Indexes
     __table_args__ = (
@@ -1174,19 +1174,22 @@ class ObjetivoMensual(db.Model):
 
 
 class ComisionVendedor(db.Model):
-    __tablename__ = 'comisiones_vendedores'
+    __tablename__ = 'comisiones_vendedor'
 
     id = db.Column(db.Integer, primary_key=True)
-    vendedor_id = db.Column(db.String(255), db.ForeignKey('users.id'), nullable=False)
-    comision_provision_pct = db.Column(db.Numeric(5, 2), nullable=False, default=3.0)
-    comision_instalacion_pct = db.Column(db.Numeric(5, 2), nullable=False, default=3.0)
+    vendedor_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
+    comision_provision_pct = db.Column(db.Numeric(5, 2), default=3.0, nullable=False)  # Porcentaje comisión provisión
+    comision_instalacion_pct = db.Column(db.Numeric(5, 2), default=3.0, nullable=False)  # Porcentaje comisión instalación
     activo = db.Column(db.Boolean, default=True, nullable=False)
-    created_by = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    notas = db.Column(db.Text)
 
-    # Relationship
-    vendedor = db.relationship('User', backref='comision_config')
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+    created_by = db.Column(db.String, db.ForeignKey('users.id'))
+
+    # Relationships
+    vendedor = db.relationship('User', foreign_keys=[vendedor_id])
+    creator = db.relationship('User', foreign_keys=[created_by])
 
     # Constraints
     __table_args__ = (
@@ -1197,23 +1200,6 @@ class ComisionVendedor(db.Model):
 
     def __repr__(self):
         return f'<ComisionVendedor {self.vendedor.nombre_completo if self.vendedor else self.vendedor_id}>'
-
-
-class ContrasenasTemporal(db.Model):
-    __tablename__ = 'contraseñas_temporales'
-
-    id = db.Column(db.Integer, primary_key=True)
-    usuario_id = db.Column(db.String(255), db.ForeignKey('users.id'), nullable=False)
-    password_temporal = db.Column(db.String(255), nullable=False)
-    tipo_accion = db.Column(db.String(50), nullable=False)  # 'creacion' o 'reset'
-    generada_por = db.Column(db.String(255), db.ForeignKey('users.id'), nullable=False)
-    fecha_generacion = db.Column(db.DateTime, default=datetime.now, nullable=False)
-    fecha_expiracion = db.Column(db.DateTime, nullable=True)
-    activa = db.Column(db.Boolean, default=True, nullable=False)
-
-    # Relationships
-    usuario = db.relationship('User', foreign_keys=[usuario_id], backref='passwords_temporales')
-    admin_generador = db.relationship('User', foreign_keys=[generada_por])
 
 
 # Modelos para calendario de eventos

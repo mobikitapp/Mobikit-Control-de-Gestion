@@ -41,13 +41,9 @@ def create_app():
         # Import models to ensure they are registered
         import models  # noqa: F401
         
-        # Create tables only if they don't exist
-        try:
-            db.create_all()
-            logging.info("Database tables verified/created")
-        except Exception as e:
-            logging.warning(f"Database table creation warning: {str(e)}")
-            # Continue anyway, tables might already exist
+        # Create tables
+        db.create_all()
+        logging.info("Database tables created")
 
     return app
 

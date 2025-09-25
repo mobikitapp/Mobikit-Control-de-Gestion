@@ -418,40 +418,6 @@ def actualizar_comisiones():
         return redirect(url_for('configuraciones.comisiones'))
 
 
-@configuraciones_bp.route('/contraseñas-temporales')
-@login_required
-@role_required([RolUsuario.ADMIN])
-def contraseñas_temporales():
-    """Vista de contraseñas temporales generadas"""
-    try:
-        service = ConfiguracionesService()
-        
-        # Get filters from request
-        filtros = {
-            'usuario_id': request.args.get('usuario_id'),
-            'tipo_accion': request.args.get('tipo_accion'),
-            'activa': request.args.get('activa') == 'true' if request.args.get('activa') else None,
-            'desde': datetime.strptime(request.args.get('desde'), '%Y-%m-%d') if request.args.get('desde') else None,
-            'hasta': datetime.strptime(request.args.get('hasta'), '%Y-%m-%d') if request.args.get('hasta') else None
-        }
-        
-        # Remove None values
-        filtros = {k: v for k, v in filtros.items() if v is not None}
-        
-        # Get temporary passwords data
-        data = service.get_contraseñas_temporales(filtros)
-        
-        # Get users for filter dropdown
-        usuarios = service.get_usuarios_lista()['usuarios']
-        
-        return render_template('configuraciones/contraseñas_temporales.html', 
-                             **data, usuarios=usuarios, filtros=filtros)
-
-    except Exception as e:
-        flash(f'Error al cargar contraseñas temporales: {str(e)}', 'error')
-        return redirect(url_for('configuraciones.dashboard'))
-
-
 # API Routes
 @configuraciones_bp.route('/api/usuarios/<usuario_id>/reset-password', methods=['POST'])
 @login_required
@@ -524,34 +490,6 @@ def api_audit_log():
             'success': True,
             'data': audit_log
         })
-
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error: {str(e)}'
-        }), 500
-
-
-@configuraciones_bp.route('/api/contraseñas-temporales/<int:contraseña_id>/marcar-usada', methods=['POST'])
-@login_required
-@role_required([RolUsuario.ADMIN])
-def api_marcar_contraseña_usada(contraseña_id):
-    """Marcar contraseña temporal como usada"""
-    try:
-        service = ConfiguracionesService()
-        
-        success = service.marcar_contraseña_usada(contraseña_id, current_user.id)
-        
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'Contraseña marcada como usada'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'Contraseña no encontrada'
-            }), 404
 
     except Exception as e:
         return jsonify({
