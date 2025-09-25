@@ -262,7 +262,6 @@ class ComercialService:
                     joinedload(Proyecto.cliente),
                     joinedload(Proyecto.vendedor_user)
                 )
-                .join(Cliente)
                 .filter(Proyecto.activo.is_(True)))
 
         # Calculate date range for 12 months starting from mes_inicio

@@ -619,8 +619,11 @@ class PlanificacionOperacionalService:
             from datetime import datetime
             from dateutil.relativedelta import relativedelta
             
-            # Calcular rango de fechas para el horizonte
-            fecha_inicio = datetime(año, 1, 1).date()
+            # Calcular rango de fechas para el horizonte - siempre 12 meses desde el mes actual
+            from datetime import date
+            hoy = date.today()
+            fecha_inicio = date(hoy.year, hoy.month, 1)  # Primer día del mes actual
+            horizonte_meses = 12  # Siempre 12 meses como requerido
             fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
             
             # Estructura de demanda jerárquica
@@ -643,24 +646,26 @@ class PlanificacionOperacionalService:
                     }
                 }
             
-            # Obtener órdenes de fabricación planificadas en el horizonte
-            ofs_query = db.session.query(OrdenFabricacion).join(Proyecto).join(Cliente).filter(
-                and_(
-                    OrdenFabricacion.fecha_planificada.between(fecha_inicio, fecha_fin),
-                    OrdenFabricacion.fecha_planificada.isnot(None)
+            # Obtener órdenes de fabricación planificadas en el horizonte con joins explícitos
+            ofs_query = (db.session.query(OrdenFabricacion, Proyecto, Cliente)
+                .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
+                .join(Cliente, Proyecto.cliente_id == Cliente.id)
+                .filter(
+                    and_(
+                        OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                        OrdenFabricacion.fecha_planificada < fecha_fin,
+                        OrdenFabricacion.fecha_planificada.isnot(None)
+                    )
                 )
             ).all()
             
             # Procesar cada OF
-            for of in ofs_query:
+            for of, proyecto, cliente in ofs_query:
                 fecha_of = of.fecha_planificada
                 mes_key = f"{fecha_of.year}-{fecha_of.month:02d}"
                 
                 if mes_key not in demanda_jerarquica:
                     continue
-                
-                proyecto = of.proyecto
-                cliente = proyecto.cliente
                 
                 # Clave única por proyecto
                 proyecto_key = f"proyecto_{proyecto.id}"
@@ -715,7 +720,7 @@ class PlanificacionOperacionalService:
                     'horas_fabricacion': round(horas_fabricacion, 2),
                     'horas_embalaje': round(horas_embalaje, 2),
                     'horas_totales': round(horas_totales, 2),
-                    'estado': of.estado.value if of.estado else 'planificada'
+                    'estado': (getattr(of.estado_actual, 'nombre', None) or getattr(of.estado_actual, 'value', None) or 'planificada')
                 }
                 
                 demanda_jerarquica[mes_key]['proyectos'][proyecto_key]['ordenes_fabricacion'].append(of_data)
