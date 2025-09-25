@@ -116,12 +116,14 @@
                             </thead>
                             <tbody>
                                 {% for periodo_key, mes_data in matriz.items() %}
-                                {% set objetivo_mes = objetivos.get(periodo_key) %}
-                                {% set objetivo_total = (objetivo_mes.objetivo_provision + objetivo_mes.objetivo_instalacion) if objetivo_mes and objetivo_mes.objetivo_provision and objetivo_mes.objetivo_instalacion else (objetivo_mes.objetivo_provision if objetivo_mes and objetivo_mes.objetivo_provision else 0) %}
-                                {% set ventas_total = mes_data.valor_provision + mes_data.valor_instalacion %}
-                                {% set porcentaje_objetivo = (ventas_total / objetivo_total * 100) if objetivo_total else 0 %}
+                                {% set objetivo_mes = objetivos.get(loop.index) %}
+                                {% set objetivo_provision = objetivo_mes.objetivo_provision if objetivo_mes and objetivo_mes.objetivo_provision else 0 %}
+                                {% set objetivo_instalacion = objetivo_mes.objetivo_instalacion if objetivo_mes and objetivo_mes.objetivo_instalacion else 0 %}
+                                {% set objetivo_total = objetivo_provision + objetivo_instalacion %}
+                                {% set ventas_total = (mes_data.valor_provision or 0) + (mes_data.valor_instalacion or 0) %}
+                                {% set porcentaje_objetivo = (ventas_total / objetivo_total * 100) if objetivo_total > 0 else 0 %}
 
-                                <tr class="{% if porcentaje_objetivo >= 100 %}table-success{% elif porcentaje_objetivo >= 80 %}table-warning{% elif objetivo_provision and porcentaje_objetivo < 50 %}table-danger{% endif %}" 
+                                <tr class="{% if porcentaje_objetivo >= 100 %}table-success{% elif porcentaje_objetivo >= 80 %}table-warning{% elif objetivo_total > 0 and porcentaje_objetivo < 50 %}table-danger{% endif %}" 
                                     id="mes-row-{{ loop.index }}">
                                     <td>
                                         <strong>{{ mes_data.periodo_label }}</strong>
@@ -142,10 +144,10 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <strong>${{ "{:,.0f}".format(mes_data.valor_provision + mes_data.valor_instalacion) }}</strong>
+                                        <strong>${{ "{:,.0f}".format(ventas_total) }}</strong>
                                     </td>
                                     <td>
-                                        <strong class="text-success">${{ "{:,.0f}".format(mes_data.ganancias) }}</strong>
+                                        <strong class="text-success">${{ "{:,.0f}".format(mes_data.ganancias or 0) }}</strong>
                                     </td>
                                     <td>
                                         {% if mes_data.margen_ponderado %}
@@ -271,7 +273,7 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% set objetivo_total_general = gran_totales.objetivo_total_provision + gran_totales.objetivo_total_instalacion %}
+                                        {% set objetivo_total_general = (gran_totales.objetivo_total_provision or 0) + (gran_totales.objetivo_total_instalacion or 0) %}
                                         {% if objetivo_total_general > 0 %}
                                         <strong>${{ "{:,.0f}".format(objetivo_total_general) }}</strong>
                                         {% else %}
@@ -280,7 +282,7 @@
                                     </td>
                                     <td>
                                         {% if objetivo_total_general > 0 %}
-                                        {% set porcentaje_total = (gran_totales.total_ventas / objetivo_total_general * 100) %}
+                                        {% set porcentaje_total = ((gran_totales.total_ventas or 0) / objetivo_total_general * 100) %}
                                         <strong>{{ "{:.0f}".format(porcentaje_total) }}%</strong>
                                         {% else %}
                                         <small class="text-muted">-</small>
@@ -308,7 +310,7 @@
         <div class="col-md-2">
             <div class="card bg-white border-success" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4 class="text-success">${{ "{:,.0f}".format(gran_totales.total_ventas / 1000000) }}M</h4>
+                    <h4 class="text-success">${{ "{:,.0f}".format((gran_totales.total_ventas or 0) / 1000000) }}M</h4>
                     <small class="text-success">Total Ventas</small>
                 </div>
             </div>
@@ -316,7 +318,7 @@
         <div class="col-md-2">
             <div class="card bg-white border-warning" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4 class="text-warning">${{ "{:,.0f}".format(gran_totales.total_ganancias / 1000000) }}M</h4>
+                    <h4 class="text-warning">${{ "{:,.0f}".format((gran_totales.total_ganancias or 0) / 1000000) }}M</h4>
                     <small class="text-warning">Total Ganancias</small>
                 </div>
             </div>
@@ -324,7 +326,7 @@
         <div class="col-md-2">
             <div class="card bg-white border-info" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4 class="text-info">{{ "{:.1f}".format(gran_totales.margen_provision_promedio) }}%</h4>
+                    <h4 class="text-info">{{ "{:.1f}".format(gran_totales.margen_provision_promedio or 0) }}%</h4>
                     <small class="text-info">Margen Provisión Promedio</small>
                 </div>
             </div>
@@ -332,7 +334,7 @@
         <div class="col-md-2">
             <div class="card bg-white border-secondary" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4 class="text-secondary">{{ "{:.1f}".format(gran_totales.margen_instalacion_promedio) }}%</h4>
+                    <h4 class="text-secondary">{{ "{:.1f}".format(gran_totales.margen_instalacion_promedio or 0) }}%</h4>
                     <small class="text-secondary">Margen Instalación Promedio</small>
                 </div>
             </div>
@@ -340,7 +342,7 @@
         <div class="col-md-2">
             <div class="card bg-white border-dark" style="border-width: 2px;">
                 <div class="card-body text-center">
-                    <h4 class="text-dark">{{ "{:.1f}".format(gran_totales.margen_global) }}%</h4>
+                    <h4 class="text-dark">{{ "{:.1f}".format(gran_totales.margen_global or 0) }}%</h4>
                     <small class="text-dark">Margen Global</small>
                 </div>
             </div>
