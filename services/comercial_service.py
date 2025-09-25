@@ -253,7 +253,7 @@ class ComercialService:
             db.session.rollback()
             raise e
 
-    def get_planificacion_comercial(self, año, mes_inicio=1, cliente_id=None, estado_filter='todos'):
+    def get_planificacion_comercial(self, año, mes_inicio=1, cliente_id=None, estado_filter='todos', curve_type='general'):
         """Get commercial planning matrix by year or 12-month rolling period"""
 
         # Build query for projects with proper joins and eager loading
@@ -338,7 +338,7 @@ class ComercialService:
         print(f"DEBUG: Final proyectos count: {len(proyectos)}, types: {[type(p) for p in proyectos[:3]]}")
 
         # Build monthly matrix for 12-month period
-        matriz = self._construir_matriz_mensual_periodo(proyectos, año, mes_inicio)
+        matriz = self._construir_matriz_mensual_periodo(proyectos, año, mes_inicio, curve_type)
 
         # Calculate totals per month
         totales_mes = self._calcular_totales_mensuales(matriz)
@@ -713,7 +713,7 @@ class ComercialService:
                 tarea.created_by = user_id
                 db.session.add(tarea)
 
-    def _construir_matriz_mensual_periodo(self, proyectos, año, mes_inicio=1):
+    def _construir_matriz_mensual_periodo(self, proyectos, año, mes_inicio=1, curve_type='general'):
         """Build monthly matrix with project data for 12-month period"""
         matriz = {}
 
@@ -831,8 +831,8 @@ class ComercialService:
                     valor_proyecto_mes = p.get('valor_provision_mes', Decimal('0')) + p.get('valor_instalacion_mes', Decimal('0'))
                     if valor_proyecto_mes > 0:
                         peso = valor_proyecto_mes / total_mes
-                        # Calculate break even margin for this project value
-                        margen_be_proyecto = Decimal(str(revenue_service.required_margin(float(valor_proyecto_mes))))
+                        # Calculate break even margin for this project value using selected curve
+                        margen_be_proyecto = Decimal(str(revenue_service.required_margin(float(valor_proyecto_mes), curve_type)))
                         margen_break_even_ponderado += peso * margen_be_proyecto
 
 
@@ -848,7 +848,7 @@ class ComercialService:
         return matriz
 
 
-    def _construir_matriz_mensual(self, proyectos, año):
+    def _construir_matriz_mensual(self, proyectos, año, curve_type='general'):
         """Build monthly matrix with project data"""
         matriz = {}
 
@@ -955,8 +955,8 @@ class ComercialService:
                     valor_proyecto_mes = p.get('valor_provision_mes', Decimal('0')) + p.get('valor_instalacion_mes', Decimal('0'))
                     if valor_proyecto_mes > 0:
                         peso = valor_proyecto_mes / total_mes
-                        # Calculate break even margin for this project value
-                        margen_be_proyecto = Decimal(str(revenue_service.required_margin(float(valor_proyecto_mes))))
+                        # Calculate break even margin for this project value using selected curve
+                        margen_be_proyecto = Decimal(str(revenue_service.required_margin(float(valor_proyecto_mes), curve_type)))
                         margen_break_even_ponderado += peso * margen_be_proyecto
 
             # Use the project data we already have (includes project objects)

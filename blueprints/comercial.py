@@ -250,19 +250,26 @@ def planificacion_comercial():
     """Planificación comercial - Vista de matriz mensual"""
     try:
         service = ComercialService()
+        revenue_service = RevenueService()
 
         # Get filters
         año = request.args.get('año', type=int) or datetime.now().year
         mes_inicio = request.args.get('mes_inicio', type=int) or 1
         cliente_id = request.args.get('cliente_id', type=int)
         estado_filter = request.args.get('estados', 'todos')  # todos, presupuestado, adjudicado
+        curve_type = request.args.get('curve_type', 'general')  # Default to 'general' curve
 
         planning_data = service.get_planificacion_comercial(
             año=año,
             mes_inicio=mes_inicio,
             cliente_id=cliente_id,
-            estado_filter=estado_filter
+            estado_filter=estado_filter,
+            curve_type=curve_type
         )
+
+        # Add curve selection data for the template
+        planning_data['available_curves'] = revenue_service.get_available_curves()
+        planning_data['selected_curve'] = curve_type
 
         return render_template('comercial/planificacion.html', calendar=calendar, **planning_data)
 
