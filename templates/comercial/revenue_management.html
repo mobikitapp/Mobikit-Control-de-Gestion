@@ -475,8 +475,8 @@
         // Call simulation API
         const data = {
             adjudicado_base: adjudicadoBase,
-            adjudicado_extra: adjudicadoExtra,
-            margen_sim_pct: margenSim,
+            adjudicado_extra: 0, // Default to 0 if not defined
+            margen_sim_pct: 30, // Default margin simulation
             buffer_pp: bufferPp,
             utilidad_objetivo_clp: utilidadObjetivo,
             curve_type: curveType,

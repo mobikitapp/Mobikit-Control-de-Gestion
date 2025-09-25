@@ -116,7 +116,7 @@
                             </thead>
                             <tbody>
                                 {% for periodo_key, mes_data in matriz.items() %}
-                                {% set objetivo_mes = objetivos.get(loop.index) %}
+                                {% set objetivo_mes = objetivos.get(periodo_key) %}
                                 {% set objetivo_provision = objetivo_mes.objetivo_provision if objetivo_mes and objetivo_mes.objetivo_provision else 0 %}
                                 {% set objetivo_instalacion = objetivo_mes.objetivo_instalacion if objetivo_mes and objetivo_mes.objetivo_instalacion else 0 %}
                                 {% set objetivo_total = objetivo_provision + objetivo_instalacion %}
@@ -280,6 +280,7 @@
                                         <small class="text-muted">No definido</small>
                                         {% endif %}
                                     </td>
+                                    <td>-</td>
                                     <td>
                                         {% if objetivo_total_general > 0 %}
                                         {% set porcentaje_total = ((gran_totales.total_ventas or 0) / objetivo_total_general * 100) %}

@@ -425,7 +425,8 @@ def revenue_management():
             # Use the correct key format from planning data (año-mes)
             mes_key = f"{año}-{mes:02d}"
             mes_data = planning_data['matriz'].get(mes_key, {})
-            objetivo_mes = planning_data['objetivos'].get(mes)
+            # Get objective for this month using both possible keys
+            objetivo_mes = planning_data['objetivos'].get(mes_key) or planning_data['objetivos'].get(mes)
             
             # Calculate values
             valor_provision = float(mes_data.get('valor_provision', 0))

@@ -1232,8 +1232,13 @@ class ComercialService:
                        .filter_by(año=año_actual, mes=mes_actual)
                        .first())
 
-            if objetivo:
-                objetivos_dict[f"{año_actual}-{mes_actual:02d}"] = objetivo
+            # Store both with periodo key and month index for compatibility
+            periodo_key = f"{año_actual}-{mes_actual:02d}"
+            objetivos_dict[periodo_key] = objetivo
+            
+            # Also store with month index for backward compatibility in templates
+            if año_actual == año:  # Only for current year
+                objetivos_dict[mes_actual] = objetivo
 
         return objetivos_dict
 
