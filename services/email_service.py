@@ -50,15 +50,12 @@ class EmailService:
             sg = SendGridAPIClient(self.sendgrid_key)
 
             message = Mail(
-                from_email=Email(from_email),
-                to_emails=To(to_email),
-                subject=subject
+                from_email=from_email,
+                to_emails=to_email,
+                subject=subject,
+                html_content=html_content,
+                plain_text_content=text_content
             )
-
-            if html_content:
-                message.content = Content("text/html", html_content)
-            elif text_content:
-                message.content = Content("text/plain", text_content)
 
             response = sg.send(message)
             logger.info(f'Email enviado exitosamente a {to_email}. Status: {response.status_code}')
