@@ -144,8 +144,16 @@ def proyecto_comercial(proyecto_id):
         proyecto_data = service.get_proyecto_comercial_data(proyecto_id)
 
         if not proyecto_data:
-            flash('Proyecto no encontrado', 'error')
+            flash('Proyecto no encontrado o sin acceso', 'error')
             return redirect(url_for('comercial.centro_vendedores'))
+
+        # Verificar permisos específicos del usuario
+        from flask_login import current_user
+        proyecto = proyecto_data.get('proyecto')
+        if proyecto and current_user.rol.value not in ['admin', 'general']:
+            if proyecto.vendedor_id != current_user.id:
+                flash('No tienes permisos para editar este proyecto', 'warning')
+                return redirect(url_for('comercial.centro_vendedores'))
 
         return render_template('comercial/proyecto_comercial.html', **proyecto_data)
 

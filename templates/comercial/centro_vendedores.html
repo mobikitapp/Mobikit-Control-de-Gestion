@@ -7,12 +7,19 @@
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-header">
-                    <h4 class="mb-0">
-                        <i class="fas fa-chart-line text-success"></i>
-                        Centro de Vendedores
-                    </h4>
-                    <p class="mb-0 text-muted">Seguimiento comercial de proyectos por estado</p>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="fas fa-chart-line text-success"></i>
+                            Centro de Vendedores
+                        </h4>
+                        <p class="mb-0 text-muted">Seguimiento comercial de proyectos por estado</p>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Nuevo Proyecto
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -257,11 +264,13 @@
                                     <td>
                                         <div class="btn-group" role="group">
                                             <a href="{{ url_for('comercial.proyecto_comercial', proyecto_id=proyecto.id) }}" 
-                                               class="btn btn-outline-primary btn-sm">
+                                               class="btn btn-outline-primary btn-sm" 
+                                               title="Editar información comercial">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                             <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" 
-                                               class="btn btn-outline-info btn-sm">
+                                               class="btn btn-outline-info btn-sm"
+                                               title="Ver detalle del proyecto">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                         </div>
@@ -295,8 +304,11 @@
                     <a href="{{ url_for('comercial.planificacion_comercial') }}" class="btn btn-outline-success me-2">
                         <i class="fas fa-chart-gantt"></i> Planificación
                     </a>
-                    <a href="{{ url_for('comercial.objetivos_mensuales') }}" class="btn btn-outline-warning">
+                    <a href="{{ url_for('comercial.objetivos_mensuales') }}" class="btn btn-outline-warning me-2">
                         <i class="fas fa-bullseye"></i> Objetivos
+                    </a>
+                    <a href="{{ url_for('comercial.revenue_management') }}" class="btn btn-outline-dark">
+                        <i class="fas fa-chart-line"></i> Revenue Management
                     </a>
                 </div>
             </div>
@@ -309,5 +321,65 @@
 setInterval(() => {
     window.location.reload();
 }, 300000);
+
+// Funcionalidad de filtros avanzados
+document.addEventListener('DOMContentLoaded', function() {
+    // Agregar búsqueda rápida por proyecto
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'form-control mb-3';
+    searchInput.placeholder = 'Buscar por nombre de proyecto o cliente...';
+    searchInput.id = 'searchProjects';
+    
+    // Insertar antes de las tarjetas de estado
+    const firstStateCard = document.querySelector('.row.mb-4');
+    if (firstStateCard && firstStateCard.nextElementSibling) {
+        const searchContainer = document.createElement('div');
+        searchContainer.className = 'row mb-3';
+        searchContainer.innerHTML = `
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <label for="searchProjects" class="form-label">Búsqueda Rápida</label>
+                        ${searchInput.outerHTML}
+                    </div>
+                </div>
+            </div>
+        `;
+        firstStateCard.parentNode.insertBefore(searchContainer, firstStateCard.nextElementSibling);
+    }
+    
+    // Funcionalidad de búsqueda
+    document.addEventListener('input', function(e) {
+        if (e.target.id === 'searchProjects') {
+            const searchTerm = e.target.value.toLowerCase();
+            const projectRows = document.querySelectorAll('tbody tr');
+            
+            projectRows.forEach(row => {
+                const projectName = row.querySelector('td:first-child strong')?.textContent.toLowerCase() || '';
+                const clientName = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+                
+                if (projectName.includes(searchTerm) || clientName.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    });
+    
+    // Funcionalidad para mostrar/ocultar secciones
+    document.querySelectorAll('.card-header').forEach(header => {
+        if (header.querySelector('h6')) {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', function() {
+                const cardBody = this.nextElementSibling;
+                if (cardBody && cardBody.classList.contains('card-body')) {
+                    cardBody.style.display = cardBody.style.display === 'none' ? '' : 'none';
+                }
+            });
+        }
+    });
+});
 </script>
 {% endblock %}

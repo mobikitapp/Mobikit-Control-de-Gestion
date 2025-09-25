@@ -195,7 +195,7 @@
                                         </small>
                                     </td>
                                 </tr>
-                                
+
                                 <!-- Project Details Row (Collapsible) -->
                                 {% if mes.proyectos %}
                                 <tr id="details-{{ mes.mes }}" style="display: none;" class="table-light">
@@ -242,7 +242,7 @@
     function toggleMonthDetails(mes) {
         const detailsRow = document.getElementById('details-' + mes);
         const chevron = document.getElementById('chevron-' + mes);
-        
+
         if (detailsRow) {
             if (detailsRow.style.display === 'none') {
                 detailsRow.style.display = 'table-row';
@@ -306,6 +306,17 @@
                                oninput="updateSimulation()">
                         <small class="text-muted" id="adjudicado-base-value">$100M</small>
                     </div>
+                    
+                    <!-- Element for Adjudicado Extra if it exists, otherwise it won't cause an error -->
+                    {% if 'adjudicado_extra' in globals() %}
+                    <div class="mb-3">
+                        <label class="form-label">Adjudicado Extra (CLP)</label>
+                        <input type="range" class="form-range" id="adjudicado_extra" 
+                               min="0" max="100000000" step="1000000" value="{{ adjudicado_extra }}"
+                               oninput="updateSimulation()">
+                        <small class="text-muted" id="adjudicado_extra_value">${{ "{:,.0f}".format(adjudicado_extra/1000000) }}M</small>
+                    </div>
+                    {% endif %}
 
                     <hr>
 
@@ -464,18 +475,23 @@
         const utilidadObjetivo = parseInt(document.getElementById('utilidad-objetivo').value);
         const curveType = document.getElementById('curve-type').value;
         const curveBuffer = parseFloat(document.getElementById('curve-buffer').value);
-        const adjudicadoBase = parseInt(document.getElementById('adjudicado-base').value);
+        const adjudicadoBase = parseFloat(document.getElementById('adjudicado_base').value) || 0;
+        const adjudicadoExtraElement = document.getElementById('adjudicado_extra');
+        const adjudicadoExtra = adjudicadoExtraElement ? parseFloat(adjudicadoExtraElement.value) || 0 : 0;
 
         // Update display values
         document.getElementById('buffer-pp-value').textContent = `${bufferPp.toFixed(1)}%`;
         document.getElementById('utilidad-objetivo-value').textContent = `$${Math.round(utilidadObjetivo/1000000)}M`;
         document.getElementById('curve-buffer-value').textContent = `${curveBuffer.toFixed(1)}%`;
         document.getElementById('adjudicado-base-value').textContent = `$${Math.round(adjudicadoBase/1000000)}M`;
+        if (adjudicadoExtraElement) {
+            document.getElementById('adjudicado_extra_value').textContent = `$${Math.round(adjudicadoExtra/1000000)}M`;
+        }
 
         // Call simulation API
         const data = {
             adjudicado_base: adjudicadoBase,
-            adjudicado_extra: 0, // Default to 0 if not defined
+            adjudicado_extra: adjudicadoExtra, 
             margen_sim_pct: 30, // Default margin simulation
             buffer_pp: bufferPp,
             utilidad_objetivo_clp: utilidadObjetivo,
