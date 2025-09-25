@@ -190,7 +190,9 @@ class RevenueService:
                    .first())
         
         if not objetivo:
-            objetivo = ObjetivoMensual(año=año, mes=mes)
+            objetivo = ObjetivoMensual()
+            objetivo.año = año
+            objetivo.mes = mes
             db.session.add(objetivo)
         
         # Update fields
