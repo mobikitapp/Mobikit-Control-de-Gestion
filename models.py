@@ -1148,6 +1148,9 @@ class ObjetivoMensual(db.Model):
     notas = db.Column(db.Text)
 
     # Revenue Management fields
+    presupuesto_facturacion = db.Column(db.Numeric(15, 2), comment="Presupuesto de facturación mensual")
+    adjudicado_facturacion = db.Column(db.Numeric(15, 2), comment="Adjudicado de facturación mensual")
+    margen_real_pct = db.Column(db.Numeric(5, 2), comment="Margen real en porcentaje")
     buffer_pp = db.Column(db.Numeric(5, 2), default=2.0, comment="Buffer en puntos porcentuales")
     utilidad_objetivo_clp = db.Column(db.Numeric(15, 2), comment="Utilidad objetivo en CLP")
     curve_type = db.Column(db.String(20), default='general', comment="Tipo de curva BE: general o constructoras")
