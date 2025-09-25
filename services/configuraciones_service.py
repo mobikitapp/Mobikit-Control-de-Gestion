@@ -4,13 +4,20 @@ from sqlalchemy import and_, or_, func, desc
 from werkzeug.security import generate_password_hash
 import secrets
 import string
+import logging
 
 from app import db
 from models import User, RolUsuario, ComisionVendedor
+from services.email_service import EmailService
+
+logger = logging.getLogger(__name__)
 
 
 class ConfiguracionesService:
     """Service layer for system configuration operations"""
+    
+    def __init__(self):
+        self.email_service = EmailService()
 
     def get_configuraciones_stats(self):
         """Get configuration dashboard statistics"""
@@ -90,13 +97,21 @@ class ConfiguracionesService:
         """Get available user roles"""
         return [{'value': rol.value, 'label': rol.value.title()} for rol in RolUsuario]
 
-    def crear_usuario(self, datos_usuario: Dict[str, Any], created_by: str) -> Tuple[bool, str]:
-        """Create a new user"""
+    def crear_usuario(self, datos_usuario: Dict[str, Any], created_by: str) -> Tuple[bool, str, Optional[str]]:
+        """Create a new user with temporary password and email notification
+        
+        Returns:
+            Tuple[bool, str, Optional[str]]: (success, message, temporary_password)
+        """
         try:
             # Check if email already exists
             existing_user = db.session.query(User).filter_by(email=datos_usuario['email']).first()
             if existing_user:
-                return False, "Ya existe un usuario con ese email"
+                return False, "Ya existe un usuario con ese email", None
+            
+            # Generate temporary password
+            temp_password = self._generate_temp_password(12)  # 12 character password
+            password_hash = generate_password_hash(temp_password)
             
             # Create user instance
             nuevo_usuario = User()
@@ -106,20 +121,39 @@ class ConfiguracionesService:
             nuevo_usuario.email = datos_usuario['email']
             nuevo_usuario.rol = RolUsuario(datos_usuario['rol'])
             nuevo_usuario.activo = datos_usuario.get('activo', True)
+            nuevo_usuario.password_hash = password_hash
             
             db.session.add(nuevo_usuario)
             db.session.commit()
             
-            # Log the creation
-            nombre_completo = f"{nuevo_usuario.first_name} {nuevo_usuario.last_name or ''}".strip()
-            self._log_user_action('crear_usuario', nuevo_usuario.id, created_by, 
-                                f"Usuario {nombre_completo} creado con rol {nuevo_usuario.rol.value}")
+            # Get admin user name for email
+            admin_user = db.session.query(User).filter_by(id=created_by).first()
+            admin_name = admin_user.nombre_completo if admin_user else "Administrador del Sistema"
             
-            return True, "Usuario creado exitosamente"
+            # Send welcome email notification
+            user_name = f"{nuevo_usuario.first_name} {nuevo_usuario.last_name or ''}".strip()
+            email_sent = self.email_service.send_new_user_notification(
+                user_email=nuevo_usuario.email,
+                user_name=user_name,
+                temporary_password=temp_password,
+                admin_name=admin_name
+            )
+            
+            # Log the creation
+            self._log_user_action('crear_usuario', nuevo_usuario.id, created_by, 
+                                f"Usuario {user_name} creado con rol {nuevo_usuario.rol.value}")
+            
+            if email_sent:
+                logger.info(f"Email de bienvenida enviado a {nuevo_usuario.email}")
+                return True, "Usuario creado exitosamente. Se ha enviado un email con las credenciales de acceso.", temp_password
+            else:
+                logger.warning(f"Usuario creado pero falló el envío del email a {nuevo_usuario.email}")
+                return True, "Usuario creado exitosamente, pero no se pudo enviar el email de notificación. Proporciona manualmente las credenciales al usuario.", temp_password
             
         except Exception as e:
             db.session.rollback()
-            return False, str(e)
+            logger.error(f"Error creando usuario: {str(e)}")
+            return False, str(e), None
 
     def get_usuario_by_id(self, usuario_id: str) -> Optional[User]:
         """Get user by ID"""

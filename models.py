@@ -238,6 +238,9 @@ class User(UserMixin, db.Model):
     # Additional fields for the manufacturing app
     rol = db.Column(db.Enum(RolUsuario), default=RolUsuario.OPERACIONES, nullable=False)
     activo = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Campo para contraseña temporal (opcional para usuarios de Replit Auth)
+    password_hash = db.Column(db.String(256), nullable=True)
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
