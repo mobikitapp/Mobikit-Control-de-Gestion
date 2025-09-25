@@ -107,117 +107,126 @@
         </div>
     </div>
 
-    <!-- Monthly Data Table -->
+    <!-- Real Monthly Data Table from Planning -->
     <div class="row mb-4">
-        <div class="col-md-8">
+        <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h6 class="mb-0">Datos Mensuales</h6>
+                    <h6 class="mb-0">
+                        <i class="fas fa-calendar-alt text-success"></i>
+                        Datos Reales de Planificación Comercial
+                        <span class="badge bg-info ms-2">Datos en Tiempo Real</span>
+                    </h6>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover table-bordered mb-0" id="monthlyTable" style="font-size: 0.9rem;">
+                        <table class="table table-hover table-bordered mb-0" id="realDataTable" style="font-size: 0.9rem;">
                             <thead class="table-dark">
                                 <tr>
                                     <th style="width: 8%; text-align: center;">Mes</th>
-                                    <th style="width: 13%; text-align: right;">Presupuesto<br><small class="text-muted">(MM CLP)</small></th>
-                                    <th style="width: 13%; text-align: right;">Adjudicado<br><small class="text-muted">(MM CLP)</small></th>
-                                    <th style="width: 10%; text-align: center;">Margen<br>Real %</th>
-                                    <th style="width: 6%; text-align: center;">Buffer<br>PP %</th>
-                                    <th style="width: 10%; text-align: right;">Utilidad<br>Objetivo<br><small class="text-muted">(MM CLP)</small></th>
-                                    <th style="width: 8%; text-align: center;">Curva BE</th>
-                                    <th style="width: 6%; text-align: center;">Buffer<br>Curva %</th>
-                                    <th style="width: 8%; text-align: center;">Break<br>Even %</th>
-                                    <th style="width: 8%; text-align: center;">Margen<br>Obj. %</th>
-                                    <th style="width: 10%; text-align: center;">Estado</th>
-                                    <th style="width: 10%; text-align: left;">Recomendación</th>
+                                    <th style="width: 8%; text-align: center;">Proyectos</th>
+                                    <th style="width: 12%; text-align: right;">Provisión<br><small class="text-muted">(MM CLP)</small></th>
+                                    <th style="width: 12%; text-align: right;">Instalación<br><small class="text-muted">(MM CLP)</small></th>
+                                    <th style="width: 12%; text-align: right;">Total Ventas<br><small class="text-muted">(MM CLP)</small></th>
+                                    <th style="width: 10%; text-align: center;">Margen<br>Ponderado %</th>
+                                    <th style="width: 12%; text-align: right;">Objetivo<br><small class="text-muted">(MM CLP)</small></th>
+                                    <th style="width: 8%; text-align: center;">% Objetivo</th>
+                                    <th style="width: 8%; text-align: center;">Estado</th>
+                                    <th style="width: 18%; text-align: left;">Recomendación</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for mes in monthly_data %}
-                                <tr class="{% if mes.estado == 'VERDE' %}table-success{% elif mes.estado == 'AMARILLO' %}table-warning{% else %}table-danger{% endif %}">
-                                    <td>
+                                <tr class="{% if mes.estado == 'VERDE' %}table-success{% elif mes.estado == 'AMARILLO' %}table-warning{% else %}table-danger{% endif %}" 
+                                    onclick="toggleMonthDetails({{ mes.mes }})" style="cursor: pointer;">
+                                    <td class="text-center">
                                         <strong>{{ mes.mes_nombre[:3] }}</strong>
-                                        {% if mes.get('usando_datos_reales', False) %}
-                                        <span class="badge bg-info ms-1" title="Usando datos de proyectos reales">
-                                            <i class="fas fa-project-diagram"></i>
+                                        {% if mes.num_proyectos > 0 %}
+                                        <br><small class="text-muted">
+                                            <i class="fas fa-chevron-down" id="chevron-{{ mes.mes }}"></i>
+                                        </small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ mes.num_proyectos }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>${{ "{:,.0f}".format(mes.valor_provision / 1000000) }}M</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>${{ "{:,.0f}".format(mes.valor_instalacion / 1000000) }}M</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-primary">${{ "{:,.0f}".format(mes.total_ventas / 1000000) }}M</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if mes.margen_ponderado > 0 %}
+                                        <span class="badge {% if mes.margen_ponderado >= 20 %}bg-success{% elif mes.margen_ponderado >= 15 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ "{:.1f}".format(mes.margen_ponderado) }}%
                                         </span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
-                                        {% if mes.presupuesto_facturacion > 0 %}
-                                        <input type="number" class="form-control form-control-sm text-end" 
-                                               value="{{ '{:.0f}'.format(mes.presupuesto_facturacion / 1000000) }}" 
-                                               onchange="updateField({{ mes.mes }}, 'presupuesto_facturacion', this.value * 1000000)"
-                                               placeholder="0">
+                                        {% if mes.objetivo_total > 0 %}
+                                        ${{ "{:,.0f}".format(mes.objetivo_total / 1000000) }}M
                                         {% else %}
-                                        <input type="number" class="form-control form-control-sm text-end text-muted" 
-                                               value="0" 
-                                               onchange="updateField({{ mes.mes }}, 'presupuesto_facturacion', this.value * 1000000)"
-                                               placeholder="Sin datos">
-                                        {% endif %}
-                                        {% if mes.real_presupuesto and mes.real_presupuesto != mes.presupuesto_facturacion %}
-                                        <small class="text-muted d-block">Real: {{ "{:.0f}".format(mes.real_presupuesto / 1000000) }}M</small>
+                                        <span class="text-muted">Sin objetivo</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-end">
-                                        {% if mes.adjudicado_facturacion > 0 %}
-                                        <input type="number" class="form-control form-control-sm text-end fw-bold" 
-                                               value="{{ '{:.0f}'.format(mes.adjudicado_facturacion / 1000000) }}" 
-                                               onchange="updateField({{ mes.mes }}, 'adjudicado_facturacion', this.value * 1000000)"
-                                               placeholder="0">
+                                    <td class="text-center">
+                                        {% if mes.objetivo_total > 0 %}
+                                        <span class="badge {% if mes.porcentaje_objetivo >= 100 %}bg-success{% elif mes.porcentaje_objetivo >= 80 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ "{:.0f}".format(mes.porcentaje_objetivo) }}%
+                                        </span>
                                         {% else %}
-                                        <input type="number" class="form-control form-control-sm text-end text-muted" 
-                                               value="0" 
-                                               onchange="updateField({{ mes.mes }}, 'adjudicado_facturacion', this.value * 1000000)"
-                                               placeholder="Sin datos">
-                                        {% endif %}
-                                        {% if mes.real_adjudicado and mes.real_adjudicado != mes.adjudicado_facturacion %}
-                                        <small class="text-muted d-block">Real: {{ "{:.0f}".format(mes.real_adjudicado / 1000000) }}M</small>
+                                        <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
-                                    <td>
-                                        <input type="number" class="form-control form-control-sm" 
-                                               value="{{ mes.margen_real_pct }}" step="0.1"
-                                               onchange="updateField({{ mes.mes }}, 'margen_real_pct', this.value)">
-                                        {% if mes.real_margen and mes.real_margen != mes.margen_real_pct %}
-                                        <small class="text-muted">Real: {{ "{:.1f}".format(mes.real_margen) }}%</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <input type="number" class="form-control form-control-sm" 
-                                               value="{{ mes.buffer_pp }}" step="0.1"
-                                               onchange="updateField({{ mes.mes }}, 'buffer_pp', this.value)">
-                                    </td>
-                                    <td>
-                                        <input type="number" class="form-control form-control-sm" 
-                                               value="{{ mes.utilidad_objetivo_clp }}" 
-                                               onchange="updateField({{ mes.mes }}, 'utilidad_objetivo_clp', this.value)">
-                                    </td>
-                                    <td>
-                                        <select class="form-select form-select-sm" 
-                                                onchange="updateField({{ mes.mes }}, 'curve_type', this.value)">
-                                            {% for curve_key, curve_name in available_curves.items() %}
-                                            <option value="{{ curve_key }}" {% if mes.get('curve_type', 'general') == curve_key %}selected{% endif %}>
-                                                {{ curve_key.title() }}
-                                            </option>
-                                            {% endfor %}
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input type="number" class="form-control form-control-sm" 
-                                               value="{{ mes.get('curve_buffer_pct', 0.0) }}" step="0.1"
-                                               onchange="updateField({{ mes.mes }}, 'curve_buffer_pct', this.value)">
-                                    </td>
-                                    <td><span class="badge bg-secondary">{{ "{:.1f}".format(mes.be_pct) }}%</span></td>
-                                    <td><span class="badge bg-primary">{{ "{:.1f}".format(mes.margen_objetivo_pct) }}%</span></td>
-                                    <td>
-                                        <span class="badge bg-{% if mes.estado == 'VERDE' %}success{% elif mes.estado == 'AMARILLO' %}warning{% else %}danger{% endif %}">
+                                    <td class="text-center">
+                                        <span class="badge {% if mes.estado == 'VERDE' %}bg-success{% elif mes.estado == 'AMARILLO' %}bg-warning{% else %}bg-danger{% endif %}">
                                             {{ mes.estado }}
                                         </span>
                                     </td>
-                                    <td><small>{{ mes.recomendacion }}</small></td>
+                                    <td>
+                                        <small class="fw-bold text-{% if mes.estado == 'VERDE' %}success{% elif mes.estado == 'AMARILLO' %}warning{% else %}danger{% endif %}">
+                                            {{ mes.recomendacion }}
+                                        </small>
+                                    </td>
                                 </tr>
+                                
+                                <!-- Project Details Row (Collapsible) -->
+                                {% if mes.proyectos %}
+                                <tr id="details-{{ mes.mes }}" style="display: none;" class="table-light">
+                                    <td colspan="10">
+                                        <div class="p-3">
+                                            <h6 class="text-muted mb-3">Proyectos en {{ mes.mes_nombre }}:</h6>
+                                            <div class="row">
+                                                {% for proyecto in mes.proyectos %}
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="card card-sm">
+                                                        <div class="card-body p-2">
+                                                            <h6 class="card-title mb-1" style="font-size: 0.85rem;">
+                                                                {{ proyecto.nombre }}
+                                                            </h6>
+                                                            <p class="card-text mb-1" style="font-size: 0.75rem;">
+                                                                <strong>Cliente:</strong> {{ proyecto.cliente.nombre }}<br>
+                                                                <strong>Estado:</strong> 
+                                                                <span class="badge bg-{% if proyecto.estado_comercial.value == 'ADJUDICADO' %}success{% else %}warning{% endif %}">
+                                                                    {{ proyecto.estado_comercial.value }}
+                                                                </span><br>
+                                                                <strong>Monto:</strong> ${{ "{:,.0f}".format((proyecto.monto_provision_presupuestado or 0) + (proyecto.monto_instalacion_presupuestado or 0)) }}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -225,8 +234,28 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Simulator -->
+    <!-- Add JavaScript for collapsible rows -->
+    <script>
+    function toggleMonthDetails(mes) {
+        const detailsRow = document.getElementById('details-' + mes);
+        const chevron = document.getElementById('chevron-' + mes);
+        
+        if (detailsRow) {
+            if (detailsRow.style.display === 'none') {
+                detailsRow.style.display = 'table-row';
+                if (chevron) chevron.className = 'fas fa-chevron-up';
+            } else {
+                detailsRow.style.display = 'none';
+                if (chevron) chevron.className = 'fas fa-chevron-down';
+            }
+        }
+    }
+    </script>
+
+    <!-- Simulator Section -->
+    <div class="row mb-4">
         <div class="col-md-4">
             <div class="card">
                 <div class="card-header">

@@ -402,23 +402,79 @@ def api_planificacion_datos(year):
 def revenue_management():
     """Revenue Management - Vista principal"""
     try:
-        service = RevenueService()
+        revenue_service = RevenueService()
+        comercial_service = ComercialService()
 
         # Get filters
         año = request.args.get('año', type=int) or datetime.now().year
 
-        # Get monthly data and KPIs
-        monthly_data = service.get_monthly_data(año)
-        kpis = service.calculate_kpis(año)
+        # Get real planning data from comercial service
+        planning_data = comercial_service.get_planificacion_comercial(año=año)
+        
+        # Get KPIs from revenue service
+        kpis = revenue_service.calculate_kpis(año)
 
         # Get break even curves for chart
-        be_curve_general = service.get_break_even_curve('general')
-        be_curve_constructoras = service.get_break_even_curve('constructoras')
-        available_curves = service.get_available_curves()
+        be_curve_general = revenue_service.get_break_even_curve('general')
+        be_curve_constructoras = revenue_service.get_break_even_curve('constructoras')
+        available_curves = revenue_service.get_available_curves()
+
+        # Prepare monthly data with recommendations
+        monthly_data = []
+        for mes in range(1, 13):
+            mes_data = planning_data['matriz'].get(mes, {})
+            objetivo_mes = planning_data['objetivos'].get(mes)
+            
+            # Calculate values
+            valor_provision = mes_data.get('valor_provision', 0)
+            valor_instalacion = mes_data.get('valor_instalacion', 0)
+            total_ventas = valor_provision + valor_instalacion
+            margen_ponderado = mes_data.get('margen_ponderado', 0)
+            
+            # Calculate objective values
+            objetivo_total = 0
+            if objetivo_mes:
+                objetivo_provision = objetivo_mes.objetivo_provision or 0
+                objetivo_instalacion = objetivo_mes.objetivo_instalacion or 0
+                objetivo_total = objetivo_provision + objetivo_instalacion
+            
+            # Calculate percentage and status
+            porcentaje_objetivo = (total_ventas / objetivo_total * 100) if objetivo_total > 0 else 0
+            
+            # Determine status
+            if porcentaje_objetivo >= 100:
+                estado = 'VERDE'
+            elif porcentaje_objetivo >= 80:
+                estado = 'AMARILLO'
+            else:
+                estado = 'ROJO'
+            
+            # Generate recommendations
+            recomendacion = revenue_service.get_recommendations(
+                gap_venta=objetivo_total - total_ventas,
+                margen_real_pct=margen_ponderado,
+                margen_objetivo_pct=75  # Default BE margin
+            )
+            
+            monthly_data.append({
+                'mes': mes,
+                'mes_nombre': calendar.month_name[mes],
+                'num_proyectos': len(mes_data.get('proyectos', [])),
+                'total_ventas': total_ventas,
+                'valor_provision': valor_provision,
+                'valor_instalacion': valor_instalacion,
+                'margen_ponderado': margen_ponderado,
+                'objetivo_total': objetivo_total,
+                'porcentaje_objetivo': porcentaje_objetivo,
+                'estado': estado,
+                'recomendacion': recomendacion,
+                'proyectos': mes_data.get('proyectos', [])
+            })
 
         return render_template('comercial/revenue_management.html',
                              año=año,
                              monthly_data=monthly_data,
+                             planning_data=planning_data,
                              kpis=kpis,
                              be_curve_general=be_curve_general,
                              be_curve_constructoras=be_curve_constructoras,
