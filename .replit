@@ -96,6 +96,10 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
+localPort = 44775
+externalPort = 3001
+
+[[ports]]
 localPort = 45501
 externalPort = 3000
 
@@ -108,4 +112,4 @@ defaultBucketID = "replit-objstore-18a58625-bff7-44cb-bbf9-e8b65ac6622c"
 
 [agent]
 expertMode = true
-integrations = ["python_log_in_with_replit:1.0.0"]
+integrations = ["python_log_in_with_replit:1.0.0", "python_sendgrid:1.0.0"]

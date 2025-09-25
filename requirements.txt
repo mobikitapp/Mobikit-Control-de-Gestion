@@ -37,3 +37,4 @@ pendulum
 pendulum
 python-dotenv
 sendgrid
+sendgrid
