@@ -24,7 +24,7 @@ def add_curve_config_fields():
             result = db.session.execute(text("""
                 SELECT column_name 
                 FROM information_schema.columns 
-                WHERE table_name = 'objetivo_mensual' 
+                WHERE table_name = 'objetivos_mensuales' 
                 AND column_name IN ('curve_type', 'curve_buffer_pct')
             """)).fetchall()
             
@@ -33,7 +33,7 @@ def add_curve_config_fields():
             # Add curve_type column if it doesn't exist
             if 'curve_type' not in existing_columns:
                 db.session.execute(text("""
-                    ALTER TABLE objetivo_mensual 
+                    ALTER TABLE objetivos_mensuales 
                     ADD COLUMN curve_type VARCHAR(20) DEFAULT 'general'
                 """))
                 print("  ✅ Added curve_type column")
@@ -43,7 +43,7 @@ def add_curve_config_fields():
             # Add curve_buffer_pct column if it doesn't exist
             if 'curve_buffer_pct' not in existing_columns:
                 db.session.execute(text("""
-                    ALTER TABLE objetivo_mensual 
+                    ALTER TABLE objetivos_mensuales 
                     ADD COLUMN curve_buffer_pct NUMERIC(5,2) DEFAULT 0.0
                 """))
                 print("  ✅ Added curve_buffer_pct column")
@@ -52,13 +52,13 @@ def add_curve_config_fields():
             
             # Update existing records to have default values
             db.session.execute(text("""
-                UPDATE objetivo_mensual 
+                UPDATE objetivos_mensuales 
                 SET curve_type = 'general' 
                 WHERE curve_type IS NULL
             """))
             
             db.session.execute(text("""
-                UPDATE objetivo_mensual 
+                UPDATE objetivos_mensuales 
                 SET curve_buffer_pct = 0.0 
                 WHERE curve_buffer_pct IS NULL
             """))
