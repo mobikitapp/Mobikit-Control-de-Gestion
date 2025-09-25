@@ -263,7 +263,7 @@ class ComercialService:
                     joinedload(Proyecto.vendedor_user)
                 )
                 .join(Cliente)
-                .filter(Proyecto.activo == True))
+                .filter(Proyecto.activo.is_(True)))
 
         # Calculate date range for 12 months starting from mes_inicio
         if mes_inicio == 1:
@@ -590,7 +590,7 @@ class ComercialService:
                                    EstadoComercial.EN_DESARROLLO,
                                    EstadoComercial.TERMINADO
                                ]),
-                               Proyecto.activo == True
+                               Proyecto.activo.is_(True)
                            )
                            .filter(
                                or_(
@@ -603,8 +603,8 @@ class ComercialService:
                                    # Proyectos sin fecha de adjudicación pero en estado correcto (asignar al mes actual)
                                    and_(
                                        Proyecto.fecha_adjudicacion.is_(None),
-                                       mes == datetime.now().month,
-                                       year == datetime.now().year
+                                       extract('month', func.current_date()) == mes,
+                                       extract('year', func.current_date()) == year
                                    )
                                )
                            )
@@ -783,12 +783,12 @@ class ComercialService:
                         proyectos_por_mes[periodo_key] = []
 
                     proyectos_por_mes[periodo_key].append({
-                        'proyecto_id': proyecto.id, # Store project ID
-                        'valor_provision': valor_provision_mes,
-                        'valor_instalacion': valor_instalacion_mes,
-                        'ganancia_provision': ganancia_provision_mes,
-                        'ganancia_instalacion': ganancia_instalacion_mes,
-                        'ganancia_total': ganancia_total_mes,
+                        'proyecto': proyecto,  # Store complete project object
+                        'valor_provision_mes': valor_provision_mes,
+                        'valor_instalacion_mes': valor_instalacion_mes,
+                        'ganancia_provision_mes': ganancia_provision_mes,
+                        'ganancia_instalacion_mes': ganancia_instalacion_mes,
+                        'ganancia_total_mes': ganancia_total_mes,
                         'margen_provision': proyecto.margen_venta_provision or Decimal('0'),
                         'margen_instalacion': proyecto.margen_venta_instalacion or Decimal('0'),
                         'dias_en_mes': dias_en_mes,
@@ -836,17 +836,11 @@ class ComercialService:
                         margen_break_even_ponderado += peso * margen_be_proyecto
 
 
-            # Get actual project objects for template display
-            proyecto_ids = [p.get('proyecto_id') for p in proyectos_mes_data if p.get('proyecto_id')]
-            proyectos_objetos = (db.session.query(Proyecto)
-                               .options(joinedload(Proyecto.cliente))
-                               .filter(Proyecto.id.in_(proyecto_ids))
-                               .all()) if proyecto_ids else []
-
-            matriz[mes_key]['proyectos'] = proyectos_objetos  # Use actual project objects
+            # Use the project data we already have (includes project objects)
+            matriz[mes_key]['proyectos'] = proyectos_mes_data
             matriz[mes_key]['valor_provision'] = provision_mes
             matriz[mes_key]['valor_instalacion'] = instalacion_mes
-            matriz[mes_key]['ganancias'] = sum(p.get('ganancia_total', Decimal('0')) for p in proyectos_mes_data)
+            matriz[mes_key]['ganancias'] = sum(p.get('ganancia_total_mes', Decimal('0')) for p in proyectos_mes_data)
             matriz[mes_key]['margen_ponderado'] = margen_ponderado
             matriz[mes_key]['margen_break_even'] = margen_break_even_ponderado
             matriz[mes_key]['count'] = len(proyectos_mes_data)
