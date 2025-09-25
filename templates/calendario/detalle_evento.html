@@ -26,8 +26,8 @@
                             <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-secondary me-2">
                                 <i class="fas fa-calendar-alt"></i> Ver Calendario
                             </a>
-                            <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-primary">
-                                <i class="fas fa-list"></i> Lista Eventos
+                            <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-bar-chart-2"></i> Dashboard
                             </a>
                         </div>
                     </div>
@@ -280,10 +280,10 @@
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
-                            <a href="{{ url_for('calendario.lista_eventos') }}" class="btn btn-outline-info w-100">
-                                <i class="fas fa-list"></i><br>
-                                <strong>Todos los Eventos</strong><br>
-                                <small class="text-muted">Lista completa</small>
+                            <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-bar-chart-2"></i><br>
+                                <strong>Dashboard</strong><br>
+                                <small class="text-muted">Ver resumen</small>
                             </a>
                         </div>
                         {% if evento.proyecto %}
