@@ -24,8 +24,12 @@ try:
 
     # Initialize database
     with app.app_context():
-        db.create_all()
-        logger.info("Database tables created")
+        try:
+            db.create_all()
+            logger.info("Database tables verified/created")
+        except Exception as e:
+            logger.warning(f"Database table creation warning: {str(e)}")
+            # Continue anyway, tables might already exist
 
     # Add cache control headers
     @app.after_request
