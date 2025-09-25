@@ -12,7 +12,15 @@ from models import ObjetivoMensual, Proyecto, EstadoComercial
 class RevenueService:
     """Service layer for Revenue Management operations"""
     
-    # Curva Break Even general para constructoras (datos reales)
+    # Break Even Constructoras
+    BE_CONSTRUCTORAS = [
+        (100_000_000, 60), (110_000_000, 55), (120_000_000, 51), (130_000_000, 48),
+        (140_000_000, 45), (150_000_000, 42), (160_000_000, 40), (170_000_000, 38),
+        (180_000_000, 36), (190_000_000, 35), (200_000_000, 33), (210_000_000, 32),
+        (220_000_000, 31), (230_000_000, 30), (240_000_000, 29), (250_000_000, 28)
+    ]
+    
+    # Break Even General
     BE_GENERAL = [
         (100_000_000, 75), (110_000_000, 68), (120_000_000, 62), (130_000_000, 58),
         (140_000_000, 54), (150_000_000, 51), (160_000_000, 48), (170_000_000, 46),
@@ -23,41 +31,60 @@ class RevenueService:
     def __init__(self):
         pass
     
-    def get_break_even_curve(self) -> List[Tuple[int, float]]:
-        """Get the break even curve points"""
-        return self.BE_GENERAL
+    def get_break_even_curve(self, curve_type: str = 'general') -> List[Tuple[int, float]]:
+        """Get the break even curve points by type"""
+        if curve_type == 'constructoras':
+            return self.BE_CONSTRUCTORAS
+        elif curve_type == 'general':
+            return self.BE_GENERAL
+        else:
+            return self.BE_GENERAL  # Default fallback
     
-    def required_margin(self, adjudicado_clp: float) -> float:
-        """Calculate required break even margin for given billing amount"""
+    def get_available_curves(self) -> Dict[str, str]:
+        """Get available curve types with descriptions"""
+        return {
+            'constructoras': 'Break Even Constructoras',
+            'general': 'Break Even General'
+        }
+    
+    def required_margin(self, adjudicado_clp: float, curve_type: str = 'general', buffer_pct: float = 0.0) -> float:
+        """Calculate required break even margin for given billing amount with optional buffer"""
         if adjudicado_clp <= 0:
-            return 75.0  # Default to highest margin
+            base_margin = 75.0 if curve_type == 'general' else 60.0
+            return base_margin + buffer_pct
+            
+        # Get the appropriate curve
+        curve = self.get_break_even_curve(curve_type)
             
         # Saturate to curve limits
-        if adjudicado_clp <= self.BE_GENERAL[0][0]:
-            return self.BE_GENERAL[0][1]
+        if adjudicado_clp <= curve[0][0]:
+            base_margin = curve[0][1]
+        elif adjudicado_clp >= curve[-1][0]:
+            base_margin = curve[-1][1]
+        else:
+            # Linear interpolation between points
+            base_margin = curve[0][1]  # Default fallback
+            for i in range(len(curve) - 1):
+                x1, y1 = curve[i]
+                x2, y2 = curve[i + 1]
+                
+                if x1 <= adjudicado_clp <= x2:
+                    # Linear interpolation formula
+                    base_margin = y1 + (y2 - y1) * (adjudicado_clp - x1) / (x2 - x1)
+                    break
         
-        if adjudicado_clp >= self.BE_GENERAL[-1][0]:
-            return self.BE_GENERAL[-1][1]
-        
-        # Linear interpolation between points
-        for i in range(len(self.BE_GENERAL) - 1):
-            x1, y1 = self.BE_GENERAL[i]
-            x2, y2 = self.BE_GENERAL[i + 1]
-            
-            if x1 <= adjudicado_clp <= x2:
-                # Linear interpolation formula
-                margin = y1 + (y2 - y1) * (adjudicado_clp - x1) / (x2 - x1)
-                return round(margin, 2)
-        
-        return 75.0  # Fallback to highest margin
+        # Apply buffer percentage
+        final_margin = base_margin + buffer_pct
+        return round(final_margin, 2)
     
     def calculate_objetivo_margin(self, adjudicado_clp: float, buffer_pp: float, 
-                                  utilidad_objetivo_clp: float) -> float:
-        """Calculate target margin percentage"""
+                                  utilidad_objetivo_clp: float, curve_type: str = 'general',
+                                  curve_buffer_pct: float = 0.0) -> float:
+        """Calculate target margin percentage with curve selection and buffer"""
         if adjudicado_clp <= 0:
             return 0.0
             
-        be_pct = self.required_margin(adjudicado_clp)
+        be_pct = self.required_margin(adjudicado_clp, curve_type, curve_buffer_pct)
         utilidad_pct = (utilidad_objetivo_clp / adjudicado_clp) * 100
         
         return be_pct + buffer_pp + utilidad_pct
@@ -88,13 +115,14 @@ class RevenueService:
     
     def simulate_scenario(self, adjudicado_base: float, adjudicado_extra: float,
                          margen_sim_pct: float, buffer_pp: float, 
-                         utilidad_objetivo_clp: float) -> Dict[str, Any]:
-        """Simulate a revenue scenario"""
+                         utilidad_objetivo_clp: float, curve_type: str = 'general',
+                         curve_buffer_pct: float = 0.0) -> Dict[str, Any]:
+        """Simulate a revenue scenario with curve selection and buffer"""
         total_adjudicado = adjudicado_base + adjudicado_extra
         
-        be_pct = self.required_margin(total_adjudicado)
+        be_pct = self.required_margin(total_adjudicado, curve_type, curve_buffer_pct)
         margen_objetivo_pct = self.calculate_objetivo_margin(
-            total_adjudicado, buffer_pp, utilidad_objetivo_clp
+            total_adjudicado, buffer_pp, utilidad_objetivo_clp, curve_type, curve_buffer_pct
         )
         
         status = self.get_revenue_status(margen_sim_pct, margen_objetivo_pct)
@@ -110,7 +138,9 @@ class RevenueService:
             'margen_simulado_pct': margen_sim_pct,
             'estado': status,
             'recomendacion': recomendacion,
-            'utilidad_real_clp': (margen_sim_pct / 100) * total_adjudicado
+            'utilidad_real_clp': (margen_sim_pct / 100) * total_adjudicado,
+            'curve_type': curve_type,
+            'curve_buffer_pct': curve_buffer_pct
         }
     
     def get_monthly_data(self, año: int, use_real_data: bool = True) -> List[Dict[str, Any]]:
@@ -297,6 +327,8 @@ class RevenueService:
             if objetivo:
                 buffer_pp = float(objetivo.buffer_pp or 2.0)
                 utilidad_objetivo = float(objetivo.utilidad_objetivo_clp or 0)
+                curve_type = objetivo.curve_type or 'general'
+                curve_buffer_pct = float(objetivo.curve_buffer_pct or 0.0)
                 
                 # Only override with manual data if it's explicitly set and real data is 0
                 if real_presupuesto == 0 and objetivo.presupuesto_facturacion:
@@ -308,13 +340,15 @@ class RevenueService:
             else:
                 buffer_pp = 2.0
                 utilidad_objetivo = 0
+                curve_type = 'general'
+                curve_buffer_pct = 0.0
             
             # Calculate derived values
             gap_venta = presupuesto - adjudicado
-            be_pct = self.required_margin(adjudicado) if adjudicado > 0 else 75.0
+            be_pct = self.required_margin(adjudicado, curve_type, curve_buffer_pct) if adjudicado > 0 else (75.0 + curve_buffer_pct)
             margen_objetivo_pct = self.calculate_objetivo_margin(
-                adjudicado, buffer_pp, utilidad_objetivo
-            ) if adjudicado > 0 else 77.0
+                adjudicado, buffer_pp, utilidad_objetivo, curve_type, curve_buffer_pct
+            ) if adjudicado > 0 else (77.0 + curve_buffer_pct)
             
             estado = self.get_revenue_status(margen_real, margen_objetivo_pct)
             recomendacion = self.get_recommendations(gap_venta, margen_real, margen_objetivo_pct)
@@ -342,7 +376,9 @@ class RevenueService:
                 'real_adjudicado': real_adjudicado,
                 'real_presupuesto': real_presupuesto,
                 'real_margen': real_margen,
-                'usando_datos_reales': usando_datos_reales
+                'usando_datos_reales': usando_datos_reales,
+                'curve_type': curve_type,
+                'curve_buffer_pct': curve_buffer_pct
             }
             
             monthly_data.append(mes_data)

@@ -315,14 +315,14 @@ class Proyecto(db.Model):
     margen_venta_provision = db.Column(db.Numeric(5, 2))  # Porcentaje de ganancia sobre provisión
     monto_instalacion_presupuestado = db.Column(db.Numeric(15, 2))  # Monto neto de venta por instalación
     margen_venta_instalacion = db.Column(db.Numeric(5, 2))  # Porcentaje de ganancia sobre instalación
-    
+
     # Campos para soporte de UF en presupuestos
     monto_provision_presupuestado_uf = db.Column(db.Numeric(15, 4))  # Monto provisión en UF
     monto_instalacion_presupuestado_uf = db.Column(db.Numeric(15, 4))  # Monto instalación en UF
     valor_uf_presupuesto = db.Column(db.Numeric(15, 2))  # Valor UF usado en presupuesto
     fecha_conversion_presupuesto_uf = db.Column(db.Date)  # Fecha conversión presupuesto
     moneda_original_presupuesto = db.Column(db.String(3))  # Moneda original ('UF' o 'CLP')
-    
+
     fecha_presupuesto = db.Column(db.Date)
     fecha_adjudicacion = db.Column(db.Date)
     notas_comerciales = db.Column(db.Text)
@@ -332,7 +332,7 @@ class Proyecto(db.Model):
     tipo_vivienda = db.Column(db.Enum(TipoVivienda))  # Casa, Departamento
     numero_viviendas = db.Column(db.Integer)  # Número de viviendas
     ubicacion_obra = db.Column(db.String(500))  # Ubicación de la obra (se relaciona con direcciones de despacho)
-    
+
     # Campo para integración con ERP Mobikit
     centro_costo = db.Column(db.Integer)  # Centro de costo para enlace con ERP
 
@@ -362,13 +362,13 @@ class Proyecto(db.Model):
 
     def __repr__(self):
         return f'<Proyecto {self.nombre}>'
-    
+
     @property
     def presupuesto_actualizado_uf(self):
         """Obtiene presupuestos actualizados según UF actual si fueron ingresados en UF"""
         from services.uf_conversion_service import UfConversionService
         from decimal import Decimal
-        
+
         result = {
             'provision': {
                 'monto_clp': self.monto_provision_presupuestado,
@@ -379,7 +379,7 @@ class Proyecto(db.Model):
                 'fue_ingresado_en_uf': self.moneda_original_presupuesto == 'UF'
             }
         }
-        
+
         # Actualizar provisión si fue ingresada en UF
         if (self.moneda_original_presupuesto == 'UF' and 
             self.monto_provision_presupuestado_uf):
@@ -389,7 +389,7 @@ class Proyecto(db.Model):
             if conversion:
                 result['provision']['monto_clp_actualizado'] = conversion['clp_amount']
                 result['provision']['monto_uf_original'] = self.monto_provision_presupuestado_uf
-        
+
         # Actualizar instalación si fue ingresada en UF
         if (self.moneda_original_presupuesto == 'UF' and 
             self.monto_instalacion_presupuestado_uf):
@@ -399,30 +399,30 @@ class Proyecto(db.Model):
             if conversion:
                 result['instalacion']['monto_clp_actualizado'] = conversion['clp_amount']
                 result['instalacion']['monto_uf_original'] = self.monto_instalacion_presupuestado_uf
-        
+
         # Agregar información de conversión
         result['valor_uf_presupuesto'] = self.valor_uf_presupuesto
         result['fecha_conversion'] = self.fecha_conversion_presupuesto_uf
-        
+
         return result
-    
+
     @property
     def monto_total_presupuestado(self):
         """Calcula el monto total presupuestado (provisión + instalación)"""
         provision = self.monto_provision_presupuestado or 0
         instalacion = self.monto_instalacion_presupuestado or 0
         return provision + instalacion
-    
+
     @property
     def monto_total_presupuestado_actualizado(self):
         """Monto total presupuestado con valores UF actualizados"""
         presupuesto = self.presupuesto_actualizado_uf
-        
+
         provision = (presupuesto['provision'].get('monto_clp_actualizado') or 
                     presupuesto['provision']['monto_clp'] or 0)
         instalacion = (presupuesto['instalacion'].get('monto_clp_actualizado') or 
                       presupuesto['instalacion']['monto_clp'] or 0)
-        
+
         return provision + instalacion
 
 # Tablas de asociación para relaciones many-to-many
@@ -493,13 +493,13 @@ class Contrato(db.Model):
     numero_oc = db.Column(db.String(50), unique=True, nullable=False)
     monto_total = db.Column(db.Numeric(15, 2))
     moneda = db.Column(db.String(3), default='CLP', nullable=False)
-    
+
     # Campos para soporte de UF
     monto_total_uf = db.Column(db.Numeric(15, 4))  # Monto original en UF (mayor precisión)
     valor_uf_conversion = db.Column(db.Numeric(15, 2))  # Valor UF usado para conversión
     fecha_conversion_uf = db.Column(db.Date)  # Fecha de conversión UF a CLP
     moneda_original = db.Column(db.String(3))  # Moneda original de entrada ('UF' o 'CLP')
-    
+
     estado = db.Column(db.Enum(EstadoContrato), default=EstadoContrato.BORRADOR, nullable=False)
     fecha_emision = db.Column(db.Date)
     fecha_vencimiento = db.Column(db.Date)
@@ -529,20 +529,20 @@ class Contrato(db.Model):
 
     def __repr__(self):
         return f'<Contrato {self.numero_oc}>'
-    
+
     @property
     def monto_total_actualizado(self):
         """Obtiene el monto total actualizado según UF actual si fue ingresado en UF"""
         if self.moneda_original == 'UF' and self.monto_total_uf:
             from services.uf_conversion_service import UfConversionService
             from decimal import Decimal
-            
+
             conversion = UfConversionService.convert_uf_to_clp(Decimal(str(self.monto_total_uf)))
             if conversion:
                 return conversion['clp_amount']
-        
+
         return self.monto_total
-    
+
     @property
     def monto_display_info(self):
         """Información completa para mostrar el monto con contexto UF"""
@@ -554,10 +554,10 @@ class Contrato(db.Model):
             'valor_uf_conversion': self.valor_uf_conversion,
             'fecha_conversion': self.fecha_conversion_uf
         }
-        
+
         if self.moneda_original == 'UF':
             info['monto_clp_actualizado'] = self.monto_total_actualizado
-        
+
         return info
 
 
@@ -1148,11 +1148,10 @@ class ObjetivoMensual(db.Model):
     notas = db.Column(db.Text)
 
     # Revenue Management fields
-    buffer_pp = db.Column(db.Numeric(5, 2), default=2.0)  # Buffer sobre Break Even
-    utilidad_objetivo_clp = db.Column(db.Numeric(15, 2), default=0)  # Utilidad objetivo en CLP
-    margen_real_pct = db.Column(db.Numeric(5, 2))  # Margen real del mes
-    adjudicado_facturacion = db.Column(db.Numeric(15, 2))  # Facturación adjudicada real
-    presupuesto_facturacion = db.Column(db.Numeric(15, 2))  # Presupuesto de facturación
+    buffer_pp = db.Column(db.Numeric(5, 2), default=2.0, comment="Buffer en puntos porcentuales")
+    utilidad_objetivo_clp = db.Column(db.Numeric(15, 2), comment="Utilidad objetivo en CLP")
+    curve_type = db.Column(db.String(20), default='general', comment="Tipo de curva BE: general o constructoras")
+    curve_buffer_pct = db.Column(db.Numeric(5, 2), default=0.0, comment="Buffer adicional para la curva BE")
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
@@ -1256,7 +1255,7 @@ class EventoEntrega(db.Model):
 
 class EstadoPago(db.Model):
     __tablename__ = 'estados_pago'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'), nullable=False)
     numero_documento = db.Column(db.String(100))  # Número de factura, boleta, etc.
@@ -1265,7 +1264,7 @@ class EstadoPago(db.Model):
     monto = db.Column(db.Numeric(15, 2))
     descripcion = db.Column(db.Text)
     fecha_programada_pago = db.Column(db.Date)  # Para pagos programados
-    
+
     # Campos para tracking de inflación UF
     monto_uf = db.Column(db.Numeric(15, 4))  # Monto en UF si aplica
     valor_uf_fecha_estado = db.Column(db.Numeric(15, 2))  # Valor UF en fecha del estado
@@ -1273,15 +1272,15 @@ class EstadoPago(db.Model):
     ganancia_perdida_inflacion = db.Column(db.Numeric(15, 2))  # Ganancia/pérdida por inflación
     moneda_original = db.Column(db.String(3), default='CLP')  # 'CLP' o 'UF'
     fecha_conversion_uf = db.Column(db.Date)  # Fecha de conversión UF utilizada
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     contrato = db.relationship('Contrato', backref='estados_pago')
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_estado_pago_contrato', 'contrato_id'),
@@ -1290,20 +1289,20 @@ class EstadoPago(db.Model):
         Index('idx_estado_pago_moneda', 'moneda_original'),
         Index('idx_estado_pago_inflacion', 'ganancia_perdida_inflacion'),
     )
-    
+
     def __repr__(self):
         return f'<EstadoPago {self.contrato.numero_oc}-{self.tipo_estado.value}>'
-    
+
     @property
     def efectos_inflacion(self):
         """Calcula efectos de inflación para estados de pago UF"""
         if self.moneda_original != 'UF' or not self.monto_uf:
             return None
-            
+
         from services.uf_conversion_service import UfConversionService
         from decimal import Decimal
         import datetime
-        
+
         # Si es facturación en UF
         if self.tipo_estado == TipoEstadoPago.FACTURADO:
             conversion_actual = UfConversionService.convert_uf_to_clp(
@@ -1313,7 +1312,7 @@ class EstadoPago(db.Model):
                 monto_clp_original = Decimal(str(self.monto_uf)) * Decimal(str(self.valor_uf_fecha_estado))
                 monto_clp_actual = conversion_actual['clp_amount']
                 diferencia = monto_clp_actual - monto_clp_original
-                
+
                 return {
                     'monto_uf': self.monto_uf,
                     'valor_uf_facturacion': self.valor_uf_fecha_estado,
@@ -1323,7 +1322,7 @@ class EstadoPago(db.Model):
                     'ganancia_perdida': diferencia,
                     'porcentaje_variacion': (diferencia / monto_clp_original * 100) if monto_clp_original > 0 else 0
                 }
-        
+
         # Si es pago en CLP de factura UF
         elif self.tipo_estado == TipoEstadoPago.PAGADO:
             # Buscar el estado FACTURADO correspondiente para comparar
@@ -1333,13 +1332,13 @@ class EstadoPago(db.Model):
                     estado.numero_documento and estado.numero_documento == self.numero_documento):
                     estado_facturado = estado
                     break
-            
+
             if estado_facturado and estado_facturado.monto_uf:
                 # Calcular la ganancia/pérdida respecto al monto facturado
                 monto_facturado_uf_clp = (Decimal(str(estado_facturado.monto_uf)) * 
                                         Decimal(str(self.valor_uf_fecha_estado)))
                 diferencia = Decimal(str(self.monto)) - monto_facturado_uf_clp
-                
+
                 return {
                     'monto_facturado_uf': estado_facturado.monto_uf,
                     'valor_uf_facturacion': estado_facturado.valor_uf_fecha_estado,
@@ -1349,7 +1348,7 @@ class EstadoPago(db.Model):
                     'ganancia_perdida': diferencia,
                     'porcentaje_variacion': (diferencia / monto_facturado_uf_clp * 100) if monto_facturado_uf_clp > 0 else 0
                 }
-        
+
         return None
 
 
@@ -1382,7 +1381,7 @@ class CategoriaCosto(Enum):
 
 class CuentaBancaria(db.Model):
     __tablename__ = 'cuentas_bancarias'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     numero_cuenta = db.Column(db.String(50))
@@ -1391,21 +1390,21 @@ class CuentaBancaria(db.Model):
     saldo_actual = db.Column(db.Numeric(15, 2), default=0)
     moneda = db.Column(db.String(3), default='CLP', nullable=False)
     activa = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     movimientos = db.relationship('MovimientoFinanciero', backref='cuenta_bancaria', lazy=True)
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     def __repr__(self):
         return f'<CuentaBancaria {self.nombre}>'
 
 class CentroCosto(db.Model):
     __tablename__ = 'centros_costo'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(20), unique=True, nullable=False)
     nombre = db.Column(db.String(100), nullable=False)
@@ -1415,55 +1414,55 @@ class CentroCosto(db.Model):
     presupuesto_mensual = db.Column(db.Numeric(15, 2))
     responsable_id = db.Column(db.String, db.ForeignKey('users.id'))
     activo = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     proyecto = db.relationship('Proyecto', backref='centros_costo')
     responsable = db.relationship('User', foreign_keys=[responsable_id])
     movimientos = db.relationship('MovimientoFinanciero', backref='centro_costo', lazy=True)
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_centro_costo_tipo', 'tipo'),
         Index('idx_centro_costo_proyecto', 'proyecto_id'),
     )
-    
+
     def __repr__(self):
         return f'<CentroCosto {self.codigo}-{self.nombre}>'
 
 class MovimientoFinanciero(db.Model):
     __tablename__ = 'movimientos_financieros'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     fecha = db.Column(db.Date, nullable=False)
     tipo = db.Column(db.Enum(TipoMovimiento), nullable=False)
     monto = db.Column(db.Numeric(15, 2), nullable=False)
     descripcion = db.Column(db.Text, nullable=False)
     referencia = db.Column(db.String(100))  # Número de factura, boleta, etc.
-    
+
     # Relaciones opcionales
     cuenta_bancaria_id = db.Column(db.Integer, db.ForeignKey('cuentas_bancarias.id'))
     centro_costo_id = db.Column(db.Integer, db.ForeignKey('centros_costo.id'))
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'))
     contrato_id = db.Column(db.Integer, db.ForeignKey('contratos.id'))
-    
+
     # Estado y tracking
     estado = db.Column(db.Enum(EstadoMovimiento), default=EstadoMovimiento.CONFIRMADO, nullable=False)
     fecha_confirmacion = db.Column(db.DateTime)
-    
+
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     proyecto = db.relationship('Proyecto', backref='movimientos_financieros')
     contrato = db.relationship('Contrato', backref='movimientos_financieros')
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_movimiento_fecha', 'fecha'),
@@ -1472,7 +1471,7 @@ class MovimientoFinanciero(db.Model):
         Index('idx_movimiento_contrato', 'contrato_id'),
         Index('idx_movimiento_centro_costo', 'centro_costo_id'),
     )
-    
+
     def __repr__(self):
         return f'<MovimientoFinanciero {self.fecha}-{self.tipo.value}-{self.monto}>'
 
@@ -1589,32 +1588,32 @@ class BitacoraProyecto(db.Model):
 class NotificationPreferences(db.Model):
     """Preferencias de notificación por usuario"""
     __tablename__ = 'notification_preferences'
-    
+
     id = db.Column(db.String, primary_key=True, default=lambda: str(db.func.gen_random_uuid()))
     user_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
-    
+
     # Preferencias específicas por tipo de notificación
     nuevo_proyecto_email = db.Column(db.Boolean, default=True)
     comentario_bitacora_email = db.Column(db.Boolean, default=True) 
     cambio_estado_of_email = db.Column(db.Boolean, default=True)
     vencimiento_contrato_email = db.Column(db.Boolean, default=True)
     retraso_proyecto_email = db.Column(db.Boolean, default=True)
-    
+
     # Configuraciones generales
     email_enabled = db.Column(db.Boolean, default=True)
-    
+
     # Audit fields
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
-    
+
     # Relationships
     user = db.relationship('User', backref='notification_preferences')
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_notification_preferences_user', 'user_id'),
     )
-    
+
     def __repr__(self):
         return f"<NotificationPreferences(user_id={self.user_id})>"
 
@@ -1622,28 +1621,28 @@ class NotificationPreferences(db.Model):
 class CostoProyecto(db.Model):
     """Costos registrados desde el ERP para proyectos"""
     __tablename__ = 'costos_proyecto'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     proyecto_id = db.Column(db.Integer, db.ForeignKey('proyectos.id'), nullable=False)
     categoria = db.Column(db.Enum(CategoriaCosto), nullable=False)
     descripcion = db.Column(db.Text, nullable=False)
     monto = db.Column(db.Numeric(15, 2), nullable=False)
     fecha_registro = db.Column(db.Date, nullable=False)
-    
+
     # Referencia al ERP (opcional)
     codigo_erp = db.Column(db.String(50))  # Para linking con ERP Mobikit
     documento_referencia = db.Column(db.String(100))  # Factura, guía, etc.
     proveedor = db.Column(db.String(200))
-    
+
     # Campos de auditoría
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
-    
+
     # Relationships
     proyecto = db.relationship('Proyecto', backref='costos')
     creator = db.relationship('User', foreign_keys=[created_by])
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_costo_proyecto', 'proyecto_id'),
@@ -1651,6 +1650,6 @@ class CostoProyecto(db.Model):
         Index('idx_costo_fecha', 'fecha_registro'),
         Index('idx_costo_erp', 'codigo_erp'),
     )
-    
+
     def __repr__(self):
         return f'<CostoProyecto {self.proyecto_id}-{self.categoria.value}-{self.monto}>'

@@ -411,14 +411,18 @@ def revenue_management():
         monthly_data = service.get_monthly_data(año)
         kpis = service.calculate_kpis(año)
 
-        # Get break even curve for chart
-        be_curve = service.get_break_even_curve()
+        # Get break even curves for chart
+        be_curve_general = service.get_break_even_curve('general')
+        be_curve_constructoras = service.get_break_even_curve('constructoras')
+        available_curves = service.get_available_curves()
 
         return render_template('comercial/revenue_management.html',
                              año=año,
                              monthly_data=monthly_data,
                              kpis=kpis,
-                             be_curve=be_curve)
+                             be_curve_general=be_curve_general,
+                             be_curve_constructoras=be_curve_constructoras,
+                             available_curves=available_curves)
 
     except Exception as e:
         flash(f'Error al cargar Revenue Management: {str(e)}', 'error')
@@ -498,13 +502,17 @@ def api_revenue_simular():
         margen_sim_pct = float(data.get('margen_sim_pct', 30))
         buffer_pp = float(data.get('buffer_pp', 2.0))
         utilidad_objetivo_clp = float(data.get('utilidad_objetivo_clp', 0))
+        curve_type = data.get('curve_type', 'general')
+        curve_buffer_pct = float(data.get('curve_buffer_pct', 0.0))
 
         resultado = service.simulate_scenario(
             adjudicado_base=adjudicado_base,
             adjudicado_extra=adjudicado_extra,
             margen_sim_pct=margen_sim_pct,
             buffer_pp=buffer_pp,
-            utilidad_objetivo_clp=utilidad_objetivo_clp
+            utilidad_objetivo_clp=utilidad_objetivo_clp,
+            curve_type=curve_type,
+            curve_buffer_pct=curve_buffer_pct
         )
 
         return jsonify({

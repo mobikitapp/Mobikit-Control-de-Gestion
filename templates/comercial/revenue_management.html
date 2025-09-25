@@ -123,8 +123,10 @@
                                     <th style="width: 13%; text-align: right;">Presupuesto<br><small class="text-muted">(MM CLP)</small></th>
                                     <th style="width: 13%; text-align: right;">Adjudicado<br><small class="text-muted">(MM CLP)</small></th>
                                     <th style="width: 10%; text-align: center;">Margen<br>Real %</th>
-                                    <th style="width: 8%; text-align: center;">Buffer<br>PP %</th>
-                                    <th style="width: 12%; text-align: right;">Utilidad<br>Objetivo<br><small class="text-muted">(MM CLP)</small></th>
+                                    <th style="width: 6%; text-align: center;">Buffer<br>PP %</th>
+                                    <th style="width: 10%; text-align: right;">Utilidad<br>Objetivo<br><small class="text-muted">(MM CLP)</small></th>
+                                    <th style="width: 8%; text-align: center;">Curva BE</th>
+                                    <th style="width: 6%; text-align: center;">Buffer<br>Curva %</th>
                                     <th style="width: 8%; text-align: center;">Break<br>Even %</th>
                                     <th style="width: 8%; text-align: center;">Margen<br>Obj. %</th>
                                     <th style="width: 10%; text-align: center;">Estado</th>
@@ -192,6 +194,21 @@
                                                value="{{ mes.utilidad_objetivo_clp }}" 
                                                onchange="updateField({{ mes.mes }}, 'utilidad_objetivo_clp', this.value)">
                                     </td>
+                                    <td>
+                                        <select class="form-select form-select-sm" 
+                                                onchange="updateField({{ mes.mes }}, 'curve_type', this.value)">
+                                            {% for curve_key, curve_name in available_curves.items() %}
+                                            <option value="{{ curve_key }}" {% if mes.get('curve_type', 'general') == curve_key %}selected{% endif %}>
+                                                {{ curve_key.title() }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm" 
+                                               value="{{ mes.get('curve_buffer_pct', 0.0) }}" step="0.1"
+                                               onchange="updateField({{ mes.mes }}, 'curve_buffer_pct', this.value)">
+                                    </td>
                                     <td><span class="badge bg-secondary">{{ "{:.1f}".format(mes.be_pct) }}%</span></td>
                                     <td><span class="badge bg-primary">{{ "{:.1f}".format(mes.margen_objetivo_pct) }}%</span></td>
                                     <td>
@@ -254,6 +271,23 @@
                                min="0" max="20000000" step="1000000" value="5000000"
                                oninput="updateSimulation()">
                         <small class="text-muted" id="utilidad-objetivo-value">$5M</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Curva Break Even</label>
+                        <select class="form-select" id="curve-type" onchange="updateSimulation()">
+                            {% for curve_key, curve_name in available_curves.items() %}
+                            <option value="{{ curve_key }}">{{ curve_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Buffer Curva (%)</label>
+                        <input type="range" class="form-range" id="curve-buffer" 
+                               min="-10" max="10" step="0.1" value="0"
+                               oninput="updateSimulation()">
+                        <small class="text-muted" id="curve-buffer-value">0.0%</small>
                     </div>
 
                     <hr>
@@ -357,7 +391,8 @@
     // Global variables
     let año = {{ año }};
     let monthlyData = {{ monthly_data | tojson }};
-    let beCurve = {{ be_curve | tojson }};
+    let beCurveGeneral = {{ be_curve_general | tojson }};
+    let beCurveConstructoras = {{ be_curve_constructoras | tojson }};
     let charts = {};
 
     // Initialize page
@@ -413,6 +448,8 @@
         const margenSim = parseFloat(document.getElementById('margen-sim').value);
         const bufferPp = parseFloat(document.getElementById('buffer-pp').value);
         const utilidadObjetivo = parseInt(document.getElementById('utilidad-objetivo').value);
+        const curveType = document.getElementById('curve-type').value;
+        const curveBuffer = parseFloat(document.getElementById('curve-buffer').value);
 
         // Update display values
         document.getElementById('adjudicado-base-value').textContent = `$${Math.round(adjudicadoBase/1000000)}M`;
@@ -420,6 +457,7 @@
         document.getElementById('margen-sim-value').textContent = `${margenSim}%`;
         document.getElementById('buffer-pp-value').textContent = `${bufferPp}%`;
         document.getElementById('utilidad-objetivo-value').textContent = `$${Math.round(utilidadObjetivo/1000000)}M`;
+        document.getElementById('curve-buffer-value').textContent = `${curveBuffer}%`;
 
         // Call simulation API
         const data = {
@@ -427,7 +465,9 @@
             adjudicado_extra: adjudicadoExtra,
             margen_sim_pct: margenSim,
             buffer_pp: bufferPp,
-            utilidad_objetivo_clp: utilidadObjetivo
+            utilidad_objetivo_clp: utilidadObjetivo,
+            curve_type: curveType,
+            curve_buffer_pct: curveBuffer
         };
 
         fetch('/comercial/api/revenue/simular', {
@@ -619,14 +659,21 @@
         charts.breakEven = new Chart(ctx3, {
             type: 'line',
             data: {
-                labels: beCurve.map(point => `$${Math.round(point[0]/1000000)}M`),
+                labels: beCurveGeneral.map(point => `$${Math.round(point[0]/1000000)}M`),
                 datasets: [{
-                    label: 'Break Even (%)',
-                    data: beCurve.map(point => point[1]),
+                    label: 'Break Even General (%)',
+                    data: beCurveGeneral.map(point => point[1]),
                     borderColor: 'rgb(255, 159, 64)',
                     backgroundColor: 'rgba(255, 159, 64, 0.1)',
                     tension: 0.1,
-                    fill: true
+                    fill: false
+                }, {
+                    label: 'Break Even Constructoras (%)',
+                    data: beCurveConstructoras.map(point => point[1]),
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.1,
+                    fill: false
                 }]
             },
             options: {
