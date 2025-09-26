@@ -629,6 +629,13 @@ class PlanificacionOperacionalService:
             # Estructura de demanda jerárquica
             demanda_jerarquica = {}
             
+            # Nombres de meses en español
+            nombres_meses_es = {
+                1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+                5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+                9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+            }
+            
             # Inicializar estructura para cada mes en el horizonte
             for i in range(horizonte_meses):
                 fecha_mes = fecha_inicio + relativedelta(months=i)
@@ -636,7 +643,7 @@ class PlanificacionOperacionalService:
                 demanda_jerarquica[mes_key] = {
                     'mes': fecha_mes.month,
                     'año': fecha_mes.year,
-                    'nombre_mes': fecha_mes.strftime('%B %Y'),
+                    'nombre_mes': f"{nombres_meses_es[fecha_mes.month]} {fecha_mes.year}",
                     'proyectos': {},
                     'totales_mes': {
                         'total_tableros': 0,
