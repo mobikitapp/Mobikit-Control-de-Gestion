@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% set title = "Análisis Estratégico - " + periodo_info.nombre_periodo %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">
+                                <i class="fas fa-chart-line text-success"></i>
+                                Análisis Estratégico - {{ periodo_info.nombre_periodo }}
+                            </h4>
+                            <p class="mb-0 text-muted">Vista estratégica mensual | {{ datos_detalle.total_registros }} actividades totales</p>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <a href="{{ url_for('calendario.analisis_estrategico_mensual', year=navegacion.anterior.year, month=navegacion.anterior.month) }}" 
+                               class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                            <span class="mx-3">{{ periodo_info.nombre_periodo }}</span>
+                            <a href="{{ url_for('calendario.analisis_estrategico_mensual', year=navegacion.siguiente.year, month=navegacion.siguiente.month) }}" 
+                               class="btn btn-outline-secondary ms-2">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="btn-group mb-3" role="group" aria-label="Vistas del calendario">
+                        <a href="{{ url_for('calendario.analisis_estrategico_mensual', year=periodo_info.year, month=periodo_info.month) }}" 
+                           class="btn btn-success">
+                            <i class="fas fa-chart-line"></i> Estratégico Mensual
+                        </a>
+                        <a href="{{ url_for('calendario.analisis_estrategico_semanal', year=periodo_info.year, month=periodo_info.month, day=now.day) }}" 
+                           class="btn btn-outline-success">
+                            <i class="fas fa-chart-bar"></i> Estratégico Semanal
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('calendario.vista_mensual', year=periodo_info.year, month=periodo_info.month) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-calendar-alt"></i> Vista Normal
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Strategic KPIs Row -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tachometer-alt text-primary"></i>
+                        KPIs Estratégicos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Volume Metrics -->
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <h3 class="text-primary mb-1">{{ kpis_estrategicos.volumenes.total_actividades }}</h3>
+                                <p class="mb-0 small text-muted">Actividades Totales</p>
+                                <div class="mt-2">
+                                    <span class="badge bg-info">{{ kpis_estrategicos.volumenes.total_despachos }} Despachos</span>
+                                    <span class="badge bg-warning">{{ kpis_estrategicos.volumenes.total_hitos }} Hitos</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Performance Metrics -->
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <h3 class="
+                                    {% if kpis_estrategicos.indicadores_rendimiento.indicador_eficiencia_global >= 90 %}text-success
+                                    {% elif kpis_estrategicos.indicadores_rendimiento.indicador_eficiencia_global >= 70 %}text-warning
+                                    {% else %}text-danger{% endif %}
+                                    mb-1">{{ kpis_estrategicos.indicadores_rendimiento.indicador_eficiencia_global }}%</h3>
+                                <p class="mb-0 small text-muted">Eficiencia Global</p>
+                                <div class="mt-2">
+                                    <span class="badge bg-secondary">{{ kpis_estrategicos.clasificacion_rendimiento|title }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dispatch Performance -->
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <h3 class="text-info mb-1">{{ kpis_estrategicos.indicadores_rendimiento.tasa_cumplimiento_despachos }}%</h3>
+                                <p class="mb-0 small text-muted">Cumplimiento Despachos</p>
+                                <div class="mt-2 small">
+                                    <div>Entregados: {{ kpis_estrategicos.estado_despachos.entregados }}</div>
+                                    <div>Programados: {{ kpis_estrategicos.estado_despachos.programados }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Milestone Performance -->
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <h3 class="text-warning mb-1">{{ kpis_estrategicos.indicadores_rendimiento.tasa_cumplimiento_hitos }}%</h3>
+                                <p class="mb-0 small text-muted">Cumplimiento Hitos</p>
+                                <div class="mt-2 small">
+                                    <div>Completados: {{ kpis_estrategicos.estado_hitos.completados }}</div>
+                                    <div>Pendientes: {{ kpis_estrategicos.estado_hitos.pendientes }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-list text-success"></i>
+                        Resumen Ejecutivo
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-
+                        {% if resumen_ejecutivo.estado_general == 'excelente' %}success
+                        {% elif resumen_ejecutivo.estado_general == 'bueno' %}info  
+                        {% elif resumen_ejecutivo.estado_general == 'regular' %}warning
+                        {% else %}danger{% endif %}
+                        mb-3">
+                        <h6 class="alert-heading">Estado: {{ resumen_ejecutivo.estado_general|title }}</h6>
+                        <p class="mb-0">{{ resumen_ejecutivo.mensaje_principal }}</p>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Recomendación:</strong>
+                            <p class="text-muted">{{ resumen_ejecutivo.recomendacion_accion }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Tendencias:</strong>
+                            <p class="text-muted">{{ tendencias.proyeccion }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strategic Alerts -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle text-warning"></i>
+                        Alertas Estratégicas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if alertas_estrategicas %}
+                        {% for alerta in alertas_estrategicas %}
+                        <div class="alert alert-{% if alerta.nivel == 'alto' %}danger{% else %}warning{% endif %} py-2 mb-2">
+                            <strong>{{ alerta.tipo|replace('_', ' ')|title }}:</strong>
+                            <small class="d-block">{{ alerta.mensaje }}</small>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-muted text-center">
+                            <i class="fas fa-check-circle text-success mb-2"></i>
+                            <p>No hay alertas estratégicas</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly Analysis Within Month -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-week text-info"></i>
+                        Análisis por Semanas del Mes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for periodo in analisis_periodos %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-{% if periodo.criticidad == 'critica' %}danger{% elif periodo.criticidad == 'alta' %}warning{% else %}secondary{% endif %}">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">{{ periodo.periodo }}</h6>
+                                    <div class="mb-2">
+                                        <span class="badge bg-primary">{{ periodo.actividades_totales }} Actividades</span>
+                                    </div>
+                                    <div class="small">
+                                        <div>Despachos: {{ periodo.despachos_count }}</div>
+                                        <div>Hitos: {{ periodo.hitos_count }}</div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <span class="badge bg-{% if periodo.carga_trabajo == 'critica' %}danger{% elif periodo.carga_trabajo == 'alta' %}warning{% elif periodo.carga_trabajo == 'media' %}info{% else %}success{% endif %}">
+                                            Carga: {{ periodo.carga_trabajo|title }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row">
+        <div class="col-12 text-center">
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('calendario.vista_mensual', year=periodo_info.year, month=periodo_info.month) }}" 
+                   class="btn btn-outline-primary">
+                    <i class="fas fa-calendar-alt"></i> Vista Operacional
+                </a>
+                <a href="{{ url_for('calendario.analisis_estrategico_semanal', year=periodo_info.year, month=periodo_info.month, day=now.day) }}" 
+                   class="btn btn-outline-success">
+                    <i class="fas fa-chart-bar"></i> Análisis Semanal
+                </a>
+                <button class="btn btn-outline-info" onclick="window.print()">
+                    <i class="fas fa-print"></i> Imprimir Reporte
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
