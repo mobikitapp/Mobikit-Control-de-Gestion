@@ -133,10 +133,9 @@
                                     <th class="text-center">Total OFs</th>
                                     <th class="text-center">Total Tableros</th>
                                     <th class="text-center">Tiempo Promedio (días)</th>
-                                    <th class="text-center">Tableros/Día (Total)</th>
-                                    <th class="text-center">Tableros/Día (Fábrica)</th>
-                                    <th class="text-center">Tableros/Día (Embalaje)</th>
-                                    <th class="text-center">Eficiencia Promedio</th>
+                                    <th class="text-center">Tableros/Día (Real)</th>
+                                    <th class="text-center">Tableros/Día (Estimado)</th>
+                                    <th class="text-center">Diferencia (%)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -151,16 +150,21 @@
                                             {{ metricas.promedio_tableros_por_dia_total }}
                                         </span>
                                     </td>
-                                    <td class="text-center">{{ metricas.promedio_tableros_por_dia_fabrica }}</td>
-                                    <td class="text-center">{{ metricas.promedio_tableros_por_dia_embalaje }}</td>
                                     <td class="text-center">
-                                        {% set eficiencia = metricas.eficiencia_promedio %}
-                                        {% if eficiencia >= 90 %}
-                                            <span class="badge bg-success">{{ eficiencia }}%</span>
-                                        {% elif eficiencia >= 70 %}
-                                            <span class="badge bg-warning">{{ eficiencia }}%</span>
+                                        <span class="badge bg-info fs-6">
+                                            {{ metricas.tableros_dia_estimado }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% set diferencia = metricas.diferencia_vs_estimado %}
+                                        {% if diferencia > 0 %}
+                                            <span class="badge bg-success">+{{ diferencia }}%</span>
+                                        {% elif diferencia < -20 %}
+                                            <span class="badge bg-danger">{{ diferencia }}%</span>
+                                        {% elif diferencia < 0 %}
+                                            <span class="badge bg-warning">{{ diferencia }}%</span>
                                         {% else %}
-                                            <span class="badge bg-danger">{{ eficiencia }}%</span>
+                                            <span class="badge bg-secondary">{{ diferencia }}%</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -191,9 +195,9 @@
                                     <th>Área</th>
                                     <th class="text-center">Total OFs</th>
                                     <th class="text-center">Total Tableros</th>
-                                    <th class="text-center">Tableros/Día Promedio</th>
-                                    <th class="text-center">Tiempo Promedio (días)</th>
-                                    <th class="text-center">Eficiencia vs Estimado</th>
+                                    <th class="text-center">Tableros/Día (Real)</th>
+                                    <th class="text-center">Tableros/Día (Estimado)</th>
+                                    <th class="text-center">Diferencia (%)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -203,19 +207,25 @@
                                     <td class="text-center">{{ metricas.total_ofs }}</td>
                                     <td class="text-center">{{ metricas.total_tableros }}</td>
                                     <td class="text-center">
-                                        <span class="badge bg-info fs-6">
+                                        <span class="badge bg-primary fs-6">
                                             {{ metricas.promedio_tableros_por_dia }}
                                         </span>
                                     </td>
-                                    <td class="text-center">{{ metricas.promedio_tiempo_dias }}</td>
                                     <td class="text-center">
-                                        {% set eficiencia = metricas.eficiencia_promedio %}
-                                        {% if eficiencia >= 90 %}
-                                            <span class="badge bg-success">{{ eficiencia }}%</span>
-                                        {% elif eficiencia >= 70 %}
-                                            <span class="badge bg-warning">{{ eficiencia }}%</span>
+                                        <span class="badge bg-info fs-6">
+                                            {{ metricas.tableros_dia_estimado }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% set diferencia = metricas.diferencia_vs_estimado %}
+                                        {% if diferencia > 0 %}
+                                            <span class="badge bg-success">+{{ diferencia }}%</span>
+                                        {% elif diferencia < -20 %}
+                                            <span class="badge bg-danger">{{ diferencia }}%</span>
+                                        {% elif diferencia < 0 %}
+                                            <span class="badge bg-warning">{{ diferencia }}%</span>
                                         {% else %}
-                                            <span class="badge bg-danger">{{ eficiencia }}%</span>
+                                            <span class="badge bg-secondary">{{ diferencia }}%</span>
                                         {% endif %}
                                     </td>
                                 </tr>

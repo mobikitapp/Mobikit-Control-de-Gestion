@@ -291,19 +291,24 @@ class ProductividadService:
         try:
             metricas = {}
             
+            # Obtener factores de tiempo estimados de configuración
+            factores_tiempo = self._get_factores_tiempo_estimados()
+            
             # Agrupar por tipo
             for tipo in ['SOCIAL', 'ESTANDAR', 'ESPECIAL']:
                 ofs_tipo = [of for of in ofs_data if of['tipo_proyecto'] == tipo]
                 
                 if not ofs_tipo:
+                    # Calcular tableros/día estimado basado en factores de configuración
+                    tableros_dia_estimado = self._calcular_tableros_dia_estimado_tipo(tipo, factores_tiempo)
+                    
                     metricas[tipo] = {
                         'total_ofs': 0,
                         'total_tableros': 0,
                         'promedio_tiempo_dias': 0,
                         'promedio_tableros_por_dia_total': 0,
-                        'promedio_tableros_por_dia_fabrica': 0,
-                        'promedio_tableros_por_dia_embalaje': 0,
-                        'eficiencia_promedio': 0
+                        'tableros_dia_estimado': tableros_dia_estimado,
+                        'diferencia_vs_estimado': 0
                     }
                     continue
                 
@@ -316,19 +321,21 @@ class ProductividadService:
                 # Calcular tableros/día total usando total tableros / promedio tiempo
                 promedio_tableros_por_dia_total = round(total_tableros / promedio_tiempo_total, 2) if promedio_tiempo_total > 0 else 0
                 
-                # Para las otras métricas, usar promedio de ratios individuales
-                tableros_dia_fabrica = [of['productividad']['tableros_por_dia_fabrica'] for of in ofs_tipo if of['productividad']['tableros_por_dia_fabrica'] > 0]
-                tableros_dia_embalaje = [of['productividad']['tableros_por_dia_embalaje'] for of in ofs_tipo if of['productividad']['tableros_por_dia_embalaje'] > 0]
-                eficiencias = [of['eficiencia']['total_vs_estimado'] for of in ofs_tipo if of['eficiencia']['total_vs_estimado'] > 0]
+                # Calcular tableros/día estimado basado en factores de configuración
+                tableros_dia_estimado = self._calcular_tableros_dia_estimado_tipo(tipo, factores_tiempo)
+                
+                # Calcular diferencia porcentual
+                diferencia_vs_estimado = 0
+                if tableros_dia_estimado > 0 and promedio_tableros_por_dia_total > 0:
+                    diferencia_vs_estimado = round(((promedio_tableros_por_dia_total - tableros_dia_estimado) / tableros_dia_estimado) * 100, 1)
                 
                 metricas[tipo] = {
                     'total_ofs': len(ofs_tipo),
                     'total_tableros': total_tableros,
                     'promedio_tiempo_dias': promedio_tiempo_total,
                     'promedio_tableros_por_dia_total': promedio_tableros_por_dia_total,
-                    'promedio_tableros_por_dia_fabrica': round(sum(tableros_dia_fabrica) / len(tableros_dia_fabrica), 2) if tableros_dia_fabrica else 0,
-                    'promedio_tableros_por_dia_embalaje': round(sum(tableros_dia_embalaje) / len(tableros_dia_embalaje), 2) if tableros_dia_embalaje else 0,
-                    'eficiencia_promedio': round(sum(eficiencias) / len(eficiencias), 1) if eficiencias else 0
+                    'tableros_dia_estimado': tableros_dia_estimado,
+                    'diferencia_vs_estimado': diferencia_vs_estimado
                 }
             
             return metricas
@@ -342,6 +349,9 @@ class ProductividadService:
         try:
             metricas = {}
             
+            # Obtener factores de tiempo estimados de configuración
+            factores_tiempo = self._get_factores_tiempo_estimados()
+            
             for area in ['fabrica', 'embalaje']:
                 if area_filtro and area_filtro.lower() != area:
                     continue
@@ -350,30 +360,39 @@ class ProductividadService:
                 ofs_area = [of for of in ofs_data if of['productividad'][f'tableros_por_dia_{area}'] > 0]
                 
                 if not ofs_area:
+                    # Calcular tableros/día estimado para el área
+                    tableros_dia_estimado = self._calcular_tableros_dia_estimado_area(area, factores_tiempo)
+                    
                     metricas[area] = {
                         'total_ofs': 0,
                         'total_tableros': 0,
                         'promedio_tableros_por_dia': 0,
-                        'promedio_tiempo_dias': 0,
-                        'eficiencia_promedio': 0
+                        'tableros_dia_estimado': tableros_dia_estimado,
+                        'diferencia_vs_estimado': 0
                     }
                     continue
                 
                 total_tableros = sum(of['cantidad_tableros'] for of in ofs_area)
-                tableros_dia = [of['productividad'][f'tableros_por_dia_{area}'] for of in ofs_area]
                 tiempos_dias = [of['tiempos_reales'][area]['dias'] for of in ofs_area if of['tiempos_reales'][area]['dias'] > 0]
-                eficiencias = [of['eficiencia'][f'{area}_vs_estimado'] for of in ofs_area if of['eficiencia'][f'{area}_vs_estimado'] > 0]
                 
                 # Calcular tableros/día promedio correctamente: total tableros / promedio de días
                 promedio_tiempo_dias = round(sum(tiempos_dias) / len(tiempos_dias), 2) if tiempos_dias else 0
                 promedio_tableros_por_dia = round(total_tableros / promedio_tiempo_dias, 2) if promedio_tiempo_dias > 0 else 0
                 
+                # Calcular tableros/día estimado para el área
+                tableros_dia_estimado = self._calcular_tableros_dia_estimado_area(area, factores_tiempo)
+                
+                # Calcular diferencia porcentual
+                diferencia_vs_estimado = 0
+                if tableros_dia_estimado > 0 and promedio_tableros_por_dia > 0:
+                    diferencia_vs_estimado = round(((promedio_tableros_por_dia - tableros_dia_estimado) / tableros_dia_estimado) * 100, 1)
+                
                 metricas[area] = {
                     'total_ofs': len(ofs_area),
                     'total_tableros': total_tableros,
                     'promedio_tableros_por_dia': promedio_tableros_por_dia,
-                    'promedio_tiempo_dias': promedio_tiempo_dias,
-                    'eficiencia_promedio': round(sum(eficiencias) / len(eficiencias), 1) if eficiencias else 0
+                    'tableros_dia_estimado': tableros_dia_estimado,
+                    'diferencia_vs_estimado': diferencia_vs_estimado
                 }
             
             return metricas
@@ -494,6 +513,79 @@ class ProductividadService:
             logger.error(f"Error en análisis estadístico: {str(e)}")
             return {'error': str(e)}
     
+    def _get_factores_tiempo_estimados(self) -> Dict[str, float]:
+        """Obtiene factores de tiempo estimados desde configuración"""
+        try:
+            # Obtener factores de tiempo desde el servicio de planificación
+            factores = self.planificacion_service.get_factores_conversion()
+            
+            return {
+                'factor_tiempo_fabrica_social': factores.get('factor_tiempo_fabrica_social', 0.025),
+                'factor_tiempo_embalaje_social': factores.get('factor_tiempo_embalaje_social', 0.01),
+                'factor_tiempo_fabrica_estandar': factores.get('factor_tiempo_fabrica_estandar', 0.02),
+                'factor_tiempo_embalaje_estandar': factores.get('factor_tiempo_embalaje_estandar', 0.008),
+                'factor_tiempo_fabrica_especial': factores.get('factor_tiempo_fabrica_especial', 0.015),
+                'factor_tiempo_embalaje_especial': factores.get('factor_tiempo_embalaje_especial', 0.006)
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo factores de tiempo: {str(e)}")
+            # Valores por defecto si hay error
+            return {
+                'factor_tiempo_fabrica_social': 0.025,
+                'factor_tiempo_embalaje_social': 0.01,
+                'factor_tiempo_fabrica_estandar': 0.02,
+                'factor_tiempo_embalaje_estandar': 0.008,
+                'factor_tiempo_fabrica_especial': 0.015,
+                'factor_tiempo_embalaje_especial': 0.006
+            }
+
+    def _calcular_tableros_dia_estimado_tipo(self, tipo_proyecto: str, factores_tiempo: Dict[str, float]) -> float:
+        """Calcula tableros/día estimado total para un tipo de proyecto"""
+        try:
+            tipo_lower = tipo_proyecto.lower()
+            
+            # Obtener factores de tiempo por tipo (días por tablero)
+            tiempo_fabrica_por_tablero = factores_tiempo.get(f'factor_tiempo_fabrica_{tipo_lower}', 0.02)
+            tiempo_embalaje_por_tablero = factores_tiempo.get(f'factor_tiempo_embalaje_{tipo_lower}', 0.008)
+            
+            # Tiempo total por tablero
+            tiempo_total_por_tablero = tiempo_fabrica_por_tablero + tiempo_embalaje_por_tablero
+            
+            # Tableros por día = 1 / (días por tablero)
+            if tiempo_total_por_tablero > 0:
+                tableros_por_dia = round(1 / tiempo_total_por_tablero, 2)
+            else:
+                tableros_por_dia = 0
+                
+            return tableros_por_dia
+            
+        except Exception as e:
+            logger.error(f"Error calculando tableros/día estimado para tipo {tipo_proyecto}: {str(e)}")
+            return 0
+
+    def _calcular_tableros_dia_estimado_area(self, area: str, factores_tiempo: Dict[str, float]) -> float:
+        """Calcula tableros/día estimado promedio para un área (promedio de todos los tipos)"""
+        try:
+            tableros_dia_por_tipo = []
+            
+            for tipo in ['social', 'estandar', 'especial']:
+                factor_area = factores_tiempo.get(f'factor_tiempo_{area}_{tipo}', 0.02)
+                if factor_area > 0:
+                    tableros_dia_tipo = 1 / factor_area
+                    tableros_dia_por_tipo.append(tableros_dia_tipo)
+            
+            # Promedio de tableros/día por área
+            if tableros_dia_por_tipo:
+                promedio_tableros_dia = round(sum(tableros_dia_por_tipo) / len(tableros_dia_por_tipo), 2)
+            else:
+                promedio_tableros_dia = 0
+                
+            return promedio_tableros_dia
+            
+        except Exception as e:
+            logger.error(f"Error calculando tableros/día estimado para área {area}: {str(e)}")
+            return 0
+
     def _identificar_outliers(self, ofs_data: List[Dict]) -> List[Dict]:
         """Identifica OFs con productividad atípica (outliers)"""
         try:
