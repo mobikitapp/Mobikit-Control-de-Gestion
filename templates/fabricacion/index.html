@@ -350,7 +350,8 @@
                             <td>
                                 {% if despacho.fecha_programada %}
                                     {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
-                                    {% if despacho.fecha_programada < moment().date() %}
+                                    {% set today = moment().now().date() %}
+                                    {% if despacho.fecha_programada < today %}
                                     <br><span class="badge bg-danger">Atrasado</span>
                                     {% endif %}
                                 {% else %}
@@ -373,66 +374,6 @@
                                        class="btn btn-sm btn-outline-warning" title="Editar y asignar OFs">
                                         <i data-feather="edit"></i>
                                     </a>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                            <td>
-                                <div class="fw-medium">{{ despacho.numero_despacho }}</div>
-                                <small class="text-muted">ID: {{ despacho.id }}</small>
-                            </td>
-                            <td>
-                                <div class="fw-medium">{{ despacho.proyecto.nombre }}</div>
-                                <small class="text-muted">{{ despacho.proyecto.cliente.nombre }}</small>
-                            </td>
-                            <td>
-                                {% if despacho.contrato %}
-                                    <span class="badge bg-info">{{ despacho.contrato.numero_oc }}</span>
-                                {% else %}
-                                    <span class="text-muted">Sin contrato</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="text-truncate" style="max-width: 200px;" title="{{ despacho.destino }}">
-                                    {{ despacho.destino }}
-                                </div>
-                                {% if despacho.contacto_destino %}
-                                <small class="text-muted">{{ despacho.contacto_destino }}</small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if despacho.fecha_programada %}
-                                    {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
-                                    {% set today = moment_global().date() %}
-                                    {% set desp_date = despacho.fecha_programada %}
-                                    {% set days_diff = (desp_date - today).days %}
-                                    {% if days_diff < 0 %}
-                                        <br><span class="badge bg-danger">Vencido</span>
-                                    {% elif days_diff <= 7 %}
-                                        <br><span class="badge bg-warning">Próximo</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-muted">Sin fecha</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="badge bg-warning">
-                                    {{ despacho.estado.value|title|replace('_', ' ') }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" 
-                                       class="btn btn-sm btn-outline-primary" title="Ver despacho">
-                                        <i data-feather="eye"></i>
-                                    </a>
-                                    {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
-                                    <button type="button" class="btn btn-sm btn-success" 
-                                            title="Crear OF para este despacho"
-                                            onclick="crearOFParaDespacho({{ despacho.id }}, '{{ despacho.numero_despacho }}')">
-                                        <i data-feather="plus-circle"></i>
-                                        <span class="d-none d-md-inline">Crear OF</span>
-                                    </button>
                                     {% endif %}
                                 </div>
                             </td>
