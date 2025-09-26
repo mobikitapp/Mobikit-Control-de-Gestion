@@ -79,6 +79,22 @@
                                 </select>
                             </div>
 
+                            <!-- Glosa del Despacho -->
+                            <div class="col-12">
+                                <label for="glosa" class="form-label">
+                                    Glosa del Despacho <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" id="glosa" name="glosa" rows="2" required 
+                                          maxlength="500"
+                                          placeholder="Descripción breve del despacho (ej: Entrega muebles cocina casa 123, Despacho parcial closets departamento tipo A, etc.)">{{ despacho.glosa if despacho else '' }}</textarea>
+                                <div class="form-text">
+                                    Descripción que identifique claramente el contenido o propósito de este despacho (máximo 500 caracteres)
+                                </div>
+                                <div class="invalid-feedback">
+                                    Por favor ingresa una glosa para identificar este despacho.
+                                </div>
+                            </div>
+
                             <div class="col-12">
                                 <hr class="my-4">
                                 <h6>Órdenes de Fabricación</h6>

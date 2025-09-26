@@ -188,6 +188,7 @@
                     <thead class="table-dark">
                         <tr>
                             <th>Número</th>
+                            <th>Glosa</th>
                             <th>Proyecto</th>
                             <th>Cliente</th>
                             <th>Contrato</th>
@@ -204,6 +205,15 @@
                                 <div class="fw-medium">{{ despacho.numero_despacho }}</div>
                                 {% if despacho.hito_entrega %}
                                 <small class="text-muted">Hito: {{ despacho.hito_entrega.descripcion }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if despacho.glosa %}
+                                <span class="text-truncate" style="max-width: 200px; display: inline-block;" title="{{ despacho.glosa }}">
+                                    {{ despacho.glosa }}
+                                </span>
+                                {% else %}
+                                <small class="text-muted">Sin glosa</small>
                                 {% endif %}
                             </td>
                             <td>
@@ -526,7 +536,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
             }
-            
+
             // Handle OF details collapse (existing functionality)
             target.addEventListener('show.bs.collapse', () => {
                 const icon = button.querySelector('i[data-feather="package"]');

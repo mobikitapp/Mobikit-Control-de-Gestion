@@ -57,6 +57,7 @@ class DespachoBase(BaseModel):
     contrato_id: Optional[int] = Field(None, description="ID del contrato (opcional)")
     hito_entrega_id: Optional[int] = Field(None, description="ID del hito de entrega")
     numero_despacho: Optional[str] = Field(None, max_length=50, description="Número de despacho (se auto-genera si no se proporciona)")
+    glosa: str = Field(..., min_length=1, max_length=500, description="Glosa del despacho (obligatorio)")
     estado: EstadoDespachoEnum = Field(EstadoDespachoEnum.PROGRAMADO, description="Estado del despacho")
     fecha_programada: Optional[date] = Field(None, description="Fecha programada")
     fecha_envio: Optional[datetime] = Field(None, description="Fecha de envío")
@@ -83,6 +84,7 @@ class DespachoUpdate(BaseModel):
     contrato_id: Optional[int] = None
     hito_entrega_id: Optional[int] = None
     numero_despacho: Optional[str] = Field(None, max_length=50)
+    glosa: Optional[str] = Field(None, min_length=1, max_length=500)
     estado: Optional[EstadoDespachoEnum] = None
     fecha_programada: Optional[date] = None
     fecha_envio: Optional[datetime] = None
