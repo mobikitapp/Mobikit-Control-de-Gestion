@@ -416,7 +416,7 @@ class PlanificacionOperacionalService:
             capacity_fields = [
                 'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
                 'horas_disponibles_mes', 'horas_disponibles_semana',
-                'horas_por_tablero_social', 'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+                
             ]
             
             capacity_data = {}
