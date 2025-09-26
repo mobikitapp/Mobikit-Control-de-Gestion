@@ -318,8 +318,7 @@
                         <tr>
                             <th>Número Despacho</th>
                             <th>Proyecto / Cliente</th>
-                            <th>Contrato</th>
-                            <th>Destino</th>
+                            <th>Glosa</th>
                             <th>Fecha Programada</th>
                             <th>Estado</th>
                             <th width="150">Acciones</th>
@@ -328,6 +327,56 @@
                     <tbody>
                         {% for despacho in despachos_sin_ofs %}
                         <tr>
+                            <td>
+                                <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" class="text-decoration-none fw-medium">
+                                    {{ despacho.numero_despacho }}
+                                </a>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ despacho.proyecto.nombre }}</strong>
+                                </div>
+                                <small class="text-muted">{{ despacho.proyecto.cliente.nombre }}</small>
+                            </td>
+                            <td>
+                                {% if despacho.glosa %}
+                                <span class="text-truncate" style="max-width: 200px; display: inline-block;" title="{{ despacho.glosa }}">
+                                    {{ despacho.glosa }}
+                                </span>
+                                {% else %}
+                                <small class="text-muted">Sin glosa</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if despacho.fecha_programada %}
+                                    {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
+                                    {% if despacho.fecha_programada < moment().date() %}
+                                    <br><span class="badge bg-danger">Atrasado</span>
+                                    {% endif %}
+                                {% else %}
+                                    <small class="text-muted">Sin fecha</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'warning' if despacho.estado.value == 'PROGRAMADO' else 'info' if despacho.estado.value == 'EN_TRANSPORTE' else 'success' if despacho.estado.value == 'ENTREGADO' else 'danger' }}">
+                                    {{ despacho.estado.value|title|replace('_', ' ') }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" 
+                                       class="btn btn-sm btn-outline-primary" title="Ver detalle">
+                                        <i data-feather="eye"></i>
+                                    </a>
+                                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica'] %}
+                                    <a href="{{ url_for('despachos.editar', despacho_id=despacho.id) }}" 
+                                       class="btn btn-sm btn-outline-warning" title="Editar y asignar OFs">
+                                        <i data-feather="edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
                             <td>
                                 <div class="fw-medium">{{ despacho.numero_despacho }}</div>
                                 <small class="text-muted">ID: {{ despacho.id }}</small>
