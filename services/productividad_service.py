@@ -354,11 +354,15 @@ class ProductividadService:
                 tiempos_dias = [of['tiempos_reales'][area]['dias'] for of in ofs_area if of['tiempos_reales'][area]['dias'] > 0]
                 eficiencias = [of['eficiencia'][f'{area}_vs_estimado'] for of in ofs_area if of['eficiencia'][f'{area}_vs_estimado'] > 0]
                 
+                # Calcular tableros/día promedio correctamente: total tableros / promedio de días
+                promedio_tiempo_dias = round(sum(tiempos_dias) / len(tiempos_dias), 2) if tiempos_dias else 0
+                promedio_tableros_por_dia = round(total_tableros / promedio_tiempo_dias, 2) if promedio_tiempo_dias > 0 else 0
+                
                 metricas[area] = {
                     'total_ofs': len(ofs_area),
                     'total_tableros': total_tableros,
-                    'promedio_tableros_por_dia': round(sum(tableros_dia) / len(tableros_dia), 2) if tableros_dia else 0,
-                    'promedio_tiempo_dias': round(sum(tiempos_dias) / len(tiempos_dias), 2) if tiempos_dias else 0,
+                    'promedio_tableros_por_dia': promedio_tableros_por_dia,
+                    'promedio_tiempo_dias': promedio_tiempo_dias,
                     'eficiencia_promedio': round(sum(eficiencias) / len(eficiencias), 1) if eficiencias else 0
                 }
             
