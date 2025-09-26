@@ -516,27 +516,27 @@ class ProductividadService:
     def _get_factores_tiempo_estimados(self) -> Dict[str, float]:
         """Obtiene factores de tiempo estimados desde configuración"""
         try:
-            # Obtener factores de tiempo desde el servicio de planificación
-            factores = self.planificacion_service.get_factores_conversion()
+            # Obtener factores actualizados directamente desde el servicio de planificación
+            factores_conversion = self.planificacion_service.get_factores_conversion()
             
             return {
-                'factor_tiempo_fabrica_social': factores.get('factor_tiempo_fabrica_social', 0.025),
-                'factor_tiempo_embalaje_social': factores.get('factor_tiempo_embalaje_social', 0.01),
-                'factor_tiempo_fabrica_estandar': factores.get('factor_tiempo_fabrica_estandar', 0.02),
-                'factor_tiempo_embalaje_estandar': factores.get('factor_tiempo_embalaje_estandar', 0.008),
-                'factor_tiempo_fabrica_especial': factores.get('factor_tiempo_fabrica_especial', 0.015),
-                'factor_tiempo_embalaje_especial': factores.get('factor_tiempo_embalaje_especial', 0.006)
+                'factor_tiempo_fabrica_social': factores_conversion.get('SOCIAL', {}).get('factor_tiempo_fabrica', 0.02),
+                'factor_tiempo_embalaje_social': factores_conversion.get('SOCIAL', {}).get('factor_tiempo_embalaje', 0.008),
+                'factor_tiempo_fabrica_estandar': factores_conversion.get('ESTANDAR', {}).get('factor_tiempo_fabrica', 0.025),
+                'factor_tiempo_embalaje_estandar': factores_conversion.get('ESTANDAR', {}).get('factor_tiempo_embalaje', 0.01),
+                'factor_tiempo_fabrica_especial': factores_conversion.get('ESPECIAL', {}).get('factor_tiempo_fabrica', 0.05),
+                'factor_tiempo_embalaje_especial': factores_conversion.get('ESPECIAL', {}).get('factor_tiempo_embalaje', 0.012)
             }
         except Exception as e:
             logger.error(f"Error obteniendo factores de tiempo: {str(e)}")
             # Valores por defecto si hay error
             return {
-                'factor_tiempo_fabrica_social': 0.025,
-                'factor_tiempo_embalaje_social': 0.01,
-                'factor_tiempo_fabrica_estandar': 0.02,
-                'factor_tiempo_embalaje_estandar': 0.008,
-                'factor_tiempo_fabrica_especial': 0.015,
-                'factor_tiempo_embalaje_especial': 0.006
+                'factor_tiempo_fabrica_social': 0.02,
+                'factor_tiempo_embalaje_social': 0.008,
+                'factor_tiempo_fabrica_estandar': 0.025,
+                'factor_tiempo_embalaje_estandar': 0.01,
+                'factor_tiempo_fabrica_especial': 0.05,
+                'factor_tiempo_embalaje_especial': 0.012
             }
 
     def _calcular_tableros_dia_estimado_tipo(self, tipo_proyecto: str, factores_tiempo: Dict[str, float]) -> float:
