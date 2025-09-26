@@ -225,7 +225,7 @@
                                             <input type="number" class="form-control" name="horas_por_tablero_social" 
                                                    value="{{ factores.configuracion.horas_por_tablero_social }}" step="0.1" min="0" readonly>
                                             <small class="text-muted">
-                                                Calculado automáticamente: {{ "{:.3f}".format(factores.SOCIAL.factor_tiempo_fabrica) }} + {{ "{:.3f}".format(factores.SOCIAL.factor_tiempo_embalaje) }} días × 24h = {{ "{:.2f}".format((factores.SOCIAL.factor_tiempo_fabrica + factores.SOCIAL.factor_tiempo_embalaje) * 24) }}h
+                                                Calculado automáticamente: ({{ "{:.3f}".format(factores.SOCIAL.factor_tiempo_fabrica) }} + {{ "{:.3f}".format(factores.SOCIAL.factor_tiempo_embalaje) }}) días × 8h/turno × 1 turno = {{ "{:.2f}".format((factores.SOCIAL.factor_tiempo_fabrica + factores.SOCIAL.factor_tiempo_embalaje) * 8 * 1) }}h
                                             </small>
                                         </div>
                                         <div class="col-md-6">
@@ -236,7 +236,7 @@
                                             <input type="number" class="form-control" name="horas_por_tablero_estandar" 
                                                    value="{{ factores.configuracion.horas_por_tablero_estandar }}" step="0.1" min="0" readonly>
                                             <small class="text-muted">
-                                                Calculado automáticamente: {{ "{:.3f}".format(factores.ESTANDAR.factor_tiempo_fabrica) }} + {{ "{:.3f}".format(factores.ESTANDAR.factor_tiempo_embalaje) }} días × 24h = {{ "{:.2f}".format((factores.ESTANDAR.factor_tiempo_fabrica + factores.ESTANDAR.factor_tiempo_embalaje) * 24) }}h
+                                                Calculado automáticamente: ({{ "{:.3f}".format(factores.ESTANDAR.factor_tiempo_fabrica) }} + {{ "{:.3f}".format(factores.ESTANDAR.factor_tiempo_embalaje) }}) días × 8h/turno × 1 turno = {{ "{:.2f}".format((factores.ESTANDAR.factor_tiempo_fabrica + factores.ESTANDAR.factor_tiempo_embalaje) * 8 * 1) }}h
                                             </small>
                                         </div>
                                     </div>
@@ -250,7 +250,7 @@
                                             <input type="number" class="form-control" name="horas_por_tablero_especial" 
                                                    value="{{ factores.configuracion.horas_por_tablero_especial }}" step="0.1" min="0" readonly>
                                             <small class="text-muted">
-                                                Calculado automáticamente: {{ "{:.3f}".format(factores.ESPECIAL.factor_tiempo_fabrica) }} + {{ "{:.3f}".format(factores.ESPECIAL.factor_tiempo_embalaje) }} días × 24h = {{ "{:.2f}".format((factores.ESPECIAL.factor_tiempo_fabrica + factores.ESPECIAL.factor_tiempo_embalaje) * 24) }}h
+                                                Calculado automáticamente: ({{ "{:.3f}".format(factores.ESPECIAL.factor_tiempo_fabrica) }} + {{ "{:.3f}".format(factores.ESPECIAL.factor_tiempo_embalaje) }}) días × 8h/turno × 1 turno = {{ "{:.2f}".format((factores.ESPECIAL.factor_tiempo_fabrica + factores.ESPECIAL.factor_tiempo_embalaje) * 8 * 1) }}h
                                             </small>
                                         </div>
                                     </div>

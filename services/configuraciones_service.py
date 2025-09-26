@@ -655,14 +655,21 @@ class ConfiguracionesService:
             planif_service = PlanificacionOperacionalService()
             factores = planif_service.get_factores_conversion()
             
-            # Calculate horas_por_tablero from production times (fabricación + embalaje)
-            # Convert days to hours (assuming 8 hours per day)
-            horas_por_tablero_social = (factores.get('SOCIAL', {}).get('factor_tiempo_fabrica', 0.02) + 
-                                      factores.get('SOCIAL', {}).get('factor_tiempo_embalaje', 0.008)) * 24
-            horas_por_tablero_estandar = (factores.get('ESTANDAR', {}).get('factor_tiempo_fabrica', 0.025) + 
-                                        factores.get('ESTANDAR', {}).get('factor_tiempo_embalaje', 0.01)) * 24
-            horas_por_tablero_especial = (factores.get('ESPECIAL', {}).get('factor_tiempo_fabrica', 0.03) + 
-                                        factores.get('ESPECIAL', {}).get('factor_tiempo_embalaje', 0.012)) * 24
+            # Get operational parameters for correct calculation
+            horas_por_turno = 8.0  # Default hours per shift
+            turnos_por_dia = 1     # Default shifts per day
+            
+            # Calculate horas_por_tablero using correct formula:
+            # Horas por Tablero = (Tiempo Fabricación + Tiempo Embalaje) × Horas por turno × Turnos_dia
+            horas_por_tablero_social = ((factores.get('SOCIAL', {}).get('factor_tiempo_fabrica', 0.02) + 
+                                       factores.get('SOCIAL', {}).get('factor_tiempo_embalaje', 0.008)) * 
+                                       horas_por_turno * turnos_por_dia)
+            horas_por_tablero_estandar = ((factores.get('ESTANDAR', {}).get('factor_tiempo_fabrica', 0.025) + 
+                                         factores.get('ESTANDAR', {}).get('factor_tiempo_embalaje', 0.01)) * 
+                                         horas_por_turno * turnos_por_dia)
+            horas_por_tablero_especial = ((factores.get('ESPECIAL', {}).get('factor_tiempo_fabrica', 0.03) + 
+                                         factores.get('ESPECIAL', {}).get('factor_tiempo_embalaje', 0.012)) * 
+                                         horas_por_turno * turnos_por_dia)
         except Exception as e:
             print(f"Error calculating horas_por_tablero from production times: {e}")
             # Fallback values
