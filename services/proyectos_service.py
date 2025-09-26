@@ -960,7 +960,7 @@ class ProyectosService:
             from models import Contrato, OrdenFabricacion, Despacho, EstadoPago
             from schemas.contratos import EstadoContratoEnum
             from schemas.fabricacion import EstadoOrdenFabricacion
-            from services.treasury_integration_service import TreasuryIntegrationService
+            # Treasury integration service - using direct financial calculations instead
 
             proyecto = self.get_by_id(proyecto_id)
             if not proyecto:
