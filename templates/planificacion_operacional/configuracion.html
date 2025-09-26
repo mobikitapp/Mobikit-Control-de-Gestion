@@ -293,6 +293,35 @@
                                         </h6>
                                     </div>
                                     <div class="card-body">
+                                        <!-- Capacidad Calculada vs Configurada -->
+                                        <div class="alert alert-info mb-4">
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <h6 class="alert-heading">
+                                                        <i class="fas fa-calculator me-2"></i>
+                                                        Capacidad Calculada Automáticamente
+                                                    </h6>
+                                                    <p class="mb-2">
+                                                        Basándose en los parámetros operacionales configurados, la capacidad teórica calculada es diferente a la configuración actual.
+                                                    </p>
+                                                    <div id="capacidad-calculada-info" class="small">
+                                                        <span class="text-muted">Cargando cálculo de capacidad...</span>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4 text-end">
+                                                    <button type="button" class="btn btn-warning btn-sm mb-2" onclick="calcularCapacidadAutomatica()">
+                                                        <i class="fas fa-sync-alt me-1"></i>
+                                                        Recalcular
+                                                    </button>
+                                                    <br>
+                                                    <button type="button" class="btn btn-primary btn-sm" onclick="actualizarCapacidadCalculada()">
+                                                        <i class="fas fa-arrow-down me-1"></i>
+                                                        Aplicar Capacidad Calculada
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div class="row mb-3">
                                             <div class="col-md-6">
                                                 <label class="form-label">
@@ -300,6 +329,7 @@
                                                     Capacidad Máxima Tableros/Mes
                                                 </label>
                                                 <input type="number" class="form-control" name="capacidad_maxima_tableros_mes" 
+                                                       id="capacidad_maxima_tableros_mes"
                                                        value="{{ factores.configuracion.capacidad_maxima_tableros_mes }}" min="1" required>
                                                 <small class="text-muted">Número máximo de tableros que se pueden producir por mes</small>
                                             </div>
@@ -309,6 +339,7 @@
                                                     Capacidad Máxima Tableros/Semana
                                                 </label>
                                                 <input type="number" class="form-control" name="capacidad_maxima_tableros_semana" 
+                                                       id="capacidad_maxima_tableros_semana"
                                                        value="{{ factores.configuracion.capacidad_maxima_tableros_semana }}" min="1" required>
                                                 <small class="text-muted">Número máximo de tableros que se pueden producir por semana</small>
                                             </div>
@@ -670,6 +701,92 @@ document.addEventListener('DOMContentLoaded', function() {
     calculatorTabList.forEach(function (triggerEl) {
         new bootstrap.Tab(triggerEl);
     });
+
+    // Cargar información de capacidad calculada al iniciar
+    calcularCapacidadAutomatica();
 });
+
+let capacidadCalculadaData = null;
+
+function calcularCapacidadAutomatica() {
+    const infoDiv = document.getElementById('capacidad-calculada-info');
+    infoDiv.innerHTML = '<span class="text-muted">Calculando...</span>';
+    
+    fetch('/planificacion_operacional/api/capacidad_estrategica')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                infoDiv.innerHTML = `<span class="text-danger">Error: ${data.error}</span>`;
+                return;
+            }
+            
+            capacidadCalculadaData = data;
+            const calculos = data.calculos_capacidad;
+            const configurada = {{ factores.configuracion.capacidad_maxima_tableros_mes }};
+            const calculada = calculos.capacidad_actualizada_tableros_mes || 0;
+            const diferencia = calculada - configurada;
+            
+            let html = `
+                <strong>Capacidad Calculada:</strong> ${calculada} tableros/mes<br>
+                <strong>Capacidad Configurada:</strong> ${configurada} tableros/mes<br>
+                <strong>Diferencia:</strong> 
+            `;
+            
+            if (diferencia > 0) {
+                html += `<span class="text-success">+${diferencia} tableros (+${((diferencia/configurada)*100).toFixed(1)}%)</span><br>`;
+            } else if (diferencia < 0) {
+                html += `<span class="text-warning">${diferencia} tableros (${((diferencia/configurada)*100).toFixed(1)}%)</span><br>`;
+            } else {
+                html += `<span class="text-muted">Sin diferencia</span><br>`;
+            }
+            
+            html += `
+                <small class="text-muted">
+                    Basado en ${calculos.horas_efectivas_mes.toFixed(1)} horas efectivas/mes
+                    (${calculos.horas_nominales_mes} hrs nominales × ${(data.parametros_operacionales.oee * 100).toFixed(0)}% OEE)
+                </small>
+            `;
+            
+            infoDiv.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error calculando capacidad:', error);
+            infoDiv.innerHTML = '<span class="text-danger">Error calculando capacidad</span>';
+        });
+}
+
+function actualizarCapacidadCalculada() {
+    if (!capacidadCalculadaData) {
+        alert('Primero debe calcular la capacidad');
+        return;
+    }
+    
+    const calculada = capacidadCalculadaData.calculos_capacidad.capacidad_actualizada_tableros_mes;
+    const calculadaSemanal = Math.round(calculada / 4.33);
+    
+    if (confirm(`¿Actualizar la capacidad a ${calculada} tableros/mes (${calculadaSemanal} tableros/semana)?`)) {
+        // Actualizar los campos del formulario
+        document.getElementById('capacidad_maxima_tableros_mes').value = calculada;
+        document.getElementById('capacidad_maxima_tableros_semana').value = calculadaSemanal;
+        
+        // Mostrar mensaje de confirmación
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
+            Capacidad actualizada a ${calculada} tableros/mes. Recuerde guardar los cambios.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.querySelector('.card-body').insertBefore(alertDiv, document.querySelector('.alert.alert-info'));
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+}
 </script>
 {% endblock %}

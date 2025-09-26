@@ -519,6 +519,7 @@ class PlanificacionOperacionalService:
             
         except Exception as e:
             print(f"Error calculando capacidad teórica: {e}")
+            # Fallback calculation using default values
             return 246.4 / 0.5  # 492.8 tableros
 
     def calcular_utilizacion_capacidad(self, horas_requeridas: float) -> Dict[str, float]:
@@ -569,6 +570,9 @@ class PlanificacionOperacionalService:
             capacidad_estandar = self.calcular_capacidad_teorica_tableros('ESTANDAR')
             capacidad_especial = self.calcular_capacidad_teorica_tableros('ESPECIAL')
             
+            # Actualizar capacidad máxima basada en cálculos reales
+            capacidad_promedio = (capacidad_social + capacidad_estandar + capacidad_especial) / 3
+            
             return {
                 'parametros_operacionales': {
                     'numero_maquinas': config.get('numero_maquinas', 2),
@@ -580,17 +584,25 @@ class PlanificacionOperacionalService:
                 'calculos_capacidad': {
                     'horas_nominales_mes': horas_nominales,
                     'horas_efectivas_mes': horas_efectivas,
-                    'eficiencia_global': config.get('oee', 0.70) * 100
+                    'eficiencia_global': config.get('oee', 0.70) * 100,
+                    'capacidad_actualizada_tableros_mes': round(capacidad_promedio, 0)
                 },
                 'capacidad_teorica_tableros': {
                     'social': round(capacidad_social, 1),
                     'estandar': round(capacidad_estandar, 1),
-                    'especial': round(capacidad_especial, 1)
+                    'especial': round(capacidad_especial, 1),
+                    'promedio': round(capacidad_promedio, 1)
                 },
                 'tiempos_por_tablero': {
                     'social': config.get('horas_por_tablero_social', 0.6),
                     'estandar': config.get('horas_por_tablero_estandar', 0.5),
                     'especial': config.get('horas_por_tablero_especial', 0.4)
+                },
+                'capacidad_vs_configurada': {
+                    'capacidad_configurada': config.get('capacidad_maxima_tableros_mes', 1500),
+                    'capacidad_calculada': round(capacidad_promedio, 0),
+                    'diferencia': round(capacidad_promedio - config.get('capacidad_maxima_tableros_mes', 1500), 0),
+                    'recomendacion_actualizacion': capacidad_promedio != config.get('capacidad_maxima_tableros_mes', 1500)
                 },
                 'escenarios_disponibles': config_service.get_escenarios_deficit() if hasattr(config_service, 'get_escenarios_deficit') else {}
             }
@@ -603,6 +615,7 @@ class PlanificacionOperacionalService:
                 'calculos_capacidad': {},
                 'capacidad_teorica_tableros': {},
                 'tiempos_por_tablero': {},
+                'capacidad_vs_configurada': {},
                 'escenarios_disponibles': {}
             }
 

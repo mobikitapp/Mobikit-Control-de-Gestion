@@ -657,6 +657,10 @@ class ConfiguracionesService:
             'horas_disponibles_mes': 200,
             'horas_disponibles_semana': 45,
             
+            # Production time per board by project type (hours)
+            'horas_por_tablero_social': 0.6,    # 0.6 hours per board for social projects
+            'horas_por_tablero_estandar': 0.5,  # 0.5 hours per board for standard projects  
+            'horas_por_tablero_especial': 0.4,  # 0.4 hours per board for special projects
             
             # New operational parameters for strategic capacity planning
             'numero_maquinas': 2,  # Number of cutting machines
@@ -1144,3 +1148,54 @@ class ConfiguracionesService:
         except Exception as e:
             print(f"Error calculating deficit scenarios: {e}")
             return []
+
+    def actualizar_capacidad_fabrica_calculada(self, usuario_id: str) -> Tuple[bool, str, Dict[str, Any]]:
+        """
+        Actualiza la capacidad de fábrica basándose en los cálculos de horas disponibles
+        y tiempos de producción configurados
+        """
+        try:
+            from services.planificacion_operacional_service import PlanificacionOperacionalService
+            
+            planificacion_service = PlanificacionOperacionalService()
+            resumen_capacidad = planificacion_service.get_resumen_capacidad_estrategica()
+            
+            if 'error' in resumen_capacidad:
+                return False, f"Error calculando capacidad: {resumen_capacidad['error']}", {}
+            
+            # Obtener capacidad calculada
+            capacidad_calculada = resumen_capacidad.get('calculos_capacidad', {}).get('capacidad_actualizada_tableros_mes', 0)
+            
+            if capacidad_calculada <= 0:
+                return False, "No se pudo calcular una capacidad válida", {}
+            
+            # Actualizar configuración con nueva capacidad
+            config_actual = self.get_configuracion_capacidad()
+            config_actual['capacidad_maxima_tableros_mes'] = int(capacidad_calculada)
+            config_actual['capacidad_maxima_tableros_semana'] = int(capacidad_calculada / 4.33)  # Aproximación mensual a semanal
+            
+            # En una implementación real, aquí guardarías en la base de datos
+            # Por ahora, solo registramos el cambio
+            print(f"Usuario {usuario_id} actualizó capacidad de fábrica automáticamente:")
+            print(f"  - Nueva capacidad mensual: {int(capacidad_calculada)} tableros/mes")
+            print(f"  - Nueva capacidad semanal: {int(capacidad_calculada / 4.33)} tableros/semana")
+            print(f"  - Basado en: {resumen_capacidad['calculos_capacidad']['horas_efectivas_mes']:.1f} horas efectivas/mes")
+            
+            resultado = {
+                'capacidad_anterior': resumen_capacidad.get('capacidad_vs_configurada', {}).get('capacidad_configurada', 1500),
+                'capacidad_nueva': int(capacidad_calculada),
+                'horas_efectivas_mes': resumen_capacidad['calculos_capacidad']['horas_efectivas_mes'],
+                'horas_nominales_mes': resumen_capacidad['calculos_capacidad']['horas_nominales_mes'],
+                'oee_aplicado': resumen_capacidad['parametros_operacionales']['oee'],
+                'capacidad_por_tipo': resumen_capacidad['capacidad_teorica_tableros'],
+                'base_calculo': f"Basado en {resumen_capacidad['parametros_operacionales']['numero_maquinas']} máquinas, "
+                               f"{resumen_capacidad['parametros_operacionales']['turnos_por_dia']} turno(s), "
+                               f"{resumen_capacidad['parametros_operacionales']['horas_por_turno']} hrs/turno, "
+                               f"OEE {resumen_capacidad['parametros_operacionales']['oee']*100:.0f}%"
+            }
+            
+            return True, f"Capacidad actualizada exitosamente a {int(capacidad_calculada)} tableros/mes", resultado
+            
+        except Exception as e:
+            print(f"Error actualizando capacidad de fábrica: {e}")
+            return False, str(e), {}

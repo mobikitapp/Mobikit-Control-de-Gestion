@@ -97,25 +97,25 @@ def productividad_real():
     """Template de Productividad Real - Análisis de tableros/día con gráficos de dispersión"""
     try:
         from datetime import timedelta
-        
+
         # Obtener filtros de la request
         fecha_inicio_str = request.args.get('fecha_inicio')
         fecha_fin_str = request.args.get('fecha_fin')
         tipo_proyecto = request.args.get('tipo_proyecto', 'TODAS')
         area_filtro = request.args.get('area', 'todas')
         estado_of = request.args.get('estado_of', 'completadas')
-        
+
         # Fechas por defecto (últimos 3 meses)
         if not fecha_inicio_str:
             fecha_inicio = date.today() - timedelta(days=90)
         else:
             fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
-            
+
         if not fecha_fin_str:
             fecha_fin = date.today()
         else:
             fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
-        
+
         # Construir filtros
         filtros = {
             'fecha_inicio': fecha_inicio,
@@ -124,11 +124,11 @@ def productividad_real():
             'area': area_filtro if area_filtro != 'todas' else None,
             'estado_of': estado_of
         }
-        
+
         # Obtener datos de productividad
         service = ProductividadService()
         datos_productividad = service.get_productividad_real(filtros)
-        
+
         # Preparar datos para el template
         template_data = {
             'datos_productividad': datos_productividad,
@@ -143,9 +143,9 @@ def productividad_real():
             'areas_disponibles': ['todas', 'fabrica', 'embalaje'],
             'estados_of': ['completadas', 'en_proceso', 'todas']
         }
-        
+
         return render_template('planificacion_operacional/productividad_real.html', **template_data)
-        
+
     except Exception as e:
         flash(f'Error al cargar análisis de productividad: {str(e)}', 'error')
         return redirect(url_for('planificacion_operacional.matriz_operacional'))
@@ -158,25 +158,25 @@ def api_scatter_data():
     """API endpoint para datos de gráficos de dispersión"""
     try:
         from datetime import timedelta
-        
+
         # Obtener filtros
         fecha_inicio_str = request.args.get('fecha_inicio')
         fecha_fin_str = request.args.get('fecha_fin')
         tipo_proyecto = request.args.get('tipo_proyecto')
         area_filtro = request.args.get('area')
         estado_of = request.args.get('estado_of', 'completadas')
-        
+
         # Fechas por defecto
         if not fecha_inicio_str:
             fecha_inicio = date.today() - timedelta(days=90)
         else:
             fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
-            
+
         if not fecha_fin_str:
             fecha_fin = date.today()
         else:
             fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
-        
+
         filtros = {
             'fecha_inicio': fecha_inicio,
             'fecha_fin': fecha_fin,
@@ -184,17 +184,17 @@ def api_scatter_data():
             'area': area_filtro if area_filtro != 'todas' else None,
             'estado_of': estado_of
         }
-        
+
         # Obtener datos
         service = ProductividadService()
         datos_productividad = service.get_productividad_real(filtros)
-        
+
         return jsonify({
             'success': True,
             'datos_scatter': datos_productividad.get('datos_scatter', {}),
             'total_ofs': datos_productividad.get('total_ofs', 0)
         })
-        
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -206,35 +206,35 @@ def api_regression_analysis():
     """API endpoint para análisis de regresión y estadísticas"""
     try:
         from datetime import timedelta
-        
+
         # Obtener filtros
         fecha_inicio_str = request.args.get('fecha_inicio')
         fecha_fin_str = request.args.get('fecha_fin')
         tipo_proyecto = request.args.get('tipo_proyecto')
         estado_of = request.args.get('estado_of', 'completadas')
-        
+
         # Fechas por defecto
         if not fecha_inicio_str:
             fecha_inicio = date.today() - timedelta(days=90)
         else:
             fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
-            
+
         if not fecha_fin_str:
             fecha_fin = date.today()
         else:
             fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
-        
+
         filtros = {
             'fecha_inicio': fecha_inicio,
             'fecha_fin': fecha_fin,
             'tipo_proyecto': tipo_proyecto if tipo_proyecto != 'TODAS' else None,
             'estado_of': estado_of
         }
-        
+
         # Obtener datos
         service = ProductividadService()
         datos_productividad = service.get_productividad_real(filtros)
-        
+
         return jsonify({
             'success': True,
             'analisis_estadistico': datos_productividad.get('analisis_estadistico', {}),
@@ -242,7 +242,7 @@ def api_regression_analysis():
             'metricas_por_tipo': datos_productividad.get('metricas_por_tipo', {}),
             'metricas_por_area': datos_productividad.get('metricas_por_area', {})
         })
-        
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -498,7 +498,7 @@ def capacidad_produccion():
                 demanda_jerarquica_data = {'demanda_por_mes': {}}
                 resumen_capacidad_data = {}
                 escenarios_data = {}
-                
+
             data = {
                 'año': año,
                 'vista': vista,
@@ -591,3 +591,16 @@ def api_matriz_datos(year):
             'success': False,
             'message': f'Error: {str(e)}'
         }), 500
+
+
+@planificacion_operacional_bp.route('/api/capacidad_estrategica')
+@login_required
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+def api_capacidad_estrategica():
+    """API endpoint para obtener cálculos de capacidad estratégica"""
+    try:
+        service = PlanificacionOperacionalService()
+        resumen = service.get_resumen_capacidad_estrategica()
+        return jsonify(resumen)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
