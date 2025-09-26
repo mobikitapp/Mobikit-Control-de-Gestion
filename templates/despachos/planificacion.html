@@ -182,13 +182,11 @@
                                         <div class="ml-3">
                                             <div class="table-responsive">
                                                 <table class="table table-sm table-striped">
-                                                    <thead>
+                                                    <thead class="table-light">
                                                         <tr>
                                                             <th>Hito de Entrega</th>
                                                             <th>Contrato</th>
                                                             <th>Fecha Entrega</th>
-                                                            <th>Estado</th>
-                                                            <th>OFs Disponibles</th>
                                                             <th>Estado Despacho</th>
                                                             <th>Acciones</th>
                                                         </tr>
@@ -215,25 +213,6 @@
                                                             </td>
                                                             <td>{{ hito['contrato_numero_oc'] }}</td>
                                                             <td>{{ hito['fecha_entrega'].strftime('%d/%m/%Y') if hito['fecha_entrega'] else 'N/A' }}</td>
-                                                            <td>
-                                                                <span class="badge {% if hito['estado'] == 'PENDIENTE' %}bg-warning text-dark{% elif hito['estado'] == 'COMPLETADO' %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
-                                                                    {{ hito['estado'] }}
-                                                                </span>
-                                                            </td>
-                                                            <td>
-                                                                {% if hito['ordenes_fabricacion_disponibles'] %}
-                                                                    <span class="badge bg-info text-white">
-                                                                        {{ hito['ordenes_fabricacion_disponibles']|length }} OFs
-                                                                    </span>
-                                                                    <button class="btn btn-sm btn-outline-info ml-1" 
-                                                                            data-bs-toggle="collapse" 
-                                                                            data-bs-target="#ofs-{{ hito['id'] }}">
-                                                                        <i class="fas fa-eye"></i> Ver
-                                                                    </button>
-                                                                {% else %}
-                                                                    <span class="text-muted"><strong>Sin OFs disponibles</strong></span>
-                                                                {% endif %}
-                                                            </td>
                                                             <td>
                                                                 {% if hito['despacho_creado'] %}
                                                                     <span class="badge bg-success text-white">
