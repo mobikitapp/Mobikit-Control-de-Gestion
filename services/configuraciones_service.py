@@ -649,7 +649,27 @@ class ConfiguracionesService:
 
     def get_configuracion_capacidad(self):
         """Get capacity configuration settings"""
-        # For now, use default values - these could be stored in a config table later
+        # Get production time factors from planificacion service
+        try:
+            from services.planificacion_operacional_service import PlanificacionOperacionalService
+            planif_service = PlanificacionOperacionalService()
+            factores = planif_service.get_factores_conversion()
+            
+            # Calculate horas_por_tablero from production times (fabricación + embalaje)
+            # Convert days to hours (assuming 8 hours per day)
+            horas_por_tablero_social = (factores.get('SOCIAL', {}).get('factor_tiempo_fabrica', 0.02) + 
+                                      factores.get('SOCIAL', {}).get('factor_tiempo_embalaje', 0.008)) * 24
+            horas_por_tablero_estandar = (factores.get('ESTANDAR', {}).get('factor_tiempo_fabrica', 0.025) + 
+                                        factores.get('ESTANDAR', {}).get('factor_tiempo_embalaje', 0.01)) * 24
+            horas_por_tablero_especial = (factores.get('ESPECIAL', {}).get('factor_tiempo_fabrica', 0.03) + 
+                                        factores.get('ESPECIAL', {}).get('factor_tiempo_embalaje', 0.012)) * 24
+        except Exception as e:
+            print(f"Error calculating horas_por_tablero from production times: {e}")
+            # Fallback values
+            horas_por_tablero_social = 0.6
+            horas_por_tablero_estandar = 0.5
+            horas_por_tablero_especial = 0.4
+        
         return {
             # Legacy capacity settings
             'capacidad_maxima_tableros_mes': 1500,
@@ -657,10 +677,10 @@ class ConfiguracionesService:
             'horas_disponibles_mes': 200,
             'horas_disponibles_semana': 45,
             
-            # Production time per board by project type (hours)
-            'horas_por_tablero_social': 0.6,    # 0.6 hours per board for social projects
-            'horas_por_tablero_estandar': 0.5,  # 0.5 hours per board for standard projects  
-            'horas_por_tablero_especial': 0.4,  # 0.4 hours per board for special projects
+            # Production time per board by project type (calculated from production times)
+            'horas_por_tablero_social': horas_por_tablero_social,
+            'horas_por_tablero_estandar': horas_por_tablero_estandar,
+            'horas_por_tablero_especial': horas_por_tablero_especial,
             
             # New operational parameters for strategic capacity planning
             'numero_maquinas': 2,  # Number of cutting machines

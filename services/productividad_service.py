@@ -524,7 +524,7 @@ class ProductividadService:
                 'factor_tiempo_embalaje_social': factores_conversion.get('SOCIAL', {}).get('factor_tiempo_embalaje', 0.008),
                 'factor_tiempo_fabrica_estandar': factores_conversion.get('ESTANDAR', {}).get('factor_tiempo_fabrica', 0.025),
                 'factor_tiempo_embalaje_estandar': factores_conversion.get('ESTANDAR', {}).get('factor_tiempo_embalaje', 0.01),
-                'factor_tiempo_fabrica_especial': factores_conversion.get('ESPECIAL', {}).get('factor_tiempo_fabrica', 0.05),
+                'factor_tiempo_fabrica_especial': factores_conversion.get('ESPECIAL', {}).get('factor_tiempo_fabrica', 0.03),
                 'factor_tiempo_embalaje_especial': factores_conversion.get('ESPECIAL', {}).get('factor_tiempo_embalaje', 0.012)
             }
         except Exception as e:
@@ -535,7 +535,7 @@ class ProductividadService:
                 'factor_tiempo_embalaje_social': 0.008,
                 'factor_tiempo_fabrica_estandar': 0.025,
                 'factor_tiempo_embalaje_estandar': 0.01,
-                'factor_tiempo_fabrica_especial': 0.05,
+                'factor_tiempo_fabrica_especial': 0.03,
                 'factor_tiempo_embalaje_especial': 0.012
             }
 
