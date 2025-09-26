@@ -88,16 +88,23 @@ class ProductividadService:
             
             # Filtros de fecha
             if estado_of == 'completadas':
-                # Incluir OFs completadas Y órdenes en bodega (listo_para_despacho, programado_para_despacho)
+                # Incluir OFs completadas Y órdenes en bodega usando sistema de áreas
                 from sqlalchemy import or_
-                bodega_estados = ['listo_para_despacho', 'programado_para_despacho']
+                from models import OrdenAreaProgreso, AreaEstado, Area
+                
+                # Subquery para OFs en bodega (listo_para_despacho, programado_para_despacho)
+                bodega_subquery = (db.session.query(OrdenAreaProgreso.orden_fabricacion_id)
+                    .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
+                    .filter(OrdenAreaProgreso.es_actual == True)
+                    .filter(AreaEstado.codigo.in_(['listo_para_despacho', 'programado_para_despacho']))
+                    .subquery())
                 
                 query = query.filter(
                     or_(
                         # OFs completadas con fecha_fin
                         OrdenFabricacion.fecha_fin.isnot(None),
                         # OFs en bodega (ya completaron fabricación y embalaje)
-                        OrdenFabricacion.estado.in_(bodega_estados)
+                        OrdenFabricacion.id.in_(bodega_subquery)
                     )
                 )
                 
@@ -109,7 +116,7 @@ class ProductividadService:
                         (OrdenFabricacion.fecha_fin >= fecha_inicio) & 
                         (OrdenFabricacion.fecha_fin <= fecha_fin),
                         # Para OFs en bodega: filtrar por fecha_inicio
-                        (OrdenFabricacion.estado.in_(bodega_estados)) & 
+                        (OrdenFabricacion.id.in_(bodega_subquery)) & 
                         (OrdenFabricacion.fecha_inicio.isnot(None)) &
                         (OrdenFabricacion.fecha_inicio >= fecha_inicio) &
                         (OrdenFabricacion.fecha_inicio <= fecha_fin)
@@ -123,7 +130,7 @@ class ProductividadService:
             
             # Filtro por tipo de proyecto
             if tipo_proyecto and tipo_proyecto != 'TODAS':
-                query = query.filter(Proyecto.tipo == tipo_proyecto)
+                query = query.filter(Proyecto.tipo_proyecto == tipo_proyecto)
             
             # Solo proyectos activos
             query = query.filter(Proyecto.activo == True)
@@ -136,11 +143,12 @@ class ProductividadService:
                 tiempos_reales = self._calcular_tiempos_reales_of(of.id)
                 
                 # Calcular tiempos estimados
+                tipo_proyecto_str = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
                 tiempo_estimado_fabrica = self.planificacion_service.calcular_tiempo_estimado_fabrica(
-                    of.cantidad_tableros or 0, proyecto.tipo or 'ESTANDAR'
+                    of.cantidad_tableros or 0, tipo_proyecto_str
                 )
                 tiempo_estimado_embalaje = self.planificacion_service.calcular_tiempo_estimado_embalaje(
-                    of.cantidad_tableros or 0, proyecto.tipo or 'ESTANDAR'
+                    of.cantidad_tableros or 0, tipo_proyecto_str
                 )
                 
                 # Calcular métricas de productividad
@@ -163,7 +171,7 @@ class ProductividadService:
                     'proyecto_id': proyecto.id,
                     'proyecto_nombre': proyecto.nombre,
                     'cliente_nombre': proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente',
-                    'tipo_proyecto': proyecto.tipo or 'ESTANDAR',
+                    'tipo_proyecto': proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR',
                     'cantidad_tableros': of.cantidad_tableros or 0,
                     'fecha_inicio': of.fecha_inicio.isoformat() if of.fecha_inicio else None,
                     'fecha_fin': of.fecha_fin.isoformat() if of.fecha_fin else None,
