@@ -35,7 +35,11 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body text-center">
-                    <div class="btn-group" role="group" aria-label="Vistas del calendario">
+                    <!-- Vista Operacional -->
+                    <div class="mb-2">
+                        <small class="text-muted">Vista Operacional:</small>
+                    </div>
+                    <div class="btn-group mb-3" role="group" aria-label="Vistas del calendario">
                         <a href="{{ url_for('calendario.vista_mensual', year=year, month=month) }}"
                            class="btn btn-outline-primary">
                             <i class="fas fa-calendar-alt"></i> Mensual
@@ -47,6 +51,21 @@
                         <a href="{{ url_for('calendario.vista_diaria', year=year, month=month, day=1) }}" 
                            class="btn btn-outline-primary">
                             <i class="fas fa-calendar-day"></i> Diaria
+                        </a>
+                    </div>
+                    
+                    <!-- Análisis Estratégico -->
+                    <div class="mb-2">
+                        <small class="text-muted">Análisis Estratégico:</small>
+                    </div>
+                    <div class="btn-group mb-3" role="group" aria-label="Análisis estratégico">
+                        <a href="{{ url_for('calendario.analisis_estrategico_mensual', year=year, month=month) }}" 
+                           class="btn btn-outline-success">
+                            <i class="fas fa-chart-line"></i> Estratégico Mensual
+                        </a>
+                        <a href="{{ url_for('calendario.analisis_estrategico_semanal', year=year, month=month, day=day) }}" 
+                           class="btn btn-outline-success">
+                            <i class="fas fa-chart-bar"></i> Estratégico Semanal
                         </a>
                     </div>
                 </div>

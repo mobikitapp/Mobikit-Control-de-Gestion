@@ -17,7 +17,7 @@ class AnalisisEstrategicoService:
     """Service layer for strategic analysis with unified monthly and weekly modes"""
 
     def get_analisis_estrategico(self, modo_analisis: str, year: int, month: int, day: Optional[int] = None, 
-                                usuario_id: str = None, rol_usuario: RolUsuario = None,
+                                usuario_id: Optional[str] = None, rol_usuario: Optional[RolUsuario] = None,
                                 filtros: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Unified strategic analysis method that works for both monthly and weekly modes
@@ -44,7 +44,7 @@ class AnalisisEstrategicoService:
         else:
             raise ValueError("Modo de análisis debe ser 'mensual' o 'semanal'")
 
-    def get_analisis_mensual(self, year: int, month: int, usuario_id: str, rol_usuario: RolUsuario,
+    def get_analisis_mensual(self, year: int, month: int, usuario_id: Optional[str], rol_usuario: Optional[RolUsuario],
                             filtros: Optional[Dict] = None) -> Dict[str, Any]:
         """Strategic monthly analysis with unified field structure"""
         
@@ -55,9 +55,11 @@ class AnalisisEstrategicoService:
         else:
             ultimo_dia = date(year, month + 1, 1) - timedelta(days=1)
         
-        # Get data sources
-        despachos = self._get_despachos_rango_fechas(primer_dia, ultimo_dia, usuario_id, rol_usuario, filtros)
-        hitos = self._get_hitos_rango_fechas(primer_dia, ultimo_dia, usuario_id, rol_usuario)
+        # Get data sources - provide defaults if None
+        user_id = usuario_id or ''
+        user_role = rol_usuario or RolUsuario.OPERACIONES
+        despachos = self._get_despachos_rango_fechas(primer_dia, ultimo_dia, user_id, user_role, filtros)
+        hitos = self._get_hitos_rango_fechas(primer_dia, ultimo_dia, user_id, user_role)
         
         # Generate calendar structure
         cal = calendar.Calendar(firstweekday=0)  # Monday = 0
@@ -101,7 +103,7 @@ class AnalisisEstrategicoService:
             }
         }
 
-    def get_analisis_semanal(self, year: int, month: int, day: int, usuario_id: str, rol_usuario: RolUsuario,
+    def get_analisis_semanal(self, year: int, month: int, day: int, usuario_id: Optional[str], rol_usuario: Optional[RolUsuario],
                            filtros: Optional[Dict] = None) -> Dict[str, Any]:
         """Strategic weekly analysis with unified field structure"""
         
@@ -113,9 +115,11 @@ class AnalisisEstrategicoService:
         inicio_semana = fecha_referencia - timedelta(days=dias_desde_lunes)
         fin_semana = inicio_semana + timedelta(days=6)
         
-        # Get data sources
-        despachos = self._get_despachos_rango_fechas(inicio_semana, fin_semana, usuario_id, rol_usuario, filtros)
-        hitos = self._get_hitos_rango_fechas(inicio_semana, fin_semana, usuario_id, rol_usuario)
+        # Get data sources - provide defaults if None
+        user_id = usuario_id or ''
+        user_role = rol_usuario or RolUsuario.OPERACIONES
+        despachos = self._get_despachos_rango_fechas(inicio_semana, fin_semana, user_id, user_role, filtros)
+        hitos = self._get_hitos_rango_fechas(inicio_semana, fin_semana, user_id, user_role)
         
         # Strategic analysis by periods (days within week)
         analisis_periodos = self._generar_analisis_diario_en_semana(inicio_semana, fin_semana, despachos, hitos)
@@ -185,10 +189,12 @@ class AnalisisEstrategicoService:
         # Project analysis
         proyectos_involucrados = set()
         for despacho in despachos:
-            if despacho.proyecto:
+            if hasattr(despacho, 'proyecto') and despacho.proyecto:
                 proyectos_involucrados.add(despacho.proyecto.id)
         for hito in hitos:
-            if hito.plan_entrega and hito.plan_entrega.contrato and hito.plan_entrega.contrato.proyecto:
+            if (hasattr(hito, 'plan_entrega') and hito.plan_entrega and 
+                hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato and 
+                hasattr(hito.plan_entrega.contrato, 'proyecto') and hito.plan_entrega.contrato.proyecto):
                 proyectos_involucrados.add(hito.plan_entrega.contrato.proyecto.id)
         
         return {
@@ -445,9 +451,9 @@ class AnalisisEstrategicoService:
         elif rol_usuario == RolUsuario.VENTAS:
             # Sales can only see their own clients' despachos
             query = (db.session.query(Despacho)
-                    .join(Proyecto, Despacho.proyecto_id == Proyecto.id)
-                    .join(Cliente, Proyecto.cliente_id == Cliente.id)
-                    .filter(getattr(Cliente, 'vendedor_id', None) == usuario_id))
+                    .join(Proyecto)
+                    .join(Cliente)
+                    .filter(Cliente.vendedor_id == usuario_id))
         else:
             # Operations, Production, Logistics can see all despachos
             query = db.session.query(Despacho)
@@ -494,11 +500,11 @@ class AnalisisEstrategicoService:
         elif rol_usuario == RolUsuario.VENTAS:
             # Sales can only see their own clients' hitos
             query = (db.session.query(HitoEntrega)
-                    .join(PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id)
-                    .join(Contrato, PlanEntrega.contrato_id == Contrato.id)
-                    .join(Proyecto, Contrato.proyecto_id == Proyecto.id)
-                    .join(Cliente, Proyecto.cliente_id == Cliente.id)
-                    .filter(getattr(Cliente, 'vendedor_id', None) == usuario_id))
+                    .join(PlanEntrega)
+                    .join(Contrato)
+                    .join(Proyecto)
+                    .join(Cliente)
+                    .filter(Cliente.vendedor_id == usuario_id))
         else:
             # Operations, Production, Logistics can see all hitos
             query = db.session.query(HitoEntrega)
