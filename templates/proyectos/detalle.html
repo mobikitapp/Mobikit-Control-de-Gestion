@@ -112,7 +112,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                                <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}"
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i data-feather="eye"></i>
                                                 </a>
@@ -172,7 +172,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" 
+                                                <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}"
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i data-feather="eye"></i>
                                                 </a>
@@ -226,7 +226,7 @@
                                             </td>
                                             <td>{{ despacho.destino[:50] if despacho.destino else '' }}{% if despacho.destino and despacho.destino|length > 50 %}...{% endif %}</td>
                                             <td>
-                                                <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}" 
+                                                <a href="{{ url_for('despachos.detalle', despacho_id=despacho.id) }}"
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i data-feather="eye"></i>
                                                 </a>
@@ -349,7 +349,7 @@
                                 <span class="badge bg-info" id="porcentaje-facturado-badge">{{ "%.1f"|format(kpi.get('porcentaje_facturado', 0)) }}%</span>
                             </div>
                             <div class="progress" style="height: 6px;">
-                                <div class="progress-bar bg-info" role="progressbar" 
+                                <div class="progress-bar bg-info" role="progressbar"
                                      id="progress-bar-facturacion"
                                      style="width: {{ kpi.get('porcentaje_facturado', 0) }}%"
                                      data-porcentaje="{{ kpi.get('porcentaje_facturado', 0) }}">
@@ -363,7 +363,7 @@
                                 <span class="badge bg-success" id="porcentaje-cobrado-badge">{{ "%.1f"|format(kpi.get('porcentaje_cobrado', 0)) }}%</span>
                             </div>
                             <div class="progress" style="height: 6px;">
-                                <div class="progress-bar bg-success" role="progressbar" 
+                                <div class="progress-bar bg-success" role="progressbar"
                                      id="progress-bar-cobranza"
                                      style="width: {{ kpi.get('porcentaje_cobrado', 0) }}%"
                                      data-porcentaje="{{ kpi.get('porcentaje_cobrado', 0) }}">
@@ -372,8 +372,8 @@
                             <!-- Información de márgenes (alineado con finanzas) -->
                             {% if kpi.get('costos_estimados', 0) > 0 %}
                             <small class="text-muted">
-                                Costos estimados: ${{ "{:,.0f}".format(kpi.get('costos_estimados', 0)) }} | 
-                                Margen: {{ "%.1f"|format(kpi.get('margen_porcentaje', 0)) }}% 
+                                Costos estimados: ${{ "{:,.0f}".format(kpi.get('costos_estimados', 0)) }} |
+                                Margen: {{ "%.1f"|format(kpi.get('margen_porcentaje', 0)) }}%
                                 ($ {{ "{:,.0f}".format(kpi.get('margen_real', 0)) }})
                             </small>
                             {% endif %}
@@ -466,7 +466,7 @@
                                 KPI de Entregas
                             </h6>
                         </div>
-                        
+
                         <!-- On-time delivery percentage -->
                         <div class="col-md-6">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
@@ -483,7 +483,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Average delay days -->
                         <div class="col-md-6">
                             <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
@@ -508,7 +508,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Delivery performance status -->
                         <div class="col-12">
                             <div class="text-center p-2">
@@ -518,10 +518,10 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <hr class="my-4">
                     {% endif %}
-                    
+
                     <!-- Board Statistics Section -->
                     {% set tableros = stats.estadisticas_tableros or {} %}
                     {% if tableros and tableros.estado == 'calculado' %}
@@ -532,7 +532,7 @@
                                 Estadísticas de Tableros Cortados
                             </h6>
                         </div>
-                        
+
                         <!-- Total boards -->
                         <div class="col-md-4">
                             <div class="text-center p-3 bg-light rounded">
@@ -541,7 +541,7 @@
                                 <small class="text-muted">procesados</small>
                             </div>
                         </div>
-                        
+
                         <!-- Factory metrics -->
                         <div class="col-md-4">
                             <div class="text-center p-3 bg-light rounded">
@@ -552,7 +552,7 @@
                                 </small>
                             </div>
                         </div>
-                        
+
                         <!-- Packaging metrics -->
                         <div class="col-md-4">
                             <div class="text-center p-3 bg-light rounded">
@@ -564,10 +564,10 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <hr class="my-4">
                     {% endif %}
-                    
+
                     <!-- Area Efficiency Section -->
                     {% set eficiencia = stats.eficiencia_por_area or {} %}
                     {% if eficiencia %}
@@ -619,7 +619,7 @@
             </div>
         </div>
     </div>
-    {% endif %}
+
 
     <div class="row g-4 mt-4">
         <!-- Project Information -->
@@ -936,7 +936,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="descripcion" class="form-label">Descripción (opcional)</label>
-                        <textarea class="form-control" id="descripcion" name="descripcion" rows="2" 
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="2"
                                   placeholder="Descripción del documento"></textarea>
                     </div>
                 </div>
@@ -973,8 +973,8 @@
                     </div>
                     <div class="mb-3">
                         <label for="comentario-text" class="form-label">Comentario</label>
-                        <textarea class="form-control" id="comentario-text" name="comentario" rows="4" 
-                                  maxlength="1000" required 
+                        <textarea class="form-control" id="comentario-text" name="comentario" rows="4"
+                                  maxlength="1000" required
                                   placeholder="Escribe aquí tu comentario sobre el proyecto..."></textarea>
                         <div class="form-text">
                             <span id="contador-caracteres">0</span>/1000 caracteres
@@ -1004,7 +1004,7 @@
         const maxLength = 1000;
         const currentLength = this.value.length;
         document.getElementById('contador-caracteres').textContent = currentLength;
-        
+
         if (currentLength > maxLength * 0.9) {
             document.getElementById('contador-caracteres').className = 'text-warning';
         } else if (currentLength === maxLength) {
@@ -1027,7 +1027,7 @@
     // Función para cargar comentarios de bitácora
     function cargarBitacora(tipo = '') {
         const bitacoraLista = document.getElementById('bitacora-lista');
-        
+
         // Mostrar spinner
         bitacoraLista.innerHTML = `
             <div class="text-center py-4">
@@ -1037,12 +1037,12 @@
                 <p class="text-muted mt-2">Cargando bitácora...</p>
             </div>
         `;
-        
+
         const url = new URL(`/proyectos/${proyectoId}/bitacora`, window.location.origin);
         if (tipo) {
             url.searchParams.append('tipo', tipo);
         }
-        
+
         fetch(url, {
             method: 'GET',
             headers: {
@@ -1066,7 +1066,7 @@
     // Función para mostrar comentarios
     function mostrarComentarios(comentarios) {
         const bitacoraLista = document.getElementById('bitacora-lista');
-        
+
         if (!comentarios || comentarios.length === 0) {
             bitacoraLista.innerHTML = `
                 <div class="text-center py-4">
@@ -1078,9 +1078,9 @@
             feather.replace();
             return;
         }
-        
+
         let html = '<div class="list-group list-group-flush">';
-        
+
         comentarios.forEach(comentario => {
             const tipoClass = {
                 'especificacion': 'primary',
@@ -1088,7 +1088,7 @@
                 'nota': 'info',
                 'general': 'secondary'
             }[comentario.tipo] || 'secondary';
-            
+
             html += `
                 <div class="list-group-item border-0 px-0">
                     <div class="d-flex justify-content-between align-items-start">
@@ -1100,7 +1100,7 @@
                             </div>
                             <p class="mb-0 text-break">${comentario.comentario}</p>
                         </div>
-                        <button type="button" class="btn btn-outline-danger btn-sm ms-2" 
+                        <button type="button" class="btn btn-outline-danger btn-sm ms-2"
                                 onclick="eliminarComentario(${comentario.id})"
                                 title="Eliminar comentario">
                             <i data-feather="trash-2" style="width: 14px; height: 14px;"></i>
@@ -1109,7 +1109,7 @@
                 </div>
             `;
         });
-        
+
         html += '</div>';
         bitacoraLista.innerHTML = html;
         feather.replace();
@@ -1134,15 +1134,15 @@
     // Manejar envío de nuevo comentario
     document.getElementById('formAgregarComentario').addEventListener('submit', function(e) {
         e.preventDefault();
-        
+
         const formData = new FormData(this);
         const submitBtn = this.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
-        
+
         // Deshabilitar botón y mostrar loading
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Agregando...';
-        
+
         fetch(`/proyectos/${proyectoId}/bitacora`, {
             method: 'POST',
             body: formData
@@ -1153,14 +1153,14 @@
                 // Cerrar modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalAgregarComentario'));
                 modal.hide();
-                
+
                 // Limpiar formulario
                 this.reset();
                 document.getElementById('contador-caracteres').textContent = '0';
-                
+
                 // Recargar bitácora
                 cargarBitacora(document.getElementById('filtro-tipo-bitacora').value);
-                
+
                 // Mostrar mensaje de éxito
                 mostrarNotificacion('success', 'Comentario agregado exitosamente');
             } else {
@@ -1183,7 +1183,7 @@
         if (!confirm('¿Estás seguro de que deseas eliminar este comentario? Esta acción no se puede deshacer.')) {
             return;
         }
-        
+
         fetch(`/proyectos/bitacora/${comentarioId}/eliminar`, {
             method: 'POST',
             headers: {
@@ -1209,7 +1209,7 @@
     function mostrarNotificacion(tipo, mensaje) {
         const alertClass = tipo === 'success' ? 'alert-success' : 'alert-danger';
         const icon = tipo === 'success' ? 'check-circle' : 'alert-circle';
-        
+
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
         alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
@@ -1220,10 +1220,10 @@
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
-        
+
         document.body.appendChild(alertDiv);
         feather.replace();
-        
+
         // Auto-remove after 5 seconds
         setTimeout(() => {
             if (alertDiv.parentNode) {
@@ -1512,25 +1512,25 @@
         if (!confirm('¿Está seguro de limpiar todos los datos financieros de KPI?\n\nEsto eliminará:\n- Estados de pago del proyecto\n- Pendientes de facturación\n- Cálculos financieros\n\nEsta acción no se puede deshacer.')) {
             return;
         }
-        
+
         limpiarDatosKpi(proyectoId, 'financiero', 'KPI Financiero');
     }
-    
+
     function limpiarKpiEficiencia(proyectoId) {
         if (!confirm('¿Está seguro de limpiar todos los datos de eficiencia por área?\n\nEsto eliminará:\n- Registros de progreso por área\n- Tiempos de procesamiento\n- Métricas de eficiencia\n\nEsta acción no se puede deshacer.')) {
             return;
         }
-        
+
         limpiarDatosKpi(proyectoId, 'eficiencia', 'Eficiencia por Área');
     }
-    
+
     function limpiarDatosKpi(proyectoId, tipo, nombreSeccion) {
         const button = event.target.closest('button');
         const originalText = button.innerHTML;
-        
+
         button.disabled = true;
         button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Limpiando...';
-        
+
         fetch(`/proyectos/${proyectoId}/limpiar-kpi`, {
             method: 'POST',
             headers: {
@@ -1573,7 +1573,7 @@
             alertContainer.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
             document.body.appendChild(alertContainer);
         }
-        
+
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
         alertDiv.innerHTML = `
@@ -1581,14 +1581,14 @@
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         `;
-        
+
         alertContainer.appendChild(alertDiv);
-        
+
         // Replace feather icons in the new alert
         if (typeof feather !== 'undefined') {
             feather.replace();
         }
-        
+
         // Auto-dismiss after 5 seconds
         setTimeout(() => {
             if (alertDiv.parentNode) {
