@@ -145,7 +145,7 @@
                     <div class="row mt-2">
                         <div class="col-md-12">
                             <div class="progress">
-                                <div class="progress-bar bg-success" role="progressbar" 
+                                <div class="progress-bar bg-success" role="progressbar"
                                      style="width: {{ resumen_capacidad.calculos_capacidad.eficiencia_global }}%">
                                     OEE: {{ "{:.1f}".format(resumen_capacidad.parametros_operacionales.oee * 100) }}%
                                 </div>
@@ -198,11 +198,11 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="progress flex-grow-1 me-2" style="height: 20px;">
-                                                <div class="progress-bar 
+                                                <div class="progress-bar
                                                     {% if utilizacion < 70 %}bg-success
                                                     {% elif utilizacion < 90 %}bg-primary
                                                     {% elif utilizacion <= 100 %}bg-warning
-                                                    {% else %}bg-danger{% endif %}" 
+                                                    {% else %}bg-danger{% endif %}"
                                                      style="width: {{ min(utilizacion, 100) }}%">
                                                     {{ "{:.0f}".format(utilizacion) }}%
                                                 </div>
@@ -307,15 +307,15 @@
                         </h6>
                         {% if vista in ['mensual', 'semanal'] %}
                         <div class="btn-group btn-group-sm" role="group">
-                            <a href="{{ url_for('planificacion_operacional.capacidad_produccion', año=año, vista='mensual') }}" 
+                            <a href="{{ url_for('planificacion_operacional.capacidad_produccion', año=año, vista='mensual') }}"
                                class="btn btn-outline-primary {% if vista == 'mensual' %}active{% endif %}">
                                 <i class="fas fa-calendar-alt"></i> Mensual
                             </a>
-                            <a href="{{ url_for('planificacion_operacional.capacidad_produccion', año=año, vista='semanal') }}" 
+                            <a href="{{ url_for('planificacion_operacional.capacidad_produccion', año=año, vista='semanal') }}"
                                class="btn btn-outline-primary {% if vista == 'semanal' %}active{% endif %}">
                                 <i class="fas fa-calendar-week"></i> Semanal
                             </a>
-                            <a href="{{ url_for('planificacion_operacional.capacidad_produccion', año=año, vista='estrategico') }}" 
+                            <a href="{{ url_for('planificacion_operacional.capacidad_produccion', año=año, vista='estrategico') }}"
                                class="btn btn-outline-success">
                                 <i class="fas fa-chess"></i> Estratégico
                             </a>
@@ -357,7 +357,7 @@
                                         <td><strong>{{ "{:.1f}".format(mes_data.capacidad.horas_efectivas_disponibles) }}</strong></td>
                                         <td>
                                             <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar {% if mes_data.capacidad.utilizacion_porcentaje > 100 %}bg-danger{% elif mes_data.capacidad.utilizacion_porcentaje > 90 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                <div class="progress-bar {% if mes_data.capacidad.utilizacion_porcentaje > 100 %}bg-danger{% elif mes_data.capacidad.utilizacion_porcentaje > 90 %}bg-warning{% else %}bg-success{% endif %}"
                                                      style="width: {{ mes_data.capacidad.utilizacion_porcentaje if mes_data.capacidad.utilizacion_porcentaje <= 100 else 100 }}%">
                                                     {{ "{:.1f}".format(mes_data.capacidad.utilizacion_porcentaje) }}%
                                                 </div>
@@ -425,7 +425,7 @@
                                         <td><strong>500 tableros</strong></td>
                                         <td>
                                             <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar {% if utilizacion > 100 %}bg-danger{% elif utilizacion > 90 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                <div class="progress-bar {% if utilizacion > 100 %}bg-danger{% elif utilizacion > 90 %}bg-warning{% else %}bg-success{% endif %}"
                                                      style="width: {{ utilizacion if utilizacion <= 100 else 100 }}%">
                                                     {{ "{:.0f}".format(utilizacion) }}%
                                                 </div>
@@ -582,7 +582,7 @@
                         {% for mes_key, mes_data in demanda_jerarquica.demanda_por_mes.items() %}
                         <div class="accordion-item">
                             <h2 class="accordion-header" id="heading{{ mes_key }}">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                         data-bs-target="#collapse{{ mes_key }}" aria-expanded="false">
                                     <strong>{{ mes_data.nombre_mes }}</strong>
                                     <span class="badge bg-primary ms-2">{{ mes_data.totales_mes.proyectos_count }} proyectos</span>
@@ -590,7 +590,7 @@
                                     <span class="badge bg-info ms-2">{{ "{:.0f}".format(mes_data.totales_mes.total_horas_requeridas) }} horas</span>
                                 </button>
                             </h2>
-                            <div id="collapse{{ mes_key }}" class="accordion-collapse collapse" 
+                            <div id="collapse{{ mes_key }}" class="accordion-collapse collapse"
                                  data-bs-parent="#demandaAccordion">
                                 <div class="accordion-body">
                                     {% if mes_data.proyectos %}
