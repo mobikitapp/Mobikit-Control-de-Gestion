@@ -184,7 +184,9 @@ class ProyectosService:
                 # New financial KPIs - always recalculate from treasury data
                 'kpi_financiero': self.calculate_financial_kpi_with_treasury(proyecto_id),
                 # New efficiency metrics by area
-                'eficiencia_por_area': self._calcular_eficiencia_por_area(proyecto_id)
+                'eficiencia_por_area': self._calcular_eficiencia_por_area(proyecto_id),
+                # New delivery KPIs - on-time delivery and average delay days
+                'kpi_entregas': self._calcular_kpi_entregas(proyecto_id)
             }
 
             return {
@@ -787,6 +789,161 @@ class ProyectosService:
         except Exception as e:
             logger.error(f"Error calculando eficiencia por área: {str(e)}")
             return {}
+
+    def _calcular_kpi_entregas(self, proyecto_id: int) -> Dict[str, Any]:
+        """Calculate delivery KPIs: on-time delivery percentage and average delay days"""
+        try:
+            from models import OrdenFabricacion, Despacho, HitoEntrega
+            from datetime import datetime, date
+
+            # Initialize metrics
+            entregas_a_tiempo = 0
+            entregas_con_atraso = 0
+            dias_atraso_total = 0
+            entregas_evaluadas = 0
+
+            # === ANÁLISIS DE ÓRDENES DE FABRICACIÓN ===
+            ordenes = OrdenFabricacion.query.filter_by(proyecto_id=proyecto_id).all()
+            
+            for orden in ordenes:
+                try:
+                    # Check if order has planned date and completion date
+                    fecha_planificada = orden.fecha_planificada
+                    fecha_completada = None
+                    
+                    # Try to get actual completion date from various sources
+                    if orden.fecha_fin:
+                        fecha_completada = orden.fecha_fin.date() if isinstance(orden.fecha_fin, datetime) else orden.fecha_fin
+                    elif orden.fecha_entrega_embalaje:
+                        fecha_completada = orden.fecha_entrega_embalaje
+                    elif orden.fecha_entrega_fabrica:
+                        fecha_completada = orden.fecha_entrega_fabrica
+
+                    if fecha_planificada and fecha_completada:
+                        entregas_evaluadas += 1
+                        
+                        # Calculate delay in days
+                        if isinstance(fecha_completada, datetime):
+                            fecha_completada = fecha_completada.date()
+                        if isinstance(fecha_planificada, datetime):
+                            fecha_planificada = fecha_planificada.date()
+                            
+                        dias_diferencia = (fecha_completada - fecha_planificada).days
+                        
+                        if dias_diferencia <= 0:  # On time or early
+                            entregas_a_tiempo += 1
+                        else:  # Late delivery
+                            entregas_con_atraso += 1
+                            dias_atraso_total += dias_diferencia
+
+                except Exception as orden_e:
+                    logger.warning(f"Error evaluando entrega para orden {orden.id}: {str(orden_e)}")
+                    continue
+
+            # === ANÁLISIS DE DESPACHOS ===
+            despachos = Despacho.query.filter_by(proyecto_id=proyecto_id).all()
+            
+            for despacho in despachos:
+                try:
+                    fecha_programada = despacho.fecha_programada
+                    fecha_entrega = despacho.fecha_entrega
+                    
+                    if fecha_programada and fecha_entrega:
+                        entregas_evaluadas += 1
+                        
+                        # Calculate delay in days
+                        if isinstance(fecha_entrega, datetime):
+                            fecha_entrega = fecha_entrega.date()
+                        if isinstance(fecha_programada, datetime):
+                            fecha_programada = fecha_programada.date()
+                            
+                        dias_diferencia = (fecha_entrega - fecha_programada).days
+                        
+                        if dias_diferencia <= 0:  # On time or early
+                            entregas_a_tiempo += 1
+                        else:  # Late delivery
+                            entregas_con_atraso += 1
+                            dias_atraso_total += dias_diferencia
+
+                except Exception as despacho_e:
+                    logger.warning(f"Error evaluando entrega para despacho {despacho.id}: {str(despacho_e)}")
+                    continue
+
+            # === ANÁLISIS DE HITOS DE ENTREGA ===
+            hitos = HitoEntrega.query.join(HitoEntrega.contrato).filter(
+                HitoEntrega.contrato.has(proyecto_id=proyecto_id)
+            ).all()
+            
+            for hito in hitos:
+                try:
+                    fecha_programada = hito.fecha_programada
+                    fecha_completado = hito.fecha_completado
+                    
+                    if fecha_programada and fecha_completado:
+                        entregas_evaluadas += 1
+                        
+                        # Calculate delay in days
+                        if isinstance(fecha_completado, datetime):
+                            fecha_completado = fecha_completado.date()
+                        if isinstance(fecha_programada, datetime):
+                            fecha_programada = fecha_programada.date()
+                            
+                        dias_diferencia = (fecha_completado - fecha_programada).days
+                        
+                        if dias_diferencia <= 0:  # On time or early
+                            entregas_a_tiempo += 1
+                        else:  # Late delivery
+                            entregas_con_atraso += 1
+                            dias_atraso_total += dias_diferencia
+
+                except Exception as hito_e:
+                    logger.warning(f"Error evaluando hito {hito.id}: {str(hito_e)}")
+                    continue
+
+            # Calculate final metrics
+            if entregas_evaluadas == 0:
+                return {
+                    'entregas_a_tiempo_porcentaje': 0,
+                    'promedio_dias_atraso': 0,
+                    'entregas_evaluadas': 0,
+                    'entregas_a_tiempo': 0,
+                    'entregas_con_atraso': 0,
+                    'estado': 'sin_datos'
+                }
+
+            porcentaje_entregas_a_tiempo = round((entregas_a_tiempo / entregas_evaluadas) * 100, 1)
+            promedio_dias_atraso = round(dias_atraso_total / entregas_con_atraso, 1) if entregas_con_atraso > 0 else 0
+
+            # Determine delivery performance status
+            if porcentaje_entregas_a_tiempo >= 90:
+                estado_entregas = 'excelente'
+            elif porcentaje_entregas_a_tiempo >= 75:
+                estado_entregas = 'bueno'
+            elif porcentaje_entregas_a_tiempo >= 60:
+                estado_entregas = 'regular'
+            else:
+                estado_entregas = 'deficiente'
+
+            return {
+                'entregas_a_tiempo_porcentaje': porcentaje_entregas_a_tiempo,
+                'promedio_dias_atraso': promedio_dias_atraso,
+                'entregas_evaluadas': entregas_evaluadas,
+                'entregas_a_tiempo': entregas_a_tiempo,
+                'entregas_con_atraso': entregas_con_atraso,
+                'estado': estado_entregas,
+                'total_dias_atraso': dias_atraso_total
+            }
+
+        except Exception as e:
+            logger.error(f"Error calculando KPI de entregas: {str(e)}")
+            return {
+                'entregas_a_tiempo_porcentaje': 0,
+                'promedio_dias_atraso': 0,
+                'entregas_evaluadas': 0,
+                'entregas_a_tiempo': 0,
+                'entregas_con_atraso': 0,
+                'estado': 'error'
+            }
 
     def get_project_stats(self, proyecto_id: int) -> Dict[str, Any]:
         """

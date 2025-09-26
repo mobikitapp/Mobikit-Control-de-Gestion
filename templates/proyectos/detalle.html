@@ -446,19 +446,92 @@
             </div>
         </div>
 
-        <!-- Efficiency by Area -->
+        <!-- Project Statistics -->
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
                         <i data-feather="clock" class="me-2"></i>
-                        Eficiencia por Área
+                        Estadística Proyecto
                     </h5>
                 </div>
                 <div class="card-body">
+                    <!-- Delivery KPIs Section -->
+                    {% set entregas = stats.kpi_entregas or {} %}
+                    {% if entregas and entregas.estado != 'sin_datos' and entregas.estado != 'error' %}
+                    <div class="row g-3 mb-4">
+                        <div class="col-12">
+                            <h6 class="mb-3 text-primary">
+                                <i data-feather="truck" class="me-1"></i>
+                                KPI de Entregas
+                            </h6>
+                        </div>
+                        
+                        <!-- On-time delivery percentage -->
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                                <div>
+                                    <div class="text-muted small">Entregas a Tiempo</div>
+                                    <div class="fw-bold text-{% if entregas.entregas_a_tiempo_porcentaje >= 90 %}success{% elif entregas.entregas_a_tiempo_porcentaje >= 75 %}info{% elif entregas.entregas_a_tiempo_porcentaje >= 60 %}warning{% else %}danger{% endif %}">
+                                        {{ entregas.entregas_a_tiempo_porcentaje }}%
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted">
+                                        {{ entregas.entregas_a_tiempo }} de {{ entregas.entregas_evaluadas }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Average delay days -->
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                                <div>
+                                    <div class="text-muted small">Promedio Días Atraso</div>
+                                    <div class="fw-bold {% if entregas.promedio_dias_atraso <= 1 %}text-success{% elif entregas.promedio_dias_atraso <= 5 %}text-warning{% else %}text-danger{% endif %}">
+                                        {% if entregas.promedio_dias_atraso > 0 %}
+                                            {{ entregas.promedio_dias_atraso }} días
+                                        {% else %}
+                                            Sin atrasos
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted">
+                                        {% if entregas.entregas_con_atraso > 0 %}
+                                            {{ entregas.entregas_con_atraso }} con atraso
+                                        {% else %}
+                                            Sin atrasos
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Delivery performance status -->
+                        <div class="col-12">
+                            <div class="text-center p-2">
+                                <span class="badge bg-{% if entregas.estado == 'excelente' %}success{% elif entregas.estado == 'bueno' %}info{% elif entregas.estado == 'regular' %}warning{% else %}danger{% endif %} fs-6">
+                                    Rendimiento: {{ entregas.estado|title }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    {% endif %}
+                    
+                    <!-- Area Efficiency Section -->
                     {% set eficiencia = stats.eficiencia_por_area or {} %}
                     {% if eficiencia %}
                     <div class="row g-2">
+                        <div class="col-12">
+                            <h6 class="mb-3 text-primary">
+                                <i data-feather="clock" class="me-1"></i>
+                                Eficiencia por Área
+                            </h6>
+                        </div>
                         {% for area_nombre, metricas in eficiencia.items() %}
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
@@ -492,7 +565,7 @@
                     {% else %}
                     <div class="text-center py-4">
                         <i data-feather="clock" class="text-muted mb-2" style="width: 48px; height: 48px;"></i>
-                        <p class="text-muted mb-0">No hay datos de eficiencia disponibles</p>
+                        <p class="text-muted mb-0">No hay datos de estadísticas disponibles</p>
                         <small class="text-muted">Se requieren órdenes de fabricación procesadas</small>
                     </div>
                     {% endif %}
