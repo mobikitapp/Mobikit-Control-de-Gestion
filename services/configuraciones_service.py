@@ -992,6 +992,9 @@ class ConfiguracionesService:
 
     def get_escenarios_deficit(self):
         """Get deficit response scenarios for capacity planning"""
+        # Calculate theoretical capacity
+        capacidad_teorica = self.calcular_capacidad_teorica()
+        
         return {
             'escenarios_individuales': {
                 'capacidad_base': {
@@ -1002,19 +1005,19 @@ class ConfiguracionesService:
                 },
                 'horas_extra': {
                     'descripcion': 'Implementar horas extra hasta 25% adicional',
-                    'capacidad_adicional': self.calcular_capacidad_teorica()['horas_efectivas_mes'] * 0.25,
+                    'capacidad_adicional': capacidad_teorica.get('horas_efectivas_mes', 0) * 0.25,
                     'costo_adicional_factor': 0.5,
                     'recomendacion': 'Para déficits menores a 100 horas'
                 },
                 'turno_adicional': {
                     'descripcion': 'Agregar turno adicional temporal',
-                    'capacidad_adicional': self.calcular_capacidad_teorica()['horas_nominales_mes'] * 0.7,
+                    'capacidad_adicional': capacidad_teorica.get('horas_nominales_mes', 0) * 0.7,
                     'costo_adicional_factor': 0.8,
                     'recomendacion': 'Para déficits mayores a 150 horas'
                 },
                 'subcontratacion': {
                     'descripcion': 'Subcontratar hasta 30% de la producción',
-                    'capacidad_adicional': self.calcular_capacidad_teorica()['horas_efectivas_mes'] * 0.3,
+                    'capacidad_adicional': capacidad_teorica.get('horas_efectivas_mes', 0) * 0.3,
                     'costo_adicional_factor': 1.2,
                     'recomendacion': 'Para déficits críticos o emergencias'
                 }
@@ -1051,6 +1054,34 @@ class ConfiguracionesService:
         
         try:
             # Calculate nominal hours per month
+            turnos_por_dia = parametros.get('turnos_por_dia', 1)
+            horas_por_turno = parametros.get('horas_por_turno', 8.0)
+            dias_laborables_mes = parametros.get('dias_laborables_mes', 22)
+            oee = parametros.get('oee', 0.70)
+            
+            # Calculate capacities
+            horas_nominales_mes = turnos_por_dia * horas_por_turno * dias_laborables_mes
+            horas_efectivas_mes = horas_nominales_mes * oee
+            
+            return {
+                'horas_nominales_mes': horas_nominales_mes,
+                'horas_efectivas_mes': horas_efectivas_mes,
+                'turnos_por_dia': turnos_por_dia,
+                'horas_por_turno': horas_por_turno,
+                'dias_laborables_mes': dias_laborables_mes,
+                'oee': oee
+            }
+            
+        except Exception as e:
+            print(f"Error calculating theoretical capacity: {e}")
+            return {
+                'horas_nominales_mes': 176.0,  # Default fallback
+                'horas_efectivas_mes': 123.2,  # 176 * 0.7
+                'turnos_por_dia': 1,
+                'horas_por_turno': 8.0,
+                'dias_laborables_mes': 22,
+                'oee': 0.70
+            }
             horas_nominales_mes = (
                 parametros['turnos_por_dia'] * 
                 parametros['horas_por_turno'] * 
