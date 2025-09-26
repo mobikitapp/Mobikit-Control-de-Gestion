@@ -207,10 +207,10 @@ def crear():
         
         # Clean empty strings to None for optional integer fields
         if 'hito_entrega_id' in form_data and form_data['hito_entrega_id'] == '':
-            del form_data['hito_entrega_id']
+            form_data['hito_entrega_id'] = None
         
         if 'contrato_id' in form_data and form_data['contrato_id'] == '':
-            del form_data['contrato_id']
+            form_data['contrato_id'] = None
             
         # Clean empty numero_despacho to let it be auto-generated
         if 'numero_despacho' in form_data and form_data['numero_despacho'].strip() == '':
@@ -449,8 +449,18 @@ def actualizar(despacho_id):
             flash('Despacho no encontrado', 'error')
             return redirect(url_for('despachos.index'))
 
+        # Validar y limpiar datos del formulario
+        form_data = request.form.to_dict()
+        
+        # Clean empty strings to None for optional integer fields
+        if 'hito_entrega_id' in form_data and form_data['hito_entrega_id'] == '':
+            form_data['hito_entrega_id'] = None
+        
+        if 'contrato_id' in form_data and form_data['contrato_id'] == '':
+            form_data['contrato_id'] = None
+            
         # Validar datos del formulario
-        update_data = DespachoUpdate(**request.form.to_dict())
+        update_data = DespachoUpdate(**form_data)
 
         # Manejar la actualización de las órdenes de fabricación asociadas si es necesario
         # Esto podría implicar eliminar las existentes y agregar las nuevas, o una lógica más compleja.
