@@ -186,7 +186,11 @@ class ProyectosService:
                 # New efficiency metrics by area
                 'eficiencia_por_area': self._calcular_eficiencia_por_area(proyecto_id),
                 # New delivery KPIs - on-time delivery and average delay days
-                'kpi_entregas': self._calcular_kpi_entregas(proyecto_id)
+                'kpi_entregas': self._calcular_kpi_entregas(proyecto_id),
+                # New board cutting statistics
+                'estadisticas_tableros': self._calcular_estadisticas_tableros(proyecto_id),
+                # New operational parameter recommendations
+                'recomendaciones_operacionales': self._calcular_recomendaciones_operacionales(proyecto_id)
             }
 
             return {
@@ -870,9 +874,12 @@ class ProyectosService:
                     continue
 
             # === ANÁLISIS DE HITOS DE ENTREGA ===
-            hitos = HitoEntrega.query.join(HitoEntrega.contrato).filter(
-                HitoEntrega.contrato.has(proyecto_id=proyecto_id)
-            ).all()
+            from models import PlanEntrega, Contrato
+            hitos = HitoEntrega.query\
+                .join(PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id)\
+                .join(Contrato, PlanEntrega.contrato_id == Contrato.id)\
+                .filter(Contrato.proyecto_id == proyecto_id)\
+                .all()
             
             for hito in hitos:
                 try:
@@ -1290,3 +1297,210 @@ class ProyectosService:
         except Exception as e:
             logger.error(f"Error getting financial summary: {str(e)}")
             return []
+
+    def _calcular_estadisticas_tableros(self, proyecto_id: int) -> Dict[str, Any]:
+        """Calculate board cutting statistics including total boards, ratios, and days per board"""
+        try:
+            from models import OrdenFabricacion
+            from datetime import datetime
+
+            # Get all orders for the project
+            ordenes = OrdenFabricacion.query.filter_by(proyecto_id=proyecto_id).all()
+
+            # Initialize metrics
+            total_tableros = 0
+            tableros_fabrica = 0
+            tableros_embalaje = 0
+            dias_fabrica_total = 0
+            dias_embalaje_total = 0
+            ordenes_fabrica_procesadas = 0
+            ordenes_embalaje_procesadas = 0
+
+            for orden in ordenes:
+                try:
+                    # Count total boards
+                    if orden.cantidad_tableros:
+                        total_tableros += orden.cantidad_tableros
+                        
+                        # Analyze Factory area (Fábrica)
+                        if orden.fecha_entrega_fabrica and orden.fecha_inicio:
+                            dias_en_fabrica = (orden.fecha_entrega_fabrica - orden.fecha_inicio).days
+                            if dias_en_fabrica > 0:
+                                tableros_fabrica += orden.cantidad_tableros
+                                dias_fabrica_total += dias_en_fabrica
+                                ordenes_fabrica_procesadas += 1
+
+                        # Analyze Packaging area (Embalaje)
+                        if orden.fecha_entrega_embalaje and orden.fecha_entrega_fabrica:
+                            dias_en_embalaje = (orden.fecha_entrega_embalaje - orden.fecha_entrega_fabrica).days
+                            if dias_en_embalaje > 0:
+                                tableros_embalaje += orden.cantidad_tableros
+                                dias_embalaje_total += dias_en_embalaje
+                                ordenes_embalaje_procesadas += 1
+
+                except Exception as orden_e:
+                    logger.warning(f"Error procesando tableros para orden {orden.id}: {str(orden_e)}")
+                    continue
+
+            # Calculate ratios and averages
+            tableros_por_dia_fabrica = 0
+            dias_por_tablero_fabrica = 0
+            if ordenes_fabrica_procesadas > 0 and dias_fabrica_total > 0:
+                tableros_por_dia_fabrica = round(tableros_fabrica / dias_fabrica_total, 2)
+                dias_por_tablero_fabrica = round(dias_fabrica_total / tableros_fabrica, 2)
+
+            tableros_por_dia_embalaje = 0 
+            dias_por_tablero_embalaje = 0
+            if ordenes_embalaje_procesadas > 0 and dias_embalaje_total > 0:
+                tableros_por_dia_embalaje = round(tableros_embalaje / dias_embalaje_total, 2)
+                dias_por_tablero_embalaje = round(dias_embalaje_total / tableros_embalaje, 2)
+
+            return {
+                'total_tableros': total_tableros,
+                'tableros_fabrica': tableros_fabrica,
+                'tableros_embalaje': tableros_embalaje,
+                'tableros_por_dia_fabrica': tableros_por_dia_fabrica,
+                'tableros_por_dia_embalaje': tableros_por_dia_embalaje,
+                'dias_por_tablero_fabrica': dias_por_tablero_fabrica,
+                'dias_por_tablero_embalaje': dias_por_tablero_embalaje,
+                'ordenes_procesadas_fabrica': ordenes_fabrica_procesadas,
+                'ordenes_procesadas_embalaje': ordenes_embalaje_procesadas,
+                'estado': 'calculado' if total_tableros > 0 else 'sin_datos'
+            }
+
+        except Exception as e:
+            logger.error(f"Error calculando estadísticas de tableros: {str(e)}")
+            return {
+                'total_tableros': 0,
+                'tableros_fabrica': 0,
+                'tableros_embalaje': 0,
+                'tableros_por_dia_fabrica': 0,
+                'tableros_por_dia_embalaje': 0,
+                'dias_por_tablero_fabrica': 0,
+                'dias_por_tablero_embalaje': 0,
+                'ordenes_procesadas_fabrica': 0,
+                'ordenes_procesadas_embalaje': 0,
+                'estado': 'error'
+            }
+
+    def _calcular_recomendaciones_operacionales(self, proyecto_id: int) -> Dict[str, Any]:
+        """Generate operational parameter recommendations based on real OF data by project type"""
+        try:
+            from models import OrdenFabricacion, Proyecto, TipoProyecto
+            from sqlalchemy import func
+            from datetime import datetime
+
+            # Get current project data
+            proyecto = Proyecto.query.get(proyecto_id)
+            if not proyecto:
+                return {'estado': 'proyecto_no_encontrado'}
+
+            proyecto_tipo = proyecto.tipo_proyecto if proyecto.tipo_proyecto else TipoProyecto.ESTANDAR
+
+            # Get historical data from similar projects (same type)
+            proyectos_similares = Proyecto.query.filter_by(tipo_proyecto=proyecto_tipo).all()
+            proyecto_ids = [p.id for p in proyectos_similares]
+
+            if not proyecto_ids:
+                return {'estado': 'sin_datos_historicos'}
+
+            # Analyze historical performance for this project type
+            ordenes_historicas = OrdenFabricacion.query.filter(
+                OrdenFabricacion.proyecto_id.in_(proyecto_ids),
+                OrdenFabricacion.fecha_inicio.isnot(None),
+                OrdenFabricacion.cantidad_tableros.isnot(None)
+            ).all()
+
+            if not ordenes_historicas:
+                return {'estado': 'sin_datos_ordenes'}
+
+            # Calculate averages for this project type
+            tiempos_fabrica = []
+            tiempos_embalaje = []
+            tableros_por_orden = []
+            
+            for orden in ordenes_historicas:
+                try:
+                    if orden.cantidad_tableros:
+                        tableros_por_orden.append(orden.cantidad_tableros)
+
+                    # Factory time analysis
+                    if orden.fecha_inicio and orden.fecha_entrega_fabrica:
+                        dias_fabrica = (orden.fecha_entrega_fabrica - orden.fecha_inicio).days
+                        if dias_fabrica > 0:
+                            tiempos_fabrica.append(dias_fabrica)
+
+                    # Packaging time analysis
+                    if orden.fecha_entrega_fabrica and orden.fecha_entrega_embalaje:
+                        dias_embalaje = (orden.fecha_entrega_embalaje - orden.fecha_entrega_fabrica).days
+                        if dias_embalaje > 0:
+                            tiempos_embalaje.append(dias_embalaje)
+
+                except Exception as orden_e:
+                    logger.warning(f"Error analizando orden histórica {orden.id}: {str(orden_e)}")
+                    continue
+
+            # Generate recommendations based on statistical analysis
+            recomendaciones = {
+                'tipo_proyecto': proyecto_tipo.value if proyecto_tipo else 'ESTANDAR',
+                'ordenes_analizadas': len(ordenes_historicas),
+                'parametros_recomendados': {}
+            }
+
+            if tiempos_fabrica:
+                promedio_fabrica = sum(tiempos_fabrica) / len(tiempos_fabrica)
+                recomendaciones['parametros_recomendados']['dias_fabrica_recomendados'] = round(promedio_fabrica, 1)
+
+            if tiempos_embalaje:
+                promedio_embalaje = sum(tiempos_embalaje) / len(tiempos_embalaje)
+                recomendaciones['parametros_recomendados']['dias_embalaje_recomendados'] = round(promedio_embalaje, 1)
+
+            if tableros_por_orden:
+                promedio_tableros = sum(tableros_por_orden) / len(tableros_por_orden)
+                recomendaciones['parametros_recomendados']['tableros_promedio_por_orden'] = round(promedio_tableros, 1)
+
+            # Calculate efficiency recommendations based on historical data
+            if tiempos_fabrica and tableros_por_orden:
+                # Get overlapping data points for accurate ratio calculation
+                ratios_fabrica = []
+                for i, orden in enumerate(ordenes_historicas):
+                    if (orden.fecha_inicio and orden.fecha_entrega_fabrica and 
+                        orden.cantidad_tableros and orden.cantidad_tableros > 0):
+                        dias = (orden.fecha_entrega_fabrica - orden.fecha_inicio).days
+                        if dias > 0:
+                            ratio = orden.cantidad_tableros / dias
+                            ratios_fabrica.append(ratio)
+
+                if ratios_fabrica:
+                    tableros_por_dia_optimo = sum(ratios_fabrica) / len(ratios_fabrica)
+                    recomendaciones['parametros_recomendados']['tableros_por_dia_fabrica_objetivo'] = round(tableros_por_dia_optimo, 2)
+
+            # Add project-specific recommendations based on type
+            if proyecto_tipo == TipoProyecto.SOCIAL:
+                recomendaciones['observaciones'] = [
+                    'Proyectos sociales suelen requerir mayor control de calidad',
+                    'Considerar tiempos adicionales para revisiones'
+                ]
+            elif proyecto_tipo == TipoProyecto.ESPECIAL:
+                recomendaciones['observaciones'] = [
+                    'Proyectos especiales requieren diseños personalizados',
+                    'Planificar tiempo adicional para prototipos'
+                ]
+            else:  # ESTANDAR
+                recomendaciones['observaciones'] = [
+                    'Proyectos estándar permiten optimización de procesos',
+                    'Usar templates y procesos estandarizados'
+                ]
+
+            recomendaciones['estado'] = 'generado'
+            return recomendaciones
+
+        except Exception as e:
+            logger.error(f"Error generando recomendaciones operacionales: {str(e)}")
+            return {
+                'estado': 'error',
+                'tipo_proyecto': 'DESCONOCIDO',
+                'ordenes_analizadas': 0,
+                'parametros_recomendados': {},
+                'observaciones': []
+            }
