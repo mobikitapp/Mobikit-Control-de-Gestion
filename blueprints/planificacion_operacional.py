@@ -461,13 +461,23 @@ def api_capacidad_estrategica():
         datos = service.get_resumen_capacidad_estrategica()
         
         if datos and datos.get('error') is None:
-            return jsonify(datos)
+            return jsonify({
+                'success': True,
+                'data': datos
+            })
         else:
             error_msg = datos.get('error', 'Error desconocido al calcular capacidad') if datos else 'No se pudieron obtener datos de capacidad'
-            return jsonify({'error': error_msg})
+            return jsonify({
+                'success': False,
+                'error': error_msg
+            }), 500
 
     except Exception as e:
-        return jsonify({'error': f'Error al obtener capacidad estratégica: {str(e)}'})
+        print(f"Error en api_capacidad_estrategica: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al obtener capacidad estratégica: {str(e)}'
+        }), 500
 
 
 @planificacion_operacional_bp.route('/detalle-proyecto/<int:proyecto_id>')
