@@ -727,9 +727,10 @@ class PlanificacionOperacionalService:
                 }
                 
                 tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
-                horas_fabricacion = tableros_of * tiempo_por_tablero
-                horas_embalaje = tableros_of * (tiempo_por_tablero * 0.3)  # Embalaje = 30% de fabricación
-                horas_totales = horas_fabricacion + horas_embalaje
+                # Calcular solo horas de fabricación (tiempo total por tablero incluye fabricación completa)
+                horas_totales = tableros_of * tiempo_por_tablero
+                horas_fabricacion = horas_totales
+                horas_embalaje = 0  # Ya está incluido en el tiempo total por tablero
                 
                 # Agregar OF al proyecto
                 of_data = {
@@ -737,6 +738,8 @@ class PlanificacionOperacionalService:
                     'codigo': of.codigo,
                     'fecha_planificada': fecha_of.isoformat(),
                     'cantidad_tableros': tableros_of,
+                    'tipo_proyecto': tipo_proyecto,
+                    'tiempo_por_tablero': tiempo_por_tablero,
                     'horas_fabricacion': round(horas_fabricacion, 2),
                     'horas_embalaje': round(horas_embalaje, 2),
                     'horas_totales': round(horas_totales, 2),
@@ -871,6 +874,41 @@ class PlanificacionOperacionalService:
     # BACKLOG AND ROLLING PLAN LOGIC
     # ==========================================
 
+    def _calcular_horas_demanda_mes_correctas(self, mes_data: Dict) -> float:
+        """
+        Calcula correctamente las horas de demanda de un mes basándose en:
+        cantidad_tableros * horas_por_tablero (según tipo de proyecto) de cada OF
+        """
+        try:
+            config_service = ConfiguracionesService()
+            config = config_service.get_configuracion_capacidad()
+            
+            tiempo_por_tablero_map = {
+                'SOCIAL': config.get('horas_por_tablero_social', 0.6),
+                'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
+                'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
+            }
+            
+            total_horas = 0.0
+            
+            # Iterar sobre todos los proyectos del mes
+            for proyecto in mes_data.get('proyectos', {}).values():
+                # Iterar sobre todas las OFs del proyecto
+                for of_data in proyecto.get('ordenes_fabricacion', []):
+                    tableros = of_data.get('cantidad_tableros', 0)
+                    tipo_proyecto = proyecto.get('tipo_proyecto', 'ESTANDAR')
+                    
+                    tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
+                    horas_of = tableros * tiempo_por_tablero
+                    total_horas += horas_of
+            
+            return round(total_horas, 2)
+            
+        except Exception as e:
+            print(f"Error calculando horas de demanda del mes: {e}")
+            # Fallback al valor existente
+            return mes_data.get('totales_mes', {}).get('total_horas_requeridas', 0.0)
+
     def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
         """
         Calcula el rolling plan con análisis de backlog acumulado y redistribución de carga
@@ -880,7 +918,7 @@ class PlanificacionOperacionalService:
             demanda_data = self.calcular_demanda_mensual_jerarquica(año, horizonte_meses)
             demanda_por_mes = demanda_data['demanda_por_mes']
             
-            # Obtener capacidad efectiva mensual
+            # Obtener capacidad efectiva mensual (horas efectivas disponibles)
             horas_efectivas_mes = self.calcular_horas_efectivas_mensuales()
             
             # Estructura del rolling plan
@@ -892,7 +930,8 @@ class PlanificacionOperacionalService:
             
             for i, mes_key in enumerate(meses_ordenados):
                 mes_data = demanda_por_mes[mes_key]
-                horas_demanda_mes = mes_data['totales_mes']['total_horas_requeridas']
+                # Calcular correctamente las horas de demanda basándose en OFs
+                horas_demanda_mes = self._calcular_horas_demanda_mes_correctas(mes_data)
                 
                 # Agregar backlog del mes anterior
                 horas_demanda_total = horas_demanda_mes + backlog_acumulado
@@ -910,6 +949,13 @@ class PlanificacionOperacionalService:
                 # Calcular métricas del mes
                 exceso_capacidad = max(0, horas_efectivas_mes - horas_demanda_total)
                 deficit_capacidad = max(0, horas_demanda_total - horas_efectivas_mes)
+                
+                # Debug: Log calculation details
+                print(f"Rolling Plan {mes_data['nombre_mes']}: "
+                      f"OFs={sum(len(p.get('ordenes_fabricacion', [])) for p in mes_data.get('proyectos', {}).values())}, "
+                      f"Tableros={mes_data['totales_mes']['total_tableros']}, "
+                      f"Horas Demanda Original={horas_demanda_mes:.1f}, "
+                      f"Horas Efectivas Disponibles={horas_efectivas_mes:.1f}")
                 
                 rolling_plan[mes_key] = {
                     'mes_info': {

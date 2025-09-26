@@ -27,7 +27,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Filters -->
     <div class="row mb-4">
         <div class="col-md-12">
@@ -82,7 +82,7 @@
 
     {% if vista == 'estrategico' and resumen_capacidad %}
     <!-- Strategic Capacity Analysis -->
-    
+
     <!-- Key Metrics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
@@ -193,10 +193,10 @@
                                 <tr class="{{ clase_estado }}">
                                     <td><strong>{{ mes_data.mes_info.nombre_mes }}</strong></td>
                                     <td><span class="badge bg-primary">{{ mes_data.demanda.tableros_demandados or 0 }}</span></td>
-                                    <td>{{ "{:.0f}".format(mes_data.demanda.horas_demanda_original) }}h</td>
-                                    <td>{{ "{:.0f}".format(mes_data.demanda.backlog_heredado) }}h</td>
-                                    <td>{{ "{:.0f}".format(mes_data.demanda.horas_demanda_total) }}h</td>
-                                    <td>{{ "{:.0f}".format(mes_data.capacidad.horas_efectivas_disponibles) }}h</td>
+                                    <td><strong>{{ "{:.1f}".format(mes_data.demanda.horas_demanda_original) }}</strong></td>
+                                    <td>{{ "{:.1f}".format(mes_data.demanda.backlog_heredado) }}</td>
+                                    <td>{{ "{:.1f}".format(mes_data.demanda.horas_demanda_total) }}</td>
+                                    <td><strong>{{ "{:.1f}".format(mes_data.capacidad.horas_efectivas_disponibles) }}</strong></td>
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="progress flex-grow-1 me-2" style="height: 20px;">
@@ -261,7 +261,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Strategic Recommendations -->
         <div class="col-md-6">
             <div class="card">
@@ -327,7 +327,7 @@
                         {% endif %}
                         {% endfor %}
                     </div>
-                    
+
                     <!-- Scenario Usage Guidelines -->
                     {% if escenarios_deficit.recomendaciones_uso %}
                     <div class="mt-4">
@@ -434,7 +434,7 @@
 
     {% else %}
     <!-- Legacy Capacity Analysis (for mensual/semanal views) -->
-    
+
     <!-- Summary Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
@@ -456,7 +456,7 @@
         <div class="col-md-3">
             <div class="card bg-warning text-white">
                 <div class="card-body text-center">
-                    <h4>{{ "{:.0f}".format(resumen.promedio_capacidad_porcentaje or 0) }}%</h4>
+                    <h4>{{ "{:.0f}".format(resumen.promedio_capacidad_por_centaje or 0) }}%</h4>
                     <small>Capacidad Promedio</small>
                 </div>
             </div>
@@ -470,7 +470,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Capacity Chart -->
     <div class="row mb-4">
         <div class="col-md-12">
@@ -544,7 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-refresh functionality for strategic view
     {% if vista == 'estrategico' %}
     console.log('Strategic capacity analysis loaded');
-    
+
     // Add any interactive functionality here
     // For example, scenario simulation buttons, etc.
     {% endif %}
