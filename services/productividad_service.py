@@ -88,9 +88,33 @@ class ProductividadService:
             
             # Filtros de fecha
             if estado_of == 'completadas':
-                query = query.filter(OrdenFabricacion.fecha_fin.isnot(None))
-                query = query.filter(OrdenFabricacion.fecha_fin >= fecha_inicio)
-                query = query.filter(OrdenFabricacion.fecha_fin <= fecha_fin)
+                # Incluir OFs completadas Y órdenes en bodega (listo_para_despacho, programado_para_despacho)
+                from sqlalchemy import or_
+                bodega_estados = ['listo_para_despacho', 'programado_para_despacho']
+                
+                query = query.filter(
+                    or_(
+                        # OFs completadas con fecha_fin
+                        OrdenFabricacion.fecha_fin.isnot(None),
+                        # OFs en bodega (ya completaron fabricación y embalaje)
+                        OrdenFabricacion.estado.in_(bodega_estados)
+                    )
+                )
+                
+                # Filtro de fechas: usar fecha_fin si existe, sino usar fecha_inicio para OFs en bodega
+                query = query.filter(
+                    or_(
+                        # Para OFs completadas: filtrar por fecha_fin
+                        (OrdenFabricacion.fecha_fin.isnot(None)) & 
+                        (OrdenFabricacion.fecha_fin >= fecha_inicio) & 
+                        (OrdenFabricacion.fecha_fin <= fecha_fin),
+                        # Para OFs en bodega: filtrar por fecha_inicio
+                        (OrdenFabricacion.estado.in_(bodega_estados)) & 
+                        (OrdenFabricacion.fecha_inicio.isnot(None)) &
+                        (OrdenFabricacion.fecha_inicio >= fecha_inicio) &
+                        (OrdenFabricacion.fecha_inicio <= fecha_fin)
+                    )
+                )
             elif estado_of == 'en_proceso':
                 query = query.filter(OrdenFabricacion.fecha_inicio.isnot(None))
                 query = query.filter(OrdenFabricacion.fecha_fin.is_(None))

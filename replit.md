@@ -81,6 +81,12 @@ The system follows a modular blueprint architecture with clear separation of con
 
 ## Recent Changes
 
+### 2025-09-26: Expanded Productividad Real Analysis to Include Bodega Orders
+- **Enhanced productivity analysis** to include orders in "Área Bodega" states (`listo_para_despacho`, `programado_para_despacho`)
+- **Updated filtering logic** in ProductividadService to consider orders that completed manufacturing and packaging but haven't been dispatched yet
+- **Improved statistical accuracy** by including orders that have finished production workflow but remain in warehouse
+- **Purpose**: Provide more comprehensive productivity metrics by including all orders that have completed the manufacturing process, not just those with explicit completion dates
+
 ### 2025-09-09: Simplified Finance Module Implementation
 - **Created simplified finance module** focused on project financial tracking
 - **Key Features**:
