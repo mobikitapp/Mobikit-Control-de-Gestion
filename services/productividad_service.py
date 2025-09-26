@@ -299,6 +299,7 @@ class ProductividadService:
                     metricas[tipo] = {
                         'total_ofs': 0,
                         'total_tableros': 0,
+                        'promedio_tiempo_dias': 0,
                         'promedio_tableros_por_dia_total': 0,
                         'promedio_tableros_por_dia_fabrica': 0,
                         'promedio_tableros_por_dia_embalaje': 0,
@@ -307,7 +308,15 @@ class ProductividadService:
                     continue
                 
                 total_tableros = sum(of['cantidad_tableros'] for of in ofs_tipo)
-                tableros_dia_total = [of['productividad']['tableros_por_dia_total'] for of in ofs_tipo if of['productividad']['tableros_por_dia_total'] > 0]
+                
+                # Calcular tiempo promedio total
+                tiempos_totales = [of['tiempos_reales']['tiempo_total_dias'] for of in ofs_tipo if of['tiempos_reales']['tiempo_total_dias'] > 0]
+                promedio_tiempo_total = round(sum(tiempos_totales) / len(tiempos_totales), 2) if tiempos_totales else 0
+                
+                # Calcular tableros/día total usando total tableros / promedio tiempo
+                promedio_tableros_por_dia_total = round(total_tableros / promedio_tiempo_total, 2) if promedio_tiempo_total > 0 else 0
+                
+                # Para las otras métricas, usar promedio de ratios individuales
                 tableros_dia_fabrica = [of['productividad']['tableros_por_dia_fabrica'] for of in ofs_tipo if of['productividad']['tableros_por_dia_fabrica'] > 0]
                 tableros_dia_embalaje = [of['productividad']['tableros_por_dia_embalaje'] for of in ofs_tipo if of['productividad']['tableros_por_dia_embalaje'] > 0]
                 eficiencias = [of['eficiencia']['total_vs_estimado'] for of in ofs_tipo if of['eficiencia']['total_vs_estimado'] > 0]
@@ -315,7 +324,8 @@ class ProductividadService:
                 metricas[tipo] = {
                     'total_ofs': len(ofs_tipo),
                     'total_tableros': total_tableros,
-                    'promedio_tableros_por_dia_total': round(sum(tableros_dia_total) / len(tableros_dia_total), 2) if tableros_dia_total else 0,
+                    'promedio_tiempo_dias': promedio_tiempo_total,
+                    'promedio_tableros_por_dia_total': promedio_tableros_por_dia_total,
                     'promedio_tableros_por_dia_fabrica': round(sum(tableros_dia_fabrica) / len(tableros_dia_fabrica), 2) if tableros_dia_fabrica else 0,
                     'promedio_tableros_por_dia_embalaje': round(sum(tableros_dia_embalaje) / len(tableros_dia_embalaje), 2) if tableros_dia_embalaje else 0,
                     'eficiencia_promedio': round(sum(eficiencias) / len(eficiencias), 1) if eficiencias else 0
