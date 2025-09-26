@@ -176,6 +176,7 @@
                             <thead class="table-dark">
                                 <tr>
                                     <th>Mes</th>
+                                    <th>Cantidad Tableros</th>
                                     <th>Demanda Original</th>
                                     <th>Backlog Heredado</th>
                                     <th>Demanda Total</th>
@@ -191,6 +192,7 @@
                                 {% set clase_estado = 'table-success' if utilizacion < 70 else 'table-warning' if utilizacion < 90 else 'table-danger' if utilizacion > 100 else 'table-primary' %}
                                 <tr class="{{ clase_estado }}">
                                     <td><strong>{{ mes_data.mes_info.nombre_mes }}</strong></td>
+                                    <td><span class="badge bg-primary">{{ mes_data.demanda.tableros_demandados or 0 }}</span></td>
                                     <td>{{ "{:.0f}".format(mes_data.demanda.horas_demanda_original) }}h</td>
                                     <td>{{ "{:.0f}".format(mes_data.demanda.backlog_heredado) }}h</td>
                                     <td>{{ "{:.0f}".format(mes_data.demanda.horas_demanda_total) }}h</td>
