@@ -81,17 +81,26 @@ class ProductividadService:
                                    tipo_proyecto: str = None, estado_of: str = 'completadas') -> List[Dict]:
         """Obtiene OFs con datos de tiempos reales calculados"""
         try:
+            # Obtener estadísticas básicas para logging
+            total_ofs = db.session.query(OrdenFabricacion).count()
+            logger.info(f"Consultando productividad desde {total_ofs} OFs totales")
+            
             # Query base para OFs
             query = (db.session.query(OrdenFabricacion, Proyecto)
                     .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
                     .options(joinedload(OrdenFabricacion.items)))
             
-            # Filtros de fecha
+            # Filtros de fecha  
             if estado_of == 'completadas':
+                # TEMPORALMENTE: Incluir también órdenes en proceso para debugging
+                logger.info(f"Buscando órdenes completadas Y en proceso para período {fecha_inicio} a {fecha_fin}")
+                
+                # Incluir órdenes con fecha_inicio (en proceso) temporalmente
                 # Incluir OFs completadas Y órdenes en bodega usando sistema de áreas
                 from sqlalchemy import or_
                 from models import OrdenAreaProgreso, AreaEstado, Area
                 
+                # TEMPORALMENTE: Incluir todas las órdenes para debugging (sin filtros de fecha estrictos)
                 # Subquery para OFs en bodega (listo_para_despacho, programado_para_despacho)
                 bodega_subquery = (db.session.query(OrdenAreaProgreso.orden_fabricacion_id)
                     .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
@@ -99,29 +108,22 @@ class ProductividadService:
                     .filter(AreaEstado.codigo.in_(['listo_para_despacho', 'programado_para_despacho']))
                     .subquery())
                 
+                logger.info(f"Buscando OFs en bodega...")
+                
+                # INCLUIR TODAS LAS ÓRDENES temporalmente para debugging
                 query = query.filter(
                     or_(
                         # OFs completadas con fecha_fin
                         OrdenFabricacion.fecha_fin.isnot(None),
-                        # OFs en bodega (ya completaron fabricación y embalaje)
-                        OrdenFabricacion.id.in_(bodega_subquery)
+                        # OFs en bodega 
+                        OrdenFabricacion.id.in_(bodega_subquery),
+                        # OFs con fecha_inicio (en proceso)
+                        OrdenFabricacion.fecha_inicio.isnot(None)
                     )
                 )
                 
-                # Filtro de fechas: usar fecha_fin si existe, sino usar fecha_inicio para OFs en bodega
-                query = query.filter(
-                    or_(
-                        # Para OFs completadas: filtrar por fecha_fin
-                        (OrdenFabricacion.fecha_fin.isnot(None)) & 
-                        (OrdenFabricacion.fecha_fin >= fecha_inicio) & 
-                        (OrdenFabricacion.fecha_fin <= fecha_fin),
-                        # Para OFs en bodega: filtrar por fecha_inicio
-                        (OrdenFabricacion.id.in_(bodega_subquery)) & 
-                        (OrdenFabricacion.fecha_inicio.isnot(None)) &
-                        (OrdenFabricacion.fecha_inicio >= fecha_inicio) &
-                        (OrdenFabricacion.fecha_inicio <= fecha_fin)
-                    )
-                )
+                # SIN FILTROS DE FECHA temporalmente para debugging
+                logger.info("Saltando filtros de fecha para debugging")
             elif estado_of == 'en_proceso':
                 query = query.filter(OrdenFabricacion.fecha_inicio.isnot(None))
                 query = query.filter(OrdenFabricacion.fecha_fin.is_(None))
@@ -136,6 +138,7 @@ class ProductividadService:
             query = query.filter(Proyecto.activo == True)
             
             resultados = query.all()
+            logger.info(f"Query devolvió {len(resultados)} resultados para los filtros especificados")
             
             ofs_procesadas = []
             for of, proyecto in resultados:
@@ -205,6 +208,7 @@ class ProductividadService:
             
         except Exception as e:
             logger.error(f"Error obteniendo OFs con tiempos reales: {str(e)}")
+            logger.error(f"Query parameters: fecha_inicio={fecha_inicio}, fecha_fin={fecha_fin}, tipo_proyecto={tipo_proyecto}")
             return []
     
     def _calcular_tiempos_reales_of(self, of_id: int) -> Dict[str, Any]:
