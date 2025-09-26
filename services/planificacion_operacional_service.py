@@ -459,18 +459,17 @@ class PlanificacionOperacionalService:
             config_service = ConfiguracionesService()
             config = config_service.get_configuracion_capacidad()
             
-            numero_maquinas = config.get('numero_maquinas', 2)
             turnos_por_dia = config.get('turnos_por_dia', 1)
             horas_por_turno = config.get('horas_por_turno', 8)
             dias_laborables_mes = config.get('dias_laborables_mes', 22)
             
-            horas_nominales = numero_maquinas * turnos_por_dia * horas_por_turno * dias_laborables_mes
+            horas_nominales = turnos_por_dia * horas_por_turno * dias_laborables_mes
             return float(horas_nominales)
             
         except Exception as e:
             print(f"Error calculando horas nominales: {e}")
             # Valores por defecto si hay error
-            return 2 * 1 * 8 * 22  # 352 horas
+            return 1 * 8 * 22  # 176 horas
 
     def calcular_horas_efectivas_mensuales(self) -> float:
         """

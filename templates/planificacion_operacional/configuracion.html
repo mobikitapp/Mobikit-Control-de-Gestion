@@ -271,15 +271,6 @@
                                         <div class="row mb-3">
                                             <div class="col-md-4">
                                                 <label class="form-label">
-                                                    <i class="fas fa-cogs text-primary me-2"></i>
-                                                    Número de Máquinas
-                                                </label>
-                                                <input type="number" class="form-control" name="numero_maquinas" 
-                                                       value="{{ factores.configuracion.numero_maquinas | default(2) }}" min="1" max="10" required>
-                                                <small class="text-muted">Cantidad de máquinas de corte disponibles</small>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label">
                                                     <i class="fas fa-clock text-warning me-2"></i>
                                                     Turnos por Día
                                                 </label>
@@ -295,6 +286,9 @@
                                                 <input type="number" class="form-control" name="horas_por_turno" 
                                                        value="{{ factores.configuracion.horas_por_turno | default(8) }}" min="4" max="12" step="0.5" required>
                                                 <small class="text-muted">Duración en horas de cada turno</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <!-- Espaciador para mantener el layout -->
                                             </div>
                                         </div>
 
@@ -635,9 +629,9 @@
                                             <h6 class="mb-0">Horas Nominales Mensuales</h6>
                                         </div>
                                         <div class="card-body">
-                                            <p><strong>Fórmula:</strong> Máquinas × Turnos × Horas/Turno × Días/Mes</p>
-                                            <p>{{ factores.configuracion.numero_maquinas | default(2) }} × {{ factores.configuracion.turnos_por_dia | default(1) }} × {{ factores.configuracion.horas_por_turno | default(8) }} × {{ factores.configuracion.dias_laborables_mes | default(22) }}</p>
-                                            <p><strong>= {{ (factores.configuracion.numero_maquinas | default(2)) * (factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22)) }} horas nominales/mes</strong></p>
+                                            <p><strong>Fórmula:</strong> Turnos × Horas/Turno × Días/Mes</p>
+                                            <p>{{ factores.configuracion.turnos_por_dia | default(1) }} × {{ factores.configuracion.horas_por_turno | default(8) }} × {{ factores.configuracion.dias_laborables_mes | default(22) }}</p>
+                                            <p><strong>= {{ (factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22)) }} horas nominales/mes</strong></p>
                                         </div>
                                     </div>
                                 </div>
@@ -648,8 +642,8 @@
                                         </div>
                                         <div class="card-body">
                                             <p><strong>Fórmula:</strong> Horas Nominales × OEE</p>
-                                            <p>{{ (factores.configuracion.numero_maquinas | default(2)) * (factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22)) }} × {{ factores.configuracion.oee | default(0.70) }}</p>
-                                            <p><strong>= {{ "{:.0f}".format(((factores.configuracion.numero_maquinas | default(2)) * (factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22))) * (factores.configuracion.oee | default(0.70))) }} horas efectivas/mes</strong></p>
+                                            <p>{{ (factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22)) }} × {{ factores.configuracion.oee | default(0.70) }}</p>
+                                            <p><strong>= {{ "{:.0f}".format(((factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22))) * (factores.configuracion.oee | default(0.70))) }} horas efectivas/mes</strong></p>
                                         </div>
                                     </div>
                                 </div>
@@ -659,9 +653,9 @@
                                             <h6 class="mb-0">Capacidad Teórica de Tableros</h6>
                                         </div>
                                         <div class="card-body">
-                                            <p><strong>Estándar:</strong> {{ "{:.0f}".format(((factores.configuracion.numero_maquinas | default(2)) * (factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22))) * (factores.configuracion.oee | default(0.70)) / (factores.configuracion.horas_por_tablero_estandar | default(0.5))) }} tableros/mes</p>
-                                            <p><strong>Social:</strong> {{ "{:.0f}".format(((factores.configuracion.numero_maquinas | default(2)) * (factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22))) * (factores.configuracion.oee | default(0.70)) / (factores.configuracion.horas_por_tablero_social | default(0.6))) }} tableros/mes</p>
-                                            <p><strong>Especial:</strong> {{ "{:.0f}".format(((factores.configuracion.numero_maquinas | default(2)) * (factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22))) * (factores.configuracion.oee | default(0.70)) / (factores.configuracion.horas_por_tablero_especial | default(0.4))) }} tableros/mes</p>
+                                            <p><strong>Estándar:</strong> {{ "{:.0f}".format(((factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22))) * (factores.configuracion.oee | default(0.70)) / (factores.configuracion.horas_por_tablero_estandar | default(0.5))) }} tableros/mes</p>
+                                            <p><strong>Social:</strong> {{ "{:.0f}".format(((factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22))) * (factores.configuracion.oee | default(0.70)) / (factores.configuracion.horas_por_tablero_social | default(0.6))) }} tableros/mes</p>
+                                            <p><strong>Especial:</strong> {{ "{:.0f}".format(((factores.configuracion.turnos_por_dia | default(1)) * (factores.configuracion.horas_por_turno | default(8)) * (factores.configuracion.dias_laborables_mes | default(22))) * (factores.configuracion.oee | default(0.70)) / (factores.configuracion.horas_por_tablero_especial | default(0.4))) }} tableros/mes</p>
                                         </div>
                                     </div>
                                 </div>
@@ -692,7 +686,8 @@
                                             <h6 class="mb-0">Turnos Adicionales</h6>
                                         </div>
                                         <div class="card-body">
-                                            <p><strong>Máximo:</strong> {{ factores.configuracion.turnos_por_dia | default(1) }} → 3 turnos</p>
+                                            <p><strong>Actual:</strong> {{ factores.configuracion.turnos_por_dia | default(1) }} turno(s)/día</p>
+                                            <p><strong>Máximo:</strong> 3 turnos/día</p>
                                             <p><strong>Incremento:</strong> +{{ "{:.0f}".format(((3 - (factores.configuracion.turnos_por_dia | default(1))) / (factores.configuracion.turnos_por_dia | default(1))) * 100) }}% capacidad</p>
                                         </div>
                                     </div>

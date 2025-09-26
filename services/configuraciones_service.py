@@ -690,7 +690,6 @@ class ConfiguracionesService:
             'horas_por_tablero_especial': horas_por_tablero_especial,
             
             # New operational parameters for strategic capacity planning
-            'numero_maquinas': 2,  # Number of cutting machines
             'turnos_por_dia': 1,  # Number of shifts per day
             'horas_por_turno': 8.0,  # Hours per shift
             'dias_laborables_mes': 22,  # Working days per month
@@ -764,8 +763,7 @@ class ConfiguracionesService:
             config = self.get_configuracion_capacidad()
             
             # Calcular capacidad base
-            horas_nominales = (config.get('numero_maquinas', 2) * 
-                             config.get('turnos_por_dia', 1) * 
+            horas_nominales = (config.get('turnos_por_dia', 1) * 
                              config.get('horas_por_turno', 8) * 
                              config.get('dias_laborables_mes', 22))
             horas_efectivas = horas_nominales * config.get('oee', 0.70)
@@ -959,7 +957,7 @@ class ConfiguracionesService:
         try:
             # Validate operational parameters
             valid_params = {
-                'numero_maquinas', 'turnos_por_dia', 'horas_por_turno', 
+                'turnos_por_dia', 'horas_por_turno', 
                 'dias_laborables_mes', 'oee', 'horizonte_planificacion',
                 'umbral_sobrecarga', 'factor_horas_extra', 'max_subcontrato',
                 'mejora_oee_objetivo', 'capacidad_maxima_tableros_mes',
@@ -1054,7 +1052,6 @@ class ConfiguracionesService:
         try:
             # Calculate nominal hours per month
             horas_nominales_mes = (
-                parametros['numero_maquinas'] * 
                 parametros['turnos_por_dia'] * 
                 parametros['horas_por_turno'] * 
                 parametros['dias_laborables_mes']
@@ -1099,7 +1096,6 @@ class ConfiguracionesService:
             
             # Scenario 1: Extra hours (max 25% additional)
             horas_base = (
-                parametros['numero_maquinas'] * 
                 parametros['turnos_por_dia'] * 
                 parametros['horas_por_turno'] * 
                 parametros['dias_laborables_mes']
@@ -1120,7 +1116,7 @@ class ConfiguracionesService:
             # Scenario 2: Additional shifts
             max_turnos = 3
             if parametros['turnos_por_dia'] < max_turnos:
-                horas_por_turno_adicional = parametros['horas_por_turno'] * parametros['dias_laborables_mes'] * parametros['numero_maquinas']
+                horas_por_turno_adicional = parametros['horas_por_turno'] * parametros['dias_laborables_mes']
                 turnos_necesarios = int(deficit_horas / horas_por_turno_adicional) + 1
                 turnos_disponibles = max_turnos - parametros['turnos_por_dia']
                 
