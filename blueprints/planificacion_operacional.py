@@ -14,6 +14,7 @@ from models import (
 from services.planificacion_operacional_service import PlanificacionOperacionalService
 from services.planificacion_prioridades_service import PlanificacionPrioridadesService
 from services.configuraciones_service import ConfiguracionesService
+from services.productividad_service import ProductividadService
 from utils.auth import require_role
 
 # Create blueprint
@@ -87,6 +88,163 @@ def planificacion_prioridades():
     except Exception as e:
         flash(f'Error al cargar planificación y prioridades: {str(e)}', 'error')
         return redirect(url_for('planificacion_operacional.matriz_operacional'))
+
+
+@planificacion_operacional_bp.route('/productividad-real')
+@login_required
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+def productividad_real():
+    """Template de Productividad Real - Análisis de tableros/día con gráficos de dispersión"""
+    try:
+        from datetime import timedelta
+        
+        # Obtener filtros de la request
+        fecha_inicio_str = request.args.get('fecha_inicio')
+        fecha_fin_str = request.args.get('fecha_fin')
+        tipo_proyecto = request.args.get('tipo_proyecto', 'TODAS')
+        area_filtro = request.args.get('area', 'todas')
+        estado_of = request.args.get('estado_of', 'completadas')
+        
+        # Fechas por defecto (últimos 3 meses)
+        if not fecha_inicio_str:
+            fecha_inicio = date.today() - timedelta(days=90)
+        else:
+            fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+            
+        if not fecha_fin_str:
+            fecha_fin = date.today()
+        else:
+            fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
+        
+        # Construir filtros
+        filtros = {
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'tipo_proyecto': tipo_proyecto if tipo_proyecto != 'TODAS' else None,
+            'area': area_filtro if area_filtro != 'todas' else None,
+            'estado_of': estado_of
+        }
+        
+        # Obtener datos de productividad
+        service = ProductividadService()
+        datos_productividad = service.get_productividad_real(filtros)
+        
+        # Preparar datos para el template
+        template_data = {
+            'datos_productividad': datos_productividad,
+            'filtros_aplicados': {
+                'fecha_inicio': fecha_inicio.isoformat(),
+                'fecha_fin': fecha_fin.isoformat(),
+                'tipo_proyecto': tipo_proyecto,
+                'area_filtro': area_filtro,
+                'estado_of': estado_of
+            },
+            'tipos_proyecto': ['TODAS', 'SOCIAL', 'ESTANDAR', 'ESPECIAL'],
+            'areas_disponibles': ['todas', 'fabrica', 'embalaje'],
+            'estados_of': ['completadas', 'en_proceso', 'todas']
+        }
+        
+        return render_template('planificacion_operacional/productividad_real.html', **template_data)
+        
+    except Exception as e:
+        flash(f'Error al cargar análisis de productividad: {str(e)}', 'error')
+        return redirect(url_for('planificacion_operacional.matriz_operacional'))
+
+
+@planificacion_operacional_bp.route('/api/scatter-data')
+@login_required
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+def api_scatter_data():
+    """API endpoint para datos de gráficos de dispersión"""
+    try:
+        from datetime import timedelta
+        
+        # Obtener filtros
+        fecha_inicio_str = request.args.get('fecha_inicio')
+        fecha_fin_str = request.args.get('fecha_fin')
+        tipo_proyecto = request.args.get('tipo_proyecto')
+        area_filtro = request.args.get('area')
+        estado_of = request.args.get('estado_of', 'completadas')
+        
+        # Fechas por defecto
+        if not fecha_inicio_str:
+            fecha_inicio = date.today() - timedelta(days=90)
+        else:
+            fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+            
+        if not fecha_fin_str:
+            fecha_fin = date.today()
+        else:
+            fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
+        
+        filtros = {
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'tipo_proyecto': tipo_proyecto if tipo_proyecto != 'TODAS' else None,
+            'area': area_filtro if area_filtro != 'todas' else None,
+            'estado_of': estado_of
+        }
+        
+        # Obtener datos
+        service = ProductividadService()
+        datos_productividad = service.get_productividad_real(filtros)
+        
+        return jsonify({
+            'success': True,
+            'datos_scatter': datos_productividad.get('datos_scatter', {}),
+            'total_ofs': datos_productividad.get('total_ofs', 0)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@planificacion_operacional_bp.route('/api/regression-analysis')
+@login_required
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+def api_regression_analysis():
+    """API endpoint para análisis de regresión y estadísticas"""
+    try:
+        from datetime import timedelta
+        
+        # Obtener filtros
+        fecha_inicio_str = request.args.get('fecha_inicio')
+        fecha_fin_str = request.args.get('fecha_fin')
+        tipo_proyecto = request.args.get('tipo_proyecto')
+        estado_of = request.args.get('estado_of', 'completadas')
+        
+        # Fechas por defecto
+        if not fecha_inicio_str:
+            fecha_inicio = date.today() - timedelta(days=90)
+        else:
+            fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+            
+        if not fecha_fin_str:
+            fecha_fin = date.today()
+        else:
+            fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
+        
+        filtros = {
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'tipo_proyecto': tipo_proyecto if tipo_proyecto != 'TODAS' else None,
+            'estado_of': estado_of
+        }
+        
+        # Obtener datos
+        service = ProductividadService()
+        datos_productividad = service.get_productividad_real(filtros)
+        
+        return jsonify({
+            'success': True,
+            'analisis_estadistico': datos_productividad.get('analisis_estadistico', {}),
+            'outliers': datos_productividad.get('outliers', []),
+            'metricas_por_tipo': datos_productividad.get('metricas_por_tipo', {}),
+            'metricas_por_area': datos_productividad.get('metricas_por_area', {})
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 
 @planificacion_operacional_bp.route('/api/actualizar-fechas-of', methods=['POST'])
