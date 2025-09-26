@@ -447,6 +447,29 @@ def analisis_capacidad_api(year):
         return jsonify({'success': False, 'message': str(e)})
 
 
+@planificacion_operacional_bp.route('/api/capacidad_estrategica')
+@login_required
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+def api_capacidad_estrategica():
+    """API para obtener datos de capacidad estratégica para configuración"""
+    try:
+        from datetime import datetime
+        service = PlanificacionOperacionalService()
+        año_actual = datetime.now().year
+        
+        # Obtener datos de capacidad estratégica usando el servicio correcto
+        datos = service.get_resumen_capacidad_estrategica()
+        
+        if datos and datos.get('error') is None:
+            return jsonify(datos)
+        else:
+            error_msg = datos.get('error', 'Error desconocido al calcular capacidad') if datos else 'No se pudieron obtener datos de capacidad'
+            return jsonify({'error': error_msg})
+
+    except Exception as e:
+        return jsonify({'error': f'Error al obtener capacidad estratégica: {str(e)}'})
+
+
 @planificacion_operacional_bp.route('/detalle-proyecto/<int:proyecto_id>')
 @login_required
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
@@ -592,15 +615,3 @@ def api_matriz_datos(year):
             'message': f'Error: {str(e)}'
         }), 500
 
-
-@planificacion_operacional_bp.route('/api/capacidad_estrategica')
-@login_required
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
-def api_capacidad_estrategica():
-    """API endpoint para obtener cálculos de capacidad estratégica"""
-    try:
-        service = PlanificacionOperacionalService()
-        resumen = service.get_resumen_capacidad_estrategica()
-        return jsonify(resumen)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
