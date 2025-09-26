@@ -679,8 +679,8 @@ class PlanificacionOperacionalService:
                         'tipo_proyecto': proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR',
                         'cliente': {
                             'id': cliente.id,
-                            'nombre': cliente.nombre_cliente,
-                            'tipo': 'Persona' if cliente.tipo_cliente.value == 'PERSONA' else 'Empresa'
+                            'nombre': cliente.nombre,
+                            'tipo': 'Empresa'  # Simplificado ya que no hay tipo_cliente en el modelo actual
                         },
                         'ordenes_fabricacion': [],
                         'totales_proyecto': {
