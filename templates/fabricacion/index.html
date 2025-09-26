@@ -350,7 +350,7 @@
                             <td>
                                 {% if despacho.fecha_programada %}
                                     {{ despacho.fecha_programada.strftime('%d/%m/%Y') }}
-                                    {% set today = moment().now().date() %}
+                                    {% set today = moment_global().date() %}
                                     {% if despacho.fecha_programada < today %}
                                     <br><span class="badge bg-danger">Atrasado</span>
                                     {% endif %}
