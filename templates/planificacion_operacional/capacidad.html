@@ -46,8 +46,8 @@
                             <label class="form-label">Modo de Análisis</label>
                             <select class="form-select" name="vista">
                                 <option value="estrategico" {% if vista == 'estrategico' %}selected{% endif %}>Estratégico</option>
-                                <option value="mensual" {% if vista == 'mensual' %}selected{% endif %}>Mensual</option>
-                                <option value="semanal" {% if vista == 'semanal' %}selected{% endif %}>Semanal</option>
+                                <option value="mensual" {% if vista == 'mensual' %}selected{% endif %}>Mensual (Legacy)</option>
+                                <option value="semanal" {% if vista == 'semanal' %}selected{% endif %}>Semanal (Legacy)</option>
                             </select>
                         </div>
                         {% if vista == 'estrategico' %}
@@ -81,6 +81,8 @@
     </div>
 
     {% if vista == 'estrategico' and resumen_capacidad %}
+    <!-- Strategic Capacity Analysis -->
+
     <!-- Key Metrics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
@@ -145,7 +147,7 @@
                     <div class="row mt-2">
                         <div class="col-md-12">
                             <div class="progress">
-                                <div class="progress-bar bg-success" role="progressbar"
+                                <div class="progress-bar bg-success" role="progressbar" 
                                      style="width: {{ resumen_capacidad.calculos_capacidad.eficiencia_global }}%">
                                     OEE: {{ "{:.1f}".format(resumen_capacidad.parametros_operacionales.oee * 100) }}%
                                 </div>
@@ -198,11 +200,11 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="progress flex-grow-1 me-2" style="height: 20px;">
-                                                <div class="progress-bar
+                                                <div class="progress-bar 
                                                     {% if utilizacion < 70 %}bg-success
                                                     {% elif utilizacion < 90 %}bg-primary
                                                     {% elif utilizacion <= 100 %}bg-warning
-                                                    {% else %}bg-danger{% endif %}"
+                                                    {% else %}bg-danger{% endif %}" 
                                                      style="width: {{ min(utilizacion, 100) }}%">
                                                     {{ "{:.0f}".format(utilizacion) }}%
                                                 </div>
@@ -286,210 +288,6 @@
         </div>
     </div>
     {% endif %}
-    {% endif %}
-
-    <!-- Strategic Capacity Analysis Table (Unified for Monthly and Weekly) -->
-    {% if vista in ['estrategico', 'mensual', 'semanal'] %}
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">
-                            <i class="fas fa-chart-line text-primary"></i>
-                            {% if vista == 'estrategico' %}
-                                Análisis Estratégico de Capacidad vs Demanda
-                            {% elif vista == 'mensual' %}
-                                Análisis Mensual de Capacidad de Producción
-                            {% else %}
-                                Análisis Semanal de Capacidad de Producción
-                            {% endif %}
-                        </h6>
-                        {% if vista in ['mensual', 'semanal'] %}
-                        <div class="btn-group btn-group-sm" role="group">
-                            <a href="{{ url_for('planificacion_operacional.capacidad_produccion', año=año, vista='mensual') }}"
-                               class="btn btn-outline-primary {% if vista == 'mensual' %}active{% endif %}">
-                                <i class="fas fa-calendar-alt"></i> Mensual
-                            </a>
-                            <a href="{{ url_for('planificacion_operacional.capacidad_produccion', año=año, vista='semanal') }}"
-                               class="btn btn-outline-primary {% if vista == 'semanal' %}active{% endif %}">
-                                <i class="fas fa-calendar-week"></i> Semanal
-                            </a>
-                            <a href="{{ url_for('planificacion_operacional.capacidad_produccion', año=año, vista='estrategico') }}"
-                               class="btn btn-outline-success">
-                                <i class="fas fa-chess"></i> Estratégico
-                            </a>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    {% if vista == 'estrategico' and rolling_plan and rolling_plan.rolling_plan_por_mes %}
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered mb-0">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>Período</th>
-                                        <th>Proyectos</th>
-                                        <th>Tableros</th>
-                                        <th>Hrs Demanda Original</th>
-                                        <th>Backlog Heredado</th>
-                                        <th>Hrs Demanda Total</th>
-                                        <th>Hrs Efectivas</th>
-                                        <th>Utilización %</th>
-                                        <th>Exceso/Déficit</th>
-                                        <th>Backlog Final</th>
-                                        <th>Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for mes_key, mes_data in rolling_plan.rolling_plan_por_mes.items() %}
-                                    <tr class="{% if mes_data.capacidad.utilizacion_porcentaje > 100 %}table-danger{% elif mes_data.capacidad.utilizacion_porcentaje > 90 %}table-warning{% elif mes_data.capacidad.utilizacion_porcentaje < 70 %}table-success{% endif %}">
-                                        <td>
-                                            <strong>{{ mes_data.mes_info.nombre_mes }}</strong>
-                                            <br><small class="text-muted">{{ mes_data.mes_info.orden_secuencial }}° mes</small>
-                                        </td>
-                                        <td><span class="badge bg-primary">{{ mes_data.demanda.proyectos_count or 0 }}</span></td>
-                                        <td><span class="badge bg-info">{{ mes_data.demanda.tableros_demandados or 0 }}</span></td>
-                                        <td><strong>{{ "{:.1f}".format(mes_data.demanda.horas_demanda_original) }}</strong></td>
-                                        <td>{{ "{:.1f}".format(mes_data.demanda.backlog_heredado) }}</td>
-                                        <td>{{ "{:.1f}".format(mes_data.demanda.horas_demanda_total) }}</td>
-                                        <td><strong>{{ "{:.1f}".format(mes_data.capacidad.horas_efectivas_disponibles) }}</strong></td>
-                                        <td>
-                                            <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar {% if mes_data.capacidad.utilizacion_porcentaje > 100 %}bg-danger{% elif mes_data.capacidad.utilizacion_porcentaje > 90 %}bg-warning{% else %}bg-success{% endif %}"
-                                                     style="width: {{ mes_data.capacidad.utilizacion_porcentaje if mes_data.capacidad.utilizacion_porcentaje <= 100 else 100 }}%">
-                                                    {{ "{:.1f}".format(mes_data.capacidad.utilizacion_porcentaje) }}%
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            {% if mes_data.capacidad.exceso_capacidad > 0 %}
-                                            <span class="text-success">+{{ "{:.1f}".format(mes_data.capacidad.exceso_capacidad) }}h</span>
-                                            {% elif mes_data.capacidad.deficit_capacidad > 0 %}
-                                            <span class="text-danger">-{{ "{:.1f}".format(mes_data.capacidad.deficit_capacidad) }}h</span>
-                                            {% else %}
-                                            <span class="text-muted">0h</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if mes_data.backlog.backlog_fin_mes > 0 %}
-                                            <span class="badge bg-warning">{{ "{:.1f}".format(mes_data.backlog.backlog_fin_mes) }}h</span>
-                                            <br><small class="text-muted">~{{ "{:.0f}".format(mes_data.backlog.backlog_en_tableros) }} tab</small>
-                                            {% else %}
-                                            <span class="badge bg-success">0h</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-{{ mes_data.estado_mes.color }}">
-                                                {{ mes_data.estado_mes.descripcion.split(' - ')[0] }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% elif capacidad %}
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered mb-0">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>{% if vista == 'semanal' %}Semana{% else %}Período{% endif %}</th>
-                                        <th>Proyectos Activos</th>
-                                        <th>Tableros Requeridos</th>
-                                        <th>Horas Estimadas</th>
-                                        <th>Capacidad</th>
-                                        <th>Utilización %</th>
-                                        <th>Estado</th>
-                                        <th>Productividad Real</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for periodo_key, periodo_data in capacidad.items() %}
-                                    {% set utilizacion = (periodo_data.tableros_requeridos / 500) * 100 if 500 > 0 else 0 %}
-                                    {% set productividad_real = analisis_mensual.get(periodo_key, {}) if analisis_mensual else {} %}
-                                    <tr class="{% if utilizacion > 100 %}table-danger{% elif utilizacion > 90 %}table-warning{% elif utilizacion < 70 %}table-success{% endif %}">
-                                        <td>
-                                            {% if vista == 'semanal' %}
-                                            <strong>Sem {{ periodo_data.periodo }}</strong>
-                                            <br><small class="text-muted">{{ periodo_data.get('mes_nombre', periodo_data.periodo_nombre) }}</small>
-                                            {% else %}
-                                            <strong>{{ calendar.month_name[periodo_data.periodo] if calendar else periodo_data.periodo_nombre }}</strong>
-                                            <br><small class="text-muted">{{ año }}</small>
-                                            {% endif %}
-                                        </td>
-                                        <td><span class="badge bg-primary">{{ periodo_data.proyectos_activos or 0 }}</span></td>
-                                        <td><span class="badge bg-info">{{ periodo_data.tableros_requeridos or 0 }}</span></td>
-                                        <td><strong>{{ "{:.1f}".format(periodo_data.horas_estimadas or 0) }}</strong></td>
-                                        <td><strong>500 tableros</strong></td>
-                                        <td>
-                                            <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar {% if utilizacion > 100 %}bg-danger{% elif utilizacion > 90 %}bg-warning{% else %}bg-success{% endif %}"
-                                                     style="width: {{ utilizacion if utilizacion <= 100 else 100 }}%">
-                                                    {{ "{:.0f}".format(utilizacion) }}%
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            {% if utilizacion > 100 %}
-                                            <span class="badge bg-danger">Sobrecarga</span>
-                                            {% elif utilizacion > 90 %}
-                                            <span class="badge bg-warning">Alto</span>
-                                            {% elif utilizacion > 70 %}
-                                            <span class="badge bg-success">Óptimo</span>
-                                            {% else %}
-                                            <span class="badge bg-secondary">Bajo</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if productividad_real %}
-                                            <div class="text-center">
-                                                <small class="text-muted">Fab:</small> <span class="badge bg-primary">{{ productividad_real.get('tableros_fabricados', 0) }}</span><br>
-                                                <small class="text-muted">Emb:</small> <span class="badge bg-success">{{ productividad_real.get('tableros_embalados', 0) }}</span>
-                                            </div>
-                                            {% else %}
-                                            <small class="text-muted">Sin datos</small>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-5">
-                            <i class="fas fa-chart-line text-muted" style="font-size: 3rem;"></i>
-                            <p class="text-muted mt-3">No hay datos disponibles para el análisis de capacidad</p>
-                            <p class="text-muted">Asegúrese de que existan proyectos con fechas de entrega planificadas</p>
-                        </div>
-                    {% endif %}
-                </div>
-                <div class="card-footer">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <small class="text-muted">
-                                <strong>Leyenda:</strong>
-                                <span class="badge bg-success">&lt;70% Óptimo</span>
-                                <span class="badge bg-warning">70-90% Alto</span>
-                                <span class="badge bg-danger">&gt;90% Sobrecarga</span>
-                                {% if vista == 'estrategico' %}
-                                | <strong>Backlog:</strong> Horas acumuladas no satisfechas
-                                {% endif %}
-                            </small>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            {% if vista == 'estrategico' and rolling_plan and rolling_plan.resumen_rolling_plan %}
-                            <small class="text-muted">
-                                Backlog máximo: {{ "{:.1f}".format(rolling_plan.resumen_rolling_plan.analisis_backlog.backlog_maximo_horas) }}h
-                            </small>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
     {% endif %}
 
     <!-- Deficit Scenarios -->
@@ -582,7 +380,7 @@
                         {% for mes_key, mes_data in demanda_jerarquica.demanda_por_mes.items() %}
                         <div class="accordion-item">
                             <h2 class="accordion-header" id="heading{{ mes_key }}">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
                                         data-bs-target="#collapse{{ mes_key }}" aria-expanded="false">
                                     <strong>{{ mes_data.nombre_mes }}</strong>
                                     <span class="badge bg-primary ms-2">{{ mes_data.totales_mes.proyectos_count }} proyectos</span>
@@ -590,7 +388,7 @@
                                     <span class="badge bg-info ms-2">{{ "{:.0f}".format(mes_data.totales_mes.total_horas_requeridas) }} horas</span>
                                 </button>
                             </h2>
-                            <div id="collapse{{ mes_key }}" class="accordion-collapse collapse"
+                            <div id="collapse{{ mes_key }}" class="accordion-collapse collapse" 
                                  data-bs-parent="#demandaAccordion">
                                 <div class="accordion-body">
                                     {% if mes_data.proyectos %}
@@ -627,6 +425,111 @@
                             </div>
                         </div>
                         {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- Legacy Capacity Analysis (for mensual/semanal views) -->
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ resumen.total_tableros_año or 0 }}</h4>
+                    <small>Tableros Anuales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.0f}".format(resumen.total_horas_año or 0) }}</h4>
+                    <small>Horas Estimadas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "{:.0f}".format(resumen.promedio_capacidad_por_centaje or 0) }}%</h4>
+                    <small>Capacidad Promedio</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h4>{{ resumen.meses_sobrecargados or 0 }}</h4>
+                    <small>Meses Sobrecargados</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Capacity Chart -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Gráfico de Capacidad {{ vista|title }}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    {% if vista == 'mensual' %}
+                                    <th>Mes</th>
+                                    {% else %}
+                                    <th>Semana</th>
+                                    {% endif %}
+                                    <th>Proyectos Activos</th>
+                                    <th>Tableros Requeridos</th>
+                                    <th>Horas Estimadas</th>
+                                    <th>Capacidad %</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for periodo, data in capacidad.items() %}
+                                {% set clase_capacidad = 'table-success' if data.capacidad_porcentaje < 70 else 'table-warning' if data.capacidad_porcentaje < 90 else 'table-danger' %}
+                                <tr class="{{ clase_capacidad }}">
+                                    <td>
+                                        {% if vista == 'mensual' %}
+                                        <strong>{{ calendar.month_name[data.mes][:3] if data.mes else periodo }}</strong>
+                                        {% else %}
+                                        <strong>Sem {{ data.semana if data.semana else periodo }}</strong>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ data.proyectos_activos }}</td>
+                                    <td>{{ data.tableros_requeridos }}</td>
+                                    <td>{{ "{:.0f}".format(data.horas_estimadas) }}</td>
+                                    <td>
+                                        <div class="progress">
+                                            <div class="progress-bar {% if data.capacidad_porcentaje < 70 %}bg-success{% elif data.capacidad_porcentaje < 90 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                 style="width: {{ min(data.capacidad_porcentaje, 100) }}%">
+                                                {{ "{:.0f}".format(data.capacidad_porcentaje) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if data.capacidad_porcentaje < 70 %}
+                                        <span class="badge bg-success">Normal</span>
+                                        {% elif data.capacidad_porcentaje < 90 %}
+                                        <span class="badge bg-warning">Cargado</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Sobrecargado</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
