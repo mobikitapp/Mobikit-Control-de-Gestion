@@ -461,12 +461,15 @@ def api_proyecto_destino(proyecto_id):
 @require_login
 def api_kpi_cobranza(proyecto_id):
     """API endpoint para obtener KPI de cobranza de un proyecto"""
+    # Asegurar que siempre devolvemos JSON con headers correctos
+    from flask import jsonify, request
+    
     try:
         # Verificar que el proyecto existe
         proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
         if not proyecto:
             logger.warning(f"Proyecto {proyecto_id} no encontrado para KPI cobranza")
-            return jsonify({
+            response = jsonify({
                 'success': False, 
                 'message': f'Proyecto {proyecto_id} no encontrado',
                 'porcentaje_cobrado': 0,
@@ -475,14 +478,17 @@ def api_kpi_cobranza(proyecto_id):
                 'monto_facturado': 0,
                 'monto_contratado': 0,
                 'estado': 'sin_datos'
-            }), 404
+            })
+            response.status_code = 404
+            response.headers['Content-Type'] = 'application/json'
+            return response
 
         # Calcular KPI financiero directamente usando el método del servicio
         kpi_data = proyectos_service.calculate_financial_kpi_with_treasury(proyecto_id)
         
-        if not kpi_data:
+        if not kpi_data or kpi_data.get('estado') == 'error':
             logger.warning(f"No se pudo calcular KPI para proyecto {proyecto_id}")
-            return jsonify({
+            response = jsonify({
                 'success': True,
                 'porcentaje_cobrado': 0,
                 'porcentaje_facturado': 0,
@@ -491,8 +497,10 @@ def api_kpi_cobranza(proyecto_id):
                 'monto_contratado': 0,
                 'estado': 'sin_datos'
             })
+            response.headers['Content-Type'] = 'application/json'
+            return response
 
-        return jsonify({
+        response = jsonify({
             'success': True,
             'porcentaje_cobrado': float(kpi_data.get('porcentaje_cobrado', 0)),
             'porcentaje_facturado': float(kpi_data.get('porcentaje_facturado', 0)),
@@ -501,6 +509,8 @@ def api_kpi_cobranza(proyecto_id):
             'monto_contratado': float(kpi_data.get('monto_contratado', 0)),
             'estado': kpi_data.get('estado', 'sin_datos')
         })
+        response.headers['Content-Type'] = 'application/json'
+        return response
 
     except Exception as e:
         logger.error(f"Error en API KPI cobranza para proyecto {proyecto_id}: {str(e)}")
@@ -508,9 +518,9 @@ def api_kpi_cobranza(proyecto_id):
         logger.error(f"Traceback: {traceback.format_exc()}")
         
         # Siempre devolver JSON válido, incluso en caso de error
-        return jsonify({
+        response = jsonify({
             'success': False, 
-            'message': f'Error interno del servidor',
+            'message': 'Error interno del servidor',
             'error_details': str(e),
             'error_type': type(e).__name__,
             'porcentaje_cobrado': 0,
@@ -519,7 +529,10 @@ def api_kpi_cobranza(proyecto_id):
             'monto_facturado': 0,
             'monto_contratado': 0,
             'estado': 'error'
-        }), 500
+        })
+        response.status_code = 500
+        response.headers['Content-Type'] = 'application/json'
+        return response
 
 @proyectos_bp.route('/<int:proyecto_id>/limpiar-kpi', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)

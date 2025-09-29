@@ -1448,22 +1448,27 @@
             const progressBar = document.getElementById('progress-bar-cobranza');
 
             if (badge) {
-                badge.textContent = `${porcentaje.toFixed(1)}%`;
                 if (showErrorIndicator) {
-                    badge.classList.add('bg-danger');
+                    badge.textContent = 'Error';
                     badge.classList.remove('bg-success');
+                    badge.classList.add('bg-danger');
                 } else {
-                    badge.classList.add('bg-success');
+                    badge.textContent = `${porcentaje.toFixed(1)}%`;
                     badge.classList.remove('bg-danger');
+                    badge.classList.add('bg-success');
                 }
             }
             if (progressBar) {
-                progressBar.style.width = `${porcentaje}%`;
-                progressBar.setAttribute('data-porcentaje', porcentaje);
                 if (showErrorIndicator) {
+                    progressBar.style.width = '100%';
+                    progressBar.classList.remove('bg-success');
                     progressBar.classList.add('bg-danger');
+                    progressBar.setAttribute('data-porcentaje', 0);
                 } else {
+                    progressBar.style.width = `${porcentaje}%`;
+                    progressBar.setAttribute('data-porcentaje', porcentaje);
                     progressBar.classList.remove('bg-danger');
+                    progressBar.classList.add('bg-success');
                 }
             }
         }
@@ -1484,10 +1489,17 @@
 
 
         // Cargar KPI de cobranza con cache busting
-        // Cargar KPI de cobranza con cache busting
+        document.addEventListener('DOMContentLoaded', function() {
             const timestamp = new Date().getTime();
-            fetch(`/api/proyectos/{{ proyecto.id }}/kpi-cobranza?_t=${timestamp}`)
-                .then(response => response.json())
+            const proyectoId = {{ proyecto.id }};
+            
+            fetch(`/api/proyectos/${proyectoId}/kpi-cobranza?_t=${timestamp}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         const porcentajeCobrado = data.porcentaje_cobrado || 0;
@@ -1500,6 +1512,7 @@
                         }
                     } else {
                         console.error('Error en respuesta KPI:', data.message);
+                        updateCobranzaKPI(0, true);
                     }
                 })
                 .catch(error => {
@@ -1507,6 +1520,7 @@
                     // Mostrar un indicador de error en la UI
                     updateCobranzaKPI(0, true);
                 });
+        });
 
     // KPI Deletion Functions
     function limpiarKpiFinanciero(proyectoId) {
