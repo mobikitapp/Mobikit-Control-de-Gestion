@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import and_, or_, func, extract, case
 from decimal import Decimal
@@ -9,9 +9,10 @@ import json
 from app import db
 from models import (
     Proyecto, Cliente, User, OrdenFabricacion,
-    EstadoComercial, RolUsuario
+    EstadoComercial, RolUsuario, OrdenAreaProgreso, AreaEstado
 )
 from services.configuraciones_service import ConfiguracionesService
+from sqlalchemy.orm import selectinload
 
 
 class PlanificacionOperacionalService:
@@ -38,11 +39,11 @@ class PlanificacionOperacionalService:
             'factor_tiempo_embalaje': 0.012  # 0.012 días por tablero
         }
     }
-    
+
     # Standard board dimensions (meters)
     AREA_TABLERO_ESTANDAR = 4.575  # Standard board area in m²
     FACTOR_DESPERDICIO = 1.1  # Waste factor
-    
+
     # Time factors - now loaded from configuration
     def _get_factores_tiempo(self):
         """Get time factors from configuration service"""
@@ -62,7 +63,7 @@ class PlanificacionOperacionalService:
             return 0.0
         factor_data = self.DEFAULT_FACTORS_BY_TYPE.get(tipo_proyecto, self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR'])
         return cantidad_tableros * factor_data['factor_tiempo_fabrica']
-    
+
     def calcular_tiempo_estimado_embalaje(self, cantidad_tableros: int, tipo_proyecto: str = 'ESTANDAR') -> float:
         """Calcula tiempo estimado en embalaje basado en cantidad de tableros y tipo de proyecto"""
         if not cantidad_tableros or cantidad_tableros <= 0:
@@ -72,22 +73,22 @@ class PlanificacionOperacionalService:
 
     def get_matriz_operacional(self, año, mes_inicio=1, mes_fin=12, cliente_id=None, tipo_material='melamina'):
         """Get operational planning matrix with board calculations"""
-        
+
         # Get projects in the specified period
         proyectos = self._get_proyectos_periodo(año, mes_inicio, mes_fin, cliente_id)
-        
+
         # Build monthly matrix with board calculations
         matriz = self._construir_matriz_operacional(proyectos, año, mes_inicio, mes_fin, tipo_material)
-        
+
         # Calculate monthly totals
         totales_mes = self._calcular_totales_operacionales(matriz)
-        
+
         # Get clients for filtering
         clientes = db.session.query(Cliente).filter_by(activo=True).order_by(Cliente.nombre).all()
-        
+
         # Get conversion factor info (now using ESTANDAR as default)
         factor_info = self._get_factor_info('ESTANDAR')
-        
+
         return {
             'año': año,
             'mes_inicio': mes_inicio,
@@ -111,33 +112,33 @@ class PlanificacionOperacionalService:
                    .join(Cliente)
                    .filter(Proyecto.id == proyecto_id)
                    .first())
-        
+
         if not proyecto:
             return None
-        
+
         # Calculate boards for different materials
         tableros_por_material = {}
-        
+
         if proyecto.monto_provision_presupuestado:
             # Get project type, default to ESTANDAR
             tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
-            
+
             resultado = self.calcular_tableros_aproximados(
                 monto_provision=float(proyecto.monto_provision_presupuestado),
                 tipo_proyecto=tipo_proyecto,
                 margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
             )
             tableros_por_material['melamina'] = resultado
-        
+
         # Get manufacturing orders
         ordenes_fabricacion = (db.session.query(OrdenFabricacion)
                              .filter_by(proyecto_id=proyecto_id)
                              .order_by(OrdenFabricacion.codigo)
                              .all())
-        
+
         # Get project type for factor info
         tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
-        
+
         return {
             'proyecto': proyecto,
             'tableros_por_material': tableros_por_material,
@@ -148,7 +149,7 @@ class PlanificacionOperacionalService:
 
     def get_analisis_capacidad(self, año=2025, vista='mensual'):
         """Get production capacity analysis including productivity data"""
-        
+
         # Get projects with commercial states: ADJUDICADO, EN_DESARROLLO, TERMINADO
         proyectos_activos = (db.session.query(Proyecto)
                             .filter(Proyecto.estado_comercial.in_([
@@ -161,28 +162,28 @@ class PlanificacionOperacionalService:
                                 extract('year', Proyecto.fecha_fin_estimada) == año
                             ))
                             .all())
-        
+
         if vista == 'mensual':
             capacidad = self._calcular_capacidad_mensual(proyectos_activos, año)
         else:
             capacidad = self._calcular_capacidad_semanal(proyectos_activos, año)
-        
+
         # Get productivity data (only for monthly view)
         analisis_mensual = {}
         total_fabricados = 0
         total_embalados = 0
         rendimiento_promedio_fabrica = 0
         rendimiento_promedio_embalaje = 0
-        
+
         if vista == 'mensual':
             # Get productivity data
             productividad_fabrica = self.get_productividad_fabrica(año, 'mensual')
             productividad_embalaje = self.get_productividad_embalaje(año, 'mensual')
-            
+
             # Calculate productivity totals
             total_fabricados = sum(data['tableros_completados'] for data in productividad_fabrica.values())
             total_embalados = sum(data['tableros_completados'] for data in productividad_embalaje.values())
-            
+
             # Merge capacity and productivity data by month
             for mes in range(1, 13):
                 analisis_mensual[mes] = {
@@ -199,7 +200,7 @@ class PlanificacionOperacionalService:
                     'rendimiento_fabrica': 0,  # Will calculate below
                     'rendimiento_embalaje': 0,  # Will calculate below
                 }
-                
+
                 # Calculate performance ratios
                 estimados = analisis_mensual[mes]['tableros_estimados']
                 if estimados > 0:
@@ -209,16 +210,16 @@ class PlanificacionOperacionalService:
                     analisis_mensual[mes]['rendimiento_embalaje'] = round(
                         (analisis_mensual[mes]['tableros_embalados'] / estimados) * 100, 1
                     )
-            
+
             # Calculate average performance
             rendimiento_promedio_fabrica = round(sum(data['rendimiento_fabrica'] for data in analisis_mensual.values()) / 12, 1)
             rendimiento_promedio_embalaje = round(sum(data['rendimiento_embalaje'] for data in analisis_mensual.values()) / 12, 1)
-        
+
         # Calculate summary statistics
         total_tableros = sum(data['tableros_requeridos'] for data in capacidad.values())
         total_horas = sum(data['horas_estimadas'] for data in capacidad.values())
         promedio_capacidad = sum(data['capacidad_porcentaje'] for data in capacidad.values()) / len(capacidad) if capacidad else 0
-        
+
         return {
             # Original capacity analysis data
             'año': año,
@@ -244,42 +245,42 @@ class PlanificacionOperacionalService:
         Monto_provision * (1-margen_vta_provision) / factor_(CLP/tablero)
         Only uses Melamina, with factors based on project type.
         """
-        
+
         # Get conversion factor based on project type
         factor_data = self.DEFAULT_FACTORS_BY_TYPE.get(tipo_proyecto, self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR'])
         factor_m2 = factor_data['factor_m2']
         factor_clp_por_tablero = factor_data['factor_clp_tablero']
-        
+
         # Apply new formula if margin is provided
         if margen_venta_provision is not None:
             # New formula: Monto_provision * (1-margen_vta_provision) / factor_(CLP/tablero)
             margen_decimal = Decimal(str(margen_venta_provision)) / 100  # Convert percentage to decimal
             monto_neto = Decimal(str(monto_provision)) * (1 - margen_decimal)
-            
+
             # Calculate boards directly using CLP per board
             tableros_sin_desperdicio = monto_neto / Decimal(str(factor_clp_por_tablero))
-            
+
             # Apply waste factor
             tableros_aproximados = tableros_sin_desperdicio * Decimal(str(self.FACTOR_DESPERDICIO))
-            
+
             # Calculate derived values for compatibility
             area_total_m2 = tableros_sin_desperdicio * Decimal(str(self.AREA_TABLERO_ESTANDAR))
             area_con_desperdicio = area_total_m2 * Decimal(str(self.FACTOR_DESPERDICIO))
         else:
             # Legacy formula: monto_provision / factor_m2 
             area_total_m2 = Decimal(str(monto_provision)) / Decimal(str(factor_m2))
-            
+
             # Apply waste factor
             area_con_desperdicio = area_total_m2 * Decimal(str(self.FACTOR_DESPERDICIO))
-            
+
             # Calculate boards needed
             tableros_aproximados = area_con_desperdicio / Decimal(str(self.AREA_TABLERO_ESTANDAR))
-        
+
         # Round up to whole boards
         tableros_enteros = int(tableros_aproximados.to_integral_value())
         if tableros_aproximados > tableros_enteros:
             tableros_enteros += 1
-        
+
         return {
             'tableros_aproximados': tableros_enteros,
             'tableros_exactos': float(tableros_aproximados),
@@ -305,7 +306,7 @@ class PlanificacionOperacionalService:
         # In the future, these could be stored in database
         # For now, return default factors with current configuration
         factores = {}
-        
+
         for tipo_proyecto, data in self.DEFAULT_FACTORS_BY_TYPE.items():
             factores[tipo_proyecto] = {
                 'factor_m2': data['factor_m2'],
@@ -314,7 +315,7 @@ class PlanificacionOperacionalService:
                 'factor_tiempo_embalaje': data['factor_tiempo_embalaje'],
                 'descripcion': self._get_descripcion_tipo_proyecto(tipo_proyecto)
             }
-        
+
         # Get capacity configuration
         try:
             from services.configuraciones_service import ConfiguracionesService
@@ -330,16 +331,16 @@ class PlanificacionOperacionalService:
                 'horas_por_tablero_estandar': 0.5,
                 'horas_por_tablero_especial': 0.4,
             }
-        
+
         # Add configuration section
         factores['configuracion'] = {
             'area_tablero_estandar': self.AREA_TABLERO_ESTANDAR,
             'factor_desperdicio': self.FACTOR_DESPERDICIO,
             **capacidad_config
         }
-        
+
         return factores
-    
+
     def _get_descripcion_tipo_proyecto(self, tipo_proyecto):
         """Get description for project type"""
         descripciones = {
@@ -348,7 +349,7 @@ class PlanificacionOperacionalService:
             'ESPECIAL': 'Proyectos premium con especificaciones altas y acabados especiales'
         }
         return descripciones.get(tipo_proyecto, 'Descripción no disponible')
-        
+
         factores['configuracion'] = {
             'area_tablero_estandar': self.AREA_TABLERO_ESTANDAR,
             'factor_desperdicio': self.FACTOR_DESPERDICIO,
@@ -357,74 +358,74 @@ class PlanificacionOperacionalService:
             # Add capacity configuration
             **capacidad_config
         }
-        
+
         return factores
 
     def actualizar_factores_conversion(self, factores_data, user_id):
         """Update conversion factors including time and capacity settings"""
         try:
             updated_factors = []
-            
+
             # Update tablero factors by project type
             if factores_data.get('factor_social_tablero') is not None:
                 self.DEFAULT_FACTORS_BY_TYPE['SOCIAL']['factor_clp_tablero'] = factores_data['factor_social_tablero']
                 updated_factors.append(f"Social CLP/tablero: {factores_data['factor_social_tablero']:,}")
-                
+
             if factores_data.get('factor_estandar_tablero') is not None:
                 self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR']['factor_clp_tablero'] = factores_data['factor_estandar_tablero']
                 updated_factors.append(f"Estándar CLP/tablero: {factores_data['factor_estandar_tablero']:,}")
-                
+
             if factores_data.get('factor_especial_tablero') is not None:
                 self.DEFAULT_FACTORS_BY_TYPE['ESPECIAL']['factor_clp_tablero'] = factores_data['factor_especial_tablero']
                 updated_factors.append(f"Especial CLP/tablero: {factores_data['factor_especial_tablero']:,}")
-            
+
             # Update time factors by project type
             if factores_data.get('factor_tiempo_fabrica_social') is not None:
                 self.DEFAULT_FACTORS_BY_TYPE['SOCIAL']['factor_tiempo_fabrica'] = factores_data['factor_tiempo_fabrica_social']
                 updated_factors.append(f"Social tiempo fábrica: {factores_data['factor_tiempo_fabrica_social']}")
-                
+
             if factores_data.get('factor_tiempo_embalaje_social') is not None:
                 self.DEFAULT_FACTORS_BY_TYPE['SOCIAL']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_social']
                 updated_factors.append(f"Social tiempo embalaje: {factores_data['factor_tiempo_embalaje_social']}")
-                
+
             if factores_data.get('factor_tiempo_fabrica_estandar') is not None:
                 self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR']['factor_tiempo_fabrica'] = factores_data['factor_tiempo_fabrica_estandar']
                 updated_factors.append(f"Estándar tiempo fábrica: {factores_data['factor_tiempo_fabrica_estandar']}")
-                
+
             if factores_data.get('factor_tiempo_embalaje_estandar') is not None:
                 self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_estandar']
                 updated_factors.append(f"Estándar tiempo embalaje: {factores_data['factor_tiempo_embalaje_estandar']}")
-                
+
             if factores_data.get('factor_tiempo_fabrica_especial') is not None:
                 self.DEFAULT_FACTORS_BY_TYPE['ESPECIAL']['factor_tiempo_fabrica'] = factores_data['factor_tiempo_fabrica_especial']
                 updated_factors.append(f"Especial tiempo fábrica: {factores_data['factor_tiempo_fabrica_especial']}")
-                
+
             if factores_data.get('factor_tiempo_embalaje_especial') is not None:
                 self.DEFAULT_FACTORS_BY_TYPE['ESPECIAL']['factor_tiempo_embalaje'] = factores_data['factor_tiempo_embalaje_especial']
                 updated_factors.append(f"Especial tiempo embalaje: {factores_data['factor_tiempo_embalaje_especial']}")
-            
+
             # Update general configuration constants if provided
             if factores_data.get('area_tablero_estandar') is not None:
                 self.AREA_TABLERO_ESTANDAR = factores_data['area_tablero_estandar']
                 updated_factors.append(f"Área tablero estándar: {factores_data['area_tablero_estandar']}")
-                
+
             if factores_data.get('factor_desperdicio') is not None:
                 self.FACTOR_DESPERDICIO = factores_data['factor_desperdicio']
                 updated_factors.append(f"Factor desperdicio: {factores_data['factor_desperdicio']}")
-            
+
             # Update capacity configuration if provided
             capacity_fields = [
                 'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
                 'horas_disponibles_mes', 'horas_disponibles_semana',
-                
+
             ]
-            
+
             capacity_data = {}
             for field in capacity_fields:
                 if factores_data.get(field) is not None:
                     capacity_data[field] = factores_data[field]
                     updated_factors.append(f"{field}: {factores_data[field]}")
-            
+
             # Update capacity configuration using configuration service
             if capacity_data:
                 try:
@@ -433,7 +434,7 @@ class PlanificacionOperacionalService:
                     config_service.actualizar_configuracion_capacidad(capacity_data, user_id)
                 except Exception as e:
                     print(f"Error updating capacity configuration: {e}")
-            
+
             # Log all updates
             if updated_factors:
                 print(f"Usuario {user_id} actualizó factores: {', '.join(updated_factors)}")
@@ -441,7 +442,7 @@ class PlanificacionOperacionalService:
             else:
                 print(f"Usuario {user_id} no proporcionó factores válidos para actualizar")
                 return False
-                
+
         except Exception as e:
             print(f"Error updating conversion factors: {e}")
             return False
@@ -458,14 +459,14 @@ class PlanificacionOperacionalService:
         try:
             config_service = ConfiguracionesService()
             config = config_service.get_configuracion_capacidad()
-            
+
             turnos_por_dia = config.get('turnos_por_dia', 1)
             horas_por_turno = config.get('horas_por_turno', 8)
             dias_laborables_mes = config.get('dias_laborables_mes', 22)
-            
+
             horas_nominales = turnos_por_dia * horas_por_turno * dias_laborables_mes
             return float(horas_nominales)
-            
+
         except Exception as e:
             print(f"Error calculando horas nominales: {e}")
             # Valores por defecto si hay error
@@ -479,13 +480,13 @@ class PlanificacionOperacionalService:
         try:
             config_service = ConfiguracionesService()
             config = config_service.get_configuracion_capacidad()
-            
+
             horas_nominales = self.calcular_horas_nominales_mensuales()
             oee = config.get('oee', 0.70)
-            
+
             horas_efectivas = horas_nominales * oee
             return float(horas_efectivas)
-            
+
         except Exception as e:
             print(f"Error calculando horas efectivas: {e}")
             return 352 * 0.70  # 246.4 horas
@@ -498,24 +499,24 @@ class PlanificacionOperacionalService:
         try:
             config_service = ConfiguracionesService()
             config = config_service.get_configuracion_capacidad()
-            
+
             horas_efectivas = self.calcular_horas_efectivas_mensuales()
-            
+
             # Obtener tiempo por tablero según tipo de proyecto
             tiempo_por_tablero_map = {
                 'SOCIAL': config.get('horas_por_tablero_social', 0.6),
                 'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
                 'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
             }
-            
+
             tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
-            
+
             if tiempo_por_tablero <= 0:
                 return 0.0
-                
+
             capacidad_tableros = horas_efectivas / tiempo_por_tablero
             return float(capacidad_tableros)
-            
+
         except Exception as e:
             print(f"Error calculando capacidad teórica: {e}")
             # Fallback calculation using default values
@@ -527,11 +528,11 @@ class PlanificacionOperacionalService:
         """
         try:
             horas_efectivas = self.calcular_horas_efectivas_mensuales()
-            
+
             utilizacion = (horas_requeridas / horas_efectivas) * 100 if horas_efectivas > 0 else 0
             brecha_horas = horas_efectivas - horas_requeridas
             brecha_porcentaje = (brecha_horas / horas_efectivas) * 100 if horas_efectivas > 0 else 0
-            
+
             return {
                 'horas_efectivas': horas_efectivas,
                 'horas_requeridas': horas_requeridas,
@@ -540,7 +541,7 @@ class PlanificacionOperacionalService:
                 'brecha_porcentaje': brecha_porcentaje,
                 'sobrecarga': utilizacion > 100
             }
-            
+
         except Exception as e:
             print(f"Error calculando utilización: {e}")
             return {
@@ -559,19 +560,19 @@ class PlanificacionOperacionalService:
         try:
             config_service = ConfiguracionesService()
             config = config_service.get_configuracion_capacidad()
-            
+
             # Cálculos básicos
             horas_nominales = self.calcular_horas_nominales_mensuales()
             horas_efectivas = self.calcular_horas_efectivas_mensuales()
-            
+
             # Capacidad por tipo de proyecto
             capacidad_social = self.calcular_capacidad_teorica_tableros('SOCIAL')
             capacidad_estandar = self.calcular_capacidad_teorica_tableros('ESTANDAR')
             capacidad_especial = self.calcular_capacidad_teorica_tableros('ESPECIAL')
-            
+
             # Actualizar capacidad máxima basada en cálculos reales
             capacidad_promedio = (capacidad_social + capacidad_estandar + capacidad_especial) / 3
-            
+
             return {
                 'parametros_operacionales': {
                     'numero_maquinas': config.get('numero_maquinas', 2),
@@ -605,7 +606,7 @@ class PlanificacionOperacionalService:
                 },
                 'escenarios_disponibles': config_service.get_escenarios_deficit() if hasattr(config_service, 'get_escenarios_deficit') else {}
             }
-            
+
         except Exception as e:
             print(f"Error obteniendo resumen de capacidad estratégica: {e}")
             return {
@@ -630,24 +631,24 @@ class PlanificacionOperacionalService:
         try:
             from datetime import datetime
             from dateutil.relativedelta import relativedelta
-            
+
             # Calcular rango de fechas para el horizonte - siempre 12 meses desde el mes actual
             from datetime import date
             hoy = date.today()
             fecha_inicio = date(hoy.year, hoy.month, 1)  # Primer día del mes actual
             horizonte_meses = 12  # Siempre 12 meses como requerido
             fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
-            
+
             # Estructura de demanda jerárquica
             demanda_jerarquica = {}
-            
+
             # Nombres de meses en español
             nombres_meses_es = {
                 1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
                 5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
                 9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
             }
-            
+
             # Inicializar estructura para cada mes en el horizonte
             for i in range(horizonte_meses):
                 fecha_mes = fecha_inicio + relativedelta(months=i)
@@ -664,7 +665,7 @@ class PlanificacionOperacionalService:
                         'clientes_count': 0
                     }
                 }
-            
+
             # Obtener órdenes de fabricación planificadas en el horizonte con joins explícitos
             ofs_query = (db.session.query(OrdenFabricacion, Proyecto, Cliente)
                 .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
@@ -677,18 +678,18 @@ class PlanificacionOperacionalService:
                     )
                 )
             ).all()
-            
+
             # Procesar cada OF
             for of, proyecto, cliente in ofs_query:
                 fecha_of = of.fecha_planificada
                 mes_key = f"{fecha_of.year}-{fecha_of.month:02d}"
-                
+
                 if mes_key not in demanda_jerarquica:
                     continue
-                
+
                 # Clave única por proyecto
                 proyecto_key = f"proyecto_{proyecto.id}"
-                
+
                 # Inicializar proyecto si no existe
                 if proyecto_key not in demanda_jerarquica[mes_key]['proyectos']:
                     demanda_jerarquica[mes_key]['proyectos'][proyecto_key] = {
@@ -710,27 +711,27 @@ class PlanificacionOperacionalService:
                             'ofs_count': 0
                         }
                     }
-                
+
                 # Calcular tableros y horas para esta OF
                 tableros_of = of.cantidad_tableros or 0
                 tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
-                
+
                 # Obtener tiempos por tablero según tipo de proyecto
                 config_service = ConfiguracionesService()
                 config = config_service.get_configuracion_capacidad()
-                
+
                 tiempo_por_tablero_map = {
                     'SOCIAL': config.get('horas_por_tablero_social', 0.6),
                     'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
                     'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
                 }
-                
+
                 tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
                 # Calcular solo horas de fabricación (tiempo total por tablero incluye fabricación completa)
                 horas_totales = tableros_of * tiempo_por_tablero
                 horas_fabricacion = horas_totales
                 horas_embalaje = 0  # Ya está incluido en el tiempo total por tablero
-                
+
                 # Agregar OF al proyecto
                 of_data = {
                     'id': of.id,
@@ -744,9 +745,9 @@ class PlanificacionOperacionalService:
                     'horas_totales': round(horas_totales, 2),
                     'estado': (getattr(of.estado_actual, 'nombre', None) or getattr(of.estado_actual, 'value', None) or 'planificada')
                 }
-                
+
                 demanda_jerarquica[mes_key]['proyectos'][proyecto_key]['ordenes_fabricacion'].append(of_data)
-                
+
                 # Actualizar totales del proyecto
                 proyecto_totales = demanda_jerarquica[mes_key]['proyectos'][proyecto_key]['totales_proyecto']
                 proyecto_totales['total_tableros'] += tableros_of
@@ -754,23 +755,23 @@ class PlanificacionOperacionalService:
                 proyecto_totales['total_horas_embalaje'] += horas_embalaje
                 proyecto_totales['total_horas_requeridas'] += horas_totales
                 proyecto_totales['ofs_count'] += 1
-                
+
                 # Actualizar totales del mes
                 mes_totales = demanda_jerarquica[mes_key]['totales_mes']
                 mes_totales['total_tableros'] += tableros_of
                 mes_totales['total_horas_requeridas'] += horas_totales
-            
+
             # Calcular totales finales por mes (proyectos únicos y clientes únicos)
             for mes_key in demanda_jerarquica:
                 mes_data = demanda_jerarquica[mes_key]
                 mes_data['totales_mes']['proyectos_count'] = len(mes_data['proyectos'])
-                
+
                 # Contar clientes únicos en el mes
                 clientes_unicos = set()
                 for proyecto in mes_data['proyectos'].values():
                     clientes_unicos.add(proyecto['cliente']['id'])
                 mes_data['totales_mes']['clientes_count'] = len(clientes_unicos)
-            
+
             return {
                 'periodo': {
                     'año': año,
@@ -781,7 +782,7 @@ class PlanificacionOperacionalService:
                 'demanda_por_mes': demanda_jerarquica,
                 'resumen_general': self._calcular_resumen_demanda_general(demanda_jerarquica)
             }
-            
+
         except Exception as e:
             print(f"Error calculando demanda mensual jerárquica: {e}")
             return {
@@ -807,10 +808,10 @@ class PlanificacionOperacionalService:
                     'horas': 0
                 }
             }
-            
+
             if not demanda_jerarquica:
                 return resumen
-            
+
             # Calcular totales
             proyectos_unicos = set()
             clientes_unicos = set()
@@ -818,36 +819,57 @@ class PlanificacionOperacionalService:
             min_horas_mes = float('inf')
             pico_mes = ''
             valle_mes = ''
-            
+
             for mes_key, mes_data in demanda_jerarquica.items():
                 totales_mes = mes_data['totales_mes']
-                
+
                 # Acumular totales
                 resumen['total_tableros_horizonte'] += totales_mes['total_tableros']
                 resumen['total_horas_requeridas_horizonte'] += totales_mes['total_horas_requeridas']
                 resumen['total_ofs'] += sum(p['totales_proyecto']['ofs_count'] for p in mes_data['proyectos'].values())
-                
+
                 # Rastrear picos y valles
                 horas_mes = totales_mes['total_horas_requeridas']
                 if horas_mes > max_horas_mes:
                     max_horas_mes = horas_mes
                     pico_mes = mes_data['nombre_mes']
-                
+
                 if horas_mes < min_horas_mes:
                     min_horas_mes = horas_mes
                     valle_mes = mes_data['nombre_mes']
-                
+
                 # Recopilar proyectos y clientes únicos
                 for proyecto in mes_data['proyectos'].values():
                     proyectos_unicos.add(proyecto['id'])
                     clientes_unicos.add(proyecto['cliente']['id'])
-            
+
             # Finalizar resumen
             resumen['total_proyectos_unicos'] = len(proyectos_unicos)
             resumen['total_clientes_unicos'] = len(clientes_unicos)
             resumen['pico_demanda_mes'] = pico_mes
             resumen['valle_demanda_mes'] = valle_mes
 
+
+            # Calcular promedios
+            num_meses = len(demanda_jerarquica)
+            if num_meses > 0:
+                resumen['promedio_mensual']['tableros'] = round(resumen['total_tableros_horizonte'] / num_meses, 1)
+                resumen['promedio_mensual']['horas'] = round(resumen['total_horas_requeridas_horizonte'] / num_meses, 1)
+
+            return resumen
+
+        except Exception as e:
+            print(f"Error calculando resumen general de demanda: {e}")
+            return {
+                'total_tableros_horizonte': 0,
+                'total_horas_requeridas_horizonte': 0,
+                'total_proyectos_unicos': 0,
+                'total_clientes_unicos': 0,
+                'total_ofs': 0,
+                'pico_demanda_mes': '',
+                'valle_demanda_mes': '',
+                'promedio_mensual': {'tableros': 0, 'horas': 0}
+            }
 
     def _calcular_rolling_plan_semanal(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
         """
@@ -857,46 +879,46 @@ class PlanificacionOperacionalService:
             # Obtener demanda semanal jerárquica
             demanda_data = self.calcular_demanda_semanal_jerarquica(año, horizonte_meses)
             demanda_por_semana = demanda_data['demanda_por_semana']
-            
+
             # Obtener capacidad efectiva semanal (horas efectivas disponibles)
             horas_efectivas_semana = self.calcular_horas_efectivas_semanales()
-            
+
             # Estructura del rolling plan
             rolling_plan = {}
             backlog_acumulado = 0  # Horas acumuladas que no se pueden satisfacer
-            
+
             # Procesar cada semana en orden cronológico
             semanas_ordenadas = sorted(demanda_por_semana.keys())
-            
+
             for i, semana_key in enumerate(semanas_ordenadas):
                 semana_data = demanda_por_semana[semana_key]
                 # Calcular horas de demanda basándose en OFs
                 horas_demanda_semana = self._calcular_horas_demanda_semana_correctas(semana_data)
-                
+
                 # Agregar backlog de la semana anterior
                 horas_demanda_total = horas_demanda_semana + backlog_acumulado
-                
+
                 # Calcular capacidad vs demanda
                 utilizacion_porcentaje = self.calcular_utilizacion_capacidad(horas_demanda_total)
-                
+
                 # Determinar qué se puede producir esta semana
                 horas_a_producir = min(horas_demanda_total, horas_efectivas_semana)
                 horas_restantes = max(0, horas_demanda_total - horas_efectivas_semana)
-                
+
                 # Actualizar backlog para la próxima semana
                 backlog_acumulado = horas_restantes
-                
+
                 # Calcular métricas de la semana
                 exceso_capacidad = max(0, horas_efectivas_semana - horas_demanda_total)
                 deficit_capacidad = max(0, horas_demanda_total - horas_efectivas_semana)
-                
+
                 # Debug: Log calculation details
                 print(f"Rolling Plan Semana {semana_data['numero_semana']} ({semana_data['nombre_periodo']}): "
                       f"OFs={sum(len(p.get('ordenes_fabricacion', [])) for p in semana_data.get('proyectos', {}).values())}, "
                       f"Tableros={semana_data['totales_semana']['total_tableros']}, "
                       f"Horas Demanda Original={horas_demanda_semana:.1f}, "
                       f"Horas Efectivas Disponibles={horas_efectivas_semana:.1f}")
-                
+
                 rolling_plan[semana_key] = {
                     'semana_info': {
                         'numero_semana': semana_data['numero_semana'],
@@ -932,10 +954,10 @@ class PlanificacionOperacionalService:
                         exceso_capacidad
                     )
                 }
-            
+
             # Calcular resumen del rolling plan semanal
             resumen_rolling_plan = self._calcular_resumen_rolling_plan_semanal(rolling_plan)
-            
+
             return {
                 'rolling_plan_por_semana': rolling_plan,
                 'resumen_rolling_plan': resumen_rolling_plan,
@@ -948,7 +970,7 @@ class PlanificacionOperacionalService:
                 },
                 'recomendaciones_estrategicas': self._generar_recomendaciones_estrategicas_semanal(rolling_plan)
             }
-            
+
         except Exception as e:
             print(f"Error calculando rolling plan semanal: {e}")
             return {
@@ -964,7 +986,7 @@ class PlanificacionOperacionalService:
         try:
             fecha_inicio = datetime(año, 1, 1).date()
             fecha_fin = fecha_inicio + timedelta(days=horizonte_meses * 30)
-            
+
             # Obtener todas las OFs en el período
             ordenes_fabricacion = (
                 db.session.query(OrdenFabricacion)
@@ -987,23 +1009,23 @@ class PlanificacionOperacionalService:
                 )
                 .all()
             )
-            
+
             # Agrupar por semanas
             demanda_por_semana = {}
-            
+
             for of in ordenes_fabricacion:
                 fecha_fabricacion = of.fecha_fabricacion
-                
+
                 # Calcular número de semana del año
                 numero_semana = fecha_fabricacion.isocalendar()[1]
                 año_semana = fecha_fabricacion.year
-                
+
                 # Calcular fecha inicio y fin de semana
                 fecha_inicio_semana = fecha_fabricacion - timedelta(days=fecha_fabricacion.weekday())
                 fecha_fin_semana = fecha_inicio_semana + timedelta(days=6)
-                
+
                 semana_key = f"{año_semana}_{numero_semana:02d}"
-                
+
                 if semana_key not in demanda_por_semana:
                     demanda_por_semana[semana_key] = {
                         'numero_semana': numero_semana,
@@ -1020,9 +1042,9 @@ class PlanificacionOperacionalService:
                             'ofs_count': 0
                         }
                     }
-                
+
                 proyecto_id = of.proyecto.id
-                
+
                 if proyecto_id not in demanda_por_semana[semana_key]['proyectos']:
                     demanda_por_semana[semana_key]['proyectos'][proyecto_id] = {
                         'id': proyecto_id,
@@ -1040,7 +1062,7 @@ class PlanificacionOperacionalService:
                             'total_horas_requeridas': 0.0
                         }
                     }
-                
+
                 # Agregar OF al proyecto
                 horas_estimadas = self._calcular_horas_of(of)
                 demanda_por_semana[semana_key]['proyectos'][proyecto_id]['ordenes_fabricacion'].append({
@@ -1051,12 +1073,12 @@ class PlanificacionOperacionalService:
                     'fecha_fabricacion': of.fecha_fabricacion,
                     'horas_estimadas': horas_estimadas
                 })
-                
+
                 # Actualizar totales
                 demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['ofs_count'] += 1
                 demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['total_tableros'] += of.tableros
                 demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['total_horas_requeridas'] += horas_estimadas
-            
+
             # Calcular totales por semana
             for semana_key, semana_data in demanda_por_semana.items():
                 semana_data['totales_semana']['proyectos_count'] = len(semana_data['proyectos'])
@@ -1069,7 +1091,7 @@ class PlanificacionOperacionalService:
                 semana_data['totales_semana']['ofs_count'] = sum(
                     p['totales_proyecto']['ofs_count'] for p in semana_data['proyectos'].values()
                 )
-            
+
             return {
                 'demanda_por_semana': demanda_por_semana,
                 'resumen_general': self._calcular_resumen_general_semanal(demanda_por_semana),
@@ -1081,7 +1103,7 @@ class PlanificacionOperacionalService:
                     'modo': 'semanal'
                 }
             }
-            
+
         except Exception as e:
             print(f"Error calculando demanda semanal jerárquica: {e}")
             return {'demanda_por_semana': {}, 'resumen_general': {}}
@@ -1093,22 +1115,22 @@ class PlanificacionOperacionalService:
         # Obtener configuración actual o valores por defecto
         try:
             factores = ConfiguracionesService().get_factores_conversion()
-            
+
             # Parámetros semanales
             dias_laborables_semana = factores.get('configuracion', {}).get('dias_laborables_semana', 5)
             turnos_por_dia = factores.get('configuracion', {}).get('turnos_por_dia', 2)
             horas_por_turno = factores.get('configuracion', {}).get('horas_por_turno', 8)
             numero_maquinas = factores.get('configuracion', {}).get('numero_maquinas', 1)
-            
+
             # OEE (Overall Equipment Effectiveness)
             oee = factores.get('configuracion', {}).get('oee', 0.65)
-            
+
             # Cálculo de horas efectivas semanales
             horas_nominales_semana = dias_laborables_semana * turnos_por_dia * horas_por_turno * numero_maquinas
             horas_efectivas_semana = horas_nominales_semana * oee
-            
+
             return round(horas_efectivas_semana, 2)
-            
+
         except Exception as e:
             print(f"Error calculando horas efectivas semanales: {e}")
             # Valor por defecto: 5 días * 2 turnos * 8 horas * 1 máquina * 0.65 OEE = 52 horas/semana
@@ -1120,13 +1142,13 @@ class PlanificacionOperacionalService:
         """
         try:
             total_horas = 0.0
-            
+
             for proyecto in semana_data.get('proyectos', {}).values():
                 for of in proyecto.get('ordenes_fabricacion', []):
                     total_horas += of.get('horas_estimadas', 0.0)
-                    
+
             return total_horas
-            
+
         except Exception as e:
             print(f"Error calculando horas demanda semana: {e}")
             return semana_data.get('totales_semana', {}).get('total_horas_requeridas', 0.0)
@@ -1136,22 +1158,22 @@ class PlanificacionOperacionalService:
         try:
             if not rolling_plan:
                 return {}
-            
+
             total_horas_demanda = sum(semana['demanda']['horas_demanda_total'] for semana in rolling_plan.values())
             total_horas_capacidad = sum(semana['capacidad']['horas_efectivas_disponibles'] for semana in rolling_plan.values())
             total_deficit = sum(semana['capacidad']['deficit_capacidad'] for semana in rolling_plan.values())
             total_exceso = sum(semana['capacidad']['exceso_capacidad'] for semana in rolling_plan.values())
-            
+
             # Backlog máximo en el horizonte
             backlog_maximo = max(semana['backlog']['backlog_fin_semana'] for semana in rolling_plan.values())
-            
+
             # Semanas con problemas
             semanas_con_sobrecarga = len([semana for semana in rolling_plan.values() 
                                         if semana['capacidad']['utilizacion_porcentaje'] > 100])
-            
+
             semanas_con_baja_utilizacion = len([semana for semana in rolling_plan.values() 
                                               if semana['capacidad']['utilizacion_porcentaje'] < 70])
-            
+
             return {
                 'totales_horizonte': {
                     'total_horas_demanda': round(total_horas_demanda, 1),
@@ -1176,7 +1198,7 @@ class PlanificacionOperacionalService:
                     backlog_maximo
                 )
             }
-            
+
         except Exception as e:
             print(f"Error calculando resumen rolling plan semanal: {e}")
             return {}
@@ -1199,51 +1221,51 @@ class PlanificacionOperacionalService:
                     'horas': 0.0
                 }
             }
-            
+
             # Rastrear proyectos y clientes únicos
             proyectos_unicos = set()
             clientes_unicos = set()
-            
+
             # Rastrear picos y valles
             max_horas_semana = 0
             min_horas_semana = float('inf')
             pico_semana = ''
             valle_semana = ''
-            
+
             for semana_key, semana_data in demanda_semanal.items():
                 # Acumular totales
                 resumen['total_tableros_horizonte'] += semana_data['totales_semana']['total_tableros']
                 resumen['total_horas_requeridas_horizonte'] += semana_data['totales_semana']['total_horas_requeridas']
-                
+
                 # Recopilar proyectos únicos
                 for proyecto in semana_data['proyectos'].values():
                     proyectos_unicos.add(proyecto['id'])
                     clientes_unicos.add(proyecto['cliente']['id'])
-                
+
                 # Rastrear picos y valles
                 horas_semana = semana_data['totales_semana']['total_horas_requeridas']
                 if horas_semana > max_horas_semana:
                     max_horas_semana = horas_semana
                     pico_semana = semana_data['nombre_periodo']
-                
+
                 if horas_semana < min_horas_semana:
                     min_horas_semana = horas_semana
                     valle_semana = semana_data['nombre_periodo']
-            
+
             # Finalizar resumen
             resumen['total_proyectos_unicos'] = len(proyectos_unicos)
             resumen['total_clientes_unicos'] = len(clientes_unicos)
             resumen['pico_demanda_semana'] = pico_semana
             resumen['valle_demanda_semana'] = valle_semana
-            
+
             # Calcular promedios
             num_semanas = len(demanda_semanal)
             if num_semanas > 0:
                 resumen['promedio_semanal']['tableros'] = round(resumen['total_tableros_horizonte'] / num_semanas, 1)
                 resumen['promedio_semanal']['horas'] = round(resumen['total_horas_requeridas_horizonte'] / num_semanas, 1)
-            
+
             return resumen
-            
+
         except Exception as e:
             print(f"Error calculando resumen general semanal: {e}")
             return {}
@@ -1251,14 +1273,14 @@ class PlanificacionOperacionalService:
     def _generar_recomendaciones_estrategicas_semanal(self, rolling_plan: Dict) -> List[Dict[str, str]]:
         """Genera recomendaciones estratégicas basadas en el rolling plan semanal"""
         recomendaciones = []
-        
+
         try:
             if not rolling_plan:
                 return recomendaciones
-            
+
             # Analizar patrones en el plan
             semanas_data = list(rolling_plan.values())
-            
+
             # Recomendación sobre backlog
             backlog_final = semanas_data[-1]['backlog']['backlog_fin_semana']
             if backlog_final > 25:  # Ajustado para escala semanal
@@ -1269,7 +1291,7 @@ class PlanificacionOperacionalService:
                     'descripcion': f'Backlog acumulado de {round(backlog_final, 1)} horas al final del horizonte semanal',
                     'accion_recomendada': 'Evaluar horas extra o redistribución de carga semanal'
                 })
-            
+
             # Recomendación sobre utilización desbalanceada
             utilizaciones = [semana['capacidad']['utilizacion_porcentaje'] for semana in semanas_data]
             if max(utilizaciones) - min(utilizaciones) > 60:
@@ -1280,7 +1302,7 @@ class PlanificacionOperacionalService:
                     'descripcion': f'Variación de {round(max(utilizaciones) - min(utilizaciones), 1)}% entre semanas',
                     'accion_recomendada': 'Considerar nivelación de producción entre semanas'
                 })
-            
+
             # Recomendación sobre semanas críticas
             semanas_criticas = [s for s in semanas_data if s['capacidad']['utilizacion_porcentaje'] > 120]
             if semanas_criticas:
@@ -1291,38 +1313,13 @@ class PlanificacionOperacionalService:
                     'descripcion': f'{len(semanas_criticas)} semanas con utilización > 120%',
                     'accion_recomendada': 'Planificar recursos adicionales o reprogramar producción'
                 })
-            
+
             return recomendaciones
-            
+
         except Exception as e:
             print(f"Error generando recomendaciones estratégicas semanales: {e}")
             return recomendaciones
 
-            
-            # Calcular promedios
-            num_meses = len(demanda_jerarquica)
-            if num_meses > 0:
-                resumen['promedio_mensual']['tableros'] = round(resumen['total_tableros_horizonte'] / num_meses, 1)
-                resumen['promedio_mensual']['horas'] = round(resumen['total_horas_requeridas_horizonte'] / num_meses, 1)
-            
-            return resumen
-            
-        except Exception as e:
-            print(f"Error calculando resumen general de demanda: {e}")
-            return {
-                'total_tableros_horizonte': 0,
-                'total_horas_requeridas_horizonte': 0,
-                'total_proyectos_unicos': 0,
-                'total_clientes_unicos': 0,
-                'total_ofs': 0,
-                'pico_demanda_mes': '',
-                'valle_demanda_mes': '',
-                'promedio_mensual': {'tableros': 0, 'horas': 0}
-            }
-
-    # ==========================================
-    # BACKLOG AND ROLLING PLAN LOGIC
-    # ==========================================
 
     def _calcular_horas_demanda_mes_correctas(self, mes_data: Dict) -> float:
         """
@@ -1332,28 +1329,28 @@ class PlanificacionOperacionalService:
         try:
             config_service = ConfiguracionesService()
             config = config_service.get_configuracion_capacidad()
-            
+
             tiempo_por_tablero_map = {
                 'SOCIAL': config.get('horas_por_tablero_social', 0.6),
                 'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
                 'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
             }
-            
+
             total_horas = 0.0
-            
+
             # Iterar sobre todos los proyectos del mes
             for proyecto in mes_data.get('proyectos', {}).values():
                 # Iterar sobre todas las OFs del proyecto
                 for of_data in proyecto.get('ordenes_fabricacion', []):
                     tableros = of_data.get('cantidad_tableros', 0)
                     tipo_proyecto = proyecto.get('tipo_proyecto', 'ESTANDAR')
-                    
+
                     tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
                     horas_of = tableros * tiempo_por_tablero
                     total_horas += horas_of
-            
+
             return round(total_horas, 2)
-            
+
         except Exception as e:
             print(f"Error calculando horas de demanda del mes: {e}")
             # Fallback al valor existente
@@ -1367,50 +1364,50 @@ class PlanificacionOperacionalService:
         try:
             if modo == 'semanal':
                 return self._calcular_rolling_plan_semanal(año, horizonte_meses)
-            
+
             # Obtener demanda mensual jerárquica
             demanda_data = self.calcular_demanda_mensual_jerarquica(año, horizonte_meses)
             demanda_por_mes = demanda_data['demanda_por_mes']
-            
+
             # Obtener capacidad efectiva mensual (horas efectivas disponibles)
             horas_efectivas_mes = self.calcular_horas_efectivas_mensuales()
-            
+
             # Estructura del rolling plan
             rolling_plan = {}
             backlog_acumulado = 0  # Horas acumuladas que no se pueden satisfacer
-            
+
             # Procesar cada mes en orden cronológico
             meses_ordenados = sorted(demanda_por_mes.keys())
-            
+
             for i, mes_key in enumerate(meses_ordenados):
                 mes_data = demanda_por_mes[mes_key]
                 # Calcular correctamente las horas de demanda basándose en OFs
                 horas_demanda_mes = self._calcular_horas_demanda_mes_correctas(mes_data)
-                
+
                 # Agregar backlog del mes anterior
                 horas_demanda_total = horas_demanda_mes + backlog_acumulado
-                
+
                 # Calcular capacidad vs demanda
                 utilizacion_capacidad = self.calcular_utilizacion_capacidad(horas_demanda_total)
-                
+
                 # Determinar qué se puede producir este mes
                 horas_a_producir = min(horas_demanda_total, horas_efectivas_mes)
                 horas_restantes = max(0, horas_demanda_total - horas_efectivas_mes)
-                
+
                 # Actualizar backlog para el próximo mes
                 backlog_acumulado = horas_restantes
-                
+
                 # Calcular métricas del mes
                 exceso_capacidad = max(0, horas_efectivas_mes - horas_demanda_total)
                 deficit_capacidad = max(0, horas_demanda_total - horas_efectivas_mes)
-                
+
                 # Debug: Log calculation details
                 print(f"Rolling Plan {mes_data['nombre_mes']}: "
                       f"OFs={sum(len(p.get('ordenes_fabricacion', [])) for p in mes_data.get('proyectos', {}).values())}, "
                       f"Tableros={mes_data['totales_mes']['total_tableros']}, "
                       f"Horas Demanda Original={horas_demanda_mes:.1f}, "
                       f"Horas Efectivas Disponibles={horas_efectivas_mes:.1f}")
-                
+
                 rolling_plan[mes_key] = {
                     'mes_info': {
                         'mes': mes_data['mes'],
@@ -1444,10 +1441,10 @@ class PlanificacionOperacionalService:
                         exceso_capacidad
                     )
                 }
-            
+
             # Calcular resumen del rolling plan
             resumen_rolling_plan = self._calcular_resumen_rolling_plan(rolling_plan)
-            
+
             return {
                 'rolling_plan_por_mes': rolling_plan,
                 'resumen_rolling_plan': resumen_rolling_plan,
@@ -1459,7 +1456,7 @@ class PlanificacionOperacionalService:
                 },
                 'recomendaciones_estrategicas': self._generar_recomendaciones_estrategicas(rolling_plan)
             }
-            
+
         except Exception as e:
             print(f"Error calculando rolling plan con backlog: {e}")
             return {
@@ -1475,20 +1472,20 @@ class PlanificacionOperacionalService:
         try:
             config_service = ConfiguracionesService()
             config = config_service.get_configuracion_capacidad()
-            
+
             tiempo_por_tablero_map = {
                 'SOCIAL': config.get('horas_por_tablero_social', 0.6),
                 'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
                 'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
             }
-            
+
             tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
-            
+
             if tiempo_por_tablero <= 0:
                 return 0.0
-                
+
             return round(horas / tiempo_por_tablero, 1)
-            
+
         except Exception as e:
             print(f"Error convirtiendo horas a tableros: {e}")
             return 0.0
@@ -1523,18 +1520,18 @@ class PlanificacionOperacionalService:
     def _identificar_oportunidades_optimizacion(self, utilizacion: float, deficit: float, exceso: float) -> List[Dict[str, str]]:
         """Identifica oportunidades de optimización para el mes"""
         oportunidades = []
-        
+
         if exceso > 50:  # Más de 50 horas de exceso
             oportunidades.append({
                 'tipo': 'ADELANTAR_PRODUCCION',
                 'descripcion': f'Oportunidad para adelantar {self._convertir_horas_a_tableros(exceso)} tableros del mes siguiente',
                 'impacto': 'Reducir backlog futuro'
             })
-        
+
         if deficit > 50:  # Más de 50 horas de déficit
             config_service = ConfiguracionesService()
             escenarios = config_service.get_escenarios_deficit() if hasattr(config_service, 'get_escenarios_deficit') else {}
-            
+
             if deficit <= 100:
                 oportunidades.append({
                     'tipo': 'HORAS_EXTRA',
@@ -1547,14 +1544,14 @@ class PlanificacionOperacionalService:
                     'descripcion': 'Evaluar turno adicional temporal',
                     'impacto': 'Aumentar capacidad significativamente'
                 })
-        
+
         if 80 <= utilizacion <= 95:
             oportunidades.append({
                 'tipo': 'MEJORAR_OEE',
                 'descripcion': 'Optimizar OEE para aumentar capacidad efectiva',
                 'impacto': 'Mejora continua sin costos adicionales'
             })
-        
+
         return oportunidades
 
     def _calcular_resumen_rolling_plan(self, rolling_plan: Dict) -> Dict[str, Any]:
@@ -1562,22 +1559,22 @@ class PlanificacionOperacionalService:
         try:
             if not rolling_plan:
                 return {}
-            
+
             total_horas_demanda = sum(mes['demanda']['horas_demanda_total'] for mes in rolling_plan.values())
             total_horas_capacidad = sum(mes['capacidad']['horas_efectivas_disponibles'] for mes in rolling_plan.values())
             total_deficit = sum(mes['capacidad']['deficit_capacidad'] for mes in rolling_plan.values())
             total_exceso = sum(mes['capacidad']['exceso_capacidad'] for mes in rolling_plan.values())
-            
+
             # Backlog máximo en el horizonte
             backlog_maximo = max(mes['backlog']['backlog_fin_mes'] for mes in rolling_plan.values())
-            
+
             # Meses con problemas
             meses_con_sobrecarga = len([mes for mes in rolling_plan.values() 
                                       if mes['capacidad']['utilizacion_porcentaje'] > 100])
-            
+
             meses_con_baja_utilizacion = len([mes for mes in rolling_plan.values() 
                                             if mes['capacidad']['utilizacion_porcentaje'] < 70])
-            
+
             return {
                 'totales_horizonte': {
                     'total_horas_demanda': round(total_horas_demanda, 1),
@@ -1602,7 +1599,7 @@ class PlanificacionOperacionalService:
                     backlog_maximo
                 )
             }
-            
+
         except Exception as e:
             print(f"Error calculando resumen rolling plan: {e}")
             return {}
@@ -1610,14 +1607,14 @@ class PlanificacionOperacionalService:
     def _generar_recomendaciones_estrategicas(self, rolling_plan: Dict) -> List[Dict[str, str]]:
         """Genera recomendaciones estratégicas basadas en el rolling plan"""
         recomendaciones = []
-        
+
         try:
             if not rolling_plan:
                 return recomendaciones
-            
+
             # Analizar patrones en el plan
             meses_data = list(rolling_plan.values())
-            
+
             # Recomendación sobre backlog
             backlog_final = meses_data[-1]['backlog']['backlog_fin_mes']
             if backlog_final > 100:
@@ -1628,7 +1625,7 @@ class PlanificacionOperacionalService:
                     'descripcion': f'Backlog acumulado de {round(backlog_final, 1)} horas al final del horizonte',
                     'accion_recomendada': 'Evaluar expansión de capacidad o subcontratación estratégica'
                 })
-            
+
             # Recomendación sobre utilización desbalanceada
             utilizaciones = [mes['capacidad']['utilizacion_porcentaje'] for mes in meses_data]
             if max(utilizaciones) - min(utilizaciones) > 50:
@@ -1639,7 +1636,7 @@ class PlanificacionOperacionalService:
                     'descripcion': 'Gran variación en utilización mensual de capacidad',
                     'accion_recomendada': 'Implementar estrategia de nivelación de producción'
                 })
-            
+
             # Recomendación sobre oportunidades de mejora
             excesos_significativos = [mes for mes in meses_data if mes['capacidad']['exceso_capacidad'] > 80]
             if len(excesos_significativos) >= 2:
@@ -1650,9 +1647,9 @@ class PlanificacionOperacionalService:
                     'descripcion': f'{len(excesos_significativos)} meses con capacidad excedente significativa',
                     'accion_recomendada': 'Considerar adelantar producción para reducir backlog futuro'
                 })
-            
+
             return recomendaciones
-            
+
         except Exception as e:
             print(f"Error generando recomendaciones estratégicas: {e}")
             return []
@@ -1669,15 +1666,15 @@ class PlanificacionOperacionalService:
             return "BALANCEADO: Capacidad y demanda en equilibrio general."
 
     # Private helper methods
-    
+
     def _get_proyectos_periodo(self, año, mes_inicio, mes_fin, cliente_id=None):
         """Get projects for the specified period"""
         fecha_inicio = date(año, mes_inicio, 1)
         ultimo_dia = calendar.monthrange(año, mes_fin)[1]
         fecha_fin = date(año, mes_fin, ultimo_dia)
-        
+
         query = db.session.query(Proyecto).join(Cliente)
-        
+
         # Filter by date range
         query = query.filter(
             or_(
@@ -1690,27 +1687,27 @@ class PlanificacionOperacionalService:
                      Proyecto.fecha_fin_estimada <= fecha_fin)
             )
         )
-        
+
         # Filter by commercial states that have provision amounts
         query = query.filter(Proyecto.estado_comercial.in_([
             EstadoComercial.PRESUPUESTADO,
             EstadoComercial.ADJUDICADO,
             EstadoComercial.TERMINADO
         ]))
-        
+
         # Filter by provision amount (must have one)
         query = query.filter(Proyecto.monto_provision_presupuestado.isnot(None))
-        
+
         # Apply client filter
         if cliente_id:
             query = query.filter(Proyecto.cliente_id == cliente_id)
-        
+
         return query.all()
 
     def _construir_matriz_operacional(self, proyectos, año, mes_inicio, mes_fin, tipo_material):
         """Build operational matrix with board calculations"""
         matriz = {}
-        
+
         for mes in range(mes_inicio, mes_fin + 1):
             matriz[mes] = {
                 'mes': mes,
@@ -1720,30 +1717,30 @@ class PlanificacionOperacionalService:
                 'total_tableros': 0,
                 'total_area_m2': Decimal('0')
             }
-        
+
         for proyecto in proyectos:
             # Determine which months this project affects
             meses_proyecto = self._obtener_meses_proyecto(proyecto, año, mes_inicio, mes_fin)
-            
+
             for mes in meses_proyecto:
                 if mes in matriz:
                     # Calculate prorated values
                     meses_duracion = len(meses_proyecto)
-                    
+
                     monto_mes = Decimal('0')
                     if proyecto.monto_provision_presupuestado:
                         monto_mes = proyecto.monto_provision_presupuestado / meses_duracion
-                    
+
                     # Calculate boards for this month
                     # Get project type, default to ESTANDAR
                     tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
-                    
+
                     tableros_resultado = self.calcular_tableros_aproximados(
                         monto_provision=float(monto_mes),
                         tipo_proyecto=tipo_proyecto,
                         margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
                     )
-                    
+
                     proyecto_mes = {
                         'proyecto': proyecto,
                         'monto_mes': monto_mes,
@@ -1752,12 +1749,12 @@ class PlanificacionOperacionalService:
                         'meses_duracion': meses_duracion,
                         'detalles_calculo': tableros_resultado['detalles']
                     }
-                    
+
                     matriz[mes]['proyectos'].append(proyecto_mes)
                     matriz[mes]['total_monto'] += monto_mes
                     matriz[mes]['total_tableros'] += tableros_resultado['tableros_aproximados']
                     matriz[mes]['total_area_m2'] += Decimal(str(tableros_resultado['area_total_m2']))
-        
+
         return matriz
 
     def _obtener_meses_proyecto(self, proyecto, año, mes_inicio=1, mes_fin=12):
@@ -1769,29 +1766,29 @@ class PlanificacionOperacionalService:
                 return [mes_actual]
             else:
                 return [mes_inicio]  # Default to first month of range
-        
+
         inicio = max(proyecto.fecha_inicio, date(año, mes_inicio, 1))
         ultimo_dia = calendar.monthrange(año, mes_fin)[1]
         fin = min(proyecto.fecha_fin_estimada, date(año, mes_fin, ultimo_dia))
-        
+
         if inicio > date(año, mes_fin, ultimo_dia) or fin < date(año, mes_inicio, 1):
             return []
-        
+
         meses = []
         fecha_actual = date(inicio.year, inicio.month, 1)
         fecha_limite = date(fin.year, fin.month, 1)
-        
+
         while fecha_actual <= fecha_limite:
             if fecha_actual.year == año and mes_inicio <= fecha_actual.month <= mes_fin:
                 meses.append(fecha_actual.month)
             fecha_actual += relativedelta(months=1)
-        
+
         return meses
 
     def _calcular_totales_operacionales(self, matriz):
         """Calculate operational totals from matrix"""
         totales = {}
-        
+
         for mes, data in matriz.items():
             totales[mes] = {
                 'total_monto': data['total_monto'],
@@ -1800,13 +1797,13 @@ class PlanificacionOperacionalService:
                 'proyectos_count': len(data['proyectos']),
                 'promedio_tableros_por_proyecto': data['total_tableros'] / len(data['proyectos']) if data['proyectos'] else 0
             }
-        
+
         return totales
 
     def _get_factor_info(self, tipo_proyecto):
         """Get factor information for a project type"""
         factor_data = self.DEFAULT_FACTORS_BY_TYPE.get(tipo_proyecto, self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR'])
-        
+
         return {
             'tipo_proyecto': tipo_proyecto,
             'factor_m2': factor_data['factor_m2'],
@@ -1821,7 +1818,7 @@ class PlanificacionOperacionalService:
     def _calcular_capacidad_mensual(self, proyectos, año):
         """Calculate monthly capacity analysis"""
         capacidad = {}
-        
+
         for mes in range(1, 13):
             capacidad[mes] = {
                 'mes': mes,
@@ -1831,13 +1828,13 @@ class PlanificacionOperacionalService:
                 'horas_estimadas': 0,
                 'capacidad_porcentaje': 0
             }
-        
+
         # Get capacity limits from configuration
         try:
             from services.configuraciones_service import ConfiguracionesService
             config_service = ConfiguracionesService()
             capacidad_config = config_service.get_configuracion_capacidad()
-            
+
             TABLEROS_MAXIMOS_MES = capacidad_config['capacidad_maxima_tableros_mes']
             HORAS_DISPONIBLES_MES = capacidad_config['horas_disponibles_mes']
             HORAS_POR_TABLERO_SOCIAL = capacidad_config['horas_por_tablero_social']
@@ -1850,28 +1847,28 @@ class PlanificacionOperacionalService:
             HORAS_POR_TABLERO_SOCIAL = 0.6
             HORAS_POR_TABLERO_ESTANDAR = 0.5
             HORAS_POR_TABLERO_ESPECIAL = 0.4
-        
+
         for proyecto in proyectos:
             meses_proyecto = self._obtener_meses_proyecto(proyecto, año)
-            
+
             for mes in meses_proyecto:
                 if mes in capacidad:
                     capacidad[mes]['proyectos_activos'] += 1
-                    
+
                     # Calculate boards for this project in this month using new formula
                     if proyecto.monto_provision_presupuestado:
                         # Get project type, default to ESTANDAR
                         tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
-                        
+
                         tableros_resultado = self.calcular_tableros_aproximados(
                             monto_provision=float(proyecto.monto_provision_presupuestado) / len(meses_proyecto),
                             tipo_proyecto=tipo_proyecto,
                             margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
                         )
-                        
+
                         tableros_mes = tableros_resultado['tableros_aproximados']
                         capacidad[mes]['tableros_requeridos'] += tableros_mes
-                        
+
                         # Use project-specific hours per board
                         if tipo_proyecto == 'SOCIAL':
                             horas_tablero = HORAS_POR_TABLERO_SOCIAL
@@ -1879,23 +1876,23 @@ class PlanificacionOperacionalService:
                             horas_tablero = HORAS_POR_TABLERO_ESPECIAL
                         else:  # ESTANDAR or default
                             horas_tablero = HORAS_POR_TABLERO_ESTANDAR
-                        
+
                         capacidad[mes]['horas_estimadas'] += tableros_mes * horas_tablero
-        
+
         # Calculate capacity percentage
         for mes in capacidad:
             capacidad[mes]['capacidad_porcentaje'] = min(
                 (capacidad[mes]['tableros_requeridos'] / TABLEROS_MAXIMOS_MES) * 100,
                 100
             )
-        
+
         return capacidad
 
     def _calcular_capacidad_semanal(self, proyectos, año):
         """Calculate weekly capacity analysis (simplified)"""
         # For now, return monthly capacity divided by weeks
         capacidad_mensual = self._calcular_capacidad_mensual(proyectos, año)
-        
+
         capacidad_semanal = {}
         for mes, data in capacidad_mensual.items():
             semanas_mes = 4  # Simplified
@@ -1908,18 +1905,18 @@ class PlanificacionOperacionalService:
                     'horas_estimadas': data['horas_estimadas'] // semanas_mes,
                     'capacidad_porcentaje': data['capacidad_porcentaje']
                 }
-        
+
         return capacidad_semanal
 
     def _calcular_resumen_capacidad(self, capacidad):
         """Calculate capacity summary"""
         if not capacidad:
             return {}
-        
+
         total_tableros = sum(data['tableros_requeridos'] for data in capacidad.values())
         total_horas = sum(data['horas_estimadas'] for data in capacidad.values())
         promedio_capacidad = sum(data['capacidad_porcentaje'] for data in capacidad.values()) / len(capacidad)
-        
+
         return {
             'total_tableros_año': total_tableros,
             'total_horas_año': total_horas,
@@ -1933,7 +1930,7 @@ class PlanificacionOperacionalService:
         """Get factory productivity data - boards completed to FABRICACION_COMPLETA"""
         from sqlalchemy import func, extract
         from models import OrdenFabricacion, Proyecto, OrdenAreaProgreso, AreaEstado
-        
+
         # Query to get actual completed boards using area progress system
         if vista == 'mensual':
             query = (db.session.query(
@@ -1984,7 +1981,7 @@ class PlanificacionOperacionalService:
                     'periodo_nombre': calendar.month_name[mes],
                     'tableros_completados': 0
                 }
-            
+
             for resultado in resultados:
                 mes = int(resultado.periodo)
                 if mes in productividad:
@@ -2008,7 +2005,7 @@ class PlanificacionOperacionalService:
         """Get packaging productivity data - boards completed to EMBALAJE_LISTO"""
         from sqlalchemy import func, extract
         from models import OrdenFabricacion, Proyecto, OrdenAreaProgreso, AreaEstado
-        
+
         # Query to get actual packaged boards using area progress system
         if vista == 'mensual':
             query = (db.session.query(
@@ -2059,7 +2056,7 @@ class PlanificacionOperacionalService:
                     'periodo_nombre': calendar.month_name[mes],
                     'tableros_completados': 0
                 }
-            
+
             for resultado in resultados:
                 mes = int(resultado.periodo)
                 if mes in productividad:
