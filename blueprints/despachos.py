@@ -17,6 +17,7 @@ from repositories.despachos_repo import DespachosRepository
 from repositories.proyectos_repo import ProyectosRepository
 from repositories.contratos_repo import ContratosRepository
 from repositories.fabricacion_repo import FabricacionRepository
+from sqlalchemy.orm import joinedload
 import logging
 import json # Ensure json is imported
 
@@ -640,7 +641,7 @@ def api_hitos_by_contrato(contrato_id):
 def crear_despacho_desde_hito(hito_id):
     """Crear despacho desde un hito de entrega"""
     try:
-        from models import HitoEntrega, PlanEntrega
+        from models import HitoEntrega, PlanEntrega, Contrato, Proyecto
         
         # Obtener hito con sus relaciones
         hito = db.session.query(HitoEntrega).options(
