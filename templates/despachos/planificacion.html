@@ -145,25 +145,28 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% if not hito.despacho_creado %}
-                                                    <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito.id) }}" 
-                                                       class="btn btn-sm btn-primary">
-                                                        <i class="fas fa-plus"></i> Crear Despacho
-                                                    </a>
-                                                {% else %}
-                                                    <div class="btn-group btn-group-sm">
+                                                <div class="d-flex gap-1 justify-content-center">
+                                                    {% if not hito.despacho_creado %}
+                                                        <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito.id) }}" 
+                                                           class="btn btn-sm btn-success" title="Crear nuevo despacho">
+                                                            <i class="fas fa-plus"></i>
+                                                            <span class="d-none d-md-inline ms-1">Crear</span>
+                                                        </a>
+                                                    {% else %}
                                                         {% if hito.despacho_id %}
                                                         <a href="{{ url_for('despachos.detalle', despacho_id=hito.despacho_id) }}" 
-                                                           class="btn btn-outline-primary" title="Ver detalles">
+                                                           class="btn btn-sm btn-outline-primary" title="Ver detalles del despacho">
                                                             <i class="fas fa-eye"></i>
+                                                            <span class="d-none d-lg-inline ms-1">Ver</span>
                                                         </a>
                                                         <a href="{{ url_for('despachos.editar', despacho_id=hito.despacho_id) }}" 
-                                                           class="btn btn-outline-secondary" title="Editar">
+                                                           class="btn btn-sm btn-outline-secondary" title="Editar despacho">
                                                             <i class="fas fa-edit"></i>
+                                                            <span class="d-none d-lg-inline ms-1">Editar</span>
                                                         </a>
                                                         {% endif %}
-                                                    </div>
-                                                {% endif %}
+                                                    {% endif %}
+                                                </div>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -244,28 +247,33 @@
                                                                 {% endif %}
                                                             </td>
                                                             <td>
-                                                                {% if not hito['despacho_creado'] and hito['ordenes_fabricacion_disponibles'] %}
-                                                                    {% if hito.get('es_virtual', False) %}
-                                                                        <a href="{{ url_for('despachos.nuevo') }}?contrato_id={{ hito['contrato_id'] }}" 
-                                                                           class="btn btn-sm btn-success">
-                                                                            <i class="fas fa-plus"></i> Crear Despacho
+                                                                <div class="d-flex gap-1 justify-content-center align-items-center">
+                                                                    {% if not hito['despacho_creado'] and hito['ordenes_fabricacion_disponibles'] %}
+                                                                        {% if hito.get('es_virtual', False) %}
+                                                                            <a href="{{ url_for('despachos.nuevo') }}?contrato_id={{ hito['contrato_id'] }}" 
+                                                                               class="btn btn-sm btn-success" title="Crear nuevo despacho">
+                                                                                <i class="fas fa-plus"></i>
+                                                                                <span class="d-none d-md-inline ms-1">Crear</span>
+                                                                            </a>
+                                                                        {% else %}
+                                                                            <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito['id']) }}" 
+                                                                               class="btn btn-sm btn-success" title="Crear despacho desde hito">
+                                                                                <i class="fas fa-plus"></i>
+                                                                                <span class="d-none d-md-inline ms-1">Crear</span>
+                                                                            </a>
+                                                                        {% endif %}
+                                                                    {% elif hito['despacho_creado'] and hito['despacho_id'] %}
+                                                                        <a href="{{ url_for('despachos.detalle', despacho_id=hito['despacho_id']) }}" 
+                                                                           class="btn btn-sm btn-outline-primary" title="Ver detalles del despacho">
+                                                                            <i class="fas fa-eye"></i>
+                                                                            <span class="d-none d-lg-inline ms-1">Ver</span>
                                                                         </a>
-                                                                    {% else %}
-                                                                        <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito['id']) }}" 
-                                                                           class="btn btn-sm btn-success">
-                                                                            <i class="fas fa-plus"></i> Crear Despacho
-                                                                        </a>
+                                                                    {% elif not hito['ordenes_fabricacion_disponibles'] %}
+                                                                        <span class="badge bg-light text-muted border">
+                                                                            <i class="fas fa-info-circle me-1"></i>Sin OFs
+                                                                        </span>
                                                                     {% endif %}
-                                                                {% elif hito['despacho_creado'] and hito['despacho_id'] %}
-                                                                    <a href="{{ url_for('despachos.detalle', despacho_id=hito['despacho_id']) }}" 
-                                                                       class="btn btn-sm btn-outline-primary">
-                                                                        <i class="fas fa-eye"></i> Ver Despacho
-                                                                    </a>
-                                                                {% elif not hito['ordenes_fabricacion_disponibles'] %}
-                                                                    <span class="text-muted">
-                                                                        <i class="fas fa-info-circle"></i> Sin OFs disponibles
-                                                                    </span>
-                                                                {% endif %}
+                                                                </div>
                                                             </td>
                                                         </tr>
 
@@ -364,6 +372,49 @@
 
 .bg-light {
     background-color: #f8f9fa !important;
+}
+
+/* Improved button styling for actions */
+.btn-sm {
+    font-size: 0.775rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all 0.15s ease-in-out;
+    white-space: nowrap;
+}
+
+.btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.15);
+}
+
+.btn-sm .fas {
+    font-size: 0.75rem;
+}
+
+/* Action column consistent width */
+.table td:last-child {
+    min-width: 120px;
+    text-align: center;
+}
+
+/* Responsive button text */
+@media (max-width: 768px) {
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.7rem;
+    }
+    
+    .table td:last-child {
+        min-width: 80px;
+    }
+}
+
+/* Badge improvements */
+.badge.bg-light {
+    color: #6c757d !important;
+    border: 1px solid #dee2e6;
 }
 </style>
 
