@@ -847,6 +847,457 @@ class PlanificacionOperacionalService:
             resumen['total_clientes_unicos'] = len(clientes_unicos)
             resumen['pico_demanda_mes'] = pico_mes
             resumen['valle_demanda_mes'] = valle_mes
+
+
+    def _calcular_rolling_plan_semanal(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
+        """
+        Calcula el rolling plan semanal con análisis de backlog acumulado
+        """
+        try:
+            # Obtener demanda semanal jerárquica
+            demanda_data = self.calcular_demanda_semanal_jerarquica(año, horizonte_meses)
+            demanda_por_semana = demanda_data['demanda_por_semana']
+            
+            # Obtener capacidad efectiva semanal (horas efectivas disponibles)
+            horas_efectivas_semana = self.calcular_horas_efectivas_semanales()
+            
+            # Estructura del rolling plan
+            rolling_plan = {}
+            backlog_acumulado = 0  # Horas acumuladas que no se pueden satisfacer
+            
+            # Procesar cada semana en orden cronológico
+            semanas_ordenadas = sorted(demanda_por_semana.keys())
+            
+            for i, semana_key in enumerate(semanas_ordenadas):
+                semana_data = demanda_por_semana[semana_key]
+                # Calcular horas de demanda basándose en OFs
+                horas_demanda_semana = self._calcular_horas_demanda_semana_correctas(semana_data)
+                
+                # Agregar backlog de la semana anterior
+                horas_demanda_total = horas_demanda_semana + backlog_acumulado
+                
+                # Calcular capacidad vs demanda
+                utilizacion_porcentaje = self.calcular_utilizacion_capacidad(horas_demanda_total)
+                
+                # Determinar qué se puede producir esta semana
+                horas_a_producir = min(horas_demanda_total, horas_efectivas_semana)
+                horas_restantes = max(0, horas_demanda_total - horas_efectivas_semana)
+                
+                # Actualizar backlog para la próxima semana
+                backlog_acumulado = horas_restantes
+                
+                # Calcular métricas de la semana
+                exceso_capacidad = max(0, horas_efectivas_semana - horas_demanda_total)
+                deficit_capacidad = max(0, horas_demanda_total - horas_efectivas_semana)
+                
+                # Debug: Log calculation details
+                print(f"Rolling Plan Semana {semana_data['numero_semana']} ({semana_data['nombre_periodo']}): "
+                      f"OFs={sum(len(p.get('ordenes_fabricacion', [])) for p in semana_data.get('proyectos', {}).values())}, "
+                      f"Tableros={semana_data['totales_semana']['total_tableros']}, "
+                      f"Horas Demanda Original={horas_demanda_semana:.1f}, "
+                      f"Horas Efectivas Disponibles={horas_efectivas_semana:.1f}")
+                
+                rolling_plan[semana_key] = {
+                    'semana_info': {
+                        'numero_semana': semana_data['numero_semana'],
+                        'año': semana_data['año'],
+                        'mes': semana_data['mes'],
+                        'nombre_periodo': semana_data['nombre_periodo'],
+                        'fecha_inicio': semana_data['fecha_inicio'],
+                        'fecha_fin': semana_data['fecha_fin'],
+                        'orden_secuencial': i + 1
+                    },
+                    'demanda': {
+                        'tableros_demandados': semana_data['totales_semana']['total_tableros'],
+                        'horas_demanda_original': round(horas_demanda_semana, 1),
+                        'backlog_heredado': round(backlog_acumulado - horas_restantes, 1),
+                        'horas_demanda_total': round(horas_demanda_total, 1),
+                        'proyectos_activos': semana_data['totales_semana']['proyectos_count']
+                    },
+                    'capacidad': {
+                        'horas_efectivas_disponibles': round(horas_efectivas_semana, 1),
+                        'utilizacion_porcentaje': round(utilizacion_porcentaje, 1),
+                        'horas_a_producir': round(horas_a_producir, 1),
+                        'exceso_capacidad': round(exceso_capacidad, 1),
+                        'deficit_capacidad': round(deficit_capacidad, 1)
+                    },
+                    'backlog': {
+                        'backlog_inicio_semana': round(backlog_acumulado - horas_restantes, 1),
+                        'backlog_fin_semana': round(horas_restantes, 1),
+                        'variacion_backlog': round(horas_restantes - (backlog_acumulado - horas_restantes), 1)
+                    },
+                    'estado_semana': self._evaluar_estado_periodo(
+                        utilizacion_porcentaje,
+                        deficit_capacidad,
+                        exceso_capacidad
+                    )
+                }
+            
+            # Calcular resumen del rolling plan semanal
+            resumen_rolling_plan = self._calcular_resumen_rolling_plan_semanal(rolling_plan)
+            
+            return {
+                'rolling_plan_por_semana': rolling_plan,
+                'resumen_rolling_plan': resumen_rolling_plan,
+                'parametros_plan': {
+                    'año': año,
+                    'horizonte_meses': horizonte_meses,
+                    'capacidad_semanal_horas': horas_efectivas_semana,
+                    'fecha_generacion': datetime.now().isoformat(),
+                    'modo': 'semanal'
+                },
+                'recomendaciones_estrategicas': self._generar_recomendaciones_estrategicas_semanal(rolling_plan)
+            }
+            
+        except Exception as e:
+            print(f"Error calculando rolling plan semanal: {e}")
+            return {
+                'error': str(e),
+                'rolling_plan_por_semana': {},
+                'resumen_rolling_plan': {}
+            }
+
+    def calcular_demanda_semanal_jerarquica(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
+        """
+        Calcula demanda jerárquica a nivel semanal para el rolling plan
+        """
+        try:
+            fecha_inicio = datetime(año, 1, 1).date()
+            fecha_fin = fecha_inicio + timedelta(days=horizonte_meses * 30)
+            
+            # Obtener todas las OFs en el período
+            ordenes_fabricacion = (
+                db.session.query(OrdenFabricacion)
+                .join(Proyecto)
+                .filter(Proyecto.estado_comercial.in_([
+                    EstadoComercial.ADJUDICADO,
+                    EstadoComercial.EN_DESARROLLO,
+                    EstadoComercial.TERMINADO
+                ]))
+                .filter(
+                    and_(
+                        OrdenFabricacion.fecha_fabricacion >= fecha_inicio,
+                        OrdenFabricacion.fecha_fabricacion <= fecha_fin
+                    )
+                )
+                .options(
+                    selectinload(OrdenFabricacion.proyecto)
+                    .selectinload(Proyecto.cliente),
+                    selectinload(OrdenFabricacion.categoria)
+                )
+                .all()
+            )
+            
+            # Agrupar por semanas
+            demanda_por_semana = {}
+            
+            for of in ordenes_fabricacion:
+                fecha_fabricacion = of.fecha_fabricacion
+                
+                # Calcular número de semana del año
+                numero_semana = fecha_fabricacion.isocalendar()[1]
+                año_semana = fecha_fabricacion.year
+                
+                # Calcular fecha inicio y fin de semana
+                fecha_inicio_semana = fecha_fabricacion - timedelta(days=fecha_fabricacion.weekday())
+                fecha_fin_semana = fecha_inicio_semana + timedelta(days=6)
+                
+                semana_key = f"{año_semana}_{numero_semana:02d}"
+                
+                if semana_key not in demanda_por_semana:
+                    demanda_por_semana[semana_key] = {
+                        'numero_semana': numero_semana,
+                        'año': año_semana,
+                        'mes': fecha_fabricacion.month,
+                        'nombre_periodo': f"Semana {numero_semana} ({fecha_inicio_semana.strftime('%d/%m')} - {fecha_fin_semana.strftime('%d/%m')})",
+                        'fecha_inicio': fecha_inicio_semana,
+                        'fecha_fin': fecha_fin_semana,
+                        'proyectos': {},
+                        'totales_semana': {
+                            'proyectos_count': 0,
+                            'total_tableros': 0,
+                            'total_horas_requeridas': 0.0,
+                            'ofs_count': 0
+                        }
+                    }
+                
+                proyecto_id = of.proyecto.id
+                
+                if proyecto_id not in demanda_por_semana[semana_key]['proyectos']:
+                    demanda_por_semana[semana_key]['proyectos'][proyecto_id] = {
+                        'id': proyecto_id,
+                        'codigo': of.proyecto.codigo,
+                        'nombre': of.proyecto.nombre,
+                        'cliente': {
+                            'id': of.proyecto.cliente.id,
+                            'nombre': of.proyecto.cliente.nombre
+                        },
+                        'tipo_proyecto': of.proyecto.tipo_proyecto.name if of.proyecto.tipo_proyecto else 'N/A',
+                        'ordenes_fabricacion': [],
+                        'totales_proyecto': {
+                            'ofs_count': 0,
+                            'total_tableros': 0,
+                            'total_horas_requeridas': 0.0
+                        }
+                    }
+                
+                # Agregar OF al proyecto
+                horas_estimadas = self._calcular_horas_of(of)
+                demanda_por_semana[semana_key]['proyectos'][proyecto_id]['ordenes_fabricacion'].append({
+                    'id': of.id,
+                    'numero_orden': of.numero_orden,
+                    'tableros': of.tableros,
+                    'categoria': of.categoria.nombre if of.categoria else 'Sin categoría',
+                    'fecha_fabricacion': of.fecha_fabricacion,
+                    'horas_estimadas': horas_estimadas
+                })
+                
+                # Actualizar totales
+                demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['ofs_count'] += 1
+                demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['total_tableros'] += of.tableros
+                demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['total_horas_requeridas'] += horas_estimadas
+            
+            # Calcular totales por semana
+            for semana_key, semana_data in demanda_por_semana.items():
+                semana_data['totales_semana']['proyectos_count'] = len(semana_data['proyectos'])
+                semana_data['totales_semana']['total_tableros'] = sum(
+                    p['totales_proyecto']['total_tableros'] for p in semana_data['proyectos'].values()
+                )
+                semana_data['totales_semana']['total_horas_requeridas'] = sum(
+                    p['totales_proyecto']['total_horas_requeridas'] for p in semana_data['proyectos'].values()
+                )
+                semana_data['totales_semana']['ofs_count'] = sum(
+                    p['totales_proyecto']['ofs_count'] for p in semana_data['proyectos'].values()
+                )
+            
+            return {
+                'demanda_por_semana': demanda_por_semana,
+                'resumen_general': self._calcular_resumen_general_semanal(demanda_por_semana),
+                'parametros': {
+                    'año': año,
+                    'horizonte_meses': horizonte_meses,
+                    'fecha_inicio': fecha_inicio,
+                    'fecha_fin': fecha_fin,
+                    'modo': 'semanal'
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error calculando demanda semanal jerárquica: {e}")
+            return {'demanda_por_semana': {}, 'resumen_general': {}}
+
+    def calcular_horas_efectivas_semanales(self) -> float:
+        """
+        Calcula horas efectivas disponibles por semana
+        """
+        # Obtener configuración actual o valores por defecto
+        try:
+            factores = ConfiguracionesService().get_factores_conversion()
+            
+            # Parámetros semanales
+            dias_laborables_semana = factores.get('configuracion', {}).get('dias_laborables_semana', 5)
+            turnos_por_dia = factores.get('configuracion', {}).get('turnos_por_dia', 2)
+            horas_por_turno = factores.get('configuracion', {}).get('horas_por_turno', 8)
+            numero_maquinas = factores.get('configuracion', {}).get('numero_maquinas', 1)
+            
+            # OEE (Overall Equipment Effectiveness)
+            oee = factores.get('configuracion', {}).get('oee', 0.65)
+            
+            # Cálculo de horas efectivas semanales
+            horas_nominales_semana = dias_laborables_semana * turnos_por_dia * horas_por_turno * numero_maquinas
+            horas_efectivas_semana = horas_nominales_semana * oee
+            
+            return round(horas_efectivas_semana, 2)
+            
+        except Exception as e:
+            print(f"Error calculando horas efectivas semanales: {e}")
+            # Valor por defecto: 5 días * 2 turnos * 8 horas * 1 máquina * 0.65 OEE = 52 horas/semana
+            return 52.0
+
+    def _calcular_horas_demanda_semana_correctas(self, semana_data: Dict) -> float:
+        """
+        Calcula las horas de demanda correctas para una semana basándose en las OFs
+        """
+        try:
+            total_horas = 0.0
+            
+            for proyecto in semana_data.get('proyectos', {}).values():
+                for of in proyecto.get('ordenes_fabricacion', []):
+                    total_horas += of.get('horas_estimadas', 0.0)
+                    
+            return total_horas
+            
+        except Exception as e:
+            print(f"Error calculando horas demanda semana: {e}")
+            return semana_data.get('totales_semana', {}).get('total_horas_requeridas', 0.0)
+
+    def _calcular_resumen_rolling_plan_semanal(self, rolling_plan: Dict) -> Dict[str, Any]:
+        """Calcula resumen ejecutivo del rolling plan semanal"""
+        try:
+            if not rolling_plan:
+                return {}
+            
+            total_horas_demanda = sum(semana['demanda']['horas_demanda_total'] for semana in rolling_plan.values())
+            total_horas_capacidad = sum(semana['capacidad']['horas_efectivas_disponibles'] for semana in rolling_plan.values())
+            total_deficit = sum(semana['capacidad']['deficit_capacidad'] for semana in rolling_plan.values())
+            total_exceso = sum(semana['capacidad']['exceso_capacidad'] for semana in rolling_plan.values())
+            
+            # Backlog máximo en el horizonte
+            backlog_maximo = max(semana['backlog']['backlog_fin_semana'] for semana in rolling_plan.values())
+            
+            # Semanas con problemas
+            semanas_con_sobrecarga = len([semana for semana in rolling_plan.values() 
+                                        if semana['capacidad']['utilizacion_porcentaje'] > 100])
+            
+            semanas_con_baja_utilizacion = len([semana for semana in rolling_plan.values() 
+                                              if semana['capacidad']['utilizacion_porcentaje'] < 70])
+            
+            return {
+                'totales_horizonte': {
+                    'total_horas_demanda': round(total_horas_demanda, 1),
+                    'total_horas_capacidad': round(total_horas_capacidad, 1),
+                    'utilizacion_promedio': round((total_horas_demanda / total_horas_capacidad) * 100, 1) if total_horas_capacidad > 0 else 0,
+                    'total_deficit_horas': round(total_deficit, 1),
+                    'total_exceso_horas': round(total_exceso, 1)
+                },
+                'analisis_backlog': {
+                    'backlog_maximo_horas': round(backlog_maximo, 1),
+                    'backlog_maximo_tableros': self._convertir_horas_a_tableros(backlog_maximo),
+                    'backlog_final_horizonte': round(list(rolling_plan.values())[-1]['backlog']['backlog_fin_semana'], 1)
+                },
+                'distribucion_utilizacion': {
+                    'semanas_sobrecarga': semanas_con_sobrecarga,
+                    'semanas_baja_utilizacion': semanas_con_baja_utilizacion,
+                    'semanas_optimas': len(rolling_plan) - semanas_con_sobrecarga - semanas_con_baja_utilizacion
+                },
+                'recomendacion_general': self._generar_recomendacion_general(
+                    (total_horas_demanda / total_horas_capacidad) * 100 if total_horas_capacidad > 0 else 0,
+                    semanas_con_sobrecarga,
+                    backlog_maximo
+                )
+            }
+            
+        except Exception as e:
+            print(f"Error calculando resumen rolling plan semanal: {e}")
+            return {}
+
+    def _calcular_resumen_general_semanal(self, demanda_semanal: Dict) -> Dict[str, Any]:
+        """
+        Calcula resumen general de la demanda semanal
+        """
+        try:
+            resumen = {
+                'total_semanas_horizonte': len(demanda_semanal),
+                'total_tableros_horizonte': 0,
+                'total_horas_requeridas_horizonte': 0.0,
+                'total_proyectos_unicos': 0,
+                'total_clientes_unicos': 0,
+                'pico_demanda_semana': '',
+                'valle_demanda_semana': '',
+                'promedio_semanal': {
+                    'tableros': 0.0,
+                    'horas': 0.0
+                }
+            }
+            
+            # Rastrear proyectos y clientes únicos
+            proyectos_unicos = set()
+            clientes_unicos = set()
+            
+            # Rastrear picos y valles
+            max_horas_semana = 0
+            min_horas_semana = float('inf')
+            pico_semana = ''
+            valle_semana = ''
+            
+            for semana_key, semana_data in demanda_semanal.items():
+                # Acumular totales
+                resumen['total_tableros_horizonte'] += semana_data['totales_semana']['total_tableros']
+                resumen['total_horas_requeridas_horizonte'] += semana_data['totales_semana']['total_horas_requeridas']
+                
+                # Recopilar proyectos únicos
+                for proyecto in semana_data['proyectos'].values():
+                    proyectos_unicos.add(proyecto['id'])
+                    clientes_unicos.add(proyecto['cliente']['id'])
+                
+                # Rastrear picos y valles
+                horas_semana = semana_data['totales_semana']['total_horas_requeridas']
+                if horas_semana > max_horas_semana:
+                    max_horas_semana = horas_semana
+                    pico_semana = semana_data['nombre_periodo']
+                
+                if horas_semana < min_horas_semana:
+                    min_horas_semana = horas_semana
+                    valle_semana = semana_data['nombre_periodo']
+            
+            # Finalizar resumen
+            resumen['total_proyectos_unicos'] = len(proyectos_unicos)
+            resumen['total_clientes_unicos'] = len(clientes_unicos)
+            resumen['pico_demanda_semana'] = pico_semana
+            resumen['valle_demanda_semana'] = valle_semana
+            
+            # Calcular promedios
+            num_semanas = len(demanda_semanal)
+            if num_semanas > 0:
+                resumen['promedio_semanal']['tableros'] = round(resumen['total_tableros_horizonte'] / num_semanas, 1)
+                resumen['promedio_semanal']['horas'] = round(resumen['total_horas_requeridas_horizonte'] / num_semanas, 1)
+            
+            return resumen
+            
+        except Exception as e:
+            print(f"Error calculando resumen general semanal: {e}")
+            return {}
+
+    def _generar_recomendaciones_estrategicas_semanal(self, rolling_plan: Dict) -> List[Dict[str, str]]:
+        """Genera recomendaciones estratégicas basadas en el rolling plan semanal"""
+        recomendaciones = []
+        
+        try:
+            if not rolling_plan:
+                return recomendaciones
+            
+            # Analizar patrones en el plan
+            semanas_data = list(rolling_plan.values())
+            
+            # Recomendación sobre backlog
+            backlog_final = semanas_data[-1]['backlog']['backlog_fin_semana']
+            if backlog_final > 25:  # Ajustado para escala semanal
+                recomendaciones.append({
+                    'prioridad': 'ALTA',
+                    'categoria': 'CAPACIDAD',
+                    'titulo': 'Déficit de Capacidad Crítico Semanal',
+                    'descripcion': f'Backlog acumulado de {round(backlog_final, 1)} horas al final del horizonte semanal',
+                    'accion_recomendada': 'Evaluar horas extra o redistribución de carga semanal'
+                })
+            
+            # Recomendación sobre utilización desbalanceada
+            utilizaciones = [semana['capacidad']['utilizacion_porcentaje'] for semana in semanas_data]
+            if max(utilizaciones) - min(utilizaciones) > 60:
+                recomendaciones.append({
+                    'prioridad': 'MEDIA',
+                    'categoria': 'NIVELACION',
+                    'titulo': 'Carga de Trabajo Desbalanceada',
+                    'descripcion': f'Variación de {round(max(utilizaciones) - min(utilizaciones), 1)}% entre semanas',
+                    'accion_recomendada': 'Considerar nivelación de producción entre semanas'
+                })
+            
+            # Recomendación sobre semanas críticas
+            semanas_criticas = [s for s in semanas_data if s['capacidad']['utilizacion_porcentaje'] > 120]
+            if semanas_criticas:
+                recomendaciones.append({
+                    'prioridad': 'ALTA',
+                    'categoria': 'SOBRECARGA',
+                    'titulo': 'Semanas con Sobrecarga Crítica',
+                    'descripcion': f'{len(semanas_criticas)} semanas con utilización > 120%',
+                    'accion_recomendada': 'Planificar recursos adicionales o reprogramar producción'
+                })
+            
+            return recomendaciones
+            
+        except Exception as e:
+            print(f"Error generando recomendaciones estratégicas semanales: {e}")
+            return recomendaciones
+
             
             # Calcular promedios
             num_meses = len(demanda_jerarquica)
@@ -908,11 +1359,15 @@ class PlanificacionOperacionalService:
             # Fallback al valor existente
             return mes_data.get('totales_mes', {}).get('total_horas_requeridas', 0.0)
 
-    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual') -> Dict[str, Any]:
         """
         Calcula el rolling plan con análisis de backlog acumulado y redistribución de carga
+        Soporta modo mensual y semanal
         """
         try:
+            if modo == 'semanal':
+                return self._calcular_rolling_plan_semanal(año, horizonte_meses)
+            
             # Obtener demanda mensual jerárquica
             demanda_data = self.calcular_demanda_mensual_jerarquica(año, horizonte_meses)
             demanda_por_mes = demanda_data['demanda_por_mes']

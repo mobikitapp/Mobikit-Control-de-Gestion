@@ -60,6 +60,13 @@
                                 <option value="12" {% if horizonte_meses == 12 %}selected{% endif %}>12 meses</option>
                             </select>
                         </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Modo Rolling Plan</label>
+                            <select class="form-select" name="modo_rolling">
+                                <option value="mensual" {% if modo_rolling == 'mensual' %}selected{% endif %}>Mensual</option>
+                                <option value="semanal" {% if modo_rolling == 'semanal' %}selected{% endif %}>Semanal</option>
+                            </select>
+                        </div>
                         {% endif %}
                         <div class="col-md-2 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary">
@@ -160,14 +167,15 @@
     </div>
 
     <!-- Rolling Plan Analysis -->
-    {% if vista == 'estrategico' and rolling_plan and rolling_plan.rolling_plan_por_mes %}
+    {% if vista == 'estrategico' and rolling_plan and (rolling_plan.rolling_plan_por_mes or rolling_plan.rolling_plan_por_semana) %}
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
                     <h6 class="mb-0">
                         <i class="fas fa-calendar-alt text-primary"></i>
-                        Rolling Plan - Análisis de Capacidad vs Demanda
+                        Rolling Plan - Análisis de Capacidad vs Demanda 
+                        {% if modo_rolling == 'semanal' %}(Semanal){% else %}(Mensual){% endif %}
                     </h6>
                 </div>
                 <div class="card-body">
@@ -175,7 +183,11 @@
                         <table class="table table-sm">
                             <thead class="table-dark">
                                 <tr>
+                                    {% if modo_rolling == 'semanal' %}
+                                    <th>Semana</th>
+                                    {% else %}
                                     <th>Mes</th>
+                                    {% endif %}
                                     <th>Cantidad Tableros</th>
                                     <th>Demanda Original</th>
                                     <th>Backlog Heredado</th>
@@ -187,42 +199,81 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for mes_key, mes_data in rolling_plan.rolling_plan_por_mes.items() %}
-                                {% set utilizacion = mes_data.capacidad.utilizacion_porcentaje %}
-                                {% set clase_estado = 'table-success' if utilizacion < 70 else 'table-warning' if utilizacion < 90 else 'table-danger' if utilizacion > 100 else 'table-primary' %}
-                                <tr class="{{ clase_estado }}">
-                                    <td><strong>{{ mes_data.mes_info.nombre_mes }}</strong></td>
-                                    <td><span class="badge bg-primary">{{ mes_data.demanda.tableros_demandados or 0 }}</span></td>
-                                    <td><strong>{{ "{:.1f}".format(mes_data.demanda.horas_demanda_original) }}</strong></td>
-                                    <td>{{ "{:.1f}".format(mes_data.demanda.backlog_heredado) }}</td>
-                                    <td>{{ "{:.1f}".format(mes_data.demanda.horas_demanda_total) }}</td>
-                                    <td><strong>{{ "{:.1f}".format(mes_data.capacidad.horas_efectivas_disponibles) }}</strong></td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="progress flex-grow-1 me-2" style="height: 20px;">
-                                                <div class="progress-bar 
-                                                    {% if utilizacion < 70 %}bg-success
-                                                    {% elif utilizacion < 90 %}bg-primary
-                                                    {% elif utilizacion <= 100 %}bg-warning
-                                                    {% else %}bg-danger{% endif %}" 
-                                                     style="width: {{ min(utilizacion, 100) }}%">
-                                                    {{ "{:.0f}".format(utilizacion) }}%
+                                {% if modo_rolling == 'semanal' %}
+                                    {% for semana_key, semana_data in rolling_plan.rolling_plan_por_semana.items() %}
+                                    {% set utilizacion = semana_data.capacidad.utilizacion_porcentaje %}
+                                    {% set clase_estado = 'table-success' if utilizacion < 70 else 'table-warning' if utilizacion < 90 else 'table-danger' if utilizacion > 100 else 'table-primary' %}
+                                    <tr class="{{ clase_estado }}">
+                                        <td><strong>{{ semana_data.semana_info.nombre_periodo }}</strong></td>
+                                        <td><span class="badge bg-primary">{{ semana_data.demanda.tableros_demandados or 0 }}</span></td>
+                                        <td><strong>{{ "{:.1f}".format(semana_data.demanda.horas_demanda_original) }}</strong></td>
+                                        <td>{{ "{:.1f}".format(semana_data.demanda.backlog_heredado) }}</td>
+                                        <td>{{ "{:.1f}".format(semana_data.demanda.horas_demanda_total) }}</td>
+                                        <td><strong>{{ "{:.1f}".format(semana_data.capacidad.horas_efectivas_disponibles) }}</strong></td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                                    <div class="progress-bar 
+                                                        {% if utilizacion < 70 %}bg-success
+                                                        {% elif utilizacion < 90 %}bg-primary
+                                                        {% elif utilizacion <= 100 %}bg-warning
+                                                        {% else %}bg-danger{% endif %}" 
+                                                         style="width: {{ min(utilizacion, 100) }}%">
+                                                        {{ "{:.0f}".format(utilizacion) }}%
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="badge {% if mes_data.backlog.backlog_fin_mes > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                                            {{ "{:.0f}".format(mes_data.backlog.backlog_fin_mes) }}h
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-{{ mes_data.estado_mes.color }}">
-                                            {{ mes_data.estado_mes.descripcion }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if semana_data.backlog.backlog_fin_semana > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                                                {{ "{:.0f}".format(semana_data.backlog.backlog_fin_semana) }}h
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ semana_data.estado_semana.color }}">
+                                                {{ semana_data.estado_semana.descripcion }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    {% for mes_key, mes_data in rolling_plan.rolling_plan_por_mes.items() %}
+                                    {% set utilizacion = mes_data.capacidad.utilizacion_porcentaje %}
+                                    {% set clase_estado = 'table-success' if utilizacion < 70 else 'table-warning' if utilizacion < 90 else 'table-danger' if utilizacion > 100 else 'table-primary' %}
+                                    <tr class="{{ clase_estado }}">
+                                        <td><strong>{{ mes_data.mes_info.nombre_mes }}</strong></td>
+                                        <td><span class="badge bg-primary">{{ mes_data.demanda.tableros_demandados or 0 }}</span></td>
+                                        <td><strong>{{ "{:.1f}".format(mes_data.demanda.horas_demanda_original) }}</strong></td>
+                                        <td>{{ "{:.1f}".format(mes_data.demanda.backlog_heredado) }}</td>
+                                        <td>{{ "{:.1f}".format(mes_data.demanda.horas_demanda_total) }}</td>
+                                        <td><strong>{{ "{:.1f}".format(mes_data.capacidad.horas_efectivas_disponibles) }}</strong></td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                                    <div class="progress-bar 
+                                                        {% if utilizacion < 70 %}bg-success
+                                                        {% elif utilizacion < 90 %}bg-primary
+                                                        {% elif utilizacion <= 100 %}bg-warning
+                                                        {% else %}bg-danger{% endif %}" 
+                                                         style="width: {{ min(utilizacion, 100) }}%">
+                                                        {{ "{:.0f}".format(utilizacion) }}%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if mes_data.backlog.backlog_fin_mes > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                                                {{ "{:.0f}".format(mes_data.backlog.backlog_fin_mes) }}h
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ mes_data.estado_mes.color }}">
+                                                {{ mes_data.estado_mes.descripcion }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>
@@ -251,8 +302,13 @@
                         </div>
                         <div class="col-md-6">
                             <p><strong>Backlog Máximo:</strong> {{ "{:.0f}".format(rolling_plan.resumen_rolling_plan.analisis_backlog.backlog_maximo_horas) }} horas</p>
+                            {% if modo_rolling == 'semanal' %}
+                            <p><strong>Semanas con Sobrecarga:</strong> {{ rolling_plan.resumen_rolling_plan.distribucion_utilizacion.semanas_sobrecarga }}</p>
+                            <p><strong>Semanas Óptimas:</strong> {{ rolling_plan.resumen_rolling_plan.distribucion_utilizacion.semanas_optimas }}</p>
+                            {% else %}
                             <p><strong>Meses con Sobrecarga:</strong> {{ rolling_plan.resumen_rolling_plan.distribucion_utilizacion.meses_sobrecarga }}</p>
                             <p><strong>Meses Óptimos:</strong> {{ rolling_plan.resumen_rolling_plan.distribucion_utilizacion.meses_optimos }}</p>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="alert alert-info mt-3">
@@ -365,66 +421,117 @@
     {% endif %}
 
     <!-- Hierarchical Demand Structure -->
-    {% if vista == 'estrategico' and demanda_jerarquica and demanda_jerarquica.demanda_por_mes %}
+    {% if vista == 'estrategico' and demanda_jerarquica and (demanda_jerarquica.demanda_por_mes or demanda_jerarquica.demanda_por_semana) %}
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
                     <h6 class="mb-0">
                         <i class="fas fa-sitemap text-primary"></i>
-                        Estructura de Demanda Mensual
+                        Estructura de Demanda {% if modo_rolling == 'semanal' %}Semanal{% else %}Mensual{% endif %}
                     </h6>
                 </div>
                 <div class="card-body">
                     <div class="accordion" id="demandaAccordion">
-                        {% for mes_key, mes_data in demanda_jerarquica.demanda_por_mes.items() %}
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="heading{{ mes_key }}">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                        data-bs-target="#collapse{{ mes_key }}" aria-expanded="false">
-                                    <strong>{{ mes_data.nombre_mes }}</strong>
-                                    <span class="badge bg-primary ms-2">{{ mes_data.totales_mes.proyectos_count }} proyectos</span>
-                                    <span class="badge bg-success ms-2">{{ mes_data.totales_mes.total_tableros }} tableros</span>
-                                    <span class="badge bg-info ms-2">{{ "{:.0f}".format(mes_data.totales_mes.total_horas_requeridas) }} horas</span>
-                                </button>
-                            </h2>
-                            <div id="collapse{{ mes_key }}" class="accordion-collapse collapse" 
-                                 data-bs-parent="#demandaAccordion">
-                                <div class="accordion-body">
-                                    {% if mes_data.proyectos %}
-                                        <div class="table-responsive">
-                                            <table class="table table-sm">
-                                                <thead class="table-light">
-                                                    <tr>
-                                                        <th>Proyecto</th>
-                                                        <th>Cliente</th>
-                                                        <th>Tipo</th>
-                                                        <th>OFs</th>
-                                                        <th>Tableros</th>
-                                                        <th>Horas Total</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for proyecto_key, proyecto in mes_data.proyectos.items() %}
-                                                    <tr>
-                                                        <td><strong>{{ proyecto.codigo }}</strong><br><small>{{ proyecto.nombre[:50] }}...</small></td>
-                                                        <td>{{ proyecto.cliente.nombre }}</td>
-                                                        <td><span class="badge bg-secondary">{{ proyecto.tipo_proyecto }}</span></td>
-                                                        <td>{{ proyecto.totales_proyecto.ofs_count }}</td>
-                                                        <td>{{ proyecto.totales_proyecto.total_tableros }}</td>
-                                                        <td>{{ "{:.1f}".format(proyecto.totales_proyecto.total_horas_requeridas) }}</td>
-                                                    </tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    {% else %}
-                                        <p class="text-muted">No hay proyectos planificados para este mes.</p>
-                                    {% endif %}
+                        {% if modo_rolling == 'semanal' %}
+                            {% for semana_key, semana_data in demanda_jerarquica.demanda_por_semana.items() %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading{{ semana_key }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#collapse{{ semana_key }}" aria-expanded="false">
+                                        <strong>{{ semana_data.nombre_periodo }}</strong>
+                                        <span class="badge bg-primary ms-2">{{ semana_data.totales_semana.proyectos_count }} proyectos</span>
+                                        <span class="badge bg-success ms-2">{{ semana_data.totales_semana.total_tableros }} tableros</span>
+                                        <span class="badge bg-info ms-2">{{ "{:.0f}".format(semana_data.totales_semana.total_horas_requeridas) }} horas</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ semana_key }}" class="accordion-collapse collapse" 
+                                     data-bs-parent="#demandaAccordion">
+                                    <div class="accordion-body">
+                                        {% if semana_data.proyectos %}
+                                            <div class="table-responsive">
+                                                <table class="table table-sm">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>Proyecto</th>
+                                                            <th>Cliente</th>
+                                                            <th>Tipo</th>
+                                                            <th>OFs</th>
+                                                            <th>Tableros</th>
+                                                            <th>Horas Total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for proyecto_key, proyecto in semana_data.proyectos.items() %}
+                                                        <tr>
+                                                            <td><strong>{{ proyecto.codigo }}</strong><br><small>{{ proyecto.nombre[:50] }}...</small></td>
+                                                            <td>{{ proyecto.cliente.nombre }}</td>
+                                                            <td><span class="badge bg-secondary">{{ proyecto.tipo_proyecto }}</span></td>
+                                                            <td>{{ proyecto.totales_proyecto.ofs_count }}</td>
+                                                            <td>{{ proyecto.totales_proyecto.total_tableros }}</td>
+                                                            <td>{{ "{:.1f}".format(proyecto.totales_proyecto.total_horas_requeridas) }}</td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No hay proyectos planificados para esta semana.</p>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        {% endfor %}
+                            {% endfor %}
+                        {% else %}
+                            {% for mes_key, mes_data in demanda_jerarquica.demanda_por_mes.items() %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading{{ mes_key }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#collapse{{ mes_key }}" aria-expanded="false">
+                                        <strong>{{ mes_data.nombre_mes }}</strong>
+                                        <span class="badge bg-primary ms-2">{{ mes_data.totales_mes.proyectos_count }} proyectos</span>
+                                        <span class="badge bg-success ms-2">{{ mes_data.totales_mes.total_tableros }} tableros</span>
+                                        <span class="badge bg-info ms-2">{{ "{:.0f}".format(mes_data.totales_mes.total_horas_requeridas) }} horas</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ mes_key }}" class="accordion-collapse collapse" 
+                                     data-bs-parent="#demandaAccordion">
+                                    <div class="accordion-body">
+                                        {% if mes_data.proyectos %}
+                                            <div class="table-responsive">
+                                                <table class="table table-sm">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>Proyecto</th>
+                                                            <th>Cliente</th>
+                                                            <th>Tipo</th>
+                                                            <th>OFs</th>
+                                                            <th>Tableros</th>
+                                                            <th>Horas Total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for proyecto_key, proyecto in mes_data.proyectos.items() %}
+                                                        <tr>
+                                                            <td><strong>{{ proyecto.codigo }}</strong><br><small>{{ proyecto.nombre[:50] }}...</small></td>
+                                                            <td>{{ proyecto.cliente.nombre }}</td>
+                                                            <td><span class="badge bg-secondary">{{ proyecto.tipo_proyecto }}</span></td>
+                                                            <td>{{ proyecto.totales_proyecto.ofs_count }}</td>
+                                                            <td>{{ proyecto.totales_proyecto.total_tableros }}</td>
+                                                            <td>{{ "{:.1f}".format(proyecto.totales_proyecto.total_horas_requeridas) }}</td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No hay proyectos planificados para este mes.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
             </div>

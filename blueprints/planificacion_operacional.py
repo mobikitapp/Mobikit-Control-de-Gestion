@@ -395,7 +395,7 @@ def actualizar_configuracion():
 
         parametros_operacionales = {}
         operational_fields = [
-            'numero_maquinas', 'turnos_por_dia', 'horas_por_turno', 'dias_laborables_mes', 'oee',
+            'numero_maquinas', 'turnos_ por_dia', 'horas_por_turno', 'dias_laborables_mes', 'oee',
             'horizonte_planificacion', 'umbral_sobrecarga',
             'factor_horas_extra', 'max_subcontrato', 'mejora_oee_objetivo'
         ]
@@ -484,10 +484,13 @@ def capacidad_produccion():
         vista = request.args.get('vista', default='estrategico')  # estrategico, mensual, semanal
         horizonte_meses = request.args.get('horizonte', type=int) or 6
 
+        modo_rolling = 'mensual' # Default to monthly
+
         # Get strategic capacity analysis data
         if vista == 'estrategico':
             # New strategic capacity planning data
             try:
+                # Calculate monthly rolling plan
                 rolling_plan_data = service.calcular_rolling_plan_con_backlog(año, horizonte_meses)
                 demanda_jerarquica_data = service.calcular_demanda_mensual_jerarquica(año, horizonte_meses)
                 resumen_capacidad_data = service.get_resumen_capacidad_estrategica()
@@ -503,15 +506,44 @@ def capacidad_produccion():
                 'año': año,
                 'vista': vista,
                 'horizonte_meses': horizonte_meses,
+                'modo_rolling': modo_rolling, # Pass the mode
                 'resumen_capacidad': resumen_capacidad_data,
                 'demanda_jerarquica': demanda_jerarquica_data,
                 'rolling_plan': rolling_plan_data,
                 'escenarios_deficit': escenarios_data
             }
+        elif vista == 'semanal': # Handle weekly view
+            modo_rolling = 'semanal'
+            try:
+                # Calculate weekly rolling plan
+                rolling_plan_data = service.calcular_rolling_plan_semanal(año, horizonte_meses)
+                demanda_jerarquica_data = service.calcular_demanda_semanal_jerarquica(año, horizonte_meses)
+                resumen_capacidad_data = service.get_resumen_capacidad_estrategica_semanal() # Assuming a new method for weekly summary
+                escenarios_data = ConfiguracionesService().get_escenarios_deficit_semanal() # Assuming a new method for weekly scenarios
+            except Exception as e:
+                print(f"Error calculando datos semanales: {e}")
+                rolling_plan_data = {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+                demanda_jerarquica_data = {'demanda_por_semana': {}}
+                resumen_capacidad_data = {}
+                escenarios_data = {}
+
+            data = {
+                'año': año,
+                'vista': vista,
+                'horizonte_meses': horizonte_meses,
+                'modo_rolling': modo_rolling, # Pass the mode
+                'resumen_capacidad': resumen_capacidad_data,
+                'demanda_jerarquica': demanda_jerarquica_data,
+                'rolling_plan': rolling_plan_data,
+                'escenarios_deficit': escenarios_data
+            }
+
         else:
             # Legacy capacity analysis for backward compatibility
             data = service.get_analisis_capacidad(año=año, vista=vista)
             data['horizonte_meses'] = horizonte_meses  # Ensure this is always available
+            data['modo_rolling'] = vista # Pass the current view as mode
+
 
         return render_template('planificacion_operacional/capacidad.html', calendar=calendar, **data)
 
