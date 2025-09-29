@@ -395,7 +395,7 @@ class CalendarioService:
 
         hitos_eventos_mes = self._get_hitos_como_eventos(primer_dia, ultimo_dia, usuario_id, rol_usuario)
 
-        # Get upcoming hitos (next 7 days)
+        # Get upcoming hitos (next 7 days by default)
         hitos_proximos = self._get_hitos_como_eventos(today, today + timedelta(days=7), usuario_id, rol_usuario)
 
         # Get overdue hitos
@@ -469,6 +469,22 @@ class CalendarioService:
         fecha_fin = today + timedelta(days=dias)
 
         return self._get_eventos_rango_fechas(today, fecha_fin, usuario_id, rol_usuario)
+
+    def get_hitos_proximos_configurable(self, usuario_id: str, rol_usuario: RolUsuario, dias: int = 7) -> List[Dict[str, Any]]:
+        """Get upcoming hitos with configurable days (1-90)"""
+        
+        # Validate days range
+        if dias < 1:
+            dias = 1
+        elif dias > 90:
+            dias = 90
+            
+        today = date.today()
+        fecha_fin = today + timedelta(days=dias)
+        
+        hitos_eventos = self._get_hitos_como_eventos(today, fecha_fin, usuario_id, rol_usuario)
+        
+        return hitos_eventos
 
     def toggle_recordatorio(self, evento_id: str, usuario_id: str) -> Tuple[bool, str]:
         """Toggle event reminder"""

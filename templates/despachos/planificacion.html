@@ -87,9 +87,48 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card border-warning">
-                        <div class="card-header bg-warning text-white">
-                            <h5 class="mb-0"><i class="fas fa-clock"></i> Hitos Próximos a Vencer (7 días)</h5>
+                        <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="fas fa-clock text-warning"></i>
+                                Hitos Próximos a Vencer ({{ dias_filtro }} días)
+                            </h6>
+                            <div class="btn-group" role="group" aria-label="Filtros de días">
+                                <a href="{{ url_for('despachos.planificacion', dias_hitos=7) }}" 
+                                   class="btn btn-sm {{ 'btn-primary' if dias_filtro == 7 else 'btn-outline-primary' }}">
+                                    7d
+                                </a>
+                                <a href="{{ url_for('despachos.planificacion', dias_hitos=15) }}" 
+                                   class="btn btn-sm {{ 'btn-primary' if dias_filtro == 15 else 'btn-outline-primary' }}">
+                                    15d
+                                </a>
+                                <a href="{{ url_for('despachos.planificacion', dias_hitos=30) }}" 
+                                   class="btn btn-sm {{ 'btn-primary' if dias_filtro == 30 else 'btn-outline-primary' }}">
+                                    30d
+                                </a>
+                                <a href="{{ url_for('despachos.planificacion', dias_hitos=60) }}" 
+                                   class="btn btn-sm {{ 'btn-primary' if dias_filtro == 60 else 'btn-outline-primary' }}">
+                                    60d
+                                </a>
+                                <a href="{{ url_for('despachos.planificacion', dias_hitos=90) }}" 
+                                   class="btn btn-sm {{ 'btn-primary' if dias_filtro == 90 else 'btn-outline-primary' }}">
+                                    90d
+                                </a>
+                            </div>
                         </div>
+                        <div class="mt-2">
+                            <form method="GET" class="d-flex gap-2 align-items-end" style="max-width: 300px;">
+                                <div class="flex-grow-1">
+                                    <label for="dias_hitos" class="form-label small mb-1">Días personalizados:</label>
+                                    <input type="number" class="form-control form-control-sm" id="dias_hitos" name="dias_hitos" 
+                                           min="1" max="90" value="{{ dias_filtro }}" placeholder="1-90">
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                         <div class="card-body">
                             <div class="table-responsive">
                                 <table class="table table-sm">
