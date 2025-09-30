@@ -509,7 +509,7 @@ class Contrato(db.Model):
     fecha_entrega_comprometida = db.Column(db.Date)
     condiciones_pago = db.Column(db.Text)
     notas = db.Column(db.Text)
-
+    archivado = db.Column(db.Boolean, default=False, nullable=False)
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
@@ -528,6 +528,7 @@ class Contrato(db.Model):
         Index('idx_contrato_numero_oc', 'numero_oc'),
         Index('idx_contrato_estado', 'estado'),
         Index('idx_contrato_fechas', 'fecha_emision', 'fecha_vencimiento'),
+        Index('idx_contrato_archivado', 'archivado'),
     )
 
     def __repr__(self):
@@ -818,6 +819,7 @@ class Despacho(db.Model):
     observaciones = db.Column(db.Text)
     responsable_nombre = db.Column(db.String(200))
     numero_guias_despacho = db.Column(db.String(255), nullable=True)
+    archivado = db.Column(db.Boolean, default=False, nullable=False)
 
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
@@ -839,6 +841,7 @@ class Despacho(db.Model):
         Index('idx_despacho_estado', 'estado'),
         Index('idx_despacho_responsable_nombre', 'responsable_nombre'),
         Index('idx_despacho_fechas', 'fecha_programada', 'fecha_envio'),
+        Index('idx_despacho_archivado', 'archivado'),
     )
 
     def __repr__(self):
