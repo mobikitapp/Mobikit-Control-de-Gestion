@@ -526,7 +526,9 @@ def capacidad_produccion():
                 'resumen_capacidad': resumen_capacidad_data,
                 'demanda_jerarquica': demanda_jerarquica_data,
                 'rolling_plan': rolling_plan_data,
-                'escenarios_deficit': escenarios_data
+                'escenarios_deficit': escenarios_data,
+                # Add empty capacidad for template compatibility
+                'capacidad': {}
             }
         elif vista == 'semanal': # Handle legacy weekly view
             try:

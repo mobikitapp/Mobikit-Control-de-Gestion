@@ -553,7 +553,7 @@
         </div>
     </div>
     
-    {% else %}
+    {% elif capacidad %}
     <!-- Legacy Capacity Analysis (for mensual/semanal views) -->
 
     <!-- Summary Cards -->
@@ -653,6 +653,17 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No data available message -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Información:</strong> No hay datos de capacidad disponibles para mostrar en esta vista. 
+                Para el análisis estratégico, consulte las secciones anteriores del rolling plan y demanda jerárquica.
             </div>
         </div>
     </div>
