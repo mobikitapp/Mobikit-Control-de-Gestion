@@ -1449,25 +1449,25 @@
 
             if (badge) {
                 if (showErrorIndicator) {
-                    badge.textContent = 'Error';
+                    badge.textContent = '0.0%';
                     badge.classList.remove('bg-success');
-                    badge.classList.add('bg-danger');
+                    badge.classList.add('bg-warning');
                 } else {
                     badge.textContent = `${porcentaje.toFixed(1)}%`;
-                    badge.classList.remove('bg-danger');
+                    badge.classList.remove('bg-danger', 'bg-warning');
                     badge.classList.add('bg-success');
                 }
             }
             if (progressBar) {
                 if (showErrorIndicator) {
-                    progressBar.style.width = '100%';
+                    progressBar.style.width = '0%';
                     progressBar.classList.remove('bg-success');
-                    progressBar.classList.add('bg-danger');
+                    progressBar.classList.add('bg-warning');
                     progressBar.setAttribute('data-porcentaje', 0);
                 } else {
                     progressBar.style.width = `${porcentaje}%`;
                     progressBar.setAttribute('data-porcentaje', porcentaje);
-                    progressBar.classList.remove('bg-danger');
+                    progressBar.classList.remove('bg-danger', 'bg-warning');
                     progressBar.classList.add('bg-success');
                 }
             }
@@ -1504,21 +1504,25 @@
                     if (data.success) {
                         const porcentajeCobrado = data.porcentaje_cobrado || 0;
                         console.log('KPI Cobranza cargado:', porcentajeCobrado + '%');
-                        updateCobranzaKPI(porcentajeCobrado);
+                        updateCobranzaKPI(porcentajeCobrado, false);
 
                         // También actualizar otros KPIs si están disponibles
                         if (data.porcentaje_facturado !== undefined) {
                             updateFacturacionKPI(data.porcentaje_facturado);
                         }
                     } else {
-                        console.error('Error en respuesta KPI:', data.message);
-                        updateCobranzaKPI(0, true);
+                        console.warn('Sin datos KPI cobranza:', data.message);
+                        // Mantener valores por defecto del template, no mostrar error
+                        const porcentajeActual = parseFloat(document.getElementById('porcentaje-cobrado-badge')?.textContent || '0');
+                        updateCobranzaKPI(porcentajeActual, false);
                     }
                 })
                 .catch(error => {
                     console.error('Error cargando KPI cobranza:', error);
-                    // Mostrar un indicador de error en la UI
-                    updateCobranzaKPI(0, true);
+                    // Mantener valores por defecto del template en caso de error de red
+                    const progressBar = document.getElementById('progress-bar-cobranza');
+                    const porcentajeActual = progressBar ? parseFloat(progressBar.getAttribute('data-porcentaje') || '0') : 0;
+                    updateCobranzaKPI(porcentajeActual, false);
                 });
         });
 
