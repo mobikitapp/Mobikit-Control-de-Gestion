@@ -11,6 +11,9 @@ import os
 import sys
 from sqlalchemy import text
 
+# Create logger for this module
+logger = logging.getLogger(__name__)
+
 from app import db
 from models import User, RolUsuario, NotificationPreferences, TipoNotificacion
 from services.configuraciones_service import ConfiguracionesService
