@@ -154,7 +154,7 @@ class PlanificacionOperacionalService:
         proyectos_activos = (db.session.query(Proyecto)
                             .filter(Proyecto.estado_comercial.in_([
                                 EstadoComercial.ADJUDICADO,
-                                EstadoComercial.EN_DESARROLLO, 
+                                EstadoComercial.EN_DESARROLLO,
                                 EstadoComercial.TERMINADO
                             ]))
                             .filter(or_(
@@ -267,7 +267,7 @@ class PlanificacionOperacionalService:
             area_total_m2 = tableros_sin_desperdicio * Decimal(str(self.AREA_TABLERO_ESTANDAR))
             area_con_desperdicio = area_total_m2 * Decimal(str(self.FACTOR_DESPERDICIO))
         else:
-            # Legacy formula: monto_provision / factor_m2 
+            # Legacy formula: monto_provision / factor_m2
             area_total_m2 = Decimal(str(monto_provision)) / Decimal(str(factor_m2))
 
             # Apply waste factor
@@ -349,17 +349,6 @@ class PlanificacionOperacionalService:
             'ESPECIAL': 'Proyectos premium con especificaciones altas y acabados especiales'
         }
         return descripciones.get(tipo_proyecto, 'Descripción no disponible')
-
-        factores['configuracion'] = {
-            'area_tablero_estandar': self.AREA_TABLERO_ESTANDAR,
-            'factor_desperdicio': self.FACTOR_DESPERDICIO,
-            'factor_tiempo_fabrica': factores_tiempo['factor_tiempo_fabrica'],
-            'factor_tiempo_embalaje': factores_tiempo['factor_tiempo_embalaje'],
-            # Add capacity configuration
-            **capacidad_config
-        }
-
-        return factores
 
     def actualizar_factores_conversion(self, factores_data, user_id):
         """Update conversion factors including time and capacity settings"""
@@ -895,7 +884,7 @@ class PlanificacionOperacionalService:
             for i in range(horizonte_semanas):
                 fecha_semana = fecha_inicio + timedelta(weeks=i)
                 semana_key = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
-                
+
                 demanda_jerarquica[semana_key] = {
                     'numero_semana': fecha_semana.isocalendar()[1],
                     'año': fecha_semana.year,
@@ -997,11 +986,11 @@ class PlanificacionOperacionalService:
 
                 # Actualizar totales del proyecto
                 proyecto_totales = demanda_jerarquica[semana_key]['proyectos'][proyecto_key]['totales_proyecto']
+                proyecto_totales['ofs_count'] += 1
                 proyecto_totales['total_tableros'] += tableros_of
                 proyecto_totales['total_horas_fabricacion'] += horas_fabricacion
                 proyecto_totales['total_horas_embalaje'] += horas_embalaje
                 proyecto_totales['total_horas_requeridas'] += horas_totales
-                proyecto_totales['ofs_count'] += 1
 
                 # Actualizar totales de la semana
                 semana_totales = demanda_jerarquica[semana_key]['totales_semana']
@@ -1217,15 +1206,24 @@ class PlanificacionOperacionalService:
                     'fecha_generacion': datetime.now().isoformat(),
                     'modo': 'semanal'
                 },
-                'recomendaciones_estrategicas': self._generar_recomendaciones_estrategicas_semanal(rolling_plan)
+                'recomendaciones_estrategicas': self._generar_recomendaciones_estrategicas_semanales(rolling_plan)
             }
 
         except Exception as e:
             print(f"Error calculando rolling plan semanal: {e}")
+            import traceback
+            traceback.print_exc()
             return {
-                'error': str(e),
                 'rolling_plan_por_semana': {},
-                'resumen_rolling_plan': {}
+                'resumen_rolling_plan': {},
+                'parametros_plan': {
+                    'año': año,
+                    'horizonte_meses': horizonte_meses,
+                    'fecha_generacion': datetime.now().isoformat(),
+                    'capacidad_semanal_horas': 28.0,
+                    'modo': 'semanal'
+                },
+                'recomendaciones_estrategicas': []
             }
 
     def calcular_demanda_semanal_jerarquica(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
@@ -1234,7 +1232,7 @@ class PlanificacionOperacionalService:
         """
         try:
             from datetime import date
-            
+
             # Calcular rango de fechas para el horizonte - desde hoy hacia adelante
             hoy = date.today()
             fecha_inicio = hoy - timedelta(days=hoy.weekday())  # Inicio de semana actual (lunes)
@@ -1274,7 +1272,7 @@ class PlanificacionOperacionalService:
                 # Calcular fecha inicio de semana (lunes)
                 fecha_inicio_semana = fecha_fabricacion - timedelta(days=fecha_fabricacion.weekday())
                 fecha_fin_semana = fecha_inicio_semana + timedelta(days=6)
-                
+
                 # Usar un formato de clave más simple
                 semana_key = f"{fecha_inicio_semana.year}-W{fecha_inicio_semana.isocalendar()[1]:02d}"
 
@@ -1322,19 +1320,19 @@ class PlanificacionOperacionalService:
                 # Calcular horas correctamente
                 cantidad_tableros = of.cantidad_tableros or 0
                 tipo_proyecto = of.proyecto.tipo_proyecto.value if of.proyecto.tipo_proyecto else 'ESTANDAR'
-                
+
                 config_service = ConfiguracionesService()
                 config = config_service.get_configuracion_capacidad()
-                
+
                 tiempo_por_tablero_map = {
                     'SOCIAL': config.get('horas_por_tablero_social', 0.6),
                     'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
                     'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
                 }
-                
+
                 tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
                 horas_totales = cantidad_tableros * tiempo_por_tablero
-                
+
                 # Agregar OF al proyecto
                 demanda_por_semana[semana_key]['proyectos'][proyecto_key]['ordenes_fabricacion'].append({
                     'id': of.id,
@@ -1368,7 +1366,7 @@ class PlanificacionOperacionalService:
                 semana_data['totales_semana']['ofs_count'] = sum(
                     p['totales_proyecto']['ofs_count'] for p in semana_data['proyectos'].values()
                 )
-                
+
                 # Contar clientes únicos
                 clientes_unicos = set()
                 for proyecto in semana_data['proyectos'].values():
@@ -1379,7 +1377,7 @@ class PlanificacionOperacionalService:
 
             return {
                 'demanda_por_semana': demanda_por_semana,
-                'resumen_general': self._calcular_resumen_general_semanal(demanda_por_semana),
+                'resumen_general': self._calcular_resumen_demanda_general_semanal(demanda_por_semana),
                 'periodo': {
                     'año': año,
                     'horizonte_meses': horizonte_meses,
@@ -1431,12 +1429,14 @@ class PlanificacionOperacionalService:
 
             for proyecto in semana_data.get('proyectos', {}).values():
                 for of in proyecto.get('ordenes_fabricacion', []):
-                    total_horas += of.get('horas_estimadas', 0.0)
+                    # Use 'horas_totales' which is already calculated as tableros * tiempo_por_tablero
+                    total_horas += of.get('horas_totales', 0.0)
 
             return total_horas
 
         except Exception as e:
             print(f"Error calculando horas demanda semana: {e}")
+            # Fallback to the existing total_horas_requeridas if calculation fails
             return semana_data.get('totales_semana', {}).get('total_horas_requeridas', 0.0)
 
     def _calcular_resumen_rolling_plan_semanal(self, rolling_plan: Dict) -> Dict[str, Any]:
@@ -1454,10 +1454,10 @@ class PlanificacionOperacionalService:
             backlog_maximo = max(semana['backlog']['backlog_fin_semana'] for semana in rolling_plan.values())
 
             # Semanas con problemas
-            semanas_con_sobrecarga = len([semana for semana in rolling_plan.values() 
+            semanas_con_sobrecarga = len([semana for semana in rolling_plan.values()
                                         if semana['capacidad']['utilizacion_porcentaje'] > 100])
 
-            semanas_con_baja_utilizacion = len([semana for semana in rolling_plan.values() 
+            semanas_con_baja_utilizacion = len([semana for semana in rolling_plan.values()
                                               if semana['capacidad']['utilizacion_porcentaje'] < 70])
 
             return {
@@ -1471,14 +1471,14 @@ class PlanificacionOperacionalService:
                 'analisis_backlog': {
                     'backlog_maximo_horas': round(backlog_maximo, 1),
                     'backlog_maximo_tableros': self._convertir_horas_a_tableros(backlog_maximo),
-                    'backlog_final_horizonte': round(list(rolling_plan.values())[-1]['backlog']['backlog_fin_semana'], 1)
+                    'backlog_final_horizonte': round(list(rolling_plan.values())[-1]['backlog']['backlog_fin_semana'], 1) if rolling_plan else 0
                 },
                 'distribucion_utilizacion': {
                     'semanas_sobrecarga': semanas_con_sobrecarga,
                     'semanas_baja_utilizacion': semanas_con_baja_utilizacion,
                     'semanas_optimas': len(rolling_plan) - semanas_con_sobrecarga - semanas_con_baja_utilizacion
                 },
-                'recomendacion_general': self._generar_recomendacion_general(
+                'recomendacion_general': self._generar_recomendacion_general_semanal(
                     (total_horas_demanda / total_horas_capacidad) * 100 if total_horas_capacidad > 0 else 0,
                     semanas_con_sobrecarga,
                     backlog_maximo
@@ -1556,106 +1556,100 @@ class PlanificacionOperacionalService:
             print(f"Error calculando resumen general semanal: {e}")
             return {}
 
-    def _generar_recomendaciones_estrategicas_semanal(self, rolling_plan: Dict) -> List[Dict[str, str]]:
+    def _generar_recomendaciones_estrategicas_semanales(self, rolling_plan: Dict) -> List[Dict[str, str]]:
         """Genera recomendaciones estratégicas basadas en el rolling plan semanal"""
-        recomendaciones = []
-
         try:
+            recomendaciones = []
+
             if not rolling_plan:
                 return recomendaciones
 
-            # Analizar patrones en el plan
-            semanas_data = list(rolling_plan.values())
+            # Analizar patrones de utilización
+            semanas_baja = sum(1 for semana in rolling_plan.values() if semana['capacidad']['utilizacion_porcentaje'] < 50)
+            semanas_sobrecarga = sum(1 for semana in rolling_plan.values() if semana['capacidad']['utilizacion_porcentaje'] > 100)
 
-            # Recomendación sobre backlog
-            backlog_final = semanas_data[-1]['backlog']['backlog_fin_semana']
-            if backlog_final > 25:  # Ajustado para escala semanal
+            if semanas_baja > len(rolling_plan) * 0.5:
                 recomendaciones.append({
-                    'prioridad': 'ALTA',
-                    'categoria': 'CAPACIDAD',
-                    'titulo': 'Déficit de Capacidad Crítico Semanal',
-                    'descripcion': f'Backlog acumulado de {round(backlog_final, 1)} horas al final del horizonte semanal',
-                    'accion_recomendada': 'Evaluar horas extra o redistribución de carga semanal'
+                    'titulo': 'Oportunidades de Adelanto',
+                    'descripcion': f'{semanas_baja} semanas con capacidad excedente significativa',
+                    'accion_recomendada': 'Considerar adelantar producción para reducir backlog futuro',
+                    'prioridad': 'BAJA',
+                    'categoria': 'OPTIMIZACION'
                 })
 
-            # Recomendación sobre utilización desbalanceada
-            utilizaciones = [semana['capacidad']['utilizacion_porcentaje'] for semana in semanas_data]
-            if max(utilizaciones) - min(utilizaciones) > 60:
+            if semanas_sobrecarga > 2:
                 recomendaciones.append({
-                    'prioridad': 'MEDIA',
-                    'categoria': 'NIVELACION',
-                    'titulo': 'Carga de Trabajo Desbalanceada',
-                    'descripcion': f'Variación de {round(max(utilizaciones) - min(utilizaciones), 1)}% entre semanas',
-                    'accion_recomendada': 'Considerar nivelación de producción entre semanas'
-                })
-
-            # Recomendación sobre semanas críticas
-            semanas_criticas = [s for s in semanas_data if s['capacidad']['utilizacion_porcentaje'] > 120]
-            if semanas_criticas:
-                recomendaciones.append({
+                    'titulo': 'Riesgo de Sobrecarga',
+                    'descripcion': f'{semanas_sobrecarga} semanas con utilización > 100%',
+                    'accion_recomendada': 'Evaluar redistribución de carga o incremento de capacidad',
                     'prioridad': 'ALTA',
-                    'categoria': 'SOBRECARGA',
-                    'titulo': 'Semanas con Sobrecarga Crítica',
-                    'descripcion': f'{len(semanas_criticas)} semanas con utilización > 120%',
-                    'accion_recomendada': 'Planificar recursos adicionales o reprogramar producción'
+                    'categoria': 'RIESGO'
                 })
 
             return recomendaciones
 
         except Exception as e:
             print(f"Error generando recomendaciones estratégicas semanales: {e}")
-            return recomendaciones
+            return []
 
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
 
-    def _calcular_horas_demanda_mes_correctas(self, mes_data: Dict) -> float:
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo_rolling: str = 'mensual') -> Dict[str, Any]:
         """
-        Calcula correctamente las horas de demanda de un mes basándose en:
-        cantidad_tableros * horas_por_tablero (según tipo de proyecto) de cada OF
-        """
-        try:
-            config_service = ConfiguracionesService()
-            config = config_service.get_configuracion_capacidad()
-
-            tiempo_por_tablero_map = {
-                'SOCIAL': config.get('horas_por_tablero_social', 0.6),
-                'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
-                'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
-            }
-
-            total_horas = 0.0
-
-            # Iterar sobre todos los proyectos del mes
-            for proyecto in mes_data.get('proyectos', {}).values():
-                # Iterar sobre todas las OFs del proyecto
-                for of_data in proyecto.get('ordenes_fabricacion', []):
-                    tableros = of_data.get('cantidad_tableros', 0)
-                    tipo_proyecto = proyecto.get('tipo_proyecto', 'ESTANDAR')
-
-                    tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
-                    horas_of = tableros * tiempo_por_tablero
-                    total_horas += horas_of
-
-            return round(total_horas, 2)
-
-        except Exception as e:
-            print(f"Error calculando horas de demanda del mes: {e}")
-            # Fallback al valor existente
-            return mes_data.get('totales_mes', {}).get('total_horas_requeridas', 0.0)
-
-    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual') -> Dict[str, Any]:
-        """
-        Calcula el rolling plan con análisis de backlog acumulado y redistribución de carga
+        Calcula el rolling plan con análisis de backlog acumulado
         Soporta modo mensual y semanal
         """
         try:
-            if modo == 'semanal':
+            if modo_rolling == 'semanal':
                 return self._calcular_rolling_plan_semanal(año, horizonte_meses)
+            else:
+                return self._calcular_rolling_plan_mensual(año, horizonte_meses)
 
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+
+            # Return empty structure matching the expected format
+            if modo_rolling == 'semanal':
+                return {
+                    'rolling_plan_por_semana': {},
+                    'resumen_rolling_plan': {},
+                    'parametros_plan': {
+                        'año': año,
+                        'horizonte_meses': horizonte_meses,
+                        'fecha_generacion': datetime.now().isoformat(),
+                        'capacidad_semanal_horas': 28.0,
+                        'modo': 'semanal'
+                    },
+                    'recomendaciones_estrategicas': []
+                }
+            else:
+                return {
+                    'rolling_plan_por_mes': {},
+                    'resumen_rolling_plan': {},
+                    'parametros_plan': {
+                        'año': año,
+                        'horizonte_meses': horizonte_meses,
+                        'fecha_generacion': datetime.now().isoformat(),
+                        'capacidad_mensual_horas': 123.2,
+                        'modo': 'mensual'
+                    },
+                    'recomendaciones_estrategicas': []
+                }
+
+    def _calcular_rolling_plan_mensual(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
+        """
+        Calcula el rolling plan mensual con análisis de backlog acumulado
+        """
+        try:
             # Obtener demanda mensual jerárquica
             demanda_data = self.calcular_demanda_mensual_jerarquica(año, horizonte_meses)
             demanda_por_mes = demanda_data['demanda_por_mes']
 
-            # Obtener capacidad efectiva mensual (horas efectivas disponibles)
+            # Obtener capacidad efectiva mensual
             horas_efectivas_mes = self.calcular_horas_efectivas_mensuales()
 
             # Estructura del rolling plan
@@ -1667,14 +1661,14 @@ class PlanificacionOperacionalService:
 
             for i, mes_key in enumerate(meses_ordenados):
                 mes_data = demanda_por_mes[mes_key]
-                # Calcular correctamente las horas de demanda basándose en OFs
-                horas_demanda_mes = self._calcular_horas_demanda_mes_correctas(mes_data)
+                # Usar las horas requeridas ya calculadas en totales_mes
+                horas_demanda_mes = mes_data['totales_mes']['total_horas_requeridas']
 
                 # Agregar backlog del mes anterior
                 horas_demanda_total = horas_demanda_mes + backlog_acumulado
 
                 # Calcular capacidad vs demanda
-                utilizacion_capacidad = self.calcular_utilizacion_capacidad(horas_demanda_total)
+                utilizacion_porcentaje = (horas_demanda_total / horas_efectivas_mes * 100) if horas_efectivas_mes > 0 else 0
 
                 # Determinar qué se puede producir este mes
                 horas_a_producir = min(horas_demanda_total, horas_efectivas_mes)
@@ -1686,13 +1680,6 @@ class PlanificacionOperacionalService:
                 # Calcular métricas del mes
                 exceso_capacidad = max(0, horas_efectivas_mes - horas_demanda_total)
                 deficit_capacidad = max(0, horas_demanda_total - horas_efectivas_mes)
-
-                # Debug: Log calculation details
-                print(f"Rolling Plan {mes_data['nombre_mes']}: "
-                      f"OFs={sum(len(p.get('ordenes_fabricacion', [])) for p in mes_data.get('proyectos', {}).values())}, "
-                      f"Tableros={mes_data['totales_mes']['total_tableros']}, "
-                      f"Horas Demanda Original={horas_demanda_mes:.1f}, "
-                      f"Horas Efectivas Disponibles={horas_efectivas_mes:.1f}")
 
                 rolling_plan[mes_key] = {
                     'mes_info': {
@@ -1720,16 +1707,15 @@ class PlanificacionOperacionalService:
                         'backlog_en_tableros': self._convertir_horas_a_tableros(backlog_acumulado),
                         'variacion_backlog': backlog_acumulado - (horas_demanda_total - horas_demanda_mes)
                     },
-                    'estado_mes': self._determinar_estado_mes(utilizacion_capacidad['utilizacion_porcentaje']),
-                    'oportunidades_optimizacion': self._identificar_oportunidades_optimizacion(
-                        utilizacion_capacidad['utilizacion_porcentaje'], 
-                        deficit_capacidad, 
+                    'estado_mes': self._evaluar_estado_periodo(
+                        utilizacion_porcentaje,
+                        deficit_capacidad,
                         exceso_capacidad
                     )
                 }
 
-            # Calcular resumen del rolling plan
-            resumen_rolling_plan = self._calcular_resumen_rolling_plan(rolling_plan)
+            # Calcular resumen del rolling plan mensual
+            resumen_rolling_plan = self._calcular_resumen_rolling_plan_mensual(rolling_plan)
 
             return {
                 'rolling_plan_por_mes': rolling_plan,
@@ -1737,21 +1723,144 @@ class PlanificacionOperacionalService:
                 'parametros_plan': {
                     'año': año,
                     'horizonte_meses': horizonte_meses,
-                    'capacidad_mensual_horas': horas_efectivas_mes,
-                    'fecha_generacion': datetime.now().isoformat()
+                    'fecha_generacion': datetime.now().isoformat(),
+                    'capacidad_mensual_horas': horas_efectivas_mes
                 },
-                'recomendaciones_estrategicas': self._generar_recomendaciones_estrategicas(rolling_plan)
+                'recomendaciones_estrategicas': self._generar_recomendaciones_estrategicas_mensuales(rolling_plan)
             }
 
         except Exception as e:
-            print(f"Error calculando rolling plan con backlog: {e}")
+            print(f"Error calculando rolling plan mensual: {e}")
+            import traceback
+            traceback.print_exc()
             return {
-                'error': str(e),
                 'rolling_plan_por_mes': {},
                 'resumen_rolling_plan': {},
-                'parametros_plan': {},
+                'parametros_plan': {
+                    'año': año,
+                    'horizonte_meses': horizonte_meses,
+                    'fecha_generacion': datetime.now().isoformat(),
+                    'capacidad_mensual_horas': 123.2
+                },
                 'recomendaciones_estrategicas': []
             }
+
+    def _calcular_resumen_rolling_plan_mensual(self, rolling_plan: Dict) -> Dict[str, Any]:
+        """Calcula resumen del rolling plan mensual"""
+        try:
+            if not rolling_plan:
+                return {
+                    'totales_horizonte': {
+                        'total_horas_demanda': 0,
+                        'total_horas_capacidad': 0,
+                        'total_deficit_horas': 0,
+                        'total_exceso_horas': 0,
+                        'utilizacion_promedio': 0
+                    },
+                    'distribucion_utilizacion': {
+                        'meses_baja_utilizacion': 0,
+                        'meses_optimos': 0,
+                        'meses_sobrecarga': 0
+                    },
+                    'analisis_backlog': {
+                        'backlog_maximo_horas': 0,
+                        'backlog_maximo_tableros': 0,
+                        'backlog_final_horizonte': 0
+                    },
+                    'recomendacion_general': 'Sin datos para analizar'
+                }
+
+            # Calcular totales
+            total_horas_demanda = sum(mes['demanda']['horas_demanda_total'] for mes in rolling_plan.values())
+            total_horas_capacidad = sum(mes['capacidad']['horas_efectivas_disponibles'] for mes in rolling_plan.values())
+            total_deficit_horas = sum(mes['capacidad']['deficit_capacidad'] for mes in rolling_plan.values())
+            total_exceso_horas = sum(mes['capacidad']['exceso_capacidad'] for mes in rolling_plan.values())
+
+            # Calcular utilización promedio
+            utilizacion_promedio = (total_horas_demanda / total_horas_capacidad * 100) if total_horas_capacidad > 0 else 0
+
+            # Analizar distribución de utilización
+            meses_baja = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+            meses_optimos = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 90)
+
+            # Análisis de backlog
+            backlog_maximo = max((mes['backlog']['backlog_fin_mes'] for mes in rolling_plan.values()), default=0)
+            backlog_final = list(rolling_plan.values())[-1]['backlog']['backlog_fin_mes'] if rolling_plan else 0
+
+            # Generar recomendación
+            if utilizacion_promedio < 50:
+                recomendacion = "OPORTUNIDAD: Capacidad subutilizada. Evaluar nuevos proyectos o reducción de costos."
+            elif utilizacion_promedio > 90:
+                recomendacion = "ALERTA: Sobrecarga sostenida. Considerar incremento de capacidad o redistribución de carga."
+            else:
+                recomendacion = "ÓPTIMO: Utilización balanceada de capacidad."
+
+            return {
+                'totales_horizonte': {
+                    'total_horas_demanda': round(total_horas_demanda, 1),
+                    'total_horas_capacidad': round(total_horas_capacidad, 1),
+                    'total_deficit_horas': round(total_deficit_horas, 1),
+                    'total_exceso_horas': round(total_exceso_horas, 1),
+                    'utilizacion_promedio': round(utilizacion_promedio, 1)
+                },
+                'distribucion_utilizacion': {
+                    'meses_baja_utilizacion': meses_baja,
+                    'meses_optimos': meses_optimos,
+                    'meses_sobrecarga': meses_sobrecarga
+                },
+                'analisis_backlog': {
+                    'backlog_maximo_horas': round(backlog_maximo, 1),
+                    'backlog_maximo_tableros': round(backlog_maximo / 0.5, 0) if backlog_maximo > 0 else 0,
+                    'backlog_final_horizonte': round(backlog_final, 1)
+                },
+                'recomendacion_general': recomendacion
+            }
+
+        except Exception as e:
+            print(f"Error calculando resumen rolling plan mensual: {e}")
+            return {
+                'totales_horizonte': {},
+                'distribucion_utilizacion': {},
+                'analisis_backlog': {},
+                'recomendacion_general': 'Error en el cálculo'
+            }
+
+    def _generar_recomendaciones_estrategicas_mensuales(self, rolling_plan: Dict) -> List[Dict[str, str]]:
+        """Genera recomendaciones estratégicas basadas en el rolling plan mensual"""
+        try:
+            recomendaciones = []
+
+            if not rolling_plan:
+                return recomendaciones
+
+            # Analizar patrones de utilización
+            meses_baja = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 50)
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+
+            if meses_baja > len(rolling_plan) * 0.5:
+                recomendaciones.append({
+                    'titulo': 'Oportunidades de Adelanto',
+                    'descripcion': f'{meses_baja} meses con capacidad excedente significativa',
+                    'accion_recomendada': 'Considerar adelantar producción para reducir backlog futuro',
+                    'prioridad': 'BAJA',
+                    'categoria': 'OPTIMIZACION'
+                })
+
+            if meses_sobrecarga > 2:
+                recomendaciones.append({
+                    'titulo': 'Riesgo de Sobrecarga',
+                    'descripcion': f'{meses_sobrecarga} meses con utilización > 100%',
+                    'accion_recomendada': 'Evaluar redistribución de carga o incremento de capacidad',
+                    'prioridad': 'ALTA',
+                    'categoria': 'RIESGO'
+                })
+
+            return recomendaciones
+
+        except Exception as e:
+            print(f"Error generando recomendaciones estratégicas mensuales: {e}")
+            return []
 
     def _convertir_horas_a_tableros(self, horas: float, tipo_proyecto: str = 'ESTANDAR') -> float:
         """Convierte horas a tableros aproximados según tipo de proyecto"""
@@ -1855,10 +1964,10 @@ class PlanificacionOperacionalService:
             backlog_maximo = max(mes['backlog']['backlog_fin_mes'] for mes in rolling_plan.values())
 
             # Meses con problemas
-            meses_con_sobrecarga = len([mes for mes in rolling_plan.values() 
+            meses_con_sobrecarga = len([mes for mes in rolling_plan.values()
                                       if mes['capacidad']['utilizacion_porcentaje'] > 100])
 
-            meses_con_baja_utilizacion = len([mes for mes in rolling_plan.values() 
+            meses_con_baja_utilizacion = len([mes for mes in rolling_plan.values()
                                             if mes['capacidad']['utilizacion_porcentaje'] < 70])
 
             return {
@@ -1957,23 +2066,23 @@ class PlanificacionOperacionalService:
             tableros = of.cantidad_tableros or 0
             if tableros <= 0:
                 return 0.0
-            
+
             # Obtener tipo de proyecto
             tipo_proyecto = of.proyecto.tipo_proyecto.value if of.proyecto.tipo_proyecto else 'ESTANDAR'
-            
+
             # Obtener configuración de tiempo por tablero
             config_service = ConfiguracionesService()
             config = config_service.get_configuracion_capacidad()
-            
+
             tiempo_por_tablero_map = {
                 'SOCIAL': config.get('horas_por_tablero_social', 0.6),
                 'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
                 'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
             }
-            
+
             tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
             return round(tableros * tiempo_por_tablero, 2)
-            
+
         except Exception as e:
             print(f"Error calculando horas de OF {getattr(of, 'id', 'N/A')}: {e}")
             return 0.0
@@ -1988,7 +2097,7 @@ class PlanificacionOperacionalService:
             }
         elif utilizacion_porcentaje > 100:
             return {
-                'codigo': 'SOBRECARGA_MODERADA', 
+                'codigo': 'SOBRECARGA_MODERADA',
                 'descripcion': 'Sobrecarga moderada - Requiere atención',
                 'color': 'warning'
             }
@@ -2024,11 +2133,11 @@ class PlanificacionOperacionalService:
         # Filter by date range
         query = query.filter(
             or_(
-                and_(Proyecto.fecha_inicio.isnot(None), 
+                and_(Proyecto.fecha_inicio.isnot(None),
                      Proyecto.fecha_inicio <= fecha_fin,
                      or_(Proyecto.fecha_fin_estimada.is_(None),
                          Proyecto.fecha_fin_estimada >= fecha_inicio)),
-                and_(Proyecto.fecha_fin_estimada.isnot(None), 
+                and_(Proyecto.fecha_fin_estimada.isnot(None),
                      Proyecto.fecha_fin_estimada >= fecha_inicio,
                      Proyecto.fecha_fin_estimada <= fecha_fin)
             )
