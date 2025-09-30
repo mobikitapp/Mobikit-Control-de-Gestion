@@ -488,10 +488,8 @@ def capacidad_produccion():
 
         # Get strategic capacity analysis data
         if vista == 'estrategico':
-            # Validate filter compatibility
-            if modo_rolling == 'semanal' and horizonte_meses > 3:
-                # Adjust horizon for weekly mode to avoid too many weeks
-                horizonte_meses = 3
+            # Validate filter compatibility - allow full horizon for weekly mode
+            # Weekly mode will internally ensure minimum 12 weeks
                 
             # New strategic capacity planning data
             try:

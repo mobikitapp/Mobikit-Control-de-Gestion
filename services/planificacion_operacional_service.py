@@ -874,7 +874,8 @@ class PlanificacionOperacionalService:
             from datetime import date
             hoy = date.today()
             fecha_inicio = hoy - timedelta(days=hoy.weekday())  # Inicio de semana actual (lunes)
-            horizonte_semanas = horizonte_meses * 4  # Aproximadamente 4 semanas por mes
+            # Asegurar mínimo 12 semanas, máximo según horizonte_meses
+            horizonte_semanas = max(12, horizonte_meses * 4)  # Mínimo 12 semanas
             fecha_fin = fecha_inicio + timedelta(weeks=horizonte_semanas)
 
             # Estructura de demanda jerárquica semanal
@@ -1114,7 +1115,8 @@ class PlanificacionOperacionalService:
         Calcula el rolling plan semanal con análisis de backlog acumulado
         """
         try:
-            # Obtener demanda semanal jerárquica
+            # Obtener demanda semanal jerárquica - asegurar mínimo 12 semanas
+            horizonte_semanas_efectivo = max(12, horizonte_meses * 4)
             demanda_data = self.calcular_demanda_semanal_jerarquica(año, horizonte_meses)
             demanda_por_semana = demanda_data['demanda_por_semana']
 
@@ -1236,7 +1238,8 @@ class PlanificacionOperacionalService:
             # Calcular rango de fechas para el horizonte - desde hoy hacia adelante
             hoy = date.today()
             fecha_inicio = hoy - timedelta(days=hoy.weekday())  # Inicio de semana actual (lunes)
-            horizonte_semanas = horizonte_meses * 4  # Aproximadamente 4 semanas por mes
+            # Asegurar mínimo 12 semanas, máximo según horizonte_meses
+            horizonte_semanas = max(12, horizonte_meses * 4)  # Mínimo 12 semanas
             fecha_fin = fecha_inicio + timedelta(weeks=horizonte_semanas)
 
             # Obtener todas las OFs en el período usando fecha_planificada
@@ -1591,6 +1594,17 @@ class PlanificacionOperacionalService:
         except Exception as e:
             print(f"Error generando recomendaciones estratégicas semanales: {e}")
             return []
+
+    def _generar_recomendacion_general_semanal(self, utilizacion_promedio: float, semanas_sobrecarga: int, backlog_maximo: float) -> str:
+        """Genera recomendación general del rolling plan semanal"""
+        if utilizacion_promedio > 110 and semanas_sobrecarga >= 3:
+            return "CRÍTICO: Capacidad insuficiente. Requiere expansión inmediata o subcontratación."
+        elif utilizacion_promedio > 95 and backlog_maximo > 50:  # Ajustado para horizonte semanal
+            return "ALERTA: Riesgo de incumplimiento. Evaluar medidas de incremento de capacidad."
+        elif utilizacion_promedio < 70:
+            return "OPORTUNIDAD: Capacidad subutilizada. Evaluar nuevos proyectos o reducción de costos."
+        else:
+            return "BALANCEADO: Capacidad y demanda en equilibrio general."
 
     # ==========================================
     # ROLLING PLAN WITH BACKLOG CALCULATIONS
