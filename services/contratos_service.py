@@ -595,3 +595,119 @@ class ContratosService:
             # Set default values on error
             contrato.ordenes_fabricacion_count = 0
             contrato.ordenes_fabricacion_list = []
+
+    def archivar_contrato(self, contrato_id: int) -> bool:
+        """
+        Archivar un contrato (solo si está CERRADO)
+        
+        Args:
+            contrato_id: ID del contrato a archivar
+            
+        Returns:
+            True si se archivó exitosamente
+        """
+        try:
+            # Store original data for audit before archiving
+            contrato = self.repo.get_by_id(contrato_id)
+            if not contrato:
+                raise ValueError(f"Contrato {contrato_id} no encontrado")
+            
+            datos_anteriores = serialize_model(contrato)
+            
+            # Archivar contrato (el repositorio valida el estado en la transacción)
+            contrato_archivado = self.repo.archivar_contrato(contrato_id)
+            if not contrato_archivado:
+                raise ValueError(f"No se puede archivar el contrato. Solo se pueden archivar contratos con estado CERRADO.")
+            
+            # Commit transaction
+            db.session.commit()
+            
+            # Log audit
+            AuditService.log_action(
+                'contratos',
+                contrato_id,
+                'ARCHIVE',
+                datos_anteriores=datos_anteriores,
+                datos_nuevos=serialize_model(contrato_archivado)
+            )
+            
+            logger.info(f"Contrato archivado: {contrato_id} - {contrato_archivado.numero_oc}")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error archivando contrato {contrato_id}: {str(e)}")
+            raise
+
+    def desarchivar_contrato(self, contrato_id: int) -> bool:
+        """
+        Desarchivar un contrato
+        
+        Args:
+            contrato_id: ID del contrato a desarchivar
+            
+        Returns:
+            True si se desarchivó exitosamente
+        """
+        try:
+            contrato = self.repo.get_by_id(contrato_id)
+            if not contrato:
+                raise ValueError(f"Contrato {contrato_id} no encontrado")
+            
+            # Store original data for audit
+            datos_anteriores = serialize_model(contrato)
+            
+            # Desarchivar contrato
+            contrato_desarchivado = self.repo.desarchivar_contrato(contrato_id)
+            if not contrato_desarchivado:
+                raise ValueError("No se pudo desarchivar el contrato")
+            
+            # Commit transaction
+            db.session.commit()
+            
+            # Log audit
+            AuditService.log_action(
+                'contratos',
+                contrato_id,
+                'UNARCHIVE',
+                datos_anteriores=datos_anteriores,
+                datos_nuevos=serialize_model(contrato_desarchivado)
+            )
+            
+            logger.info(f"Contrato desarchivado: {contrato_id} - {contrato.numero_oc}")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error desarchivando contrato {contrato_id}: {str(e)}")
+            raise
+
+    def archivar_contratos_cerrados(self) -> int:
+        """
+        Archivar todos los contratos con estado CERRADO
+        
+        Returns:
+            Número de contratos archivados
+        """
+        try:
+            # Archivar contratos cerrados
+            count = self.repo.archivar_contratos_cerrados()
+            
+            # Commit transaction
+            db.session.commit()
+            
+            # Log audit
+            AuditService.log_action(
+                'contratos',
+                None,
+                'BULK_ARCHIVE',
+                datos_nuevos={'contratos_archivados': count}
+            )
+            
+            logger.info(f"Archivados {count} contratos cerrados en lote")
+            return count
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error archivando contratos cerrados: {str(e)}")
+            raise

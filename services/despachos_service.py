@@ -760,3 +760,118 @@ class DespachosService:
             logger.error(f"Error en reversión admin para despacho {despacho_id}: {str(e)}")
             raise
 
+    def archivar_despacho(self, despacho_id: int) -> bool:
+        """
+        Archivar un despacho (solo si está ENTREGADO)
+        
+        Args:
+            despacho_id: ID del despacho a archivar
+            
+        Returns:
+            True si se archivó exitosamente
+        """
+        try:
+            # Store original data for audit before archiving
+            despacho = self.repo.get_by_id(despacho_id)
+            if not despacho:
+                raise ValueError(f"Despacho {despacho_id} no encontrado")
+            
+            datos_anteriores = serialize_model(despacho)
+            
+            # Archivar despacho (el repositorio valida el estado en la transacción)
+            despacho_archivado = self.repo.archivar_despacho(despacho_id)
+            if not despacho_archivado:
+                raise ValueError(f"No se puede archivar el despacho. Solo se pueden archivar despachos con estado ENTREGADO.")
+            
+            # Commit transaction
+            db.session.commit()
+            
+            # Log audit
+            AuditService.log_action(
+                'despachos',
+                despacho_id,
+                'ARCHIVE',
+                datos_anteriores=datos_anteriores,
+                datos_nuevos=serialize_model(despacho_archivado)
+            )
+            
+            logger.info(f"Despacho archivado: {despacho_id} - {despacho_archivado.numero_despacho}")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error archivando despacho {despacho_id}: {str(e)}")
+            raise
+
+    def desarchivar_despacho(self, despacho_id: int) -> bool:
+        """
+        Desarchivar un despacho
+        
+        Args:
+            despacho_id: ID del despacho a desarchivar
+            
+        Returns:
+            True si se desarchivó exitosamente
+        """
+        try:
+            despacho = self.repo.get_by_id(despacho_id)
+            if not despacho:
+                raise ValueError(f"Despacho {despacho_id} no encontrado")
+            
+            # Store original data for audit
+            datos_anteriores = serialize_model(despacho)
+            
+            # Desarchivar despacho
+            despacho_desarchivado = self.repo.desarchivar_despacho(despacho_id)
+            if not despacho_desarchivado:
+                raise ValueError("No se pudo desarchivar el despacho")
+            
+            # Commit transaction
+            db.session.commit()
+            
+            # Log audit
+            AuditService.log_action(
+                'despachos',
+                despacho_id,
+                'UNARCHIVE',
+                datos_anteriores=datos_anteriores,
+                datos_nuevos=serialize_model(despacho_desarchivado)
+            )
+            
+            logger.info(f"Despacho desarchivado: {despacho_id} - {despacho.numero_despacho}")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error desarchivando despacho {despacho_id}: {str(e)}")
+            raise
+
+    def archivar_despachos_entregados(self) -> int:
+        """
+        Archivar todos los despachos con estado ENTREGADO
+        
+        Returns:
+            Número de despachos archivados
+        """
+        try:
+            # Archivar despachos entregados
+            count = self.repo.archivar_despachos_entregados()
+            
+            # Commit transaction
+            db.session.commit()
+            
+            # Log audit
+            AuditService.log_action(
+                'despachos',
+                None,
+                'BULK_ARCHIVE',
+                datos_nuevos={'despachos_archivados': count}
+            )
+            
+            logger.info(f"Archivados {count} despachos entregados en lote")
+            return count
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error archivando despachos entregados: {str(e)}")
+            raise
