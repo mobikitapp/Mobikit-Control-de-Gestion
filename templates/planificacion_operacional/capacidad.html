@@ -200,42 +200,50 @@
                             </thead>
                             <tbody>
                                 {% if modo_rolling == 'semanal' %}
-                                    {% for semana_key, semana_data in rolling_plan.rolling_plan_por_semana.items() %}
-                                    {% set utilizacion = semana_data.capacidad.utilizacion_porcentaje %}
-                                    {% set clase_estado = 'table-success' if utilizacion < 70 else 'table-warning' if utilizacion < 90 else 'table-danger' if utilizacion > 100 else 'table-primary' %}
-                                    <tr class="{{ clase_estado }}">
-                                        <td><strong>{{ semana_data.semana_info.nombre_periodo }}</strong></td>
-                                        <td><span class="badge bg-primary">{{ semana_data.demanda.tableros_demandados or 0 }}</span></td>
-                                        <td><strong>{{ "{:.1f}".format(semana_data.demanda.horas_demanda_original) }}</strong></td>
-                                        <td>{{ "{:.1f}".format(semana_data.demanda.backlog_heredado) }}</td>
-                                        <td>{{ "{:.1f}".format(semana_data.demanda.horas_demanda_total) }}</td>
-                                        <td><strong>{{ "{:.1f}".format(semana_data.capacidad.horas_efectivas_disponibles) }}</strong></td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="progress flex-grow-1 me-2" style="height: 20px;">
-                                                    <div class="progress-bar 
-                                                        {% if utilizacion < 70 %}bg-success
-                                                        {% elif utilizacion < 90 %}bg-primary
-                                                        {% elif utilizacion <= 100 %}bg-warning
-                                                        {% else %}bg-danger{% endif %}" 
-                                                         style="width: {{ min(utilizacion, 100) }}%">
-                                                        {{ "{:.0f}".format(utilizacion) }}%
+                                    {% if rolling_plan and rolling_plan.rolling_plan_por_semana %}
+                                        {% for semana_key, semana_data in rolling_plan.rolling_plan_por_semana.items() %}
+                                        {% set utilizacion = semana_data.capacidad.utilizacion_porcentaje %}
+                                        {% set clase_estado = 'table-success' if utilizacion < 70 else 'table-warning' if utilizacion < 90 else 'table-danger' if utilizacion > 100 else 'table-primary' %}
+                                        <tr class="{{ clase_estado }}">
+                                            <td><strong>{{ semana_data.semana_info.nombre_periodo }}</strong></td>
+                                            <td><span class="badge bg-primary">{{ semana_data.demanda.tableros_demandados or 0 }}</span></td>
+                                            <td><strong>{{ "{:.1f}".format(semana_data.demanda.horas_demanda_original) }}</strong></td>
+                                            <td>{{ "{:.1f}".format(semana_data.demanda.backlog_heredado) }}</td>
+                                            <td>{{ "{:.1f}".format(semana_data.demanda.horas_demanda_total) }}</td>
+                                            <td><strong>{{ "{:.1f}".format(semana_data.capacidad.horas_efectivas_disponibles) }}</strong></td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                                        <div class="progress-bar 
+                                                            {% if utilizacion < 70 %}bg-success
+                                                            {% elif utilizacion < 90 %}bg-primary
+                                                            {% elif utilizacion <= 100 %}bg-warning
+                                                            {% else %}bg-danger{% endif %}" 
+                                                             style="width: {{ min(utilizacion, 100) }}%">
+                                                            {{ "{:.0f}".format(utilizacion) }}%
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span class="badge {% if semana_data.backlog.backlog_fin_semana > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                                                {{ "{:.0f}".format(semana_data.backlog.backlog_fin_semana) }}h
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-{{ semana_data.estado_semana.color }}">
-                                                {{ semana_data.estado_semana.descripcion }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
+                                            </td>
+                                            <td>
+                                                <span class="badge {% if semana_data.backlog.backlog_fin_semana > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                                                    {{ "{:.0f}".format(semana_data.backlog.backlog_fin_semana) }}h
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ semana_data.estado_semana.color }}">
+                                                    {{ semana_data.estado_semana.descripcion }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="9" class="text-center text-muted">
+                                                No hay datos disponibles para el rolling plan semanal
+                                            </td>
+                                        </tr>
+                                    {% endif %}
                                 {% else %}
                                     {% for mes_key, mes_data in rolling_plan.rolling_plan_por_mes.items() %}
                                     {% set utilizacion = mes_data.capacidad.utilizacion_porcentaje %}
@@ -434,7 +442,8 @@
                 <div class="card-body">
                     <div class="accordion" id="demandaAccordion">
                         {% if modo_rolling == 'semanal' %}
-                            {% for semana_key, semana_data in demanda_jerarquica.demanda_por_semana.items() %}
+                            {% if demanda_jerarquica and demanda_jerarquica.demanda_por_semana %}
+                                {% for semana_key, semana_data in demanda_jerarquica.demanda_por_semana.items() %}
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="heading{{ semana_key }}">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
@@ -481,7 +490,12 @@
                                     </div>
                                 </div>
                             </div>
-                            {% endfor %}
+                                {% endfor %}
+                            {% else %}
+                                <div class="alert alert-info">
+                                    No hay datos de demanda semanal disponibles para mostrar.
+                                </div>
+                            {% endif %}
                         {% else %}
                             {% for mes_key, mes_data in demanda_jerarquica.demanda_por_mes.items() %}
                             <div class="accordion-item">

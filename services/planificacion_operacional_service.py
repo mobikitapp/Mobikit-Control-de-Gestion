@@ -987,7 +987,7 @@ class PlanificacionOperacionalService:
             fecha_inicio = datetime(año, 1, 1).date()
             fecha_fin = fecha_inicio + timedelta(days=horizonte_meses * 30)
 
-            # Obtener todas las OFs en el período
+            # Obtener todas las OFs en el período usando fecha_planificada
             ordenes_fabricacion = (
                 db.session.query(OrdenFabricacion)
                 .join(Proyecto)
@@ -998,8 +998,9 @@ class PlanificacionOperacionalService:
                 ]))
                 .filter(
                     and_(
-                        OrdenFabricacion.fecha_fabricacion >= fecha_inicio,
-                        OrdenFabricacion.fecha_fabricacion <= fecha_fin
+                        OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                        OrdenFabricacion.fecha_planificada <= fecha_fin,
+                        OrdenFabricacion.fecha_planificada.isnot(None)
                     )
                 )
                 .options(
@@ -1014,7 +1015,7 @@ class PlanificacionOperacionalService:
             demanda_por_semana = {}
 
             for of in ordenes_fabricacion:
-                fecha_fabricacion = of.fecha_fabricacion
+                fecha_fabricacion = of.fecha_planificada
 
                 # Calcular número de semana del año
                 numero_semana = fecha_fabricacion.isocalendar()[1]
@@ -1065,18 +1066,20 @@ class PlanificacionOperacionalService:
 
                 # Agregar OF al proyecto
                 horas_estimadas = self._calcular_horas_of(of)
+                cantidad_tableros = of.cantidad_tableros or 0
+                
                 demanda_por_semana[semana_key]['proyectos'][proyecto_id]['ordenes_fabricacion'].append({
                     'id': of.id,
-                    'numero_orden': of.numero_orden,
-                    'tableros': of.tableros,
+                    'codigo': of.codigo,
+                    'cantidad_tableros': cantidad_tableros,
                     'categoria': of.categoria.nombre if of.categoria else 'Sin categoría',
-                    'fecha_fabricacion': of.fecha_fabricacion,
+                    'fecha_planificada': of.fecha_planificada.isoformat(),
                     'horas_estimadas': horas_estimadas
                 })
 
                 # Actualizar totales
                 demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['ofs_count'] += 1
-                demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['total_tableros'] += of.tableros
+                demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['total_tableros'] += cantidad_tableros
                 demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['total_horas_requeridas'] += horas_estimadas
 
             # Calcular totales por semana
@@ -1114,16 +1117,17 @@ class PlanificacionOperacionalService:
         """
         # Obtener configuración actual o valores por defecto
         try:
-            factores = ConfiguracionesService().get_factores_conversion()
+            config_service = ConfiguracionesService()
+            config = config_service.get_configuracion_capacidad()
 
             # Parámetros semanales
-            dias_laborables_semana = factores.get('configuracion', {}).get('dias_laborables_semana', 5)
-            turnos_por_dia = factores.get('configuracion', {}).get('turnos_por_dia', 2)
-            horas_por_turno = factores.get('configuracion', {}).get('horas_por_turno', 8)
-            numero_maquinas = factores.get('configuracion', {}).get('numero_maquinas', 1)
+            dias_laborables_semana = 5  # Default working days per week
+            turnos_por_dia = config.get('turnos_por_dia', 1)
+            horas_por_turno = config.get('horas_por_turno', 8)
+            numero_maquinas = config.get('numero_maquinas', 1)  # Default 1 machine
 
             # OEE (Overall Equipment Effectiveness)
-            oee = factores.get('configuracion', {}).get('oee', 0.65)
+            oee = config.get('oee', 0.70)
 
             # Cálculo de horas efectivas semanales
             horas_nominales_semana = dias_laborables_semana * turnos_por_dia * horas_por_turno * numero_maquinas
@@ -1133,8 +1137,8 @@ class PlanificacionOperacionalService:
 
         except Exception as e:
             print(f"Error calculando horas efectivas semanales: {e}")
-            # Valor por defecto: 5 días * 2 turnos * 8 horas * 1 máquina * 0.65 OEE = 52 horas/semana
-            return 52.0
+            # Valor por defecto: 5 días * 1 turno * 8 horas * 1 máquina * 0.70 OEE = 28 horas/semana
+            return 28.0
 
     def _calcular_horas_demanda_semana_correctas(self, semana_data: Dict) -> float:
         """
@@ -1668,7 +1672,7 @@ class PlanificacionOperacionalService:
     def _calcular_horas_of(self, of) -> float:
         """Calcula las horas estimadas para una Orden de Fabricación"""
         try:
-            tableros = of.cantidad_tableros or of.tableros or 0
+            tableros = of.cantidad_tableros or 0
             if tableros <= 0:
                 return 0.0
             
@@ -1689,7 +1693,7 @@ class PlanificacionOperacionalService:
             return round(tableros * tiempo_por_tablero, 2)
             
         except Exception as e:
-            print(f"Error calculando horas de OF {of.id}: {e}")
+            print(f"Error calculando horas de OF {getattr(of, 'id', 'N/A')}: {e}")
             return 0.0
 
     def _evaluar_estado_periodo(self, utilizacion_porcentaje: float, deficit_capacidad: float, exceso_capacidad: float) -> Dict[str, str]:

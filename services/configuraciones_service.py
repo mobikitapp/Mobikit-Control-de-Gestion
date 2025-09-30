@@ -647,6 +647,24 @@ class ConfiguracionesService:
             'factor_tiempo_embalaje': 0.01   # días por tablero en embalaje
         }
 
+    def get_factores_conversion(self):
+        """Get conversion factors from operational planning service"""
+        try:
+            from services.planificacion_operacional_service import PlanificacionOperacionalService
+            planif_service = PlanificacionOperacionalService()
+            return planif_service.get_factores_conversion()
+        except Exception as e:
+            print(f"Error getting conversion factors: {e}")
+            return {
+                'configuracion': {
+                    'dias_laborables_semana': 5,
+                    'turnos_por_dia': 1,
+                    'horas_por_turno': 8,
+                    'numero_maquinas': 1,
+                    'oee': 0.70
+                }
+            }
+
     def get_configuracion_capacidad(self):
         """Get capacity configuration settings"""
         # Get production time factors from planificacion service
