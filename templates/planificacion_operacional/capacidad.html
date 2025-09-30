@@ -334,8 +334,9 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    {% if rolling_plan.recomendaciones_estrategicas %}
-                        {% for rec in rolling_plan.recomendaciones_estrategicas %}
+                    {% set recommendations = rolling_plan.recomendaciones_estrategicas or [] %}
+                    {% if recommendations %}
+                        {% for rec in recommendations %}
                         <div class="alert alert-{{ 'danger' if rec.prioridad == 'ALTA' else 'warning' if rec.prioridad == 'MEDIA' else 'info' }} alert-sm">
                             <strong>{{ rec.titulo }} ({{ rec.prioridad }})</strong><br>
                             <small>{{ rec.descripcion }}</small><br>
@@ -343,7 +344,26 @@
                         </div>
                         {% endfor %}
                     {% else %}
-                        <p class="text-muted">No hay recomendaciones específicas para este período.</p>
+                        <div class="alert alert-info alert-sm">
+                            <strong>Análisis Completado</strong><br>
+                            <small>
+                                {% if rolling_plan.resumen_rolling_plan and rolling_plan.resumen_rolling_plan.recomendacion_general %}
+                                    {{ rolling_plan.resumen_rolling_plan.recomendacion_general }}
+                                {% else %}
+                                    El sistema ha completado el análisis de capacidad. Monitoree regularmente la utilización y ajuste la planificación según sea necesario.
+                                {% endif %}
+                            </small>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Always show general recommendation if available -->
+                    {% if rolling_plan.resumen_rolling_plan and rolling_plan.resumen_rolling_plan.recomendacion_general %}
+                    <div class="mt-3">
+                        <h6 class="text-primary">Recomendación General:</h6>
+                        <div class="alert alert-light border-primary">
+                            {{ rolling_plan.resumen_rolling_plan.recomendacion_general }}
+                        </div>
+                    </div>
                     {% endif %}
                 </div>
             </div>

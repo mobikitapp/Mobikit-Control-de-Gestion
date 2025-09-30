@@ -1244,6 +1244,9 @@ class PlanificacionOperacionalService:
 
             # Calcular resumen del rolling plan semanal
             resumen_rolling_plan = self._calcular_resumen_rolling_plan_semanal(rolling_plan)
+            
+            # Generar recomendaciones estratégicas
+            recomendaciones_estrategicas = self._generar_recomendaciones_estrategicas_semanales(rolling_plan)
 
             return {
                 'rolling_plan_por_semana': rolling_plan,
@@ -1255,16 +1258,39 @@ class PlanificacionOperacionalService:
                     'fecha_generacion': datetime.now().isoformat(),
                     'modo': 'semanal'
                 },
-                'recomendaciones_estrategicas': self._generar_recomendaciones_estrategicas_semanales(rolling_plan)
+                'recomendaciones_estrategicas': recomendaciones_estrategicas
             }
 
         except Exception as e:
             print(f"Error calculando rolling plan semanal: {e}")
             import traceback
             traceback.print_exc()
+            
+            # Generar datos mínimos para evitar errores en el template
+            empty_resumen = {
+                'totales_horizonte': {
+                    'total_horas_demanda': 0,
+                    'total_horas_capacidad': 0,
+                    'utilizacion_promedio': 0,
+                    'total_deficit_horas': 0,
+                    'total_exceso_horas': 0
+                },
+                'analisis_backlog': {
+                    'backlog_maximo_horas': 0,
+                    'backlog_maximo_tableros': 0,
+                    'backlog_final_horizonte': 0
+                },
+                'distribucion_utilizacion': {
+                    'semanas_sobrecarga': 0,
+                    'semanas_baja_utilizacion': 0,
+                    'semanas_optimas': 0
+                },
+                'recomendacion_general': 'No hay datos disponibles para análisis'
+            }
+            
             return {
                 'rolling_plan_por_semana': {},
-                'resumen_rolling_plan': {},
+                'resumen_rolling_plan': empty_resumen,
                 'parametros_plan': {
                     'año': año,
                     'horizonte_meses': horizonte_meses,
@@ -1504,7 +1530,26 @@ class PlanificacionOperacionalService:
         """Calcula resumen ejecutivo del rolling plan semanal"""
         try:
             if not rolling_plan:
-                return {}
+                return {
+                    'totales_horizonte': {
+                        'total_horas_demanda': 0,
+                        'total_horas_capacidad': 0,
+                        'utilizacion_promedio': 0,
+                        'total_deficit_horas': 0,
+                        'total_exceso_horas': 0
+                    },
+                    'analisis_backlog': {
+                        'backlog_maximo_horas': 0,
+                        'backlog_maximo_tableros': 0,
+                        'backlog_final_horizonte': 0
+                    },
+                    'distribucion_utilizacion': {
+                        'semanas_sobrecarga': 0,
+                        'semanas_baja_utilizacion': 0,
+                        'semanas_optimas': 0
+                    },
+                    'recomendacion_general': 'No hay datos disponibles para análisis'
+                }
 
             total_horas_demanda = sum(semana['demanda']['horas_demanda_total'] for semana in rolling_plan.values())
             total_horas_capacidad = sum(semana['capacidad']['horas_efectivas_disponibles'] for semana in rolling_plan.values())
@@ -1512,7 +1557,7 @@ class PlanificacionOperacionalService:
             total_exceso = sum(semana['capacidad']['exceso_capacidad'] for semana in rolling_plan.values())
 
             # Backlog máximo en el horizonte
-            backlog_maximo = max(semana['backlog']['backlog_fin_semana'] for semana in rolling_plan.values())
+            backlog_maximo = max(semana['backlog']['backlog_fin_semana'] for semana in rolling_plan.values()) if rolling_plan else 0
 
             # Semanas con problemas
             semanas_con_sobrecarga = len([semana for semana in rolling_plan.values()
@@ -1521,11 +1566,13 @@ class PlanificacionOperacionalService:
             semanas_con_baja_utilizacion = len([semana for semana in rolling_plan.values()
                                               if semana['capacidad']['utilizacion_porcentaje'] < 70])
 
+            utilizacion_promedio = (total_horas_demanda / total_horas_capacidad) * 100 if total_horas_capacidad > 0 else 0
+
             return {
                 'totales_horizonte': {
                     'total_horas_demanda': round(total_horas_demanda, 1),
                     'total_horas_capacidad': round(total_horas_capacidad, 1),
-                    'utilizacion_promedio': round((total_horas_demanda / total_horas_capacidad) * 100, 1) if total_horas_capacidad > 0 else 0,
+                    'utilizacion_promedio': round(utilizacion_promedio, 1),
                     'total_deficit_horas': round(total_deficit, 1),
                     'total_exceso_horas': round(total_exceso, 1)
                 },
@@ -1540,7 +1587,7 @@ class PlanificacionOperacionalService:
                     'semanas_optimas': len(rolling_plan) - semanas_con_sobrecarga - semanas_con_baja_utilizacion
                 },
                 'recomendacion_general': self._generar_recomendacion_general_semanal(
-                    (total_horas_demanda / total_horas_capacidad) * 100 if total_horas_capacidad > 0 else 0,
+                    utilizacion_promedio,
                     semanas_con_sobrecarga,
                     backlog_maximo
                 )
@@ -1548,7 +1595,28 @@ class PlanificacionOperacionalService:
 
         except Exception as e:
             print(f"Error calculando resumen rolling plan semanal: {e}")
-            return {}
+            import traceback
+            traceback.print_exc()
+            return {
+                'totales_horizonte': {
+                    'total_horas_demanda': 0,
+                    'total_horas_capacidad': 0,
+                    'utilizacion_promedio': 0,
+                    'total_deficit_horas': 0,
+                    'total_exceso_horas': 0
+                },
+                'analisis_backlog': {
+                    'backlog_maximo_horas': 0,
+                    'backlog_maximo_tableros': 0,
+                    'backlog_final_horizonte': 0
+                },
+                'distribucion_utilizacion': {
+                    'semanas_sobrecarga': 0,
+                    'semanas_baja_utilizacion': 0,
+                    'semanas_optimas': 0
+                },
+                'recomendacion_general': 'Error en el cálculo del resumen'
+            }
 
     def _calcular_resumen_general_semanal(self, demanda_semanal: Dict) -> Dict[str, Any]:
         """
