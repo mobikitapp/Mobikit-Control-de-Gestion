@@ -38,6 +38,7 @@ class ContratoBase(BaseModel):
     condiciones_pago: Optional[str] = Field(None, description="Condiciones de pago")
     notas: Optional[str] = Field(None, description="Notas adicionales")
     categoria_ids: List[int] = Field(default_factory=list, description="IDs de categorías de muebles")
+    archivado: bool = Field(False, description="Indica si el contrato está archivado")
 
     @validator('monto_total')
     def validate_monto_total(cls, v):
@@ -127,6 +128,7 @@ class ContratoUpdate(BaseModel):
     condiciones_pago: Optional[str] = None
     notas: Optional[str] = None
     categoria_ids: Optional[List[int]] = None
+    archivado: Optional[bool] = None
 
     @validator('monto_total')
     def validate_monto_total(cls, v):
@@ -225,6 +227,7 @@ class ContratoSearchFilters(BaseModel):
     fecha_emision_desde: Optional[date] = Field(None, description="Fecha de emisión desde")
     fecha_emision_hasta: Optional[date] = Field(None, description="Fecha de emisión hasta")
     categoria_id: Optional[int] = Field(None, description="Filtrar por categoría")
+    archivado: Optional[bool] = Field(None, description="Filtrar por archivado (None=excluir archivados, True=solo archivados, False=solo no archivados)")
     page: int = Field(1, ge=1, description="Número de página")
     per_page: int = Field(20, ge=1, le=100, description="Elementos por página")
 
