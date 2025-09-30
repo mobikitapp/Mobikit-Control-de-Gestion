@@ -600,6 +600,88 @@ function limpiarCache(event) {
     });
 }
 
+function limpiarDatos(event) {
+    // Mostrar confirmación para limpieza de datos
+    if (!confirm('¿Está seguro de que desea eliminar TODOS los datos de producción (órdenes de fabricación, contratos, despachos, estados de pago)? Esta acción NO se puede deshacer.')) {
+        return;
+    }
+
+    // Segunda confirmación para mayor seguridad
+    if (!confirm('ÚLTIMA ADVERTENCIA: Esto eliminará PERMANENTEMENTE todos los datos de producción. Los proyectos permanecerán pero sin órdenes asociadas. ¿Continuar?')) {
+        return;
+    }
+
+    // Mostrar indicador de carga
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando datos...';
+    button.disabled = true;
+
+    // Crear área de logs
+    const logArea = createLogArea(button, 'data-log');
+    addLogMessage(logArea, 'Iniciando eliminación de datos de producción...', 'info');
+    addLogMessage(logArea, 'ADVERTENCIA: Esta operación eliminará TODOS los datos de producción', 'warning');
+
+    // Enviar solicitud al servidor para limpiar datos
+    fetch('/configuraciones/limpiar-datos', { 
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            addLogMessage(logArea, 'Datos de producción eliminados exitosamente', 'success');
+            addLogMessage(logArea, 'Órdenes de fabricación eliminadas', 'success');
+            addLogMessage(logArea, 'Contratos eliminados', 'success');
+            addLogMessage(logArea, 'Despachos eliminados', 'success');
+            addLogMessage(logArea, 'Estados de pago eliminados', 'success');
+            addLogMessage(logArea, 'Secuencias de base de datos reseteadas', 'success');
+
+            // Mostrar mensaje de éxito
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Éxito:</strong> ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            safeInsertAlert(button, alertDiv);
+
+            // Restaurar botón
+            button.innerHTML = originalText;
+            button.disabled = false;
+
+            addLogMessage(logArea, 'Proceso completado exitosamente', 'success');
+            addLogMessage(logArea, 'Los proyectos permanecen intactos pero sin órdenes asociadas', 'info');
+
+        } else {
+            throw new Error(data.message || 'Error desconocido al eliminar datos');
+        }
+    })
+    .catch(error => {
+        console.error('Error eliminando datos de producción:', error);
+        addLogMessage(logArea, `Error: ${error.message}`, 'error');
+
+        // Mostrar error
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <strong>Error:</strong> ${error.message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        safeInsertAlert(button, alertDiv);
+
+        // Restaurar botón
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
 // Función auxiliar para insertar alertas de forma segura
 function safeInsertAlert(button, alertDiv) {
     try {
