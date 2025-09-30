@@ -16,6 +16,26 @@ logger = logging.getLogger(__name__)
 class ConfiguracionesService:
     """Service layer for system configuration operations"""
     
+    # Class variables to store operational parameters persistently
+    _operational_params = {
+        'turnos_por_dia': 1,
+        'horas_por_turno': 8.0,
+        'dias_laborables_mes': 22,
+        'oee': 0.70,
+        'horizonte_planificacion': 6,
+        'umbral_sobrecarga': 90,
+        'factor_horas_extra': 1.5,
+        'max_subcontrato': 30,
+        'mejora_oee_objetivo': 0.85
+    }
+    
+    _capacity_params = {
+        'capacidad_maxima_tableros_mes': 1500,
+        'capacidad_maxima_tableros_semana': 330,
+        'horas_disponibles_mes': 200,
+        'horas_disponibles_semana': 45
+    }
+    
     def __init__(self):
         self.email_service = EmailService()
 
@@ -695,57 +715,44 @@ class ConfiguracionesService:
             horas_por_tablero_estandar = 0.5
             horas_por_tablero_especial = 0.4
         
-        return {
-            # Legacy capacity settings
-            'capacidad_maxima_tableros_mes': 1500,
-            'capacidad_maxima_tableros_semana': 330,
-            'horas_disponibles_mes': 200,
-            'horas_disponibles_semana': 45,
-            
+        # Merge persistent parameters with calculated values
+        config = {
             # Production time per board by project type (calculated from production times)
             'horas_por_tablero_social': horas_por_tablero_social,
             'horas_por_tablero_estandar': horas_por_tablero_estandar,
             'horas_por_tablero_especial': horas_por_tablero_especial,
-            
-            # New operational parameters for strategic capacity planning
-            'turnos_por_dia': 1,  # Number of shifts per day
-            'horas_por_turno': 8.0,  # Hours per shift
-            'dias_laborables_mes': 22,  # Working days per month
-            'oee': 0.70,  # Overall Equipment Effectiveness (70%)
-            
-            # Strategic planning parameters
-            'horizonte_planificacion': 6,  # Planning horizon in months
-            'umbral_sobrecarga': 90,  # Overload threshold percentage
-            
-            # Scenario planning parameters for deficit response
-            'factor_horas_extra': 1.5,  # Extra hours cost multiplier
-            'max_subcontrato': 30,  # Maximum subcontracting percentage
-            'mejora_oee_objetivo': 0.85  # Target OEE for improvements
         }
+        
+        # Add persistent capacity parameters
+        config.update(self._capacity_params)
+        
+        # Add persistent operational parameters
+        config.update(self._operational_params)
+        
+        return config
     
     def actualizar_configuracion_capacidad(self, capacidad_data: Dict[str, Any], usuario_id: str) -> bool:
         """Update capacity configuration settings"""
         try:
-            # For now, this is a placeholder that returns True
-            # In a full implementation, these would be stored in a config table
-            
-            # Validate data
-            required_fields = [
+            # Validate and update capacity data
+            valid_fields = [
                 'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
                 'horas_disponibles_mes', 'horas_disponibles_semana'
             ]
             
-            for field in required_fields:
-                if field not in capacidad_data:
-                    return False
-                if capacidad_data[field] <= 0:
-                    return False
+            updated_fields = []
+            for field, value in capacidad_data.items():
+                if field in valid_fields and value is not None and value > 0:
+                    # Update persistent storage
+                    self._capacity_params[field] = value
+                    updated_fields.append(f"{field}: {value}")
             
-            # Log the change (you could implement audit logging here)
-            print(f"Usuario {usuario_id} actualizó configuración de capacidad: {capacidad_data}")
-            
-            # Return success - in a real implementation, check DB operation result
-            return True
+            if updated_fields:
+                # Log the change
+                print(f"Usuario {usuario_id} actualizó configuración de capacidad: {', '.join(updated_fields)}")
+                return True
+            else:
+                return False
             
         except Exception as e:
             print(f"Error updating capacity configuration: {e}")
@@ -973,27 +980,39 @@ class ConfiguracionesService:
     def actualizar_parametros_operacionales(self, parametros: Dict[str, Any], usuario_id: str) -> bool:
         """Update operational parameters for capacity planning"""
         try:
-            # Validate operational parameters
-            valid_params = {
+            # Define valid operational parameters
+            valid_operational_params = {
                 'turnos_por_dia', 'horas_por_turno', 
                 'dias_laborables_mes', 'oee', 'horizonte_planificacion',
                 'umbral_sobrecarga', 'factor_horas_extra', 'max_subcontrato',
-                'mejora_oee_objetivo', 'capacidad_maxima_tableros_mes',
-                'capacidad_maxima_tableros_semana', 'horas_disponibles_mes',
-                'horas_disponibles_semana', 'horas_por_tablero_social',
-                'horas_por_tablero_estandar', 'horas_por_tablero_especial'
+                'mejora_oee_objetivo'
+            }
+            
+            # Define valid capacity parameters
+            valid_capacity_params = {
+                'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana', 
+                'horas_disponibles_mes', 'horas_disponibles_semana'
             }
             
             # Filter and validate parameters
             updated_params = []
             for param, valor in parametros.items():
-                if param in valid_params and valor is not None:
+                if param in valid_operational_params and valor is not None:
                     # Basic validation
                     if isinstance(valor, (int, float)) and valor > 0:
                         if param == 'oee' and (valor < 0.1 or valor > 1.0):
                             continue  # OEE must be between 10% and 100%
                         if param == 'mejora_oee_objetivo' and (valor < 0.1 or valor > 1.0):
                             continue  # OEE target must be between 10% and 100%
+                        
+                        # Update persistent storage
+                        self._operational_params[param] = valor
+                        updated_params.append(f"{param}: {valor}")
+                
+                elif param in valid_capacity_params and valor is not None:
+                    if isinstance(valor, (int, float)) and valor > 0:
+                        # Update persistent storage
+                        self._capacity_params[param] = valor
                         updated_params.append(f"{param}: {valor}")
             
             if updated_params:

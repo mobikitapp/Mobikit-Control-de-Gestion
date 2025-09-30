@@ -405,14 +405,27 @@ class PlanificacionOperacionalService:
             # Update capacity configuration if provided
             capacity_fields = [
                 'capacidad_maxima_tableros_mes', 'capacidad_maxima_tableros_semana',
-                'horas_disponibles_mes', 'horas_disponibles_semana',
+                'horas_disponibles_mes', 'horas_disponibles_semana'
+            ]
 
+            # Update operational parameters if provided
+            operational_fields = [
+                'turnos_por_dia', 'horas_por_turno', 'dias_laborables_mes', 'oee',
+                'horizonte_planificacion', 'umbral_sobrecarga',
+                'factor_horas_extra', 'max_subcontrato', 'mejora_oee_objetivo'
             ]
 
             capacity_data = {}
+            operational_data = {}
+
             for field in capacity_fields:
                 if factores_data.get(field) is not None:
                     capacity_data[field] = factores_data[field]
+                    updated_factors.append(f"{field}: {factores_data[field]}")
+
+            for field in operational_fields:
+                if factores_data.get(field) is not None:
+                    operational_data[field] = factores_data[field]
                     updated_factors.append(f"{field}: {factores_data[field]}")
 
             # Update capacity configuration using configuration service
@@ -423,6 +436,15 @@ class PlanificacionOperacionalService:
                     config_service.actualizar_configuracion_capacidad(capacity_data, user_id)
                 except Exception as e:
                     print(f"Error updating capacity configuration: {e}")
+
+            # Update operational parameters using configuration service
+            if operational_data:
+                try:
+                    from services.configuraciones_service import ConfiguracionesService
+                    config_service = ConfiguracionesService()
+                    config_service.actualizar_parametros_operacionales(operational_data, user_id)
+                except Exception as e:
+                    print(f"Error updating operational parameters: {e}")
 
             # Log all updates
             if updated_factors:

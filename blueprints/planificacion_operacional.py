@@ -389,13 +389,23 @@ def actualizar_configuracion():
                 else:
                     factores_data[field] = float(value)
 
+        # Add operational parameters to factors_data
+        for field in operational_fields:
+            value = request.form.get(field)
+            if value is not None and value != '':
+                if field in ['turnos_por_dia', 'dias_laborables_mes', 
+                           'horizonte_planificacion', 'umbral_sobrecarga', 'max_subcontrato']:
+                    factores_data[field] = int(value)
+                else:
+                    factores_data[field] = float(value)
+
         # Process operational parameters
         from services.configuraciones_service import ConfiguracionesService
         config_service = ConfiguracionesService()
 
         parametros_operacionales = {}
         operational_fields = [
-            'numero_maquinas', 'turnos_ por_dia', 'horas_por_turno', 'dias_laborables_mes', 'oee',
+            'turnos_por_dia', 'horas_por_turno', 'dias_laborables_mes', 'oee',
             'horizonte_planificacion', 'umbral_sobrecarga',
             'factor_horas_extra', 'max_subcontrato', 'mejora_oee_objetivo'
         ]
