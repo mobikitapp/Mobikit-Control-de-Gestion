@@ -277,7 +277,7 @@ def eliminar(proyecto_id):
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('proyectos.index'))
 
-        success = proyectos_service.delete_proyecto(proyecto_id, current_user.id)
+        success = proyectos_service.delete_proyecto(proyecto_id)
 
         if success:
             flash(f'Proyecto "{proyecto.nombre}" eliminado exitosamente', 'success')
