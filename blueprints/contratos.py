@@ -571,15 +571,34 @@ def api_hitos_atrasados():
 def eliminar(contrato_id):
     """Eliminar contrato"""
     try:
+        # Get contrato info before deletion attempt
+        contrato = contratos_service.get_contrato_by_id(contrato_id)
+        if not contrato:
+            flash('Contrato no encontrado', 'error')
+            return redirect(url_for('contratos.index'))
+        
         success = contratos_service.delete_contrato(contrato_id)
         if success:
-            flash('Contrato eliminado exitosamente', 'success')
+            # Check if it was soft deleted (archived) or hard deleted
+            contrato_after = contratos_service.get_contrato_by_id(contrato_id)
+            if contrato_after and contrato_after.archivado:
+                flash(f'Contrato {contrato.numero_oc} archivado exitosamente (tenía dependencias)', 'warning')
+            else:
+                flash(f'Contrato {contrato.numero_oc} eliminado exitosamente', 'success')
         else:
             flash('Error al eliminar contrato', 'error')
 
     except Exception as e:
         logger.error(f"Error eliminando contrato {contrato_id}: {str(e)}")
-        flash('Error al eliminar contrato', 'error')
+        error_msg = str(e)
+        
+        # Provide more specific error messages
+        if 'foreign key constraint' in error_msg.lower():
+            flash('No se puede eliminar el contrato porque tiene registros relacionados (órdenes de fabricación, despachos, etc.)', 'error')
+        elif 'violates foreign key constraint' in error_msg.lower():
+            flash('No se puede eliminar el contrato porque está siendo usado por otros registros', 'error')
+        else:
+            flash(f'Error al eliminar contrato: {error_msg}', 'error')
 
     return redirect(url_for('contratos.index'))
 

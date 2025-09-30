@@ -376,20 +376,87 @@ class ContratosService:
             raise
 
     def delete_contrato(self, contrato_id: int) -> bool:
-        """Delete a contrato"""
+        """Delete a contrato (soft delete by archiving it)"""
         try:
             contrato = self.repo.get_by_id(contrato_id)
             if not contrato:
                 return False
 
-            self.repo.delete(contrato)
-            db.session.commit()
-            return True
+            # Check if contract has dependencies
+            dependencies = self._check_contract_dependencies(contrato_id)
+            if dependencies:
+                # If has dependencies, do soft delete by archiving
+                logger.info(f"Contrato {contrato_id} has dependencies, doing soft delete (archiving)")
+                
+                # Store original data for audit
+                datos_anteriores = serialize_model(contrato)
+                
+                # Archive instead of delete
+                contrato_archivado = self.repo.update(contrato, {
+                    'archivado': True,
+                    'estado': EstadoContrato.ANULADO
+                })
+                
+                # Commit transaction
+                db.session.commit()
+                
+                # Log audit
+                AuditService.log_action(
+                    'contratos',
+                    contrato_id,
+                    'SOFT_DELETE',
+                    datos_anteriores=datos_anteriores,
+                    datos_nuevos=serialize_model(contrato_archivado)
+                )
+                
+                logger.info(f"Contrato {contrato_id} soft deleted (archived)")
+                return True
+            else:
+                # No dependencies, safe to hard delete
+                self.repo.delete(contrato)
+                db.session.commit()
+                
+                # Log audit
+                AuditService.log_action(
+                    'contratos',
+                    contrato_id,
+                    'DELETE',
+                    datos_anteriores=serialize_model(contrato)
+                )
+                
+                logger.info(f"Contrato {contrato_id} hard deleted")
+                return True
 
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error deleting contrato {contrato_id}: {str(e)}")
             raise
+
+    def _check_contract_dependencies(self, contrato_id: int) -> bool:
+        """Check if contract has dependencies in other tables"""
+        try:
+            from models import Despacho, OrdenFabricacion, EstadoPago
+            
+            # Check for despachos
+            despachos_count = db.session.query(Despacho).filter_by(contrato_id=contrato_id).count()
+            if despachos_count > 0:
+                return True
+            
+            # Check for ordenes de fabricacion
+            ofs_count = db.session.query(OrdenFabricacion).filter_by(contrato_id=contrato_id).count()
+            if ofs_count > 0:
+                return True
+            
+            # Check for estados de pago
+            estados_pago_count = db.session.query(EstadoPago).filter_by(contrato_id=contrato_id).count()
+            if estados_pago_count > 0:
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Error checking dependencies for contrato {contrato_id}: {str(e)}")
+            return True  # Assume dependencies exist if we can't check
 
     def get_contratos_by_proyecto(self, proyecto_id: int) -> List[Contrato]:
         """Get contracts by project"""
