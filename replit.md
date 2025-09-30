@@ -81,6 +81,22 @@ The system follows a modular blueprint architecture with clear separation of con
 
 ## Recent Changes
 
+### 2025-09-30: Archive System for Contracts and Dispatches
+- **Implemented non-destructive archive system** for closed contracts and completed dispatches
+- **Key Features**:
+  - Archive/unarchive functionality for Contracts (CERRADO state only) and Dispatches (ENTREGADO state only)
+  - Complete audit trail via AuditService for all archive operations
+  - Filterable views: All, Active only, Archived only
+  - Individual and bulk archive actions with confirmation dialogs
+  - Role-based permissions (Admin/General for bulk operations)
+- **Database Changes**: Added `archivado` boolean column with indexes to contratos and despachos tables
+- **Technical Implementation**:
+  - Repository layer validates state before archiving (business rules enforcement)
+  - Service layer handles transactions and audit logging
+  - Blueprint routes with appropriate role permissions
+  - Templates with filter dropdowns and action buttons
+- **Purpose**: Clean up main views by hiding closed/delivered items while maintaining full recoverability and audit compliance
+
 ### 2025-09-26: Expanded Productividad Real Analysis to Include Bodega Orders
 - **Enhanced productivity analysis** to include orders in "Área Bodega" states (`listo_para_despacho`, `programado_para_despacho`)
 - **Updated filtering logic** in ProductividadService to consider orders that completed manufacturing and packaging but haven't been dispatched yet
