@@ -1147,8 +1147,8 @@ class PlanificacionOperacionalService:
                 # Agregar backlog de la semana anterior
                 horas_demanda_total = horas_demanda_semana + backlog_acumulado
 
-                # Calcular capacidad vs demanda
-                utilizacion_porcentaje = self.calcular_utilizacion_capacidad(horas_demanda_total)
+                # Calcular capacidad vs demanda (calcular directamente el porcentaje)
+                utilizacion_porcentaje = (horas_demanda_total / horas_efectivas_semana * 100) if horas_efectivas_semana > 0 else 0
 
                 # Determinar qué se puede producir esta semana
                 horas_a_producir = min(horas_demanda_total, horas_efectivas_semana)
