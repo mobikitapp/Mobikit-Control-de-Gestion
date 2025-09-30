@@ -1254,8 +1254,7 @@ class PlanificacionOperacionalService:
                 )
                 .options(
                     selectinload(OrdenFabricacion.proyecto)
-                    .selectinload(Proyecto.cliente),
-                    selectinload(OrdenFabricacion.categoria)
+                    .selectinload(Proyecto.cliente)
                 )
                 .all()
             )
@@ -1298,7 +1297,7 @@ class PlanificacionOperacionalService:
                 if proyecto_id not in demanda_por_semana[semana_key]['proyectos']:
                     demanda_por_semana[semana_key]['proyectos'][proyecto_id] = {
                         'id': proyecto_id,
-                        'codigo': of.proyecto.codigo,
+                        'codigo': str(proyecto_id),
                         'nombre': of.proyecto.nombre,
                         'cliente': {
                             'id': of.proyecto.cliente.id,
@@ -1321,7 +1320,6 @@ class PlanificacionOperacionalService:
                     'id': of.id,
                     'codigo': of.codigo,
                     'cantidad_tableros': cantidad_tableros,
-                    'categoria': of.categoria.nombre if of.categoria else 'Sin categoría',
                     'fecha_planificada': of.fecha_planificada.isoformat(),
                     'horas_estimadas': horas_estimadas
                 })
