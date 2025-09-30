@@ -350,6 +350,7 @@ class Proyecto(db.Model):
     ordenes_fabricacion = db.relationship('OrdenFabricacion', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     despachos = db.relationship('Despacho', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     eventos_entrega = db.relationship('EventoEntrega', foreign_keys='EventoEntrega.proyecto_id', lazy=True, cascade='all, delete-orphan')
+    bitacora = db.relationship('BitacoraProyecto', backref='proyecto', lazy=True, cascade='all, delete-orphan')
     responsable_user = db.relationship('User', foreign_keys=[responsable])
     vendedor_user = db.relationship('User', foreign_keys=[vendedor_id])
     creator = db.relationship('User', foreign_keys=[created_by])
@@ -1581,7 +1582,6 @@ class BitacoraProyecto(db.Model):
     fecha_comentario = db.Column(db.DateTime, default=utc_now, nullable=False)
 
     # Relationships
-    proyecto = db.relationship('Proyecto', backref='bitacora', lazy=True)
     usuario = db.relationship('User', foreign_keys=[usuario_id])
 
     # Indexes for performance

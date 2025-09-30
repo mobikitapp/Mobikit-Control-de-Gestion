@@ -285,18 +285,40 @@ class ProyectosService:
             if not proyecto:
                 raise ValueError(f"Proyecto {proyecto_id} no encontrado")
 
-            # Check if proyecto has related records
+            # Check if proyecto has related records that prevent deletion
             if proyecto.contratos:
-                raise ValueError("No se puede eliminar el proyecto porque tiene contratos asociados")
+                contratos_vigentes = [c for c in proyecto.contratos if c.estado.value == 'VIGENTE']
+                if contratos_vigentes:
+                    raise ValueError("No se puede eliminar el proyecto porque tiene contratos vigentes asociados")
+            
             if proyecto.ordenes_fabricacion:
-                raise ValueError("No se puede eliminar el proyecto porque tiene órdenes de fabricación asociadas")
+                ofs_activas = [of for of in proyecto.ordenes_fabricacion if hasattr(of, 'area_progreso_actual') and of.area_progreso_actual]
+                if ofs_activas:
+                    raise ValueError("No se puede eliminar el proyecto porque tiene órdenes de fabricación en proceso")
+            
             if proyecto.despachos:
-                raise ValueError("No se puede eliminar el proyecto porque tiene despachos asociados")
+                despachos_pendientes = [d for d in proyecto.despachos if d.estado.value in ['PROGRAMADO', 'EN_TRANSPORTE']]
+                if despachos_pendientes:
+                    raise ValueError("No se puede eliminar el proyecto porque tiene despachos pendientes")
 
             # Store original data for audit
             datos_anteriores = serialize_model(proyecto)
 
-            # Delete proyecto
+            # Delete related records manually to ensure proper cleanup
+            # Delete bitacora entries first
+            from models import BitacoraProyecto
+            BitacoraProyecto.query.filter_by(proyecto_id=proyecto_id).delete()
+            
+            # Delete other related records
+            if proyecto.tareas_comerciales:
+                for tarea in proyecto.tareas_comerciales:
+                    db.session.delete(tarea)
+            
+            if proyecto.eventos_entrega:
+                for evento in proyecto.eventos_entrega:
+                    db.session.delete(evento)
+            
+            # Now delete the proyecto
             success = self.repo.delete(proyecto)
 
             if success:
