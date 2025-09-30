@@ -785,3 +785,63 @@ def api_estadisticas_planificacion():
     except Exception as e:
         logger.error(f"Error obteniendo estadísticas: {str(e)}")
         return jsonify({'error': 'Error al cargar estadísticas'}), 500
+
+@despachos_bp.route('/<int:despacho_id>/archivar', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES)
+def archivar_despacho(despacho_id):
+    """Archivar un despacho (solo si está ENTREGADO)"""
+    try:
+        success = despachos_service.archivar_despacho(despacho_id)
+        if success:
+            flash('Despacho archivado exitosamente', 'success')
+        else:
+            flash('No se pudo archivar el despacho', 'error')
+        
+        return redirect(request.referrer or url_for('despachos.index'))
+        
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(request.referrer or url_for('despachos.index'))
+    except Exception as e:
+        logger.error(f"Error archivando despacho {despacho_id}: {str(e)}")
+        flash('Error archivando el despacho', 'error')
+        return redirect(request.referrer or url_for('despachos.index'))
+
+@despachos_bp.route('/<int:despacho_id>/desarchivar', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES)
+def desarchivar_despacho(despacho_id):
+    """Desarchivar un despacho"""
+    try:
+        success = despachos_service.desarchivar_despacho(despacho_id)
+        if success:
+            flash('Despacho desarchivado exitosamente', 'success')
+        else:
+            flash('No se pudo desarchivar el despacho', 'error')
+        
+        return redirect(request.referrer or url_for('despachos.index'))
+        
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(request.referrer or url_for('despachos.index'))
+    except Exception as e:
+        logger.error(f"Error desarchivando despacho {despacho_id}: {str(e)}")
+        flash('Error desarchivando el despacho', 'error')
+        return redirect(request.referrer or url_for('despachos.index'))
+
+@despachos_bp.route('/archivar-entregados', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def archivar_despachos_entregados():
+    """Archivar todos los despachos con estado ENTREGADO"""
+    try:
+        count = despachos_service.archivar_despachos_entregados()
+        if count > 0:
+            flash(f'{count} despacho(s) entregado(s) archivado(s) exitosamente', 'success')
+        else:
+            flash('No hay despachos entregados para archivar', 'info')
+        
+        return redirect(request.referrer or url_for('despachos.index'))
+        
+    except Exception as e:
+        logger.error(f"Error archivando despachos entregados: {str(e)}")
+        flash('Error archivando despachos entregados', 'error')
+        return redirect(request.referrer or url_for('despachos.index'))

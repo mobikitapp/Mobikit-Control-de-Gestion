@@ -710,3 +710,63 @@ def api_hitos_by_contrato(contrato_id):
     except Exception as e:
         logger.error(f"Error getting contract milestones: {str(e)}")
         return jsonify({'error': 'Error interno del servidor'}), 500
+
+@contratos_bp.route('/<int:contrato_id>/archivar', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
+def archivar_contrato(contrato_id):
+    """Archivar un contrato (solo si está CERRADO)"""
+    try:
+        success = contratos_service.archivar_contrato(contrato_id)
+        if success:
+            flash('Contrato archivado exitosamente', 'success')
+        else:
+            flash('No se pudo archivar el contrato', 'error')
+        
+        return redirect(request.referrer or url_for('contratos.list_contratos'))
+        
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(request.referrer or url_for('contratos.list_contratos'))
+    except Exception as e:
+        logger.error(f"Error archivando contrato {contrato_id}: {str(e)}")
+        flash('Error archivando el contrato', 'error')
+        return redirect(request.referrer or url_for('contratos.list_contratos'))
+
+@contratos_bp.route('/<int:contrato_id>/desarchivar', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
+def desarchivar_contrato(contrato_id):
+    """Desarchivar un contrato"""
+    try:
+        success = contratos_service.desarchivar_contrato(contrato_id)
+        if success:
+            flash('Contrato desarchivado exitosamente', 'success')
+        else:
+            flash('No se pudo desarchivar el contrato', 'error')
+        
+        return redirect(request.referrer or url_for('contratos.list_contratos'))
+        
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(request.referrer or url_for('contratos.list_contratos'))
+    except Exception as e:
+        logger.error(f"Error desarchivando contrato {contrato_id}: {str(e)}")
+        flash('Error desarchivando el contrato', 'error')
+        return redirect(request.referrer or url_for('contratos.list_contratos'))
+
+@contratos_bp.route('/archivar-cerrados', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def archivar_contratos_cerrados():
+    """Archivar todos los contratos con estado CERRADO"""
+    try:
+        count = contratos_service.archivar_contratos_cerrados()
+        if count > 0:
+            flash(f'{count} contrato(s) cerrado(s) archivado(s) exitosamente', 'success')
+        else:
+            flash('No hay contratos cerrados para archivar', 'info')
+        
+        return redirect(request.referrer or url_for('contratos.list_contratos'))
+        
+    except Exception as e:
+        logger.error(f"Error archivando contratos cerrados: {str(e)}")
+        flash('Error archivando contratos cerrados', 'error')
+        return redirect(request.referrer or url_for('contratos.list_contratos'))
