@@ -155,6 +155,14 @@
                     <input type="date" class="form-control" id="fecha_programada_hasta" name="fecha_programada_hasta" 
                            value="{{ filters.fecha_programada_hasta or '' }}">
                 </div>
+                <div class="col-md-3">
+                    <label for="archivado" class="form-label">Archivados</label>
+                    <select class="form-select" id="archivado" name="archivado">
+                        <option value="">Todos</option>
+                        <option value="false" {% if filters.archivado == false %}selected{% endif %}>Solo activos</option>
+                        <option value="true" {% if filters.archivado == true %}selected{% endif %}>Solo archivados</option>
+                    </select>
+                </div>
                 <div class="col-12">
                     <button type="submit" class="btn btn-primary">
                         <i data-feather="search" class="me-2"></i>
@@ -176,6 +184,14 @@
                 Resultados ({{ total_count }} despacho{{ 's' if total_count != 1 else '' }})
             </h5>
             <div class="d-flex align-items-center gap-2">
+                {% if current_user.rol.value in ['admin', 'general'] %}
+                <form action="{{ url_for('despachos.archivar_despachos_entregados') }}" method="POST" class="d-inline" onsubmit="return confirm('¿Archivar todos los despachos con estado ENTREGADO?');">
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        <i data-feather="archive" class="me-1" style="width: 14px; height: 14px;"></i>
+                        Archivar Entregados
+                    </button>
+                </form>
+                {% endif %}
                 <small class="text-muted">
                     Página {{ filters.page }} de {{ total_pages }}
                 </small>
@@ -291,6 +307,23 @@
                                     </button>
                                     {% endif %}
                                 </div>
+                                {% if current_user.rol.value in ['admin', 'general', 'operaciones'] %}
+                                <div class="mt-1">
+                                    {% if despacho.archivado %}
+                                    <form action="{{ url_for('despachos.desarchivar_despacho', despacho_id=despacho.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Desarchivar este despacho?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-success w-100" title="Desarchivar">
+                                            <i data-feather="archive" style="width: 12px; height: 12px;"></i> Desarchivar
+                                        </button>
+                                    </form>
+                                    {% elif despacho.estado.value == 'ENTREGADO' %}
+                                    <form action="{{ url_for('despachos.archivar_despacho', despacho_id=despacho.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Archivar este despacho entregado?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning w-100" title="Archivar">
+                                            <i data-feather="archive" style="width: 12px; height: 12px;"></i> Archivar
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </td>
                         </tr>
 

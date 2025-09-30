@@ -55,6 +55,14 @@ def index():
         if request.args.get('fecha_emision_hasta', '').strip():
             filters_data['fecha_emision_hasta'] = request.args.get('fecha_emision_hasta').strip()
 
+        # Handle archivado filter: '' -> None, 'true' -> True, 'false' -> False
+        archivado_param = request.args.get('archivado', '').strip()
+        if archivado_param == 'true':
+            filters_data['archivado'] = True
+        elif archivado_param == 'false':
+            filters_data['archivado'] = False
+        # else: archivado_param == '' means None (default, shows all)
+
         # Validate filters
         filters = ContratoSearchFilters(**filters_data)
 
