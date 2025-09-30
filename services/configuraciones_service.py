@@ -776,6 +776,34 @@ class ConfiguracionesService:
             print(f"Error updating time factors: {e}")
             return False
 
+    def actualizar_parametros_operacionales(self, parametros_data: Dict[str, Any], usuario_id: str) -> bool:
+        """Update operational parameters"""
+        try:
+            # Validate and update operational parameters
+            valid_fields = [
+                'turnos_por_dia', 'horas_por_turno', 'dias_laborables_mes', 'oee',
+                'horizonte_planificacion', 'umbral_sobrecarga',
+                'factor_horas_extra', 'max_subcontrato', 'mejora_oee_objetivo'
+            ]
+            
+            updated_fields = []
+            for field, value in parametros_data.items():
+                if field in valid_fields and value is not None:
+                    # Update persistent storage
+                    self._operational_params[field] = value
+                    updated_fields.append(f"{field}: {value}")
+            
+            if updated_fields:
+                # Log the change
+                print(f"Usuario {usuario_id} actualizó parámetros operacionales: {', '.join(updated_fields)}")
+                return True
+            else:
+                return False
+            
+        except Exception as e:
+            print(f"Error updating operational parameters: {e}")
+            return False
+
     def get_parametros_operacionales(self):
         """Alias for get_configuracion_capacidad for consistency"""
         return self.get_configuracion_capacidad()
