@@ -67,6 +67,7 @@ class DespachoBase(BaseModel):
     observaciones: Optional[str] = Field(None, description="Observaciones")
     responsable_nombre: Optional[str] = Field(None, max_length=200, description="Nombre del responsable")
     numero_guias_despacho: Optional[str] = Field(None, max_length=255, description="Número de guías de despacho (opcional)")
+    archivado: bool = Field(False, description="Indica si el despacho está archivado")
 
     @validator('fecha_envio')
     def validate_fecha_envio(cls, v, values):
@@ -94,6 +95,7 @@ class DespachoUpdate(BaseModel):
     observaciones: Optional[str] = None
     responsable_nombre: Optional[str] = Field(None, max_length=200)
     numero_guias_despacho: Optional[str] = Field(None, max_length=255)
+    archivado: Optional[bool] = None
     ordenes_fabricacion: Optional[List[DespachoOrdenFabricacionCreate]] = None
 
 class DespachoAdjuntoBase(BaseModel):
@@ -139,6 +141,7 @@ class DespachoSearchFilters(BaseModel):
     responsable_nombre: Optional[str] = Field(None, description="Filtrar por responsable")
     fecha_programada_desde: Optional[date] = Field(None, description="Fecha programada desde")
     fecha_programada_hasta: Optional[date] = Field(None, description="Fecha programada hasta")
+    archivado: Optional[bool] = Field(None, description="Filtrar por archivado (None=excluir archivados, True=solo archivados, False=solo no archivados)")
     page: int = Field(1, ge=1, description="Número de página")
     per_page: int = Field(20, ge=1, le=100, description="Elementos por página")
 
