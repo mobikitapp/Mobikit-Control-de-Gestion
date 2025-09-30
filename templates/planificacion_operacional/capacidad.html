@@ -188,11 +188,11 @@
                                     {% endif %}
                                     <th>Cantidad Tableros</th>
                                     <th>Demanda Original</th>
-                                    <th>Pendiente Heredado</th>
+                                    <th>Backlog Heredado</th>
                                     <th>Demanda Total</th>
                                     <th>Capacidad</th>
                                     <th>Utilización</th>
-                                    <th>Pendiente Final</th>
+                                    <th>Backlog Final</th>
                                     <th>Estado</th>
                                 </tr>
                             </thead>
@@ -307,10 +307,7 @@
                             <p><strong>Utilización Promedio:</strong> {{ "{:.0f}".format(rolling_plan.resumen_rolling_plan.totales_horizonte.utilizacion_promedio) }}%</p>
                         </div>
                         <div class="col-md-6">
-                            <div class="d-flex justify-content-between">
-                                <span>Pendiente Máximo:</span>
-                                <strong class="text-danger">{{ resumen.analisis_backlog.backlog_maximo_horas }}h</strong>
-                            </div>
+                            <p><strong>Backlog Máximo:</strong> {{ "{:.0f}".format(rolling_plan.resumen_rolling_plan.analisis_backlog.backlog_maximo_horas) }} horas</p>
                             {% if modo_rolling == 'semanal' %}
                             <p><strong>Semanas con Sobrecarga:</strong> {{ rolling_plan.resumen_rolling_plan.distribucion_utilizacion.semanas_sobrecarga }}</p>
                             <p><strong>Semanas Óptimas:</strong> {{ rolling_plan.resumen_rolling_plan.distribucion_utilizacion.semanas_optimas }}</p>
@@ -552,7 +549,7 @@
             </div>
         </div>
     </div>
-
+    
     {% elif capacidad %}
     <!-- Legacy Capacity Analysis (for mensual/semanal views) -->
 
