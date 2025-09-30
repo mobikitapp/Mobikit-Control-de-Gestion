@@ -87,6 +87,14 @@ class ContratosRepository:
         if filters.fecha_emision_hasta:
             conditions.append(Contrato.fecha_emision <= filters.fecha_emision_hasta)
 
+        # Filtro de archivado: None=excluir archivados, True=solo archivados, False=solo no archivados
+        if filters.archivado is None:
+            conditions.append(Contrato.archivado == False)
+        elif filters.archivado is True:
+            conditions.append(Contrato.archivado == True)
+        elif filters.archivado is False:
+            conditions.append(Contrato.archivado == False)
+
         if conditions:
             query = query.filter(and_(*conditions))
 
@@ -103,12 +111,12 @@ class ContratosRepository:
         return contratos, total_count
 
     @staticmethod
-    def get_by_proyecto_id(proyecto_id: int) -> List[Contrato]:
-        """Get all contratos for a project"""
-        return (db.session.query(Contrato)
-                .filter_by(proyecto_id=proyecto_id)
-                .order_by(Contrato.created_at.desc())
-                .all())
+    def get_by_proyecto_id(proyecto_id: int, incluir_archivados: bool = False) -> List[Contrato]:
+        """Get all contratos for a project (excluye archivados por defecto)"""
+        query = db.session.query(Contrato).filter_by(proyecto_id=proyecto_id)
+        if not incluir_archivados:
+            query = query.filter_by(archivado=False)
+        return query.order_by(Contrato.created_at.desc()).all()
 
     @staticmethod
     def get_by_cliente_id(cliente_id: int) -> List[Contrato]:
@@ -184,12 +192,45 @@ class ContratosRepository:
 
     @staticmethod
     def get_contratos_activos_by_proyecto(proyecto_id: int) -> List[Contrato]:
-        """Get active contracts for a proyecto"""
+        """Get active contracts for a proyecto (excluye archivados)"""
         return (db.session.query(Contrato)
                 .filter_by(proyecto_id=proyecto_id)
                 .filter_by(estado=EstadoContrato.VIGENTE)
+                .filter_by(archivado=False)
                 .order_by(Contrato.created_at.desc())
                 .all())
+
+    @staticmethod
+    def archivar_contrato(contrato_id: int) -> Optional[Contrato]:
+        """Archivar un contrato (solo si está CERRADO)"""
+        contrato = db.session.get(Contrato, contrato_id)
+        if contrato and contrato.estado == EstadoContrato.CERRADO:
+            contrato.archivado = True
+            db.session.flush()
+            return contrato
+        return None
+
+    @staticmethod
+    def desarchivar_contrato(contrato_id: int) -> Optional[Contrato]:
+        """Desarchivar un contrato"""
+        contrato = db.session.get(Contrato, contrato_id)
+        if contrato:
+            contrato.archivado = False
+            db.session.flush()
+            return contrato
+        return None
+
+    @staticmethod
+    def archivar_contratos_cerrados() -> int:
+        """Archivar todos los contratos con estado CERRADO que no están archivados"""
+        contratos = (db.session.query(Contrato)
+                    .filter_by(estado=EstadoContrato.CERRADO, archivado=False)
+                    .all())
+        count = len(contratos)
+        for contrato in contratos:
+            contrato.archivado = True
+        db.session.flush()
+        return count
 
 class ContratoAdjuntosRepository:
     """Repository for ContratoAdjunto operations"""
