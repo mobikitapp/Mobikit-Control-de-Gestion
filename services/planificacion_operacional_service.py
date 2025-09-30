@@ -1233,13 +1233,19 @@ class PlanificacionOperacionalService:
         Calcula demanda jerárquica a nivel semanal para el rolling plan
         """
         try:
-            fecha_inicio = datetime(año, 1, 1).date()
-            fecha_fin = fecha_inicio + timedelta(days=horizonte_meses * 30)
+            from datetime import date
+            
+            # Calcular rango de fechas para el horizonte - desde hoy hacia adelante
+            hoy = date.today()
+            fecha_inicio = hoy - timedelta(days=hoy.weekday())  # Inicio de semana actual (lunes)
+            horizonte_semanas = horizonte_meses * 4  # Aproximadamente 4 semanas por mes
+            fecha_fin = fecha_inicio + timedelta(weeks=horizonte_semanas)
 
             # Obtener todas las OFs en el período usando fecha_planificada
             ordenes_fabricacion = (
                 db.session.query(OrdenFabricacion)
                 .join(Proyecto)
+                .join(Cliente, Proyecto.cliente_id == Cliente.id)
                 .filter(Proyecto.estado_comercial.in_([
                     EstadoComercial.ADJUDICADO,
                     EstadoComercial.EN_DESARROLLO,
@@ -1265,24 +1271,21 @@ class PlanificacionOperacionalService:
             for of in ordenes_fabricacion:
                 fecha_fabricacion = of.fecha_planificada
 
-                # Calcular número de semana del año
-                numero_semana = fecha_fabricacion.isocalendar()[1]
-                año_semana = fecha_fabricacion.year
-
-                # Calcular fecha inicio y fin de semana
+                # Calcular fecha inicio de semana (lunes)
                 fecha_inicio_semana = fecha_fabricacion - timedelta(days=fecha_fabricacion.weekday())
                 fecha_fin_semana = fecha_inicio_semana + timedelta(days=6)
-
-                semana_key = f"{año_semana}_{numero_semana:02d}"
+                
+                # Usar un formato de clave más simple
+                semana_key = f"{fecha_inicio_semana.year}-W{fecha_inicio_semana.isocalendar()[1]:02d}"
 
                 if semana_key not in demanda_por_semana:
                     demanda_por_semana[semana_key] = {
-                        'numero_semana': numero_semana,
-                        'año': año_semana,
+                        'numero_semana': fecha_inicio_semana.isocalendar()[1],
+                        'año': fecha_inicio_semana.year,
                         'mes': fecha_fabricacion.month,
-                        'nombre_periodo': f"Semana {numero_semana} ({fecha_inicio_semana.strftime('%d/%m')} - {fecha_fin_semana.strftime('%d/%m')})",
-                        'fecha_inicio': fecha_inicio_semana,
-                        'fecha_fin': fecha_fin_semana,
+                        'nombre_periodo': f"Semana {fecha_inicio_semana.isocalendar()[1]} ({fecha_inicio_semana.strftime('%d/%m')} - {fecha_fin_semana.strftime('%d/%m')})",
+                        'fecha_inicio': fecha_inicio_semana.isoformat(),
+                        'fecha_fin': fecha_fin_semana.isoformat(),
                         'proyectos': {},
                         'totales_semana': {
                             'proyectos_count': 0,
@@ -1292,42 +1295,66 @@ class PlanificacionOperacionalService:
                         }
                     }
 
-                proyecto_id = of.proyecto.id
+                # Usar clave de proyecto compatible con el template
+                proyecto_key = f"proyecto_{of.proyecto.id}"
 
-                if proyecto_id not in demanda_por_semana[semana_key]['proyectos']:
-                    demanda_por_semana[semana_key]['proyectos'][proyecto_id] = {
-                        'id': proyecto_id,
-                        'codigo': str(proyecto_id),
+                if proyecto_key not in demanda_por_semana[semana_key]['proyectos']:
+                    demanda_por_semana[semana_key]['proyectos'][proyecto_key] = {
+                        'id': of.proyecto.id,
+                        'codigo': getattr(of.proyecto, 'codigo_interno', None) or f"PROY-{of.proyecto.id}",
                         'nombre': of.proyecto.nombre,
                         'cliente': {
                             'id': of.proyecto.cliente.id,
-                            'nombre': of.proyecto.cliente.nombre
+                            'nombre': of.proyecto.cliente.nombre,
+                            'tipo': 'Empresa'
                         },
-                        'tipo_proyecto': of.proyecto.tipo_proyecto.name if of.proyecto.tipo_proyecto else 'N/A',
+                        'tipo_proyecto': of.proyecto.tipo_proyecto.value if of.proyecto.tipo_proyecto else 'ESTANDAR',
                         'ordenes_fabricacion': [],
                         'totales_proyecto': {
                             'ofs_count': 0,
                             'total_tableros': 0,
+                            'total_horas_fabricacion': 0.0,
+                            'total_horas_embalaje': 0.0,
                             'total_horas_requeridas': 0.0
                         }
                     }
 
-                # Agregar OF al proyecto
-                horas_estimadas = self._calcular_horas_of(of)
+                # Calcular horas correctamente
                 cantidad_tableros = of.cantidad_tableros or 0
+                tipo_proyecto = of.proyecto.tipo_proyecto.value if of.proyecto.tipo_proyecto else 'ESTANDAR'
                 
-                demanda_por_semana[semana_key]['proyectos'][proyecto_id]['ordenes_fabricacion'].append({
+                config_service = ConfiguracionesService()
+                config = config_service.get_configuracion_capacidad()
+                
+                tiempo_por_tablero_map = {
+                    'SOCIAL': config.get('horas_por_tablero_social', 0.6),
+                    'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
+                    'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
+                }
+                
+                tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
+                horas_totales = cantidad_tableros * tiempo_por_tablero
+                
+                # Agregar OF al proyecto
+                demanda_por_semana[semana_key]['proyectos'][proyecto_key]['ordenes_fabricacion'].append({
                     'id': of.id,
                     'codigo': of.codigo,
                     'cantidad_tableros': cantidad_tableros,
                     'fecha_planificada': of.fecha_planificada.isoformat(),
-                    'horas_estimadas': horas_estimadas
+                    'tipo_proyecto': tipo_proyecto,
+                    'tiempo_por_tablero': tiempo_por_tablero,
+                    'horas_fabricacion': round(horas_totales, 2),
+                    'horas_embalaje': 0,  # Ya incluido en tiempo total
+                    'horas_totales': round(horas_totales, 2),
+                    'estado': getattr(of.estado_actual, 'nombre', None) or getattr(of.estado_actual, 'value', None) or 'planificada'
                 })
 
-                # Actualizar totales
-                demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['ofs_count'] += 1
-                demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['total_tableros'] += cantidad_tableros
-                demanda_por_semana[semana_key]['proyectos'][proyecto_id]['totales_proyecto']['total_horas_requeridas'] += horas_estimadas
+                # Actualizar totales del proyecto
+                proyecto_totales = demanda_por_semana[semana_key]['proyectos'][proyecto_key]['totales_proyecto']
+                proyecto_totales['ofs_count'] += 1
+                proyecto_totales['total_tableros'] += cantidad_tableros
+                proyecto_totales['total_horas_fabricacion'] += horas_totales
+                proyecto_totales['total_horas_requeridas'] += horas_totales
 
             # Calcular totales por semana
             for semana_key, semana_data in demanda_por_semana.items():
@@ -1341,16 +1368,24 @@ class PlanificacionOperacionalService:
                 semana_data['totales_semana']['ofs_count'] = sum(
                     p['totales_proyecto']['ofs_count'] for p in semana_data['proyectos'].values()
                 )
+                
+                # Contar clientes únicos
+                clientes_unicos = set()
+                for proyecto in semana_data['proyectos'].values():
+                    clientes_unicos.add(proyecto['cliente']['id'])
+                semana_data['totales_semana']['clientes_count'] = len(clientes_unicos)
+
+            print(f"Debug: Calculando demanda semanal, encontradas {len(ordenes_fabricacion)} OFs en {len(demanda_por_semana)} semanas")
 
             return {
                 'demanda_por_semana': demanda_por_semana,
                 'resumen_general': self._calcular_resumen_general_semanal(demanda_por_semana),
-                'parametros': {
+                'periodo': {
                     'año': año,
                     'horizonte_meses': horizonte_meses,
-                    'fecha_inicio': fecha_inicio,
-                    'fecha_fin': fecha_fin,
-                    'modo': 'semanal'
+                    'horizonte_semanas': horizonte_semanas,
+                    'fecha_inicio': fecha_inicio.isoformat(),
+                    'fecha_fin': fecha_fin.isoformat()
                 }
             }
 
