@@ -443,7 +443,7 @@ class PlanificacionOperacionalService:
     def calcular_horas_nominales_mensuales(self) -> float:
         """
         Calcula las horas nominales mensuales usando la fórmula:
-        Horas Nominales = Máquinas × Turnos/día × Horas/turno × Días laborables/mes
+        Horas Nominales = Turnos/día × Horas/turno × Días laborables/mes
         """
         try:
             config_service = ConfiguracionesService()
@@ -564,7 +564,6 @@ class PlanificacionOperacionalService:
 
             return {
                 'parametros_operacionales': {
-                    'numero_maquinas': config.get('numero_maquinas', 2),
                     'turnos_por_dia': config.get('turnos_por_dia', 1),
                     'horas_por_turno': config.get('horas_por_turno', 8),
                     'dias_laborables_mes': config.get('dias_laborables_mes', 22),
@@ -1419,20 +1418,19 @@ class PlanificacionOperacionalService:
             dias_laborables_semana = 5  # Default working days per week
             turnos_por_dia = config.get('turnos_por_dia', 1)
             horas_por_turno = config.get('horas_por_turno', 8)
-            numero_maquinas = config.get('numero_maquinas', 1)  # Default 1 machine
 
             # OEE (Overall Equipment Effectiveness)
             oee = config.get('oee', 0.70)
 
             # Cálculo de horas efectivas semanales
-            horas_nominales_semana = dias_laborables_semana * turnos_por_dia * horas_por_turno * numero_maquinas
+            horas_nominales_semana = dias_laborables_semana * turnos_por_dia * horas_por_turno
             horas_efectivas_semana = horas_nominales_semana * oee
 
             return round(horas_efectivas_semana, 2)
 
         except Exception as e:
             print(f"Error calculando horas efectivas semanales: {e}")
-            # Valor por defecto: 5 días * 1 turno * 8 horas * 1 máquina * 0.70 OEE = 28 horas/semana
+            # Valor por defecto: 5 días * 1 turno * 8 horas * 0.70 OEE = 28 horas/semana
             return 28.0
 
     def _calcular_horas_demanda_semana_correctas(self, semana_data: Dict) -> float:

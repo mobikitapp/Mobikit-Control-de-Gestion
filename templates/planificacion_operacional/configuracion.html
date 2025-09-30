@@ -269,7 +269,7 @@
                                     </div>
                                     <div class="card-body">
                                         <div class="row mb-3">
-                                            <div class="col-md-4">
+                                            <div class="col-md-6">
                                                 <label class="form-label">
                                                     <i class="fas fa-clock text-warning me-2"></i>
                                                     Turnos por Día
@@ -278,7 +278,7 @@
                                                        value="{{ factores.configuracion.turnos_por_dia | default(1) }}" min="1" max="3" required>
                                                 <small class="text-muted">Número de turnos de trabajo por día</small>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-6">
                                                 <label class="form-label">
                                                     <i class="fas fa-clock text-info me-2"></i>
                                                     Horas por Turno
@@ -286,9 +286,6 @@
                                                 <input type="number" class="form-control" name="horas_por_turno" 
                                                        value="{{ factores.configuracion.horas_por_turno | default(8) }}" min="4" max="12" step="0.5" required>
                                                 <small class="text-muted">Duración en horas de cada turno</small>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <!-- Espaciador para mantener el layout -->
                                             </div>
                                         </div>
 
