@@ -97,6 +97,14 @@ class DespachosRepository:
         if filters.fecha_programada_hasta:
             conditions.append(Despacho.fecha_programada <= filters.fecha_programada_hasta)
         
+        # Filtro de archivado: None=excluir archivados, True=solo archivados, False=solo no archivados
+        if filters.archivado is None:
+            conditions.append(Despacho.archivado == False)
+        elif filters.archivado is True:
+            conditions.append(Despacho.archivado == True)
+        elif filters.archivado is False:
+            conditions.append(Despacho.archivado == False)
+        
         if conditions:
             query = query.filter(and_(*conditions))
         
@@ -113,12 +121,12 @@ class DespachosRepository:
         return despachos, total_count
     
     @staticmethod
-    def get_by_proyecto(proyecto_id: int) -> List[Despacho]:
-        """Get all despachos for a proyecto"""
-        return (db.session.query(Despacho)
-                .filter_by(proyecto_id=proyecto_id)
-                .order_by(Despacho.created_at.desc())
-                .all())
+    def get_by_proyecto(proyecto_id: int, incluir_archivados: bool = False) -> List[Despacho]:
+        """Get all despachos for a proyecto (excluye archivados por defecto)"""
+        query = db.session.query(Despacho).filter_by(proyecto_id=proyecto_id)
+        if not incluir_archivados:
+            query = query.filter_by(archivado=False)
+        return query.order_by(Despacho.created_at.desc()).all()
     
     @staticmethod
     def count_by_status(status_list: List[str]) -> int:
@@ -180,6 +188,38 @@ class DespachosRepository:
         else:
             return False, f"No se puede cambiar de {current_status.value} a {new_status.value}"
     
+    @staticmethod
+    def archivar_despacho(despacho_id: int) -> Optional[Despacho]:
+        """Archivar un despacho (solo si está ENTREGADO)"""
+        despacho = db.session.get(Despacho, despacho_id)
+        if despacho and despacho.estado == EstadoDespacho.ENTREGADO:
+            despacho.archivado = True
+            db.session.flush()
+            return despacho
+        return None
+
+    @staticmethod
+    def desarchivar_despacho(despacho_id: int) -> Optional[Despacho]:
+        """Desarchivar un despacho"""
+        despacho = db.session.get(Despacho, despacho_id)
+        if despacho:
+            despacho.archivado = False
+            db.session.flush()
+            return despacho
+        return None
+
+    @staticmethod
+    def archivar_despachos_entregados() -> int:
+        """Archivar todos los despachos con estado ENTREGADO que no están archivados"""
+        despachos = (db.session.query(Despacho)
+                    .filter_by(estado=EstadoDespacho.ENTREGADO, archivado=False)
+                    .all())
+        count = len(despachos)
+        for despacho in despachos:
+            despacho.archivado = True
+        db.session.flush()
+        return count
+
     @staticmethod
     def generate_next_numero_despacho(contrato_id: Optional[int], cliente_id: int) -> str:
         """
