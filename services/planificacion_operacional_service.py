@@ -1665,6 +1665,66 @@ class PlanificacionOperacionalService:
         else:
             return "BALANCEADO: Capacidad y demanda en equilibrio general."
 
+    def _calcular_horas_of(self, of) -> float:
+        """Calcula las horas estimadas para una Orden de Fabricación"""
+        try:
+            tableros = of.cantidad_tableros or of.tableros or 0
+            if tableros <= 0:
+                return 0.0
+            
+            # Obtener tipo de proyecto
+            tipo_proyecto = of.proyecto.tipo_proyecto.value if of.proyecto.tipo_proyecto else 'ESTANDAR'
+            
+            # Obtener configuración de tiempo por tablero
+            config_service = ConfiguracionesService()
+            config = config_service.get_configuracion_capacidad()
+            
+            tiempo_por_tablero_map = {
+                'SOCIAL': config.get('horas_por_tablero_social', 0.6),
+                'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
+                'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
+            }
+            
+            tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
+            return round(tableros * tiempo_por_tablero, 2)
+            
+        except Exception as e:
+            print(f"Error calculando horas de OF {of.id}: {e}")
+            return 0.0
+
+    def _evaluar_estado_periodo(self, utilizacion_porcentaje: float, deficit_capacidad: float, exceso_capacidad: float) -> Dict[str, str]:
+        """Evalúa el estado de un período (semana/mes) basado en métricas de capacidad"""
+        if utilizacion_porcentaje > 120:
+            return {
+                'codigo': 'SOBRECARGA_CRITICA',
+                'descripcion': 'Sobrecarga crítica - Requiere intervención inmediata',
+                'color': 'danger'
+            }
+        elif utilizacion_porcentaje > 100:
+            return {
+                'codigo': 'SOBRECARGA_MODERADA', 
+                'descripcion': 'Sobrecarga moderada - Requiere atención',
+                'color': 'warning'
+            }
+        elif utilizacion_porcentaje > 90:
+            return {
+                'codigo': 'UTILIZACION_ALTA',
+                'descripcion': 'Utilización alta - Monitorear',
+                'color': 'info'
+            }
+        elif utilizacion_porcentaje > 70:
+            return {
+                'codigo': 'UTILIZACION_OPTIMA',
+                'descripcion': 'Utilización óptima',
+                'color': 'success'
+            }
+        else:
+            return {
+                'codigo': 'BAJA_UTILIZACION',
+                'descripcion': 'Utilización baja - Capacidad excedente',
+                'color': 'secondary'
+            }
+
     # Private helper methods
 
     def _get_proyectos_periodo(self, año, mes_inicio, mes_fin, cliente_id=None):

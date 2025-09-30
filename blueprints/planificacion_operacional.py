@@ -484,21 +484,30 @@ def capacidad_produccion():
         vista = request.args.get('vista', default='estrategico')  # estrategico, mensual, semanal
         horizonte_meses = request.args.get('horizonte', type=int) or 6
 
-        modo_rolling = 'mensual' # Default to monthly
+        modo_rolling = request.args.get('modo_rolling', default='mensual')
 
         # Get strategic capacity analysis data
         if vista == 'estrategico':
             # New strategic capacity planning data
             try:
-                # Calculate monthly rolling plan
-                rolling_plan_data = service.calcular_rolling_plan_con_backlog(año, horizonte_meses)
-                demanda_jerarquica_data = service.calcular_demanda_mensual_jerarquica(año, horizonte_meses)
+                # Calculate rolling plan based on modo_rolling parameter
+                rolling_plan_data = service.calcular_rolling_plan_con_backlog(año, horizonte_meses, modo_rolling)
+                
+                if modo_rolling == 'semanal':
+                    demanda_jerarquica_data = service.calcular_demanda_semanal_jerarquica(año, horizonte_meses)
+                else:
+                    demanda_jerarquica_data = service.calcular_demanda_mensual_jerarquica(año, horizonte_meses)
+                
                 resumen_capacidad_data = service.get_resumen_capacidad_estrategica()
                 escenarios_data = ConfiguracionesService().get_escenarios_deficit()
             except Exception as e:
                 print(f"Error calculando datos estratégicos: {e}")
-                rolling_plan_data = {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
-                demanda_jerarquica_data = {'demanda_por_mes': {}}
+                if modo_rolling == 'semanal':
+                    rolling_plan_data = {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+                    demanda_jerarquica_data = {'demanda_por_semana': {}}
+                else:
+                    rolling_plan_data = {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+                    demanda_jerarquica_data = {'demanda_por_mes': {}}
                 resumen_capacidad_data = {}
                 escenarios_data = {}
 
@@ -506,20 +515,19 @@ def capacidad_produccion():
                 'año': año,
                 'vista': vista,
                 'horizonte_meses': horizonte_meses,
-                'modo_rolling': modo_rolling, # Pass the mode
+                'modo_rolling': modo_rolling,
                 'resumen_capacidad': resumen_capacidad_data,
                 'demanda_jerarquica': demanda_jerarquica_data,
                 'rolling_plan': rolling_plan_data,
                 'escenarios_deficit': escenarios_data
             }
-        elif vista == 'semanal': # Handle weekly view
-            modo_rolling = 'semanal'
+        elif vista == 'semanal': # Handle legacy weekly view
             try:
-                # Calculate weekly rolling plan
-                rolling_plan_data = service.calcular_rolling_plan_semanal(año, horizonte_meses)
+                # Calculate weekly rolling plan using legacy method
+                rolling_plan_data = service._calcular_rolling_plan_semanal(año, horizonte_meses)
                 demanda_jerarquica_data = service.calcular_demanda_semanal_jerarquica(año, horizonte_meses)
-                resumen_capacidad_data = service.get_resumen_capacidad_estrategica_semanal() # Assuming a new method for weekly summary
-                escenarios_data = ConfiguracionesService().get_escenarios_deficit_semanal() # Assuming a new method for weekly scenarios
+                resumen_capacidad_data = service.get_resumen_capacidad_estrategica()
+                escenarios_data = ConfiguracionesService().get_escenarios_deficit()
             except Exception as e:
                 print(f"Error calculando datos semanales: {e}")
                 rolling_plan_data = {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
@@ -531,7 +539,7 @@ def capacidad_produccion():
                 'año': año,
                 'vista': vista,
                 'horizonte_meses': horizonte_meses,
-                'modo_rolling': modo_rolling, # Pass the mode
+                'modo_rolling': 'semanal',
                 'resumen_capacidad': resumen_capacidad_data,
                 'demanda_jerarquica': demanda_jerarquica_data,
                 'rolling_plan': rolling_plan_data,
