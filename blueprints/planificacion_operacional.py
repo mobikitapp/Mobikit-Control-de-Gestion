@@ -368,6 +368,13 @@ def actualizar_configuracion():
         # Get form data for new project-type based factors
         factores_data = {}
 
+        # Define operational fields first
+        operational_fields = [
+            'turnos_por_dia', 'horas_por_turno', 'dias_laborables_mes', 'oee',
+            'horizonte_planificacion', 'umbral_sobrecarga',
+            'factor_horas_extra', 'max_subcontrato', 'mejora_oee_objetivo'
+        ]
+
         # Process conversion factors
         conversion_fields = [
             'factor_social_tablero', 'factor_estandar_tablero', 'factor_especial_tablero',
@@ -404,11 +411,6 @@ def actualizar_configuracion():
         config_service = ConfiguracionesService()
 
         parametros_operacionales = {}
-        operational_fields = [
-            'turnos_por_dia', 'horas_por_turno', 'dias_laborables_mes', 'oee',
-            'horizonte_planificacion', 'umbral_sobrecarga',
-            'factor_horas_extra', 'max_subcontrato', 'mejora_oee_objetivo'
-        ]
 
         for field in operational_fields:
             value = request.form.get(field)
