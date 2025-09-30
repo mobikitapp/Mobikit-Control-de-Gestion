@@ -561,7 +561,7 @@
         <div class="col-md-3">
             <div class="card bg-primary text-white">
                 <div class="card-body text-center">
-                    <h4>{{ resumen.total_tableros_año or 0 }}</h4>
+                    <h4>{{ (resumen.total_tableros_año if resumen else total_tableros_año) or 0 }}</h4>
                     <small>Tableros Anuales</small>
                 </div>
             </div>
@@ -569,7 +569,7 @@
         <div class="col-md-3">
             <div class="card bg-info text-white">
                 <div class="card-body text-center">
-                    <h4>{{ "{:.0f}".format(resumen.total_horas_año or 0) }}</h4>
+                    <h4>{{ "{:.0f}".format((resumen.total_horas_año if resumen else total_horas_año) or 0) }}</h4>
                     <small>Horas Estimadas</small>
                 </div>
             </div>
@@ -577,7 +577,7 @@
         <div class="col-md-3">
             <div class="card bg-warning text-white">
                 <div class="card-body text-center">
-                    <h4>{{ "{:.0f}".format(resumen.promedio_capacidad_porcentaje or 0) }}%</h4>
+                    <h4>{{ "{:.0f}".format((resumen.promedio_capacidad_porcentaje if resumen else promedio_capacidad_porcentaje) or 0) }}%</h4>
                     <small>Capacidad Promedio</small>
                 </div>
             </div>
@@ -585,7 +585,7 @@
         <div class="col-md-3">
             <div class="card bg-danger text-white">
                 <div class="card-body text-center">
-                    <h4>{{ resumen.meses_sobrecargados or 0 }}</h4>
+                    <h4>{{ (resumen.meses_sobrecargados if resumen else meses_sobrecargados) or 0 }}</h4>
                     <small>Meses Sobrecargados</small>
                 </div>
             </div>

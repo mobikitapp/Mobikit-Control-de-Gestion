@@ -558,6 +558,15 @@ def capacidad_produccion():
             data = service.get_analisis_capacidad(año=año, vista=vista)
             data['horizonte_meses'] = horizonte_meses  # Ensure this is always available
             data['modo_rolling'] = vista # Pass the current view as mode
+            
+            # Ensure resumen exists for template compatibility
+            if 'resumen' not in data:
+                data['resumen'] = {
+                    'total_tableros_año': data.get('total_tableros_año', 0),
+                    'total_horas_año': data.get('total_horas_año', 0),
+                    'promedio_capacidad_porcentaje': data.get('promedio_capacidad_porcentaje', 0),
+                    'meses_sobrecargados': data.get('meses_sobrecargados', 0)
+                }
 
 
         return render_template('planificacion_operacional/capacidad.html', calendar=calendar, **data)
