@@ -1234,6 +1234,7 @@ class PlanificacionOperacionalService:
         """
         try:
             from datetime import date
+            import calendar
 
             # Calcular rango de fechas para el horizonte - desde hoy hacia adelante
             hoy = date.today()
@@ -1241,6 +1242,31 @@ class PlanificacionOperacionalService:
             # Asegurar mínimo 12 semanas, máximo según horizonte_meses
             horizonte_semanas = max(12, horizonte_meses * 4)  # Mínimo 12 semanas
             fecha_fin = fecha_inicio + timedelta(weeks=horizonte_semanas)
+
+            # Inicializar estructura para todas las semanas del horizonte
+            demanda_por_semana = {}
+            
+            for i in range(horizonte_semanas):
+                fecha_semana = fecha_inicio + timedelta(weeks=i)
+                fecha_fin_semana = fecha_semana + timedelta(days=6)
+                semana_key = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+                
+                demanda_por_semana[semana_key] = {
+                    'numero_semana': fecha_semana.isocalendar()[1],
+                    'año': fecha_semana.year,
+                    'mes': fecha_semana.month,
+                    'nombre_periodo': f"Semana {fecha_semana.isocalendar()[1]} ({fecha_semana.strftime('%d/%m')} - {fecha_fin_semana.strftime('%d/%m')})",
+                    'fecha_inicio': fecha_semana.isoformat(),
+                    'fecha_fin': fecha_fin_semana.isoformat(),
+                    'proyectos': {},
+                    'totales_semana': {
+                        'proyectos_count': 0,
+                        'total_tableros': 0,
+                        'total_horas_requeridas': 0.0,
+                        'ofs_count': 0,
+                        'clientes_count': 0
+                    }
+                }
 
             # Obtener todas las OFs en el período usando fecha_planificada
             ordenes_fabricacion = (
@@ -1266,35 +1292,19 @@ class PlanificacionOperacionalService:
                 .all()
             )
 
-            # Agrupar por semanas
-            demanda_por_semana = {}
-
+            # Procesar las OFs y asignarlas a las semanas correspondientes
             for of in ordenes_fabricacion:
                 fecha_fabricacion = of.fecha_planificada
 
                 # Calcular fecha inicio de semana (lunes)
                 fecha_inicio_semana = fecha_fabricacion - timedelta(days=fecha_fabricacion.weekday())
-                fecha_fin_semana = fecha_inicio_semana + timedelta(days=6)
 
                 # Usar un formato de clave más simple
                 semana_key = f"{fecha_inicio_semana.year}-W{fecha_inicio_semana.isocalendar()[1]:02d}"
 
+                # Verificar que la semana existe en nuestro horizonte
                 if semana_key not in demanda_por_semana:
-                    demanda_por_semana[semana_key] = {
-                        'numero_semana': fecha_inicio_semana.isocalendar()[1],
-                        'año': fecha_inicio_semana.year,
-                        'mes': fecha_fabricacion.month,
-                        'nombre_periodo': f"Semana {fecha_inicio_semana.isocalendar()[1]} ({fecha_inicio_semana.strftime('%d/%m')} - {fecha_fin_semana.strftime('%d/%m')})",
-                        'fecha_inicio': fecha_inicio_semana.isoformat(),
-                        'fecha_fin': fecha_fin_semana.isoformat(),
-                        'proyectos': {},
-                        'totales_semana': {
-                            'proyectos_count': 0,
-                            'total_tableros': 0,
-                            'total_horas_requeridas': 0.0,
-                            'ofs_count': 0
-                        }
-                    }
+                    continue  # Skip if outside our defined horizon
 
                 # Usar clave de proyecto compatible con el template
                 proyecto_key = f"proyecto_{of.proyecto.id}"
@@ -1357,24 +1367,26 @@ class PlanificacionOperacionalService:
                 proyecto_totales['total_horas_fabricacion'] += horas_totales
                 proyecto_totales['total_horas_requeridas'] += horas_totales
 
-            # Calcular totales por semana
+            # Calcular totales finales por semana
             for semana_key, semana_data in demanda_por_semana.items():
-                semana_data['totales_semana']['proyectos_count'] = len(semana_data['proyectos'])
-                semana_data['totales_semana']['total_tableros'] = sum(
-                    p['totales_proyecto']['total_tableros'] for p in semana_data['proyectos'].values()
-                )
-                semana_data['totales_semana']['total_horas_requeridas'] = sum(
-                    p['totales_proyecto']['total_horas_requeridas'] for p in semana_data['proyectos'].values()
-                )
-                semana_data['totales_semana']['ofs_count'] = sum(
-                    p['totales_proyecto']['ofs_count'] for p in semana_data['proyectos'].values()
-                )
+                if semana_data['proyectos']:  # Only recalculate if there are projects
+                    semana_data['totales_semana']['proyectos_count'] = len(semana_data['proyectos'])
+                    semana_data['totales_semana']['total_tableros'] = sum(
+                        p['totales_proyecto']['total_tableros'] for p in semana_data['proyectos'].values()
+                    )
+                    semana_data['totales_semana']['total_horas_requeridas'] = sum(
+                        p['totales_proyecto']['total_horas_requeridas'] for p in semana_data['proyectos'].values()
+                    )
+                    semana_data['totales_semana']['ofs_count'] = sum(
+                        p['totales_proyecto']['ofs_count'] for p in semana_data['proyectos'].values()
+                    )
 
-                # Contar clientes únicos
-                clientes_unicos = set()
-                for proyecto in semana_data['proyectos'].values():
-                    clientes_unicos.add(proyecto['cliente']['id'])
-                semana_data['totales_semana']['clientes_count'] = len(clientes_unicos)
+                    # Contar clientes únicos
+                    clientes_unicos = set()
+                    for proyecto in semana_data['proyectos'].values():
+                        clientes_unicos.add(proyecto['cliente']['id'])
+                    semana_data['totales_semana']['clientes_count'] = len(clientes_unicos)
+                # If no projects, totals remain at 0 as initialized
 
             print(f"Debug: Calculando demanda semanal, encontradas {len(ordenes_fabricacion)} OFs en {len(demanda_por_semana)} semanas")
 
