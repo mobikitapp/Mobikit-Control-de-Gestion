@@ -871,6 +871,255 @@ class PlanificacionOperacionalService:
                 'promedio_mensual': {'tableros': 0, 'horas': 0}
             }
 
+    def calcular_demanda_semanal_jerarquica(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
+        """
+        Calcula la demanda semanal estructurada jerárquicamente: semana → proyecto → cliente
+        Similar a la demanda mensual pero agrupada por semanas
+        """
+        try:
+            from datetime import datetime, timedelta
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Calcular rango de fechas para el horizonte
+            from datetime import date
+            hoy = date.today()
+            fecha_inicio = hoy - timedelta(days=hoy.weekday())  # Inicio de semana actual (lunes)
+            horizonte_semanas = horizonte_meses * 4  # Aproximadamente 4 semanas por mes
+            fecha_fin = fecha_inicio + timedelta(weeks=horizonte_semanas)
+
+            # Estructura de demanda jerárquica semanal
+            demanda_jerarquica = {}
+
+            # Inicializar estructura para cada semana en el horizonte
+            for i in range(horizonte_semanas):
+                fecha_semana = fecha_inicio + timedelta(weeks=i)
+                semana_key = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+                
+                demanda_jerarquica[semana_key] = {
+                    'numero_semana': fecha_semana.isocalendar()[1],
+                    'año': fecha_semana.year,
+                    'mes': fecha_semana.month,
+                    'nombre_periodo': f"Semana {fecha_semana.isocalendar()[1]} ({calendar.month_name[fecha_semana.month][:3]} {fecha_semana.year})",
+                    'fecha_inicio': fecha_semana.isoformat(),
+                    'fecha_fin': (fecha_semana + timedelta(days=6)).isoformat(),
+                    'proyectos': {},
+                    'totales_semana': {
+                        'total_tableros': 0,
+                        'total_horas_requeridas': 0,
+                        'proyectos_count': 0,
+                        'clientes_count': 0
+                    }
+                }
+
+            # Obtener órdenes de fabricación planificadas en el horizonte con joins explícitos
+            ofs_query = (db.session.query(OrdenFabricacion, Proyecto, Cliente)
+                .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
+                .join(Cliente, Proyecto.cliente_id == Cliente.id)
+                .filter(
+                    and_(
+                        OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                        OrdenFabricacion.fecha_planificada < fecha_fin,
+                        OrdenFabricacion.fecha_planificada.isnot(None)
+                    )
+                )
+            ).all()
+
+            # Procesar cada OF
+            for of, proyecto, cliente in ofs_query:
+                fecha_of = of.fecha_planificada
+                # Encontrar la semana correspondiente
+                inicio_semana = fecha_of - timedelta(days=fecha_of.weekday())
+                semana_key = f"{inicio_semana.year}-W{inicio_semana.isocalendar()[1]:02d}"
+
+                if semana_key not in demanda_jerarquica:
+                    continue
+
+                # Clave única por proyecto
+                proyecto_key = f"proyecto_{proyecto.id}"
+
+                # Inicializar proyecto si no existe
+                if proyecto_key not in demanda_jerarquica[semana_key]['proyectos']:
+                    demanda_jerarquica[semana_key]['proyectos'][proyecto_key] = {
+                        'id': proyecto.id,
+                        'codigo': getattr(proyecto, 'codigo_interno', None) or f"PROY-{proyecto.id}",
+                        'nombre': proyecto.nombre,
+                        'tipo_proyecto': proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR',
+                        'cliente': {
+                            'id': cliente.id,
+                            'nombre': cliente.nombre,
+                            'tipo': 'Empresa'
+                        },
+                        'ordenes_fabricacion': [],
+                        'totales_proyecto': {
+                            'total_tableros': 0,
+                            'total_horas_fabricacion': 0,
+                            'total_horas_embalaje': 0,
+                            'total_horas_requeridas': 0,
+                            'ofs_count': 0
+                        }
+                    }
+
+                # Calcular tableros y horas para esta OF
+                tableros_of = of.cantidad_tableros or 0
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+
+                # Obtener tiempos por tablero según tipo de proyecto
+                config_service = ConfiguracionesService()
+                config = config_service.get_configuracion_capacidad()
+
+                tiempo_por_tablero_map = {
+                    'SOCIAL': config.get('horas_por_tablero_social', 0.6),
+                    'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
+                    'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
+                }
+
+                tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
+                horas_totales = tableros_of * tiempo_por_tablero
+                horas_fabricacion = horas_totales
+                horas_embalaje = 0
+
+                # Agregar OF al proyecto
+                of_data = {
+                    'id': of.id,
+                    'codigo': of.codigo,
+                    'fecha_planificada': fecha_of.isoformat(),
+                    'cantidad_tableros': tableros_of,
+                    'tipo_proyecto': tipo_proyecto,
+                    'tiempo_por_tablero': tiempo_por_tablero,
+                    'horas_fabricacion': round(horas_fabricacion, 2),
+                    'horas_embalaje': round(horas_embalaje, 2),
+                    'horas_totales': round(horas_totales, 2),
+                    'estado': (getattr(of.estado_actual, 'nombre', None) or getattr(of.estado_actual, 'value', None) or 'planificada')
+                }
+
+                demanda_jerarquica[semana_key]['proyectos'][proyecto_key]['ordenes_fabricacion'].append(of_data)
+
+                # Actualizar totales del proyecto
+                proyecto_totales = demanda_jerarquica[semana_key]['proyectos'][proyecto_key]['totales_proyecto']
+                proyecto_totales['total_tableros'] += tableros_of
+                proyecto_totales['total_horas_fabricacion'] += horas_fabricacion
+                proyecto_totales['total_horas_embalaje'] += horas_embalaje
+                proyecto_totales['total_horas_requeridas'] += horas_totales
+                proyecto_totales['ofs_count'] += 1
+
+                # Actualizar totales de la semana
+                semana_totales = demanda_jerarquica[semana_key]['totales_semana']
+                semana_totales['total_tableros'] += tableros_of
+                semana_totales['total_horas_requeridas'] += horas_totales
+
+            # Calcular totales finales por semana (proyectos únicos y clientes únicos)
+            for semana_key in demanda_jerarquica:
+                semana_data = demanda_jerarquica[semana_key]
+                semana_data['totales_semana']['proyectos_count'] = len(semana_data['proyectos'])
+
+                # Contar clientes únicos en la semana
+                clientes_unicos = set()
+                for proyecto in semana_data['proyectos'].values():
+                    clientes_unicos.add(proyecto['cliente']['id'])
+                semana_data['totales_semana']['clientes_count'] = len(clientes_unicos)
+
+            return {
+                'periodo': {
+                    'año': año,
+                    'horizonte_meses': horizonte_meses,
+                    'horizonte_semanas': horizonte_semanas,
+                    'fecha_inicio': fecha_inicio.isoformat(),
+                    'fecha_fin': fecha_fin.isoformat()
+                },
+                'demanda_por_semana': demanda_jerarquica,
+                'resumen_general': self._calcular_resumen_demanda_general_semanal(demanda_jerarquica)
+            }
+
+        except Exception as e:
+            print(f"Error calculando demanda semanal jerárquica: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'error': str(e),
+                'periodo': {},
+                'demanda_por_semana': {},
+                'resumen_general': {}
+            }
+
+    def _calcular_resumen_demanda_general_semanal(self, demanda_jerarquica: Dict) -> Dict[str, Any]:
+        """Calcula resumen general de la demanda semanal"""
+        try:
+            resumen = {
+                'total_tableros_horizonte': 0,
+                'total_horas_requeridas_horizonte': 0,
+                'total_proyectos_unicos': 0,
+                'total_clientes_unicos': 0,
+                'total_ofs': 0,
+                'pico_demanda_semana': '',
+                'valle_demanda_semana': '',
+                'promedio_semanal': {
+                    'tableros': 0,
+                    'horas': 0
+                }
+            }
+
+            if not demanda_jerarquica:
+                return resumen
+
+            # Calcular totales
+            proyectos_unicos = set()
+            clientes_unicos = set()
+            max_horas_semana = 0
+            min_horas_semana = float('inf')
+            pico_semana = ''
+            valle_semana = ''
+
+            for semana_key, semana_data in demanda_jerarquica.items():
+                totales_semana = semana_data['totales_semana']
+
+                # Acumular totales
+                resumen['total_tableros_horizonte'] += totales_semana['total_tableros']
+                resumen['total_horas_requeridas_horizonte'] += totales_semana['total_horas_requeridas']
+                resumen['total_ofs'] += sum(p['totales_proyecto']['ofs_count'] for p in semana_data['proyectos'].values())
+
+                # Rastrear picos y valles
+                horas_semana = totales_semana['total_horas_requeridas']
+                if horas_semana > max_horas_semana:
+                    max_horas_semana = horas_semana
+                    pico_semana = semana_data['nombre_periodo']
+
+                if horas_semana < min_horas_semana:
+                    min_horas_semana = horas_semana
+                    valle_semana = semana_data['nombre_periodo']
+
+                # Recopilar proyectos y clientes únicos
+                for proyecto in semana_data['proyectos'].values():
+                    proyectos_unicos.add(proyecto['id'])
+                    clientes_unicos.add(proyecto['cliente']['id'])
+
+            # Finalizar resumen
+            resumen['total_proyectos_unicos'] = len(proyectos_unicos)
+            resumen['total_clientes_unicos'] = len(clientes_unicos)
+            resumen['pico_demanda_semana'] = pico_semana
+            resumen['valle_demanda_semana'] = valle_semana
+
+            # Calcular promedios
+            num_semanas = len(demanda_jerarquica)
+            if num_semanas > 0:
+                resumen['promedio_semanal']['tableros'] = round(resumen['total_tableros_horizonte'] / num_semanas, 1)
+                resumen['promedio_semanal']['horas'] = round(resumen['total_horas_requeridas_horizonte'] / num_semanas, 1)
+
+            return resumen
+
+        except Exception as e:
+            print(f"Error calculando resumen general de demanda semanal: {e}")
+            return {
+                'total_tableros_horizonte': 0,
+                'total_horas_requeridas_horizonte': 0,
+                'total_proyectos_unicos': 0,
+                'total_clientes_unicos': 0,
+                'total_ofs': 0,
+                'pico_demanda_semana': '',
+                'valle_demanda_semana': '',
+                'promedio_semanal': {'tableros': 0, 'horas': 0}
+            }
+
     def _calcular_rolling_plan_semanal(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
         """
         Calcula el rolling plan semanal con análisis de backlog acumulado

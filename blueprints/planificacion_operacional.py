@@ -488,6 +488,11 @@ def capacidad_produccion():
 
         # Get strategic capacity analysis data
         if vista == 'estrategico':
+            # Validate filter compatibility
+            if modo_rolling == 'semanal' and horizonte_meses > 3:
+                # Adjust horizon for weekly mode to avoid too many weeks
+                horizonte_meses = 3
+                
             # New strategic capacity planning data
             try:
                 # Calculate rolling plan based on modo_rolling parameter
@@ -502,6 +507,8 @@ def capacidad_produccion():
                 escenarios_data = ConfiguracionesService().get_escenarios_deficit()
             except Exception as e:
                 print(f"Error calculando datos estratégicos: {e}")
+                import traceback
+                traceback.print_exc()
                 if modo_rolling == 'semanal':
                     rolling_plan_data = {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
                     demanda_jerarquica_data = {'demanda_por_semana': {}}

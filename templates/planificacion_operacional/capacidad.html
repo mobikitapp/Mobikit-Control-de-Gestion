@@ -62,7 +62,7 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Modo Rolling Plan</label>
-                            <select class="form-select" name="modo_rolling">
+                            <select class="form-select" name="modo_rolling" id="modoRollingSelect">
                                 <option value="mensual" {% if modo_rolling == 'mensual' %}selected{% endif %}>Mensual</option>
                                 <option value="semanal" {% if modo_rolling == 'semanal' %}selected{% endif %}>Semanal</option>
                             </select>
@@ -167,7 +167,8 @@
     </div>
 
     <!-- Rolling Plan Analysis -->
-    {% if vista == 'estrategico' and rolling_plan and (rolling_plan.rolling_plan_por_mes or rolling_plan.rolling_plan_por_semana) %}
+    {% if vista == 'estrategico' and rolling_plan %}
+    {% if (modo_rolling == 'semanal' and rolling_plan.rolling_plan_por_semana) or (modo_rolling == 'mensual' and rolling_plan.rolling_plan_por_mes) %}
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
@@ -199,52 +200,44 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% if modo_rolling == 'semanal' %}
-                                    {% if rolling_plan and rolling_plan.rolling_plan_por_semana %}
-                                        {% for semana_key, semana_data in rolling_plan.rolling_plan_por_semana.items() %}
-                                        {% set utilizacion = semana_data.capacidad.utilizacion_porcentaje %}
-                                        {% set clase_estado = 'table-success' if utilizacion < 70 else 'table-warning' if utilizacion < 90 else 'table-danger' if utilizacion > 100 else 'table-primary' %}
-                                        <tr class="{{ clase_estado }}">
-                                            <td><strong>{{ semana_data.semana_info.nombre_periodo }}</strong></td>
-                                            <td><span class="badge bg-primary">{{ semana_data.demanda.tableros_demandados or 0 }}</span></td>
-                                            <td><strong>{{ "{:.1f}".format(semana_data.demanda.horas_demanda_original) }}</strong></td>
-                                            <td>{{ "{:.1f}".format(semana_data.demanda.backlog_heredado) }}</td>
-                                            <td>{{ "{:.1f}".format(semana_data.demanda.horas_demanda_total) }}</td>
-                                            <td><strong>{{ "{:.1f}".format(semana_data.capacidad.horas_efectivas_disponibles) }}</strong></td>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="progress flex-grow-1 me-2" style="height: 20px;">
-                                                        <div class="progress-bar 
-                                                            {% if utilizacion < 70 %}bg-success
-                                                            {% elif utilizacion < 90 %}bg-primary
-                                                            {% elif utilizacion <= 100 %}bg-warning
-                                                            {% else %}bg-danger{% endif %}" 
-                                                             style="width: {{ min(utilizacion, 100) }}%">
-                                                            {{ "{:.0f}".format(utilizacion) }}%
-                                                        </div>
+                                {% if modo_rolling == 'semanal' and rolling_plan.rolling_plan_por_semana %}
+                                    {% for semana_key, semana_data in rolling_plan.rolling_plan_por_semana.items() %}
+                                    {% set utilizacion = semana_data.capacidad.utilizacion_porcentaje %}
+                                    {% set clase_estado = 'table-success' if utilizacion < 70 else 'table-warning' if utilizacion < 90 else 'table-danger' if utilizacion > 100 else 'table-primary' %}
+                                    <tr class="{{ clase_estado }}">
+                                        <td><strong>{{ semana_data.semana_info.nombre_periodo }}</strong></td>
+                                        <td><span class="badge bg-primary">{{ semana_data.demanda.tableros_demandados or 0 }}</span></td>
+                                        <td><strong>{{ "{:.1f}".format(semana_data.demanda.horas_demanda_original) }}</strong></td>
+                                        <td>{{ "{:.1f}".format(semana_data.demanda.backlog_heredado) }}</td>
+                                        <td>{{ "{:.1f}".format(semana_data.demanda.horas_demanda_total) }}</td>
+                                        <td><strong>{{ "{:.1f}".format(semana_data.capacidad.horas_efectivas_disponibles) }}</strong></td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                                    <div class="progress-bar 
+                                                        {% if utilizacion < 70 %}bg-success
+                                                        {% elif utilizacion < 90 %}bg-primary
+                                                        {% elif utilizacion <= 100 %}bg-warning
+                                                        {% else %}bg-danger{% endif %}" 
+                                                         style="width: {{ min(utilizacion, 100) }}%">
+                                                        {{ "{:.0f}".format(utilizacion) }}%
                                                     </div>
                                                 </div>
-                                            </td>
-                                            <td>
-                                                <span class="badge {% if semana_data.backlog.backlog_fin_semana > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                                                    {{ "{:.0f}".format(semana_data.backlog.backlog_fin_semana) }}h
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-{{ semana_data.estado_semana.color }}">
-                                                    {{ semana_data.estado_semana.descripcion }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    {% else %}
-                                        <tr>
-                                            <td colspan="9" class="text-center text-muted">
-                                                No hay datos disponibles para el rolling plan semanal
-                                            </td>
-                                        </tr>
-                                    {% endif %}
-                                {% else %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if semana_data.backlog.backlog_fin_semana > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                                                {{ "{:.0f}".format(semana_data.backlog.backlog_fin_semana) }}h
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ semana_data.estado_semana.color }}">
+                                                {{ semana_data.estado_semana.descripcion }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% elif modo_rolling == 'mensual' and rolling_plan.rolling_plan_por_mes %}
                                     {% for mes_key, mes_data in rolling_plan.rolling_plan_por_mes.items() %}
                                     {% set utilizacion = mes_data.capacidad.utilizacion_porcentaje %}
                                     {% set clase_estado = 'table-success' if utilizacion < 70 else 'table-warning' if utilizacion < 90 else 'table-danger' if utilizacion > 100 else 'table-primary' %}
@@ -281,6 +274,12 @@
                                         </td>
                                     </tr>
                                     {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted">
+                                            No hay datos disponibles para el rolling plan {{ modo_rolling }}
+                                        </td>
+                                    </tr>
                                 {% endif %}
                             </tbody>
                         </table>
@@ -289,6 +288,8 @@
             </div>
         </div>
     </div>
+    {% endif %}
+    {% endif %}
 
     <!-- Rolling Plan Summary -->
     {% if rolling_plan.resumen_rolling_plan %}
@@ -660,14 +661,48 @@
 
 </div>
 
+<!-- Debug Info -->
+{% if vista == 'estrategico' %}
+<div class="row mb-2">
+    <div class="col-md-12">
+        <div class="alert alert-info small">
+            <strong>Debug:</strong> 
+            Vista: {{ vista }}, 
+            Modo Rolling: {{ modo_rolling }}, 
+            Horizonte: {{ horizonte_meses }} meses,
+            Rolling Plan Data: {{ "Disponible" if rolling_plan else "No disponible" }},
+            {% if rolling_plan %}
+                Mensual: {{ "Sí" if rolling_plan.rolling_plan_por_mes else "No" }},
+                Semanal: {{ "Sí" if rolling_plan.rolling_plan_por_semana else "No" }}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-refresh functionality for strategic view
     {% if vista == 'estrategico' %}
     console.log('Strategic capacity analysis loaded');
+    console.log('Rolling plan data:', {{ rolling_plan|tojson if rolling_plan else '{}' }});
+    console.log('Demanda jerarquica:', {{ demanda_jerarquica|tojson if demanda_jerarquica else '{}' }});
 
-    // Add any interactive functionality here
-    // For example, scenario simulation buttons, etc.
+    // Filter validation
+    const modoRollingSelect = document.getElementById('modoRollingSelect');
+    const horizonteSelect = document.querySelector('select[name="horizonte"]');
+    
+    if (modoRollingSelect && horizonteSelect) {
+        modoRollingSelect.addEventListener('change', function() {
+            if (this.value === 'semanal') {
+                // Limit horizon for weekly mode
+                if (parseInt(horizonteSelect.value) > 3) {
+                    horizonteSelect.value = '3';
+                    alert('Para modo semanal el horizonte se limitó a 3 meses para evitar demasiadas semanas.');
+                }
+            }
+        });
+    }
     {% endif %}
 });
 </script>
