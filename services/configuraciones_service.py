@@ -307,9 +307,14 @@ class ConfiguracionesService:
 
             # Verificar si el usuario tiene registros relacionados críticos
             # Aquí puedes agregar más verificaciones según tu lógica de negocio
-            proyectos_responsable = db.session.query(func.count(Proyecto.id)).filter_by(responsable=usuario_id).scalar()
-            if proyectos_responsable > 0:
-                return False, f"El usuario tiene {proyectos_responsable} proyectos asignados como responsable. Reasígnalos antes de eliminar."
+            try:
+                from models import Proyecto
+                proyectos_responsable = db.session.query(func.count(Proyecto.id)).filter_by(responsable=usuario_id).scalar()
+                if proyectos_responsable > 0:
+                    return False, f"El usuario tiene {proyectos_responsable} proyectos asignados como responsable. Reasígnalos antes de eliminar."
+            except ImportError:
+                # Si no existe el modelo Proyecto, continuar sin verificar
+                pass
 
             # Hacer soft delete (desactivar en lugar de eliminar)
             usuario.activo = False
