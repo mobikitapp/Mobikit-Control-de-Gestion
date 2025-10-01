@@ -270,22 +270,7 @@
         </div>
     </div>
 
-    <!-- Chart.js for commissions -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-chart-bar text-info"></i>
-                        Comisiones Adjudicadas Mensuales Consolidadas
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="monthlyCommissionsChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
+    
 
     <!-- Filters -->
     <div class="row mb-4">
@@ -489,46 +474,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Chart for monthly commissions
-    var ctx = document.getElementById('monthlyCommissionsChart').getContext('2d');
-    var monthlyCommissionsChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: {{ meses_actual_year | tojson }},
-            datasets: [{
-                label: 'Comisión Adjudicada Mensual',
-                data: {{ comisiones_mensuales_adjudicadas | tojson }},
-                backgroundColor: 'rgba(23, 162, 184, 0.6)',
-                borderColor: 'rgba(23, 162, 184, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-                title: {
-                    display: true,
-                    text: 'Comisiones Adjudicadas Mensuales'
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            if (value >= 1000) {
-                                return '$' + (value / 1000).toFixed(1) + 'K';
-                            }
-                            return '$' + value;
-                        }
-                    }
-                }
-            }
-        }
-    });
+    
 
     // Function to filter by salesperson
     window.filtrarPorVendedor = function(vendedorId) {
