@@ -467,12 +467,58 @@ def actualizar_comisiones():
         return redirect(url_for('configuraciones.comisiones'))
 
 
+# Ruta para cambio de contraseña del usuario logueado
+@configuraciones_bp.route('/cambiar-password', methods=['GET', 'POST'])
+@login_required
+def cambiar_password():
+    """Permite al usuario cambiar su contraseña"""
+    if request.method == 'GET':
+        return render_template('configuraciones/cambiar_password.html')
+
+    try:
+        password_actual = request.form.get('password_actual')
+        password_nueva = request.form.get('password_nueva')
+        password_confirmacion = request.form.get('password_confirmacion')
+
+        # Validaciones básicas
+        if not all([password_actual, password_nueva, password_confirmacion]):
+            flash('Todos los campos son obligatorios', 'error')
+            return render_template('configuraciones/cambiar_password.html')
+
+        if password_nueva != password_confirmacion:
+            flash('Las contraseñas nuevas no coinciden', 'error')
+            return render_template('configuraciones/cambiar_password.html')
+
+        if len(password_nueva) < 6:
+            flash('La nueva contraseña debe tener al menos 6 caracteres', 'error')
+            return render_template('configuraciones/cambiar_password.html')
+
+        # Cambiar contraseña usando el servicio
+        success, message = configuraciones_service.change_user_password(
+            current_user.id,
+            password_actual,
+            password_nueva
+        )
+
+        if success:
+            flash('Contraseña cambiada exitosamente', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash(f'Error: {message}', 'error')
+            return render_template('configuraciones/cambiar_password.html')
+
+    except Exception as e:
+        logger.error(f"Error cambiando contraseña para usuario {current_user.id}: {str(e)}")
+        flash('Error interno del servidor', 'error')
+        return render_template('configuraciones/cambiar_password.html')
+
+
 # API Routes
 @configuraciones_bp.route('/api/usuarios/<usuario_id>/reset-password', methods=['POST'])
 @login_required
 @role_required([RolUsuario.ADMIN])
-def api_reset_password(usuario_id):
-    """Reset user password"""
+def reset_password_usuario(usuario_id):
+    """API endpoint para resetear contraseña de usuario"""
     try:
         # service = ConfiguracionesService() # No longer needed here
 

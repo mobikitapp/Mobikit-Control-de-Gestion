@@ -288,6 +288,49 @@ class ConfiguracionesService:
             db.session.rollback()
             return False, f"Error al resetear contraseña: {str(e)}"
 
+    def change_user_password(self, usuario_id, password_actual, password_nueva):
+        """Permite al usuario cambiar su propia contraseña"""
+        try:
+            from werkzeug.security import check_password_hash, generate_password_hash
+            
+            usuario = User.query.get(usuario_id)
+            if not usuario:
+                return False, "Usuario no encontrado"
+
+            # Verificar contraseña actual
+            if not usuario.password_hash:
+                return False, "Usuario no tiene contraseña configurada"
+            
+            if not check_password_hash(usuario.password_hash, password_actual):
+                return False, "Contraseña actual incorrecta"
+
+            # Actualizar con nueva contraseña
+            usuario.password_hash = generate_password_hash(password_nueva)
+            usuario.updated_at = datetime.now()
+
+            # Crear registro de auditoría
+            audit_data = {
+                'accion': 'change_password',
+                'usuario_id': usuario_id,
+                'timestamp': datetime.now().isoformat()
+            }
+
+            audit_log = AuditLog(
+                entidad='users',
+                entidad_id=usuario_id,
+                accion='UPDATE',
+                actor=usuario_id,
+                payload=audit_data
+            )
+            db.session.add(audit_log)
+
+            db.session.commit()
+            return True, "Contraseña actualizada exitosamente"
+
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Error al cambiar contraseña: {str(e)}"
+
     def eliminar_usuario(self, usuario_id, current_user_id, hard_delete=False):
         """Elimina un usuario del sistema (soft delete por defecto, hard delete opcional)"""
         try:
