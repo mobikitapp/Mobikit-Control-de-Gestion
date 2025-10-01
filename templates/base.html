@@ -283,10 +283,12 @@
                                 <i data-feather="book-open" class="me-1"></i>
                                 Capacitación
                             </a></li>
+                            {% if current_user.password_hash %}
                             <li><a class="dropdown-item" href="{{ url_for('configuraciones.cambiar_password') }}">
                                 <i data-feather="key" class="me-1"></i>
                                 Cambiar Contraseña
                             </a></li>
+                            {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/auth/logout">
                                 <i data-feather="log-out" class="me-1"></i>

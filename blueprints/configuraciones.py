@@ -473,9 +473,17 @@ def actualizar_comisiones():
 def cambiar_password():
     """Permite al usuario cambiar su contraseña"""
     if request.method == 'GET':
+        # Verificar si el usuario puede cambiar contraseña
+        if not current_user.password_hash:
+            flash('Tu cuenta está autenticada vía Google/Replit. No puedes cambiar la contraseña desde aquí.', 'info')
         return render_template('configuraciones/cambiar_password.html')
 
     try:
+        # Verificar que el usuario pueda cambiar contraseña
+        if not current_user.password_hash:
+            flash('Tu cuenta está autenticada vía Google/Replit. No puedes cambiar la contraseña.', 'error')
+            return redirect(url_for('index'))
+
         password_actual = request.form.get('password_actual')
         password_nueva = request.form.get('password_nueva')
         password_confirmacion = request.form.get('password_confirmacion')
