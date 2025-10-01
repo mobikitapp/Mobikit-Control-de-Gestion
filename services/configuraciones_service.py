@@ -200,8 +200,12 @@ class ConfiguracionesService:
                 cambios.append(f"nombre: {usuario.first_name} → {datos_usuario['nombre']}")
             if usuario.email != datos_usuario['email']:
                 cambios.append(f"email: {usuario.email} → {datos_usuario['email']}")
-            if usuario.rol.value != datos_usuario['rol']:
-                cambios.append(f"rol: {usuario.rol.value} → {datos_usuario['rol']}")
+            
+            # Handle role comparison when it can be None
+            old_rol_value = usuario.rol.value if usuario.rol else None
+            new_rol_value = datos_usuario['rol']
+            if old_rol_value != new_rol_value:
+                cambios.append(f"rol: {old_rol_value or 'Sin asignar'} → {new_rol_value}")
 
             # Update user fields
             usuario.first_name = datos_usuario['nombre']
@@ -382,7 +386,7 @@ class ConfiguracionesService:
                 # Hard delete: eliminar físicamente de la base de datos
                 nombre_completo = usuario.nombre_completo
                 email = usuario.email
-                rol = usuario.rol.value
+                rol = usuario.rol.value if usuario.rol else 'Sin asignar'
 
                 # Crear registro de auditoría antes de eliminar
                 audit_data = {
@@ -417,7 +421,7 @@ class ConfiguracionesService:
                     'accion': 'soft_delete',
                     'usuario_eliminado': usuario.email,
                     'nombre_completo': usuario.nombre_completo,
-                    'rol': usuario.rol.value,
+                    'rol': usuario.rol.value if usuario.rol else 'Sin asignar',
                     'admin_id': current_user_id
                 }
 
@@ -685,11 +689,12 @@ class ConfiguracionesService:
 
         actividad = []
         for usuario in usuarios_recientes:
+            rol_display = usuario.rol.value if usuario.rol else 'Sin asignar'
             actividad.append({
                 'fecha': usuario.updated_at or usuario.created_at,
                 'accion': 'Usuario actualizado' if usuario.updated_at else 'Usuario creado',
                 'usuario': usuario.nombre_completo,
-                'detalles': f"Rol: {usuario.rol.value}, Estado: {'Activo' if usuario.activo else 'Inactivo'}"
+                'detalles': f"Rol: {rol_display}, Estado: {'Activo' if usuario.activo else 'Inactivo'}"
             })
 
         return actividad
