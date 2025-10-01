@@ -116,14 +116,105 @@ def make_session_permanent():
 
 @app.route('/health')
 def health():
-    """Health check endpoint for deployment monitoring"""
+    """Comprehensive health check endpoint for deployment monitoring"""
+    health_status = {
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat(),
+        'checks': {}
+    }
+    
+    overall_healthy = True
+    
+    # Check database connectivity
     try:
-        # Quick database check
         db.session.execute(db.text('SELECT 1'))
-        return jsonify({'status': 'healthy', 'database': 'connected'}), 200
+        health_status['checks']['database'] = {'status': 'ok', 'message': 'Connected'}
     except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return jsonify({'status': 'unhealthy', 'error': str(e)}), 503
+        logger.error(f"Database health check failed: {str(e)}")
+        health_status['checks']['database'] = {'status': 'error', 'message': 'Database connection failed'}
+        overall_healthy = False
+    
+    # Check required environment variables
+    required_env_vars = ['DATABASE_URL', 'SESSION_SECRET']
+    env_check = {'status': 'ok', 'missing': []}
+    
+    for var in required_env_vars:
+        if not os.environ.get(var):
+            env_check['status'] = 'error'
+            env_check['missing'].append(var)
+            overall_healthy = False
+    
+    health_status['checks']['environment'] = env_check
+    
+    # Check database pool status
+    try:
+        engine = db.engine
+        pool_status = engine.pool.status()
+        health_status['checks']['database_pool'] = {
+            'status': 'ok',
+            'pool_status': pool_status
+        }
+    except Exception as e:
+        logger.error(f"Database pool check failed: {str(e)}")
+        health_status['checks']['database_pool'] = {'status': 'warning', 'message': 'Pool status unavailable'}
+    
+    # Set overall status
+    health_status['status'] = 'healthy' if overall_healthy else 'unhealthy'
+    
+    return jsonify(health_status), 200 if overall_healthy else 503
+
+
+@app.route('/health/live')
+def health_liveness():
+    """Liveness probe - checks if the application is running"""
+    return jsonify({
+        'status': 'alive',
+        'timestamp': datetime.utcnow().isoformat()
+    }), 200
+
+
+@app.route('/health/ready')
+def health_readiness():
+    """Readiness probe - checks if the application is ready to serve traffic"""
+    ready_status = {
+        'status': 'ready',
+        'timestamp': datetime.utcnow().isoformat(),
+        'checks': {}
+    }
+    
+    is_ready = True
+    
+    # Check database connectivity
+    try:
+        db.session.execute(db.text('SELECT 1'))
+        ready_status['checks']['database'] = 'ok'
+    except Exception as e:
+        logger.error(f"Database readiness check failed: {str(e)}")
+        ready_status['checks']['database'] = 'failed'
+        is_ready = False
+    
+    # Check critical environment variables
+    required_vars = ['DATABASE_URL', 'SESSION_SECRET']
+    for var in required_vars:
+        if not os.environ.get(var):
+            ready_status['checks'][f'env_{var}'] = 'missing'
+            is_ready = False
+        else:
+            ready_status['checks'][f'env_{var}'] = 'ok'
+    
+    # Verify database tables exist
+    try:
+        from models import User
+        User.query.first()
+        ready_status['checks']['database_schema'] = 'ok'
+    except Exception as e:
+        logger.error(f"Database schema check failed: {str(e)}")
+        ready_status['checks']['database_schema'] = 'failed'
+        is_ready = False
+    
+    ready_status['status'] = 'ready' if is_ready else 'not_ready'
+    
+    return jsonify(ready_status), 200 if is_ready else 503
 
 @app.route('/')
 def index():
