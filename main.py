@@ -17,6 +17,11 @@ try:
     def moment_global():
         return datetime.now()
     
+    # Add now function for datetime access in templates
+    @app.template_global('now')
+    def now():
+        return datetime.now()
+    
     # Add timestamp function for cache busting
     @app.template_global('timestamp')
     def timestamp():

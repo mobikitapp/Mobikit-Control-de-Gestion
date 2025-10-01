@@ -11,7 +11,7 @@
             <p class="text-muted">Bienvenido, {{ current_user.first_name }}. Aquí tienes un resumen de tu actividad comercial.</p>
         </div>
         <div class="text-end">
-            <small class="text-muted">Última actualización: {{ moment().format('DD/MM/YYYY HH:mm') }}</small>
+            <small class="text-muted">Última actualización: {{ now().strftime('%d/%m/%Y %H:%M') }}</small>
         </div>
     </div>
 
@@ -219,7 +219,7 @@
                                     <div class="text-muted small">{{ cliente.email }}</div>
                                     {% if cliente.ultimo_contacto %}
                                         <div class="text-muted small">
-                                            Último contacto: {{ moment(cliente.ultimo_contacto).fromNow() }}
+                                            Último contacto: {{ cliente.ultimo_contacto.strftime('%d/%m/%Y') if cliente.ultimo_contacto else 'N/A' }}
                                         </div>
                                     {% endif %}
                                 </div>

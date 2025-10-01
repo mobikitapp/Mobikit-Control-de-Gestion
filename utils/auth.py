@@ -34,7 +34,10 @@ def admin_required(f):
 
 
 def role_required(allowed_roles):
-    """Decorator to require specific roles"""
+    """
+    Decorator to require specific roles.
+    Now integrates with dynamic permissions system.
+    """
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -49,6 +52,10 @@ def role_required(allowed_roles):
             if not current_user.activo:
                 abort(403)
             
+            # Admin always has access
+            if current_user.rol == RolUsuario.ADMIN:
+                return f(*args, **kwargs)
+            
             # Convert string roles to enum if needed
             roles_enum = []
             for role in allowed_roles:
@@ -57,10 +64,39 @@ def role_required(allowed_roles):
                 else:
                     roles_enum.append(role)
             
-            if current_user.rol not in roles_enum:
-                abort(403)
+            # Check if user has one of the allowed roles (static check)
+            if current_user.rol in roles_enum:
+                # User has the role, now check dynamic permissions
+                try:
+                    from flask import request
+                    from services.permisos_service import PermisosService
+                    
+                    # Try to get module code from blueprint name
+                    blueprint_name = request.blueprint
+                    if blueprint_name:
+                        service = PermisosService()
+                        user_role = current_user.rol.value if hasattr(current_user.rol, 'value') else str(current_user.rol)
+                        
+                        # Check dynamic permission (lectura by default)
+                        has_permission = service.verificar_permiso_dinamico(user_role, blueprint_name, 'lectura')
+                        
+                        if has_permission is True:
+                            # Dynamic permission explicitly allows
+                            return f(*args, **kwargs)
+                        elif has_permission is False:
+                            # Dynamic permission explicitly denies
+                            abort(403)
+                        # If has_permission is None, fall through to allow (static role was valid)
+                except Exception as e:
+                    # If dynamic check fails, log and fall through to static role check
+                    print(f"Dynamic permission check failed: {e}")
+                
+                # Static role check passed, allow access
+                return f(*args, **kwargs)
             
-            return f(*args, **kwargs)
+            # User doesn't have any of the allowed roles
+            abort(403)
+            
         return decorated_function
     return decorator
 
