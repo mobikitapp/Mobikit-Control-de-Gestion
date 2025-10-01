@@ -574,8 +574,13 @@ class ComercialService:
         config_service = ConfiguracionesService()
         comision_config = config_service.get_comision_vendedor(vendedor_id)
 
-        if not comision_config:
-            return []
+        # Si no hay configuración, usar valores por defecto
+        comision_provision_pct = Decimal('3.0')  # 3% por defecto
+        comision_instalacion_pct = Decimal('3.0')  # 3% por defecto
+        
+        if comision_config:
+            comision_provision_pct = comision_config.comision_provision_pct
+            comision_instalacion_pct = comision_config.comision_instalacion_pct
 
         comisiones_mensuales = []
 
@@ -593,19 +598,11 @@ class ComercialService:
                                Proyecto.activo.is_(True)
                            )
                            .filter(
-                               or_(
-                                   # Proyectos con fecha de adjudicación en este mes/año
-                                   and_(
-                                       Proyecto.fecha_adjudicacion.isnot(None),
-                                       extract('year', Proyecto.fecha_adjudicacion) == year,
-                                       extract('month', Proyecto.fecha_adjudicacion) == mes
-                                   ),
-                                   # Proyectos sin fecha de adjudicación pero en estado correcto (asignar al mes actual)
-                                   and_(
-                                       Proyecto.fecha_adjudicacion.is_(None),
-                                       extract('month', func.current_date()) == mes,
-                                       extract('year', func.current_date()) == year
-                                   )
+                               # Solo proyectos con fecha de adjudicación en este mes/año
+                               and_(
+                                   Proyecto.fecha_adjudicacion.isnot(None),
+                                   extract('year', Proyecto.fecha_adjudicacion) == year,
+                                   extract('month', Proyecto.fecha_adjudicacion) == mes
                                )
                            )
                            .all())
@@ -617,11 +614,11 @@ class ComercialService:
             for proyecto in proyectos_mes:
                 if proyecto.monto_provision_presupuestado:
                     comision_provision_mes += (proyecto.monto_provision_presupuestado * 
-                                              comision_config.comision_provision_pct / 100)
+                                              comision_provision_pct / 100)
 
                 if proyecto.monto_instalacion_presupuestado:
                     comision_instalacion_mes += (proyecto.monto_instalacion_presupuestado * 
-                                                comision_config.comision_instalacion_pct / 100)
+                                                comision_instalacion_pct / 100)
 
             comision_total_mes = comision_provision_mes + comision_instalacion_mes
 
@@ -631,7 +628,19 @@ class ComercialService:
                 'comision_provision': float(comision_provision_mes),
                 'comision_instalacion': float(comision_instalacion_mes),
                 'comision_total': float(comision_total_mes),
-                'proyectos_adjudicados': total_proyectos_mes
+                'proyectos_adjudicados': total_proyectos_mes,
+                'proyectos_detalle': [
+                    {
+                        'id': p.id,
+                        'nombre': p.nombre,
+                        'cliente': p.cliente.nombre if p.cliente else 'Sin cliente',
+                        'fecha_adjudicacion': p.fecha_adjudicacion.strftime('%d/%m/%Y') if p.fecha_adjudicacion else 'Sin fecha',
+                        'monto_provision': float(p.monto_provision_presupuestado or 0),
+                        'monto_instalacion': float(p.monto_instalacion_presupuestado or 0),
+                        'comision_provision': float((p.monto_provision_presupuestado or Decimal('0')) * comision_provision_pct / 100),
+                        'comision_instalacion': float((p.monto_instalacion_presupuestado or Decimal('0')) * comision_instalacion_pct / 100)
+                    } for p in proyectos_mes
+                ]
             })
 
         return comisiones_mensuales

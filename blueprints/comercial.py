@@ -729,3 +729,52 @@ def api_revenue_calcular_proyectos_año(anio):
             'success': False,
             'error': str(e)
         }), 500
+
+
+@comercial_bp.route('/api/vendedor/<string:vendedor_id>/comisiones/<int:anio>')
+@login_required
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+def api_vendedor_comisiones_detalle(vendedor_id, anio):
+    """API: Get detailed commission data for a salesperson"""
+    try:
+        service = ComercialService()
+        
+        # Get commission details
+        comisiones_data = service._calcular_comisiones_mensuales(vendedor_id, anio)
+        
+        # Get commission configuration
+        from services.configuraciones_service import ConfiguracionesService
+        config_service = ConfiguracionesService()
+        comision_config = config_service.get_comision_vendedor(vendedor_id)
+        
+        # Get vendedor info
+        vendedor = db.session.get(User, vendedor_id)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'vendedor': {
+                    'id': vendedor.id,
+                    'nombre': vendedor.nombre_completo,
+                    'email': vendedor.email
+                },
+                'configuracion': {
+                    'comision_provision_pct': float(comision_config.comision_provision_pct) if comision_config else 3.0,
+                    'comision_instalacion_pct': float(comision_config.comision_instalacion_pct) if comision_config else 3.0
+                },
+                'comisiones_mensuales': comisiones_data,
+                'resumen': {
+                    'total_provision': sum(m['comision_provision'] for m in comisiones_data),
+                    'total_instalacion': sum(m['comision_instalacion'] for m in comisiones_data),
+                    'total_general': sum(m['comision_total'] for m in comisiones_data),
+                    'meses_con_comisiones': len([m for m in comisiones_data if m['comision_total'] > 0]),
+                    'proyectos_totales': sum(m['proyectos_adjudicados'] for m in comisiones_data)
+                }
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
