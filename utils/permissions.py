@@ -1,106 +1,210 @@
 
 """
 Sistema de permisos granular para Mobikit
+Nomenclatura unificada en español para consistencia con sistema dinámico
 """
 
 # Definición de permisos específicos
 PERMISSIONS = {
     # Gestión de usuarios
-    'users.view': ['admin'],
-    'users.create': ['admin'],
-    'users.edit': ['admin'],
-    'users.delete': ['admin'],
+    'usuarios.lectura': ['admin'],
+    'usuarios.creacion': ['admin'],
+    'usuarios.edicion': ['admin'],
+    'usuarios.eliminacion': ['admin'],
     
     # Clientes
-    'clients.view': ['admin', 'general', 'ventas', 'finanzas'],
-    'clients.create': ['admin', 'general'],
-    'clients.edit': ['admin', 'general'],
-    'clients.delete': ['admin'],
+    'clientes.lectura': ['admin', 'general', 'ventas', 'finanzas'],
+    'clientes.creacion': ['admin', 'general'],
+    'clientes.edicion': ['admin', 'general'],
+    'clientes.eliminacion': ['admin'],
     
     # Proyectos
-    'projects.view': ['admin', 'general', 'ventas', 'finanzas'],
-    'projects.create': ['admin', 'general', 'ventas'],
-    'projects.edit': ['admin', 'general', 'ventas'],
-    'projects.delete': ['admin'],
-    'projects.archive': ['admin', 'general'],
+    'proyectos.lectura': ['admin', 'general', 'ventas', 'finanzas'],
+    'proyectos.creacion': ['admin', 'general', 'ventas'],
+    'proyectos.edicion': ['admin', 'general', 'ventas'],
+    'proyectos.eliminacion': ['admin'],
+    'proyectos.archivo': ['admin', 'general'],
     
-    # Órdenes de compra
-    'orders.view': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
-    'orders.create': ['admin', 'general', 'ventas', 'finanzas'],
-    'orders.edit': ['admin', 'general', 'finanzas'],
-    'orders.delete': ['admin'],
-    'orders.approve': ['admin', 'general'],
+    # Contratos y Órdenes de Compra
+    'contratos.lectura': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
+    'contratos.creacion': ['admin', 'general', 'ventas', 'finanzas'],
+    'contratos.edicion': ['admin', 'general', 'finanzas'],
+    'contratos.eliminacion': ['admin'],
+    'contratos.aprobacion': ['admin', 'general'],
+    'contratos.archivo': ['admin', 'general'],
     
     # Fabricación
-    'manufacturing.view': ['admin', 'general', 'operaciones', 'finanzas'],
-    'manufacturing.create': ['admin', 'general', 'operaciones'],
-    'manufacturing.edit': ['admin', 'general', 'operaciones'],
-    'manufacturing.process': ['admin', 'general', 'operaciones'],
+    'fabricacion.lectura': ['admin', 'general', 'operaciones', 'produccion', 'finanzas'],
+    'fabricacion.creacion': ['admin', 'general', 'operaciones', 'produccion'],
+    'fabricacion.edicion': ['admin', 'general', 'operaciones', 'produccion'],
+    'fabricacion.eliminacion': ['admin'],
+    'fabricacion.proceso': ['admin', 'general', 'operaciones', 'produccion'],
     
     # Despachos
-    'dispatch.view': ['admin', 'general', 'logistica', 'finanzas'],
-    'dispatch.create': ['admin', 'general', 'logistica'],
-    'dispatch.edit': ['admin', 'general', 'logistica'],
-    'dispatch.process': ['admin', 'general', 'logistica'],
+    'despachos.lectura': ['admin', 'general', 'logistica', 'finanzas'],
+    'despachos.creacion': ['admin', 'general', 'logistica'],
+    'despachos.edicion': ['admin', 'general', 'logistica'],
+    'despachos.eliminacion': ['admin'],
+    'despachos.proceso': ['admin', 'general', 'logistica'],
+    'despachos.archivo': ['admin', 'general'],
     
-    # Reportes y configuraciones
-    'reports.view': ['admin', 'general', 'finanzas'],
-    'config.view': ['admin'],
-    'config.edit': ['admin'],
+    # Dashboard Comercial
+    'comercial.lectura': ['admin', 'general', 'ventas', 'finanzas'],
+    
+    # Finanzas
+    'finanzas.lectura': ['admin', 'general', 'finanzas'],
+    'finanzas.creacion': ['admin', 'general', 'finanzas'],
+    'finanzas.edicion': ['admin', 'general', 'finanzas'],
+    
+    # Configuraciones del Sistema
+    'configuraciones.lectura': ['admin', 'general'],
+    'configuraciones.edicion': ['admin'],
     
     # Planificación
-    'planning.view': ['admin', 'general', 'ventas', 'finanzas'],
-    'planning.edit': ['admin', 'general'],
+    'planificacion.lectura': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
+    'planificacion.creacion': ['admin', 'general'],
+    'planificacion.edicion': ['admin', 'general'],
+    
+    # Áreas
+    'areas.lectura': ['admin', 'general', 'operaciones', 'produccion'],
     
     # Dashboard Personal del Vendedor
-    'mi_dashboard.view': ['ventas'],
+    'mi_dashboard.lectura': ['ventas'],
     'mi_dashboard.mis_clientes': ['ventas'],
     'mi_dashboard.mis_proyectos': ['ventas'],
     'mi_dashboard.estadisticas': ['ventas'],
+}
+
+# Mapa de sinónimos para compatibilidad con código antiguo
+PERMISSION_SYNONYMS = {
+    # Módulos (inglés y variaciones)
+    'users': 'usuarios',
+    'clients': 'clientes',
+    'projects': 'proyectos',
+    'orders': 'contratos',
+    'purchase_orders': 'contratos',
+    'oc': 'contratos',
+    'po': 'contratos',
+    'ordenes': 'contratos',
+    'ordenes_compra': 'contratos',
+    'manufacturing': 'fabricacion',
+    'dispatch': 'despachos',
+    'despacho': 'despachos',
+    'commercial': 'comercial',
+    'finance': 'finanzas',
+    'reports': 'finanzas',  # reportes financieros mapeados a finanzas
+    'reportes': 'finanzas',
+    'config': 'configuraciones',
+    'planning': 'planificacion',
+    'calendar': 'planificacion',
+    'calendario': 'planificacion',
+    'areas': 'areas',
+    
+    # Tipos de permisos (inglés y español)
+    'view': 'lectura',
+    'ver': 'lectura',
+    'read': 'lectura',
+    'leer': 'lectura',
+    'create': 'creacion',
+    'crear': 'creacion',
+    'add': 'creacion',
+    'agregar': 'creacion',
+    'edit': 'edicion',
+    'editar': 'edicion',
+    'update': 'edicion',
+    'actualizar': 'edicion',
+    'delete': 'eliminacion',
+    'eliminar': 'eliminacion',
+    'remove': 'eliminacion',
+    'remover': 'eliminacion',
+    'process': 'proceso',
+    'procesar': 'proceso',
+    'approve': 'aprobacion',
+    'aprobar': 'aprobacion',
+    'archive': 'archivo',
+    'archivar': 'archivo',
 }
 
 # Permisos por rol (resumen)
 ROLE_PERMISSIONS = {
     'admin': 'all',  # Acceso completo
     'general': [
-        'clients.view', 'clients.create', 'clients.edit', 'clients.delete',
-        'projects.view', 'projects.create', 'projects.edit', 'projects.delete', 'projects.archive',
-        'orders.view', 'orders.create', 'orders.edit', 'orders.delete', 'orders.approve',
-        'manufacturing.view', 'manufacturing.create', 'manufacturing.edit', 'manufacturing.process',
-        'dispatch.view', 'dispatch.create', 'dispatch.edit', 'dispatch.process',
-        'reports.view', 'planning.view', 'planning.edit',
-        'config.view'  # Solo ver configuraciones, no editar
+        'clientes.lectura', 'clientes.creacion', 'clientes.edicion', 'clientes.eliminacion',
+        'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion', 'proyectos.eliminacion', 'proyectos.archivo',
+        'contratos.lectura', 'contratos.creacion', 'contratos.edicion', 'contratos.eliminacion', 'contratos.aprobacion', 'contratos.archivo',
+        'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
+        'despachos.lectura', 'despachos.creacion', 'despachos.edicion', 'despachos.proceso', 'despachos.archivo',
+        'comercial.lectura', 'finanzas.lectura', 'finanzas.creacion', 'finanzas.edicion',
+        'planificacion.lectura', 'planificacion.creacion', 'planificacion.edicion',
+        'areas.lectura',
+        'configuraciones.lectura'  # Solo ver configuraciones, no editar
     ],
     'ventas': [
-        'clients.view', 'projects.view', 'projects.create', 'projects.edit',
-        'orders.view', 'orders.create', 'planning.view',
-        'mi_dashboard.view', 'mi_dashboard.mis_clientes', 'mi_dashboard.mis_proyectos', 'mi_dashboard.estadisticas'
+        'clientes.lectura', 
+        'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion',
+        'contratos.lectura', 'contratos.creacion', 
+        'comercial.lectura',
+        'planificacion.lectura',
+        'mi_dashboard.lectura', 'mi_dashboard.mis_clientes', 'mi_dashboard.mis_proyectos', 'mi_dashboard.estadisticas'
     ],
     'operaciones': [
-        'orders.view', 'manufacturing.view', 'manufacturing.create', 
-        'manufacturing.edit', 'manufacturing.process'
+        'contratos.lectura', 
+        'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
+        'planificacion.lectura',
+        'areas.lectura'
     ],
     'produccion': [
-        'orders.view', 'manufacturing.view', 'manufacturing.create', 'manufacturing.edit'
+        'contratos.lectura', 
+        'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
+        'areas.lectura'
     ],
     'logistica': [
-        'orders.view', 'dispatch.view', 'dispatch.create', 
-        'dispatch.edit', 'dispatch.process'
+        'contratos.lectura', 
+        'despachos.lectura', 'despachos.creacion', 'despachos.edicion', 'despachos.proceso'
     ],
     'finanzas': [
-        'clients.view', 'projects.view', 'orders.view', 'orders.create', 'orders.edit',
-        'manufacturing.view', 'dispatch.view', 'reports.view', 'planning.view'
+        'clientes.lectura', 
+        'proyectos.lectura', 
+        'contratos.lectura', 'contratos.creacion', 'contratos.edicion',
+        'fabricacion.lectura', 
+        'despachos.lectura', 
+        'comercial.lectura',
+        'finanzas.lectura', 'finanzas.creacion', 'finanzas.edicion',
+        'planificacion.lectura'
     ]
 }
+
+def normalize_permission(permission):
+    """
+    Normaliza un permiso usando el mapa de sinónimos
+    Ejemplo: 'clients.view' -> 'clientes.lectura'
+    Ejemplo: 'Clients.View' -> 'clientes.lectura' (case insensitive)
+    """
+    if not permission:
+        return permission
+        
+    # Convertir a minúsculas para case insensitivity
+    permission = permission.lower().strip()
+    
+    if '.' in permission:
+        modulo, tipo = permission.split('.', 1)
+        modulo_norm = PERMISSION_SYNONYMS.get(modulo, modulo)
+        tipo_norm = PERMISSION_SYNONYMS.get(tipo, tipo)
+        return f"{modulo_norm}.{tipo_norm}"
+    return permission
 
 def has_permission(user_role, permission):
     """
     Verifica si un rol tiene un permiso específico
     Admin siempre tiene acceso total, luego intenta sistema dinámico y fallback estático
+    Soporta tanto nomenclatura nueva (español) como antigua (inglés) mediante normalización
     """
     # Admin siempre tiene todos los permisos - CRÍTICO: debe ser la primera verificación
     if user_role == 'admin':
         return True
+    
+    # Normalizar el permiso para soportar nomenclatura antigua
+    permission_normalized = normalize_permission(permission)
     
     # Intentar usar el sistema dinámico de permisos solo para roles no-admin
     try:
@@ -108,8 +212,8 @@ def has_permission(user_role, permission):
         service = PermisosService()
         
         # Parsear el permiso (formato: modulo.tipo_permiso)
-        if '.' in permission:
-            modulo_codigo, tipo_permiso_codigo = permission.split('.', 1)
+        if '.' in permission_normalized:
+            modulo_codigo, tipo_permiso_codigo = permission_normalized.split('.', 1)
             resultado = service.verificar_permiso_dinamico(user_role, modulo_codigo, tipo_permiso_codigo)
             
             # Si el sistema dinámico devuelve un resultado explícito (True o False), usarlo
@@ -120,9 +224,9 @@ def has_permission(user_role, permission):
         # Si falla el sistema dinámico, usar el sistema estático como fallback
         pass
     
-    # Sistema de permisos estático (fallback)
-    if permission in PERMISSIONS:
-        return user_role in PERMISSIONS[permission]
+    # Sistema de permisos estático (fallback) - usar permiso normalizado
+    if permission_normalized in PERMISSIONS:
+        return user_role in PERMISSIONS[permission_normalized]
     
     return False
 
