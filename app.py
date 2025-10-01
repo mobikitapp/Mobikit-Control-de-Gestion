@@ -42,7 +42,6 @@ def create_app():
     with app.app_context():
         # Import models to ensure they are registered
         import models  # noqa: F401
-        from models import RolUsuario
 
         # Create tables
         db.create_all()
@@ -62,6 +61,9 @@ def create_app():
         if not current_user.is_authenticated:
             return False
 
+        # Import RolUsuario here to avoid circular import
+        from models import RolUsuario
+        
         # Admin always has access
         if current_user.rol == RolUsuario.ADMIN:
             return True
