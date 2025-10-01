@@ -61,12 +61,12 @@
                     <form method="GET" class="row g-3" id="filtrosForm">
                         <div class="col-md-2">
                             <label class="form-label">Fecha Inicio</label>
-                            <input type="date" class="form-control" name="fecha_inicio" 
+                            <input type="date" class="form-control" name="fecha_inicio"
                                    value="{{ filtros_aplicados.fecha_inicio }}">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Fecha Fin</label>
-                            <input type="date" class="form-control" name="fecha_fin" 
+                            <input type="date" class="form-control" name="fecha_fin"
                                    value="{{ filtros_aplicados.fecha_fin }}">
                         </div>
                         <div class="col-md-2">
@@ -120,7 +120,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-layer-group text-info"></i> 
+                        <i class="fas fa-layer-group text-info"></i>
                         Productividad por Tipo de Proyecto
                     </h5>
                 </div>
@@ -183,7 +183,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-industry text-warning"></i> 
+                        <i class="fas fa-industry text-warning"></i>
                         Productividad por Área de Manufactura
                     </h5>
                 </div>
@@ -325,7 +325,7 @@
                                 </table>
                             </div>
                         </div>
-                        
+
                         <!-- Correlaciones por Área -->
                         <div class="col-md-6">
                             <h6 class="text-info">Correlaciones por Área</h6>
@@ -470,11 +470,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cargar datos para gráficos
     loadScatterPlots();
     {% endif %}
-    
+
     // Auto-submit form on filter change
     const filtrosForm = document.getElementById('filtrosForm');
     const selects = filtrosForm.querySelectorAll('select, input[type="date"]');
-    
+
     selects.forEach(select => {
         select.addEventListener('change', function() {
             filtrosForm.submit();
@@ -485,7 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadScatterPlots() {
     // Obtener filtros actuales
     const params = new URLSearchParams(window.location.search);
-    
+
     // Cargar datos para gráficos
     fetch('/planificacion-operacional/api/scatter-data?' + params.toString())
         .then(response => response.json())
@@ -500,14 +500,14 @@ function loadScatterPlots() {
 
 function renderScatterTipoProyecto(data) {
     const ctx = document.getElementById('scatterTipoProyecto').getContext('2d');
-    
+
     const datasets = [];
     const colors = {
         'SOCIAL': 'rgba(54, 162, 235, 0.8)',
         'ESTANDAR': 'rgba(75, 192, 192, 0.8)',
         'ESPECIAL': 'rgba(255, 99, 132, 0.8)'
     };
-    
+
     Object.keys(data).forEach(tipo => {
         if (data[tipo] && data[tipo].length > 0) {
             datasets.push({
@@ -520,7 +520,7 @@ function renderScatterTipoProyecto(data) {
             });
         }
     });
-    
+
     new Chart(ctx, {
         type: 'scatter',
         data: { datasets: datasets },
@@ -571,13 +571,13 @@ function renderScatterTipoProyecto(data) {
 
 function renderScatterArea(data) {
     const ctx = document.getElementById('scatterArea').getContext('2d');
-    
+
     const datasets = [];
     const colors = {
         'fabrica': 'rgba(255, 159, 64, 0.8)',
         'embalaje': 'rgba(153, 102, 255, 0.8)'
     };
-    
+
     Object.keys(data).forEach(area => {
         if (data[area] && data[area].length > 0) {
             datasets.push({
@@ -590,7 +590,7 @@ function renderScatterArea(data) {
             });
         }
     });
-    
+
     new Chart(ctx, {
         type: 'scatter',
         data: { datasets: datasets },
@@ -643,10 +643,10 @@ function showOFDetail(ofId) {
     // Mostrar modal con detalles de la OF
     const modalContent = document.getElementById('ofDetailContent');
     modalContent.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>';
-    
+
     const modal = new bootstrap.Modal(document.getElementById('ofDetailModal'));
     modal.show();
-    
+
     // Simular carga de detalles (aquí se haría una llamada real a la API)
     setTimeout(() => {
         modalContent.innerHTML = `

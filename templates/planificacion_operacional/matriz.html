@@ -140,7 +140,7 @@
                                 {% set total_tableros = 0 %}
                                 {% set total_area = 0 %}
                                 {% set total_proyectos = 0 %}
-                                
+
                                 {% for mes in range(mes_inicio, mes_fin + 1) %}
                                 {% if mes in matriz %}
                                 {% set mes_data = matriz[mes] %}
@@ -148,11 +148,11 @@
                                 {% set total_tableros = total_tableros + mes_data.total_tableros %}
                                 {% set total_area = total_area + mes_data.total_area_m2 %}
                                 {% set total_proyectos = total_proyectos + mes_data.proyectos|length %}
-                                
+
                                 <!-- Capacity indicator -->
                                 {% set capacidad_porcentaje = (mes_data.total_tableros / 500) * 100 %}
                                 {% set clase_capacidad = 'table-success' if capacidad_porcentaje < 70 else 'table-warning' if capacidad_porcentaje < 90 else 'table-danger' %}
-                                
+
                                 <tr class="{{ clase_capacidad if mes_data.proyectos else '' }}">
                                     <td>
                                         <strong>{{ mes_data.mes_nombre[:3] }}</strong>
@@ -204,7 +204,7 @@
                                 </tr>
                                 {% endif %}
                                 {% endfor %}
-                                
+
                                 <!-- Totals Row -->
                                 <tr class="table-info">
                                     <td><strong>TOTAL</strong></td>
@@ -274,7 +274,7 @@
                         <i class="fas fa-chart-area"></i> Análisis de Capacidad
                     </a>
                     <a href="{{ url_for('planificacion_operacional.configuracion_conversion') }}" class="btn btn-outline-secondary me-2">
-                        <i class="fas fa-cog"></i> Configurar Factores
+                        <i class="fas fa-cog"></i> Parámetros Operacionales
                     </a>
                     <button class="btn btn-outline-info" onclick="window.print()">
                         <i class="fas fa-print"></i> Imprimir Matriz
@@ -333,12 +333,12 @@
 function calcularRapido() {
     const monto = document.getElementById('montoCalculo').value;
     const material = document.getElementById('materialCalculo').value;
-    
+
     if (!monto) {
         alert('Por favor ingrese un monto');
         return;
     }
-    
+
     fetch('/planificacion-operacional/api/calcular-tableros', {
         method: 'POST',
         headers: {
