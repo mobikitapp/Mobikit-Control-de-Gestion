@@ -26,29 +26,44 @@ def process_form_data(form_data, is_update=False):
     processed = {}
 
     for key, value in form_data.items():
+        # Handle empty values
         if value == '' or value is None:
             if is_update:
                 continue  # Skip empty values in updates
             else:
                 processed[key] = None
-        elif key in ['cliente_id']:
-            processed[key] = int(value) if value else None
-
+            continue
+            
+        # Handle integer fields
+        if key in ['cliente_id', 'numero_viviendas', 'centro_costo']:
+            try:
+                processed[key] = int(value) if value else None
+            except (ValueError, TypeError):
+                processed[key] = None
+        
+        # Handle decimal fields
         elif key in ['monto_provision_presupuestado', 'margen_venta_provision',
                      'monto_instalacion_presupuestado', 'margen_venta_instalacion',
                      'monto_provision_presupuestado_uf', 'monto_instalacion_presupuestado_uf',
                      'valor_uf_presupuesto']:
-            processed[key] = Decimal(str(value)) if value else None
-        elif key == 'numero_viviendas':
-            processed[key] = int(value) if value else None
+            try:
+                processed[key] = Decimal(str(value)) if value else None
+            except (ValueError, TypeError):
+                processed[key] = None
+        
+        # Handle date fields
         elif key in ['fecha_inicio', 'fecha_fin_estimada', 'fecha_fin_real',
-                     'fecha_presupuesto', 'fecha_adjudicacion']:
+                     'fecha_presupuesto', 'fecha_adjudicacion', 'fecha_conversion_presupuesto_uf']:
             try:
                 processed[key] = datetime.strptime(value, '%Y-%m-%d').date() if value else None
             except ValueError:
                 processed[key] = None
-        elif key == 'estado_comercial':
+        
+        # Handle enum fields
+        elif key in ['estado_comercial', 'tipo_proyecto', 'tipo_vivienda', 'moneda_original_presupuesto']:
             processed[key] = value if value else None
+        
+        # Handle string fields
         else:
             processed[key] = value
 
@@ -277,18 +292,23 @@ def eliminar(proyecto_id):
             flash('Proyecto no encontrado', 'error')
             return redirect(url_for('proyectos.index'))
 
+        proyecto_nombre = proyecto.nombre
         success = proyectos_service.delete_proyecto(proyecto_id)
 
         if success:
-            flash(f'Proyecto "{proyecto.nombre}" eliminado exitosamente', 'success')
+            flash(f'Proyecto "{proyecto_nombre}" eliminado exitosamente', 'success')
         else:
-            flash('Error al eliminar proyecto', 'error')
+            flash('Error al eliminar proyecto - puede tener datos relacionados', 'error')
 
         return redirect(url_for('proyectos.index'))
 
+    except ValueError as ve:
+        logger.warning(f"Business rule error deleting project {proyecto_id}: {str(ve)}")
+        flash(f'No se puede eliminar el proyecto: {str(ve)}', 'warning')
+        return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
     except Exception as e:
         logger.error(f"Error deleting project {proyecto_id}: {str(e)}")
-        flash('Error al eliminar proyecto', 'error')
+        flash('Error interno al eliminar proyecto', 'error')
         return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
 
 @proyectos_bp.route('/<int:proyecto_id>/adjuntos', methods=['GET', 'POST'])

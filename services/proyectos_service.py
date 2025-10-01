@@ -217,13 +217,14 @@ class ProyectosService:
                 }
             return None
 
-    def update_proyecto(self, proyecto_id: int, update_data: Dict[str, Any]) -> Proyecto:
+    def update_proyecto(self, proyecto_id: int, update_data: Dict[str, Any], user_id: str) -> Proyecto:
         """
         Update proyecto with validation and audit logging
 
         Args:
             proyecto_id: Proyecto ID to update
             update_data: Dictionary with fields to update
+            user_id: User ID performing the update
 
         Returns:
             Updated Proyecto instance
@@ -237,12 +238,17 @@ class ProyectosService:
             datos_anteriores = serialize_model(proyecto)
 
             # Validate cliente if updating cliente_id
-            if 'cliente_id' in update_data and update_data['cliente_id'] != proyecto.cliente_id:
-                cliente = self.clientes_repo.get_by_id(update_data['cliente_id'])
-                if not cliente:
-                    raise ValueError(f"Cliente {update_data['cliente_id']} no encontrado")
-                if not cliente.activo:
-                    raise ValueError(f"Cliente {cliente.nombre} está inactivo")
+            if 'cliente_id' in update_data and update_data.get('cliente_id') != proyecto.cliente_id:
+                if update_data['cliente_id']:
+                    cliente = self.clientes_repo.get_by_id(update_data['cliente_id'])
+                    if not cliente:
+                        raise ValueError(f"Cliente {update_data['cliente_id']} no encontrado")
+                    if not cliente.activo:
+                        raise ValueError(f"Cliente {cliente.nombre} está inactivo")
+
+            # Process UF conversion if applicable
+            if any(key in update_data for key in ['monto_provision_presupuestado_uf', 'monto_instalacion_presupuestado_uf']):
+                update_data = self._process_uf_conversion(update_data)
 
             # Update proyecto
             proyecto_actualizado = self.repo.update(proyecto, update_data)
@@ -265,6 +271,10 @@ class ProyectosService:
             logger.info(f"Proyecto actualizado: {proyecto_id} - {proyecto_actualizado.nombre}")
             return proyecto_actualizado
 
+        except ValueError:
+            # Re-raise validation errors as-is
+            db.session.rollback()
+            raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error actualizando proyecto {proyecto_id}: {str(e)}")
@@ -287,57 +297,96 @@ class ProyectosService:
 
             # Check if proyecto has related records that prevent deletion
             if proyecto.contratos:
-                contratos_vigentes = [c for c in proyecto.contratos if c.estado.value == 'VIGENTE']
+                contratos_vigentes = [c for c in proyecto.contratos if hasattr(c, 'estado') and c.estado and c.estado.value == 'VIGENTE']
                 if contratos_vigentes:
-                    raise ValueError("No se puede eliminar el proyecto porque tiene contratos vigentes asociados")
+                    contratos_info = [f"{c.numero_oc}" for c in contratos_vigentes]
+                    raise ValueError(f"No se puede eliminar el proyecto porque tiene contratos vigentes: {', '.join(contratos_info)}")
             
             if proyecto.ordenes_fabricacion:
-                ofs_activas = [of for of in proyecto.ordenes_fabricacion if hasattr(of, 'area_progreso_actual') and of.area_progreso_actual]
+                ofs_activas = []
+                for of in proyecto.ordenes_fabricacion:
+                    try:
+                        if hasattr(of, 'area_progreso_actual') and of.area_progreso_actual:
+                            ofs_activas.append(of)
+                    except Exception:
+                        # Fallback check if there's an error accessing area_progreso_actual
+                        continue
+                
                 if ofs_activas:
-                    raise ValueError("No se puede eliminar el proyecto porque tiene órdenes de fabricación en proceso")
+                    ofs_info = [f"{of.codigo}" for of in ofs_activas]
+                    raise ValueError(f"No se puede eliminar el proyecto porque tiene órdenes de fabricación en proceso: {', '.join(ofs_info)}")
             
             if proyecto.despachos:
-                despachos_pendientes = [d for d in proyecto.despachos if d.estado.value in ['PROGRAMADO', 'EN_TRANSPORTE']]
+                despachos_pendientes = [d for d in proyecto.despachos if hasattr(d, 'estado') and d.estado and d.estado.value in ['PROGRAMADO', 'EN_TRANSPORTE']]
                 if despachos_pendientes:
-                    raise ValueError("No se puede eliminar el proyecto porque tiene despachos pendientes")
+                    despachos_info = [f"{d.numero_despacho}" for d in despachos_pendientes]
+                    raise ValueError(f"No se puede eliminar el proyecto porque tiene despachos pendientes: {', '.join(despachos_info)}")
 
             # Store original data for audit
             datos_anteriores = serialize_model(proyecto)
+            proyecto_nombre = proyecto.nombre
 
             # Delete related records manually to ensure proper cleanup
-            # Delete bitacora entries first
-            from models import BitacoraProyecto
-            BitacoraProyecto.query.filter_by(proyecto_id=proyecto_id).delete()
-            
-            # Delete other related records
-            if proyecto.tareas_comerciales:
-                for tarea in proyecto.tareas_comerciales:
-                    db.session.delete(tarea)
-            
-            if proyecto.eventos_entrega:
-                for evento in proyecto.eventos_entrega:
-                    db.session.delete(evento)
-            
-            # Now delete the proyecto
-            success = self.repo.delete(proyecto)
+            try:
+                # Delete bitacora entries first
+                from models import BitacoraProyecto
+                bitacora_count = BitacoraProyecto.query.filter_by(proyecto_id=proyecto_id).count()
+                if bitacora_count > 0:
+                    BitacoraProyecto.query.filter_by(proyecto_id=proyecto_id).delete()
+                    logger.info(f"Deleted {bitacora_count} bitacora entries for proyecto {proyecto_id}")
+                
+                # Delete tareas comerciales
+                if proyecto.tareas_comerciales:
+                    for tarea in proyecto.tareas_comerciales:
+                        db.session.delete(tarea)
+                    logger.info(f"Deleted {len(proyecto.tareas_comerciales)} tareas comerciales for proyecto {proyecto_id}")
+                
+                # Delete eventos entrega
+                if proyecto.eventos_entrega:
+                    for evento in proyecto.eventos_entrega:
+                        db.session.delete(evento)
+                    logger.info(f"Deleted {len(proyecto.eventos_entrega)} eventos entrega for proyecto {proyecto_id}")
+                
+                # Delete proyecto adjuntos
+                if hasattr(proyecto, 'adjuntos') and proyecto.adjuntos:
+                    for adjunto in proyecto.adjuntos:
+                        # Try to delete file from storage
+                        try:
+                            from services.storage_service import StorageService
+                            storage_service = StorageService()
+                            storage_service.delete_file(adjunto.storage_key)
+                        except Exception as storage_error:
+                            logger.warning(f"Error deleting file from storage: {storage_error}")
+                        db.session.delete(adjunto)
+                    logger.info(f"Deleted {len(proyecto.adjuntos)} adjuntos for proyecto {proyecto_id}")
+                
+                # Now delete the proyecto
+                success = self.repo.delete(proyecto)
 
-            if success:
-                # Commit transaction
-                db.session.commit()
+                if success:
+                    # Commit transaction
+                    db.session.commit()
 
-                # Log audit
-                AuditService.log_action(
-                    'proyectos', 
-                    proyecto_id, 
-                    'DELETE',
-                    datos_anteriores=datos_anteriores
-                )
+                    # Log audit
+                    AuditService.log_action(
+                        'proyectos', 
+                        proyecto_id, 
+                        'DELETE',
+                        datos_anteriores=datos_anteriores
+                    )
 
-                logger.info(f"Proyecto eliminado: {proyecto_id} - {proyecto.nombre}")
-                return True
+                    logger.info(f"Proyecto eliminado exitosamente: {proyecto_id} - {proyecto_nombre}")
+                    return True
 
-            return False
+                return False
 
+            except Exception as cleanup_error:
+                logger.error(f"Error during cleanup for proyecto {proyecto_id}: {str(cleanup_error)}")
+                raise
+
+        except ValueError:
+            # Re-raise validation errors as-is
+            raise
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error eliminando proyecto {proyecto_id}: {str(e)}")
