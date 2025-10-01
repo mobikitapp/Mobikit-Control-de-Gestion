@@ -114,6 +114,17 @@ app.register_blueprint(finanzas_bp, url_prefix="/finanzas")
 def make_session_permanent():
     session.permanent = True
 
+@app.route('/health')
+def health():
+    """Health check endpoint for deployment monitoring"""
+    try:
+        # Quick database check
+        db.session.execute(db.text('SELECT 1'))
+        return jsonify({'status': 'healthy', 'database': 'connected'}), 200
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 503
+
 @app.route('/')
 def index():
     """Landing page for logged out users, dashboard for logged in users"""
@@ -126,7 +137,11 @@ def index():
     try:
         # Get complete dashboard data based on user role
         dashboard_service = DashboardService()
-        dashboard_data = dashboard_service.get_dashboard_data(current_user._get_current_object())
+        # Type assertion: current_user is User because is_authenticated is True
+        user = current_user._get_current_object()
+        if not isinstance(user, User):
+            raise ValueError("Invalid user object")
+        dashboard_data = dashboard_service.get_dashboard_data(user)
         
         return render_template('index.html', 
                              dashboard=dashboard_data,
