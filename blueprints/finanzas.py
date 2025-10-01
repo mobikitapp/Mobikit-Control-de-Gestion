@@ -26,8 +26,43 @@ logger = logging.getLogger(__name__)
 finanzas_bp = Blueprint('finanzas', __name__)
 
 def finanzas_required(f):
-    """Decorador para requerir permiso de finanzas usando el sistema dinámico de permisos"""
+    """Decorador para requerir permiso de lectura en finanzas"""
     return require_permission('finanzas', 'lectura')(f)
+
+def finanzas_create_required(f):
+    """Decorador para requerir permiso de creación en finanzas"""
+    return require_permission('finanzas', 'creacion')(f)
+
+def finanzas_edit_required(f):
+    """Decorador para requerir permiso de edición en finanzas"""
+    return require_permission('finanzas', 'edicion')(f)
+
+def finanzas_delete_required(f):
+    """Decorador para requerir permiso de eliminación en finanzas"""
+    return require_permission('finanzas', 'eliminacion')(f)
+
+def finanzas_write_required(f):
+    """Decorador inteligente que requiere lectura para GET y creación/edición para POST"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method == 'GET':
+            # Para GET, solo requiere lectura
+            return require_permission('finanzas', 'lectura')(f)(*args, **kwargs)
+        elif request.method == 'POST':
+            # Para POST, requiere creación o edición según el nombre de la función
+            # Más robusto que verificar el path
+            func_name = f.__name__
+            if 'nuevo' in func_name or 'crear' in func_name:
+                return require_permission('finanzas', 'creacion')(f)(*args, **kwargs)
+            elif 'editar' in func_name or 'actualizar' in func_name:
+                return require_permission('finanzas', 'edicion')(f)(*args, **kwargs)
+            else:
+                # Por defecto, requiere creación para POST
+                return require_permission('finanzas', 'creacion')(f)(*args, **kwargs)
+        else:
+            # Para otros métodos (PUT, DELETE, etc.), requiere edición
+            return require_permission('finanzas', 'edicion')(f)(*args, **kwargs)
+    return decorated_function
 
 @finanzas_bp.route('/')
 @finanzas_bp.route('/dashboard')
@@ -342,7 +377,7 @@ def estados_pago_contrato(contrato_id):
 
 @finanzas_bp.route('/contrato/<int:contrato_id>/estado/nuevo', methods=['GET', 'POST'])
 @login_required
-@finanzas_required
+@finanzas_write_required
 def nuevo_estado_pago(contrato_id):
     """Crear nuevo estado de pago para un contrato"""
     try:
@@ -465,7 +500,7 @@ def nuevo_estado_pago(contrato_id):
 
 @finanzas_bp.route('/estado-pago/<int:estado_id>/editar', methods=['GET', 'POST'])
 @login_required
-@finanzas_required
+@finanzas_write_required
 def editar_estado_pago(estado_id):
     """Editar un estado de pago existente"""
     try:
@@ -608,7 +643,7 @@ def editar_estado_pago(estado_id):
 
 @finanzas_bp.route('/estado-pago/<int:estado_id>/eliminar', methods=['DELETE'])
 @login_required
-@finanzas_required
+@finanzas_delete_required
 def eliminar_estado_pago(estado_id):
     """Eliminar un estado de pago"""
     try:
@@ -686,7 +721,7 @@ def costos_proyecto(proyecto_id):
 
 @finanzas_bp.route('/proyecto/<int:proyecto_id>/costo/nuevo', methods=['GET', 'POST'])
 @login_required
-@finanzas_required
+@finanzas_write_required
 def nuevo_costo_proyecto(proyecto_id):
     """Registrar nuevo costo desde ERP"""
     try:
