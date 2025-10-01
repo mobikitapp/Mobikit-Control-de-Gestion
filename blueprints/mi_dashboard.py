@@ -6,7 +6,6 @@ Permite a cada vendedor ver sus métricas, clientes y proyectos personales
 from flask import Blueprint, render_template, request, current_app
 from flask_login import login_required, current_user
 from utils.auth import require_permission
-from models import RolUsuario
 from services.dashboard_vendedor_service import DashboardVendedorService
 
 mi_dashboard_bp = Blueprint('mi_dashboard', __name__, url_prefix='/mi-dashboard')
