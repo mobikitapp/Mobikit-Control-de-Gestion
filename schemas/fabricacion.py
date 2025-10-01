@@ -150,8 +150,6 @@ class OrdenFabricacionCreate(OrdenFabricacionBase):
                 }
             }
         }
-            }
-        }
 
 class OrdenFabricacionUpdate(BaseModel):
     proyecto_id: Optional[int] = None
