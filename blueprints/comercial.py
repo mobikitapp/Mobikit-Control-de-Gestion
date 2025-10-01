@@ -24,28 +24,8 @@ comercial_bp = Blueprint('comercial', __name__)
 @login_required
 @role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def centro_vendedores():
-    """Centro de vendedores - Vista principal del área comercial"""
-    try:
-        service = ComercialService()
-
-        # Get filters from request
-        cliente_id = request.args.get('cliente_id', type=int)
-        vendedor_id = request.args.get('vendedor_id')
-        estado_comercial = request.args.get('estado_comercial')
-
-        # Get data for the sales center
-        data = service.get_centro_vendedores_data(
-            current_user_id=current_user.id,
-            cliente_id=cliente_id,
-            vendedor_id=vendedor_id,
-            estado_comercial=estado_comercial
-        )
-
-        return render_template('comercial/centro_vendedores.html', **data)
-
-    except Exception as e:
-        flash(f'Error al cargar centro de vendedores: {str(e)}', 'error')
-        return redirect(url_for('index'))
+    """Redirige a lista de vendedores"""
+    return redirect(url_for('comercial.lista_vendedores'))
 
 
 @comercial_bp.route('/vendedores')
@@ -175,7 +155,7 @@ def proyecto_comercial(proyecto_id):
 
         if not proyecto_data:
             flash('Proyecto no encontrado o sin acceso', 'error')
-            return redirect(url_for('comercial.centro_vendedores'))
+            return redirect(url_for('comercial.lista_vendedores'))
 
         # Verificar permisos específicos del usuario
         from flask_login import current_user
@@ -183,7 +163,7 @@ def proyecto_comercial(proyecto_id):
         if proyecto and current_user.rol.value not in ['admin', 'general']:
             if proyecto.vendedor_id != current_user.id:
                 flash('No tienes permisos para editar este proyecto', 'warning')
-                return redirect(url_for('comercial.centro_vendedores'))
+                return redirect(url_for('comercial.lista_vendedores'))
 
         return render_template('comercial/proyecto_comercial.html', **proyecto_data)
 
@@ -247,7 +227,7 @@ def tareas_comerciales():
 
     except Exception as e:
         flash(f'Error al cargar tareas: {str(e)}', 'error')
-        return redirect(url_for('comercial.centro_vendedores'))
+        return redirect(url_for('comercial.lista_vendedores'))
 
 
 @comercial_bp.route('/tarea/<int:tarea_id>/completar', methods=['POST'])
@@ -305,7 +285,7 @@ def planificacion_comercial():
 
     except Exception as e:
         flash(f'Error al cargar planificación comercial: {str(e)}', 'error')
-        return redirect(url_for('comercial.centro_vendedores'))
+        return redirect(url_for('comercial.lista_vendedores'))
 
 
 @comercial_bp.route('/objetivos')
@@ -323,7 +303,7 @@ def objetivos_mensuales():
 
     except Exception as e:
         flash(f'Error al cargar objetivos: {str(e)}', 'error')
-        return redirect(url_for('comercial.centro_vendedores'))
+        return redirect(url_for('comercial.lista_vendedores'))
 
 
 @comercial_bp.route('/objetivos/actualizar', methods=['POST'])
@@ -550,7 +530,7 @@ def revenue_management():
 
     except Exception as e:
         flash(f'Error al cargar Revenue Management: {str(e)}', 'error')
-        return redirect(url_for('comercial.centro_vendedores'))
+        return redirect(url_for('comercial.lista_vendedores'))
 
 
 @comercial_bp.route('/api/revenue/meses')
