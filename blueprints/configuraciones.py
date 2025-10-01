@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, session
 from flask_login import current_user, login_required
 from sqlalchemy import and_, or_, func
 from datetime import datetime
@@ -26,6 +26,7 @@ configuraciones_bp = Blueprint('configuraciones', __name__)
 
 # Initialize services
 notification_service = NotificationService()
+configuraciones_service = ConfiguracionesService() # Initialize service here
 
 @configuraciones_bp.route('/')
 @configuraciones_bp.route('/dashboard')
@@ -34,10 +35,10 @@ notification_service = NotificationService()
 def dashboard():
     """Dashboard principal de configuraciones"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Get summary statistics
-        stats = service.get_configuraciones_stats()
+        stats = configuraciones_service.get_configuraciones_stats()
 
         return render_template('configuraciones/dashboard.html', **stats)
 
@@ -52,7 +53,7 @@ def dashboard():
 def usuarios():
     """Lista de usuarios del sistema"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Get filters from request
         rol = request.args.get('rol')
@@ -60,7 +61,7 @@ def usuarios():
         estado = request.args.get('estado')  # activo/inactivo
 
         # Get users data
-        data = service.get_usuarios_lista(
+        data = configuraciones_service.get_usuarios_lista(
             rol=rol,
             busqueda=busqueda,
             estado=estado
@@ -79,10 +80,10 @@ def usuarios():
 def nuevo_usuario():
     """Formulario para crear nuevo usuario"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Get roles available
-        roles = service.get_roles_disponibles()
+        roles = configuraciones_service.get_roles_disponibles()
 
         return render_template('configuraciones/usuario_form.html',
                              roles=roles, usuario=None, accion='crear')
@@ -98,7 +99,7 @@ def nuevo_usuario():
 def crear_usuario():
     """Crear nuevo usuario"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Get form data
         datos_usuario = {
@@ -116,7 +117,7 @@ def crear_usuario():
             return redirect(url_for('configuraciones.nuevo_usuario'))
 
         # Create user
-        success, mensaje, temp_password = service.crear_usuario(datos_usuario, current_user.id)
+        success, mensaje, temp_password = configuraciones_service.crear_usuario(datos_usuario, current_user.id)
 
         if success:
             # Show success message with temporary password
@@ -141,16 +142,16 @@ def crear_usuario():
 def editar_usuario(usuario_id):
     """Formulario para editar usuario"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Get user data
-        usuario = service.get_usuario_by_id(usuario_id)
+        usuario = configuraciones_service.get_usuario_by_id(usuario_id)
         if not usuario:
             flash('Usuario no encontrado', 'error')
             return redirect(url_for('configuraciones.usuarios'))
 
         # Get roles available
-        roles = service.get_roles_disponibles()
+        roles = configuraciones_service.get_roles_disponibles()
 
         return render_template('configuraciones/usuario_form.html',
                              roles=roles, usuario=usuario, accion='editar')
@@ -166,7 +167,7 @@ def editar_usuario(usuario_id):
 def actualizar_usuario(usuario_id):
     """Actualizar usuario existente"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Get form data
         datos_usuario = {
@@ -184,7 +185,7 @@ def actualizar_usuario(usuario_id):
             return redirect(url_for('configuraciones.editar_usuario', usuario_id=usuario_id))
 
         # Update user
-        success, mensaje = service.actualizar_usuario(usuario_id, datos_usuario, current_user.id)
+        success, mensaje = configuraciones_service.actualizar_usuario(usuario_id, datos_usuario, current_user.id)
 
         if success:
             flash(f'Usuario actualizado exitosamente', 'success')
@@ -204,7 +205,7 @@ def actualizar_usuario(usuario_id):
 def cambiar_estado_usuario(usuario_id):
     """Activar/desactivar usuario"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Cannot deactivate yourself
         if usuario_id == current_user.id:
@@ -212,7 +213,7 @@ def cambiar_estado_usuario(usuario_id):
             return redirect(url_for('configuraciones.usuarios'))
 
         # Change status
-        success, mensaje = service.cambiar_estado_usuario(usuario_id, current_user.id)
+        success, mensaje = configuraciones_service.cambiar_estado_usuario(usuario_id, current_user.id)
 
         if success:
             flash(mensaje, 'success')
@@ -231,10 +232,10 @@ def cambiar_estado_usuario(usuario_id):
 def eliminar_usuario(usuario_id):
     """Eliminar usuario del sistema"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Eliminar usuario
-        success, mensaje = service.eliminar_usuario(usuario_id, current_user.id)
+        success, mensaje = configuraciones_service.eliminar_usuario(usuario_id, current_user.id)
 
         if success:
             flash(mensaje, 'success')
@@ -253,10 +254,10 @@ def eliminar_usuario(usuario_id):
 def roles():
     """Gestión de roles y permisos"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Get roles data with permissions
-        data = service.get_roles_permisos()
+        data = configuraciones_service.get_roles_permisos()
 
         return render_template('configuraciones/roles.html', **data)
 
@@ -271,10 +272,10 @@ def roles():
 def permisos():
     """Vista detallada de permisos por módulo"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Get permissions matrix
-        data = service.get_matriz_permisos()
+        data = configuraciones_service.get_matriz_permisos()
 
         return render_template('configuraciones/permisos.html', **data)
 
@@ -289,10 +290,10 @@ def permisos():
 def configuracion_sistema():
     """Configuración general del sistema"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Get system configuration
-        data = service.get_configuracion_sistema()
+        data = configuraciones_service.get_configuracion_sistema()
 
         return render_template('configuraciones/sistema.html', **data)
 
@@ -322,8 +323,8 @@ def actualizar_factores():
         if not (0 <= factor_fabrica <= 1) or not (0 <= factor_embalaje <= 1):
             return jsonify({'error': 'Los factores deben estar entre 0 y 1'}), 400
 
-        service = ConfiguracionesService()
-        success = service.actualizar_factores_tiempo(
+        # service = ConfiguracionesService() # No longer needed here
+        success = configuraciones_service.actualizar_factores_tiempo(
             factor_fabrica=factor_fabrica,
             factor_embalaje=factor_embalaje,
             usuario_id=current_user.id
@@ -371,8 +372,8 @@ def actualizar_capacidad():
             if value <= 0:
                 return jsonify({'error': f'El valor de {key} debe ser mayor a 0'}), 400
 
-        service = ConfiguracionesService()
-        success = service.actualizar_configuracion_capacidad(capacidad_data, current_user.id)
+        # service = ConfiguracionesService() # No longer needed here
+        success = configuraciones_service.actualizar_configuracion_capacidad(capacidad_data, current_user.id)
 
         if success:
             return jsonify({
@@ -393,8 +394,8 @@ def actualizar_capacidad():
 def comisiones():
     """Commission configuration page"""
     try:
-        service = ConfiguracionesService()
-        data = service.get_comisiones_vendedores()
+        # service = ConfiguracionesService() # No longer needed here
+        data = configuraciones_service.get_comisiones_vendedores()
 
         return render_template('configuraciones/comisiones.html', **data)
 
@@ -409,7 +410,7 @@ def comisiones():
 def actualizar_comisiones():
     """Update commission settings"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Process form data for each seller
         errores = []
@@ -425,7 +426,7 @@ def actualizar_comisiones():
                 comision_instalacion = float(request.form.get(comision_instalacion_key, 3.0))
 
                 # Update commission
-                success, message = service.actualizar_comision_vendedor(
+                success, message = configuraciones_service.actualizar_comision_vendedor(
                     vendedor_id, comision_provision, comision_instalacion, current_user.id
                 )
 
@@ -455,10 +456,10 @@ def actualizar_comisiones():
 def api_reset_password(usuario_id):
     """Reset user password"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Generate new password
-        success, nueva_password = service.reset_password_usuario(usuario_id, current_user.id)
+        success, nueva_password = configuraciones_service.reset_password_usuario(usuario_id, current_user.id)
 
         if success:
             return jsonify({
@@ -485,9 +486,9 @@ def api_reset_password(usuario_id):
 def api_usuarios_stats():
     """Get user statistics"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
-        stats = service.get_usuarios_stats()
+        stats = configuraciones_service.get_usuarios_stats()
 
         return jsonify({
             'success': True,
@@ -507,14 +508,14 @@ def api_usuarios_stats():
 def api_audit_log():
     """Get audit log for user changes"""
     try:
-        service = ConfiguracionesService()
+        # service = ConfiguracionesService() # No longer needed here
 
         # Get filters
         limit = request.args.get('limit', 50, type=int)
         usuario_id = request.args.get('usuario_id')
         accion = request.args.get('accion')
 
-        audit_log = service.get_audit_log(limit=limit, usuario_id=usuario_id, accion=accion)
+        audit_log = configuraciones_service.get_audit_log(limit=limit, usuario_id=usuario_id, accion=accion)
 
         return jsonify({
             'success': True,
@@ -789,7 +790,7 @@ def ver_auditoria_permisos():
 @role_required([RolUsuario.ADMIN])
 def limpiar_cache():
     """Endpoint para limpiar caché de la aplicación"""
-    logger = logging.getLogger(__name__)
+    # logger = logging.getLogger(__name__) # Already defined globally
 
     try:
         logger.info("Iniciando limpieza de caché...")

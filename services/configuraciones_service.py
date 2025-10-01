@@ -7,7 +7,7 @@ import string
 import logging
 
 from app import db
-from models import User, RolUsuario, ComisionVendedor, AuditLog, Proyecto
+from models import User, RolUsuario, ComisionVendedor, AuditLog
 from services.email_service import EmailService
 
 logger = logging.getLogger(__name__)
@@ -291,7 +291,8 @@ class ConfiguracionesService:
     def eliminar_usuario(self, usuario_id, current_user_id):
         """Elimina un usuario del sistema (soft delete)"""
         try:
-            usuario = User.query.get(usuario_id)
+            # Obtener usuario a eliminar
+            usuario = db.session.query(User).filter_by(id=usuario_id).first()
             if not usuario:
                 return False, "Usuario no encontrado"
 
@@ -301,20 +302,29 @@ class ConfiguracionesService:
 
             # Verificar si es el último admin
             if usuario.rol == RolUsuario.ADMIN:
-                admin_count = User.query.filter_by(rol=RolUsuario.ADMIN, activo=True).count()
+                admin_count = db.session.query(User).filter_by(rol=RolUsuario.ADMIN, activo=True).count()
                 if admin_count <= 1:
                     return False, "No se puede eliminar el último administrador del sistema"
 
             # Verificar si el usuario tiene registros relacionados críticos
-            # Aquí puedes agregar más verificaciones según tu lógica de negocio
             try:
+                # Importar Proyecto dentro del try para evitar circular imports
                 from models import Proyecto
                 proyectos_responsable = db.session.query(func.count(Proyecto.id)).filter_by(responsable=usuario_id).scalar()
-                if proyectos_responsable > 0:
+                if proyectos_responsable and proyectos_responsable > 0:
                     return False, f"El usuario tiene {proyectos_responsable} proyectos asignados como responsable. Reasígnalos antes de eliminar."
+                
+                # Verificar proyectos como vendedor
+                proyectos_vendedor = db.session.query(func.count(Proyecto.id)).filter_by(vendedor_id=usuario_id).scalar()
+                if proyectos_vendedor and proyectos_vendedor > 0:
+                    return False, f"El usuario tiene {proyectos_vendedor} proyectos asignados como vendedor. Reasígnalos antes de eliminar."
+                    
             except ImportError:
                 # Si no existe el modelo Proyecto, continuar sin verificar
+                logger.warning("Modelo Proyecto no encontrado, omitiendo verificación de proyectos")
                 pass
+            except Exception as e:
+                logger.warning(f"Error verificando proyectos del usuario: {str(e)}")
 
             # Hacer soft delete (desactivar en lugar de eliminar)
             usuario.activo = False
@@ -343,6 +353,7 @@ class ConfiguracionesService:
 
         except Exception as e:
             db.session.rollback()
+            logger.error(f"Error al eliminar usuario {usuario_id}: {str(e)}")
             return False, f"Error al eliminar usuario: {str(e)}"
 
     def get_roles_permisos(self):
