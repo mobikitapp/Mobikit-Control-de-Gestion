@@ -81,6 +81,22 @@ The system follows a modular blueprint architecture with clear separation of con
 
 ## Recent Changes
 
+### 2025-10-01: Notification System Separation - User View vs Admin Configuration
+- **Separated notification functionality into two distinct systems**:
+  - **User notifications** (`/configuraciones/mis-notificaciones`): All authenticated users can view their notifications (messages/alerts from the system)
+  - **Admin preferences** (`/configuraciones/notificaciones`): Admin-only access to configure notification preferences
+- **New Features**:
+  - Notificacion model in SQLAlchemy with proper indexes and relationships
+  - User-facing template showing notification history with read/unread status
+  - Mark individual notifications as read or bulk mark all as read
+  - Visual indicators (badges, icons) based on notification type
+  - Link moved to user profile dropdown menu for universal access
+- **Security**: All operations use current_user.id server-side to prevent IDOR vulnerabilities
+- **Technical Notes**: 
+  - New POST endpoints use JSON/fetch (exception to guideline #5) for better UX on mark-as-read operations
+  - CSRF protection consideration: endpoints validate user server-side, low impact state changes
+- **Purpose**: Provide clear separation between viewing system notifications (all users) and configuring notification preferences (admin only)
+
 ### 2025-10-01: Production Deployment and Health Check Improvements
 - **Implemented comprehensive health check system** with three specialized endpoints for deployment monitoring
 - **Key Features**:

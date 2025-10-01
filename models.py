@@ -1595,6 +1595,32 @@ class BitacoraProyecto(db.Model):
         return f'<BitacoraProyecto {self.id}: {self.proyecto_id}>'
 
 
+class Notificacion(db.Model):
+    """Notificaciones del sistema para usuarios"""
+    __tablename__ = 'notificaciones'
+
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
+    tipo = db.Column(db.String(50), nullable=False)
+    titulo = db.Column(db.String(255), nullable=False)
+    mensaje = db.Column(db.Text, nullable=False)
+    url_accion = db.Column(db.String(500))
+    metadatos = db.Column(db.Text)
+    leida = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
+
+    usuario = db.relationship('User', backref=db.backref('notificaciones', lazy='dynamic'))
+
+    __table_args__ = (
+        Index('idx_notificaciones_usuario', 'usuario_id'),
+        Index('idx_notificaciones_leida', 'leida'),
+        Index('idx_notificaciones_created', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f'<Notificacion {self.id}: {self.titulo}>'
+
+
 class NotificationPreferences(db.Model):
     """Preferencias de notificación por usuario"""
     __tablename__ = 'notification_preferences'

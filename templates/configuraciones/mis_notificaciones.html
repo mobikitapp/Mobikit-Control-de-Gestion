@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% set title = "Mis Notificaciones" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">
+                                <i class="fas fa-bell text-primary"></i>
+                                Mis Notificaciones
+                            </h4>
+                            <p class="mb-0 text-muted">Historial de notificaciones y alertas del sistema</p>
+                        </div>
+                        <div>
+                            {% if notificaciones_no_leidas > 0 %}
+                            <button id="marcarTodasLeidas" class="btn btn-sm btn-outline-primary me-2">
+                                <i class="fas fa-check-double"></i> Marcar todas como leídas
+                            </button>
+                            {% endif %}
+                            <span class="badge bg-primary">
+                                {{ notificaciones_no_leidas }} sin leer
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    {% if notificaciones %}
+                        <div class="list-group">
+                            {% for notif in notificaciones %}
+                            <div class="list-group-item list-group-item-action {% if not notif.leida %}border-left-primary bg-light{% endif %}" 
+                                 data-notif-id="{{ notif.id }}">
+                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center mb-2">
+                                            {% if notif.tipo == 'success' %}
+                                                <i class="fas fa-check-circle text-success me-2"></i>
+                                            {% elif notif.tipo == 'warning' %}
+                                                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                                            {% elif notif.tipo == 'error' %}
+                                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                            {% else %}
+                                                <i class="fas fa-info-circle text-info me-2"></i>
+                                            {% endif %}
+                                            <h6 class="mb-0">{{ notif.titulo }}</h6>
+                                            {% if not notif.leida %}
+                                                <span class="badge bg-primary ms-2">Nuevo</span>
+                                            {% endif %}
+                                        </div>
+                                        <p class="mb-2">{{ notif.mensaje }}</p>
+                                        <small class="text-muted">
+                                            <i class="far fa-clock"></i> 
+                                            {{ notif.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                        </small>
+                                    </div>
+                                    <div class="ms-3 d-flex flex-column align-items-end">
+                                        {% if notif.url_accion %}
+                                        <a href="{{ notif.url_accion }}" class="btn btn-sm btn-outline-primary mb-2">
+                                            <i class="fas fa-external-link-alt"></i> Ver
+                                        </a>
+                                        {% endif %}
+                                        {% if not notif.leida %}
+                                        <button class="btn btn-sm btn-outline-secondary marcar-leida" 
+                                                data-notif-id="{{ notif.id }}">
+                                            <i class="fas fa-check"></i> Marcar leída
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        {% if notificaciones|length >= 50 %}
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle"></i>
+                            Mostrando las últimas 50 notificaciones. Las notificaciones más antiguas se eliminan automáticamente.
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                            <h5 class="text-muted">No tienes notificaciones</h5>
+                            <p class="text-muted">Cuando el sistema genere alertas o notificaciones, aparecerán aquí</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.marcar-leida').forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const notifId = this.getAttribute('data-notif-id');
+            marcarNotificacionLeida(notifId);
+        });
+    });
+
+    const marcarTodasBtn = document.getElementById('marcarTodasLeidas');
+    if (marcarTodasBtn) {
+        marcarTodasBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            marcarTodasLeidas();
+        });
+    }
+});
+
+function marcarNotificacionLeida(notifId) {
+    fetch(`{{ url_for('configuraciones.marcar_notificacion_leida') }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notificacion_id: notifId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error al marcar notificación como leída');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al marcar notificación como leída');
+    });
+}
+
+function marcarTodasLeidas() {
+    if (!confirm('¿Marcar todas las notificaciones como leídas?')) {
+        return;
+    }
+
+    fetch(`{{ url_for('configuraciones.marcar_todas_leidas') }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error al marcar notificaciones como leídas');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al marcar notificaciones como leídas');
+    });
+}
+</script>
+
+<style>
+.border-left-primary {
+    border-left: 4px solid #4e73df !important;
+}
+
+.list-group-item {
+    transition: all 0.2s;
+}
+
+.list-group-item:hover {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+</style>
+{% endblock %}

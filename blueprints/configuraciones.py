@@ -15,7 +15,7 @@ from sqlalchemy import text
 logger = logging.getLogger(__name__)
 
 from app import db
-from models import User, RolUsuario, NotificationPreferences, TipoNotificacion
+from models import User, RolUsuario, NotificationPreferences, TipoNotificacion, Notificacion
 from services.configuraciones_service import ConfiguracionesService
 from services.permisos_service import PermisosService
 from services.notification_service import NotificationService
@@ -1073,11 +1073,91 @@ def limpiar_datos():
 
 
 # =============================================================================
-# PREFERENCIAS DE NOTIFICACIONES
+# NOTIFICACIONES DEL USUARIO
+# =============================================================================
+
+@configuraciones_bp.route('/mis-notificaciones')
+@require_login
+def mis_notificaciones():
+    """Ver notificaciones del usuario (acceso universal)"""
+    try:
+        notificaciones = Notificacion.query.filter_by(usuario_id=current_user.id)\
+            .order_by(Notificacion.created_at.desc())\
+            .limit(50)\
+            .all()
+        
+        notificaciones_no_leidas = Notificacion.query.filter_by(
+            usuario_id=current_user.id,
+            leida=False
+        ).count()
+
+        return render_template('configuraciones/mis_notificaciones.html',
+                             notificaciones=notificaciones,
+                             notificaciones_no_leidas=notificaciones_no_leidas)
+
+    except Exception as e:
+        logger.error(f"Error al cargar notificaciones para usuario {current_user.id}: {str(e)}")
+        flash(f'Error al cargar notificaciones: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+
+@configuraciones_bp.route('/notificacion/marcar-leida', methods=['POST'])
+@require_login
+def marcar_notificacion_leida():
+    """Marcar una notificación como leída"""
+    try:
+        data = request.get_json()
+        notif_id = data.get('notificacion_id')
+        
+        if not notif_id:
+            return jsonify({'success': False, 'message': 'ID de notificación requerido'}), 400
+        
+        notificacion = Notificacion.query.filter_by(
+            id=notif_id,
+            usuario_id=current_user.id
+        ).first()
+        
+        if not notificacion:
+            return jsonify({'success': False, 'message': 'Notificación no encontrada'}), 404
+        
+        notificacion.leida = True
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Notificación marcada como leída'})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al marcar notificación {notif_id} como leída: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
+@configuraciones_bp.route('/notificaciones/marcar-todas-leidas', methods=['POST'])
+@require_login
+def marcar_todas_leidas():
+    """Marcar todas las notificaciones del usuario como leídas"""
+    try:
+        Notificacion.query.filter_by(
+            usuario_id=current_user.id,
+            leida=False
+        ).update({'leida': True})
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Todas las notificaciones marcadas como leídas'})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al marcar todas las notificaciones como leídas: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
+# =============================================================================
+# PREFERENCIAS DE NOTIFICACIONES (SOLO ADMIN)
 # =============================================================================
 
 @configuraciones_bp.route('/notificaciones')
-@require_login
+@login_required
+@role_required([RolUsuario.ADMIN])
 def notificaciones():
     """Panel de configuración de notificaciones del usuario"""
     try:
@@ -1137,7 +1217,8 @@ def notificaciones():
 
 
 @configuraciones_bp.route('/notificaciones', methods=['POST'])
-@require_login
+@login_required
+@role_required([RolUsuario.ADMIN])
 def actualizar_notificaciones():
     """Actualizar preferencias de notificaciones del usuario"""
     try:
@@ -1169,7 +1250,8 @@ def actualizar_notificaciones():
 
 
 @configuraciones_bp.route('/notificaciones/test', methods=['POST'])
-@require_login
+@login_required
+@role_required([RolUsuario.ADMIN])
 def test_notificacion():
     """Enviar notificación de prueba"""
     try:
