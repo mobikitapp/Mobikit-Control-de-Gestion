@@ -242,14 +242,6 @@
                                 <li><a class="dropdown-item" href="{{ url_for('configuraciones.comisiones') }}"><i class="fas fa-percentage"></i> Comisiones</a></li>
                             </ul>
                         </li>
-                    {% elif current_user.is_authenticated and current_user.rol.value in ['general', 'operaciones', 'produccion', 'logistica'] %}
-                    <!-- Configuraciones para usuarios no-admin que tienen acceso a notificaciones -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('configuraciones.notificaciones') }}">
-                            <i data-feather="bell" class="me-1"></i>
-                            Notificaciones
-                        </a>
-                    </li>
                     {% endif %}
 
                     <!-- Mi Dashboard (solo para ventas) -->
@@ -295,6 +287,10 @@
                                 {{ current_user.email or current_user.id }}
                             </small></li>
                             <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.notificaciones') }}">
+                                <i data-feather="bell" class="me-1"></i>
+                                Notificaciones
+                            </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('capacitacion.index') }}">
                                 <i data-feather="book-open" class="me-1"></i>
                                 Capacitación
