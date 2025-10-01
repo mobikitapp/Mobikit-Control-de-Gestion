@@ -236,7 +236,7 @@ class User(UserMixin, db.Model):
     profile_image_url = db.Column(db.String, nullable=True)
 
     # Additional fields for the manufacturing app
-    rol = db.Column(db.Enum(RolUsuario), default=RolUsuario.OPERACIONES, nullable=False)
+    rol = db.Column(db.Enum(RolUsuario), nullable=True)
     activo = db.Column(db.Boolean, default=True, nullable=False)
     
     # Campo para contraseña temporal (opcional para usuarios de Replit Auth)

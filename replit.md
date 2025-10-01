@@ -81,6 +81,26 @@ The system follows a modular blueprint architecture with clear separation of con
 
 ## Recent Changes
 
+### 2025-10-01: Security Enhancement - Role-Based Registration System
+- **Implemented secure role assignment system** to prevent unauthorized access from new users
+- **Key Changes**:
+  - Modified User model: `rol` field now nullable without default value
+  - New users register without assigned role (rol=NULL)
+  - Users without role see provisional "Acceso Pendiente" page
+  - Only administrators can assign roles from user management panel
+- **Security Implementations**:
+  - Corrected `save_user()` function to preserve admin-assigned roles across logins
+  - Uses fetch-or-create pattern, only updates profile fields (email, first_name, last_name, profile_image_url)
+  - Never touches `rol` or `activo` fields after initial creation
+  - Global `before_request` guard blocks authenticated users without role from all routes
+  - Dual-layer protection: decorators + global guard for defense-in-depth
+- **UX Improvements**:
+  - Professional "sin_rol.html" template with animated design
+  - Clear instructions for new users
+  - "Sin Rol" badge in user list for pending approvals
+  - Forms handle null roles gracefully without errors
+- **Purpose**: Prevent security risk of unauthorized users accessing the system immediately upon registration
+
 ### 2025-10-01: Notification System Separation - User View vs Admin Configuration
 - **Separated notification functionality into two distinct systems**:
   - **User notifications** (`/configuraciones/mis-notificaciones`): All authenticated users can view their notifications (messages/alerts from the system)

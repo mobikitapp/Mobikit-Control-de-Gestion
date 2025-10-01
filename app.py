@@ -88,6 +88,36 @@ def create_app():
             print(f"Error checking template permission: {e}")
             return False
 
+    @app.before_request
+    def check_user_role():
+        """Global guard: block authenticated users without role from accessing protected routes"""
+        from flask import request, render_template
+        
+        # Allow public routes
+        allowed_endpoints = [
+            'static',
+            'replit_auth.login',
+            'replit_auth.logout',
+            'replit_auth.authorized',  # OAuth callback
+            'replit_auth.error',
+            'health',
+            'health_live',
+            'health_ready'
+        ]
+        
+        # Allow if not authenticated, endpoint is None (404), or endpoint is allowed
+        if not current_user.is_authenticated or request.endpoint is None or request.endpoint in allowed_endpoints:
+            return None
+        
+        # Block users without role (except logout)
+        if current_user.rol is None:
+            if request.endpoint == 'replit_auth.logout':
+                return None
+            return render_template("sin_rol.html"), 403
+        
+        # All other checks passed
+        return None
+
     return app
 
 # Create the app instance

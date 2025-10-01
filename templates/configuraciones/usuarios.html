@@ -282,9 +282,15 @@
                                         <small class="text-muted">{{ usuario.email }}</small>
                                     </td>
                                     <td>
+                                        {% if usuario.rol %}
                                         <span class="badge bg-{{ 'danger' if usuario.rol.value == 'admin' else 'primary' if usuario.rol.value == 'operaciones' else 'success' if usuario.rol.value == 'ventas' else 'warning' if usuario.rol.value == 'produccion' else 'info' }}">
                                             {{ usuario.rol.value.title() }}
                                         </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary" title="Pendiente de asignación">
+                                            <i class="fas fa-hourglass-half"></i> Sin Rol
+                                        </span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if usuario.activo %}

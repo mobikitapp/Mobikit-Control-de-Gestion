@@ -55,7 +55,7 @@
                                     <option value="">Seleccionar rol</option>
                                     {% for rol in roles %}
                                     <option value="{{ rol.value }}" 
-                                            {% if usuario and usuario.rol.value == rol.value %}selected{% endif %}>
+                                            {% if usuario and usuario.rol and usuario.rol.value == rol.value %}selected{% endif %}>
                                         {{ rol.label }}
                                     </option>
                                     {% endfor %}

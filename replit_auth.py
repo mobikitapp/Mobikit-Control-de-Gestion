@@ -129,15 +129,35 @@ def make_replit_blueprint():
 
 
 def save_user(user_claims):
-    user = User()
-    user.id = user_claims['sub']
-    user.email = user_claims.get('email')
-    user.first_name = user_claims.get('first_name')
-    user.last_name = user_claims.get('last_name')
-    user.profile_image_url = user_claims.get('profile_image_url')
-    merged_user = db.session.merge(user)
-    db.session.commit()
-    return merged_user
+    """
+    Crea o actualiza usuario desde Replit Auth.
+    IMPORTANTE: Solo actualiza campos de perfil, NUNCA modifica rol o activo.
+    """
+    user_id = user_claims['sub']
+    existing_user = User.query.get(user_id)
+    
+    if existing_user:
+        # Usuario existe: actualizar SOLO campos de perfil
+        existing_user.email = user_claims.get('email')
+        existing_user.first_name = user_claims.get('first_name')
+        existing_user.last_name = user_claims.get('last_name')
+        existing_user.profile_image_url = user_claims.get('profile_image_url')
+        # NO tocar rol ni activo - son administrados por el sistema
+        db.session.commit()
+        return existing_user
+    else:
+        # Usuario nuevo: crear sin rol (debe ser asignado por admin)
+        new_user = User()
+        new_user.id = user_id
+        new_user.email = user_claims.get('email')
+        new_user.first_name = user_claims.get('first_name')
+        new_user.last_name = user_claims.get('last_name')
+        new_user.profile_image_url = user_claims.get('profile_image_url')
+        # rol será NULL (sin asignar) - admin debe asignar
+        # activo será True por default del modelo
+        db.session.add(new_user)
+        db.session.commit()
+        return new_user
 
 
 @oauth_authorized.connect
@@ -168,6 +188,10 @@ def require_login(f):
         if not current_user.is_authenticated:
             session["next_url"] = get_next_navigation_url(request)
             return redirect(url_for('replit_auth.login'))
+
+        # Check if user has a role assigned
+        if current_user.rol is None:
+            return render_template("sin_rol.html"), 403
 
         # Check if token exists before accessing it
         if not replit.token:
