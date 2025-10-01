@@ -2,7 +2,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user, login_required
 from pydantic import ValidationError
 from app import db
-from replit_auth import require_login, require_role, require_permission
+from replit_auth import require_login, require_role
+from utils.auth import require_permission
 from models import RolUsuario, Contrato, TipoDocumento
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
