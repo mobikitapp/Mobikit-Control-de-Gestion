@@ -127,8 +127,8 @@ def index():
         flash('Error al cargar proyectos', 'error')
         return redirect(url_for('proyectos.index'))
 
-@proyectos_bp.route('/nuevo', methods=['GET', 'POST'])
-@require_permission('proyectos:crear')
+@proyectos_bp.route('/nuevo')
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def nuevo():
     """Crear nuevo proyecto"""
     if request.method == 'GET':
@@ -210,7 +210,7 @@ def detalle(proyecto_id):
         return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/<int:proyecto_id>/editar', methods=['GET', 'POST'])
-@require_permission('proyectos:editar')
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def editar(proyecto_id):
     """Editar proyecto"""
     if request.method == 'GET':

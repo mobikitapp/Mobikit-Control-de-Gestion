@@ -81,7 +81,7 @@
                             {% endif %}
                             
                             <!-- Proyectos -->
-                            {% if has_permission('proyectos', 'lectura') %}
+                            {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones', 'finanzas'] %}
                             <li><h6 class="dropdown-header">
                                 <i data-feather="folder" class="me-1"></i>
                                 Proyectos
@@ -89,7 +89,7 @@
                             <li><a class="dropdown-item" href="{{ url_for('proyectos.index') }}">
                                 <i data-feather="folder" class="me-2"></i>Ver Proyectos
                             </a></li>
-                            {% if has_permission('proyectos', 'creacion') %}
+                            {% if current_user.rol.value in ['admin', 'general', 'ventas'] %}
                             <li><a class="dropdown-item" href="{{ url_for('proyectos.nuevo') }}">
                                 <i data-feather="folder-plus" class="me-2"></i>Nuevo Proyecto
                             </a></li>
@@ -99,7 +99,7 @@
                             <li><hr class="dropdown-divider"></li>
                             
                             <!-- Contratos / OC -->
-                            {% if current_user.rol.value in ['admin', 'general', 'ventas'] %}
+                            {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones', 'finanzas'] %}
                             <li><h6 class="dropdown-header">
                                 <i data-feather="file-text" class="me-1"></i>
                                 Contratos / OC
@@ -107,9 +107,11 @@
                             <li><a class="dropdown-item" href="{{ url_for('contratos.index') }}">
                                 <i data-feather="file-text" class="me-2"></i>Ver Contratos / OC
                             </a></li>
+                            {% if current_user.rol.value in ['admin', 'general', 'ventas', 'finanzas'] %}
                             <li><a class="dropdown-item" href="{{ url_for('contratos.nuevo') }}">
                                 <i data-feather="file-plus" class="me-2"></i>Nuevo Contrato / OC
                             </a></li>
+                            {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
                             
@@ -182,7 +184,7 @@
                     {% endif %}
 
                     <!-- 9. Comercial -->
-                    {% if current_user.rol.value in ['admin', 'general'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="trending-up" class="me-1"></i>
@@ -193,14 +195,16 @@
                             <li><a class="dropdown-item" href="{{ url_for('comercial.tareas_comerciales') }}">Tareas Comerciales</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('comercial.planificacion_comercial') }}">Planificación Comercial</a></li>
+                            {% if current_user.rol.value in ['admin', 'general', 'ventas'] %}
                             <li><a class="dropdown-item" href="{{ url_for('comercial.objetivos_mensuales') }}">Objetivos</a></li>
+                            {% endif %}
                             <li><a class="dropdown-item" href="{{ url_for('comercial.revenue_management') }}">Revenue Management</a></li>
                         </ul>
                     </li>
                     {% endif %}
 
                     <!-- 10. Finanzas -->
-                    {% if current_user.rol.value in ['admin', 'general'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'finanzas', 'ventas', 'operaciones'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="dollar-sign" class="me-1"></i>
@@ -210,12 +214,14 @@
                             <li><a class="dropdown-item" href="{{ url_for('finanzas.dashboard') }}">
                                 <i data-feather="pie-chart" class="me-2"></i> Seguimiento Financiero
                             </a></li>
+                            {% if current_user.rol.value in ['admin', 'general', 'finanzas'] %}
                             <li><a class="dropdown-item" href="{{ url_for('finanzas.reportes') }}">
                                 <i data-feather="bar-chart-2" class="me-2"></i> Reportes
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('finanzas.reporte_analisis_proyectos') }}">
                                 <i data-feather="trending-up" class="me-2"></i> Análisis de Proyectos
                             </a></li>
+                            {% endif %}
                         </ul>
                     </li>
                     {% endif %}

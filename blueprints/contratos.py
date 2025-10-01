@@ -96,7 +96,7 @@ def index():
         return redirect(url_for('index'))
 
 @contratos_bp.route('/nuevo')
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
 def nuevo():
     """Formulario para nuevo contrato"""
     try:
@@ -115,7 +115,7 @@ def nuevo():
         return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/crear', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
 def crear():
     """Crear nuevo contrato"""
     try:
@@ -229,7 +229,7 @@ def detalle(contrato_id):
         return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/<int:contrato_id>/editar')
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
 def editar(contrato_id):
     """Formulario de edición de contrato"""
     try:
@@ -253,7 +253,7 @@ def editar(contrato_id):
         return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/<int:contrato_id>/actualizar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
 def actualizar(contrato_id):
     """Actualizar contrato existente"""
     try:
@@ -333,7 +333,7 @@ def actualizar(contrato_id):
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/<int:contrato_id>/cambiar-estado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
 def cambiar_estado(contrato_id):
     """Cambiar estado del contrato"""
     try:
@@ -355,7 +355,7 @@ def cambiar_estado(contrato_id):
     return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/<int:contrato_id>/adjuntos/subir', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
 def subir_adjunto(contrato_id):
     """Subir nuevo adjunto al contrato"""
     try:
