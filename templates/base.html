@@ -231,8 +231,8 @@
                                 <li><a class="dropdown-item" href="{{ url_for('configuraciones.comisiones') }}"><i class="fas fa-percentage"></i> Comisiones</a></li>
                             </ul>
                         </li>
-                    {% else %}
-                    <!-- Configuraciones para usuarios no-admin (solo notificaciones) -->
+                    {% elif current_user.is_authenticated and current_user.rol.value in ['general', 'operaciones', 'produccion', 'logistica', 'finanzas'] %}
+                    <!-- Configuraciones para usuarios no-admin que tienen acceso a notificaciones -->
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('configuraciones.notificaciones') }}">
                             <i data-feather="bell" class="me-1"></i>
