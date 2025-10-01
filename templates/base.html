@@ -56,80 +56,87 @@
                         </ul>
                     </li>
 
-                    <!-- 2. Clientes -->
-                    {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
+                    <!-- 2. Administración -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="users" class="me-1"></i>
-                            Clientes
+                            <i data-feather="briefcase" class="me-1"></i>
+                            Administración
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('clientes.index') }}">Ver Clientes</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('clientes.nuevo') }}">Nuevo Cliente</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-
-                    <!-- 3. Proyectos -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="folder" class="me-1"></i>
-                            Proyectos
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('proyectos.index') }}">Ver Proyectos</a></li>
+                            <!-- Clientes -->
                             {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
-                            <li><a class="dropdown-item" href="{{ url_for('proyectos.nuevo') }}">Nuevo Proyecto</a></li>
-                            {% endif %}
-                        </ul>
-                    </li>
-
-                    <!-- 4. Contratos / OC -->
-                    {% if current_user.rol.value in ['admin', 'general', 'ventas'] %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="file-text" class="me-1"></i>
-                            Contratos / OC
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('contratos.index') }}">Ver Contratos / OC</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('contratos.nuevo') }}">Nuevo Contrato / OC</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-
-                    <!-- 5. Fabricación -->
-                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="tool" class="me-1"></i>
-                            Fabricación
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.index') }}">
-                                <i data-feather="tool" class="me-2"></i>Órdenes de Fabricación</a>
-                            </li>
-                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.archivos') }}">
-                                <i data-feather="archive" class="me-2"></i>Órdenes Archivadas</a>
-                            </li>
-                        </ul>
-                    </li>
-                    {% endif %}
-
-                    <!-- 6. Despachos -->
-                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica'] %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="truck" class="me-1"></i>
-                            Despachos
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('despachos.index') }}">Ver Despachos</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('despachos.nuevo') }}">Nuevo Despacho</a></li>
+                            <li><h6 class="dropdown-header">
+                                <i data-feather="users" class="me-1"></i>
+                                Clientes
+                            </h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('clientes.index') }}">
+                                <i data-feather="users" class="me-2"></i>Ver Clientes
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('clientes.nuevo') }}">
+                                <i data-feather="user-plus" class="me-2"></i>Nuevo Cliente
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
+                            {% endif %}
+                            
+                            <!-- Proyectos -->
+                            <li><h6 class="dropdown-header">
+                                <i data-feather="folder" class="me-1"></i>
+                                Proyectos
+                            </h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('proyectos.index') }}">
+                                <i data-feather="folder" class="me-2"></i>Ver Proyectos
+                            </a></li>
+                            {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
+                            <li><a class="dropdown-item" href="{{ url_for('proyectos.nuevo') }}">
+                                <i data-feather="folder-plus" class="me-2"></i>Nuevo Proyecto
+                            </a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <!-- Contratos / OC -->
+                            {% if current_user.rol.value in ['admin', 'general', 'ventas'] %}
+                            <li><h6 class="dropdown-header">
+                                <i data-feather="file-text" class="me-1"></i>
+                                Contratos / OC
+                            </h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('contratos.index') }}">
+                                <i data-feather="file-text" class="me-2"></i>Ver Contratos / OC
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('contratos.nuevo') }}">
+                                <i data-feather="file-plus" class="me-2"></i>Nuevo Contrato / OC
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% endif %}
+                            
+                            <!-- Fabricación -->
+                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
+                            <li><h6 class="dropdown-header">
+                                <i data-feather="tool" class="me-1"></i>
+                                Fabricación
+                            </h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.index') }}">
+                                <i data-feather="tool" class="me-2"></i>Órdenes de Fabricación
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.archivos') }}">
+                                <i data-feather="archive" class="me-2"></i>Órdenes Archivadas
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% endif %}
+                            
+                            <!-- Despachos -->
+                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica'] %}
+                            <li><h6 class="dropdown-header">
+                                <i data-feather="truck" class="me-1"></i>
+                                Despachos
+                            </h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('despachos.index') }}">
+                                <i data-feather="truck" class="me-2"></i>Ver Despachos
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('despachos.nuevo') }}">
+                                <i data-feather="plus-circle" class="me-2"></i>Nuevo Despacho
+                            </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('despachos.planificacion') }}">
-                                <i data-feather="calendar" class="me-2"></i>
-                                Planificación de Despachos
+                                <i data-feather="calendar" class="me-2"></i>Planificación de Despachos
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">
@@ -137,15 +144,14 @@
                                 Calendario
                             </h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('calendario.vista_mensual') }}">
-                                <i data-feather="calendar" class="me-2"></i> Vista Mensual
+                                <i data-feather="calendar" class="me-2"></i>Vista Mensual
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('calendario.dashboard') }}">
-                                <i data-feather="bar-chart-2" class="me-2"></i> Dashboard Calendario
+                                <i data-feather="bar-chart-2" class="me-2"></i>Dashboard Calendario
                             </a></li>
-
+                            {% endif %}
                         </ul>
                     </li>
-                    {% endif %}
 
 
 
