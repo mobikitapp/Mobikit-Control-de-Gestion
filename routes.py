@@ -1,7 +1,9 @@
-from flask import session, render_template, redirect, url_for, jsonify, request
-from flask_login import current_user
+from flask import session, render_template, redirect, url_for, jsonify, request, flash
+from flask_login import current_user, login_user, logout_user
 from app import app, db
 from replit_auth import require_login, make_replit_blueprint
+from models import User
+from werkzeug.security import check_password_hash
 import os
 import logging
 from datetime import datetime
@@ -45,6 +47,37 @@ flask_login.login_required = login_required_with_test_mode
 from flask_login import login_required
 from blueprints.clientes import clientes_bp
 from blueprints.proyectos import proyectos_bp
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login route that handles both display and form submission"""
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if not username or not password:
+            flash('Por favor ingresa usuario y contraseña', 'error')
+            return render_template('login.html')
+        
+        # Find user by email
+        user = User.query.filter_by(email=username).first()
+        
+        if user and user.activo and hasattr(user, 'password_hash') and check_password_hash(user.password_hash, password):
+            login_user(user)
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('index'))
+        else:
+            flash('Credenciales inválidas o usuario inactivo', 'error')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Logout route"""
+    logout_user()
+    return redirect(url_for('login'))
+
 from blueprints.contratos import contratos_bp
 from blueprints.fabricacion import fabricacion_bp
 from blueprints.despachos import despachos_bp
