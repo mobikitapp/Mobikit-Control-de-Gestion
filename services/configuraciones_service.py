@@ -313,12 +313,12 @@ class ConfiguracionesService:
                 proyectos_responsable = db.session.query(func.count(Proyecto.id)).filter_by(responsable=usuario_id).scalar()
                 if proyectos_responsable and proyectos_responsable > 0:
                     return False, f"El usuario tiene {proyectos_responsable} proyectos asignados como responsable. Reasígnalos antes de eliminar."
-                
+
                 # Verificar proyectos como vendedor
                 proyectos_vendedor = db.session.query(func.count(Proyecto.id)).filter_by(vendedor_id=usuario_id).scalar()
                 if proyectos_vendedor and proyectos_vendedor > 0:
                     return False, f"El usuario tiene {proyectos_vendedor} proyectos asignados como vendedor. Reasígnalos antes de eliminar."
-                    
+
             except ImportError:
                 # Si no existe el modelo Proyecto, continuar sin verificar
                 logger.warning("Modelo Proyecto no encontrado, omitiendo verificación de proyectos")
@@ -349,7 +349,7 @@ class ConfiguracionesService:
             db.session.add(audit_log)
 
             db.session.commit()
-            return True, f"Usuario {usuario.nombre_completo} eliminado exitosamente"
+            return True, f"Usuario {usuario.nombre_completo} desactivado exitosamente (ya no puede acceder al sistema)"
 
         except Exception as e:
             db.session.rollback()
@@ -1198,22 +1198,22 @@ class ConfiguracionesService:
 
         try:
             # Calculate nominal hours per month
-            turnos_por_dia = parametros.get('turnos_por_dia', 1)
-            horas_por_turno = parametros.get('horas_por_turno', 8.0)
-            dias_laborables_mes = parametros.get('dias_laborables_mes', 22)
-            oee = parametros.get('oee', 0.70)
+            horas_nominales_mes = (
+                parametros['turnos_por_dia'] *
+                parametros['horas_por_turno'] *
+                parametros['dias_laborables_mes']
+            )
 
-            # Calculate capacities
-            horas_nominales_mes = turnos_por_dia * horas_por_turno * dias_laborables_mes
-            horas_efectivas_mes = horas_nominales_mes * oee
+            # Calculate effective hours with OEE
+            horas_efectivas_mes = horas_nominales_mes * parametros['oee']
 
             return {
                 'horas_nominales_mes': horas_nominales_mes,
                 'horas_efectivas_mes': horas_efectivas_mes,
-                'turnos_por_dia': turnos_por_dia,
-                'horas_por_turno': horas_por_turno,
-                'dias_laborables_mes': dias_laborables_mes,
-                'oee': oee
+                'turnos_por_dia': parametros['turnos_por_dia'],
+                'horas_por_turno': parametros['horas_por_turno'],
+                'dias_laborables_mes': parametros['dias_laborables_mes'],
+                'oee': parametros['oee']
             }
 
         except Exception as e:
