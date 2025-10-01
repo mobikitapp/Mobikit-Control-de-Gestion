@@ -81,6 +81,23 @@ The system follows a modular blueprint architecture with clear separation of con
 
 ## Recent Changes
 
+### 2025-10-01: Production Deployment and Health Check Improvements
+- **Implemented comprehensive health check system** with three specialized endpoints for deployment monitoring
+- **Key Features**:
+  - `/health` endpoint with complete system diagnostics (database connectivity, environment variables, connection pool status)
+  - `/health/live` liveness probe for basic application availability checks
+  - `/health/ready` readiness probe verifying database schema and critical dependencies
+  - All health checks return appropriate HTTP status codes (200 for healthy, 503 for unhealthy)
+  - Sanitized error messages to prevent information disclosure while maintaining detailed server-side logging
+- **Deployment Configuration**:
+  - Updated to production-ready Gunicorn settings with 2 workers and 4 threads per worker
+  - Configured timeout (120s) and graceful timeout (30s) for request handling
+  - Enabled keep-alive connections and comprehensive access/error logging
+- **Security Improvements**:
+  - Error messages sanitized to avoid exposing sensitive system details
+  - Detailed exceptions logged server-side for debugging while clients receive generic messages
+- **Purpose**: Ensure robust deployment with proper health monitoring, enabling autoscaling platforms to accurately assess application state and readiness
+
 ### 2025-09-30: Archive System for Contracts and Dispatches
 - **Implemented non-destructive archive system** for closed contracts and completed dispatches
 - **Key Features**:
