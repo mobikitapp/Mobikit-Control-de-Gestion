@@ -19,25 +19,15 @@ from models import (
 )
 from services.inflacion_service import InflacionService
 from services.finanzas_service import FinanzasService
+from utils.auth import require_permission
 
 logger = logging.getLogger(__name__)
 
 finanzas_bp = Blueprint('finanzas', __name__)
 
 def finanzas_required(f):
-    """Decorador para requerir rol de finanzas"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            flash('Debe iniciar sesión para acceder a esta página', 'error')
-            return redirect(url_for('auth.login'))
-
-        if current_user.rol not in [RolUsuario.ADMIN, RolUsuario.GENERAL]:
-            flash('No tiene permisos para acceder a finanzas', 'error')
-            return redirect(url_for('index'))
-
-        return f(*args, **kwargs)
-    return decorated_function
+    """Decorador para requerir permiso de finanzas usando el sistema dinámico de permisos"""
+    return require_permission('finanzas', 'lectura')(f)
 
 @finanzas_bp.route('/')
 @finanzas_bp.route('/dashboard')
