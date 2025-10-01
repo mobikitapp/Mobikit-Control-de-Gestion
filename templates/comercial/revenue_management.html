@@ -10,7 +10,7 @@
                 <div class="card-header">
                     <h4 class="mb-0">
                         <i class="fas fa-chart-line text-success"></i>
-                        Revenue Management {{ año }}
+                        Revenue Management
                     </h4>
                     <p class="mb-0 text-muted">Gestión de rentabilidad y análisis de Break Even</p>
                 </div>
@@ -90,12 +90,6 @@
                         <div class="col-md-10 d-flex align-items-end">
                             <button type="button" class="btn btn-success me-2" onclick="exportarDatos()">
                                 <i class="fas fa-download"></i> Exportar CSV
-                            </button>
-                            <button type="button" class="btn btn-info me-2" onclick="mostrarImportador()">
-                                <i class="fas fa-upload"></i> Importar CSV
-                            </button>
-                            <button type="button" class="btn btn-warning me-2" onclick="calcularMargenes()">
-                                <i class="fas fa-calculator"></i> Calcular Márgenes
                             </button>
                             <button type="button" class="btn btn-outline-secondary" onclick="actualizarDatos()">
                                 <i class="fas fa-sync"></i> Actualizar
@@ -384,32 +378,7 @@
     </div>
 </div>
 
-<!-- Import Modal -->
-<div class="modal fade" id="importModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Importar Datos CSV</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="importForm" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label class="form-label">Archivo CSV</label>
-                        <input type="file" class="form-control" id="csvFile" accept=".csv" required>
-                        <div class="form-text">
-                            Formato: periodo, presupuesto_facturacion, adjudicado_facturacion, margen_real_pct, buffer_pp, utilidad_objetivo_clp
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="importarArchivo()">Importar</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -523,72 +492,9 @@
         window.location.href = `/comercial/api/revenue/export?año=${año}`;
     }
 
-    // Show import modal
-    function mostrarImportador() {
-        new bootstrap.Modal(document.getElementById('importModal')).show();
-    }
-
-    // Import file
-    function importarArchivo() {
-        const file = document.getElementById('csvFile').files[0];
-        if (!file) {
-            alert('Seleccione un archivo');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        fetch('/comercial/api/revenue/import', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(`Importación exitosa: ${data.imported_count} registros`);
-                if (data.errors.length > 0) {
-                    console.log('Errores:', data.errors);
-                }
-                bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
-                actualizarDatos();
-            } else {
-                alert('Error: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al importar archivo');
-        });
-    }
-
     // Refresh data
     function actualizarDatos() {
         window.location.reload();
-    }
-
-    // Calculate margins from projects
-    function calcularMargenes() {
-        fetch('/comercial/api/revenue/calcular_reales', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ año: año })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Datos de proyectos calculados y aplicados correctamente.');
-                actualizarDatos();
-            } else {
-                alert('Error al calcular datos desde proyectos: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error en la petición al servidor.');
-        });
     }
 
     // Initialize charts
