@@ -142,12 +142,14 @@ class OrdenFabricacionCreate(OrdenFabricacionBase):
 
     class Config:
         # El estado siempre será PENDIENTE_APROBACION_DISENO al crear
-        schema_extra = {
+        json_schema_extra = {
             "properties": {
                 "estado": {
                     "const": "pendiente_aprobacion_diseño",
                     "description": "Estado fijo al crear (siempre pendiente_aprobacion_diseño)"
                 }
+            }
+        }
             }
         }
 
