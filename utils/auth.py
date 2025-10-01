@@ -150,3 +150,54 @@ def require_role(*allowed_roles):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+
+def require_permission(modulo_codigo, tipo_permiso='lectura'):
+    """Decorator to require specific permission using dynamic permissions system"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Check for test mode bypass
+            test_mode = os.environ.get('TEST_MODE', 'false').lower() == 'true'
+            if test_mode:
+                return f(*args, **kwargs)
+                
+            if not current_user.is_authenticated:
+                abort(401)
+            
+            if not current_user.activo:
+                abort(403)
+            
+            # Admin always has access
+            if current_user.rol == RolUsuario.ADMIN:
+                return f(*args, **kwargs)
+            
+            # Check dynamic permissions
+            try:
+                from services.permisos_service import PermisosService
+                service = PermisosService()
+                
+                user_role = current_user.rol.value if hasattr(current_user.rol, 'value') else str(current_user.rol)
+                has_permission = service.verificar_permiso_dinamico(user_role, modulo_codigo, tipo_permiso)
+                
+                if has_permission is True:
+                    return f(*args, **kwargs)
+                elif has_permission is False:
+                    abort(403)
+                elif has_permission is None:
+                    # Fallback to static permissions
+                    from utils.permissions import has_permission as static_has_permission
+                    if static_has_permission(f"{modulo_codigo}.{tipo_permiso}", user_role):
+                        return f(*args, **kwargs)
+                    else:
+                        abort(403)
+                else:
+                    abort(403)
+                    
+            except Exception as e:
+                # In case of error, deny access for security
+                print(f"Error checking permission: {e}")
+                abort(403)
+            
+        return decorated_function
+    return decorator

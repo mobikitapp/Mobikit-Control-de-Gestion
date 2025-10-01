@@ -64,7 +64,7 @@
                         </a>
                         <ul class="dropdown-menu">
                             <!-- Clientes -->
-                            {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
+                            {% if has_permission('clientes', 'lectura') %}
                             <li><h6 class="dropdown-header">
                                 <i data-feather="users" class="me-1"></i>
                                 Clientes
@@ -72,13 +72,16 @@
                             <li><a class="dropdown-item" href="{{ url_for('clientes.index') }}">
                                 <i data-feather="users" class="me-2"></i>Ver Clientes
                             </a></li>
+                            {% if has_permission('clientes', 'creacion') %}
                             <li><a class="dropdown-item" href="{{ url_for('clientes.nuevo') }}">
                                 <i data-feather="user-plus" class="me-2"></i>Nuevo Cliente
                             </a></li>
+                            {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
                             
                             <!-- Proyectos -->
+                            {% if has_permission('proyectos', 'lectura') %}
                             <li><h6 class="dropdown-header">
                                 <i data-feather="folder" class="me-1"></i>
                                 Proyectos
@@ -86,10 +89,12 @@
                             <li><a class="dropdown-item" href="{{ url_for('proyectos.index') }}">
                                 <i data-feather="folder" class="me-2"></i>Ver Proyectos
                             </a></li>
-                            {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
+                            {% if has_permission('proyectos', 'creacion') %}
                             <li><a class="dropdown-item" href="{{ url_for('proyectos.nuevo') }}">
                                 <i data-feather="folder-plus" class="me-2"></i>Nuevo Proyecto
                             </a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
                             {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             

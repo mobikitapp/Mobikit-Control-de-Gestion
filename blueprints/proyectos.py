@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user, login_required
 from pydantic import ValidationError
 from app import db
-from replit_auth import require_login, require_role
+from replit_auth import require_login, require_role, require_permission
 from models import RolUsuario, Contrato, TipoDocumento
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
@@ -33,14 +33,14 @@ def process_form_data(form_data, is_update=False):
             else:
                 processed[key] = None
             continue
-            
+
         # Handle integer fields
         if key in ['cliente_id', 'numero_viviendas', 'centro_costo']:
             try:
                 processed[key] = int(value) if value else None
             except (ValueError, TypeError):
                 processed[key] = None
-        
+
         # Handle decimal fields
         elif key in ['monto_provision_presupuestado', 'margen_venta_provision',
                      'monto_instalacion_presupuestado', 'margen_venta_instalacion',
@@ -50,7 +50,7 @@ def process_form_data(form_data, is_update=False):
                 processed[key] = Decimal(str(value)) if value else None
             except (ValueError, TypeError):
                 processed[key] = None
-        
+
         # Handle date fields
         elif key in ['fecha_inicio', 'fecha_fin_estimada', 'fecha_fin_real',
                      'fecha_presupuesto', 'fecha_adjudicacion', 'fecha_conversion_presupuesto_uf']:
@@ -58,11 +58,11 @@ def process_form_data(form_data, is_update=False):
                 processed[key] = datetime.strptime(value, '%Y-%m-%d').date() if value else None
             except ValueError:
                 processed[key] = None
-        
+
         # Handle enum fields
         elif key in ['estado_comercial', 'tipo_proyecto', 'tipo_vivienda', 'moneda_original_presupuesto']:
             processed[key] = value if value else None
-        
+
         # Handle string fields
         else:
             processed[key] = value
@@ -128,7 +128,7 @@ def index():
         return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/nuevo', methods=['GET', 'POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
+@require_permission('proyectos:crear')
 def nuevo():
     """Crear nuevo proyecto"""
     if request.method == 'GET':
@@ -188,7 +188,7 @@ def nuevo():
             return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/<int:proyecto_id>')
-@require_login
+@require_permission('proyectos:ver')
 def detalle(proyecto_id):
     """Ver detalles del proyecto"""
     try:
@@ -210,7 +210,7 @@ def detalle(proyecto_id):
         return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/<int:proyecto_id>/editar', methods=['GET', 'POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_permission('proyectos:editar')
 def editar(proyecto_id):
     """Editar proyecto"""
     if request.method == 'GET':
@@ -312,7 +312,7 @@ def eliminar(proyecto_id):
         return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
 
 @proyectos_bp.route('/<int:proyecto_id>/adjuntos', methods=['GET', 'POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_permission('proyectos:adjuntos')
 def adjuntos(proyecto_id):
     """Handle project attachments - GET to list, POST to upload"""
     if request.method == 'GET':
@@ -404,7 +404,7 @@ def descargar_adjunto(adjunto_id):
         return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/adjuntos/<int:adjunto_id>/eliminar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_permission('proyectos:adjuntos:eliminar')
 def eliminar_adjunto(adjunto_id):
     """Delete project attachment"""
     try:
@@ -483,14 +483,14 @@ def api_kpi_cobranza(proyecto_id):
     """API endpoint para obtener KPI de cobranza de un proyecto"""
     # Asegurar que siempre devolvemos JSON con headers correctos
     from flask import jsonify, request
-    
+
     try:
         # Verificar que el proyecto existe
         proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
         if not proyecto:
             logger.warning(f"Proyecto {proyecto_id} no encontrado para KPI cobranza")
             response = jsonify({
-                'success': False, 
+                'success': False,
                 'message': f'Proyecto {proyecto_id} no encontrado',
                 'porcentaje_cobrado': 0,
                 'porcentaje_facturado': 0,
@@ -505,7 +505,7 @@ def api_kpi_cobranza(proyecto_id):
 
         # Calcular KPI financiero directamente usando el método del servicio
         kpi_data = proyectos_service.calculate_financial_kpi_with_treasury(proyecto_id)
-        
+
         if not kpi_data or kpi_data.get('estado') == 'error':
             logger.warning(f"No se pudo calcular KPI para proyecto {proyecto_id}")
             response = jsonify({
@@ -536,10 +536,10 @@ def api_kpi_cobranza(proyecto_id):
         logger.error(f"Error en API KPI cobranza para proyecto {proyecto_id}: {str(e)}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        
+
         # Siempre devolver JSON válido, incluso en caso de error
         response = jsonify({
-            'success': False, 
+            'success': False,
             'message': 'Error interno del servidor',
             'error_details': str(e),
             'error_type': type(e).__name__,
