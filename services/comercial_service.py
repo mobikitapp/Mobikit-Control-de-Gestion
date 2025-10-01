@@ -432,12 +432,14 @@ class ComercialService:
         """Calculate statistics for sales center"""
         total = len(proyectos)
 
+        # Calculate statistics by state
         stats = {
             'total_proyectos': total,
             'pendiente_presupuesto': 0,
             'presupuestado': 0,
             'adjudicado': 0,
             'terminado': 0,
+            'perdidos': 0,
             'valor_total_provision': Decimal('0'),
             'valor_total_instalacion': Decimal('0'),
             'margen_promedio_provision': Decimal('0'),
@@ -454,15 +456,16 @@ class ComercialService:
 
         for proyecto in proyectos:
             # Count by state
-            estado = proyecto.estado_comercial
-            if estado == EstadoComercial.PENDIENTE_PRESUPUESTO:
+            if proyecto.estado_comercial == EstadoComercial.PENDIENTE_PRESUPUESTO:
                 stats['pendiente_presupuesto'] += 1
-            elif estado == EstadoComercial.PRESUPUESTADO:
+            elif proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO:
                 stats['presupuestado'] += 1
-            elif estado == EstadoComercial.ADJUDICADO:
+            elif proyecto.estado_comercial == EstadoComercial.ADJUDICADO:
                 stats['adjudicado'] += 1
-            elif estado == EstadoComercial.TERMINADO:
+            elif proyecto.estado_comercial == EstadoComercial.TERMINADO:
                 stats['terminado'] += 1
+            elif proyecto.estado_comercial == EstadoComercial.PERDIDO:
+                stats['perdidos'] += 1
 
             # Accumulate values
             if proyecto.monto_provision_presupuestado:
@@ -577,7 +580,7 @@ class ComercialService:
         # Si no hay configuración, usar valores por defecto
         comision_provision_pct = Decimal('3.0')  # 3% por defecto
         comision_instalacion_pct = Decimal('3.0')  # 3% por defecto
-        
+
         if comision_config:
             comision_provision_pct = comision_config.comision_provision_pct
             comision_instalacion_pct = comision_config.comision_instalacion_pct
@@ -829,7 +832,7 @@ class ComercialService:
                         margen_instalacion_contrib = Decimal('0')
                         if p.get('valor_instalacion_mes', Decimal('0')) > 0:
                             margen_instalacion_contrib = (p.get('valor_instalacion_mes', Decimal('0')) / valor_proyecto_mes) * p.get('margen_instalacion', Decimal('0'))
-                        
+
                         margen_ponderado += peso * (margen_provision_contrib + margen_instalacion_contrib)
 
 
@@ -953,7 +956,7 @@ class ComercialService:
                         margen_instalacion_contrib = Decimal('0')
                         if p.get('valor_instalacion_mes', Decimal('0')) > 0:
                             margen_instalacion_contrib = (p.get('valor_instalacion_mes', Decimal('0')) / valor_proyecto_mes) * p.get('margen_instalacion', Decimal('0'))
-                        
+
                         margen_ponderado += peso * (margen_provision_contrib + margen_instalacion_contrib)
 
 
@@ -1043,7 +1046,7 @@ class ComercialService:
                 fin_mes = min(fin, date(año, mes, calendar.monthrange(año, mes)[1]))
 
                 dias_en_mes = (fin_mes - inicio_mes).days + 1
-                
+
                 # Check if we already have this month
                 mes_existente = next((d for d in dias_por_mes if d['mes'] == mes), None)
                 if mes_existente:
@@ -1244,7 +1247,7 @@ class ComercialService:
             # Store both with periodo key and month index for compatibility
             periodo_key = f"{año_actual}-{mes_actual:02d}"
             objetivos_dict[periodo_key] = objetivo
-            
+
             # Also store with month index for backward compatibility in templates
             if año_actual == año:  # Only for current year
                 objetivos_dict[mes_actual] = objetivo

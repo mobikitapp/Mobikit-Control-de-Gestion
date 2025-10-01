@@ -184,9 +184,13 @@
                                             <small>Adjudicado</small>
                                             <span class="badge bg-success">{{ vendedor_data.stats.adjudicado }}</span>
                                         </div>
-                                        <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
                                             <small>Terminado</small>
                                             <span class="badge bg-secondary">{{ vendedor_data.stats.terminado }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small>Perdidos</small>
+                                            <span class="badge bg-danger">{{ vendedor_data.stats.perdidos if vendedor_data.stats.perdidos else 0 }}</span>
                                         </div>
                                     </div>
 
@@ -213,6 +217,16 @@
                                                 <small class="text-muted">Total</small>
                                             </div>
                                         </div>
+                                    </div>
+                                    {% else %}
+                                    <div class="border-top pt-3 mb-3">
+                                        <div class="text-center">
+                                            <div class="display-6 fw-bold text-muted">
+                                                N/A
+                                            </div>
+                                            <small class="text-muted">Tasa de Éxito</small>
+                                        </div>
+                                        <small class="text-muted d-block text-center">Sin datos suficientes</small>
                                     </div>
                                     {% endif %}
 
