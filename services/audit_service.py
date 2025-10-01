@@ -9,29 +9,29 @@ class AuditService:
     """Service for handling audit logging"""
     
     @staticmethod
-    def log_create(table_name: str, record_id: int, new_data: dict, user_id: str = None):
+    def log_create(table_name: str, record_id, new_data: dict, user_id: str = None):
         """Log create action"""
         AuditService.log_action(table_name, record_id, 'CREATE', datos_nuevos=new_data)
 
     @staticmethod
-    def log_update(table_name: str, record_id: int, old_data: dict, new_data: dict, user_id: str = None):
+    def log_update(table_name: str, record_id, old_data: dict, new_data: dict, user_id: str = None):
         """Log update action"""
         AuditService.log_action(table_name, record_id, 'UPDATE', datos_anteriores=old_data, datos_nuevos=new_data)
 
     @staticmethod
-    def log_delete(table_name: str, record_id: int, old_data: dict, user_id: str = None):
+    def log_delete(table_name: str, record_id, old_data: dict, user_id: str = None):
         """Log delete action"""
         AuditService.log_action(table_name, record_id, 'DELETE', datos_anteriores=old_data)
 
     @staticmethod
-    def log_action(entidad: str, entidad_id: int, accion: str, 
+    def log_action(entidad: str, entidad_id, accion: str, 
                   datos_anteriores: dict = None, datos_nuevos: dict = None):
         """
         Log an action in the audit trail
         
         Args:
             entidad: Entity name (table name)
-            entidad_id: Entity ID
+            entidad_id: Entity ID (can be string or integer)
             accion: Action performed (CREATE, UPDATE, DELETE)
             datos_anteriores: Previous data (for UPDATE/DELETE)
             datos_nuevos: New data (for CREATE/UPDATE)
@@ -68,20 +68,20 @@ class AuditService:
             print(f"Audit logging failed: {str(e)}")
     
     @staticmethod
-    def get_entity_history(entidad: str, entidad_id: int, limit: int = 50):
+    def get_entity_history(entidad: str, entidad_id, limit: int = 50):
         """
         Get audit history for a specific entity
         
         Args:
             entidad: Entity name
-            entidad_id: Entity ID
+            entidad_id: Entity ID (can be string or integer)
             limit: Maximum number of records to return
             
         Returns:
             List of audit log entries
         """
         return (db.session.query(AuditLog)
-                .filter_by(entidad=entidad, entidad_id=entidad_id)
+                .filter_by(entidad=entidad, entidad_id=str(entidad_id))
                 .order_by(AuditLog.created_at.desc())
                 .limit(limit)
                 .all())

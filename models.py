@@ -922,7 +922,7 @@ class AuditLog(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     entidad = db.Column(db.String(50), nullable=False)  # nombre de la tabla/modelo
-    entidad_id = db.Column(db.Integer, nullable=False)  # ID del registro afectado
+    entidad_id = db.Column(db.String(255), nullable=False)  # ID del registro afectado (string para soportar user IDs)
     accion = db.Column(db.String(20), nullable=False)   # CREATE, UPDATE, DELETE
     actor = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
     payload = db.Column(db.JSON)  # datos del cambio
