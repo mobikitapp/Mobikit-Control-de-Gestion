@@ -47,6 +47,35 @@ const ManufacturingApp = {
         if (this.config.isTouch) {
             document.body.classList.add('touch-device');
         }
+
+        // Mejorar comportamiento del navbar
+        this.setupNavbarBehavior();
+    },
+
+    // Setup navbar behavior
+    setupNavbarBehavior() {
+        const navbarToggler = document.querySelector('.navbar-toggler');
+        const navbarCollapse = document.querySelector('.navbar-collapse');
+
+        if (navbarToggler && navbarCollapse) {
+            // Auto-close navbar when clicking on a link
+            navbarCollapse.addEventListener('click', (e) => {
+                if (e.target.classList.contains('nav-link') && !e.target.classList.contains('dropdown-toggle')) {
+                    const collapse = bootstrap.Collapse.getInstance(navbarCollapse) || new bootstrap.Collapse(navbarCollapse, {toggle: false});
+                    collapse.hide();
+                }
+            });
+
+            // Close navbar when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!navbarToggler.contains(e.target) && !navbarCollapse.contains(e.target)) {
+                    const collapse = bootstrap.Collapse.getInstance(navbarCollapse);
+                    if (collapse && navbarCollapse.classList.contains('show')) {
+                        collapse.hide();
+                    }
+                }
+            });
+        }
     },
 
     // Handle orientation changes
@@ -867,7 +896,7 @@ function marcarComoPagado(estadoPagoId) {
 
     // Show loading indicator and disable button
     showAlert('info', '⏳ Procesando pago...');
-    
+
     // Disable all payment buttons temporarily
     const buttons = document.querySelectorAll(`button[onclick*="marcarComoPagado(${estadoPagoId})"]`);
     buttons.forEach(btn => {
@@ -970,7 +999,7 @@ function showAlert(type, message) {
     }, 5000);
 }
 
-// Export for use in other scripts
+// Export functions to global scope
 window.ManufacturingApp = ManufacturingApp;
 window.API = API;
 window.ngApp = ngApp;
@@ -986,17 +1015,17 @@ function marcarComoFacturado(estadoPagoId) {
     } else {
         // Fallback to prompt
         const numeroFactura = prompt('Número de factura (opcional):');
-        
+
         // Show loading indicator and disable button
         showAlert('info', '⏳ Procesando facturación...');
-        
+
         // Disable invoice buttons temporarily
         const buttons = document.querySelectorAll(`button[onclick*="marcarComoFacturado(${estadoPagoId})"]`);
         buttons.forEach(btn => {
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Facturando...';
         });
-        
+
         fetch(`/proyectos/estados-pago/${estadoPagoId}/marcar-facturado`, {
             method: 'POST',
             headers: {
@@ -1026,7 +1055,7 @@ function marcarComoFacturado(estadoPagoId) {
 function confirmarFacturado() {
     const form = document.getElementById('formMarcarFacturado');
     if (!form || !window.estadoPagoParaFacturar) return;
-    
+
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
 
