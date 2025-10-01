@@ -409,11 +409,11 @@ class PermisosService:
     def verificar_permiso_dinamico(self, user_rol, modulo_codigo, tipo_permiso_codigo):
         """Verifica si un rol tiene un permiso específico usando el sistema dinámico"""
         try:
-            # Admin siempre tiene todos los permisos
+            # CRÍTICO: Admin siempre tiene todos los permisos - primera verificación
             if user_rol == 'admin':
                 return True
             
-            # Buscar el permiso en la base de datos
+            # Buscar el permiso en la base de datos solo para roles no-admin
             rol = None
             for r in RolUsuario:
                 if r.value == user_rol:
@@ -421,7 +421,7 @@ class PermisosService:
                     break
             
             if not rol:
-                return False
+                return None  # Permitir fallback al sistema estático
             
             tipo_permiso = None
             for t in TipoPermiso:
@@ -430,7 +430,7 @@ class PermisosService:
                     break
             
             if not tipo_permiso:
-                return False
+                return None  # Permitir fallback al sistema estático
             
             # Buscar en la base de datos
             permiso = db.session.query(PermisoRol)\
@@ -446,9 +446,8 @@ class PermisosService:
             return permiso.permitido if permiso is not None else None
             
         except Exception as e:
-            # En caso de error, usar el sistema de permisos original como fallback
-            from utils.permissions import has_permission
-            return has_permission(user_rol, f"{modulo_codigo}.{tipo_permiso_codigo}")
+            # En caso de error, retornar None para permitir fallback al sistema estático
+            return None
     
     def obtener_auditoria_permisos(self, limit=50, rol_filtro=None, modulo_filtro=None):
         """Obtiene el historial de cambios en permisos"""

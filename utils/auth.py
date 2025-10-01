@@ -20,7 +20,13 @@ def admin_required(f):
         if not current_user.activo:
             abort(403)
         
-        if current_user.rol != RolUsuario.ADMIN:
+        # Verificar admin tanto por enum como por string (compatibilidad)
+        user_role = current_user.rol
+        is_admin = (user_role == RolUsuario.ADMIN or 
+                   (hasattr(user_role, 'value') and user_role.value == 'admin') or
+                   str(user_role).lower() == 'admin')
+        
+        if not is_admin:
             abort(403)
         
         return f(*args, **kwargs)

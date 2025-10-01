@@ -96,12 +96,13 @@ ROLE_PERMISSIONS = {
 def has_permission(user_role, permission):
     """
     Verifica si un rol tiene un permiso específico
-    Intenta usar el sistema dinámico primero, luego fallback al sistema estático
+    Admin siempre tiene acceso total, luego intenta sistema dinámico y fallback estático
     """
+    # Admin siempre tiene todos los permisos - CRÍTICO: debe ser la primera verificación
     if user_role == 'admin':
         return True
     
-    # Intentar usar el sistema dinámico de permisos
+    # Intentar usar el sistema dinámico de permisos solo para roles no-admin
     try:
         from services.permisos_service import PermisosService
         service = PermisosService()

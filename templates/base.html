@@ -142,12 +142,12 @@
                             <li><a class="dropdown-item" href="{{ url_for('calendario.dashboard') }}">
                                 <i data-feather="bar-chart-2" class="me-2"></i> Dashboard Calendario
                             </a></li>
-                            
+
                         </ul>
                     </li>
                     {% endif %}
 
-                    
+
 
                     <!-- 8. Planificación Operacional -->
                     {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
@@ -211,34 +211,21 @@
                     {% endif %}
 
                     <!-- 11. Configuraciones (solo admin) -->
-                    {% if current_user.rol.value == 'admin' %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="settings" class="me-1"></i>
-                            Configuraciones
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.dashboard') }}">
-                                <i data-feather="grid" class="me-2"></i> Dashboard
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.usuarios') }}">
-                                <i data-feather="users" class="me-2"></i> Usuarios
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.roles') }}">
-                                <i data-feather="shield" class="me-2"></i> Roles y Permisos
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.comisiones') }}">
-                                <i data-feather="percent" class="me-2"></i> Comisiones
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.notificaciones') }}">
-                                <i data-feather="bell" class="me-2"></i> Notificaciones
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('configuraciones.configuracion_sistema') }}">
-                                <i data-feather="tool" class="me-2"></i> Sistema
-                            </a></li>
-                        </ul>
-                    </li>
+                    {% if session.user_role == 'admin' or (current_user.is_authenticated and current_user.rol.value == 'admin') %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="configDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-cogs"></i> Configuraciones
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('configuraciones.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('configuraciones.usuarios') }}"><i class="fas fa-users"></i> Usuarios</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('configuraciones.roles') }}"><i class="fas fa-user-tag"></i> Roles</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('configuraciones.gestionar_permisos') }}"><i class="fas fa-shield-alt"></i> Permisos</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('configuraciones.sistema') }}"><i class="fas fa-server"></i> Sistema</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('configuraciones.comisiones') }}"><i class="fas fa-percentage"></i> Comisiones</a></li>
+                            </ul>
+                        </li>
                     {% else %}
                     <!-- Configuraciones para usuarios no-admin (solo notificaciones) -->
                     <li class="nav-item">
