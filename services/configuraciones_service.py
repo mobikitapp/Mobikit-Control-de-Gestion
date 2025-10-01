@@ -258,6 +258,14 @@ class ConfiguracionesService:
             if not usuario:
                 return False, "Usuario no encontrado"
 
+            # Verificar que el usuario no sea de Replit Auth exclusivamente
+            if usuario.email is None and not hasattr(usuario, 'password_hash'):
+                return False, "No se puede resetear contraseña para usuarios de Replit Auth sin email"
+
+            # Si el usuario no tiene email, no se puede crear login local
+            if not usuario.email or usuario.email.strip() == '':
+                return False, "El usuario debe tener un email configurado para poder resetear la contraseña"
+
             # Generar nueva contraseña temporal
             nueva_password = self._generate_temp_password()
 
@@ -286,6 +294,7 @@ class ConfiguracionesService:
 
         except Exception as e:
             db.session.rollback()
+            logger.error(f"Error al resetear contraseña para usuario {usuario_id}: {str(e)}")
             return False, f"Error al resetear contraseña: {str(e)}"
 
     def change_user_password(self, usuario_id, password_actual, password_nueva):

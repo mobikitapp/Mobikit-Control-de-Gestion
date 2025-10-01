@@ -103,9 +103,15 @@
                             </div>
                             <div class="btn-group">
                                 {% if accion == 'editar' and usuario %}
-                                <button type="button" class="btn btn-outline-warning" onclick="resetPassword('{{ usuario.id }}')">
-                                    <i class="fas fa-key"></i> Reset Password
-                                </button>
+                                    {% if usuario.email and usuario.email.strip() %}
+                                    <button type="button" class="btn btn-outline-warning" onclick="resetPassword('{{ usuario.id }}')">
+                                        <i class="fas fa-key"></i> Reset Password
+                                    </button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-outline-secondary" disabled title="El usuario necesita un email configurado para resetear contraseña">
+                                        <i class="fas fa-key"></i> Reset Password
+                                    </button>
+                                    {% endif %}
                                 {% endif %}
                                 <button type="submit" class="btn btn-{{ 'success' if accion == 'crear' else 'primary' }} btn-lg">
                                     <i class="fas fa-{{ 'save' if accion == 'crear' else 'edit' }}"></i>
@@ -174,7 +180,21 @@ document.querySelector('form').addEventListener('submit', function(e) {
 
 // Reset password function
 function resetPassword(userId) {
-    if (confirm('¿Estás seguro de que quieres resetear la contraseña de este usuario?')) {
+    const userEmail = '{{ usuario.email if usuario else "" }}';
+    
+    // Verificar si el usuario tiene email configurado
+    if (!userEmail || userEmail.trim() === '') {
+        alert('No se puede resetear la contraseña: El usuario debe tener un email configurado para poder usar login local.');
+        return;
+    }
+    
+    if (confirm('¿Estás seguro de que quieres resetear la contraseña de este usuario?\n\nEsto permitirá al usuario iniciar sesión con email y contraseña además de Replit Auth.')) {
+        // Mostrar loading
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reseteando...';
+        button.disabled = true;
+        
         fetch(`/configuraciones/api/usuarios/${userId}/reset-password`, {
             method: 'POST',
             headers: {
@@ -184,15 +204,92 @@ function resetPassword(userId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert(`Contraseña reseteada exitosamente. Nueva contraseña: ${data.nueva_password}`);
+                // Mostrar modal con la contraseña
+                showPasswordModal(data.nueva_password);
             } else {
                 alert(`Error: ${data.message}`);
             }
         })
         .catch(error => {
             alert('Error al resetear contraseña: ' + error);
+        })
+        .finally(() => {
+            // Restaurar botón
+            button.innerHTML = originalText;
+            button.disabled = false;
         });
     }
+}
+
+// Función para mostrar modal con la contraseña
+function showPasswordModal(password) {
+    const modalHtml = `
+        <div class="modal fade" id="passwordResetModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-check-circle"></i> Contraseña Restablecida
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-exclamation-triangle"></i> Importante</h6>
+                            <p class="mb-0">Esta contraseña solo se mostrará una vez. Asegúrate de copiarla y compartirla de forma segura con el usuario.</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nueva Contraseña Temporal:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="tempPassword" value="${password}" readonly>
+                                <button class="btn btn-outline-secondary" type="button" onclick="copyPassword()">
+                                    <i class="fas fa-copy"></i> Copiar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle"></i> Instrucciones para el usuario</h6>
+                            <ul class="mb-0">
+                                <li>Usar esta contraseña para iniciar sesión con su email</li>
+                                <li>Se recomienda cambiar la contraseña en el primer inicio de sesión</li>
+                                <li>Puede acceder desde el menú "Configuraciones" > "Cambiar Contraseña"</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Agregar modal al DOM si no existe
+    if (!document.getElementById('passwordResetModal')) {
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('passwordResetModal'));
+    modal.show();
+}
+
+// Función para copiar contraseña
+function copyPassword() {
+    const passwordInput = document.getElementById('tempPassword');
+    passwordInput.select();
+    document.execCommand('copy');
+    
+    // Mostrar feedback
+    const button = event.target.closest('button');
+    const originalHtml = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check"></i> Copiado';
+    button.className = 'btn btn-success';
+    
+    setTimeout(() => {
+        button.innerHTML = originalHtml;
+        button.className = 'btn btn-outline-secondary';
+    }, 2000);
 }
 </script>
 {% endblock %}
