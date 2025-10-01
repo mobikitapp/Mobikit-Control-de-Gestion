@@ -96,7 +96,6 @@
                             {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
-                            <li><hr class="dropdown-divider"></li>
                             
                             <!-- Contratos / OC -->
                             {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones', 'finanzas'] %}
@@ -115,37 +114,8 @@
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
                             
-                            <!-- Fabricación -->
-                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
-                            <li><h6 class="dropdown-header">
-                                <i data-feather="tool" class="me-1"></i>
-                                Fabricación
-                            </h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.index') }}">
-                                <i data-feather="tool" class="me-2"></i>Órdenes de Fabricación
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.archivos') }}">
-                                <i data-feather="archive" class="me-2"></i>Órdenes Archivadas
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            {% endif %}
-                            
-                            <!-- Despachos -->
+                            <!-- Calendario -->
                             {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica'] %}
-                            <li><h6 class="dropdown-header">
-                                <i data-feather="truck" class="me-1"></i>
-                                Despachos
-                            </h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('despachos.index') }}">
-                                <i data-feather="truck" class="me-2"></i>Ver Despachos
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('despachos.nuevo') }}">
-                                <i data-feather="plus-circle" class="me-2"></i>Nuevo Despacho
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('despachos.planificacion') }}">
-                                <i data-feather="calendar" class="me-2"></i>Planificación de Despachos
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">
                                 <i data-feather="calendar" class="me-1"></i>
                                 Calendario
@@ -160,9 +130,55 @@
                         </ul>
                     </li>
 
+                    <!-- 3. Fabricación (acceso directo) -->
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i data-feather="tool" class="me-1"></i>
+                            Fabricación
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.index') }}">
+                                <i data-feather="tool" class="me-2"></i>Órdenes de Fabricación
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.archivos') }}">
+                                <i data-feather="archive" class="me-2"></i>Órdenes Archivadas
+                            </a></li>
+                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('fabricacion.nueva') }}">
+                                <i data-feather="plus-circle" class="me-2"></i>Nueva Orden
+                            </a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    <!-- 4. Despachos (acceso directo) -->
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i data-feather="truck" class="me-1"></i>
+                            Despachos
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('despachos.index') }}">
+                                <i data-feather="truck" class="me-2"></i>Ver Despachos
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('despachos.planificacion') }}">
+                                <i data-feather="calendar" class="me-2"></i>Planificación de Despachos
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('despachos.nuevo') }}">
+                                <i data-feather="plus-circle" class="me-2"></i>Nuevo Despacho
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
 
 
-                    <!-- 8. Planificación Operacional -->
+
+                    <!-- 5. Planificación Operacional -->
                     {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -183,7 +199,7 @@
                     </li>
                     {% endif %}
 
-                    <!-- 9. Comercial -->
+                    <!-- 6. Comercial -->
                     {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -203,7 +219,7 @@
                     </li>
                     {% endif %}
 
-                    <!-- 10. Finanzas -->
+                    <!-- 7. Finanzas -->
                     {% if current_user.rol.value in ['admin', 'general', 'finanzas', 'ventas', 'operaciones'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -226,7 +242,7 @@
                     </li>
                     {% endif %}
 
-                    <!-- 11. Configuraciones (solo admin) -->
+                    <!-- 8. Configuraciones (solo admin) -->
                     {% if session.user_role == 'admin' or (current_user.is_authenticated and current_user.rol.value == 'admin') %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="configDropdown" role="button" data-bs-toggle="dropdown">
