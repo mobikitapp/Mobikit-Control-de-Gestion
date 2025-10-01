@@ -230,12 +230,30 @@ def cambiar_estado_usuario(usuario_id):
 @login_required
 @role_required([RolUsuario.ADMIN])
 def eliminar_usuario(usuario_id):
-    """Eliminar usuario del sistema"""
+    """Eliminar usuario del sistema (soft delete)"""
     try:
-        # service = ConfiguracionesService() # No longer needed here
+        # Eliminar usuario (soft delete)
+        success, mensaje = configuraciones_service.eliminar_usuario(usuario_id, current_user.id, hard_delete=False)
 
-        # Eliminar usuario
-        success, mensaje = configuraciones_service.eliminar_usuario(usuario_id, current_user.id)
+        if success:
+            flash(mensaje, 'success')
+        else:
+            flash(f'Error: {mensaje}', 'error')
+
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'error')
+
+    return redirect(url_for('configuraciones.usuarios'))
+
+
+@configuraciones_bp.route('/usuarios/<usuario_id>/eliminar-permanente', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN])
+def eliminar_usuario_permanente(usuario_id):
+    """Eliminar usuario permanentemente del sistema (hard delete)"""
+    try:
+        # Eliminar usuario permanentemente
+        success, mensaje = configuraciones_service.eliminar_usuario_permanente(usuario_id, current_user.id)
 
         if success:
             flash(mensaje, 'success')

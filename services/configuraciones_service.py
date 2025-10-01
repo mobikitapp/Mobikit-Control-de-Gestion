@@ -288,8 +288,8 @@ class ConfiguracionesService:
             db.session.rollback()
             return False, f"Error al resetear contraseña: {str(e)}"
 
-    def eliminar_usuario(self, usuario_id, current_user_id):
-        """Elimina un usuario del sistema (soft delete)"""
+    def eliminar_usuario(self, usuario_id, current_user_id, hard_delete=False):
+        """Elimina un usuario del sistema (soft delete por defecto, hard delete opcional)"""
         try:
             # Obtener usuario a eliminar
             usuario = db.session.query(User).filter_by(id=usuario_id).first()
@@ -326,35 +326,69 @@ class ConfiguracionesService:
             except Exception as e:
                 logger.warning(f"Error verificando proyectos del usuario: {str(e)}")
 
-            # Hacer soft delete (desactivar en lugar de eliminar)
-            usuario.activo = False
-            usuario.updated_at = datetime.now()
+            if hard_delete:
+                # Hard delete: eliminar físicamente de la base de datos
+                nombre_completo = usuario.nombre_completo
+                email = usuario.email
+                rol = usuario.rol.value
 
-            # Crear registro de auditoría
-            audit_data = {
-                'accion': 'soft_delete',
-                'usuario_eliminado': usuario.email,
-                'nombre_completo': usuario.nombre_completo,
-                'rol': usuario.rol.value,
-                'admin_id': current_user_id
-            }
+                # Crear registro de auditoría antes de eliminar
+                audit_data = {
+                    'accion': 'hard_delete',
+                    'usuario_eliminado': email,
+                    'nombre_completo': nombre_completo,
+                    'rol': rol,
+                    'admin_id': current_user_id
+                }
 
-            audit_log = AuditLog(
-                entidad='users',
-                entidad_id=usuario_id,
-                accion='DELETE',
-                actor=current_user_id,
-                payload=audit_data
-            )
-            db.session.add(audit_log)
+                audit_log = AuditLog(
+                    entidad='users',
+                    entidad_id=usuario_id,
+                    accion='DELETE',
+                    actor=current_user_id,
+                    payload=audit_data
+                )
+                db.session.add(audit_log)
 
-            db.session.commit()
-            return True, f"Usuario {usuario.nombre_completo} desactivado exitosamente (ya no puede acceder al sistema)"
+                # Eliminar físicamente el usuario
+                db.session.delete(usuario)
+                db.session.commit()
+                return True, f"Usuario {nombre_completo} eliminado permanentemente del sistema"
+
+            else:
+                # Soft delete: desactivar en lugar de eliminar
+                usuario.activo = False
+                usuario.updated_at = datetime.now()
+
+                # Crear registro de auditoría
+                audit_data = {
+                    'accion': 'soft_delete',
+                    'usuario_eliminado': usuario.email,
+                    'nombre_completo': usuario.nombre_completo,
+                    'rol': usuario.rol.value,
+                    'admin_id': current_user_id
+                }
+
+                audit_log = AuditLog(
+                    entidad='users',
+                    entidad_id=usuario_id,
+                    accion='DELETE',
+                    actor=current_user_id,
+                    payload=audit_data
+                )
+                db.session.add(audit_log)
+
+                db.session.commit()
+                return True, f"Usuario {usuario.nombre_completo} desactivado exitosamente (ya no puede acceder al sistema)"
 
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error al eliminar usuario {usuario_id}: {str(e)}")
             return False, f"Error al eliminar usuario: {str(e)}"
+
+    def eliminar_usuario_permanente(self, usuario_id, current_user_id):
+        """Elimina un usuario permanentemente del sistema (hard delete)"""
+        return self.eliminar_usuario(usuario_id, current_user_id, hard_delete=True)
 
     def get_roles_permisos(self):
         """Get roles with their permissions and user counts"""

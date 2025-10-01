@@ -143,7 +143,7 @@
             </div>
         {% endif %}
     {% endwith %}
-    
+
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-md-8">
@@ -315,7 +315,7 @@
                                                title="Editar información del usuario">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            
+
                                             {% if usuario.id != current_user.id %}
                                             <!-- Botón Reset Password -->
                                             <button type="button" class="btn btn-mobikit-warning btn-sm action-btn" 
@@ -325,7 +325,7 @@
                                                     onclick="resetearPassword('{{ usuario.id }}', '{{ (usuario.first_name or '') + ' ' + (usuario.last_name or '') }}')">
                                                 <i class="fas fa-key"></i>
                                             </button>
-                                            
+
                                             <!-- Botón Activar/Desactivar -->
                                             <form method="POST" action="{{ url_for('configuraciones.cambiar_estado_usuario', usuario_id=usuario.id) }}" 
                                                   style="display: inline-block;" 
@@ -338,16 +338,31 @@
                                                     <i class="fas fa-{{ 'user-slash' if usuario.activo else 'user-check' }}"></i>
                                                 </button>
                                             </form>
-                                            
-                                            <!-- Botón Eliminar -->
-                                            <form method="POST" action="{{ url_for('configuraciones.eliminar_usuario', usuario_id=usuario.id) }}" 
+
+                                            <!-- Soft Delete (Desactivar) -->
+                                            <form method="POST" 
+                                                  action="{{ url_for('configuraciones.eliminar_usuario', usuario_id=usuario.id) }}" 
                                                   style="display: inline-block;" 
-                                                  onsubmit="return confirm('⚠️ ATENCIÓN: ¿Estás seguro de eliminar permanentemente al usuario {{ (usuario.first_name or '') + ' ' + (usuario.last_name or '') }}?\n\nEsta acción NO se puede deshacer y el usuario será eliminado del sistema.')">
+                                                  onsubmit="return confirm('¿Estás seguro de desactivar al usuario {{ (usuario.first_name or '') + ' ' + (usuario.last_name or '') }}?\n\nEl usuario no podrá acceder al sistema pero sus datos se mantendrán.')">
                                                 <button type="submit" 
-                                                        class="btn btn-outline-danger btn-sm action-btn" 
+                                                        class="btn btn-outline-warning btn-sm action-btn" 
                                                         data-bs-toggle="tooltip" 
                                                         data-bs-placement="top"
-                                                        title="Eliminar usuario permanentemente">
+                                                        title="Desactivar usuario (soft delete)">
+                                                    <i class="fas fa-user-slash"></i>
+                                                </button>
+                                            </form>
+
+                                            <!-- Hard Delete (Eliminación permanente) -->
+                                            <form method="POST" 
+                                                  action="{{ url_for('configuraciones.eliminar_usuario_permanente', usuario_id=usuario.id) }}" 
+                                                  style="display: inline-block;" 
+                                                  onsubmit="return confirm('⚠️ PELIGRO: ¿Estás seguro de ELIMINAR PERMANENTEMENTE al usuario {{ (usuario.first_name or '') + ' ' + (usuario.last_name or '') }}?\n\n❌ Esta acción NO se puede deshacer\n❌ Se perderá todo el historial del usuario\n❌ Puede afectar la integridad de datos\n\n¿Continuar con la eliminación permanente?')">
+                                                <button type="submit" 
+                                                        class="btn btn-danger btn-sm action-btn" 
+                                                        data-bs-toggle="tooltip" 
+                                                        data-bs-placement="top"
+                                                        title="ELIMINAR PERMANENTEMENTE (hard delete)">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </form>
@@ -425,7 +440,7 @@ function resetearPassword(usuarioId, nombreUsuario) {
     if (!confirm(`¿Restablecer la contraseña de ${nombreUsuario}?`)) {
         return;
     }
-    
+
     fetch(`/configuraciones/api/usuarios/${usuarioId}/reset-password`, {
         method: 'POST',
         headers: {
