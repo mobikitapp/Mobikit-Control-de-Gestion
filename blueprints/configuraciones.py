@@ -20,6 +20,7 @@ from services.configuraciones_service import ConfiguracionesService
 from services.permisos_service import PermisosService
 from services.notification_service import NotificationService
 from utils.auth import role_required
+from replit_auth import require_login
 
 # Create blueprint
 configuraciones_bp = Blueprint('configuraciones', __name__)
@@ -1076,7 +1077,7 @@ def limpiar_datos():
 # =============================================================================
 
 @configuraciones_bp.route('/notificaciones')
-@login_required
+@require_login
 def notificaciones():
     """Panel de configuración de notificaciones del usuario"""
     try:
@@ -1136,7 +1137,7 @@ def notificaciones():
 
 
 @configuraciones_bp.route('/notificaciones', methods=['POST'])
-@login_required
+@require_login
 def actualizar_notificaciones():
     """Actualizar preferencias de notificaciones del usuario"""
     try:
@@ -1168,7 +1169,7 @@ def actualizar_notificaciones():
 
 
 @configuraciones_bp.route('/notificaciones/test', methods=['POST'])
-@login_required
+@require_login
 def test_notificacion():
     """Enviar notificación de prueba"""
     try:
