@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% set title = "Vendedores" %}
 
@@ -7,143 +8,463 @@
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="fas fa-users text-success"></i>
+                            Vendedores
+                        </h4>
+                        <p class="mb-0 text-muted">Estadísticas y seguimiento de vendedores</p>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Nuevo Proyecto
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen General Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Pendiente Presupuesto</h6>
+                            <h3 class="mb-0">{{ stats.pendiente_presupuesto if stats else 0 }}</h3>
+                        </div>
+                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Presupuestado</h6>
+                            <h3 class="mb-0">{{ stats.presupuestado if stats else 0 }}</h3>
+                        </div>
+                        <i class="fas fa-calculator fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Adjudicado</h6>
+                            <h3 class="mb-0">{{ stats.adjudicado if stats else 0 }}</h3>
+                        </div>
+                        <i class="fas fa-handshake fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Terminado</h6>
+                            <h3 class="mb-0">{{ stats.terminado if stats else 0 }}</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary General -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
                 <div class="card-header">
-                    <h4 class="mb-0">
-                        <i class="fas fa-users text-success"></i>
-                        Vendedores
-                    </h4>
-                    <p class="mb-0 text-muted">Estadísticas y seguimiento de vendedores</p>
+                    <h6 class="mb-0">Resumen Provisión Total</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Valor Total</small>
+                            <h5>${{ "{:,.0f}".format(stats.valor_total_provision) if stats else "0" }}</h5>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">Margen Promedio</small>
+                            <h5>{{ "{:.1f}".format(stats.margen_promedio_provision) if stats else "0.0" }}%</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Resumen Instalación Total</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Valor Total</small>
+                            <h5>${{ "{:,.0f}".format(stats.valor_total_instalacion) if stats else "0" }}</h5>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">Margen Promedio</small>
+                            <h5>{{ "{:.1f}".format(stats.margen_promedio_instalacion) if stats else "0.0" }}%</h5>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Vendedores Grid -->
-    <div class="row">
-        {% for vendedor_data in vendedores %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100">
-                <div class="card-header d-flex align-items-center">
-                    <div class="me-3">
-                        {% if vendedor_data.vendedor.profile_image_url %}
-                        <img src="{{ vendedor_data.vendedor.profile_image_url }}"
-                             class="rounded-circle" width="40" height="40"
-                             style="object-fit: cover;">
-                        {% else %}
-                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white"
-                             style="width: 40px; height: 40px;">
-                            {{ vendedor_data.vendedor.first_name[0] if vendedor_data.vendedor.first_name else '?' }}{{ vendedor_data.vendedor.last_name[0] if vendedor_data.vendedor.last_name else '' }}
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <h6 class="mb-0">{{ vendedor_data.vendedor.nombre_completo }}</h6>
-                        <small class="text-muted">{{ vendedor_data.vendedor.email }}</small>
-                    </div>
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-tie text-primary"></i>
+                        Tarjetas de Vendedores
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <!-- Projects Statistics -->
-                    <div class="row text-center mb-3">
-                        <div class="col-6">
-                            <h4 class="text-primary">{{ vendedor_data.stats.total_proyectos }}</h4>
-                            <small>Total Proyectos</small>
-                        </div>
-                        <div class="col-6">
-                            <h4 class="text-warning">{{ vendedor_data.stats.tareas_pendientes }}</h4>
-                            <small>Tareas Pendientes</small>
-                        </div>
-                    </div>
+                    <div class="row">
+                        {% for vendedor_data in vendedores %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header d-flex align-items-center">
+                                    <div class="me-3">
+                                        {% if vendedor_data.vendedor.profile_image_url %}
+                                        <img src="{{ vendedor_data.vendedor.profile_image_url }}"
+                                             class="rounded-circle" width="40" height="40"
+                                             style="object-fit: cover;">
+                                        {% else %}
+                                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white"
+                                             style="width: 40px; height: 40px;">
+                                            {{ vendedor_data.vendedor.first_name[0] if vendedor_data.vendedor.first_name else '?' }}{{ vendedor_data.vendedor.last_name[0] if vendedor_data.vendedor.last_name else '' }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ vendedor_data.vendedor.nombre_completo }}</h6>
+                                        <small class="text-muted">{{ vendedor_data.vendedor.email }}</small>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Projects Statistics -->
+                                    <div class="row text-center mb-3">
+                                        <div class="col-6">
+                                            <h4 class="text-primary">{{ vendedor_data.stats.total_proyectos }}</h4>
+                                            <small>Total Proyectos</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <h4 class="text-warning">{{ vendedor_data.stats.tareas_pendientes }}</h4>
+                                            <small>Tareas Pendientes</small>
+                                        </div>
+                                    </div>
 
-                    <!-- Commercial States -->
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <small>Pendiente Presupuesto</small>
-                            <span class="badge bg-warning">{{ vendedor_data.stats.pendiente_presupuesto }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <small>Presupuestado</small>
-                            <span class="badge bg-info">{{ vendedor_data.stats.presupuestado }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <small>Adjudicado</small>
-                            <span class="badge bg-success">{{ vendedor_data.stats.adjudicado }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small>Terminado</small>
-                            <span class="badge bg-secondary">{{ vendedor_data.stats.terminado }}</span>
-                        </div>
-                    </div>
+                                    <!-- Commercial States -->
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <small>Pendiente Presupuesto</small>
+                                            <span class="badge bg-warning">{{ vendedor_data.stats.pendiente_presupuesto }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <small>Presupuestado</small>
+                                            <span class="badge bg-info">{{ vendedor_data.stats.presupuestado }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <small>Adjudicado</small>
+                                            <span class="badge bg-success">{{ vendedor_data.stats.adjudicado }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small>Terminado</small>
+                                            <span class="badge bg-secondary">{{ vendedor_data.stats.terminado }}</span>
+                                        </div>
+                                    </div>
 
-                    <!-- Success Rate -->
-                    {% if vendedor_data.tasa_exito and vendedor_data.tasa_exito.total_oportunidades > 0 %}
-                    <div class="border-top pt-3 mb-3">
-                        <div class="text-center">
-                            <div class="display-6 fw-bold {% if vendedor_data.tasa_exito.tasa_exito_porcentaje >= 70 %}text-success{% elif vendedor_data.tasa_exito.tasa_exito_porcentaje >= 50 %}text-warning{% else %}text-danger{% endif %}">
-                                {{ "%.1f"|format(vendedor_data.tasa_exito.tasa_exito_porcentaje) }}%
-                            </div>
-                            <small class="text-muted">Tasa de Éxito</small>
-                        </div>
-                        <div class="row text-center mt-2">
-                            <div class="col-4">
-                                <div class="text-success fw-bold">{{ vendedor_data.tasa_exito.proyectos_exitosos }}</div>
-                                <small class="text-muted">Exitosos</small>
-                            </div>
-                            <div class="col-4">
-                                <div class="text-danger fw-bold">{{ vendedor_data.tasa_exito.proyectos_perdidos }}</div>
-                                <small class="text-muted">Perdidos</small>
-                            </div>
-                            <div class="col-4">
-                                <div class="text-primary fw-bold">{{ vendedor_data.tasa_exito.total_oportunidades }}</div>
-                                <small class="text-muted">Total</small>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
+                                    <!-- Success Rate -->
+                                    {% if vendedor_data.tasa_exito and vendedor_data.tasa_exito.total_oportunidades > 0 %}
+                                    <div class="border-top pt-3 mb-3">
+                                        <div class="text-center">
+                                            <div class="display-6 fw-bold {% if vendedor_data.tasa_exito.tasa_exito_porcentaje >= 70 %}text-success{% elif vendedor_data.tasa_exito.tasa_exito_porcentaje >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                                {{ "%.1f"|format(vendedor_data.tasa_exito.tasa_exito_porcentaje) }}%
+                                            </div>
+                                            <small class="text-muted">Tasa de Éxito</small>
+                                        </div>
+                                        <div class="row text-center mt-2">
+                                            <div class="col-4">
+                                                <div class="text-success fw-bold">{{ vendedor_data.tasa_exito.proyectos_exitosos }}</div>
+                                                <small class="text-muted">Exitosos</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="text-danger fw-bold">{{ vendedor_data.tasa_exito.proyectos_perdidos }}</div>
+                                                <small class="text-muted">Perdidos</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="text-primary fw-bold">{{ vendedor_data.tasa_exito.total_oportunidades }}</div>
+                                                <small class="text-muted">Total</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
 
-                    <!-- Financial Summary -->
-                    <div class="border-top pt-3">
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <small class="text-muted d-block">Provisión</small>
-                                <strong>${{ "{:,.0f}".format(vendedor_data.stats.valor_total_provision / 1000) }}K</strong>
-                            </div>
-                            <div class="col-6">
-                                <small class="text-muted d-block">Instalación</small>
-                                <strong>${{ "{:,.0f}".format(vendedor_data.stats.valor_total_instalacion / 1000) }}K</strong>
+                                    <!-- Financial Summary -->
+                                    <div class="border-top pt-3">
+                                        <div class="row text-center">
+                                            <div class="col-6">
+                                                <small class="text-muted d-block">Provisión</small>
+                                                <strong>${{ "{:,.0f}".format(vendedor_data.stats.valor_total_provision / 1000) }}K</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted d-block">Instalación</small>
+                                                <strong>${{ "{:,.0f}".format(vendedor_data.stats.valor_total_instalacion / 1000) }}K</strong>
+                                            </div>
+                                        </div>
+                                        {% if vendedor_data.stats.margen_promedio_provision %}
+                                        <div class="text-center mt-2">
+                                            <small class="text-muted">Margen Promedio: </small>
+                                            <span class="badge bg-success">{{ "{:.1f}".format(vendedor_data.stats.margen_promedio_provision) }}%</span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="d-flex justify-content-between">
+                                        <a href="{{ url_for('comercial.vendedor_detalle', vendedor_id=vendedor_data.vendedor.id) }}"
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-eye"></i> Ver Detalle
+                                        </a>
+                                        <button class="btn btn-outline-info btn-sm" onclick="filtrarPorVendedor('{{ vendedor_data.vendedor.id }}')">
+                                            <i class="fas fa-filter"></i> Filtrar Proyectos
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        {% if vendedor_data.stats.margen_promedio_provision %}
-                        <div class="text-center mt-2">
-                            <small class="text-muted">Margen Promedio: </small>
-                            <span class="badge bg-success">{{ "{:.1f}".format(vendedor_data.stats.margen_promedio_provision) }}%</span>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('comercial.vendedor_detalle', vendedor_id=vendedor_data.vendedor.id) }}"
-                           class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-eye"></i> Ver Detalle
-                        </a>
-                        <a href="{{ url_for('comercial.centro_vendedores', vendedor_id=vendedor_data.vendedor.id) }}"
-                           class="btn btn-outline-info btn-sm">
-                            <i class="fas fa-filter"></i> Filtrar Proyectos
-                        </a>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
 
-    <!-- Navigation -->
+    <!-- Chart.js for commissions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar text-info"></i>
+                        Comisiones Adjudicadas Mensuales Consolidadas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyCommissionsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter text-warning"></i>
+                        Filtros de Proyectos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3" id="filtrosForm">
+                        <div class="col-md-3">
+                            <label class="form-label">Cliente</label>
+                            <select class="form-select" name="cliente_id" id="filtro_cliente">
+                                <option value="">Todos los clientes</option>
+                                {% if clientes %}
+                                    {% for cliente in clientes %}
+                                    <option value="{{ cliente.id }}" 
+                                            {% if filtros and filtros.cliente_id == cliente.id %}selected{% endif %}>
+                                        {{ cliente.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Vendedor</label>
+                            <select class="form-select" name="vendedor_id" id="filtro_vendedor">
+                                <option value="">Todos los vendedores</option>
+                                {% for vendedor_data in vendedores %}
+                                <option value="{{ vendedor_data.vendedor.id }}"
+                                        {% if filtros and filtros.vendedor_id == vendedor_data.vendedor.id %}selected{% endif %}>
+                                    {{ vendedor_data.vendedor.nombre_completo }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Estado Comercial</label>
+                            <select class="form-select" name="estado_comercial" id="filtro_estado">
+                                <option value="">Todos los estados</option>
+                                {% if estadios_comerciales %}
+                                    {% for estado in estadios_comerciales %}
+                                    <option value="{{ estado.value }}"
+                                            {% if filtros and filtros.estado_comercial == estado.value %}selected{% endif %}>
+                                        {{ estado.value.replace('_', ' ').title() }}
+                                    </option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            <a href="{{ url_for('comercial.lista_vendedores') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Limpiar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects by Commercial State -->
+    {% if proyectos_por_estado %}
+    {% for estado_key, estado_data in proyectos_por_estado.items() %}
+    {% if estado_data.proyectos %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        {% set estado_colors = {
+                            'pendiente_presupuesto': 'warning',
+                            'presupuestado': 'info', 
+                            'adjudicado': 'success',
+                            'terminado': 'secondary'
+                        } %}
+                        <span class="badge bg-{{ estado_colors.get(estado_key, 'primary') }}">
+                            {{ estado_data.estado.value.replace('_', ' ').title() }}
+                        </span>
+                    </h6>
+                    <small class="text-muted">{{ estado_data.proyectos|length }} proyectos</small>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Proyecto</th>
+                                    <th>Cliente</th>
+                                    <th>Vendedor</th>
+                                    <th>Provisión</th>
+                                    <th>Instalación</th>
+                                    <th>Fechas</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for proyecto in estado_data.proyectos %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ proyecto.nombre }}</strong>
+                                        {% if proyecto.descripcion %}
+                                        <br><small class="text-muted">{{ proyecto.descripcion[:50] }}{% if proyecto.descripcion|length > 50 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente' }}</td>
+                                    <td>
+                                        {% if proyecto.vendedor_user %}
+                                        <small>{{ proyecto.vendedor_user.nombre_completo }}</small>
+                                        {% else %}
+                                        <small class="text-muted">Sin asignar</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if proyecto.monto_provision_presupuestado %}
+                                        <strong>${{ "{:,.0f}".format(proyecto.monto_provision_presupuestado) }}</strong>
+                                        {% if proyecto.margen_venta_provision %}
+                                        <br><small class="text-success">{{ "{:.1f}".format(proyecto.margen_venta_provision) }}% margen</small>
+                                        {% endif %}
+                                        {% else %}
+                                        <small class="text-muted">No definido</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if proyecto.monto_instalacion_presupuestado %}
+                                        <strong>${{ "{:,.0f}".format(proyecto.monto_instalacion_presupuestado) }}</strong>
+                                        {% if proyecto.margen_venta_instalacion %}
+                                        <br><small class="text-success">{{ "{:.1f}".format(proyecto.margen_venta_instalacion) }}% margen</small>
+                                        {% endif %}
+                                        {% else %}
+                                        <small class="text-muted">N/A</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if proyecto.fecha_presupuesto %}
+                                        <small><strong>Presupuesto:</strong> {{ proyecto.fecha_presupuesto.strftime('%d/%m/%Y') }}</small><br>
+                                        {% endif %}
+                                        {% if proyecto.fecha_adjudicacion %}
+                                        <small><strong>Adjudicación:</strong> {{ proyecto.fecha_adjudicacion.strftime('%d/%m/%Y') }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('comercial.proyecto_comercial', proyecto_id=proyecto.id) }}" 
+                                               class="btn btn-outline-primary btn-sm" 
+                                               title="Editar información comercial">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" 
+                                               class="btn btn-outline-info btn-sm"
+                                               title="Ver detalle del proyecto">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+
+    <!-- Quick Actions -->
     <div class="row">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-body text-center">
-                    <a href="{{ url_for('comercial.centro_vendedores') }}" class="btn btn-primary">
-                        <i class="fas fa-chart-line"></i> Volver al Centro de Vendedores
+                <div class="card-header">
+                    <h6 class="mb-0">Acciones Rápidas</h6>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('comercial.tareas_comerciales') }}" class="btn btn-outline-info me-2">
+                        <i class="fas fa-tasks"></i> Tareas Comerciales
+                    </a>
+                    <a href="{{ url_for('comercial.planificacion_comercial') }}" class="btn btn-outline-success me-2">
+                        <i class="fas fa-chart-gantt"></i> Planificación
+                    </a>
+                    <a href="{{ url_for('comercial.objetivos_mensuales') }}" class="btn btn-outline-warning me-2">
+                        <i class="fas fa-bullseye"></i> Objetivos
+                    </a>
+                    <a href="{{ url_for('comercial.revenue_management') }}" class="btn btn-outline-dark">
+                        <i class="fas fa-chart-line"></i> Revenue Management
                     </a>
                 </div>
             </div>
@@ -151,64 +472,105 @@
     </div>
 </div>
 
-<!-- Chart.js for commissions -->
-<div class="container-fluid mt-5">
-    <div class="card">
-        <div class="card-header">
-            <h4 class="mb-0">
-                <i class="fas fa-chart-bar text-info"></i>
-                Comisiones Adjudicadas Mensuales
-            </h4>
-        </div>
-        <div class="card-body">
-            <canvas id="monthlyCommissionsChart"></canvas>
-        </div>
-    </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var ctx = document.getElementById('monthlyCommissionsChart').getContext('2d');
-        var monthlyCommissionsChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: {{ meses_actual_year | tojson }},
-                datasets: [{
-                    label: 'Comisión Adjudicada Mensual',
-                    data: {{ comisiones_mensuales_adjudicadas | tojson }},
-                    backgroundColor: 'rgba(23, 162, 184, 0.6)',
-                    borderColor: 'rgba(23, 162, 184, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Comisiones Adjudicadas Mensuales'
-                    }
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart for monthly commissions
+    var ctx = document.getElementById('monthlyCommissionsChart').getContext('2d');
+    var monthlyCommissionsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ meses_actual_year | tojson }},
+            datasets: [{
+                label: 'Comisión Adjudicada Mensual',
+                data: {{ comisiones_mensuales_adjudicadas | tojson }},
+                backgroundColor: 'rgba(23, 162, 184, 0.6)',
+                borderColor: 'rgba(23, 162, 184, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                if (value >= 1000) {
-                                    return '$' + (value / 1000).toFixed(1) + 'K';
-                                }
-                                return '$' + value;
+                title: {
+                    display: true,
+                    text: 'Comisiones Adjudicadas Mensuales'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            if (value >= 1000) {
+                                return '$' + (value / 1000).toFixed(1) + 'K';
                             }
+                            return '$' + value;
                         }
                     }
                 }
             }
-        });
+        }
     });
+
+    // Function to filter by salesperson
+    window.filtrarPorVendedor = function(vendedorId) {
+        document.getElementById('filtro_vendedor').value = vendedorId;
+        document.getElementById('filtrosForm').submit();
+    };
+
+    // Auto-refresh every 5 minutes
+    setInterval(() => {
+        window.location.reload();
+    }, 300000);
+
+    // Quick search functionality
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'form-control mb-3';
+    searchInput.placeholder = 'Buscar por nombre de proyecto o cliente...';
+    searchInput.id = 'searchProjects';
+    
+    // Insert search before the first project state card
+    const firstStateCard = document.querySelector('.row.mb-4:last-of-type');
+    if (firstStateCard) {
+        const searchContainer = document.createElement('div');
+        searchContainer.className = 'row mb-3';
+        searchContainer.innerHTML = `
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <label for="searchProjects" class="form-label">Búsqueda Rápida en Proyectos</label>
+                        ${searchInput.outerHTML}
+                    </div>
+                </div>
+            </div>
+        `;
+        firstStateCard.parentNode.insertBefore(searchContainer, firstStateCard);
+    }
+    
+    // Search functionality
+    document.addEventListener('input', function(e) {
+        if (e.target.id === 'searchProjects') {
+            const searchTerm = e.target.value.toLowerCase();
+            const projectRows = document.querySelectorAll('tbody tr');
+            
+            projectRows.forEach(row => {
+                const projectName = row.querySelector('td:first-child strong')?.textContent.toLowerCase() || '';
+                const clientName = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+                
+                if (projectName.includes(searchTerm) || clientName.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    });
+});
 </script>
 
 {% endblock %}

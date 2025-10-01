@@ -52,19 +52,34 @@ def centro_vendedores():
 @login_required
 @role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
 def lista_vendedores():
-    """Lista de vendedores con estadísticas"""
+    """Lista de vendedores con estadísticas fusionando centro de vendedores"""
     try:
         import calendar
         from services.dashboard_vendedor_service import DashboardVendedorService
         
         service = ComercialService()
         dashboard_service = DashboardVendedorService()
+
+        # Get filters from request (similar to centro_vendedores)
+        cliente_id = request.args.get('cliente_id', type=int)
+        vendedor_id = request.args.get('vendedor_id')
+        estado_comercial = request.args.get('estado_comercial')
+
+        # Get data for the sales center (general statistics)
+        centro_data = service.get_centro_vendedores_data(
+            current_user_id=current_user.id,
+            cliente_id=cliente_id,
+            vendedor_id=vendedor_id,
+            estado_comercial=estado_comercial
+        )
+
+        # Get vendedores statistics
         vendedores_stats = service.get_vendedores_estadisticas()
 
         # Agregar métricas de tasa de éxito a cada vendedor
         for vendedor_data in vendedores_stats:
-            vendedor_id = vendedor_data['vendedor'].id
-            tasa_exito = dashboard_service.get_tasa_exito_vendedor(vendedor_id)
+            vendedor_id_inner = vendedor_data['vendedor'].id
+            tasa_exito = dashboard_service.get_tasa_exito_vendedor(vendedor_id_inner)
             vendedor_data['tasa_exito'] = tasa_exito
 
         # Preparar datos para el gráfico de comisiones mensuales consolidado
@@ -82,12 +97,22 @@ def lista_vendedores():
                 comision_mes += comision_vendedor_mes
             comisiones_mensuales_adjudicadas.append(comision_mes)
 
-        return render_template('comercial/vendedores.html', 
-                             vendedores=vendedores_stats,
-                             vendedores_stats=vendedores_stats,
-                             current_year=current_year,
-                             meses_actual_year=meses_actual_year,
-                             comisiones_mensuales_adjudicadas=comisiones_mensuales_adjudicadas)
+        # Merge centro data with vendedores data
+        merged_data = {
+            'vendedores': vendedores_stats,
+            'vendedores_stats': vendedores_stats,
+            'current_year': current_year,
+            'meses_actual_year': meses_actual_year,
+            'comisiones_mensuales_adjudicadas': comisiones_mensuales_adjudicadas,
+            # Data from centro de vendedores
+            'stats': centro_data['stats'],
+            'proyectos_por_estado': centro_data['proyectos_por_estado'],
+            'clientes': centro_data['clientes'],
+            'estadios_comerciales': centro_data['estadios_comerciales'],
+            'filtros': centro_data['filtros']
+        }
+
+        return render_template('comercial/vendedores.html', **merged_data)
 
     except Exception as e:
         flash(f'Error al cargar vendedores: {str(e)}', 'error')
@@ -101,7 +126,12 @@ def lista_vendedores():
                              vendedores_stats=[], 
                              current_year=current_year,
                              meses_actual_year=meses_actual_year,
-                             comisiones_mensuales_adjudicadas=comisiones_mensuales_adjudicadas)
+                             comisiones_mensuales_adjudicadas=comisiones_mensuales_adjudicadas,
+                             stats={},
+                             proyectos_por_estado={},
+                             clientes=[],
+                             estadios_comerciales=[],
+                             filtros={})
 
 
 @comercial_bp.route('/vendedor/<string:vendedor_id>')
