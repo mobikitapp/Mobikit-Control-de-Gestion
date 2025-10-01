@@ -274,6 +274,10 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><h6 class="dropdown-header">{{ current_user.rol.value|title }}</h6></li>
+                            <li><small class="dropdown-item-text text-muted">
+                                <i data-feather="mail" class="me-1" style="width: 14px; height: 14px;"></i>
+                                {{ current_user.email or current_user.id }}
+                            </small></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('capacitacion.index') }}">
                                 <i data-feather="book-open" class="me-1"></i>
