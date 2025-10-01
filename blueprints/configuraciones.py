@@ -225,6 +225,28 @@ def cambiar_estado_usuario(usuario_id):
     return redirect(url_for('configuraciones.usuarios'))
 
 
+@configuraciones_bp.route('/usuarios/<usuario_id>/eliminar', methods=['POST'])
+@login_required
+@role_required([RolUsuario.ADMIN])
+def eliminar_usuario(usuario_id):
+    """Eliminar usuario del sistema"""
+    try:
+        service = ConfiguracionesService()
+
+        # Eliminar usuario
+        success, mensaje = service.eliminar_usuario(usuario_id, current_user.id)
+
+        if success:
+            flash(mensaje, 'success')
+        else:
+            flash(f'Error: {mensaje}', 'error')
+
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'error')
+
+    return redirect(url_for('configuraciones.usuarios'))
+
+
 @configuraciones_bp.route('/roles')
 @login_required
 @role_required([RolUsuario.ADMIN])

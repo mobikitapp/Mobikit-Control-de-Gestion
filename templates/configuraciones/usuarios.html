@@ -87,6 +87,20 @@
     cursor: not-allowed;
 }
 
+/* Botón eliminar - Outline danger */
+.btn-outline-danger {
+    border-color: #DC2626;
+    color: #DC2626;
+}
+
+.btn-outline-danger:hover {
+    background-color: #DC2626;
+    border-color: #DC2626;
+    color: var(--mobikit-white);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+}
+
 /* Mejoras adicionales para la tabla */
 .table td {
     vertical-align: middle;
@@ -322,6 +336,19 @@
                                                         data-bs-placement="top"
                                                         title="{{ 'Desactivar usuario' if usuario.activo else 'Activar usuario' }}">
                                                     <i class="fas fa-{{ 'user-slash' if usuario.activo else 'user-check' }}"></i>
+                                                </button>
+                                            </form>
+                                            
+                                            <!-- Botón Eliminar -->
+                                            <form method="POST" action="{{ url_for('configuraciones.eliminar_usuario', usuario_id=usuario.id) }}" 
+                                                  style="display: inline-block;" 
+                                                  onsubmit="return confirm('⚠️ ATENCIÓN: ¿Estás seguro de eliminar permanentemente al usuario {{ (usuario.first_name or '') + ' ' + (usuario.last_name or '') }}?\n\nEsta acción NO se puede deshacer y el usuario será eliminado del sistema.')">
+                                                <button type="submit" 
+                                                        class="btn btn-outline-danger btn-sm action-btn" 
+                                                        data-bs-toggle="tooltip" 
+                                                        data-bs-placement="top"
+                                                        title="Eliminar usuario permanentemente">
+                                                    <i class="fas fa-trash"></i>
                                                 </button>
                                             </form>
                                             {% else %}
