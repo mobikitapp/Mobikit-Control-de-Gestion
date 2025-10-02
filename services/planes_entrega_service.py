@@ -301,6 +301,85 @@ class PlanesEntregaService:
             logger.error(f"Error eliminando plan de entrega {plan_id}: {str(e)}")
             raise
 
+    def update_plan_hitos(self, plan_id: int, titulos: List[str], descripciones: List[str], 
+                          fechas: List[str], hito_ids: List[str], updated_by: str) -> None:
+        """
+        Update plan hitos - updates existing ones and creates new ones as needed
+        
+        Args:
+            plan_id: Plan ID
+            titulos: List of hito titles
+            descripciones: List of hito descriptions
+            fechas: List of hito dates
+            hito_ids: List of existing hito IDs (empty string for new hitos)
+            updated_by: User ID making the changes
+        """
+        try:
+            plan = self.repo.get_by_id(plan_id)
+            if not plan:
+                raise ValueError(f"Plan de entrega {plan_id} no encontrado")
+
+            existing_hito_ids = set()
+            
+            # Process each hito
+            for i, titulo in enumerate(titulos):
+                if not titulo.strip():
+                    continue
+                    
+                descripcion = descripciones[i] if i < len(descripciones) else ''
+                fecha = fechas[i] if i < len(fechas) else None
+                hito_id_str = hito_ids[i] if i < len(hito_ids) else ''
+                
+                # Parse date
+                fecha_programada = None
+                if fecha:
+                    try:
+                        fecha_programada = datetime.strptime(fecha, '%Y-%m-%d').date()
+                    except ValueError:
+                        continue
+                
+                if hito_id_str and hito_id_str.isdigit():
+                    # Update existing hito
+                    hito_id = int(hito_id_str)
+                    existing_hito_ids.add(hito_id)
+                    
+                    hito = self.hitos_repo.get_by_id(hito_id)
+                    if hito and hito.plan_entrega_id == plan_id:
+                        # Only update if not completed
+                        if hito.estado == EstadoHitoEntrega.PENDIENTE or hito.estado == EstadoHitoEntrega.ATRASADO:
+                            update_data = {
+                                'titulo': titulo.strip(),
+                                'descripcion': descripcion,
+                                'fecha_programada': fecha_programada,
+                                'orden': i + 1
+                            }
+                            self.hitos_repo.update(hito, update_data)
+                else:
+                    # Create new hito
+                    hito_data = {
+                        'plan_entrega_id': plan_id,
+                        'titulo': titulo.strip(),
+                        'descripcion': descripcion,
+                        'fecha_programada': fecha_programada,
+                        'orden': i + 1
+                    }
+                    self.hitos_repo.create(hito_data, updated_by)
+            
+            # Delete hitos that were removed (only if they're not completed)
+            all_hitos = self.hitos_repo.get_by_plan_id(plan_id)
+            for hito in all_hitos:
+                if (hito.id not in existing_hito_ids and 
+                    hito.estado == EstadoHitoEntrega.PENDIENTE):
+                    self.hitos_repo.delete(hito)
+            
+            db.session.commit()
+            logger.info(f"Hitos actualizados para plan {plan_id}")
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error actualizando hitos del plan {plan_id}: {str(e)}")
+            raise
+
     def get_estadisticas_plan(self, plan_id: int) -> Dict[str, Any]:
         """
         Get statistics for a plan de entrega

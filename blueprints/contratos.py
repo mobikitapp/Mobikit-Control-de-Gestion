@@ -552,6 +552,58 @@ def crear_plan_entrega(contrato_id):
         flash('Error al crear plan de entrega', 'error')
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
+@contratos_bp.route('/planes-entrega/<int:plan_id>/editar', methods=['GET', 'POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def editar_plan_entrega(plan_id):
+    """Editar plan de entrega existente"""
+    try:
+        plan = planes_entrega_service.get_plan_by_id(plan_id)
+        if not plan:
+            flash('Plan de entrega no encontrado', 'error')
+            return redirect(url_for('contratos.index'))
+
+        contrato = contratos_service.get_contrato_by_id(plan.contrato_id)
+        if not contrato:
+            flash('Contrato no encontrado', 'error')
+            return redirect(url_for('contratos.index'))
+
+        if request.method == 'POST':
+            # Update plan data
+            plan_update_data = {
+                'nombre': request.form.get('nombre'),
+                'descripcion': request.form.get('descripcion')
+            }
+
+            # Update plan
+            plan_actualizado = planes_entrega_service.update_plan(plan_id, plan_update_data)
+
+            # Handle hitos updates
+            titulos = request.form.getlist('hito_titulo[]')
+            descripciones = request.form.getlist('hito_descripcion[]')
+            fechas = request.form.getlist('hito_fecha[]')
+            hito_ids = request.form.getlist('hito_id[]')
+
+            if not titulos or all(not titulo.strip() for titulo in titulos):
+                flash('Debe tener al menos un hito de entrega', 'error')
+                return render_template('contratos/plan_entrega_edit.html', 
+                                     contrato=contrato, plan=plan)
+
+            # Update existing hitos and create new ones
+            planes_entrega_service.update_plan_hitos(
+                plan_id, titulos, descripciones, fechas, hito_ids, current_user.id
+            )
+
+            flash('Plan de entrega actualizado exitosamente', 'success')
+            return redirect(url_for('contratos.plan_entrega', contrato_id=contrato.id))
+
+        return render_template('contratos/plan_entrega_edit.html', 
+                             contrato=contrato, plan=plan)
+
+    except Exception as e:
+        logger.error(f"Error editando plan de entrega {plan_id}: {str(e)}")
+        flash('Error al editar plan de entrega', 'error')
+        return redirect(url_for('contratos.index'))
+
 @contratos_bp.route('/hitos/<int:hito_id>/completar', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
 def completar_hito(hito_id):

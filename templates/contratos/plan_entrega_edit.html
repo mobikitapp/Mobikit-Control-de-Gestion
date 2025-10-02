@@ -1,0 +1,366 @@
+
+{% extends "base.html" %}
+
+{% block title %}Editar Plan de Entrega - {{ contrato.numero_oc }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">Editar Plan de Entrega</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('areas.dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('contratos.index') }}">Contratos</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}">{{ contrato.numero_oc }}</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('contratos.plan_entrega', contrato_id=contrato.id) }}">Plan de Entrega</a></li>
+                            <li class="breadcrumb-item active">Editar</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{{ url_for('contratos.plan_entrega', contrato_id=contrato.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Cancelar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información del Contrato -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="card-title">{{ contrato.numero_oc }}</h5>
+                            <p class="text-muted mb-0">{{ contrato.proyecto.nombre }}</p>
+                            <p class="text-muted">Cliente: {{ contrato.proyecto.cliente.nombre }}</p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <span class="badge bg-{{ 'success' if contrato.estado.value == 'VIGENTE' else 'secondary' }} fs-6">
+                                {{ contrato.estado.value }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario del Plan de Entrega -->
+    <form method="POST" id="formEditarPlan">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Información del Plan de Entrega</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="nombre" class="form-label">Nombre del Plan <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="nombre" name="nombre" 
+                                           value="{{ plan.nombre }}" required>
+                                    <div class="form-text">Nombre identificativo para este plan de entrega</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="descripcion" class="form-label">Descripción</label>
+                                    <textarea class="form-control" id="descripcion" name="descripcion" rows="3"
+                                            placeholder="Descripción general del plan de entrega...">{{ plan.descripcion or '' }}</textarea>
+                                    <div class="form-text">Descripción opcional del plan de entrega</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hitos del Plan -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Hitos de Entrega</h5>
+                        <button type="button" class="btn btn-sm btn-primary" id="btnAgregarHito">
+                            <i class="fas fa-plus me-1"></i>Agregar Hito
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="containerHitos">
+                            <!-- Los hitos existentes se cargarán aquí -->
+                            {% for hito in plan.hitos %}
+                            <div class="hito-item border rounded p-3 mb-3" data-hito-index="{{ loop.index0 }}">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h6 class="mb-0">
+                                        Hito #{{ loop.index }}
+                                        {% if hito.estado.value == 'COMPLETADO' %}
+                                        <span class="badge bg-success ms-2">Completado</span>
+                                        {% endif %}
+                                    </h6>
+                                    {% if hito.estado.value != 'COMPLETADO' %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-hito">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Título <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" name="hito_titulo[]" 
+                                                   value="{{ hito.titulo }}" 
+                                                   {% if hito.estado.value == 'COMPLETADO' %}readonly{% endif %} required>
+                                            <input type="hidden" name="hito_id[]" value="{{ hito.id }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Fecha Programada <span class="text-danger">*</span></label>
+                                            <input type="date" class="form-control" name="hito_fecha[]" 
+                                                   value="{{ hito.fecha_programada.strftime('%Y-%m-%d') if hito.fecha_programada }}"
+                                                   {% if hito.estado.value == 'COMPLETADO' %}readonly{% endif %} required>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="mb-0">
+                                            <label class="form-label">Descripción</label>
+                                            <textarea class="form-control" name="hito_descripcion[]" rows="2" 
+                                                    placeholder="Descripción del hito..."
+                                                    {% if hito.estado.value == 'COMPLETADO' %}readonly{% endif %}>{{ hito.descripcion or '' }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if not plan.hitos %}
+                        <div id="noHitosMessage" class="text-center py-4 text-muted">
+                            <i class="fas fa-calendar-plus fa-3x mb-3"></i>
+                            <p>No hay hitos definidos. Haga clic en "Agregar Hito" para comenzar.</p>
+                        </div>
+                        {% else %}
+                        <div id="noHitosMessage" class="text-center py-4 text-muted" style="display: none;">
+                            <i class="fas fa-calendar-plus fa-3x mb-3"></i>
+                            <p>No hay hitos definidos. Haga clic en "Agregar Hito" para comenzar.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">Acciones</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save me-2"></i>Guardar Cambios
+                            </button>
+                            <a href="{{ url_for('contratos.plan_entrega', contrato_id=contrato.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>Información</h6>
+                    </div>
+                    <div class="card-body">
+                        <small class="text-muted">
+                            <strong>Hitos Completados:</strong><br>
+                            Los hitos que ya han sido completados no pueden ser editados ni eliminados.
+                            <br><br>
+                            <strong>Eliminar Hitos:</strong><br>
+                            Solo se pueden eliminar hitos pendientes. Los completados permanecerán en el historial.
+                            <br><br>
+                            <strong>Orden:</strong><br>
+                            Los hitos se mostrarán según el orden definido aquí.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Template para Nuevos Hitos -->
+<script type="text/html" id="templateNuevoHito">
+<div class="hito-item border rounded p-3 mb-3" data-hito-index="{{INDEX}}">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <h6 class="mb-0">Hito #{{NUMERO}} <span class="badge bg-info ms-2">Nuevo</span></h6>
+        <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-hito">
+            <i class="fas fa-trash"></i>
+        </button>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label class="form-label">Título <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="hito_titulo[]" required>
+                <input type="hidden" name="hito_id[]" value="">
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label class="form-label">Fecha Programada <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" name="hito_fecha[]" required>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="mb-0">
+                <label class="form-label">Descripción</label>
+                <textarea class="form-control" name="hito_descripcion[]" rows="2" placeholder="Descripción del hito..."></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let nuevoHitoCounter = 1000; // Start high to avoid conflicts with existing IDs
+    const containerHitos = document.getElementById('containerHitos');
+    const noHitosMessage = document.getElementById('noHitosMessage');
+    const btnAgregarHito = document.getElementById('btnAgregarHito');
+    
+    function updateHitosVisibility() {
+        const hitosCount = containerHitos.children.length;
+        noHitosMessage.style.display = hitosCount === 0 ? 'block' : 'none';
+        
+        // Actualizar numeración de hitos
+        Array.from(containerHitos.children).forEach((hito, index) => {
+            const numeroSpan = hito.querySelector('h6');
+            if (numeroSpan) {
+                const isCompleted = numeroSpan.textContent.includes('Completado');
+                const isNew = numeroSpan.textContent.includes('Nuevo');
+                let text = `Hito #${index + 1}`;
+                if (isCompleted) {
+                    text += ' <span class="badge bg-success ms-2">Completado</span>';
+                } else if (isNew) {
+                    text += ' <span class="badge bg-info ms-2">Nuevo</span>';
+                }
+                numeroSpan.innerHTML = text;
+            }
+        });
+    }
+    
+    function agregarNuevoHito() {
+        nuevoHitoCounter++;
+        const template = document.getElementById('templateNuevoHito').innerHTML;
+        const hitoHtml = template
+            .replace(/{{INDEX}}/g, nuevoHitoCounter)
+            .replace(/{{NUMERO}}/g, containerHitos.children.length + 1);
+        
+        const hitoElement = document.createElement('div');
+        hitoElement.innerHTML = hitoHtml;
+        const hitoItem = hitoElement.firstElementChild;
+        
+        // Agregar event listener para eliminar
+        const btnEliminar = hitoItem.querySelector('.btn-eliminar-hito');
+        btnEliminar.addEventListener('click', function() {
+            hitoItem.remove();
+            updateHitosVisibility();
+        });
+        
+        containerHitos.appendChild(hitoItem);
+        updateHitosVisibility();
+        
+        // Focus en el primer input del nuevo hito
+        const primerInput = hitoItem.querySelector('input[type="text"]');
+        if (primerInput) {
+            primerInput.focus();
+        }
+    }
+    
+    // Event listeners
+    btnAgregarHito.addEventListener('click', agregarNuevoHito);
+    
+    // Agregar event listeners a botones eliminar existentes
+    document.querySelectorAll('.btn-eliminar-hito').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const hitoItem = btn.closest('.hito-item');
+            if (hitoItem) {
+                hitoItem.remove();
+                updateHitosVisibility();
+            }
+        });
+    });
+    
+    // Validación del formulario
+    document.getElementById('formEditarPlan').addEventListener('submit', function(e) {
+        const hitosCount = containerHitos.children.length;
+        if (hitosCount === 0) {
+            e.preventDefault();
+            alert('Debe tener al menos un hito de entrega');
+            return false;
+        }
+        
+        // Validar que todos los hitos tengan título y fecha
+        const titulos = document.querySelectorAll('input[name="hito_titulo[]"]');
+        const fechas = document.querySelectorAll('input[name="hito_fecha[]"]');
+        
+        for (let i = 0; i < titulos.length; i++) {
+            if (!titulos[i].readOnly && !titulos[i].value.trim()) {
+                e.preventDefault();
+                alert(`El hito #${i + 1} debe tener un título`);
+                titulos[i].focus();
+                return false;
+            }
+            if (!fechas[i].readOnly && !fechas[i].value) {
+                e.preventDefault();
+                alert(`El hito #${i + 1} debe tener una fecha programada`);
+                fechas[i].focus();
+                return false;
+            }
+        }
+    });
+    
+    // Configurar fecha mínima como hoy para nuevos hitos
+    const today = new Date().toISOString().split('T')[0];
+    document.addEventListener('change', function(e) {
+        if (e.target.type === 'date' && e.target.name === 'hito_fecha[]' && !e.target.readOnly) {
+            if (!e.target.min) {
+                e.target.min = today;
+            }
+        }
+    });
+    
+    // Inicializar visibilidad
+    updateHitosVisibility();
+});
+</script>
+
+<style>
+.hito-item {
+    background-color: #f8f9fa;
+    border-left: 4px solid #007bff !important;
+}
+
+.hito-item:hover {
+    background-color: #e9ecef;
+}
+
+.btn-eliminar-hito {
+    opacity: 0.7;
+}
+
+.btn-eliminar-hito:hover {
+    opacity: 1;
+}
+
+.hito-item input[readonly],
+.hito-item textarea[readonly] {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+}
+</style>
+{% endblock %}
