@@ -256,24 +256,47 @@ def actualizar_fechas_of():
         data = request.get_json()
         service = PlanificacionPrioridadesService()
 
+        print(f"Datos recibidos para actualizar fechas: {data}")
+
         of_id = data.get('of_id')
         fecha_planificada = data.get('fecha_planificada')
         fecha_entrega_fabrica = data.get('fecha_entrega_fabrica')
         fecha_entrega_embalaje = data.get('fecha_entrega_embalaje')
 
+        if not of_id:
+            return jsonify({'success': False, 'message': 'ID de OF requerido'})
+
         # Convertir fechas string a objetos date
-        if fecha_planificada:
-            fecha_planificada = datetime.strptime(fecha_planificada, '%Y-%m-%d').date()
-        if fecha_entrega_fabrica:
-            fecha_entrega_fabrica = datetime.strptime(fecha_entrega_fabrica, '%Y-%m-%d').date()
-        if fecha_entrega_embalaje:
-            fecha_entrega_embalaje = datetime.strptime(fecha_entrega_embalaje, '%Y-%m-%d').date()
+        fechas_convertidas = {}
+        
+        if fecha_planificada and fecha_planificada.strip():
+            try:
+                fechas_convertidas['fecha_planificada'] = datetime.strptime(fecha_planificada, '%Y-%m-%d').date()
+            except ValueError as e:
+                return jsonify({'success': False, 'message': f'Formato de fecha_planificada inválido: {e}'})
+                
+        if fecha_entrega_fabrica and fecha_entrega_fabrica.strip():
+            try:
+                fechas_convertidas['fecha_entrega_fabrica'] = datetime.strptime(fecha_entrega_fabrica, '%Y-%m-%d').date()
+            except ValueError as e:
+                return jsonify({'success': False, 'message': f'Formato de fecha_entrega_fabrica inválido: {e}'})
+                
+        if fecha_entrega_embalaje and fecha_entrega_embalaje.strip():
+            try:
+                fechas_convertidas['fecha_entrega_embalaje'] = datetime.strptime(fecha_entrega_embalaje, '%Y-%m-%d').date()
+            except ValueError as e:
+                return jsonify({'success': False, 'message': f'Formato de fecha_entrega_embalaje inválido: {e}'})
+
+        print(f"Fechas convertidas para OF {of_id}: {fechas_convertidas}")
+
+        if not fechas_convertidas:
+            return jsonify({'success': False, 'message': 'No se proporcionaron fechas válidas para actualizar'})
 
         exito = service.actualizar_fechas_of(
             of_id=of_id,
-            fecha_planificada=fecha_planificada,
-            fecha_entrega_fabrica=fecha_entrega_fabrica,
-            fecha_entrega_embalaje=fecha_entrega_embalaje
+            fecha_planificada=fechas_convertidas.get('fecha_planificada'),
+            fecha_entrega_fabrica=fechas_convertidas.get('fecha_entrega_fabrica'),
+            fecha_entrega_embalaje=fechas_convertidas.get('fecha_entrega_embalaje')
         )
 
         if exito:
@@ -282,6 +305,9 @@ def actualizar_fechas_of():
             return jsonify({'success': False, 'message': 'Error al actualizar fechas'})
 
     except Exception as e:
+        print(f"Error en actualizar_fechas_of: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
 
 

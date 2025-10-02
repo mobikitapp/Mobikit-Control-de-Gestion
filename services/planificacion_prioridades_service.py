@@ -165,10 +165,24 @@ class PlanificacionPrioridadesService:
                     # Fecha estimada de finalización de embalaje
                     fecha_estimada_embalaje = fecha_estimada_fabricacion + timedelta(days=int(tiempo_embalaje))
 
-                # Calcular días hasta entrega
+                # Calcular días hasta entrega (usar la fecha más próxima disponible)
                 dias_hasta_entrega = None
+                fecha_referencia = None
+                
+                # Priorizar fecha de entrega embalaje, luego fábrica, luego planificada
                 if of.fecha_entrega_embalaje:
-                    dias_hasta_entrega = (of.fecha_entrega_embalaje - date.today()).days
+                    fecha_referencia = of.fecha_entrega_embalaje
+                elif of.fecha_entrega_fabrica:
+                    fecha_referencia = of.fecha_entrega_fabrica
+                elif of.fecha_planificada:
+                    # Si solo hay fecha planificada, estimar fecha de entrega
+                    if tiempo_fabrica and tiempo_embalaje:
+                        fecha_referencia = of.fecha_planificada + timedelta(days=int(tiempo_fabrica + tiempo_embalaje))
+                    else:
+                        fecha_referencia = of.fecha_planificada
+                
+                if fecha_referencia:
+                    dias_hasta_entrega = (fecha_referencia - date.today()).days
 
                 # Calcular tiempos reales si hay fechas definidas
                 tiempo_real_fabrica = None
@@ -397,28 +411,51 @@ class PlanificacionPrioridadesService:
                             fecha_entrega_fabrica: Optional[date] = None, 
                             fecha_entrega_embalaje: Optional[date] = None) -> bool:
         """
-        Actualiza las fechas de una Orden de Fabricación
+        Actualiza las fechas de una Orden de Fabricación con validaciones
         """
         try:
             of = db.session.get(OrdenFabricacion, of_id)
             if not of:
+                print(f"OF {of_id} no encontrada")
                 return False
 
-            if fecha_planificada:
+            cambios_realizados = False
+
+            # Actualizar fecha planificada
+            if fecha_planificada is not None:
                 of.fecha_planificada = fecha_planificada
+                cambios_realizados = True
+                print(f"Actualizada fecha_planificada de OF {of_id}: {fecha_planificada}")
 
-            if fecha_entrega_fabrica:
+            # Actualizar fecha entrega fábrica
+            if fecha_entrega_fabrica is not None:
                 of.fecha_entrega_fabrica = fecha_entrega_fabrica
+                cambios_realizados = True
+                print(f"Actualizada fecha_entrega_fabrica de OF {of_id}: {fecha_entrega_fabrica}")
 
-            if fecha_entrega_embalaje:
+            # Actualizar fecha entrega embalaje
+            if fecha_entrega_embalaje is not None:
                 of.fecha_entrega_embalaje = fecha_entrega_embalaje
+                cambios_realizados = True
+                print(f"Actualizada fecha_entrega_embalaje de OF {of_id}: {fecha_entrega_embalaje}")
 
-            db.session.commit()
-            return True
+            if cambios_realizados:
+                # Actualizar timestamp de modificación
+                of.updated_at = datetime.now()
+                
+                # Commit explícito
+                db.session.commit()
+                print(f"Fechas actualizadas correctamente para OF {of_id}")
+                return True
+            else:
+                print(f"No se proporcionaron fechas para actualizar en OF {of_id}")
+                return False
 
         except Exception as e:
             db.session.rollback()
             print(f"Error actualizando fechas de OF {of_id}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def asignar_prioridades_automaticas(self) -> Dict[str, Any]:

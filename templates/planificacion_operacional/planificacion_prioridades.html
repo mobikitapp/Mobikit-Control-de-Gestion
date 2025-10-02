@@ -602,36 +602,23 @@ Días restantes: {{ hito.dias_restantes }}">
                                                             </div>
                                                         </td>
                                                         <td>
-                                                            {% if of_info.of.fecha_planificada %}
-                                                                <input type="date" class="form-control form-control-sm fecha-input"
-                                                                       data-of-id="{{ of_info.of.id }}"
-                                                                       data-field="fecha_planificada"
-                                                                       value="{{ of_info.of.fecha_planificada }}"
-                                                                       data-original="{{ of_info.of.fecha_planificada }}">
-                                                            {% else %}
-                                                                <input type="date" class="form-control form-control-sm fecha-input"
-                                                                       data-of-id="{{ of_info.of.id }}"
-                                                                       data-field="fecha_planificada"
-                                                                       placeholder="Sin fecha"
-                                                                       data-original="">
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_planificada"
+                                                                   value="{{ of_info.of.fecha_planificada or '' }}"
+                                                                   data-original="{{ of_info.of.fecha_planificada or '' }}">
+                                                            {% if not of_info.of.fecha_planificada %}
                                                                 <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Falta fecha</small>
                                                             {% endif %}
                                                         </td>
                                                         <td>
-                                                            {% if of_info.of.fecha_entrega_fabrica %}
-                                                                <input type="date" class="form-control form-control-sm fecha-input"
-                                                                       data-of-id="{{ of_info.of.id }}"
-                                                                       data-field="fecha_entrega_fabrica"
-                                                                       value="{{ of_info.of.fecha_entrega_fabrica }}"
-                                                                       data-original="{{ of_info.of.fecha_entrega_fabrica }}">
-                                                            {% else %}
-                                                                <input type="date" class="form-control form-control-sm fecha-input"
-                                                                       data-of-id="{{ of_info.of.id }}"
-                                                                       data-field="fecha_entrega_fabrica"
-                                                                       data-original="">
-                                                                {% if of_info.fecha_estimada_fabricacion %}
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_entrega_fabrica"
+                                                                   value="{{ of_info.of.fecha_entrega_fabrica or '' }}"
+                                                                   data-original="{{ of_info.of.fecha_entrega_fabrica or '' }}">
+                                                            {% if not of_info.of.fecha_entrega_fabrica and of_info.fecha_estimada_fabricacion %}
                                                                 <small class="text-info">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
-                                                                {% endif %}
                                                             {% endif %}
                                                             <div>
                                                                 <small class="text-muted"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
@@ -660,20 +647,13 @@ Días restantes: {{ hito.dias_restantes }}">
                                                             </div>
                                                         </td>
                                                         <td>
-                                                            {% if of_info.of.fecha_entrega_embalaje %}
-                                                                <input type="date" class="form-control form-control-sm fecha-input"
-                                                                       data-of-id="{{ of_info.of.id }}"
-                                                                       data-field="fecha_entrega_embalaje"
-                                                                       value="{{ of_info.of.fecha_entrega_embalaje }}"
-                                                                       data-original="{{ of_info.of.fecha_entrega_embalaje }}">
-                                                            {% else %}
-                                                                <input type="date" class="form-control form-control-sm fecha-input"
-                                                                       data-of-id="{{ of_info.of.id }}"
-                                                                       data-field="fecha_entrega_embalaje"
-                                                                       data-original="">
-                                                                {% if of_info.fecha_estimada_embalaje %}
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_entrega_embalaje"
+                                                                   value="{{ of_info.of.fecha_entrega_embalaje or '' }}"
+                                                                   data-original="{{ of_info.of.fecha_entrega_embalaje or '' }}">
+                                                            {% if not of_info.of.fecha_entrega_embalaje and of_info.fecha_estimada_embalaje %}
                                                                 <small class="text-info">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
-                                                                {% endif %}
                                                             {% endif %}
                                                             <div>
                                                                 <small class="text-muted"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
@@ -702,16 +682,26 @@ Días restantes: {{ hito.dias_restantes }}">
                                                             </div>
                                                         </td>
                                                         <td>
-                                                            {% if of_info.dias_hasta_entrega is not none %}
-                                                                {% if of_info.dias_hasta_entrega < 0 %}
-                                                                <span class="badge bg-danger">{{ of_info.dias_hasta_entrega }} días</span>
-                                                                {% elif of_info.dias_hasta_entrega < 7 %}
-                                                                <span class="badge bg-warning">{{ of_info.dias_hasta_entrega }} días</span>
+                                                            {% set dias_calculados = none %}
+                                                            {% if of_info.of.fecha_entrega_embalaje %}
+                                                                {% set dias_calculados = (of_info.of.fecha_entrega_embalaje - fecha_actualizacion.date()).days %}
+                                                            {% elif of_info.of.fecha_entrega_fabrica %}
+                                                                {% set dias_calculados = (of_info.of.fecha_entrega_fabrica - fecha_actualizacion.date()).days %}
+                                                            {% elif of_info.of.fecha_planificada and of_info.tiempo_estimado_fabrica and of_info.tiempo_estimado_embalaje %}
+                                                                {% set fecha_estimada_final = of_info.of.fecha_planificada + timedelta(days=(of_info.tiempo_estimado_fabrica + of_info.tiempo_estimado_embalaje)|int) %}
+                                                                {% set dias_calculados = (fecha_estimada_final - fecha_actualizacion.date()).days %}
+                                                            {% endif %}
+                                                            
+                                                            {% if dias_calculados is not none %}
+                                                                {% if dias_calculados < 0 %}
+                                                                <span class="badge bg-danger">{{ dias_calculados }} días</span>
+                                                                {% elif dias_calculados < 7 %}
+                                                                <span class="badge bg-warning">{{ dias_calculados }} días</span>
                                                                 {% else %}
-                                                                <span class="badge bg-success">{{ of_info.dias_hasta_entrega }} días</span>
+                                                                <span class="badge bg-success">{{ dias_calculados }} días</span>
                                                                 {% endif %}
                                                             {% else %}
-                                                            <small class="text-muted">-</small>
+                                                            <small class="text-muted">Sin fecha</small>
                                                             {% endif %}
                                                         </td>
                                                         <td>
@@ -1566,6 +1556,45 @@ function imprimirMatrizDetallada() {
         border: none !important;
         background: transparent !important;
         padding: 0 !important;
+    }
+
+    /* Mostrar valores de inputs de fecha en impresión */
+    .print-matriz-detallada input[type="date"] {
+        font-size: 8px !important;
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        color: #000 !important;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+
+    /* Mostrar valores de inputs de fecha en impresión general */
+    input[type="date"] {
+        font-size: 6px !important;
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        color: #000 !important;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+
+    /* Forzar visualización del contenido del input en impresión */
+    @media print {
+        input[type="date"]:before {
+            content: attr(value) !important;
+            font-size: 8px !important;
+            color: #000 !important;
+        }
+        
+        .print-matriz-detallada input[type="date"]:before {
+            content: attr(value) !important;
+            font-size: 10px !important;
+            color: #000 !important;
+        }
     }
 
     /* Estilos específicos para impresión de matriz detallada */
