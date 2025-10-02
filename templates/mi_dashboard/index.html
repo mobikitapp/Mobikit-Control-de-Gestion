@@ -21,7 +21,7 @@
 
     <!-- Métricas Principales -->
     <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-2 col-md-4 mb-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
@@ -37,7 +37,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-2 col-md-4 mb-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
@@ -46,22 +46,100 @@
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <div class="fs-4 fw-bold">{{ metricas.contratos_ano or 0 }}</div>
-                            <div class="text-muted small">Contratos confirmados año</div>
+                            <div class="text-muted small">Contratos confirmados</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-2 col-md-4 mb-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <i class="fas fa-dollar-sign text-warning fs-2"></i>
+                            <i class="fas fa-percentage text-warning fs-2"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <div class="fs-4 fw-bold">${{ "{:,.0f}".format(metricas.valor_total_ano / 1000 or 0) }}K</div>
+                            <div class="fs-4 fw-bold">
+                                {% if tasa_exito and tasa_exito.total_oportunidades > 0 %}
+                                    {{ "%.1f"|format(tasa_exito.tasa_exito_porcentaje) }}%
+                                {% else %}
+                                    {{ "%.1f"|format((metricas.contratos_ano / metricas.proyectos_ano * 100) if metricas.proyectos_ano > 0 else 0) }}%
+                                {% endif %}
+                            </div>
+                            <div class="text-muted small">% de Éxito</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-coins text-info fs-2"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fs-4 fw-bold">${{ "{:,.0f}".format(metricas.comisiones_potenciales / 1000 or 0) }}K</div>
+                            <div class="text-muted small">Comisiones potenciales</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-money-bill-wave text-success fs-2"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fs-4 fw-bold">${{ "{:,.0f}".format(metricas.comisiones_adjudicadas / 1000 or 0) }}K</div>
+                            <div class="text-muted small">Comisiones adjudicadas</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-chart-line text-danger fs-2"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fs-4 fw-bold 
+                                {% if metricas.rendimiento_financiero >= 25 %}text-success
+                                {% elif metricas.rendimiento_financiero >= 15 %}text-warning
+                                {% else %}text-danger{% endif %}">
+                                {{ "%.1f"|format(metricas.rendimiento_financiero or 0) }}%
+                            </div>
+                            <div class="text-muted small">Rendimiento financiero</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Secundarias -->
+    <div class="row mb-4">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-dollar-sign text-primary fs-2"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fs-4 fw-bold">${{ "{:,.0f}".format(metricas.valor_total_ano / 1000000 or 0) }}M</div>
                             <div class="text-muted small">Valor total año</div>
                         </div>
                     </div>
@@ -69,7 +147,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-4 col-md-6 mb-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
@@ -79,6 +157,24 @@
                         <div class="flex-grow-1 ms-3">
                             <div class="fs-4 fw-bold">{{ metricas.clientes_activos or 0 }}</div>
                             <div class="text-muted small">Clientes activos</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-calculator text-secondary fs-2"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fs-4 fw-bold">
+                                ${{ "{:,.0f}".format((metricas.valor_total_ano / metricas.contratos_ano / 1000) if metricas.contratos_ano > 0 else 0) }}K
+                            </div>
+                            <div class="text-muted small">Promedio por contrato</div>
                         </div>
                     </div>
                 </div>
