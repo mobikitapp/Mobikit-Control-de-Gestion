@@ -745,3 +745,49 @@ def eliminar_comentario_bitacora(comentario_id):
     except Exception as e:
         logger.error(f"Error deleting bitacora comment {comentario_id}: {str(e)}")
         return jsonify({'success': False, 'message': f'Error al eliminar comentario: {str(e)}'}), 500
+
+@proyectos_bp.route('/<int:proyecto_id>/cambiar-estado', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+def cambiar_estado(proyecto_id):
+    """Cambiar estado comercial de un proyecto"""
+    try:
+        data = request.get_json()
+        nuevo_estado = data.get('estado')
+        observacion = data.get('observacion', '')
+
+        if not nuevo_estado:
+            return jsonify({'success': False, 'message': 'Estado requerido'}), 400
+
+        # Validate estado is valid
+        from models import EstadoComercial
+        try:
+            estado_enum = EstadoComercial(nuevo_estado)
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Estado inválido'}), 400
+
+        # Get proyecto
+        proyecto = proyectos_service.get_proyecto_by_id(proyecto_id)
+        if not proyecto:
+            return jsonify({'success': False, 'message': 'Proyecto no encontrado'}), 404
+
+        # Update estado
+        update_data = {
+            'estado_comercial': nuevo_estado
+        }
+        if observacion:
+            current_notas = proyecto.notas_comerciales or ''
+            timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
+            nueva_nota = f"[{timestamp}] Cambio de estado a {nuevo_estado}: {observacion}"
+            update_data['notas_comerciales'] = f"{current_notas}\n{nueva_nota}".strip()
+
+        proyecto_actualizado = proyectos_service.update_proyecto(proyecto_id, update_data, current_user.id)
+
+        return jsonify({
+            'success': True,
+            'message': f'Estado cambiado a {nuevo_estado}',
+            'nuevo_estado': proyecto_actualizado.estado_comercial.value
+        })
+
+    except Exception as e:
+        logger.error(f"Error changing estado for project {proyecto_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error al cambiar estado: {str(e)}'}), 500
