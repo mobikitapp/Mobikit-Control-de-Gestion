@@ -461,59 +461,111 @@ class PlanificacionPrioridadesService:
     def asignar_prioridades_automaticas(self) -> Dict[str, Any]:
         """
         Asigna prioridades automáticamente a todas las OFs en producción
-        desde P1 hasta P{cantidad_total} basado en orden actual
+        desde P1 hasta P{cantidad_total} basado en fechas más próximas de entrega
         """
         try:
-            # Obtener todas las OFs en producción ordenadas por criterio actual
-            ofs_en_produccion = (db.session.query(OrdenFabricacion)
-                               .join(OrdenAreaProgreso, 
-                                     and_(OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
-                                          OrdenAreaProgreso.es_actual == True))
-                               .join(Area, OrdenAreaProgreso.area_id == Area.id)
-                               .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
-                               .filter(
-                                   and_(
-                                       # Excluir explícitamente área de Bodega y Despacho
-                                       Area.tipo.notin_(['BODEGA', 'DESPACHO']),
-                                       # Incluir estados específicos hasta Listo Embalaje
-                                       or_(
-                                           # Pendientes de Fabricación
-                                           and_(Area.tipo == 'PENDIENTES_FABRICACION',
-                                                AreaEstado.codigo.in_(['pendiente_aprobacion_diseño', 'aprobado'])),
-                                           # En Fábrica - Todos los estados
-                                           and_(Area.tipo == 'FABRICA',
-                                                AreaEstado.codigo.in_(['enviado_a_fabricacion', 'seccionando', 'enchapando', 'mecanizando', 'fabricacion_completa'])),
-                                           # En Embalaje - Todos los estados hasta Listo
-                                           and_(Area.tipo == 'EMBALAJE',
-                                                AreaEstado.codigo.in_(['pendiente_de_embalar', 'embalando', 'embalaje_listo']))
-                                       )
-                                   )
-                               )
-                               .order_by(
-                                   OrdenFabricacion.prioridad_numerica.asc().nullslast(),
-                                   OrdenFabricacion.fecha_planificada.asc().nullslast(),
-                                   OrdenFabricacion.created_at.asc()
-                               )
-                               .all())
+            from datetime import date, timedelta
+            
+            # Obtener todas las OFs en producción sin ordenar primero
+            ofs_query = (db.session.query(OrdenFabricacion)
+                        .join(OrdenAreaProgreso, 
+                              and_(OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                                   OrdenAreaProgreso.es_actual == True))
+                        .join(Area, OrdenAreaProgreso.area_id == Area.id)
+                        .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
+                        .filter(
+                            and_(
+                                # Excluir explícitamente área de Bodega y Despacho
+                                Area.tipo.notin_(['BODEGA', 'DESPACHO']),
+                                # Incluir estados específicos hasta Listo Embalaje
+                                or_(
+                                    # Pendientes de Fabricación
+                                    and_(Area.tipo == 'PENDIENTES_FABRICACION',
+                                         AreaEstado.codigo.in_(['pendiente_aprobacion_diseño', 'aprobado'])),
+                                    # En Fábrica - Todos los estados
+                                    and_(Area.tipo == 'FABRICA',
+                                         AreaEstado.codigo.in_(['enviado_a_fabricacion', 'seccionando', 'enchapando', 'mecanizando', 'fabricacion_completa'])),
+                                    # En Embalaje - Todos los estados hasta Listo
+                                    and_(Area.tipo == 'EMBALAJE',
+                                         AreaEstado.codigo.in_(['pendiente_de_embalar', 'embalando', 'embalaje_listo']))
+                                )
+                            )
+                        )
+                        .all())
+
+            # Función auxiliar para calcular fecha de entrega dinámica
+            def calcular_fecha_entrega_dinamica(of):
+                """Calcula la fecha de entrega más apropiada para una OF"""
+                hoy = date.today()
+                
+                # Prioridad 1: Fecha de entrega embalaje si existe
+                if of.fecha_entrega_embalaje:
+                    return of.fecha_entrega_embalaje, 1
+                
+                # Prioridad 2: Fecha de entrega fábrica si existe
+                if of.fecha_entrega_fabrica:
+                    return of.fecha_entrega_fabrica, 2
+                
+                # Prioridad 3: Fecha planificada + tiempo estimado
+                if of.fecha_planificada:
+                    tiempo_fabrica = self.planificacion_service.calcular_tiempo_estimado_fabrica(
+                        of.cantidad_tableros or 0
+                    )
+                    tiempo_embalaje = self.planificacion_service.calcular_tiempo_estimado_embalaje(
+                        of.cantidad_tableros or 0
+                    )
+                    fecha_estimada = of.fecha_planificada + timedelta(days=int(tiempo_fabrica + tiempo_embalaje))
+                    return fecha_estimada, 3
+                
+                # Prioridad 4: Fecha muy lejana para OFs sin fechas (baja prioridad)
+                return hoy + timedelta(days=9999), 4
+
+            # Ordenar OFs por fecha de entrega más próxima
+            ofs_con_fechas = []
+            for of in ofs_query:
+                fecha_entrega, tipo_fecha = calcular_fecha_entrega_dinamica(of)
+                ofs_con_fechas.append({
+                    'of': of,
+                    'fecha_entrega': fecha_entrega,
+                    'tipo_fecha': tipo_fecha,
+                    'dias_hasta_entrega': (fecha_entrega - date.today()).days
+                })
+
+            # Ordenar por fecha de entrega (más próxima primero)
+            # Criterios de ordenación:
+            # 1. Fecha de entrega (ASC) - más próxima primero
+            # 2. Tipo de fecha (ASC) - fechas reales antes que estimadas
+            # 3. Fecha de creación (ASC) - más antigua primero en caso de empate
+            ofs_ordenadas = sorted(ofs_con_fechas, key=lambda x: (
+                x['fecha_entrega'],
+                x['tipo_fecha'],
+                x['of'].created_at
+            ))
 
             # Asignar prioridades de P1 a P{total}
             total_actualizadas = 0
-            for i, of in enumerate(ofs_en_produccion, 1):
+            for i, of_data in enumerate(ofs_ordenadas, 1):
+                of = of_data['of']
                 if of.prioridad_numerica != i:
                     of.prioridad_numerica = i
                     total_actualizadas += 1
+                    print(f"OF {of.codigo}: P{i} - Entrega: {of_data['fecha_entrega'].strftime('%d/%m/%Y')} ({of_data['dias_hasta_entrega']} días)")
 
             db.session.commit()
 
             return {
                 'success': True,
-                'total_ofs': len(ofs_en_produccion),
+                'total_ofs': len(ofs_ordenadas),
                 'total_actualizadas': total_actualizadas,
-                'rango_prioridades': f"P1 - P{len(ofs_en_produccion)}"
+                'rango_prioridades': f"P1 - P{len(ofs_ordenadas)}",
+                'criterio_ordenacion': 'Fechas más próximas de entrega'
             }
 
         except Exception as e:
             db.session.rollback()
+            print(f"Error en asignación automática de prioridades: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return {'success': False, 'message': str(e)}
 
     def actualizar_prioridades_al_pasar_bodega(self, of_id: int) -> Dict[str, Any]:
