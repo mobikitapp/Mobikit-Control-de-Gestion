@@ -29,7 +29,7 @@ def modulo(modulo_name):
     """Página específica de un módulo"""
     try:
         modulos_validos = [
-            'introduccion', 'flujo-general', 'dashboard', 'clientes', 
+            'introduccion', 'flujo-general', 'dashboard', 'mi-dashboard', 'clientes', 
             'proyectos', 'contratos', 'fabricacion', 'areas-produccion', 
             'despachos', 'finanzas', 'comercial', 'planificacion-operacional', 
             'calendario', 'configuraciones', 'mejores-practicas'

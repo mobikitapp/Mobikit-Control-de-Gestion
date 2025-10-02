@@ -227,6 +227,13 @@
                     </div>
                     
                     <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='mi-dashboard') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'mi-dashboard' else '' }}">
+                            <i class="fas fa-user-chart me-2"></i>Mi Dashboard
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
                         <a href="{{ url_for('capacitacion.modulo', modulo_name='clientes') }}" 
                            class="nav-link-capacitacion {{ 'active' if modulo_activo == 'clientes' else '' }}">
                             <i class="fas fa-users me-2"></i>Clientes
@@ -497,6 +504,87 @@
                     <div class="alert alert-tip">
                         <h5 class="alert-heading"><i class="fas fa-star me-2"></i>Consejo</h5>
                         Revisa el dashboard al inicio de cada día para tener una visión clara de las prioridades y tareas pendientes.
+                    </div>
+                    
+                {% elif modulo_activo == 'mi-dashboard' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-user-chart me-3"></i>Mi Dashboard</h2>
+                        <p>Dashboard personal para seguimiento individual de ventas</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 3b</div>
+                    
+                    <h3>Panel Personal del Vendedor</h3>
+                    <p class="lead">Mi Dashboard es un panel personalizado que muestra tus métricas, proyectos y actividades comerciales individuales.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-line me-2"></i>Métricas Personales</h4>
+                        <p>Vista consolidada de tu desempeño:</p>
+                        <ul>
+                            <li><strong>Total de Proyectos:</strong> Cantidad de proyectos asignados a ti</li>
+                            <li><strong>Proyectos Activos:</strong> Proyectos en curso</li>
+                            <li><strong>Valor Total:</strong> Suma de valores presupuestados</li>
+                            <li><strong>Comisiones Generadas:</strong> Total de comisiones en proyectos adjudicados</li>
+                            <li><strong>Comisiones Potenciales:</strong> Estimación basada en proyectos presupuestados</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-percentage me-2"></i>Tasa de Éxito</h4>
+                        <p>Análisis de efectividad comercial:</p>
+                        <ul>
+                            <li><strong>Proyectos Adjudicados:</strong> Cantidad de proyectos ganados</li>
+                            <li><strong>Proyectos Perdidos:</strong> Oportunidades no concretadas</li>
+                            <li><strong>Tasa de Éxito:</strong> Porcentaje de proyectos adjudicados vs total</li>
+                            <li><strong>Tendencia:</strong> Evolución de tu tasa de éxito</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-folder-open me-2"></i>Mis Proyectos Activos</h4>
+                        <p>Vista rápida de proyectos en curso:</p>
+                        <ul>
+                            <li>Lista de proyectos asignados a ti</li>
+                            <li>Estado actual de cada proyecto</li>
+                            <li>Valores y márgenes</li>
+                            <li>Acceso directo al detalle del proyecto</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-users me-2"></i>Mis Clientes</h4>
+                        <p>Gestión de tu cartera de clientes:</p>
+                        <ul>
+                            <li><strong>Clientes Recientes:</strong> Últimos clientes con los que has trabajado</li>
+                            <li><strong>Acceso Rápido:</strong> Enlaces directos a la ficha de cada cliente</li>
+                            <li><strong>Historial:</strong> Proyectos realizados con cada cliente</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-tasks me-2"></i>Tareas Pendientes</h4>
+                        <p>Organización de actividades personales:</p>
+                        <ul>
+                            <li>Lista de tareas comerciales asignadas a ti</li>
+                            <li>Prioridad y fechas límite</li>
+                            <li>Proyectos asociados a cada tarea</li>
+                            <li>Marcar tareas como completadas</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-coins me-2"></i>Márgenes Promedio</h4>
+                        <p>Análisis de rentabilidad:</p>
+                        <ul>
+                            <li><strong>Margen Promedio de Provisión:</strong> Rentabilidad en productos</li>
+                            <li><strong>Margen Promedio de Instalación:</strong> Rentabilidad en servicios</li>
+                            <li><strong>Tendencia:</strong> Evolución de tus márgenes</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-trophy me-2"></i>Mejora Continua</h5>
+                        Usa Mi Dashboard diariamente para hacer seguimiento a tus metas personales. Mantén tu tasa de éxito alta enfocándote en oportunidades de calidad y seguimiento constante.
                     </div>
                     
                 {% elif modulo_activo == 'clientes' %}
