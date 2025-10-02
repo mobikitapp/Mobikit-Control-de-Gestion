@@ -282,15 +282,33 @@ class CalendarioService:
         # Format hitos with enhanced details
         hitos_formateados = []
         for hito in hitos_dia:
+            # Get project and client information
+            proyecto_nombre = 'Sin proyecto'
+            cliente_nombre = 'Sin cliente'
+            contrato_numero = 'Sin contrato'
+            monto_total = None
+            
+            if hasattr(hito, 'plan_entrega') and hito.plan_entrega:
+                if hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato:
+                    contrato_numero = hito.plan_entrega.contrato.numero_oc
+                    monto_total = hito.plan_entrega.contrato.monto_total
+                    
+                    if hasattr(hito.plan_entrega.contrato, 'proyecto') and hito.plan_entrega.contrato.proyecto:
+                        proyecto_nombre = hito.plan_entrega.contrato.proyecto.nombre
+                        
+                        if hasattr(hito.plan_entrega.contrato.proyecto, 'cliente') and hito.plan_entrega.contrato.proyecto.cliente:
+                            cliente_nombre = hito.plan_entrega.contrato.proyecto.cliente.nombre
+            
             hitos_formateados.append({
                 'id': hito.id,
                 'titulo': hito.titulo,
                 'descripcion': hito.descripcion,
                 'estado': hito.estado.value,
                 'plan_entrega': hito.plan_entrega.nombre if hasattr(hito, 'plan_entrega') and hito.plan_entrega else 'Sin plan',
-                'contrato': hito.plan_entrega.contrato.numero_oc if hasattr(hito, 'plan_entrega') and hito.plan_entrega and hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato else 'Sin contrato',
-                'monto_total': hito.plan_entrega.contrato.monto_total if hasattr(hito, 'plan_entrega') and hito.plan_entrega and hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato else None,
-                'proyecto': hito.plan_entrega.contrato.proyecto.nombre if hasattr(hito, 'plan_entrega') and hito.plan_entrega and hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato and hasattr(hito.plan_entrega.contrato, 'proyecto') and hito.plan_entrega.contrato.proyecto else 'Sin proyecto',
+                'contrato': contrato_numero,
+                'monto_total': monto_total,
+                'proyecto': proyecto_nombre,
+                'cliente': cliente_nombre,
                 'color': self._get_color_hito(hito.estado)
             })
 
@@ -567,16 +585,32 @@ class CalendarioService:
         # Convert hitos to event-like objects
         eventos_hitos = []
         for hito in hitos:
+            # Get project and client information
+            proyecto_nombre = None
+            cliente_nombre = None
+            if hito.plan_entrega and hito.plan_entrega.contrato and hito.plan_entrega.contrato.proyecto:
+                proyecto_nombre = hito.plan_entrega.contrato.proyecto.nombre
+                if hito.plan_entrega.contrato.proyecto.cliente:
+                    cliente_nombre = hito.plan_entrega.contrato.proyecto.cliente.nombre
+            
+            # Create enhanced title with project and client info
+            titulo_completo = f"Hito: {hito.titulo}"
+            if proyecto_nombre and cliente_nombre:
+                titulo_completo = f"Hito: {hito.titulo} - {proyecto_nombre} ({cliente_nombre})"
+            elif proyecto_nombre:
+                titulo_completo = f"Hito: {hito.titulo} - {proyecto_nombre}"
+            
             eventos_hitos.append({
                 'id': f"hito_{hito.id}",
-                'titulo': f"Hito: {hito.titulo}",
+                'titulo': titulo_completo,
                 'descripcion': hito.descripcion,
                 'fecha_evento': hito.fecha_programada,
                 'hora_evento': None,
                 'tipo': 'hito_entrega',
                 'estado': 'completado' if hito.estado == EstadoHitoEntrega.COMPLETADO else 'pendiente',
                 'prioridad': 'alta' if hito.estado == EstadoHitoEntrega.ATRASADO else 'media',
-                'proyecto': hito.plan_entrega.contrato.proyecto.nombre if hito.plan_entrega and hito.plan_entrega.contrato and hito.plan_entrega.contrato.proyecto else None,
+                'proyecto': proyecto_nombre,
+                'cliente': cliente_nombre,
                 'plan_entrega': hito.plan_entrega.nombre if hito.plan_entrega else None,
                 'contrato': hito.plan_entrega.contrato.numero_oc if hito.plan_entrega and hito.plan_entrega.contrato else None
             })

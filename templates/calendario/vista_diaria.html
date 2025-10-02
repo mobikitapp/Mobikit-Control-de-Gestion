@@ -244,8 +244,9 @@
                                 <div>
                                     <h6 class="text-{{ hito.color }}">{{ hito.titulo }}</h6>
                                     <div class="text-muted small">
-                                        <i class="fas fa-file-contract"></i> {{ hito.contrato }}<br>
-                                        <i class="fas fa-project-diagram"></i> {{ hito.proyecto }}
+                                        {% if hito.contrato %}<i class="fas fa-file-contract"></i> {{ hito.contrato }}<br>{% endif %}
+                                        {% if hito.proyecto %}<i class="fas fa-project-diagram"></i> {{ hito.proyecto }}<br>{% endif %}
+                                        {% if hito.cliente %}<i class="fas fa-building"></i> {{ hito.cliente }}{% endif %}
                                     </div>
                                     {% if hito.monto_total %}
                                     <div class="text-success small">

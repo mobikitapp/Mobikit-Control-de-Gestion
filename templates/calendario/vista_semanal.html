@@ -207,7 +207,10 @@
                                                     <div class="border-start border-{{ hito.color }} border-2 ps-2 mb-1">
                                                         <div class="small fw-bold text-dark">{{ hito.titulo }}</div>
                                                         <div class="d-flex justify-content-between align-items-center">
-                                                            <div class="small text-muted">{{ hito.plan_entrega }}</div>
+                                                            <div class="small text-muted">
+                                                                {% if hito.plan_entrega %}{{ hito.plan_entrega }}{% endif %}
+                                                                {% if hito.contrato %}<br>OC: {{ hito.contrato }}{% endif %}
+                                                            </div>
                                                             <small class="badge bg-{{ hito.color }}">{{ hito.estado }}</small>
                                                         </div>
                                                     </div>
