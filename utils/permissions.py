@@ -61,7 +61,7 @@ PERMISSIONS = {
     'configuraciones.edicion': ['admin'],
     
     # Planificación
-    'planificacion.lectura': ['admin', 'general', 'ventas', 'operaciones', 'produccion', 'finanzas'],
+    'planificacion.lectura': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
     'planificacion.creacion': ['admin', 'general'],
     'planificacion.edicion': ['admin', 'general'],
     
@@ -158,7 +158,6 @@ ROLE_PERMISSIONS = {
         'contratos.lectura', 
         'fabricacion.lectura',
         'areas.lectura',
-        'planificacion.lectura',
         'despachos.lectura'
     ],
     'logistica': [
