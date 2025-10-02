@@ -252,7 +252,16 @@ class User(UserMixin, db.Model):
     def nombre_completo(self):
         if self.first_name and self.last_name:
             return f"{self.first_name} {self.last_name}"
-        return self.email or self.id
+        elif self.first_name:
+            return self.first_name
+        elif self.last_name:
+            return self.last_name
+        elif self.email:
+            # Extraer nombre del email (parte antes del @)
+            email_name = self.email.split('@')[0] if '@' in self.email else self.email
+            # Capitalizar y limpiar caracteres especiales
+            return email_name.replace('.', ' ').replace('_', ' ').replace('-', ' ').title()
+        return self.id
 
 # (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 class OAuth(OAuthConsumerMixin, db.Model):

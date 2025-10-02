@@ -139,7 +139,7 @@ def nuevo():
             vendedores = (db.session.query(User)
                          .filter(User.rol.in_([RolUsuario.VENTAS, RolUsuario.ADMIN]))
                          .filter_by(activo=True)
-                         .order_by(User.first_name, User.last_name)
+                         .order_by(User.first_name.nulls_last(), User.last_name.nulls_last(), User.email)
                          .all())
 
             return render_template('proyectos/form.html',
@@ -192,7 +192,7 @@ def nuevo():
             vendedores = (db.session.query(User)
                          .filter(User.rol.in_([RolUsuario.VENTAS, RolUsuario.ADMIN]))
                          .filter_by(activo=True)
-                         .order_by(User.first_name, User.last_name)
+                         .order_by(User.first_name.nulls_last(), User.last_name.nulls_last(), User.email)
                          .all())
 
             return render_template('proyectos/form.html',
@@ -244,7 +244,7 @@ def editar(proyecto_id):
             vendedores = (db.session.query(User)
                          .filter(User.rol.in_([RolUsuario.VENTAS, RolUsuario.ADMIN]))
                          .filter_by(activo=True)
-                         .order_by(User.first_name, User.last_name)
+                         .order_by(User.first_name.nulls_last(), User.last_name.nulls_last(), User.email)
                          .all())
 
             return render_template('proyectos/form.html',
@@ -286,7 +286,7 @@ def editar(proyecto_id):
             vendedores = (db.session.query(User)
                          .filter(User.rol.in_([RolUsuario.VENTAS, RolUsuario.ADMIN]))
                          .filter_by(activo=True)
-                         .order_by(User.first_name, User.last_name)
+                         .order_by(User.first_name.nulls_last(), User.last_name.nulls_last(), User.email)
                          .all())
 
             return render_template('proyectos/form.html',
@@ -756,7 +756,7 @@ def cambiar_estado(proyecto_id):
             data = request.get_json()
         else:
             data = request.form.to_dict()
-            
+
         nuevo_estado = data.get('estado')
         observacion = data.get('observacion', '')
 
@@ -782,7 +782,7 @@ def cambiar_estado(proyecto_id):
         update_data = {
             'estado_comercial': nuevo_estado
         }
-        
+
         # Add note to commercial notes if observacion is provided
         if observacion:
             current_notas = proyecto.notas_comerciales or ''
