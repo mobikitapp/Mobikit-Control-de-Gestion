@@ -649,9 +649,14 @@
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Estado</label>
                             <div class="form-control-plaintext">
-                                <span class="badge bg-{{ 'success' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PRESUPUESTADO' else 'secondary' }}">
+                                <span class="badge bg-{{ 'success' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PRESUPUESTADO' else 'secondary' }}" id="estado-badge">
                                     {{ proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto.estado_comercial else 'N/A' }}
                                 </span>
+                                {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#modalCambiarEstado">
+                                    <i data-feather="edit-3" style="width: 14px; height: 14px;"></i>
+                                </button>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -953,6 +958,50 @@
     </div>
 </div>
 
+<!-- Modal Cambiar Estado -->
+<div class="modal fade" id="modalCambiarEstado" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambiar Estado Comercial</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formCambiarEstado">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nuevo-estado" class="form-label">Nuevo Estado</label>
+                        <select class="form-select" id="nuevo-estado" name="estado" required>
+                            <option value="">Seleccionar estado...</option>
+                            <option value="PENDIENTE_PRESUPUESTO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else '' }}>Pendiente Presupuesto</option>
+                            <option value="PRESUPUESTADO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PRESUPUESTADO' else '' }}>Presupuestado</option>
+                            <option value="ADJUDICADO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'ADJUDICADO' else '' }}>Adjudicado</option>
+                            <option value="EN_DESARROLLO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else '' }}>En Desarrollo</option>
+                            <option value="TERMINADO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else '' }}>Terminado</option>
+                            <option value="PERDIDO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PERDIDO' else '' }}>Perdido</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="observacion-estado" class="form-label">Observación (opcional)</label>
+                        <textarea class="form-control" id="observacion-estado" name="observacion" rows="3"
+                                  maxlength="500"
+                                  placeholder="Motivo o detalles del cambio de estado..."></textarea>
+                        <div class="form-text">
+                            <span id="contador-observacion">0</span>/500 caracteres
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="check-circle" class="me-1"></i>
+                        Cambiar Estado
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Agregar Comentario Bitácora -->
 <div class="modal fade" id="modalAgregarComentario" tabindex="-1">
     <div class="modal-dialog">
@@ -1012,6 +1061,21 @@
             document.getElementById('contador-caracteres').className = 'text-danger';
         } else {
             document.getElementById('contador-caracteres').className = '';
+        }
+    });
+
+    // Contador de caracteres para observación de estado
+    document.getElementById('observacion-estado').addEventListener('input', function() {
+        const maxLength = 500;
+        const currentLength = this.value.length;
+        document.getElementById('contador-observacion').textContent = currentLength;
+
+        if (currentLength > maxLength * 0.9) {
+            document.getElementById('contador-observacion').className = 'text-warning';
+        } else if (currentLength === maxLength) {
+            document.getElementById('contador-observacion').className = 'text-danger';
+        } else {
+            document.getElementById('contador-observacion').className = '';
         }
     });
 
@@ -1130,6 +1194,107 @@
             </div>
         `;
         feather.replace();
+    }
+
+    // Manejar envío de cambio de estado
+    document.getElementById('formCambiarEstado').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        const nuevoEstado = formData.get('estado');
+        const observacion = formData.get('observacion');
+
+        if (!nuevoEstado) {
+            mostrarNotificacion('error', 'Debe seleccionar un estado');
+            return;
+        }
+
+        // Deshabilitar botón y mostrar loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Cambiando...';
+
+        fetch(`/proyectos/${proyectoId}/cambiar-estado`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                estado: nuevoEstado,
+                observacion: observacion
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalCambiarEstado'));
+                modal.hide();
+
+                // Limpiar formulario
+                this.reset();
+                document.getElementById('contador-observacion').textContent = '0';
+
+                // Actualizar badge de estado en la interfaz
+                actualizarEstadoEnInterfaz(data.nuevo_estado);
+
+                // Mostrar mensaje de éxito
+                mostrarNotificacion('success', data.message || 'Estado cambiado exitosamente');
+
+                // Recargar página después de 2 segundos para reflejar todos los cambios
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                mostrarNotificacion('error', data.message || 'Error al cambiar el estado');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            mostrarNotificacion('error', 'Error de conexión al cambiar el estado');
+        })
+        .finally(() => {
+            // Restaurar botón
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    });
+
+    // Función para actualizar el estado en la interfaz
+    function actualizarEstadoEnInterfaz(nuevoEstado) {
+        const estadoBadge = document.getElementById('estado-badge');
+        if (estadoBadge) {
+            // Limpiar clases de color anteriores
+            estadoBadge.className = estadoBadge.className.replace(/bg-\w+/g, '');
+            
+            // Determinar color del badge según el estado
+            let colorClass = 'bg-secondary';
+            switch(nuevoEstado) {
+                case 'TERMINADO':
+                    colorClass = 'bg-success';
+                    break;
+                case 'EN_DESARROLLO':
+                    colorClass = 'bg-primary';
+                    break;
+                case 'PENDIENTE_PRESUPUESTO':
+                    colorClass = 'bg-warning';
+                    break;
+                case 'PRESUPUESTADO':
+                    colorClass = 'bg-info';
+                    break;
+                case 'ADJUDICADO':
+                    colorClass = 'bg-success';
+                    break;
+                case 'PERDIDO':
+                    colorClass = 'bg-danger';
+                    break;
+            }
+            
+            // Aplicar nuevo color y texto
+            estadoBadge.classList.add('badge', colorClass);
+            estadoBadge.textContent = nuevoEstado.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
     }
 
     // Manejar envío de nuevo comentario

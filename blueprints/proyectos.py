@@ -751,7 +751,12 @@ def eliminar_comentario_bitacora(comentario_id):
 def cambiar_estado(proyecto_id):
     """Cambiar estado comercial de un proyecto"""
     try:
-        data = request.get_json()
+        # Support both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+            
         nuevo_estado = data.get('estado')
         observacion = data.get('observacion', '')
 
@@ -770,22 +775,35 @@ def cambiar_estado(proyecto_id):
         if not proyecto:
             return jsonify({'success': False, 'message': 'Proyecto no encontrado'}), 404
 
+        # Store previous state for logging
+        estado_anterior = proyecto.estado_comercial.value if proyecto.estado_comercial else 'SIN_ESTADO'
+
         # Update estado
         update_data = {
             'estado_comercial': nuevo_estado
         }
+        
+        # Add note to commercial notes if observacion is provided
         if observacion:
             current_notas = proyecto.notas_comerciales or ''
             timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
-            nueva_nota = f"[{timestamp}] Cambio de estado a {nuevo_estado}: {observacion}"
-            update_data['notas_comerciales'] = f"{current_notas}\n{nueva_nota}".strip()
+            nueva_nota = f"[{timestamp}] Cambio de estado de {estado_anterior} a {nuevo_estado}: {observacion}"
+            update_data['notas_comerciales'] = f"{current_notas}\n{nueva_nota}".strip() if current_notas else nueva_nota
 
+        # Update the project
         proyecto_actualizado = proyectos_service.update_proyecto(proyecto_id, update_data, current_user.id)
+
+        # Verify the update was successful by checking the database
+        from app import db
+        db.session.refresh(proyecto_actualizado)
+
+        logger.info(f"Estado del proyecto {proyecto_id} cambiado de {estado_anterior} a {proyecto_actualizado.estado_comercial.value}")
 
         return jsonify({
             'success': True,
-            'message': f'Estado cambiado a {nuevo_estado}',
-            'nuevo_estado': proyecto_actualizado.estado_comercial.value
+            'message': f'Estado cambiado exitosamente de {estado_anterior} a {nuevo_estado}',
+            'nuevo_estado': proyecto_actualizado.estado_comercial.value,
+            'estado_anterior': estado_anterior
         })
 
     except Exception as e:
