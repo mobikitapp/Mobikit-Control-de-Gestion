@@ -232,7 +232,16 @@ class PermisosService:
                 'mis_clientes': True,
                 'mis_proyectos': True,
                 'estadisticas': True
-            }
+            },
+            'areas': {
+                'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
+                'general': ['lectura', 'creacion', 'edicion'],
+                'ventas': [],
+                'operaciones': ['lectura', 'creacion', 'edicion'],
+                'produccion': ['lectura'],
+                'logistica': ['lectura'],
+                'finanzas': ['lectura']
+            },
         }
 
         # Configuración de permisos para roles específicos en mi_dashboard

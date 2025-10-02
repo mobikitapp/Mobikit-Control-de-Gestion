@@ -25,6 +25,7 @@ user_service = UserService()
 
 @areas_bp.route('/dashboard')
 @login_required
+@role_required(['admin', 'general', 'operaciones', 'produccion', 'logistica'])
 def dashboard():
     """Areas dashboard with all production areas"""
     try:
@@ -69,6 +70,7 @@ def dashboard():
 
 @areas_bp.route('/area/<int:area_id>')
 @login_required
+@role_required(['admin', 'general', 'operaciones', 'produccion', 'logistica'])
 def area_detail(area_id):
     """Show detailed view of specific area"""
     try:
@@ -506,6 +508,7 @@ def avanzar_area_form(orden_id):
 
 @areas_bp.route('/tv-display')
 @login_required
+@role_required(['admin', 'general', 'operaciones', 'produccion', 'logistica'])
 def tv_display():
     """Vista optimizada para televisión - rotación automática de áreas"""
     try:
@@ -525,6 +528,7 @@ def tv_display():
 
 @areas_bp.route('/area/<int:area_id>/tv')
 @login_required
+@role_required(['admin', 'general', 'operaciones', 'produccion', 'logistica'])
 def area_tv_display(area_id):
     """Vista de área individual optimizada para TV"""
     try:
