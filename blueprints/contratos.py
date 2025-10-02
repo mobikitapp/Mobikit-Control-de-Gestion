@@ -119,20 +119,29 @@ def nuevo():
 def crear():
     """Crear nuevo contrato"""
     try:
-        # Validate form data
+        # Get form data and log for debugging
         form_data = request.form.to_dict()
+        logger.info(f"Creando contrato con datos: {form_data}")
         
-        # Clean up empty UF fields to avoid validation errors
-        if 'valor_uf_conversion' in form_data and not form_data['valor_uf_conversion'].strip():
-            del form_data['valor_uf_conversion']
-        if 'fecha_conversion_uf' in form_data and not form_data['fecha_conversion_uf'].strip():
-            del form_data['fecha_conversion_uf']
-        if 'monto_total_uf' in form_data and not form_data['monto_total_uf'].strip():
-            del form_data['monto_total_uf']
-        if 'moneda_original' in form_data and not form_data['moneda_original'].strip():
-            del form_data['moneda_original']
+        # Clean up empty string fields to avoid validation errors
+        cleaned_form_data = {}
+        for key, value in form_data.items():
+            if isinstance(value, str) and value.strip() == '':
+                # Skip empty strings entirely
+                continue
+            else:
+                cleaned_form_data[key] = value
         
-        contrato_data = ContratoCreate(**form_data)
+        # Specifically handle UF fields that should be None if empty
+        uf_fields = ['valor_uf_conversion', 'fecha_conversion_uf', 'monto_total_uf', 'moneda_original']
+        for field in uf_fields:
+            if field in form_data and not form_data[field].strip():
+                # Remove empty UF fields completely
+                cleaned_form_data.pop(field, None)
+        
+        logger.info(f"Datos limpiados para validación: {cleaned_form_data}")
+        
+        contrato_data = ContratoCreate(**cleaned_form_data)
 
         # Handle file uploads
         archivos = request.files.getlist('archivos')
@@ -286,26 +295,36 @@ def actualizar(contrato_id):
             flash('Contrato no encontrado', 'error')
             return redirect(url_for('contratos.index'))
 
-        # Validate form data
+        # Get form data and log for debugging
         form_data = request.form.to_dict()
+        logger.info(f"Actualizando contrato {contrato_id} con datos: {form_data}")
         
-        # Clean up empty UF fields to avoid validation errors
-        if 'valor_uf_conversion' in form_data and not form_data['valor_uf_conversion'].strip():
-            del form_data['valor_uf_conversion']
-        if 'fecha_conversion_uf' in form_data and not form_data['fecha_conversion_uf'].strip():
-            del form_data['fecha_conversion_uf']
-        if 'monto_total_uf' in form_data and not form_data['monto_total_uf'].strip():
-            del form_data['monto_total_uf']
-        if 'moneda_original' in form_data and not form_data['moneda_original'].strip():
-            del form_data['moneda_original']
-            
-        update_data = ContratoUpdate(**form_data)
+        # Clean up empty string fields to avoid validation errors
+        cleaned_form_data = {}
+        for key, value in form_data.items():
+            if isinstance(value, str) and value.strip() == '':
+                # Skip empty strings entirely
+                continue
+            else:
+                cleaned_form_data[key] = value
+        
+        # Specifically handle UF fields that should be None if empty
+        uf_fields = ['valor_uf_conversion', 'fecha_conversion_uf', 'monto_total_uf', 'moneda_original']
+        for field in uf_fields:
+            if field in form_data and not form_data[field].strip():
+                # Remove empty UF fields completely
+                cleaned_form_data.pop(field, None)
+        
+        logger.info(f"Datos limpiados para validación: {cleaned_form_data}")
+        
+        # Validate with cleaned data
+        update_data = ContratoUpdate(**cleaned_form_data)
 
         # Update contrato
         contrato_actualizado = contratos_service.update_contrato(contrato_id, update_data.dict(exclude_unset=True))
 
         # Check if plan de entrega should be created (for existing contracts without plan)
-        crear_plan = request.form.get('crear_plan_entrega') == 'on'
+        crear_plan = cleaned_form_data.get('crear_plan_entrega') == 'on'
         plan_creado = False
 
         if crear_plan and not contrato_actualizado.plan_entrega:
@@ -313,26 +332,39 @@ def actualizar(contrato_id):
                 # Get plan data
                 plan_data = {
                     'contrato_id': contrato_actualizado.id,
-                    'nombre': request.form.get('plan_nombre', f'Plan de Entrega - {contrato_actualizado.numero_oc}'),
-                    'descripcion': request.form.get('plan_descripcion', '')
+                    'nombre': cleaned_form_data.get('plan_nombre', f'Plan de Entrega - {contrato_actualizado.numero_oc}'),
+                    'descripcion': cleaned_form_data.get('plan_descripcion', '')
                 }
 
-                # Get hitos data
-                cantidad_hitos = int(request.form.get('cantidad_hitos', 2))
+                # Get hitos data with safer parsing
+                cantidad_hitos_str = cleaned_form_data.get('cantidad_hitos', '2')
+                try:
+                    cantidad_hitos = int(cantidad_hitos_str) if cantidad_hitos_str else 2
+                except (ValueError, TypeError):
+                    cantidad_hitos = 2
+
                 hitos_data = []
 
                 for i in range(1, cantidad_hitos + 1):
-                    titulo = request.form.get(f'hito_titulo_{i}', '')
-                    fecha = request.form.get(f'hito_fecha_{i}', '')
-                    descripcion = request.form.get(f'hito_descripcion_{i}', '')
+                    titulo = cleaned_form_data.get(f'hito_titulo_{i}', '').strip()
+                    fecha = cleaned_form_data.get(f'hito_fecha_{i}', '').strip()
+                    descripcion = cleaned_form_data.get(f'hito_descripcion_{i}', '').strip()
 
                     if titulo and fecha:
-                        hitos_data.append({
-                            'titulo': titulo,
-                            'descripcion': descripcion,
-                            'fecha_programada': fecha,
-                            'orden': i
-                        })
+                        try:
+                            # Validate date format
+                            from datetime import datetime
+                            datetime.strptime(fecha, '%Y-%m-%d')
+                            
+                            hitos_data.append({
+                                'titulo': titulo,
+                                'descripcion': descripcion,
+                                'fecha_programada': fecha,
+                                'orden': i
+                            })
+                        except ValueError:
+                            logger.warning(f"Fecha inválida para hito {i}: {fecha}")
+                            continue
 
                 if hitos_data:
                     # Create plan with hitos
@@ -342,7 +374,8 @@ def actualizar(contrato_id):
                     plan_creado = True
 
             except Exception as e:
-                logger.warning(f"Error creando plan de entrega para contrato {contrato_actualizado.id}: {str(e)}")
+                logger.error(f"Error creando plan de entrega para contrato {contrato_actualizado.id}: {str(e)}")
+                logger.exception("Full traceback for plan creation error:")
                 # Don't fail the contrato update if plan creation fails
 
         # Create success message
@@ -353,8 +386,12 @@ def actualizar(contrato_id):
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
     except ValidationError as e:
+        logger.error(f"ValidationError actualizando contrato {contrato_id}: {e.errors()}")
         for error in e.errors():
-            flash(f"Error en {error['loc'][0]}: {error['msg']}", 'error')
+            field_name = error['loc'][0] if error['loc'] else 'unknown'
+            error_msg = error['msg']
+            logger.error(f"Validation error - Field: {field_name}, Message: {error_msg}")
+            flash(f"Error en {field_name}: {error_msg}", 'error')
         clientes = clientes_service.get_active_clientes()
         proyectos = proyectos_service.get_active_proyectos()
         return render_template('contratos/form.html',
@@ -365,6 +402,7 @@ def actualizar(contrato_id):
                              title=f"Editar Contrato / OC - {contrato.numero_oc}")
     except Exception as e:
         logger.error(f"Error actualizando contrato {contrato_id}: {str(e)}")
+        logger.exception("Full exception traceback:")
         flash('Error al actualizar contrato', 'error')
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
