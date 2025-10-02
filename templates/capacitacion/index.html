@@ -290,6 +290,13 @@
                     </div>
                     
                     <div class="nav-item-capacitacion">
+                        <a href="{{ url_for('capacitacion.modulo', modulo_name='calendario') }}" 
+                           class="nav-link-capacitacion {{ 'active' if modulo_activo == 'calendario' else '' }}">
+                            <i class="fas fa-calendar-alt me-2"></i>Calendario
+                        </a>
+                    </div>
+                    
+                    <div class="nav-item-capacitacion">
                         <a href="{{ url_for('capacitacion.modulo', modulo_name='configuraciones') }}" 
                            class="nav-link-capacitacion {{ 'active' if modulo_activo == 'configuraciones' else '' }}">
                             <i class="fas fa-cog me-2"></i>Configuraciones
@@ -832,92 +839,137 @@
                     
                     <div class="badge-modulo">Módulo 8</div>
                     
-                    <h3>Flujo de Áreas</h3>
-                    <p class="lead">El sistema maneja un flujo secuencial de áreas que representa el proceso real de fabricación:</p>
-                    
-                    <img src="{{ url_for('static', filename='img/capacitacion/areas-produccion.png') }}" 
-                         alt="Flujo de áreas de producción" class="flujo-imagen">
+                    <h3>Flujo de Áreas de Producción</h3>
+                    <p class="lead">El sistema gestiona las Órdenes de Fabricación (OF) a través de un flujo secuencial de 5 áreas productivas, cada una con estados específicos que representan el avance del proceso.</p>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-hourglass-start me-2"></i>1. Pendientes de Fabricación</h4>
-                        <p>Área inicial donde llegan todas las OFs nuevas:</p>
+                        <h4><i class="fas fa-hourglass-start me-2"></i>Área 1: Pendientes de Fabricación</h4>
+                        <p>Área inicial donde ingresan todas las OFs nuevas para revisión y aprobación.</p>
+                        <p><strong>Estados disponibles:</strong></p>
                         <ul>
-                            <li>OFs recién creadas esperando inicio</li>
-                            <li>Revisión de especificaciones</li>
-                            <li>Planificación de recursos</li>
-                            <li>Asignación de prioridades</li>
+                            <li><span class="badge bg-warning">Pendiente Aprobación Diseño</span> - OF creada, esperando revisión</li>
+                            <li><span class="badge bg-success">Aprobado</span> - OF aprobada, lista para fabricación</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-industry me-2"></i>2. Fábrica</h4>
-                        <p>Área principal de producción con múltiples estados:</p>
+                        <h4><i class="fas fa-industry me-2"></i>Área 2: Fábrica</h4>
+                        <p>Área principal de producción donde se fabrican los productos. Incluye 5 estados secuenciales:</p>
+                        <p><strong>Estados disponibles:</strong></p>
                         <ul>
-                            <li><strong>Enviado a Fabricación:</strong> OF ingresada a producción</li>
-                            <li><strong>Seccionando:</strong> Corte y preparación de materiales</li>
-                            <li><strong>Enchapando:</strong> Aplicación de acabados</li>
-                            <li><strong>Mecanizando:</strong> Procesos de maquinado final</li>
+                            <li><span class="badge bg-primary">Enviado a Fabricación</span> - OF ingresada al área de fábrica</li>
+                            <li><span class="badge bg-primary">Seccionando</span> - Corte y preparación de materiales</li>
+                            <li><span class="badge bg-primary">Enchapando</span> - Aplicación de acabados superficiales</li>
+                            <li><span class="badge bg-primary">Mecanizando</span> - Procesos de mecanizado y perforación</li>
+                            <li><span class="badge bg-success">Fabricación Completa</span> - Producción terminada</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-box me-2"></i>3. Embalaje</h4>
-                        <p>Preparación final para entrega:</p>
+                        <h4><i class="fas fa-box me-2"></i>Área 3: Embalaje</h4>
+                        <p>Área donde se prepara y embala el producto terminado para su almacenamiento y despacho.</p>
+                        <p><strong>Estados disponibles:</strong></p>
                         <ul>
-                            <li>Empaquetado de productos terminados</li>
-                            <li>Etiquetado y documentación</li>
-                            <li>Control de calidad final</li>
-                            <li>Preparación para transporte</li>
+                            <li><span class="badge bg-warning">Pendiente de Embalar</span> - Producto esperando embalaje</li>
+                            <li><span class="badge bg-info">Embalando</span> - Proceso de embalaje en curso</li>
+                            <li><span class="badge bg-success">Embalaje Listo</span> - Producto embalado correctamente</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-warehouse me-2"></i>4. Bodega</h4>
-                        <p>Almacenamiento y preparación para despacho:</p>
+                        <h4><i class="fas fa-warehouse me-2"></i>Área 4: Bodega</h4>
+                        <p>Área de almacenamiento donde los productos esperan ser asignados a un despacho.</p>
+                        <p><strong>Estados disponibles:</strong></p>
                         <ul>
-                            <li><strong>Listo para Despacho:</strong> Producto terminado disponible</li>
-                            <li><strong>Programado para Despacho:</strong> Asignado a un despacho específico</li>
-                            <li>Control de inventario</li>
-                            <li>Coordinación con logística</li>
+                            <li><span class="badge bg-success">Listo para Despacho</span> - Producto disponible en bodega</li>
+                            <li><span class="badge bg-info">Programado para Despacho</span> - Asignado a un despacho específico</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-truck me-2"></i>5. Despacho</h4>
-                        <p>Entrega final al cliente:</p>
+                        <h4><i class="fas fa-truck me-2"></i>Área 5: Despacho</h4>
+                        <p>Área final donde se registra la entrega del producto al cliente.</p>
+                        <p><strong>Estados disponibles:</strong></p>
                         <ul>
-                            <li><strong>Despachado:</strong> En ruta hacia el cliente</li>
-                            <li>Documentación de entrega</li>
-                            <li>Confirmación de recepción</li>
-                            <li>Cierre del ciclo productivo</li>
+                            <li><span class="badge bg-dark">Despachado</span> - Producto entregado al cliente</li>
+                        </ul>
+                    </div>
+                    
+                    <h3>Funcionalidades del Módulo</h3>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-bar me-2"></i>Dashboard de Áreas</h4>
+                        <p>Vista general que muestra el estado de todas las áreas de producción:</p>
+                        <ul>
+                            <li>Resumen de OFs activas en cada área</li>
+                            <li>Conteo de OFs por estado dentro de cada área</li>
+                            <li>Identificación visual de cuellos de botella</li>
+                            <li>Estadísticas generales de producción</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-chart-line me-2"></i>Métricas por Área</h4>
-                        <p>El sistema calcula automáticamente:</p>
+                        <h4><i class="fas fa-th-list me-2"></i>Detalle de Área</h4>
+                        <p>Vista específica de cada área mostrando:</p>
                         <ul>
-                            <li>Tiempo promedio en cada área</li>
-                            <li>Cantidad de OFs por estado</li>
-                            <li>Cuellos de botella identificados</li>
-                            <li>Rendimiento y productividad</li>
+                            <li>OFs agrupadas por estado dentro del área</li>
+                            <li>Información de cada OF: código, proyecto, cliente</li>
+                            <li>Responsable asignado a cada OF</li>
+                            <li>Fechas de ingreso y último cambio de estado</li>
+                            <li>Prioridad y fecha estimada de entrega</li>
+                            <li>Tiempo estimado en área (cuando aplique)</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-forward me-2"></i>Avance Automático</h4>
-                        <p>El sistema incluye lógica inteligente de avance:</p>
+                        <h4><i class="fas fa-history me-2"></i>Historial de OF</h4>
+                        <p>Seguimiento completo del recorrido de una orden:</p>
                         <ul>
-                            <li>Avance automático entre áreas</li>
-                            <li>Validaciones de prerrequisitos</li>
-                            <li>Notificaciones de cambios</li>
-                            <li>Seguimiento de responsables</li>
+                            <li>Visualización de todas las áreas por las que ha pasado</li>
+                            <li>Estados anteriores con fechas y tiempos</li>
+                            <li>Responsables de cada etapa</li>
+                            <li>Notas y observaciones registradas</li>
+                            <li>Trazabilidad completa del proceso</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-user-check me-2"></i>Mis Órdenes Pendientes</h4>
+                        <p>Vista personal de OFs asignadas al usuario:</p>
+                        <ul>
+                            <li>Filtro automático por responsable</li>
+                            <li>Priorización de tareas personales</li>
+                            <li>Acceso rápido a OFs bajo tu responsabilidad</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-forward me-2"></i>Sistema de Avance</h4>
+                        <p>El módulo incluye tres formas de avanzar las OFs:</p>
+                        <ul>
+                            <li><strong>Cambiar Estado:</strong> Mover la OF al siguiente estado dentro de la misma área</li>
+                            <li><strong>Avanzar Área:</strong> Mover la OF al área siguiente (solo cuando está en estado final del área actual)</li>
+                            <li><strong>Avance Inteligente:</strong> El sistema decide automáticamente si cambiar estado o área según la lógica del flujo</li>
+                            <li>Asignación de responsables en cada cambio</li>
+                            <li>Registro de notas y observaciones</li>
+                            <li>Estimación de tiempo por etapa</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-tv me-2"></i>Display para TV</h4>
+                        <p>Vista optimizada para pantallas grandes:</p>
+                        <ul>
+                            <li>Monitoreo en tiempo real del estado de las áreas</li>
+                            <li>Visualización clara para pantallas de producción</li>
+                            <li>Actualización automática de datos</li>
+                            <li>Vista general o por área específica</li>
                         </ul>
                     </div>
                     
                     <div class="alert alert-tip">
-                        <h5 class="alert-heading"><i class="fas fa-stopwatch me-2"></i>Monitoreo</h5>
-                        Revisa regularmente el Dashboard de Áreas para identificar cuellos de botella y optimizar el flujo productivo.
+                        <h5 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>Tip de Productividad</h5>
+                        Revisa regularmente el Dashboard de Áreas para identificar OFs que llevan mucho tiempo en un mismo estado y toma acción para desbloquear el flujo productivo.
                     </div>
                     
                 {% elif modulo_activo == 'despachos' %}
@@ -1103,83 +1155,102 @@
                 {% elif modulo_activo == 'comercial' %}
                     <div class="modulo-header">
                         <h2><i class="fas fa-handshake me-3"></i>Módulo Comercial</h2>
-                        <p>Gestión integral del área comercial y ventas</p>
+                        <p>Gestión de ventas, comisiones y planificación comercial</p>
                     </div>
                     
-                    <div class="badge-modulo">Módulo 12</div>
+                    <div class="badge-modulo">Módulo 11</div>
                     
-                    <h3>¿Qué es el Módulo Comercial?</h3>
-                    <p class="lead">El módulo comercial te permite gestionar tu equipo de ventas, establecer objetivos, calcular comisiones y hacer seguimiento comercial integral.</p>
+                    <h3>Gestión de Vendedores y Proyectos</h3>
+                    <p class="lead">El módulo comercial centraliza la información de ventas, permitiendo gestionar vendedores, proyectos, comisiones y objetivos mensuales.</p>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-users me-2"></i>Centro de Vendedores</h4>
-                        <p>Gestión del equipo comercial:</p>
+                        <h4><i class="fas fa-users me-2"></i>Lista de Vendedores</h4>
+                        <p>Vista consolidada del equipo de ventas:</p>
                         <ul>
-                            <li><strong>Perfiles de Vendedores:</strong> Información y configuración</li>
-                            <li><strong>Asignación de Clientes:</strong> Cartera por vendedor</li>
-                            <li><strong>Métricas Individuales:</strong> Rendimiento y resultados</li>
-                            <li><strong>Rankings:</strong> Comparación entre vendedores</li>
+                            <li><strong>Estadísticas por Vendedor:</strong> Número de proyectos y valor adjudicado en el año</li>
+                            <li><strong>Tasa de Éxito:</strong> Porcentaje de proyectos adjudicados vs total</li>
+                            <li><strong>Comisiones Mensuales:</strong> Gráfico consolidado de comisiones por mes</li>
+                            <li><strong>Proyectos Activos:</strong> Vista de proyectos en curso por vendedor</li>
+                            <li><strong>Tareas Pendientes:</strong> Cantidad de tareas sin completar</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-target me-2"></i>Objetivos y Metas</h4>
-                        <p>Planificación comercial estratégica:</p>
+                        <h4><i class="fas fa-project-diagram me-2"></i>Información Comercial de Proyectos</h4>
+                        <p>Cada proyecto incluye datos comerciales específicos:</p>
                         <ul>
-                            <li><strong>Objetivos Mensuales:</strong> Metas por vendedor y período</li>
-                            <li><strong>Seguimiento de Cumplimiento:</strong> % de avance hacia metas</li>
-                            <li><strong>Proyecciones:</strong> Estimaciones de cierre</li>
-                            <li><strong>Alertas de Desempeño:</strong> Notificaciones por bajo rendimiento</li>
+                            <li><strong>Vendedor Asignado:</strong> Responsable comercial del proyecto</li>
+                            <li><strong>Estado Comercial:</strong> Pendiente Presupuesto, Presupuestado, Adjudicado, En Desarrollo, Terminado, Perdido</li>
+                            <li><strong>Valores Presupuestados:</strong> Monto de provisión e instalación (en CLP o UF)</li>
+                            <li><strong>Márgenes de Venta:</strong> Porcentaje de margen para provisión e instalación</li>
+                            <li><strong>Fechas Clave:</strong> Fecha de presupuesto y fecha de adjudicación</li>
+                            <li><strong>Notas Comerciales:</strong> Observaciones y seguimiento</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-tasks me-2"></i>Tareas Comerciales</h4>
+                        <p>Gestión de actividades de seguimiento:</p>
+                        <ul>
+                            <li>Creación de tareas asociadas a proyectos específicos</li>
+                            <li>Asignación a vendedores responsables</li>
+                            <li>Título, descripción y fecha límite</li>
+                            <li>Filtrado por estado: pendientes o completadas</li>
+                            <li>Seguimiento de actividades comerciales en curso</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-calendar-alt me-2"></i>Planificación Comercial (Matriz Mensual)</h4>
+                        <p>Vista estratégica de proyectos a lo largo del tiempo:</p>
+                        <ul>
+                            <li><strong>Vista de 12 Meses:</strong> Anual (enero-diciembre) o rolling (cualquier inicio)</li>
+                            <li><strong>Proyectos por Mes:</strong> Distribución de proyectos según fechas de inicio/fin</li>
+                            <li><strong>Valores Presupuestados y Adjudicados:</strong> Montos por mes</li>
+                            <li><strong>Márgenes:</strong> Visualización de rentabilidad proyectada</li>
+                            <li><strong>Filtros:</strong> Por cliente, estado, tipo de curva de break even</li>
+                            <li><strong>Curvas de Break Even:</strong> Configuración para constructoras o proyectos generales</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-bullseye me-2"></i>Objetivos Mensuales</h4>
+                        <p>Definición y seguimiento de metas:</p>
+                        <ul>
+                            <li><strong>Objetivos de Provisión:</strong> Meta mensual de facturación en provisión</li>
+                            <li><strong>Objetivos de Instalación:</strong> Meta mensual de facturación en instalación</li>
+                            <li><strong>Margen Objetivo:</strong> Porcentaje de margen esperado</li>
+                            <li><strong>Comparación vs Real:</strong> Seguimiento de cumplimiento</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
                         <h4><i class="fas fa-percent me-2"></i>Sistema de Comisiones</h4>
-                        <p>Cálculo automático de comisiones:</p>
+                        <p>Configuración y cálculo de comisiones:</p>
                         <ul>
-                            <li><strong>Configuración de Comisiones:</strong> % por vendedor</li>
-                            <li><strong>Escalas por Volumen:</strong> Comisiones progresivas</li>
-                            <li><strong>Bonificaciones:</strong> Incentivos por cumplimiento</li>
-                            <li><strong>Liquidaciones:</strong> Cálculo mensual automático</li>
+                            <li><strong>Configuración por Vendedor:</strong> Porcentaje de comisión en provisión e instalación</li>
+                            <li><strong>Cálculo Automático:</strong> Basado en proyectos adjudicados en el año</li>
+                            <li><strong>Comisiones Adjudicadas:</strong> Comisiones generadas por proyectos cerrados</li>
+                            <li><strong>Comisiones Potenciales:</strong> Estimación basada en proyectos presupuestados</li>
+                            <li><strong>Consolidado Mensual:</strong> Vista de comisiones por mes para todo el equipo</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-chart-line me-2"></i>Revenue Management</h4>
-                        <p>Análisis financiero comercial:</p>
+                        <h4><i class="fas fa-chart-line me-2"></i>Dashboard Financiero Comercial</h4>
+                        <p>Resumen ejecutivo de la cartera:</p>
                         <ul>
-                            <li><strong>Embudo de Ventas:</strong> Conversión por etapa</li>
-                            <li><strong>Análisis de Margen:</strong> Rentabilidad por cliente/proyecto</li>
-                            <li><strong>Forecast de Ventas:</strong> Proyecciones basadas en pipeline</li>
-                            <li><strong>Valor Promedio de Cliente:</strong> Métricas de valor</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="proceso-step">
-                        <h4><i class="fas fa-tasks me-2"></i>Gestión de Tareas Comerciales</h4>
-                        <p>Organización de actividades comerciales:</p>
-                        <ul>
-                            <li>Tareas de seguimiento a clientes</li>
-                            <li>Recordatorios de contacto</li>
-                            <li>Programación de reuniones</li>
-                            <li>Follow-up de cotizaciones</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="proceso-step">
-                        <h4><i class="fas fa-chart-bar me-2"></i>Reportes Comerciales</h4>
-                        <p>Análisis del desempeño comercial:</p>
-                        <ul>
-                            <li><strong>Reporte de Ventas:</strong> Por período, vendedor, cliente</li>
-                            <li><strong>Análisis de Conversión:</strong> Tasa de éxito por vendedor</li>
-                            <li><strong>Comportamiento de Cliente:</strong> Patrones de compra</li>
-                            <li><strong>Pipeline de Oportunidades:</strong> Proyectos en proceso</li>
+                            <li><strong>Totales Contratados:</strong> Valor total de contratos vigentes</li>
+                            <li><strong>Facturado y Pagado:</strong> Montos efectivos</li>
+                            <li><strong>Por Cobrar:</strong> Saldo pendiente</li>
+                            <li><strong>Análisis de Vencimientos:</strong> Documentos por vencer y vencidos</li>
+                            <li><strong>Cartera por Cliente:</strong> Distribución del negocio</li>
                         </ul>
                     </div>
                     
                     <div class="alert alert-tip">
-                        <h5 class="alert-heading"><i class="fas fa-handshake me-2"></i>Tip Comercial</h5>
-                        Usa el módulo comercial para hacer seguimiento constante de tu pipeline y asegurar el cumplimiento de objetivos mensuales.
+                        <h5 class="alert-heading"><i class="fas fa-chart-bar me-2"></i>Tip Comercial</h5>
+                        Utiliza la Planificación Comercial (Matriz Mensual) para visualizar la distribución de proyectos a lo largo del año y anticipar períodos de alta o baja carga.
                     </div>
                     
                 {% elif modulo_activo == 'planificacion-operacional' %}
@@ -1276,6 +1347,116 @@
                     <div class="alert alert-tip">
                         <h5 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>Optimización</h5>
                         Usa la planificación operacional para balancear la carga de trabajo y optimizar el uso de recursos productivos.
+                    </div>
+                    
+                {% elif modulo_activo == 'calendario' %}
+                    <div class="modulo-header">
+                        <h2><i class="fas fa-calendar-alt me-3"></i>Calendario</h2>
+                        <p>Visualización de eventos, despachos y hitos de entrega</p>
+                    </div>
+                    
+                    <div class="badge-modulo">Módulo 12</div>
+                    
+                    <h3>Gestión Visual de Entregas</h3>
+                    <p class="lead">El módulo de Calendario te permite visualizar todos los eventos, despachos y hitos de entrega en diferentes vistas temporales para planificar y hacer seguimiento.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-calendar-day me-2"></i>Vista Mensual</h4>
+                        <p>Vista de calendario completo del mes:</p>
+                        <ul>
+                            <li><strong>Eventos del Mes:</strong> Visualización de todos los eventos y despachos</li>
+                            <li><strong>Hitos de Entrega:</strong> Marcadores de fechas comprometidas según plan de entrega</li>
+                            <li><strong>Filtros Avanzados:</strong> Por estado, responsable, proyecto, cliente</li>
+                            <li><strong>Código de Colores:</strong> Identificación visual del tipo y estado de cada evento</li>
+                            <li><strong>Navegación:</strong> Cambio rápido entre meses</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-calendar-week me-2"></i>Vista Semanal</h4>
+                        <p>Vista detallada de 7 días:</p>
+                        <ul>
+                            <li><strong>Detalle por Día:</strong> Información completa de eventos diarios</li>
+                            <li><strong>Despachos Programados:</strong> Entregas planificadas para la semana</li>
+                            <li><strong>Hitos de la Semana:</strong> Compromisos próximos</li>
+                            <li><strong>Navegación Semanal:</strong> Semana anterior/siguiente</li>
+                            <li><strong>Vista Compacta:</strong> Mejor para planificación de corto plazo</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-calendar-check me-2"></i>Vista Diaria</h4>
+                        <p>Enfoque en las entregas del día:</p>
+                        <ul>
+                            <li><strong>Despachos del Día:</strong> Lista detallada de entregas programadas</li>
+                            <li><strong>Información Completa:</strong> Cliente, proyecto, dirección, contacto</li>
+                            <li><strong>Estado de Despacho:</strong> Pendiente, En Ruta, Entregado</li>
+                            <li><strong>Responsables:</strong> Quién está a cargo de cada entrega</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-flag-checkered me-2"></i>Gestión de Hitos de Entrega</h4>
+                        <p>Los hitos se integran automáticamente desde el plan de entrega:</p>
+                        <ul>
+                            <li><strong>Generación Automática:</strong> Los hitos se crean desde el plan de entrega de cada contrato</li>
+                            <li><strong>Visualización en Calendario:</strong> Aparecen como marcadores especiales en las vistas</li>
+                            <li><strong>Marcar como Completados:</strong> Seguimiento del cumplimiento de compromisos</li>
+                            <li><strong>Crear Despachos desde Hitos:</strong> Conversión directa de hito a despacho programado</li>
+                            <li><strong>Alertas de Vencimiento:</strong> Identificación de hitos próximos o vencidos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-area me-2"></i>Análisis Estratégico</h4>
+                        <p>Herramientas de análisis para toma de decisiones:</p>
+                        <ul>
+                            <li><strong>Vista de Análisis Mensual:</strong> KPIs de cumplimiento del mes</li>
+                            <li><strong>Vista de Análisis Semanal:</strong> Tendencias y patrones semanales</li>
+                            <li><strong>Tasa de Cumplimiento:</strong> Porcentaje de hitos completados a tiempo</li>
+                            <li><strong>Nivel de Riesgo:</strong> Identificación de períodos con alto riesgo de incumplimiento</li>
+                            <li><strong>Tendencias:</strong> Evolución del desempeño de entregas</li>
+                            <li><strong>Alertas Estratégicas:</strong> Notificaciones de situaciones críticas</li>
+                        </ul>
+                    </div>
+                    
+                    <h3>Flujo de Trabajo con el Calendario</h3>
+                    <div class="workflow-diagram">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="workflow-step">
+                                    <div class="step-number">1</div>
+                                    <h5>Plan de Entrega</h5>
+                                    <p>Se crea el plan de entrega en el contrato con fechas comprometidas</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="workflow-step">
+                                    <div class="step-number">2</div>
+                                    <h5>Hitos en Calendario</h5>
+                                    <p>Los hitos aparecen automáticamente en el calendario</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="workflow-step">
+                                    <div class="step-number">3</div>
+                                    <h5>Planificar Despachos</h5>
+                                    <p>Se crean despachos desde los hitos o directamente</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="workflow-step">
+                                    <div class="step-number">4</div>
+                                    <h5>Seguimiento</h5>
+                                    <p>Se monitorea el cumplimiento y se marcan hitos completados</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-tip">
+                        <h5 class="alert-heading"><i class="fas fa-calendar-check me-2"></i>Mejor Práctica</h5>
+                        Revisa la vista semanal al inicio de cada semana para anticipar las entregas y asegurar que todo esté preparado con anticipación.
                     </div>
                     
                 {% elif modulo_activo == 'configuraciones' %}

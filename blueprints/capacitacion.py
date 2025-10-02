@@ -32,7 +32,7 @@ def modulo(modulo_name):
             'introduccion', 'flujo-general', 'dashboard', 'clientes', 
             'proyectos', 'contratos', 'fabricacion', 'areas-produccion', 
             'despachos', 'finanzas', 'comercial', 'planificacion-operacional', 
-            'configuraciones', 'mejores-practicas'
+            'calendario', 'configuraciones', 'mejores-practicas'
         ]
         
         if modulo_name not in modulos_validos:
