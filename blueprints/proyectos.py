@@ -128,7 +128,7 @@ def index():
         flash('Error al cargar proyectos', 'error')
         return redirect(url_for('proyectos.index'))
 
-@proyectos_bp.route('/nuevo')
+@proyectos_bp.route('/nuevo', methods=['GET', 'POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS)
 def nuevo():
     """Crear nuevo proyecto"""
