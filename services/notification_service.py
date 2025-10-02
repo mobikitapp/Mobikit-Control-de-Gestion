@@ -108,9 +108,9 @@ class NotificationService:
                 user_accepts_notification(proyecto.responsable_user)):
                 emails.append(proyecto.responsable_user.email)
             
-            # Cliente contacto si tiene email (sin verificar preferencias ya que es externo)
-            if proyecto.cliente and proyecto.cliente.email_contacto:
-                emails.append(proyecto.cliente.email_contacto)
+            # Cliente contacto excluido de notificaciones automáticas
+            # if proyecto.cliente and proyecto.cliente.email_contacto:
+            #     emails.append(proyecto.cliente.email_contacto)
             
             # Usuarios de operaciones y producción
             team_users = db.session.query(User).filter(
