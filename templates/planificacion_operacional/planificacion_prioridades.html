@@ -625,23 +625,6 @@ Días restantes: {{ hito.dias_restantes }}">
                                                                 {% if of_info.tiempo_real_fabrica is not none %}
                                                                     <small class="ms-2">
                                                                         <strong>Real:</strong> {{ of_info.tiempo_real_fabrica }}d
-                                                                        {% if of_info.desviacion_fabrica is not none %}
-                                                                            {% if of_info.porcentaje_desviacion_fabrica is not none %}
-                                                                                {% if of_info.porcentaje_desviacion_fabrica > 50 %}
-                                                                                    <span class="badge bg-danger ms-1">+{{ of_info.desviacion_fabrica }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
-                                                                                {% elif of_info.porcentaje_desviacion_fabrica > 20 %}
-                                                                                    <span class="badge bg-warning ms-1">+{{ of_info.desviacion_fabrica }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
-                                                                                {% elif of_info.porcentaje_desviacion_fabrica < -20 %}
-                                                                                    <span class="badge bg-success ms-1">{{ of_info.desviacion_fabrica }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
-                                                                                {% elif of_info.desviacion_fabrica == 0 %}
-                                                                                    <span class="badge bg-info ms-1">exacto</span>
-                                                                                {% else %}
-                                                                                    <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_fabrica) }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_fabrica) }}%)</span>
-                                                                                {% endif %}
-                                                                            {% else %}
-                                                                                <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_fabrica) }}d</span>
-                                                                            {% endif %}
-                                                                        {% endif %}
                                                                     </small>
                                                                 {% endif %}
                                                             </div>
@@ -660,23 +643,6 @@ Días restantes: {{ hito.dias_restantes }}">
                                                                 {% if of_info.tiempo_real_embalaje is not none %}
                                                                     <small class="ms-2">
                                                                         <strong>Real:</strong> {{ of_info.tiempo_real_embalaje }}d
-                                                                        {% if of_info.desviacion_embalaje is not none %}
-                                                                            {% if of_info.porcentaje_desviacion_embalaje is not none %}
-                                                                                {% if of_info.porcentaje_desviacion_embalaje > 50 %}
-                                                                                    <span class="badge bg-danger ms-1">+{{ of_info.desviacion_embalaje }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
-                                                                                {% elif of_info.porcentaje_desviacion_embalaje > 20 %}
-                                                                                    <span class="badge bg-warning ms-1">+{{ of_info.desviacion_embalaje }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
-                                                                                {% elif of_info.porcentaje_desviacion_embalaje < -20 %}
-                                                                                    <span class="badge bg-success ms-1">{{ of_info.desviacion_embalaje }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
-                                                                                {% elif of_info.desviacion_embalaje == 0 %}
-                                                                                    <span class="badge bg-info ms-1">exacto</span>
-                                                                                {% else %}
-                                                                                    <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_embalaje) }}d ({{ "{:.0f}".format(of_info.porcentaje_desviacion_embalaje) }}%)</span>
-                                                                                {% endif %}
-                                                                            {% else %}
-                                                                                <span class="badge bg-secondary ms-1">{{ "{:+}".format(of_info.desviacion_embalaje) }}d</span>
-                                                                            {% endif %}
-                                                                        {% endif %}
                                                                     </small>
                                                                 {% endif %}
                                                             </div>
