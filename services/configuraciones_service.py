@@ -616,10 +616,10 @@ class ConfiguracionesService:
                 'eliminar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional', 'areas', 'configuraciones']
             },
             RolUsuario.OPERACIONES: {
-                'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional', 'areas', 'configuraciones'],
-                'crear': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional'],
-                'editar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional', 'areas'],
-                'eliminar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial']
+                'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'planificacion_operacional', 'areas', 'configuraciones'],
+                'crear': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'planificacion_operacional'],
+                'editar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'planificacion_operacional', 'areas'],
+                'eliminar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos']
             },
             RolUsuario.VENTAS: {
                 'leer': ['clientes', 'proyectos', 'contratos'],
@@ -646,9 +646,9 @@ class ConfiguracionesService:
                 'eliminar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial']
             },
             RolUsuario.FINANZAS: {
-                'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'planificacion_operacional'],
-                'crear': [],
-                'editar': ['contratos'],
+                'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional'],
+                'crear': ['comercial'],
+                'editar': ['contratos', 'comercial'],
                 'eliminar': []
             }
         }
