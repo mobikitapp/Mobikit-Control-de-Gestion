@@ -20,21 +20,21 @@ class DashboardVendedorService:
     def get_metricas_vendedor(self, vendedor_id: str) -> Dict[str, Any]:
         """Obtiene métricas principales del vendedor"""
         try:
-            mes_actual = datetime.now().replace(day=1)
+            inicio_ano = datetime.now().replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
-            # Proyectos del mes actual
-            proyectos_mes = db.session.query(Proyecto).filter(
+            # Proyectos del año actual
+            proyectos_ano = db.session.query(Proyecto).filter(
                 Proyecto.vendedor_id == vendedor_id,
-                Proyecto.created_at >= mes_actual
+                Proyecto.created_at >= inicio_ano
             ).count()
 
-            # Contratos confirmados del mes
-            contratos_mes = db.session.query(Contrato).join(Proyecto).filter(
+            # Contratos confirmados del año
+            contratos_ano = db.session.query(Contrato).join(Proyecto).filter(
                 Proyecto.vendedor_id == vendedor_id,
-                Contrato.fecha_creacion >= mes_actual
+                Contrato.created_at >= inicio_ano
             ).count()
 
-            # Valor total del mes
+            # Valor total del año
             valor_total = db.session.query(
                 func.sum(
                     func.coalesce(Proyecto.monto_provision_presupuestado, 0) + 
@@ -42,7 +42,7 @@ class DashboardVendedorService:
                 )
             ).filter(
                 Proyecto.vendedor_id == vendedor_id,
-                Proyecto.created_at >= mes_actual
+                Proyecto.created_at >= inicio_ano
             ).scalar() or 0
 
             # Clientes activos (que tienen proyectos activos)
@@ -52,9 +52,9 @@ class DashboardVendedorService:
             ).distinct().count()
 
             return {
-                'proyectos_mes': proyectos_mes,
-                'contratos_mes': contratos_mes,
-                'valor_total_mes': float(valor_total),
+                'proyectos_ano': proyectos_ano,
+                'contratos_ano': contratos_ano,
+                'valor_total_ano': float(valor_total),
                 'clientes_activos': clientes_activos
             }
 
@@ -63,22 +63,22 @@ class DashboardVendedorService:
             return {}
 
     def get_tasa_exito_vendedor(self, vendedor_id: str) -> Dict[str, Any]:
-        """Calcula la tasa de éxito del vendedor en los últimos 6 meses"""
+        """Calcula la tasa de éxito del vendedor en el año actual"""
         try:
-            seis_meses_atras = datetime.now() - timedelta(days=180)
+            inicio_ano = datetime.now().replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
             # Proyectos exitosos (adjudicados)
             proyectos_exitosos = db.session.query(Proyecto).filter(
                 Proyecto.vendedor_id == vendedor_id,
                 Proyecto.estado_comercial == EstadoComercial.ADJUDICADO,
-                Proyecto.fecha_adjudicacion >= seis_meses_atras
+                Proyecto.fecha_adjudicacion >= inicio_ano
             ).count()
 
             # Proyectos perdidos
             proyectos_perdidos = db.session.query(Proyecto).filter(
                 Proyecto.vendedor_id == vendedor_id,
                 Proyecto.estado_comercial == EstadoComercial.PERDIDO,
-                Proyecto.created_at >= seis_meses_atras
+                Proyecto.created_at >= inicio_ano
             ).count()
 
             total_oportunidades = proyectos_exitosos + proyectos_perdidos
