@@ -138,16 +138,18 @@ class ProyectoCreate(ProyectoBase):
     @model_validator(mode='after')
     def validate_create_requirements(self):
         """Validaciones específicas para creación de proyectos con presupuestos"""
-        # Si hay datos comerciales, validar que al menos haya un monto (validación ya incluye exclusividad mutua en ProyectoBase)
-        has_commercial_data = (
-            self.vendedor_id is not None or 
+        # Permitir proyectos con vendedor asignado sin montos iniciales
+        # La validación de exclusividad mutua UF/CLP ya se maneja en ProyectoBase
+        
+        # Solo validar si se proporcionan datos de presupuesto específicos (fechas o márgenes)
+        # que realmente requieren montos para tener sentido
+        has_budget_specific_data = (
             self.fecha_presupuesto is not None or 
-            self.notas_comerciales is not None or
             self.margen_venta_provision is not None or
             self.margen_venta_instalacion is not None
         )
         
-        if has_commercial_data:
+        if has_budget_specific_data:
             has_clp_amounts = (
                 self.monto_provision_presupuestado is not None or 
                 self.monto_instalacion_presupuestado is not None
@@ -158,7 +160,7 @@ class ProyectoCreate(ProyectoBase):
             )
             
             if not has_clp_amounts and not has_uf_amounts:
-                raise ValueError('Si se proporcionan datos comerciales, debe incluirse al menos un monto presupuestado. '
+                raise ValueError('Si se proporcionan fechas de presupuesto o márgenes de venta, debe incluirse al menos un monto presupuestado. '
                                'Use CLP o UF para cada monto, no ambos simultáneamente.')
         
         return self
