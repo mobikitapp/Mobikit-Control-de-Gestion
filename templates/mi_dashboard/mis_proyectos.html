@@ -52,7 +52,7 @@
                         </button>
                     </div>
                 </div>
-                {% if estado_actual != 'todos' or periodo_actual != 'actual' %}
+                {% if estado_actual != 'todos' or periodo_actual != 'todos' %}
                 <div class="col-md-2">
                     <label class="form-label">&nbsp;</label>
                     <div class="d-grid">
@@ -176,7 +176,7 @@
                 <div class="text-center py-5">
                     <i class="fas fa-project-diagram fs-1 text-muted mb-3"></i>
                     <h5 class="text-muted">No se encontraron proyectos</h5>
-                    {% if estado_actual != 'todos' or periodo_actual != 'actual' %}
+                    {% if estado_actual != 'todos' or periodo_actual != 'todos' %}
                         <p class="text-muted">Prueba ajustando los filtros de búsqueda</p>
                         <a href="{{ url_for('mi_dashboard.mis_proyectos') }}" class="btn btn-outline-secondary">
                             <i class="fas fa-times me-1"></i>Limpiar Filtros
@@ -200,7 +200,7 @@
             {% set estado_key = proyecto.estado_comercial.value if proyecto.estado_comercial else 'SIN_ESTADO' %}
             {% if estados_count.update({estado_key: estados_count.get(estado_key, 0) + 1}) %}{% endif %}
         {% endfor %}
-        
+
         {% for estado, cantidad in estados_count.items() %}
         <div class="col-md-2 mb-3">
             <div class="card border-0 bg-light h-100">
@@ -213,7 +213,7 @@
             </div>
         </div>
         {% endfor %}
-        
+
         <!-- Total de Proyectos -->
         <div class="col-md-2 mb-3">
             <div class="card border-0 bg-light h-100">

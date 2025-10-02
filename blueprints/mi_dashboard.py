@@ -100,7 +100,7 @@ def mis_proyectos():
 
         # Filtros
         estado = request.args.get('estado', 'todos')
-        periodo = request.args.get('periodo', 'actual')
+        periodo = request.args.get('periodo', 'todos')
 
         # Obtener proyectos según el rol del usuario - siempre filtrar por vendedor_id
         # Todos los usuarios (incluyendo ADMIN y GENERAL) ven proyectos donde son vendedores
