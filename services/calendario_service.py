@@ -493,13 +493,13 @@ class CalendarioService:
         return self._get_eventos_rango_fechas(today, fecha_fin, usuario_id, rol_usuario)
 
     def get_hitos_proximos_configurable(self, usuario_id: str, rol_usuario: RolUsuario, dias: int = 7) -> List[Dict[str, Any]]:
-        """Get upcoming hitos with configurable days (1-365)"""
+        """Get upcoming hitos with configurable days (1-90)"""
         
         # Validate days range
         if dias < 1:
             dias = 1
-        elif dias > 365:
-            dias = 365
+        elif dias > 90:
+            dias = 90
             
         today = date.today()
         fecha_fin = today + timedelta(days=dias)

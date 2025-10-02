@@ -18,69 +18,14 @@
                         </div>
                         <div class="d-flex align-items-center">
                             <a href="{{ url_for('calendario.vista_mensual', year=mes_anterior.year, month=mes_anterior.month) }}" 
-                               class="btn btn-outline-secondary me-2"
-                               title="Mes Anterior">
+                               class="btn btn-outline-secondary me-2">
                                 <i class="fas fa-chevron-left"></i>
                             </a>
-                            
-                            <!-- Navegación rápida -->
-                            <div class="btn-group me-2">
-                                <button class="btn btn-outline-info btn-sm dropdown-toggle" type="button" 
-                                        data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-calendar"></i> Ir a...
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><h6 class="dropdown-header">2025</h6></li>
-                                    {% for i in range(1, 13) %}
-                                    <li><a class="dropdown-item {% if i == month and 2025 == year %}active{% endif %}" 
-                                           href="{{ url_for('calendario.vista_mensual', year=2025, month=i) }}">
-                                        {{ ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-                                             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][i-1] }} 2025
-                                    </a></li>
-                                    {% endfor %}
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">2026</h6></li>
-                                    {% for i in range(1, 13) %}
-                                    <li><a class="dropdown-item" 
-                                           href="{{ url_for('calendario.vista_mensual', year=2026, month=i) }}">
-                                        {{ ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-                                             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][i-1] }} 2026
-                                    </a></li>
-                                    {% endfor %}
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" 
-                                           href="{{ url_for('calendario.vista_mensual') }}">
-                                        <i class="fas fa-home"></i> Mes Actual
-                                    </a></li>
-                                </ul>
-                            </div>
-                            
-                            <span class="mx-2 fw-bold">{{ nombre_mes }} {{ year }}</span>
-                            
+                            <span class="mx-3">{{ nombre_mes }} {{ year }}</span>
                             <a href="{{ url_for('calendario.vista_mensual', year=mes_siguiente.year, month=mes_siguiente.month) }}" 
-                               class="btn btn-outline-secondary ms-2"
-                               title="Mes Siguiente">
+                               class="btn btn-outline-secondary ms-2">
                                 <i class="fas fa-chevron-right"></i>
                             </a>
-                            
-                            <!-- Salto rápido a meses futuros -->
-                            <div class="btn-group ms-2">
-                                <a href="{{ url_for('calendario.vista_mensual', year=year + (month + 2) // 13, month=(month + 2) % 12 or 12) }}" 
-                                   class="btn btn-outline-success btn-sm"
-                                   title="Dentro de 3 meses">
-                                    +3M
-                                </a>
-                                <a href="{{ url_for('calendario.vista_mensual', year=year + (month + 5) // 13, month=(month + 5) % 12 or 12) }}" 
-                                   class="btn btn-outline-warning btn-sm"
-                                   title="Dentro de 6 meses">
-                                    +6M
-                                </a>
-                                <a href="{{ url_for('calendario.vista_mensual', year=year + 1, month=month) }}" 
-                                   class="btn btn-outline-info btn-sm"
-                                   title="Próximo año">
-                                    +1A
-                                </a>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -262,10 +207,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Navegación Futura -->
-    {% from 'calendario/components/navegacion_futura.html' import navegacion_calendario_futura %}
-    {{ navegacion_calendario_futura('mensual', year, month) }}
 
     <!-- Simplified Quick Actions -->
     <div class="row mt-3">

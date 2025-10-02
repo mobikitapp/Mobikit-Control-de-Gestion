@@ -19,59 +19,14 @@
                             </p>
                         </div>
                         <div class="d-flex align-items-center">
-                            <a href="{{ url_for('calendario.vista_semanal', year=semana_anterior.year, month=semana_anterior.month, day=semana_anterior.day) }}" 
-                               class="btn btn-outline-secondary me-2"
-                               title="Semana Anterior">
-                                <i class="fas fa-chevron-left"></i>
+                            <a href="{{ url_for('calendario.vista_semanal', year=semana_anterior.year, month=semana_anterior.month, day=semana_anterior.day) }}"
+                               class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-chevron-left"></i> Anterior
                             </a>
-
-                            <!-- Navegación rápida semanal -->
-                            <div class="btn-group me-2">
-                                <button class="btn btn-outline-info btn-sm dropdown-toggle" type="button" 
-                                        data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-calendar-week"></i> Saltar...
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" 
-                                           href="{{ url_for('calendario.vista_semanal') }}">
-                                        <i class="fas fa-home"></i> Semana Actual
-                                    </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Próximas Semanas</h6></li>
-                                    {% set today = moment().date() %}
-                                    {% for i in range(1, 9) %}
-                                    {% set future_date = today + timedelta(weeks=i) %}
-                                    <li><a class="dropdown-item" 
-                                           href="{{ url_for('calendario.vista_semanal', year=future_date.year, month=future_date.month, day=future_date.day) }}">
-                                        +{{ i }} semana{{ 's' if i > 1 else '' }}
-                                    </a></li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-
-                            <span class="mx-2 fw-bold">{{ inicio_semana.strftime('%d/%m') }} - {{ fin_semana.strftime('%d/%m/%Y') }}</span>
-
-                            <a href="{{ url_for('calendario.vista_semanal', year=semana_siguiente.year, month=semana_siguiente.month, day=semana_siguiente.day) }}" 
-                               class="btn btn-outline-secondary ms-2"
-                               title="Semana Siguiente">
-                                <i class="fas fa-chevron-right"></i>
+                            <a href="{{ url_for('calendario.vista_semanal', year=semana_siguiente.year, month=semana_siguiente.month, day=semana_siguiente.day) }}"
+                               class="btn btn-outline-secondary ms-2">
+                                Siguiente <i class="fas fa-chevron-right"></i>
                             </a>
-
-                            <!-- Salto rápido -->
-                            <div class="btn-group ms-2">
-                                {% set month_ahead = inicio_semana + timedelta(weeks=4) %}
-                                <a href="{{ url_for('calendario.vista_semanal', year=month_ahead.year, month=month_ahead.month, day=month_ahead.day) }}" 
-                                   class="btn btn-outline-success btn-sm"
-                                   title="Dentro de 1 mes">
-                                    +1M
-                                </a>
-                                {% set quarter_ahead = inicio_semana + timedelta(weeks=12) %}
-                                <a href="{{ url_for('calendario.vista_semanal', year=quarter_ahead.year, month=quarter_ahead.month, day=quarter_ahead.day) }}" 
-                                   class="btn btn-outline-warning btn-sm"
-                                   title="Dentro de 3 meses">
-                                    +3M
-                                </a>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -98,7 +53,7 @@
                             <i class="fas fa-calendar-day"></i> Diaria
                         </a>
                     </div>
-
+                    
                     <!-- Análisis Estratégico -->
                     <div class="mb-2">
                         <small class="text-muted">Análisis Estratégico:</small>
