@@ -131,7 +131,7 @@
                             {% endif %}
 
                             <!-- Calendario -->
-                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica'] %}
+                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica', 'produccion'] %}
                             <li><h6 class="dropdown-header">
                                 <i data-feather="calendar" class="me-1"></i>
                                 Calendario
@@ -276,7 +276,7 @@
                         </li>
                     {% endif %}
 
-                    
+
                 </ul>
 
                 <ul class="navbar-nav">

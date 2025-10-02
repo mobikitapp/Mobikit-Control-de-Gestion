@@ -41,7 +41,7 @@ PERMISSIONS = {
     'fabricacion.proceso': ['admin', 'general', 'operaciones', 'produccion'],
     
     # Despachos
-    'despachos.lectura': ['admin', 'general', 'logistica', 'finanzas'],
+    'despachos.lectura': ['admin', 'general', 'logistica', 'produccion', 'finanzas'],
     'despachos.creacion': ['admin', 'general', 'logistica'],
     'despachos.edicion': ['admin', 'general', 'logistica'],
     'despachos.eliminacion': ['admin'],
@@ -61,7 +61,7 @@ PERMISSIONS = {
     'configuraciones.edicion': ['admin'],
     
     # Planificación
-    'planificacion.lectura': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
+    'planificacion.lectura': ['admin', 'general', 'ventas', 'operaciones', 'produccion', 'finanzas'],
     'planificacion.creacion': ['admin', 'general'],
     'planificacion.edicion': ['admin', 'general'],
     
@@ -156,8 +156,10 @@ ROLE_PERMISSIONS = {
     ],
     'produccion': [
         'contratos.lectura', 
-        'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
-        'areas.lectura'
+        'fabricacion.lectura',
+        'areas.lectura',
+        'planificacion.lectura',
+        'despachos.lectura'
     ],
     'logistica': [
         'contratos.lectura', 
