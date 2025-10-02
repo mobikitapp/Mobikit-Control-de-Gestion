@@ -53,6 +53,22 @@
                                 <i data-feather="activity" class="me-2"></i> Dashboard de Áreas
                             </a></li>
                             {% endif %}
+                            {% if current_user.rol.value in ['ventas', 'admin', 'general'] %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Mi Dashboard Personal</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.index') }}">
+                                <i data-feather="bar-chart-2" class="me-2"></i>Panel Principal
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.mis_clientes') }}">
+                                <i data-feather="users" class="me-2"></i>Mis Clientes
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.mis_proyectos') }}">
+                                <i data-feather="folder" class="me-2"></i>Mis Proyectos
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.estadisticas') }}">
+                                <i data-feather="trending-up" class="me-2"></i>Mis Estadísticas
+                            </a></li>
+                            {% endif %}
                         </ul>
                     </li>
 
@@ -260,30 +276,7 @@
                         </li>
                     {% endif %}
 
-                    <!-- Mi Dashboard (para ventas, admin y general) -->
-                    {% if current_user.rol.value in ['ventas', 'admin', 'general'] %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i data-feather="bar-chart-2" class="me-1"></i>
-                            Mi Dashboard
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.index') }}">
-                                <i data-feather="home" class="me-2"></i>Panel Principal
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.mis_clientes') }}">
-                                <i data-feather="users" class="me-2"></i>Mis Clientes
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.mis_proyectos') }}">
-                                <i data-feather="folder" class="me-2"></i>Mis Proyectos
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('mi_dashboard.estadisticas') }}">
-                                <i data-feather="trending-up" class="me-2"></i>Mis Estadísticas
-                            </a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
+                    
                 </ul>
 
                 <ul class="navbar-nav">
