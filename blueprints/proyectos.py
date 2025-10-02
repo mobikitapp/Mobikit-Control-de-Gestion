@@ -161,18 +161,18 @@ def nuevo():
             proyecto_data = ProyectoCreate(**form_data)
 
             # Create project - convert Pydantic model to dict
-            proyecto = proyectos_service.create_proyecto(proyecto_data.dict(), current_user.id)
+            proyecto = proyectos_service.create_proyecto(proyecto_data.model_dump(), current_user.id)
 
             if proyecto:
                 flash(f'Proyecto "{proyecto.nombre}" creado exitosamente', 'success')
 
                 # Crear tarea automática si el proyecto tiene vendedor asignado
-                if proyecto_data.get('vendedor_id'):
+                if proyecto_data.vendedor_id:
                     from services.comercial_service import ComercialService
                     comercial_service = ComercialService()
                     # Obtener el proyecto recién creado
                     proyecto_creado = (db.session.query(Proyecto)
-                                   .filter_by(nombre=proyecto_data['nombre'])
+                                   .filter_by(nombre=proyecto_data.nombre)
                                    .order_by(Proyecto.created_at.desc())
                                    .first())
                     if proyecto_creado:
