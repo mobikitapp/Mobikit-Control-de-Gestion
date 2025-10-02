@@ -344,6 +344,10 @@ const ManufacturingApp = {
                                         <option value="ADJUDICADO" ${estadoActual === 'ADJUDICADO' ? 'selected' : ''}>Adjudicado</option>
                                         <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
                                         <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
+                                        <option value="PERDIDO" ${estadoActual === 'PERDIDO' ? 'selected' : ''}>Perdido</option>
+                                        <option value="ADJUDICADO" ${estadoActual === 'ADJUDICADO' ? 'selected' : ''}>Adjudicado</option>
+                                        <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
+                                        <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
                                         <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
                                         <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
                                     </select>
