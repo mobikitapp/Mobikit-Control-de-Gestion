@@ -8,7 +8,7 @@ from models import RolUsuario, Contrato, TipoDocumento
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
 from schemas.proyectos import ProyectoCreate, ProyectoUpdate, ProyectoSearchFilters
-from schemas.bitacora import BitacoraProyectoCreate, BitacoraFilters
+from schemas.bitacora import BitacoraProyectoCreate, BitacoraProyectoFilters
 from services.bitacora_service import bitacora_service
 from models import Cliente, Proyecto, Contrato, TipoDocumento, EstadoContrato, ProyectoAdjunto, TareaComercial, EstadoComercial
 import logging
@@ -645,7 +645,7 @@ def bitacora(proyecto_id):
             usuario_id = request.args.get('usuario_id')
             limit = int(request.args.get('limit', 50))
 
-            filters = BitacoraFilters(
+            filters = BitacoraProyectoFilters(
                 proyecto_id=proyecto_id,
                 tipo=tipo,
                 usuario_id=usuario_id,
