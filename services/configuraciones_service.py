@@ -200,7 +200,7 @@ class ConfiguracionesService:
                 cambios.append(f"nombre: {usuario.first_name} → {datos_usuario['nombre']}")
             if usuario.email != datos_usuario['email']:
                 cambios.append(f"email: {usuario.email} → {datos_usuario['email']}")
-            
+
             # Handle role comparison when it can be None
             old_rol_value = usuario.rol.value if usuario.rol else None
             new_rol_value = datos_usuario['rol']
@@ -305,7 +305,7 @@ class ConfiguracionesService:
         """Permite al usuario cambiar su propia contraseña"""
         try:
             from werkzeug.security import check_password_hash, generate_password_hash
-            
+
             usuario = User.query.get(usuario_id)
             if not usuario:
                 return False, "Usuario no encontrado"
@@ -313,7 +313,7 @@ class ConfiguracionesService:
             # Verificar contraseña actual
             if not usuario.password_hash:
                 return False, "Usuario no tiene contraseña configurada"
-            
+
             if not check_password_hash(usuario.password_hash, password_actual):
                 return False, "Contraseña actual incorrecta"
 
@@ -622,9 +622,9 @@ class ConfiguracionesService:
                 'eliminar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial']
             },
             RolUsuario.VENTAS: {
-                'leer': ['clientes', 'proyectos', 'contratos', 'comercial'],
-                'crear': ['clientes', 'proyectos', 'contratos', 'comercial'],
-                'editar': ['clientes', 'proyectos', 'contratos', 'comercial'],
+                'leer': ['clientes', 'proyectos', 'contratos'],
+                'crear': ['clientes', 'proyectos', 'contratos'],
+                'editar': ['clientes', 'proyectos', 'contratos'],
                 'eliminar': []
             },
             RolUsuario.PRODUCCION: {
@@ -646,9 +646,9 @@ class ConfiguracionesService:
                 'eliminar': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial']
             },
             RolUsuario.FINANZAS: {
-                'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'comercial', 'planificacion_operacional'],
-                'crear': ['contratos', 'comercial'],
-                'editar': ['contratos', 'comercial'],
+                'leer': ['clientes', 'proyectos', 'contratos', 'fabricacion', 'despachos', 'planificacion_operacional'],
+                'crear': [],
+                'editar': ['contratos'],
                 'eliminar': []
             }
         }

@@ -22,7 +22,7 @@ comercial_bp = Blueprint('comercial', __name__)
 @comercial_bp.route('/')
 @comercial_bp.route('/centro-vendedores')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def centro_vendedores():
     """Redirige a lista de vendedores"""
     return redirect(url_for('comercial.lista_vendedores'))
@@ -30,13 +30,13 @@ def centro_vendedores():
 
 @comercial_bp.route('/vendedores')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def lista_vendedores():
     """Lista de vendedores con estadísticas fusionando centro de vendedores"""
     try:
         import calendar
         from services.dashboard_vendedor_service import DashboardVendedorService
-        
+
         service = ComercialService()
         dashboard_service = DashboardVendedorService()
 
@@ -65,10 +65,10 @@ def lista_vendedores():
         # Preparar datos para el gráfico de comisiones mensuales consolidado
         current_year = datetime.now().year
         meses_actual_year = [calendar.month_name[i] for i in range(1, 13)]
-        
+
         # Calcular comisiones consolidadas por mes para todos los vendedores
         comisiones_mensuales_adjudicadas = []
-        
+
         for mes in range(1, 13):
             comision_mes = 0
             for vendedor_data in vendedores_stats:
@@ -100,7 +100,7 @@ def lista_vendedores():
         current_year = datetime.now().year
         meses_actual_year = [calendar.month_name[i] for i in range(1, 13)]
         comisiones_mensuales_adjudicadas = [0] * 12
-        
+
         return render_template('comercial/vendedores.html', 
                              vendedores=[],
                              vendedores_stats=[], 
@@ -116,12 +116,12 @@ def lista_vendedores():
 
 @comercial_bp.route('/vendedor/<string:vendedor_id>')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def vendedor_detalle(vendedor_id):
     """Detalle de un vendedor específico"""
     try:
         from services.dashboard_vendedor_service import DashboardVendedorService
-        
+
         service = ComercialService()
         dashboard_service = DashboardVendedorService()
 
@@ -132,7 +132,7 @@ def vendedor_detalle(vendedor_id):
 
         # Agregar año actual para el template
         vendedor_data['current_year'] = datetime.now().year
-        
+
         # Agregar métricas de tasa de éxito
         vendedor_data['tasa_exito'] = dashboard_service.get_tasa_exito_vendedor(vendedor_id)
 
@@ -146,7 +146,7 @@ def vendedor_detalle(vendedor_id):
 # Project commercial management
 @comercial_bp.route('/proyecto/<int:proyecto_id>/comercial')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def proyecto_comercial(proyecto_id):
     """Gestión comercial de un proyecto específico"""
     try:
@@ -174,7 +174,7 @@ def proyecto_comercial(proyecto_id):
 
 @comercial_bp.route('/proyecto/<int:proyecto_id>/comercial/actualizar', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def actualizar_comercial_proyecto(proyecto_id):
     """Actualizar información comercial de un proyecto"""
     try:
@@ -209,7 +209,7 @@ def actualizar_comercial_proyecto(proyecto_id):
 # Commercial tasks management
 @comercial_bp.route('/tareas')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def tareas_comerciales():
     """Lista de tareas comerciales"""
     try:
@@ -232,7 +232,7 @@ def tareas_comerciales():
 
 @comercial_bp.route('/tarea/<int:tarea_id>/completar', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def completar_tarea(tarea_id):
     """Marcar una tarea como completada"""
     try:
@@ -255,7 +255,7 @@ def completar_tarea(tarea_id):
 # Commercial planning routes
 @comercial_bp.route('/planificacion')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def planificacion_comercial():
     """Planificación comercial - Vista de matriz mensual"""
     try:
@@ -290,7 +290,7 @@ def planificacion_comercial():
 
 @comercial_bp.route('/objetivos')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def objetivos_mensuales():
     """Gestión de objetivos mensuales"""
     try:
@@ -308,7 +308,7 @@ def objetivos_mensuales():
 
 @comercial_bp.route('/objetivos/actualizar', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL])
 def actualizar_objetivos():
     """Actualizar objetivos mensuales"""
     try:
@@ -327,7 +327,7 @@ def actualizar_objetivos():
                 # Asignamos 70% a provisión y 30% a instalación como proporción estándar
                 objetivo_provision = objetivo_total_decimal * Decimal('0.7')
                 objetivo_instalacion = objetivo_total_decimal * Decimal('0.3')
-                
+
                 objetivos_data.append({
                     'mes': mes,
                     'objetivo_provision': str(objetivo_provision),
@@ -351,7 +351,7 @@ def actualizar_objetivos():
 # API routes for AJAX calls
 @comercial_bp.route('/api/proyecto/<int:proyecto_id>/crear-tarea', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def api_crear_tarea(proyecto_id):
     """API para crear una nueva tarea comercial"""
     try:
@@ -389,7 +389,7 @@ def api_crear_tarea(proyecto_id):
 
 @comercial_bp.route('/api/planificacion/<int:year>/datos')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def api_planificacion_datos(year):
     """API para obtener datos de planificación por año"""
     try:
@@ -423,7 +423,7 @@ def api_planificacion_datos(year):
 # Revenue Management Routes
 @comercial_bp.route('/revenue-management')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def revenue_management():
     """Revenue Management - Vista principal"""
     try:
@@ -435,7 +435,7 @@ def revenue_management():
 
         # Get real planning data from comercial service including all project states
         planning_data = comercial_service.get_planificacion_comercial(año=año, estado_filter='todos')
-        
+
         # Get KPIs from revenue service
         kpis = revenue_service.calculate_kpis(año)
 
@@ -452,23 +452,23 @@ def revenue_management():
             mes_data = planning_data['matriz'].get(mes_key, {})
             # Get objective for this month using both possible keys
             objetivo_mes = planning_data['objetivos'].get(mes_key) or planning_data['objetivos'].get(mes)
-            
+
             # Calculate values
             valor_provision = float(mes_data.get('valor_provision', 0))
             valor_instalacion = float(mes_data.get('valor_instalacion', 0))
             total_ventas = valor_provision + valor_instalacion
             margen_ponderado = float(mes_data.get('margen_ponderado', 0))
-            
+
             # Calculate objective values
             objetivo_total = 0
             if objetivo_mes:
                 objetivo_provision = float(objetivo_mes.objetivo_provision or 0)
                 objetivo_instalacion = float(objetivo_mes.objetivo_instalacion or 0)
                 objetivo_total = objetivo_provision + objetivo_instalacion
-            
+
             # Calculate percentage and status
             porcentaje_objetivo = (total_ventas / objetivo_total * 100) if objetivo_total > 0 else 0
-            
+
             # Determine status
             if porcentaje_objetivo >= 100:
                 estado = 'VERDE'
@@ -476,14 +476,14 @@ def revenue_management():
                 estado = 'AMARILLO'
             else:
                 estado = 'ROJO'
-            
+
             # Generate recommendations
             recomendacion = revenue_service.get_recommendations(
                 gap_venta=objetivo_total - total_ventas,
                 margen_real_pct=margen_ponderado,
                 margen_objetivo_pct=75  # Default BE margin
             )
-            
+
             # Convert project objects to serializable dictionaries
             proyectos_serializables = []
             for proyecto_data in mes_data.get('proyectos', []):
@@ -503,7 +503,7 @@ def revenue_management():
                         'valor_provision_mes': float(proyecto_data.get('valor_provision_mes', 0)),
                         'valor_instalacion_mes': float(proyecto_data.get('valor_instalacion_mes', 0))
                     })
-            
+
             monthly_data.append({
                 'mes': mes,
                 'mes_nombre': calendar.month_name[mes],
@@ -535,7 +535,7 @@ def revenue_management():
 
 @comercial_bp.route('/api/revenue/meses')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def api_revenue_meses():
     """API: Get monthly revenue data"""
     try:
@@ -557,7 +557,7 @@ def api_revenue_meses():
 
 @comercial_bp.route('/api/revenue/mes', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def api_revenue_update_mes():
     """API: Update or create monthly objective"""
     try:
@@ -593,7 +593,7 @@ def api_revenue_update_mes():
 
 @comercial_bp.route('/api/revenue/simular', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def api_revenue_simular():
     """API: Simulate revenue scenario"""
     try:
@@ -633,7 +633,7 @@ def api_revenue_simular():
 
 @comercial_bp.route('/api/revenue/calcular-proyectos/<int:anio>/<int:mes>', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def api_revenue_calcular_proyectos(anio, mes):
     """API: Calculate and update revenue data from real projects for a specific month"""
     try:
@@ -691,7 +691,7 @@ def api_revenue_calcular_proyectos(anio, mes):
 
 @comercial_bp.route('/api/revenue/calcular-proyectos/<int:anio>', methods=['POST'])
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def api_revenue_calcular_proyectos_año(anio):
     """API: Calculate and update revenue data from real projects for entire year"""
     try:
@@ -743,23 +743,23 @@ def api_revenue_calcular_proyectos_año(anio):
 
 @comercial_bp.route('/api/vendedor/<string:vendedor_id>/comisiones/<int:anio>')
 @login_required
-@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES])
+@role_required([RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES])
 def api_vendedor_comisiones_detalle(vendedor_id, anio):
     """API: Get detailed commission data for a salesperson"""
     try:
         service = ComercialService()
-        
+
         # Get commission details
         comisiones_data = service._calcular_comisiones_mensuales(vendedor_id, anio)
-        
+
         # Get commission configuration
         from services.configuraciones_service import ConfiguracionesService
         config_service = ConfiguracionesService()
         comision_config = config_service.get_comision_vendedor(vendedor_id)
-        
+
         # Get vendedor info
         vendedor = db.session.get(User, vendedor_id)
-        
+
         return jsonify({
             'success': True,
             'data': {
