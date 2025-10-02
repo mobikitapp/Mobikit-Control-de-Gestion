@@ -83,7 +83,7 @@
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
                                 <th>Estado</th>
-                                <th>Progreso</th>
+                                <th>Facturación</th>
                                 <th>Fecha Creación</th>
                                 <th>Fecha Entrega</th>
                                 <th class="text-center">Acciones</th>
@@ -115,11 +115,12 @@
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div class="progress me-2" style="width: 80px; height: 8px;">
-                                            {% set progreso = 25 if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PRESUPUESTADO' else 50 if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 100 if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 0 %}
-                                            <div class="progress-bar bg-{% if progreso < 30 %}danger{% elif progreso < 70 %}warning{% else %}success{% endif %}" 
-                                                 role="progressbar" style="width: {{ progreso }}%"></div>
+                                            {% set progreso_facturacion = proyecto.porcentaje_facturacion if proyecto.porcentaje_facturacion is defined else 0 %}
+                                            <div class="progress-bar bg-{% if progreso_facturacion < 30 %}danger{% elif progreso_facturacion < 70 %}warning{% else %}success{% endif %}" 
+                                                 role="progressbar" style="width: {{ progreso_facturacion }}%" 
+                                                 title="Facturación: {{ "{:.1f}%".format(progreso_facturacion) }}"></div>
                                         </div>
-                                        <span class="small">{{ progreso }}%</span>
+                                        <span class="small" title="Porcentaje de facturación del proyecto">{{ "{:.0f}%".format(progreso_facturacion) }}</span>
                                     </div>
                                 </td>
                                 <td>

@@ -135,6 +135,18 @@ def mis_proyectos():
         for proyecto in proyectos[:5]:
             current_app.logger.info(f"Proyecto encontrado {proyecto.id}: {proyecto.nombre}, Cliente: {proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente'}, Vendedor: {proyecto.vendedor_id}")
 
+        # Calcular porcentajes de facturación para cada proyecto
+        from services.finanzas_service import FinanzasService
+        finanzas_service = FinanzasService()
+        
+        for proyecto in proyectos:
+            try:
+                # Obtener totales dinámicos del proyecto
+                totales = finanzas_service.get_totales_proyecto_dinamicos(proyecto.id)
+                proyecto.porcentaje_facturacion = totales.get('avance_facturacion', 0)
+            except Exception as e:
+                current_app.logger.warning(f"Error calculando porcentaje facturación para proyecto {proyecto.id}: {str(e)}")
+                proyecto.porcentaje_facturacion = 0
 
         # Aplicar filtros de estado
         if estado != 'todos':
