@@ -402,6 +402,10 @@ class CalendarioService:
 
     def get_calendario_dashboard(self, usuario_id: str, rol_usuario: RolUsuario) -> Dict[str, Any]:
         """Get calendar dashboard data focused on dispatches and milestones only"""
+        return self.get_calendario_dashboard_configurable(usuario_id, rol_usuario, dias=7)
+    
+    def get_calendario_dashboard_configurable(self, usuario_id: str, rol_usuario: RolUsuario, dias: int = 7) -> Dict[str, Any]:
+        """Get calendar dashboard data with configurable days for upcoming items"""
 
         # Get hitos as events for current month
         today = date.today()
@@ -413,8 +417,8 @@ class CalendarioService:
 
         hitos_eventos_mes = self._get_hitos_como_eventos(primer_dia, ultimo_dia, usuario_id, rol_usuario)
 
-        # Get upcoming hitos (next 7 days by default)
-        hitos_proximos = self._get_hitos_como_eventos(today, today + timedelta(days=7), usuario_id, rol_usuario)
+        # Get upcoming hitos with configurable days
+        hitos_proximos = self._get_hitos_como_eventos(today, today + timedelta(days=dias), usuario_id, rol_usuario)
 
         # Get overdue hitos
         hitos_vencidos = self._get_hitos_como_eventos(
@@ -450,12 +454,12 @@ class CalendarioService:
 
         return {
             'stats': stats,
-            'eventos_proximos': hitos_proximos_events[:5],  # Limit to 5
-            'eventos_vencidos': hitos_vencidos_events[:5],  # Limit to 5
+            'eventos_proximos': hitos_proximos_events[:10],  # Show more with configurable days
+            'eventos_vencidos': hitos_vencidos_events[:10],  # Show more with configurable days
             'eventos_por_tipo': {'hito_entrega': len(hitos_eventos_mes)},
             'mes_actual': today.strftime('%B %Y'),
-            'entregas_proximas': hitos_proximos_events[:5],  # Alias for template compatibility
-            'entregas_vencidas': hitos_vencidos_events[:5]   # Alias for template compatibility
+            'entregas_proximas': hitos_proximos_events[:10],  # Alias for template compatibility
+            'entregas_vencidas': hitos_vencidos_events[:10]   # Alias for template compatibility
         }
 
     def get_eventos_mes(self, year: int, month: int, usuario_id: str, rol_usuario: RolUsuario) -> List[Dict[str, Any]]:

@@ -370,22 +370,38 @@ def dashboard():
         service = CalendarioService()
         contrato_service = ContratoEventosService()
         
+        # Get dias parameter from request (default 7)
+        dias = request.args.get('dias', default=7, type=int)
+        
+        # Validate dias range
+        if dias < 1:
+            dias = 1
+        elif dias > 90:
+            dias = 90
+        
         # Auto-generate events from contracts if needed
         contrato_service.generar_eventos_desde_contratos(current_user.id)
         
-        # Get delivery-focused data
-        entregas_proximas = contrato_service.get_entregas_proximas(dias=7)
+        # Get delivery-focused data with configurable days
+        entregas_proximas = contrato_service.get_entregas_proximas(dias=dias)
         entregas_vencidas = contrato_service.get_entregas_vencidas()
         contratos_con_entregas = contrato_service.get_contratos_con_entregas_pendientes()
         
-        # Get regular calendar data
-        data = service.get_calendario_dashboard(current_user.id, current_user.rol)
+        # Get regular calendar data with configurable days for hitos
+        data = service.get_calendario_dashboard_configurable(current_user.id, current_user.rol, dias=dias)
+        
+        # If no entregas_proximas, include hitos in the main list
+        if not entregas_proximas:
+            # Get hitos próximos when no entregas
+            hitos_proximos = service.get_hitos_proximos_configurable(current_user.id, current_user.rol, dias=dias)
+            data['hitos_como_entregas'] = hitos_proximos
         
         # Add delivery data to template context
         data.update({
             'entregas_proximas': entregas_proximas,
             'entregas_vencidas': entregas_vencidas,
             'contratos_con_entregas': contratos_con_entregas,
+            'dias_configurados': dias
         })
         
         return render_template('calendario/dashboard.html', **data)
