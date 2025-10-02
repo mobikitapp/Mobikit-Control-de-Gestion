@@ -106,16 +106,16 @@
                             Entregas Próximas ({{ request.args.get('dias', 7) }} días)
                         </h6>
                         <div class="input-group input-group-sm" style="width: 200px;">
-                            <input type="number" id="diasFiltro" class="form-control" 
-                                   value="{{ request.args.get('dias', 7) }}" 
-                                   min="1" max="90" 
+                            <input type="number" id="diasFiltro" class="form-control"
+                                   value="{{ request.args.get('dias', 7) }}"
+                                   min="1" max="90"
                                    placeholder="Días">
                             <button class="btn btn-outline-primary" type="button" onclick="aplicarFiltroDias()">
                                 <i class="fas fa-search"></i> Filtrar
                             </button>
                         </div>
                         <div class="dropdown ms-2">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
                                     data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-calendar"></i> Presets
                             </button>
@@ -216,7 +216,7 @@
                                     <i class="fas fa-flag-checkered"></i>
                                     Hito de Entrega
                                 </span>
-                                <span class="badge 
+                                <span class="badge
                                     {% if hito.estado == 'completado' %}bg-success
                                     {% elif hito.estado == 'atrasado' %}bg-danger
                                     {% else %}bg-warning text-dark{% endif %}">
@@ -236,7 +236,7 @@
                         <p class="mb-0">No tienes entregas ni hitos programados para los próximos {{ request.args.get('dias', 7) }} días</p>
                     </div>
                     {% endif %}
-                    
+
                     <div class="text-center">
                         <a href="{{ url_for('calendario.vista_mensual') }}" class="btn btn-outline-info btn-sm">
                             Ver calendario mensual
@@ -403,6 +403,20 @@
                         <a href="{{ url_for('calendario.contratos_con_entregas') }}" class="btn btn-outline-secondary">
                             <i class="fas fa-file-contract"></i> Contratos con Entregas
                         </a>
+                    </div>
+                    <!-- Navegación rápida por meses -->
+                    <div class="mt-3">
+                        <small class="text-muted d-block mb-2">Navegación rápida:</small>
+                        <div class="btn-group btn-group-sm" role="group">
+                            {% set current_date = now %}
+                            {% for i in range(-2, 4) %}
+                                {% set nav_date = current_date + relativedelta(months=i) %}
+                                <a href="{{ url_for('calendario.vista_mensual', year=nav_date.year, month=nav_date.month) }}"
+                                   class="btn {% if i == 0 %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                                    {{ nav_date.strftime('%b %Y') }}
+                                </a>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class CalendarioService:
     """Service layer for calendar and events management"""
 
-    def get_calendario_mensual(self, year: int, month: int, usuario_id: str, rol_usuario: RolUsuario, 
+    def get_calendario_mensual(self, year: int, month: int, usuario_id: str, rol_usuario: RolUsuario,
                               filtros_despachos: Optional[Dict] = None) -> Dict[str, Any]:
         """Get monthly calendar data with events"""
 
@@ -170,7 +170,7 @@ class CalendarioService:
                         'color': self._get_color_despacho(despacho.estado)
                     })
 
-        # Organize hitos by day  
+        # Organize hitos by day
         for hito in hitos_semana:
             dia_index = (hito.fecha_programada - inicio_semana).days
             if 0 <= dia_index <= 6:
@@ -287,18 +287,18 @@ class CalendarioService:
             cliente_nombre = 'Sin cliente'
             contrato_numero = 'Sin contrato'
             monto_total = None
-            
+
             if hasattr(hito, 'plan_entrega') and hito.plan_entrega:
                 if hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato:
                     contrato_numero = hito.plan_entrega.contrato.numero_oc
                     monto_total = hito.plan_entrega.contrato.monto_total
-                    
+
                     if hasattr(hito.plan_entrega.contrato, 'proyecto') and hito.plan_entrega.contrato.proyecto:
                         proyecto_nombre = hito.plan_entrega.contrato.proyecto.nombre
-                        
+
                         if hasattr(hito.plan_entrega.contrato.proyecto, 'cliente') and hito.plan_entrega.contrato.proyecto.cliente:
                             cliente_nombre = hito.plan_entrega.contrato.proyecto.cliente.nombre
-            
+
             hitos_formateados.append({
                 'id': hito.id,
                 'titulo': hito.titulo,
@@ -364,7 +364,7 @@ class CalendarioService:
             # Admin can see all projects
             query = db.session.query(Proyecto)
         elif rol_usuario == RolUsuario.VENTAS:
-            # Sales can only see their own clients' projects  
+            # Sales can only see their own clients' projects
             query = (db.session.query(Proyecto)
                     .join(Cliente)
                     .filter(getattr(Cliente, 'vendedor_id', None) == usuario_id))
@@ -403,7 +403,7 @@ class CalendarioService:
     def get_calendario_dashboard(self, usuario_id: str, rol_usuario: RolUsuario) -> Dict[str, Any]:
         """Get calendar dashboard data focused on dispatches and milestones only"""
         return self.get_calendario_dashboard_configurable(usuario_id, rol_usuario, dias=7)
-    
+
     def get_calendario_dashboard_configurable(self, usuario_id: str, rol_usuario: RolUsuario, dias: int = 7) -> Dict[str, Any]:
         """Get calendar dashboard data with configurable days for upcoming items"""
 
@@ -494,18 +494,18 @@ class CalendarioService:
 
     def get_hitos_proximos_configurable(self, usuario_id: str, rol_usuario: RolUsuario, dias: int = 7) -> List[Dict[str, Any]]:
         """Get upcoming hitos with configurable days (1-90)"""
-        
+
         # Validate days range
         if dias < 1:
             dias = 1
         elif dias > 90:
             dias = 90
-            
+
         today = date.today()
         fecha_fin = today + timedelta(days=dias)
-        
+
         hitos_eventos = self._get_hitos_como_eventos(today, fecha_fin, usuario_id, rol_usuario)
-        
+
         return hitos_eventos
 
     def toggle_recordatorio(self, evento_id: str, usuario_id: str) -> Tuple[bool, str]:
@@ -532,7 +532,7 @@ class CalendarioService:
             db.session.rollback()
             return False, str(e)
 
-    
+
 
     # Private helper methods
 
@@ -596,14 +596,14 @@ class CalendarioService:
                 proyecto_nombre = hito.plan_entrega.contrato.proyecto.nombre
                 if hito.plan_entrega.contrato.proyecto.cliente:
                     cliente_nombre = hito.plan_entrega.contrato.proyecto.cliente.nombre
-            
+
             # Create enhanced title with project and client info
             titulo_completo = f"Hito: {hito.titulo}"
             if proyecto_nombre and cliente_nombre:
                 titulo_completo = f"Hito: {hito.titulo} - {proyecto_nombre} ({cliente_nombre})"
             elif proyecto_nombre:
                 titulo_completo = f"Hito: {hito.titulo} - {proyecto_nombre}"
-            
+
             eventos_hitos.append({
                 'id': f"hito_{hito.id}",
                 'titulo': titulo_completo,
@@ -625,11 +625,11 @@ class CalendarioService:
         """Get events within date range - now returns empty list as events are disabled"""
         return []
 
-    def _get_despachos_rango_fechas(self, fecha_inicio: date, fecha_fin: date, usuario_id: str, rol_usuario: RolUsuario, 
+    def _get_despachos_rango_fechas(self, fecha_inicio: date, fecha_fin: date, usuario_id: str, rol_usuario: RolUsuario,
                                    filtros: Optional[Dict] = None) -> List[Despacho]:
         """Get despachos for date range with user access control"""
 
-        # Build base query with access control  
+        # Build base query with access control
         if rol_usuario == RolUsuario.ADMIN:
             query = db.session.query(Despacho)
         elif rol_usuario == RolUsuario.VENTAS:
