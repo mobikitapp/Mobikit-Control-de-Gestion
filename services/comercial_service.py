@@ -5,6 +5,7 @@ from sqlalchemy import and_, or_, func, extract, case
 from sqlalchemy.orm import joinedload
 from decimal import Decimal
 import calendar
+import logging
 
 from app import db
 from models import (
@@ -12,6 +13,8 @@ from models import (
     EstadoComercial, RolUsuario
 )
 from services.revenue_service import RevenueService
+
+logger = logging.getLogger(__name__)
 
 
 class ComercialService:
@@ -326,7 +329,7 @@ class ComercialService:
             if isinstance(item, Proyecto):
                 proyectos.append(item)
             else:
-                print(f"WARNING: Query returned non-Proyecto object: {type(item)}")
+                logger.warning(f"Query returned non-Proyecto object: {type(item)}")
                 # Try to get the actual Proyecto object if this is a tuple or other structure
                 if hasattr(item, 'Proyecto'):
                     proyectos.append(item.Proyecto)
@@ -334,7 +337,7 @@ class ComercialService:
                     if isinstance(item[0], Proyecto):
                         proyectos.append(item[0])
 
-        print(f"DEBUG: Final proyectos count: {len(proyectos)}, types: {[type(p) for p in proyectos[:3]]}")
+        logger.debug(f"Final proyectos count: {len(proyectos)}, types: {[type(p) for p in proyectos[:3]]}")
 
         # Build monthly matrix for 12-month period
         matriz = self._construir_matriz_mensual_periodo(proyectos, año, mes_inicio, curve_type)

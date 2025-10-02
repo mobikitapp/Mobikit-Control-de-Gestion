@@ -133,25 +133,59 @@ class ProyectosService:
             return
 
         # Import here to avoid circular imports
-        from models import TareaComercial
+        from models import TareaComercial, EstadoComercial
+        from datetime import date, timedelta
 
         # Check if task already exists
         existing = (db.session.query(TareaComercial)
                    .filter_by(proyecto_id=proyecto.id, 
-                             titulo="Completar información de presupuesto")
+                             vendedor_id=proyecto.vendedor_id)
                    .filter_by(completada=False)
+                   .filter(TareaComercial.titulo.ilike('%presupuesto%'))
                    .first())
 
         if not existing:
+            # Crear tarea específica según el estado del proyecto
+            if proyecto.estado_comercial == EstadoComercial.PENDIENTE_PRESUPUESTO:
+                titulo = f"Crear presupuesto para proyecto: {proyecto.nombre}"
+                descripcion = f"""Proyecto recién creado que requiere presupuesto urgente.
+
+Cliente: {proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente'}
+Proyecto: {proyecto.nombre}
+
+Tareas a realizar:
+• Completar montos netos de venta (provisión e instalación)
+• Definir márgenes de ganancia
+• Establecer fecha de presupuesto
+• Actualizar estado del proyecto a PRESUPUESTADO
+
+Los montos deben ser precios finales al cliente, no costos internos.
+
+⚠️ IMPORTANTE: Este proyecto está pendiente de presupuesto y requiere atención inmediata."""
+                
+                # Fecha límite más urgente para proyectos pendientes (2 días)
+                fecha_limite = date.today() + timedelta(days=2)
+            else:
+                titulo = "Completar información de presupuesto"
+                descripcion = "Completar montos netos de venta (provisión e instalación) y márgenes de ganancia para el proyecto. Los montos deben ser precios finales al cliente, no costos."
+                
+                # Fecha límite estándar (5 días)
+                fecha_limite = date.today() + timedelta(days=5)
+
+            # Ajustar fecha límite si cae en fin de semana
+            while fecha_limite.weekday() >= 5:  # 5=Saturday, 6=Sunday
+                fecha_limite += timedelta(days=1)
+
             tarea = TareaComercial()
             tarea.proyecto_id = proyecto.id
             tarea.vendedor_id = proyecto.vendedor_id
-            tarea.titulo = "Completar información de presupuesto"
-            tarea.descripcion = "Completar montos netos de venta (provisión e instalación) y márgenes de ganancia para el proyecto. Los montos deben ser precios finales al cliente, no costos."
+            tarea.titulo = titulo
+            tarea.descripcion = descripcion
+            tarea.fecha_limite = fecha_limite
             tarea.created_by = created_by
             tarea.completada = False
             db.session.add(tarea)
-            logger.info(f"Tarea automática creada para vendedor {proyecto.vendedor_id} en proyecto {proyecto.id}")
+            logger.info(f"Tarea automática '{titulo}' creada para vendedor {proyecto.vendedor_id} en proyecto {proyecto.id}")
 
     def get_proyecto_by_id(self, proyecto_id: int) -> Optional[Proyecto]:
         """Get proyecto by ID with related data"""
@@ -549,7 +583,9 @@ class ProyectosService:
     def _aplicar_cambios_automaticos_estado(self, proyecto, update_data):
         """Apply automatic estado changes based on business rules"""
         try:
-            from models import EstadoComercial
+            from models import EstadoComercial, TareaComercial
+
+            estado_anterior = proyecto.estado_comercial
 
             # Rule 1: If monto_provision_presupuestado is set and estado is PENDIENTE_PRESUPUESTO, 
             # change to PRESUPUESTADO
@@ -566,6 +602,25 @@ class ProyectosService:
                     proyecto.notas_comerciales += f"\n{nota_automatica}"
                 else:
                     proyecto.notas_comerciales = nota_automatica
+
+            # Rule 2: Completar automáticamente tareas de presupuesto cuando el proyecto ya no está pendiente
+            if (estado_anterior == EstadoComercial.PENDIENTE_PRESUPUESTO and 
+                proyecto.estado_comercial != EstadoComercial.PENDIENTE_PRESUPUESTO and
+                proyecto.vendedor_id):
+                
+                # Buscar tareas de presupuesto pendientes para este proyecto
+                tareas_presupuesto = db.session.query(TareaComercial)\
+                    .filter_by(proyecto_id=proyecto.id)\
+                    .filter_by(vendedor_id=proyecto.vendedor_id)\
+                    .filter_by(completada=False)\
+                    .filter(TareaComercial.titulo.ilike('%presupuesto%'))\
+                    .all()
+
+                for tarea in tareas_presupuesto:
+                    tarea.completada = True
+                    tarea.fecha_completada = datetime.now()
+                    tarea.notas = f"Completada automáticamente - Proyecto cambió a estado {proyecto.estado_comercial.value}"
+                    logger.info(f"Tarea {tarea.id} completada automáticamente para proyecto {proyecto.id}")
 
         except Exception as e:
             logger.warning(f"Error aplicando cambios automáticos de estado: {str(e)}")

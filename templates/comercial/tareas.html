@@ -1,11 +1,27 @@
-
 {% extends "base.html" %}
 
 {% block title %}Tareas Comerciales - Mobikit{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-tasks"></i> Tareas Comerciales</h1>
+    <h1 class="h2">
+        <i data-feather="check-square" class="me-2"></i>
+        Tareas Comerciales
+    </h1>
+    <div class="d-flex gap-2">
+        {% if current_user.rol.value in ['admin', 'general'] %}
+        <button type="button" class="btn btn-warning" onclick="crearTareasPresupuestosPendientes()">
+            <i data-feather="alert-circle" class="me-2"></i>
+            Crear Tareas Presupuestos Pendientes
+        </button>
+        {% endif %}
+        {% if current_user.rol.value in ['admin', 'ventas'] %}
+        <a href="{{ url_for('comercial.nueva_tarea') }}" class="btn btn-primary">
+            <i data-feather="plus" class="me-2"></i>
+            Nueva Tarea
+        </a>
+        {% endif %}
+    </div>
 </div>
 
 <!-- Filtros -->
@@ -127,4 +143,66 @@
         {% endif %}
     </div>
 </div>
+<script>
+    $(document).ready(function() {
+        feather.replace();
+    });
+
+    // Función para crear tareas automáticas de presupuestos pendientes
+    function crearTareasPresupuestosPendientes() {
+        if (!confirm('¿Estás seguro de crear tareas automáticas para todos los proyectos pendientes de presupuesto?\n\nEsto creará una tarea para cada proyecto en estado "PENDIENTE_PRESUPUESTO" que tenga vendedor asignado.')) {
+            return;
+        }
+
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+
+        // Mostrar loading
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creando tareas...';
+
+        fetch('/comercial/api/tareas/crear-presupuestos-pendientes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mostrar resultado detallado
+                let mensaje = `✅ Proceso completado exitosamente\n\n`;
+                mensaje += `📊 Resumen:\n`;
+                mensaje += `• Tareas creadas: ${data.tareas_creadas}\n`;
+                mensaje += `• Tareas existentes: ${data.tareas_existentes}\n`;
+                mensaje += `• Total proyectos pendientes: ${data.total_proyectos_pendientes}\n\n`;
+
+                if (data.tareas_creadas > 0) {
+                    mensaje += `Se han creado ${data.tareas_creadas} nuevas tareas de presupuesto.\n`;
+                    mensaje += `Las tareas tienen fecha límite de 3 días hábiles.`;
+                } else {
+                    mensaje += `No se crearon nuevas tareas. Todos los proyectos pendientes ya tienen tareas asignadas.`;
+                }
+
+                alert(mensaje);
+
+                // Recargar la página para mostrar las nuevas tareas
+                if (data.tareas_creadas > 0) {
+                    window.location.reload();
+                }
+            } else {
+                alert(`❌ Error al crear tareas:\n${data.error || 'Error desconocido'}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ Error de conexión al crear tareas de presupuesto');
+        })
+        .finally(() => {
+            // Restaurar botón
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+</script>
 {% endblock %}
