@@ -51,15 +51,41 @@ class DashboardVendedorService:
                 Proyecto.estado_comercial.in_([EstadoComercial.PRESUPUESTADO, EstadoComercial.ADJUDICADO])
             ).distinct().count()
 
+            # Proyectos por estado
+            proyectos_por_estado = self._get_proyectos_por_estado(vendedor_id)
+
             return {
                 'proyectos_ano': proyectos_ano,
                 'contratos_ano': contratos_ano,
                 'valor_total_ano': float(valor_total),
-                'clientes_activos': clientes_activos
+                'clientes_activos': clientes_activos,
+                'proyectos_por_estado': proyectos_por_estado
             }
 
         except Exception as e:
             print(f"Error obteniendo métricas del vendedor: {e}")
+            return {}
+
+    def _get_proyectos_por_estado(self, vendedor_id: str) -> Dict[str, int]:
+        """Obtiene el conteo de proyectos por estado comercial"""
+        try:
+            proyectos = db.session.query(Proyecto).filter(
+                Proyecto.vendedor_id == vendedor_id,
+                Proyecto.activo == True
+            ).all()
+
+            conteo_por_estado = {}
+            for estado in EstadoComercial:
+                conteo_por_estado[estado.value] = 0
+
+            for proyecto in proyectos:
+                if proyecto.estado_comercial:
+                    conteo_por_estado[proyecto.estado_comercial.value] += 1
+
+            return conteo_por_estado
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos por estado: {e}")
             return {}
 
     def get_tasa_exito_vendedor(self, vendedor_id: str) -> Dict[str, Any]:
@@ -98,7 +124,7 @@ class DashboardVendedorService:
     def get_proyectos_activos(self, vendedor_id: str) -> List[Dict[str, Any]]:
         """Obtiene los proyectos activos del vendedor"""
         try:
-            proyectos = db.session.query(Proyecto).filter(
+            proyectos = db.session.query(Proyecto).options(joinedload(Proyecto.cliente)).filter(
                 Proyecto.vendedor_id == vendedor_id,
                 Proyecto.estado_comercial.in_([
                     EstadoComercial.PRESUPUESTADO,
@@ -108,17 +134,26 @@ class DashboardVendedorService:
 
             resultado = []
             for proyecto in proyectos:
-                # Calcular progreso basado en órdenes de fabricación
-                total_ofs = db.session.query(OrdenFabricacion).filter(
-                    OrdenFabricacion.proyecto_id == proyecto.id
-                ).count()
+                # Calcular progreso basado en órdenes de fabricación si existen
+                try:
+                    total_ofs = db.session.query(OrdenFabricacion).filter(
+                        OrdenFabricacion.proyecto_id == proyecto.id
+                    ).count()
 
-                ofs_completadas = db.session.query(OrdenFabricacion).filter(
-                    OrdenFabricacion.proyecto_id == proyecto.id,
-                    OrdenFabricacion.estado == EstadoOF.TERMINADO
-                ).count()
+                    ofs_completadas = db.session.query(OrdenFabricacion).filter(
+                        OrdenFabricacion.proyecto_id == proyecto.id,
+                        OrdenFabricacion.estado_fabricacion == 'TERMINADO'
+                    ).count()
 
-                progreso = (ofs_completadas / total_ofs * 100) if total_ofs > 0 else 0
+                    progreso = (ofs_completadas / total_ofs * 100) if total_ofs > 0 else 0
+                except:
+                    # Si hay error con las órdenes de fabricación, usar progreso basado en estado
+                    if proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO:
+                        progreso = 25
+                    elif proyecto.estado_comercial == EstadoComercial.ADJUDICADO:
+                        progreso = 50
+                    else:
+                        progreso = 0
 
                 resultado.append({
                     'nombre': proyecto.nombre,
@@ -151,7 +186,6 @@ class DashboardVendedorService:
 
                 resultado.append({
                     'nombre': cliente.nombre,
-                    'email': cliente.email,
                     'ultimo_contacto': ultimo_proyecto.created_at if ultimo_proyecto else None,
                     'estado_ultimo_proyecto': ultimo_proyecto.estado_comercial.value if ultimo_proyecto else None
                 })

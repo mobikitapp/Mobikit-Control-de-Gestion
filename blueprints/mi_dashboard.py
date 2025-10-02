@@ -37,8 +37,11 @@ def index():
         # Clientes recientes
         clientes_recientes = dashboard_service.get_clientes_recientes(vendedor_id)
 
-        # Tareas pendientes
-        tareas_pendientes = dashboard_service.get_tareas_pendientes(vendedor_id)
+        # Tareas pendientes del servicio comercial
+        from services.comercial_service import ComercialService
+        comercial_service = ComercialService()
+        tareas_data = comercial_service.get_tareas_comerciales(vendedor_id=vendedor_id, estado='pendientes')
+        tareas_pendientes = tareas_data.get('tareas', [])
 
         return render_template('mi_dashboard/index.html',
                              metricas=metricas,

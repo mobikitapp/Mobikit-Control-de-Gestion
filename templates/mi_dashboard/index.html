@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Mi Dashboard - Sistema de Gestión{% endblock %}
@@ -7,8 +8,11 @@
     <!-- Encabezado del Dashboard -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0">Mi Dashboard Personal</h1>
-            <p class="text-muted">Bienvenido, {{ current_user.first_name }}. Aquí tienes un resumen de tu actividad comercial.</p>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-user text-success"></i>
+                Mi Dashboard Personal
+            </h1>
+            <p class="text-muted">Bienvenido, {{ current_user.nombre_completo }}. Aquí tienes un resumen completo de tu actividad comercial.</p>
         </div>
         <div class="text-end">
             <small class="text-muted">Última actualización: {{ now().strftime('%d/%m/%Y %H:%M') }}</small>
@@ -27,12 +31,6 @@
                         <div class="flex-grow-1 ms-3">
                             <div class="fs-4 fw-bold">{{ metricas.proyectos_ano or 0 }}</div>
                             <div class="text-muted small">Proyectos este año</div>
-                            {% if metricas.crecimiento_proyectos %}
-                                <div class="small {% if metricas.crecimiento_proyectos > 0 %}text-success{% else %}text-danger{% endif %}">
-                                    <i class="fas fa-arrow-{% if metricas.crecimiento_proyectos > 0 %}up{% else %}down{% endif %}"></i>
-                                    {{ metricas.crecimiento_proyectos }}%
-                                </div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -48,7 +46,7 @@
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <div class="fs-4 fw-bold">{{ metricas.contratos_ano or 0 }}</div>
-                            <div class="text-muted small">Contratos confirmados este año</div>
+                            <div class="text-muted small">Contratos confirmados año</div>
                         </div>
                     </div>
                 </div>
@@ -63,7 +61,7 @@
                             <i class="fas fa-dollar-sign text-warning fs-2"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <div class="fs-4 fw-bold">${{ "{:,.0f}".format(metricas.valor_total_ano or 0) }}</div>
+                            <div class="fs-4 fw-bold">${{ "{:,.0f}".format(metricas.valor_total_ano / 1000 or 0) }}K</div>
                             <div class="text-muted small">Valor total año</div>
                         </div>
                     </div>
@@ -89,7 +87,7 @@
     </div>
 
     <!-- Métricas de Tasa de Éxito -->
-    {% if tasa_exito %}
+    {% if tasa_exito and tasa_exito.total_oportunidades > 0 %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card border-0 shadow-sm">
@@ -101,47 +99,103 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-lg-3 col-md-6 mb-3">
-                            <div class="text-center">
+                            <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
                                 <div class="display-6 fw-bold {% if tasa_exito.tasa_exito_porcentaje >= 70 %}text-success{% elif tasa_exito.tasa_exito_porcentaje >= 50 %}text-warning{% else %}text-danger{% endif %}">
                                     {{ "%.1f"|format(tasa_exito.tasa_exito_porcentaje) }}%
                                 </div>
-                                <div class="text-muted">Tasa de Éxito</div>
+                                <small class="text-muted">Tasa de Éxito</small>
                             </div>
                         </div>
                         <div class="col-lg-3 col-md-6 mb-3">
-                            <div class="text-center">
-                                <div class="fs-2 fw-bold text-success">{{ tasa_exito.proyectos_exitosos }}</div>
-                                <div class="text-muted">Proyectos Exitosos</div>
+                            <div class="text-center p-3 bg-success bg-opacity-10 rounded">
+                                <div class="display-6 fw-bold text-success">{{ tasa_exito.proyectos_exitosos }}</div>
+                                <small class="text-muted">Proyectos Exitosos</small>
                             </div>
                         </div>
                         <div class="col-lg-3 col-md-6 mb-3">
-                            <div class="text-center">
-                                <div class="fs-2 fw-bold text-danger">{{ tasa_exito.proyectos_perdidos }}</div>
-                                <div class="text-muted">Proyectos Perdidos</div>
+                            <div class="text-center p-3 bg-danger bg-opacity-10 rounded">
+                                <div class="display-6 fw-bold text-danger">{{ tasa_exito.proyectos_perdidos }}</div>
+                                <small class="text-muted">Proyectos Perdidos</small>
                             </div>
                         </div>
                         <div class="col-lg-3 col-md-6 mb-3">
-                            <div class="text-center">
-                                <div class="fs-2 fw-bold text-primary">{{ tasa_exito.total_oportunidades }}</div>
-                                <div class="text-muted">Total Oportunidades</div>
+                            <div class="text-center p-3 bg-info bg-opacity-10 rounded">
+                                <div class="display-6 fw-bold text-primary">{{ tasa_exito.total_oportunidades }}</div>
+                                <small class="text-muted">Total Oportunidades</small>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Barra de progreso visual -->
+                    <!-- Progress Bar -->
                     <div class="mt-3">
-                        <div class="d-flex justify-content-between mb-1">
+                        <div class="d-flex justify-content-between mb-2">
                             <small class="text-muted">Distribución de resultados</small>
+                            <small class="text-muted">Período: {{ (tasa_exito.proyectos_exitosos + tasa_exito.proyectos_perdidos) }} oportunidades evaluadas</small>
                         </div>
-                        <div class="progress" style="height: 8px;">
+                        <div class="progress" style="height: 12px;">
                             {% set exitoso_pct = (tasa_exito.proyectos_exitosos / tasa_exito.total_oportunidades * 100) if tasa_exito.total_oportunidades > 0 else 0 %}
                             {% set perdido_pct = (tasa_exito.proyectos_perdidos / tasa_exito.total_oportunidades * 100) if tasa_exito.total_oportunidades > 0 else 0 %}
                             <div class="progress-bar bg-success" role="progressbar" style="width: {{ exitoso_pct }}%" title="Exitosos: {{ exitoso_pct|round(1) }}%"></div>
                             <div class="progress-bar bg-danger" role="progressbar" style="width: {{ perdido_pct }}%" title="Perdidos: {{ perdido_pct|round(1) }}%"></div>
                         </div>
-                        <div class="d-flex justify-content-between mt-1">
-                            <small class="text-success">{{ "%.1f"|format(exitoso_pct) }}% Exitosos</small>
-                            <small class="text-danger">{{ "%.1f"|format(perdido_pct) }}% Perdidos</small>
+                        <div class="d-flex justify-content-between mt-2">
+                            <small class="text-success"><i class="fas fa-circle"></i> {{ "%.1f"|format(exitoso_pct) }}% Exitosos</small>
+                            <small class="text-danger"><i class="fas fa-circle"></i> {{ "%.1f"|format(perdido_pct) }}% Perdidos</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Commercial States Summary -->
+    {% if metricas.proyectos_por_estado %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Resumen por Estado Comercial
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="d-flex justify-content-between align-items-center p-3 bg-warning bg-opacity-10 rounded">
+                                <div>
+                                    <small>Pendiente Presupuesto</small>
+                                    <h4 class="mb-0">{{ metricas.proyectos_por_estado.get('PENDIENTE_PRESUPUESTO', 0) }}</h4>
+                                </div>
+                                <i class="fas fa-clock text-warning fa-2x"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex justify-content-between align-items-center p-3 bg-info bg-opacity-10 rounded">
+                                <div>
+                                    <small>Presupuestado</small>
+                                    <h4 class="mb-0">{{ metricas.proyectos_por_estado.get('PRESUPUESTADO', 0) }}</h4>
+                                </div>
+                                <i class="fas fa-calculator text-info fa-2x"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex justify-content-between align-items-center p-3 bg-success bg-opacity-10 rounded">
+                                <div>
+                                    <small>Adjudicado</small>
+                                    <h4 class="mb-0">{{ metricas.proyectos_por_estado.get('ADJUDICADO', 0) }}</h4>
+                                </div>
+                                <i class="fas fa-handshake text-success fa-2x"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex justify-content-between align-items-center p-3 bg-secondary bg-opacity-10 rounded">
+                                <div>
+                                    <small>Terminado</small>
+                                    <h4 class="mb-0">{{ metricas.proyectos_por_estado.get('TERMINADO', 0) }}</h4>
+                                </div>
+                                <i class="fas fa-check-circle text-secondary fa-2x"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -171,7 +225,13 @@
                                     <div class="fw-semibold">{{ proyecto.nombre }}</div>
                                     <div class="text-muted small">{{ proyecto.cliente }}</div>
                                     <div class="mt-1">
-                                        <span class="badge bg-{% if proyecto.estado == 'PLANIFICACION' %}secondary{% elif proyecto.estado == 'EN_DESARROLLO' %}primary{% elif proyecto.estado == 'EN_PRODUCCION' %}warning{% endif %}">
+                                        {% set estado_colors = {
+                                            'PENDIENTE_PRESUPUESTO': 'warning',
+                                            'PRESUPUESTADO': 'info', 
+                                            'ADJUDICADO': 'success',
+                                            'TERMINADO': 'secondary'
+                                        } %}
+                                        <span class="badge bg-{{ estado_colors.get(proyecto.estado, 'primary') }}">
                                             {{ proyecto.estado.replace('_', ' ').title() }}
                                         </span>
                                     </div>
@@ -199,7 +259,7 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-user-tie me-2"></i>Clientes Recientes
+                        <i class="fas fa-user-tie me-2"></i>Mis Clientes Recientes
                     </h5>
                     <a href="{{ url_for('mi_dashboard.mis_clientes') }}" class="btn btn-sm btn-outline-primary">
                         Ver todos
@@ -216,7 +276,6 @@
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="fw-semibold">{{ cliente.nombre }}</div>
-                                    <div class="text-muted small">{{ cliente.email }}</div>
                                     {% if cliente.ultimo_contacto %}
                                         <div class="text-muted small">
                                             Último contacto: {{ cliente.ultimo_contacto.strftime('%d/%m/%Y') if cliente.ultimo_contacto else 'N/A' }}
@@ -241,36 +300,38 @@
         </div>
     </div>
 
-    <!-- Tercera fila: Tareas Pendientes y Estado de Proyectos -->
-    <div class="row">
-        <!-- Tareas Pendientes -->
-        <div class="col-lg-6 mb-4">
-            <div class="card border-0 shadow-sm h-100">
+    <!-- Tercera fila: Tareas Pendientes -->
+    <div class="row mb-4">
+        <div class="col-lg-12">
+            <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-0">
                     <h5 class="mb-0">
-                        <i class="fas fa-bell me-2"></i>Tareas Pendientes
+                        <i class="fas fa-bell me-2 text-warning"></i>Tareas Pendientes
                     </h5>
                 </div>
                 <div class="card-body">
                     {% if tareas_pendientes %}
-                        {% for tarea in tareas_pendientes %}
-                            <div class="d-flex align-items-start mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
-                                <div class="flex-shrink-0 me-3 mt-1">
-                                    <i class="fas fa-{% if tarea.tipo == 'seguimiento' %}clock{% elif tarea.tipo == 'contrato' %}file-signature{% else %}exclamation{% endif %} text-{% if tarea.prioridad == 'alta' %}danger{% elif tarea.prioridad == 'media' %}warning{% else %}info{% endif %}"></i>
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="fw-semibold">{{ tarea.descripcion }}</div>
-                                    {% if tarea.dias_pendientes %}
-                                        <div class="text-muted small">Pendiente hace {{ tarea.dias_pendientes }} días</div>
+                        <div class="list-group list-group-flush">
+                            {% for tarea in tareas_pendientes %}
+                            <div class="list-group-item d-flex justify-content-between align-items-start">
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold">{{ tarea.titulo }}</div>
+                                    {% if tarea.descripcion %}
+                                    <p class="mb-1">{{ tarea.descripcion }}</p>
+                                    {% endif %}
+                                    <small class="text-muted">
+                                        Proyecto: {{ tarea.proyecto.nombre }}
+                                    </small>
+                                    {% if tarea.fecha_limite %}
+                                    <br><small class="text-danger">
+                                        Límite: {{ tarea.fecha_limite.strftime('%d/%m/%Y') }}
+                                    </small>
                                     {% endif %}
                                 </div>
-                                <div class="flex-shrink-0">
-                                    <span class="badge bg-{% if tarea.prioridad == 'alta' %}danger{% elif tarea.prioridad == 'media' %}warning{% else %}info{% endif %}">
-                                        {{ tarea.prioridad.title() }}
-                                    </span>
-                                </div>
+                                <span class="badge bg-warning rounded-pill">Pendiente</span>
                             </div>
-                        {% endfor %}
+                            {% endfor %}
+                        </div>
                     {% else %}
                         <div class="text-center text-muted py-4">
                             <i class="fas fa-check-circle fs-1 mb-3 text-success"></i>
@@ -280,44 +341,10 @@
                 </div>
             </div>
         </div>
-
-        <!-- Estado de Proyectos -->
-        <div class="col-lg-6 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-chart-pie me-2"></i>Estado de Mis Proyectos
-                    </h5>
-                    <a href="{{ url_for('mi_dashboard.estadisticas') }}" class="btn btn-sm btn-outline-primary">
-                        Ver estadísticas
-                    </a>
-                </div>
-                <div class="card-body">
-                    {% if metricas.proyectos_por_estado %}
-                        {% for estado, cantidad in metricas.proyectos_por_estado.items() %}
-                            {% if cantidad > 0 %}
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div class="d-flex align-items-center">
-                                        <div class="badge bg-{% if estado == 'PLANIFICACION' %}secondary{% elif estado == 'EN_DESARROLLO' %}primary{% elif estado == 'EN_PRODUCCION' %}warning{% elif estado == 'COMPLETADO' %}success{% else %}light{% endif %} me-2"></div>
-                                        <span>{{ estado.replace('_', ' ').title() }}</span>
-                                    </div>
-                                    <span class="fw-bold">{{ cantidad }}</span>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        <div class="text-center text-muted py-4">
-                            <i class="fas fa-chart-pie fs-1 mb-3"></i>
-                            <p>No hay datos de proyectos disponibles</p>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Enlaces rápidos -->
-    <div class="row mt-4">
+    <div class="row">
         <div class="col-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
@@ -334,6 +361,9 @@
                         </a>
                         <a href="{{ url_for('mi_dashboard.mis_clientes') }}" class="btn btn-outline-secondary btn-sm">
                             <i class="fas fa-users me-1"></i>Mis Clientes
+                        </a>
+                        <a href="{{ url_for('mi_dashboard.estadisticas') }}" class="btn btn-outline-info btn-sm">
+                            <i class="fas fa-chart-bar me-1"></i>Mis Estadísticas
                         </a>
                     </div>
                 </div>
