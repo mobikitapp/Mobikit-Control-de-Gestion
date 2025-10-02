@@ -1108,23 +1108,35 @@ function imprimirMatrizDetallada() {
         }
     });
 
-    // Agregar clase no-print a elementos que no se deben imprimir (excepto dropdowns expandidos)
+    // Agregar clase no-print a elementos que no se deben imprimir
     const elementosNoImprimir = document.querySelectorAll('.btn:not(.dropdown-toggle), .form-control, .form-select, .alert');
     elementosNoImprimir.forEach(el => el.classList.add('no-print'));
 
     // Crear header para impresión
     const originalTitle = document.title;
-    document.title = 'Planificación y Prioridades - Matriz Detallada - ' + new Date().toLocaleDateString();
+    document.title = 'Matriz Detallada de Órdenes de Fabricación - ' + new Date().toLocaleDateString();
 
-    // Ocultar gantt de proyectos al imprimir matriz detallada
+    // Ocultar todos los elementos excepto la matriz detallada
     const ganttProyectos = document.querySelector('.gantt-proyectos-section');
     const estadisticas = document.querySelector('.estadisticas-row');
+    const headerSection = document.querySelector('.row.mb-4'); // Header principal
+    const leyendaSection = document.querySelector('.row.mt-3'); // Leyenda
+    
     if (ganttProyectos) {
         ganttProyectos.style.display = 'none';
     }
     if (estadisticas) {
         estadisticas.style.display = 'none';
     }
+    if (headerSection) {
+        headerSection.style.display = 'none';
+    }
+    if (leyendaSection) {
+        leyendaSection.style.display = 'none';
+    }
+
+    // Agregar clase especial para impresión detallada
+    document.body.classList.add('print-matriz-detallada');
 
     window.print();
 
@@ -1138,12 +1150,22 @@ function imprimirMatrizDetallada() {
             collapse.classList.remove('show');
         });
 
+        // Restaurar elementos ocultos
         if (ganttProyectos) {
             ganttProyectos.style.display = 'block';
         }
         if (estadisticas) {
             estadisticas.style.display = 'block';
         }
+        if (headerSection) {
+            headerSection.style.display = 'block';
+        }
+        if (leyendaSection) {
+            leyendaSection.style.display = 'block';
+        }
+
+        // Remover clase especial
+        document.body.classList.remove('print-matriz-detallada');
     }, 1000);
 }
 </script>
@@ -1544,6 +1566,139 @@ function imprimirMatrizDetallada() {
         border: none !important;
         background: transparent !important;
         padding: 0 !important;
+    }
+
+    /* Estilos específicos para impresión de matriz detallada */
+    .print-matriz-detallada .table {
+        font-size: 10px !important; /* Tamaño de fuente más grande para mejor legibilidad */
+        border-collapse: collapse !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    .print-matriz-detallada .table th,
+    .print-matriz-detallada .table td {
+        padding: 4px 6px !important; /* Padding aumentado para mejor legibilidad */
+        border: 1px solid #333 !important;
+        vertical-align: top !important;
+        line-height: 1.2 !important;
+    }
+
+    .print-matriz-detallada .table th {
+        background-color: #e9ecef !important;
+        font-weight: bold !important;
+        font-size: 10px !important;
+        text-align: center !important;
+    }
+
+    .print-matriz-detallada .table-secondary th {
+        background-color: #e2e3e5 !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact;
+    }
+
+    .print-matriz-detallada .card-header {
+        background-color: #f0f0f0 !important;
+        border-bottom: 2px solid #000 !important;
+        padding: 8px 12px !important;
+        -webkit-print-color-adjust: exact;
+    }
+
+    .print-matriz-detallada .card-header h6 {
+        font-size: 14px !important;
+        font-weight: bold !important;
+        margin: 0 !important;
+        text-align: center !important;
+    }
+
+    /* Badge más legibles en impresión detallada */
+    .print-matriz-detallada .badge {
+        background-color: #e9ecef !important;
+        color: #000 !important;
+        border: 1px solid #333 !important;
+        padding: 2px 4px !important;
+        font-size: 8px !important;
+        -webkit-print-color-adjust: exact;
+    }
+
+    /* Texto pequeño más legible */
+    .print-matriz-detallada small {
+        font-size: 8px !important;
+        line-height: 1.2 !important;
+    }
+
+    .print-matriz-detallada strong {
+        font-weight: bold !important;
+    }
+
+    /* Ocultar elementos no necesarios en impresión detallada */
+    .print-matriz-detallada .gantt-proyectos-section,
+    .print-matriz-detallada .estadisticas-row,
+    .print-matriz-detallada .row.mt-3 {
+        display: none !important;
+    }
+
+    /* Optimización para formato horizontal carta */
+    .print-matriz-detallada .container-fluid {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .print-matriz-detallada .card {
+        border: 2px solid #000 !important;
+        box-shadow: none !important;
+        margin-bottom: 0.5in !important;
+        page-break-inside: avoid;
+    }
+
+    /* Ancho de columnas optimizado para matriz detallada horizontal */
+    .print-matriz-detallada .matriz-detallada-section .table th:nth-child(1),
+    .print-matriz-detallada .matriz-detallada-section .table td:nth-child(1) {
+        width: 22% !important;
+        max-width: 22% !important;
+    }
+
+    .print-matriz-detallada .matriz-detallada-section .table th:nth-child(2),
+    .print-matriz-detallada .matriz-detallada-section .table td:nth-child(2) {
+        width: 8% !important;
+        max-width: 8% !important;
+    }
+
+    .print-matriz-detallada .matriz-detallada-section .table th:nth-child(3),
+    .print-matriz-detallada .matriz-detallada-section .table td:nth-child(3) {
+        width: 8% !important;
+        max-width: 8% !important;
+    }
+
+    .print-matriz-detallada .matriz-detallada-section .table th:nth-child(4),
+    .print-matriz-detallada .matriz-detallada-section .table td:nth-child(4) {
+        width: 14% !important;
+        max-width: 14% !important;
+    }
+
+    .print-matriz-detallada .matriz-detallada-section .table th:nth-child(5),
+    .print-matriz-detallada .matriz-detallada-section .table td:nth-child(5) {
+        width: 12% !important;
+        max-width: 12% !important;
+    }
+
+    .print-matriz-detallada .matriz-detallada-section .table th:nth-child(6),
+    .print-matriz-detallada .matriz-detallada-section .table td:nth-child(6) {
+        width: 14% !important;
+        max-width: 14% !important;
+    }
+
+    .print-matriz-detallada .matriz-detallada-section .table th:nth-child(7),
+    .print-matriz-detallada .matriz-detallada-section .table td:nth-child(7) {
+        width: 14% !important;
+        max-width: 14% !important;
+    }
+
+    .print-matriz-detallada .matriz-detallada-section .table th:nth-child(8),
+    .print-matriz-detallada .matriz-detallada-section .table td:nth-child(8) {
+        width: 8% !important;
+        max-width: 8% !important;
     }
 }
 </style>
