@@ -267,12 +267,12 @@ def crear_tareas_presupuestos_pendientes():
         else:
             flash(f"Error al crear tareas: {resultado.get('error', 'Error desconocido')}", 'error')
 
-        return redirect(url_for('comercial.tareas'))
+        return redirect(url_for('comercial.tareas_comerciales'))
 
     except Exception as e:
         logger.error(f"Error en endpoint crear tareas presupuesto: {str(e)}")
         flash('Error interno al crear tareas de presupuesto', 'error')
-        return redirect(url_for('comercial.tareas'))
+        return redirect(url_for('comercial.tareas_comerciales'))
 
 
 # Commercial planning routes

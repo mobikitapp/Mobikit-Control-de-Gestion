@@ -270,6 +270,10 @@ Los montos deben ser precios finales al cliente, no costos internos.
 
             # Store original data for audit
             datos_anteriores = serialize_model(proyecto)
+            
+            # Store previous vendedor for comparison in automatic changes
+            proyecto._vendedor_anterior = proyecto.vendedor_id
+            update_data['updated_by'] = user_id
 
             # Validate cliente if updating cliente_id
             if 'cliente_id' in update_data and update_data.get('cliente_id') != proyecto.cliente_id:
@@ -586,6 +590,7 @@ Los montos deben ser precios finales al cliente, no costos internos.
             from models import EstadoComercial, TareaComercial
 
             estado_anterior = proyecto.estado_comercial
+            vendedor_anterior = getattr(proyecto, '_vendedor_anterior', None)
 
             # Rule 1: If monto_provision_presupuestado is set and estado is PENDIENTE_PRESUPUESTO, 
             # change to PRESUPUESTADO
@@ -602,6 +607,55 @@ Los montos deben ser precios finales al cliente, no costos internos.
                     proyecto.notas_comerciales += f"\n{nota_automatica}"
                 else:
                     proyecto.notas_comerciales = nota_automatica
+
+            # Rule 1.5: Si se asigna un vendedor a un proyecto pendiente de presupuesto, crear tarea automática
+            if (proyecto.estado_comercial == EstadoComercial.PENDIENTE_PRESUPUESTO and 
+                proyecto.vendedor_id and 
+                proyecto.vendedor_id != vendedor_anterior):
+                
+                # Verificar si ya existe una tarea para este proyecto y vendedor
+                tarea_existente = (db.session.query(TareaComercial)
+                                 .filter_by(proyecto_id=proyecto.id, 
+                                           vendedor_id=proyecto.vendedor_id,
+                                           completada=False)
+                                 .filter(TareaComercial.titulo.ilike('%presupuesto%'))
+                                 .first())
+
+                if not tarea_existente:
+                    from datetime import date, timedelta
+                    
+                    titulo = f"Crear presupuesto para proyecto: {proyecto.nombre}"
+                    descripcion = f"""Proyecto asignado que requiere presupuesto urgente.
+
+Cliente: {proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente'}
+Proyecto: {proyecto.nombre}
+
+Tareas a realizar:
+• Completar montos netos de venta (provisión e instalación)
+• Definir márgenes de ganancia
+• Establecer fecha de presupuesto
+• Actualizar estado del proyecto a PRESUPUESTADO
+
+Los montos deben ser precios finales al cliente, no costos internos.
+
+⚠️ IMPORTANTE: Este proyecto está pendiente de presupuesto y requiere atención inmediata."""
+
+                    # Fecha límite urgente (2 días hábiles)
+                    fecha_limite = date.today() + timedelta(days=2)
+                    while fecha_limite.weekday() >= 5:  # Evitar fines de semana
+                        fecha_limite += timedelta(days=1)
+
+                    tarea = TareaComercial()
+                    tarea.proyecto_id = proyecto.id
+                    tarea.vendedor_id = proyecto.vendedor_id
+                    tarea.titulo = titulo
+                    tarea.descripcion = descripcion
+                    tarea.fecha_limite = fecha_limite
+                    tarea.created_by = update_data.get('updated_by', proyecto.vendedor_id)
+                    tarea.completada = False
+                    
+                    db.session.add(tarea)
+                    logger.info(f"Tarea automática creada por asignación de vendedor para proyecto {proyecto.id}")
 
             # Rule 2: Completar automáticamente tareas de presupuesto cuando el proyecto ya no está pendiente
             if (estado_anterior == EstadoComercial.PENDIENTE_PRESUPUESTO and 

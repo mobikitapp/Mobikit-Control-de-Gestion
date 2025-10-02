@@ -713,7 +713,7 @@ class ComercialService:
 
         if estado == EstadoComercial.PENDIENTE_PRESUPUESTO:
             from datetime import date, timedelta
-            
+
             # Check if task already exists for this project (broader check)
             existing = (db.session.query(TareaComercial)
                        .filter_by(proyecto_id=proyecto.id, completada=False)
@@ -727,7 +727,7 @@ class ComercialService:
                 tarea.vendedor_id = proyecto.vendedor_id
                 tarea.titulo = "Crear presupuesto para proyecto"
                 tarea.descripcion = f"Completar presupuesto para el proyecto '{proyecto.nombre}' del cliente {proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente'}"
-                
+
                 # Fecha límite: 3 días hábiles desde hoy
                 fecha_limite = date.today()
                 dias_agregados = 0
@@ -1393,64 +1393,63 @@ class ComercialService:
     def crear_tareas_presupuesto_pendientes(self, user_id):
         """Crear tareas automáticas para proyectos pendientes de presupuesto"""
         try:
+            from models import EstadoComercial, TareaComercial
             from datetime import date, timedelta
 
-            # Obtener proyectos en estado PENDIENTE_PRESUPUESTO que tengan vendedor asignado
-            # También incluir proyectos que no tengan presupuesto completo
+            # Buscar proyectos pendientes de presupuesto con vendedor asignado
             proyectos_pendientes = (db.session.query(Proyecto)
-                                   .filter(
-                                       and_(
-                                           Proyecto.activo.is_(True),
-                                           Proyecto.vendedor_id.isnot(None),
-                                           or_(
-                                               Proyecto.estado_comercial == EstadoComercial.PENDIENTE_PRESUPUESTO,
-                                               and_(
-                                                   or_(
-                                                       Proyecto.monto_provision_presupuestado.is_(None),
-                                                       Proyecto.margen_venta_provision.is_(None)
-                                                   ),
-                                                   Proyecto.estado_comercial != EstadoComercial.PERDIDO
-                                               )
-                                           )
-                                       )
-                                   )
-                                   .all())
+                                  .filter_by(activo=True)
+                                  .filter(Proyecto.estado_comercial == EstadoComercial.PENDIENTE_PRESUPUESTO)
+                                  .filter(Proyecto.vendedor_id.isnot(None))
+                                  .all())
 
             tareas_creadas = 0
             tareas_existentes = 0
 
             for proyecto in proyectos_pendientes:
-                # Verificar si ya existe una tarea pendiente para este proyecto
+                # Verificar si ya existe una tarea de presupuesto para este proyecto
                 tarea_existente = (db.session.query(TareaComercial)
-                                 .filter_by(
-                                     proyecto_id=proyecto.id,
-                                     completada=False
-                                 )
-                                 .filter(TareaComercial.titulo.like('%presupuesto%'))
+                                 .filter_by(proyecto_id=proyecto.id, 
+                                           vendedor_id=proyecto.vendedor_id,
+                                           completada=False)
+                                 .filter(TareaComercial.titulo.ilike('%presupuesto%'))
                                  .first())
 
                 if not tarea_existente:
                     # Crear nueva tarea
+                    titulo = f"Crear presupuesto para proyecto: {proyecto.nombre}"
+                    descripcion = f"""Proyecto pendiente de presupuesto que requiere atención urgente.
+
+Cliente: {proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente'}
+Proyecto: {proyecto.nombre}
+
+Tareas a realizar:
+• Completar montos netos de venta (provisión e instalación)
+• Definir márgenes de ganancia
+• Establecer fecha de presupuesto
+• Actualizar estado del proyecto a PRESUPUESTADO
+
+Los montos deben ser precios finales al cliente, no costos internos.
+
+⚠️ IMPORTANTE: Este proyecto está pendiente de presupuesto y requiere atención inmediata."""
+
+                    # Fecha límite urgente (2 días hábiles)
+                    fecha_limite = date.today() + timedelta(days=2)
+                    while fecha_limite.weekday() >= 5:  # Evitar fines de semana
+                        fecha_limite += timedelta(days=1)
+
                     tarea = TareaComercial()
                     tarea.proyecto_id = proyecto.id
                     tarea.vendedor_id = proyecto.vendedor_id
-                    tarea.titulo = "Crear presupuesto para proyecto"
-                    tarea.descripcion = f"Completar presupuesto para el proyecto '{proyecto.nombre}' del cliente {proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente'}"
-
-                    # Fecha límite: 3 días hábiles desde hoy
-                    fecha_limite = date.today()
-                    dias_agregados = 0
-                    while dias_agregados < 3:
-                        fecha_limite += timedelta(days=1)
-                        # Solo contar días laborables (lunes a viernes)
-                        if fecha_limite.weekday() < 5:  # 0=lunes, 6=domingo
-                            dias_agregados += 1
-
+                    tarea.titulo = titulo
+                    tarea.descripcion = descripcion
                     tarea.fecha_limite = fecha_limite
                     tarea.created_by = user_id
+                    tarea.completada = False
 
                     db.session.add(tarea)
                     tareas_creadas += 1
+                    logger.info(f"Tarea automática creada para proyecto {proyecto.id} - {proyecto.nombre}")
                 else:
                     tareas_existentes += 1
 
@@ -1458,7 +1457,7 @@ class ComercialService:
 
             return {
                 'success': True,
-                'message': f'Se crearon {tareas_creadas} tareas nuevas. {tareas_existentes} proyectos ya tenían tareas asignadas.',
+                'message': f'Proceso completado: {tareas_creadas} tareas creadas, {tareas_existentes} ya existían',
                 'tareas_creadas': tareas_creadas,
                 'tareas_existentes': tareas_existentes,
                 'total_proyectos_pendientes': len(proyectos_pendientes)
@@ -1474,3 +1473,15 @@ class ComercialService:
                 'tareas_existentes': 0,
                 'total_proyectos_pendientes': 0
             }
+
+    def _agrupar_proyectos_por_estado(self, proyectos):
+        """Group projects by commercial state"""
+        grupos = {}
+
+        for estado in EstadoComercial:
+            grupos[estado.value] = {
+                'estado': estado,
+                'proyectos': [p for p in proyectos if p.estado_comercial == estado]
+            }
+
+        return grupos
