@@ -99,29 +99,39 @@ def mis_proyectos():
         estado = request.args.get('estado', 'todos')
         periodo = request.args.get('periodo', 'actual')
 
-        # Obtener proyectos por vendedor o responsable según el rol
-        if current_user.rol == RolUsuario.VENTAS:
-            # Para vendedores, obtener proyectos donde son vendedor
-            proyectos = db.session.query(Proyecto)\
-                .options(joinedload(Proyecto.cliente))\
-                .filter_by(vendedor_id=current_user.id)\
-                .filter_by(activo=True)\
-                .order_by(Proyecto.created_at.desc())\
-                .all()
-        else:
-            # Para admin y general, obtener proyectos donde son responsables o todos
-            proyectos = db.session.query(Proyecto)\
-                .options(joinedload(Proyecto.cliente))\
-                .filter(\
-                    or_(\
-                        Proyecto.responsable == current_user.id,\
-                        Proyecto.vendedor_id == current_user.id,\
-                        Proyecto.created_by == current_user.id\
-                    )\
-                )\
-                .filter_by(activo=True)\
-                .order_by(Proyecto.created_at.desc())\
-                .all()
+        # Obtener proyectos según el rol del usuario - siempre filtrar por vendedor_id
+        # Todos los usuarios (incluyendo ADMIN y GENERAL) ven proyectos donde son vendedores
+        proyectos = db.session.query(Proyecto)\
+            .options(joinedload(Proyecto.cliente))\
+            .filter_by(vendedor_id=current_user.id)\
+            .filter_by(activo=True)\
+            .order_by(Proyecto.created_at.desc())\
+            .all()
+
+        # Debug logging específico para identificar problemas de vendedor
+        current_app.logger.info(f"=== DEBUG MIS PROYECTOS ===")
+        current_app.logger.info(f"Usuario actual ID: {current_user.id}")
+        current_app.logger.info(f"Usuario actual Rol: {current_user.rol}")
+        current_app.logger.info(f"Usuario actual Email: {current_user.email}")
+
+        # Verificar TODOS los proyectos en la base de datos
+        todos_proyectos = db.session.query(Proyecto).filter_by(activo=True).all()
+        current_app.logger.info(f"Total proyectos activos en BD: {len(todos_proyectos)}")
+
+        # Log de proyectos con vendedor_id que coincida
+        proyectos_con_vendedor_actual = [p for p in todos_proyectos if p.vendedor_id == current_user.id]
+        current_app.logger.info(f"Proyectos con vendedor_id={current_user.id}: {len(proyectos_con_vendedor_actual)}")
+
+        for proyecto in todos_proyectos[:10]:  # Log primeros 10 proyectos para debug
+            current_app.logger.info(f"Proyecto {proyecto.id}: {proyecto.nombre}, Vendedor_ID: '{proyecto.vendedor_id}', Created_by: '{proyecto.created_by}'")
+
+        current_app.logger.info(f"Proyectos filtrados encontrados: {len(proyectos)}")
+        current_app.logger.info(f"=== FIN DEBUG ===")
+
+        # Log específico de los proyectos encontrados
+        for proyecto in proyectos[:5]:
+            current_app.logger.info(f"Proyecto encontrado {proyecto.id}: {proyecto.nombre}, Cliente: {proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente'}, Vendedor: {proyecto.vendedor_id}")
+
 
         # Aplicar filtros de estado
         if estado != 'todos':
