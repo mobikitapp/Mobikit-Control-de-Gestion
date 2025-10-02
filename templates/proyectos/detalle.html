@@ -972,12 +972,12 @@
                         <label for="nuevo-estado" class="form-label">Nuevo Estado</label>
                         <select class="form-select" id="nuevo-estado" name="estado" required>
                             <option value="">Seleccionar estado...</option>
-                            <option value="PENDIENTE_PRESUPUESTO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else '' }}>Pendiente Presupuesto</option>
-                            <option value="PRESUPUESTADO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PRESUPUESTADO' else '' }}>Presupuestado</option>
-                            <option value="ADJUDICADO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'ADJUDICADO' else '' }}>Adjudicado</option>
-                            <option value="EN_DESARROLLO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else '' }}>En Desarrollo</option>
-                            <option value="TERMINADO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else '' }}>Terminado</option>
-                            <option value="PERDIDO" {{ 'selected' if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PERDIDO' else '' }}>Perdido</option>
+                            <option value="PENDIENTE_PRESUPUESTO">Pendiente Presupuesto</option>
+                            <option value="PRESUPUESTADO">Presupuestado</option>
+                            <option value="ADJUDICADO">Adjudicado</option>
+                            <option value="EN_DESARROLLO">En Desarrollo</option>
+                            <option value="TERMINADO">Terminado</option>
+                            <option value="PERDIDO">Perdido</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -1195,6 +1195,15 @@
         `;
         feather.replace();
     }
+
+    // Establecer estado actual cuando se abre el modal
+    document.getElementById('modalCambiarEstado').addEventListener('show.bs.modal', function () {
+        const estadoActual = '{{ proyecto.estado_comercial.value if proyecto.estado_comercial else "" }}';
+        const selectEstado = document.getElementById('nuevo-estado');
+        if (estadoActual) {
+            selectEstado.value = estadoActual;
+        }
+    });
 
     // Manejar envío de cambio de estado
     document.getElementById('formCambiarEstado').addEventListener('submit', function(e) {
