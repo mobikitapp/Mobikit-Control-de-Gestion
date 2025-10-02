@@ -1098,6 +1098,44 @@ function imprimirMatrizDetallada() {
         }
     });
 
+    // Preparar valores de fechas para impresión
+    const fechaInputs = document.querySelectorAll('input[type="date"]');
+    const prioridadSelects = document.querySelectorAll('select.prioridad-select');
+    
+    fechaInputs.forEach(input => {
+        if (input.value) {
+            // Formatear fecha para mostrar en impresión
+            const fecha = new Date(input.value);
+            const fechaFormateada = fecha.toLocaleDateString('es-CL');
+            input.setAttribute('data-print-value', fechaFormateada);
+            
+            // Crear span con el valor para mostrar en impresión
+            if (!input.nextElementSibling || !input.nextElementSibling.classList.contains('print-date-value')) {
+                const spanFecha = document.createElement('span');
+                spanFecha.className = 'print-date-value';
+                spanFecha.textContent = fechaFormateada;
+                spanFecha.style.display = 'none';
+                input.parentNode.insertBefore(spanFecha, input.nextSibling);
+            }
+        }
+    });
+
+    prioridadSelects.forEach(select => {
+        const selectedOption = select.options[select.selectedIndex];
+        if (selectedOption) {
+            select.setAttribute('data-selected-text', selectedOption.text);
+            
+            // Crear span con el valor para mostrar en impresión
+            if (!select.nextElementSibling || !select.nextElementSibling.classList.contains('print-priority-value')) {
+                const spanPrioridad = document.createElement('span');
+                spanPrioridad.className = 'print-priority-value';
+                spanPrioridad.textContent = selectedOption.text;
+                spanPrioridad.style.display = 'none';
+                select.parentNode.insertBefore(spanPrioridad, select.nextSibling);
+            }
+        }
+    });
+
     // Agregar clase no-print a elementos que no se deben imprimir
     const elementosNoImprimir = document.querySelectorAll('.btn:not(.dropdown-toggle), .form-control, .form-select, .alert');
     elementosNoImprimir.forEach(el => el.classList.add('no-print'));
@@ -1153,6 +1191,11 @@ function imprimirMatrizDetallada() {
         if (leyendaSection) {
             leyendaSection.style.display = 'block';
         }
+
+        // Limpiar spans creados para impresión
+        document.querySelectorAll('.print-date-value, .print-priority-value').forEach(span => {
+            span.remove();
+        });
 
         // Remover clase especial
         document.body.classList.remove('print-matriz-detallada');
@@ -1582,19 +1625,70 @@ function imprimirMatrizDetallada() {
         appearance: none;
     }
 
-    /* Forzar visualización del contenido del input en impresión */
-    @media print {
-        input[type="date"]:before {
-            content: attr(value) !important;
-            font-size: 8px !important;
-            color: #000 !important;
-        }
-        
-        .print-matriz-detallada input[type="date"]:before {
-            content: attr(value) !important;
-            font-size: 10px !important;
-            color: #000 !important;
-        }
+    /* Ocultar elementos de input y mostrar solo el valor */
+    input[type="date"],
+    select.prioridad-select {
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+        background: transparent !important;
+        border: none !important;
+        color: #000 !important;
+        font-size: 8px !important;
+        padding: 0 !important;
+        text-align: center !important;
+    }
+
+    .print-matriz-detallada input[type="date"],
+    .print-matriz-detallada select.prioridad-select {
+        font-size: 10px !important;
+        text-align: left !important;
+    }
+
+    /* Forzar que se muestre el texto del valor */
+    input[type="date"]::before {
+        content: attr(value) !important;
+        display: inline-block !important;
+        font-size: 8px !important;
+        color: #000 !important;
+        font-weight: normal !important;
+    }
+
+    .print-matriz-detallada input[type="date"]::before {
+        font-size: 10px !important;
+    }
+
+    /* Para selects, mostrar el texto seleccionado */
+    select.prioridad-select::after {
+        content: attr(data-selected-text) !important;
+        display: inline-block !important;
+        font-size: 8px !important;
+        color: #000 !important;
+        font-weight: bold !important;
+    }
+
+    .print-matriz-detallada select.prioridad-select::after {
+        font-size: 10px !important;
+    }
+
+    /* Mostrar spans de valores en lugar de inputs en impresión */
+    input[type="date"],
+    select.prioridad-select {
+        display: none !important;
+    }
+
+    .print-date-value,
+    .print-priority-value {
+        display: inline-block !important;
+        font-size: 8px !important;
+        color: #000 !important;
+        font-weight: normal !important;
+        text-align: center !important;
+    }
+
+    .print-matriz-detallada .print-date-value,
+    .print-matriz-detallada .print-priority-value {
+        font-size: 10px !important;
     }
 
     /* Estilos específicos para impresión de matriz detallada */
