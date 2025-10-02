@@ -257,3 +257,131 @@ class DashboardVendedorService:
         except Exception as e:
             print(f"Error obteniendo métricas mensuales: {e}")
             return []
+
+    def get_comisiones_potenciales(self, vendedor_id: str) -> Dict[str, Any]:
+        """Obtiene comisiones potenciales del vendedor"""
+        try:
+            # Proyectos presupuestados (potencial de comisión)
+            proyectos_presupuestados = db.session.query(Proyecto).filter(
+                Proyecto.vendedor_id == vendedor_id,
+                Proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+            ).all()
+
+            comision_provision_potencial = 0
+            comision_instalacion_potencial = 0
+            
+            for proyecto in proyectos_presupuestados:
+                if proyecto.monto_provision_presupuestado:
+                    # Asumir 3% de comisión por defecto
+                    comision_provision_potencial += proyecto.monto_provision_presupuestado * 0.03
+                if proyecto.monto_instalacion_presupuestado:
+                    # Asumir 3% de comisión por defecto
+                    comision_instalacion_potencial += proyecto.monto_instalacion_presupuestado * 0.03
+
+            return {
+                'comision_provision_potencial': comision_provision_potencial,
+                'comision_instalacion_potencial': comision_instalacion_potencial,
+                'comision_total_potencial': comision_provision_potencial + comision_instalacion_potencial,
+                'proyectos_presupuestados': len(proyectos_presupuestados)
+            }
+
+        except Exception as e:
+            print(f"Error obteniendo comisiones potenciales: {e}")
+            return {
+                'comision_provision_potencial': 0,
+                'comision_instalacion_potencial': 0,
+                'comision_total_potencial': 0,
+                'proyectos_presupuestados': 0
+            }
+
+    def get_comisiones_adjudicadas(self, vendedor_id: str) -> Dict[str, Any]:
+        """Obtiene comisiones adjudicadas del vendedor en el año actual"""
+        try:
+            inicio_ano = datetime.now().replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            
+            # Proyectos adjudicados en el año actual
+            proyectos_adjudicados = db.session.query(Proyecto).filter(
+                Proyecto.vendedor_id == vendedor_id,
+                Proyecto.estado_comercial == EstadoComercial.ADJUDICADO,
+                Proyecto.fecha_adjudicacion >= inicio_ano
+            ).all()
+
+            comision_provision_adjudicada = 0
+            comision_instalacion_adjudicada = 0
+            
+            for proyecto in proyectos_adjudicados:
+                if proyecto.monto_provision_presupuestado:
+                    # Asumir 3% de comisión por defecto
+                    comision_provision_adjudicada += proyecto.monto_provision_presupuestado * 0.03
+                if proyecto.monto_instalacion_presupuestado:
+                    # Asumir 3% de comisión por defecto
+                    comision_instalacion_adjudicada += proyecto.monto_instalacion_presupuestado * 0.03
+
+            return {
+                'comision_provision_adjudicada': comision_provision_adjudicada,
+                'comision_instalacion_adjudicada': comision_instalacion_adjudicada,
+                'comision_total_adjudicada': comision_provision_adjudicada + comision_instalacion_adjudicada,
+                'proyectos_adjudicados': len(proyectos_adjudicados)
+            }
+
+        except Exception as e:
+            print(f"Error obteniendo comisiones adjudicadas: {e}")
+            return {
+                'comision_provision_adjudicada': 0,
+                'comision_instalacion_adjudicada': 0,
+                'comision_total_adjudicada': 0,
+                'proyectos_adjudicados': 0
+            }
+
+    def get_margenes_promedio(self, vendedor_id: str) -> Dict[str, Any]:
+        """Obtiene márgenes promedio del vendedor"""
+        try:
+            # Proyectos adjudicados del vendedor
+            proyectos = db.session.query(Proyecto).filter(
+                Proyecto.vendedor_id == vendedor_id,
+                Proyecto.estado_comercial == EstadoComercial.ADJUDICADO
+            ).all()
+
+            if not proyectos:
+                return {
+                    'margen_promedio_provision': 0,
+                    'margen_promedio_instalacion': 0,
+                    'proyectos_evaluados': 0
+                }
+
+            margenes_provision = []
+            margenes_instalacion = []
+
+            for proyecto in proyectos:
+                # Calcular margen de provisión
+                if (proyecto.monto_provision_presupuestado and 
+                    proyecto.monto_provision_presupuestado > 0 and
+                    proyecto.costo_provision_estimado):
+                    margen_provision = ((proyecto.monto_provision_presupuestado - proyecto.costo_provision_estimado) / 
+                                      proyecto.monto_provision_presupuestado * 100)
+                    margenes_provision.append(margen_provision)
+
+                # Calcular margen de instalación
+                if (proyecto.monto_instalacion_presupuestado and 
+                    proyecto.monto_instalacion_presupuestado > 0 and
+                    proyecto.costo_instalacion_estimado):
+                    margen_instalacion = ((proyecto.monto_instalacion_presupuestado - proyecto.costo_instalacion_estimado) / 
+                                        proyecto.monto_instalacion_presupuestado * 100)
+                    margenes_instalacion.append(margen_instalacion)
+
+            margen_promedio_provision = sum(margenes_provision) / len(margenes_provision) if margenes_provision else 0
+            margen_promedio_instalacion = sum(margenes_instalacion) / len(margenes_instalacion) if margenes_instalacion else 0
+
+            return {
+                'margen_promedio_provision': margen_promedio_provision,
+                'margen_promedio_instalacion': margen_promedio_instalacion,
+                'proyectos_evaluados': len(proyectos)
+            }
+
+        except Exception as e:
+            print(f"Error obteniendo márgenes promedio: {e}")
+            return {
+                'margen_promedio_provision': 0,
+                'margen_promedio_instalacion': 0,
+                'proyectos_evaluados': 0
+            }

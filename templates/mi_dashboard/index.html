@@ -204,6 +204,97 @@
     </div>
     {% endif %}
 
+    <!-- Rendimiento Financiero -->
+    {% if margenes_promedio and margenes_promedio.proyectos_evaluados > 0 %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-line text-success me-2"></i>Rendimiento Financiero
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-6">
+                            <div class="border-end">
+                                <h4 class="text-success">{{ "{:.1f}".format(margenes_promedio.margen_promedio_provision) }}%</h4>
+                                <p class="mb-0">Margen Promedio Provisión</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h4 class="text-info">{{ "{:.1f}".format(margenes_promedio.margen_promedio_instalacion) }}%</h4>
+                            <p class="mb-0">Margen Promedio Instalación</p>
+                        </div>
+                    </div>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">Basado en {{ margenes_promedio.proyectos_evaluados }} proyecto(s) adjudicado(s)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Comisiones -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0">
+                        <i class="fas fa-dollar-sign text-success me-2"></i>Comisiones Potenciales
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-6">
+                            <h5 class="text-success">${{ "{:,.0f}".format(comisiones_potenciales.comision_provision_potencial) }}</h5>
+                            <small>Provisión Potencial</small>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="text-info">${{ "{:,.0f}".format(comisiones_potenciales.comision_instalacion_potencial) }}</h5>
+                            <small>Instalación Potencial</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <h4 class="text-primary">${{ "{:,.0f}".format(comisiones_potenciales.comision_total_potencial) }}</h4>
+                        <p class="mb-1">Total Comisión Potencial</p>
+                        <small class="text-muted">{{ comisiones_potenciales.proyectos_presupuestados }} proyecto(s) presupuestado(s)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0">
+                        <i class="fas fa-trophy text-warning me-2"></i>Comisiones Adjudicadas ({{ now().year }})
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-6">
+                            <h5 class="text-success">${{ "{:,.0f}".format(comisiones_adjudicadas.comision_provision_adjudicada) }}</h5>
+                            <small>Provisión Adjudicada</small>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="text-info">${{ "{:,.0f}".format(comisiones_adjudicadas.comision_instalacion_adjudicada) }}</h5>
+                            <small>Instalación Adjudicada</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <h4 class="text-primary">${{ "{:,.0f}".format(comisiones_adjudicadas.comision_total_adjudicada) }}</h4>
+                        <p class="mb-1">Total Comisiones del Año</p>
+                        <small class="text-muted">{{ comisiones_adjudicadas.proyectos_adjudicados }} proyecto(s) adjudicado(s)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Segunda fila: Proyectos y Clientes -->
     <div class="row mb-4">
         <!-- Proyectos Activos -->

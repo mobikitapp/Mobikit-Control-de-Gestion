@@ -43,12 +43,24 @@ def index():
         tareas_data = comercial_service.get_tareas_comerciales(vendedor_id=vendedor_id, estado='pendientes')
         tareas_pendientes = tareas_data.get('tareas', [])
 
+        # Comisiones potenciales
+        comisiones_potenciales = dashboard_service.get_comisiones_potenciales(vendedor_id)
+
+        # Comisiones adjudicadas
+        comisiones_adjudicadas = dashboard_service.get_comisiones_adjudicadas(vendedor_id)
+
+        # Márgenes promedio
+        margenes_promedio = dashboard_service.get_margenes_promedio(vendedor_id)
+
         return render_template('mi_dashboard/index.html',
                              metricas=metricas,
                              tasa_exito=tasa_exito,
                              proyectos_activos=proyectos_activos,
                              clientes_recientes=clientes_recientes,
-                             tareas_pendientes=tareas_pendientes)
+                             tareas_pendientes=tareas_pendientes,
+                             comisiones_potenciales=comisiones_potenciales,
+                             comisiones_adjudicadas=comisiones_adjudicadas,
+                             margenes_promedio=margenes_promedio)
 
     except Exception as e:
         current_app.logger.error(f"Error en dashboard personal: {e}")
