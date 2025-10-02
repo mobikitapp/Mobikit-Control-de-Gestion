@@ -5,9 +5,13 @@ Permite a cada vendedor ver sus métricas, clientes y proyectos personales
 
 from flask import Blueprint, render_template, request, current_app
 from flask_login import login_required, current_user
+from models import RolUsuario, Proyecto
 from utils.auth import role_required
-from models import RolUsuario
 from services.dashboard_vendedor_service import DashboardVendedorService
+from app import db
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
+
 
 mi_dashboard_bp = Blueprint('mi_dashboard', __name__, url_prefix='/mi-dashboard')
 
@@ -20,29 +24,29 @@ def index():
         # Obtener métricas del vendedor actual
         dashboard_service = DashboardVendedorService()
         vendedor_id = current_user.id
-        
+
         # Métricas principales
         metricas = dashboard_service.get_metricas_vendedor(vendedor_id)
-        
+
         # Métricas de tasa de éxito
         tasa_exito = dashboard_service.get_tasa_exito_vendedor(vendedor_id)
-        
+
         # Proyectos activos
         proyectos_activos = dashboard_service.get_proyectos_activos(vendedor_id)
-        
+
         # Clientes recientes
         clientes_recientes = dashboard_service.get_clientes_recientes(vendedor_id)
-        
+
         # Tareas pendientes
         tareas_pendientes = dashboard_service.get_tareas_pendientes(vendedor_id)
-        
+
         return render_template('mi_dashboard/index.html',
                              metricas=metricas,
                              tasa_exito=tasa_exito,
                              proyectos_activos=proyectos_activos,
                              clientes_recientes=clientes_recientes,
                              tareas_pendientes=tareas_pendientes)
-                             
+
     except Exception as e:
         current_app.logger.error(f"Error en dashboard personal: {e}")
         return render_template('mi_dashboard/index.html',
@@ -60,22 +64,22 @@ def mis_clientes():
     try:
         dashboard_service = DashboardVendedorService()
         vendedor_id = current_user.id
-        
+
         # Filtros
         estado = request.args.get('estado', 'todos')
         busqueda = request.args.get('busqueda', '')
-        
+
         clientes = dashboard_service.get_mis_clientes(
-            vendedor_id, 
+            vendedor_id,
             estado=estado,
             busqueda=busqueda
         )
-        
+
         return render_template('mi_dashboard/mis_clientes.html',
                              clientes=clientes,
                              estado_actual=estado,
                              busqueda_actual=busqueda)
-                             
+
     except Exception as e:
         current_app.logger.error(f"Error obteniendo mis clientes: {e}")
         return render_template('mi_dashboard/mis_clientes.html',
@@ -85,30 +89,71 @@ def mis_clientes():
 @login_required
 @role_required([RolUsuario.VENTAS, RolUsuario.ADMIN, RolUsuario.GENERAL])
 def mis_proyectos():
-    """Lista de proyectos del vendedor"""
+    """Lista de proyectos asignados al vendedor"""
     try:
-        dashboard_service = DashboardVendedorService()
-        vendedor_id = current_user.id
-        
+        from services.proyectos_service import ProyectosService
+
+        proyectos_service = ProyectosService()
+
         # Filtros
         estado = request.args.get('estado', 'todos')
         periodo = request.args.get('periodo', 'actual')
-        
-        proyectos = dashboard_service.get_mis_proyectos(
-            vendedor_id,
-            estado=estado,
-            periodo=periodo
-        )
-        
+
+        # Obtener proyectos por vendedor o responsable según el rol
+        if current_user.rol == RolUsuario.VENTAS:
+            # Para vendedores, obtener proyectos donde son vendedor
+            proyectos = db.session.query(Proyecto)\
+                .options(joinedload(Proyecto.cliente))\
+                .filter_by(vendedor_id=current_user.id)\
+                .filter_by(activo=True)\
+                .order_by(Proyecto.created_at.desc())\
+                .all()
+        else:
+            # Para admin y general, obtener proyectos donde son responsables o todos
+            proyectos = db.session.query(Proyecto)\
+                .options(joinedload(Proyecto.cliente))\
+                .filter(\
+                    or_(\
+                        Proyecto.responsable == current_user.id,\
+                        Proyecto.vendedor_id == current_user.id,\
+                        Proyecto.created_by == current_user.id\
+                    )\
+                )\
+                .filter_by(activo=True)\
+                .order_by(Proyecto.created_at.desc())\
+                .all()
+
+        # Aplicar filtros de estado
+        if estado != 'todos':
+            from models import EstadoComercial
+            estado_enum = EstadoComercial(estado)
+            proyectos = [p for p in proyectos if p.estado_comercial == estado_enum]
+
+        # Aplicar filtros de periodo
+        if periodo != 'todos':
+            from datetime import datetime, timedelta
+            hoy = datetime.now().date()
+
+            if periodo == 'actual':
+                inicio_mes = hoy.replace(day=1)
+                proyectos = [p for p in proyectos if p.created_at.date() >= inicio_mes]
+            elif periodo == 'trimestre':
+                inicio_trimestre = hoy - timedelta(days=90)
+                proyectos = [p for p in proyectos if p.created_at.date() >= inicio_trimestre]
+
         return render_template('mi_dashboard/mis_proyectos.html',
                              proyectos=proyectos,
                              estado_actual=estado,
                              periodo_actual=periodo)
-                             
+
     except Exception as e:
         current_app.logger.error(f"Error obteniendo mis proyectos: {e}")
+        import traceback
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return render_template('mi_dashboard/mis_proyectos.html',
-                             proyectos=[])
+                             proyectos=[],
+                             estado_actual='todos',
+                             periodo_actual='actual')
 
 @mi_dashboard_bp.route('/estadisticas')
 @login_required
@@ -118,17 +163,17 @@ def estadisticas():
     try:
         dashboard_service = DashboardVendedorService()
         vendedor_id = current_user.id
-        
+
         # Período seleccionado
         periodo = request.args.get('periodo', '6meses')
-        
+
         # Estadísticas completas
         stats = dashboard_service.get_estadisticas_detalladas(vendedor_id, periodo)
-        
+
         return render_template('mi_dashboard/estadisticas.html',
                              estadisticas=stats,
                              periodo_actual=periodo)
-                             
+
     except Exception as e:
         current_app.logger.error(f"Error obteniendo estadísticas: {e}")
         return render_template('mi_dashboard/estadisticas.html',
@@ -142,12 +187,12 @@ def api_metricas_mes():
     try:
         dashboard_service = DashboardVendedorService()
         vendedor_id = current_user.id
-        
+
         meses = int(request.args.get('meses', 6))
         metricas = dashboard_service.get_metricas_mensuales(vendedor_id, meses)
-        
+
         return {'success': True, 'data': metricas}
-        
+
     except Exception as e:
         current_app.logger.error(f"Error API métricas mes: {e}")
         return {'success': False, 'error': str(e)}, 500

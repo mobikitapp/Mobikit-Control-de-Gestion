@@ -28,11 +28,12 @@
                     <label for="estado" class="form-label">Estado del Proyecto</label>
                     <select class="form-select" id="estado" name="estado">
                         <option value="todos" {% if estado_actual == 'todos' %}selected{% endif %}>Todos los estados</option>
-                        <option value="PLANIFICACION" {% if estado_actual == 'PLANIFICACION' %}selected{% endif %}>Planificación</option>
+                        <option value="PENDIENTE_PRESUPUESTO" {% if estado_actual == 'PENDIENTE_PRESUPUESTO' %}selected{% endif %}>Pendiente Presupuesto</option>
+                        <option value="PRESUPUESTADO" {% if estado_actual == 'PRESUPUESTADO' %}selected{% endif %}>Presupuestado</option>
+                        <option value="ADJUDICADO" {% if estado_actual == 'ADJUDICADO' %}selected{% endif %}>Adjudicado</option>
                         <option value="EN_DESARROLLO" {% if estado_actual == 'EN_DESARROLLO' %}selected{% endif %}>En Desarrollo</option>
-                        <option value="EN_PRODUCCION" {% if estado_actual == 'EN_PRODUCCION' %}selected{% endif %}>En Producción</option>
-                        <option value="COMPLETADO" {% if estado_actual == 'COMPLETADO' %}selected{% endif %}>Completado</option>
-                        <option value="CANCELADO" {% if estado_actual == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                        <option value="TERMINADO" {% if estado_actual == 'TERMINADO' %}selected{% endif %}>Terminado</option>
+                        <option value="PERDIDO" {% if estado_actual == 'PERDIDO' %}selected{% endif %}>Perdido</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -101,43 +102,37 @@
                                     <div class="d-flex align-items-center">
                                         <div class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-2" 
                                              style="width: 32px; height: 32px; font-size: 12px;">
-                                            {{ proyecto.cliente[0].upper() if proyecto.cliente else '?' }}
+                                            {{ proyecto.cliente.nombre[0].upper() if proyecto.cliente and proyecto.cliente.nombre else '?' }}
                                         </div>
-                                        <span>{{ proyecto.cliente or 'Sin cliente' }}</span>
+                                        <span>{{ proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente' }}</span>
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="badge bg-{% if proyecto.estado == 'PLANIFICACION' %}secondary{% elif proyecto.estado == 'EN_DESARROLLO' %}primary{% elif proyecto.estado == 'EN_PRODUCCION' %}warning{% elif proyecto.estado == 'COMPLETADO' %}success{% elif proyecto.estado == 'CANCELADO' %}danger{% else %}light{% endif %}">
-                                        {{ proyecto.estado.replace('_', ' ').title() }}
+                                    <span class="badge bg-{% if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' %}secondary{% elif proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' %}primary{% elif proyecto.estado_comercial and proyecto.estado_comercial.value == 'PRESUPUESTADO' %}warning{% elif proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' %}success{% elif proyecto.estado_comercial and proyecto.estado_comercial.value == 'PERDIDO' %}danger{% else %}light{% endif %}">
+                                        {{ proyecto.estado_comercial.value.replace('_', ' ').title() if proyecto.estado_comercial else 'Sin estado' }}
                                     </span>
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div class="progress me-2" style="width: 80px; height: 8px;">
-                                            <div class="progress-bar bg-{% if proyecto.progreso < 30 %}danger{% elif proyecto.progreso < 70 %}warning{% else %}success{% endif %}" 
-                                                 role="progressbar" style="width: {{ proyecto.progreso }}%"></div>
+                                            {% set progreso = 25 if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PRESUPUESTADO' else 50 if proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' else 100 if proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' else 0 %}
+                                            <div class="progress-bar bg-{% if progreso < 30 %}danger{% elif progreso < 70 %}warning{% else %}success{% endif %}" 
+                                                 role="progressbar" style="width: {{ progreso }}%"></div>
                                         </div>
-                                        <span class="small">{{ proyecto.progreso }}%</span>
+                                        <span class="small">{{ progreso }}%</span>
                                     </div>
                                 </td>
                                 <td>
                                     <div class="small">
-                                        {{ moment(proyecto.fecha_creacion).format('DD/MM/YYYY') }}
-                                        <div class="text-muted">{{ moment(proyecto.fecha_creacion).fromNow() }}</div>
+                                        {{ proyecto.created_at.strftime('%d/%m/%Y') if proyecto.created_at else 'Sin fecha' }}
+                                        <div class="text-muted">{{ 'Hace días' if proyecto.created_at else '' }}</div>
                                     </div>
                                 </td>
                                 <td>
-                                    {% if proyecto.fecha_entrega_estimada %}
+                                    {% if proyecto.fecha_fin_estimada %}
                                         <div class="small">
-                                            {{ moment(proyecto.fecha_entrega_estimada).format('DD/MM/YYYY') }}
-                                            {% set dias_restantes = (proyecto.fecha_entrega_estimada - moment().date()) %}
-                                            {% if dias_restantes.days < 0 %}
-                                                <div class="text-danger">Atrasado</div>
-                                            {% elif dias_restantes.days <= 7 %}
-                                                <div class="text-warning">{{ dias_restantes.days }} días</div>
-                                            {% else %}
-                                                <div class="text-muted">{{ dias_restantes.days }} días</div>
-                                            {% endif %}
+                                            {{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') }}
+                                            <div class="text-muted">Estimada</div>
                                         </div>
                                     {% else %}
                                         <span class="text-muted small">Sin fecha</span>
@@ -199,13 +194,18 @@
     <!-- Resumen por Estado -->
     {% if proyectos %}
     <div class="row mt-4">
-        {% set estados_resumen = proyectos | groupby('estado') %}
-        {% for estado, lista_proyectos in estados_resumen %}
+        {% set estados_count = {} %}
+        {% for proyecto in proyectos %}
+            {% set estado_key = proyecto.estado_comercial.value if proyecto.estado_comercial else 'SIN_ESTADO' %}
+            {% if estados_count.update({estado_key: estados_count.get(estado_key, 0) + 1}) %}{% endif %}
+        {% endfor %}
+        
+        {% for estado, cantidad in estados_count.items() %}
         <div class="col-md-2 mb-3">
             <div class="card border-0 bg-light h-100">
                 <div class="card-body text-center">
-                    <div class="fs-5 fw-bold text-{% if estado == 'PLANIFICACION' %}secondary{% elif estado == 'EN_DESARROLLO' %}primary{% elif estado == 'EN_PRODUCCION' %}warning{% elif estado == 'COMPLETADO' %}success{% elif estado == 'CANCELADO' %}danger{% else %}dark{% endif %}">
-                        {{ lista_proyectos | list | length }}
+                    <div class="fs-5 fw-bold text-{% if estado == 'PENDIENTE_PRESUPUESTO' %}secondary{% elif estado == 'EN_DESARROLLO' %}primary{% elif estado == 'PRESUPUESTADO' %}warning{% elif estado == 'TERMINADO' %}success{% elif estado == 'PERDIDO' %}danger{% else %}dark{% endif %}">
+                        {{ cantidad }}
                     </div>
                     <div class="text-muted small">{{ estado.replace('_', ' ').title() }}</div>
                 </div>
@@ -213,13 +213,12 @@
         </div>
         {% endfor %}
         
-        <!-- Progreso Promedio -->
+        <!-- Total de Proyectos -->
         <div class="col-md-2 mb-3">
             <div class="card border-0 bg-light h-100">
                 <div class="card-body text-center">
-                    {% set progreso_promedio = (proyectos | sum(attribute='progreso')) / (proyectos | length) if proyectos else 0 %}
-                    <div class="fs-5 fw-bold text-info">{{ "%.0f"|format(progreso_promedio) }}%</div>
-                    <div class="text-muted small">Progreso Promedio</div>
+                    <div class="fs-5 fw-bold text-info">{{ proyectos | length }}</div>
+                    <div class="text-muted small">Total Proyectos</div>
                 </div>
             </div>
         </div>
