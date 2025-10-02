@@ -76,3 +76,6 @@ The system utilizes a modular blueprint architecture, separating concerns into d
 ### File Format Support
 - **Documents**: PDF.
 - **Images**: JPEG, PNG.
+
+## Recent Changes
+- **2025-10-02**: **Fixed commercial status change logic in project edit form** - Modified `_aplicar_cambios_automaticos_estado()` to respect manual status changes by users. The system now captures the commercial status BEFORE updating the project, then compares the submitted value against this pre-update status. If they differ, it indicates a manual change by the user, and automatic status transitions are skipped to preserve user intent. If they match, automatic business rules still apply (e.g., auto-promoting to PRESUPUESTADO when budget amounts are entered). This fixes the issue where manual status updates in the edit form were being overwritten by automatic business rules.

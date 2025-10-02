@@ -271,8 +271,9 @@ Los montos deben ser precios finales al cliente, no costos internos.
             # Store original data for audit
             datos_anteriores = serialize_model(proyecto)
             
-            # Store previous vendedor for comparison in automatic changes
+            # Store previous vendedor and estado for comparison in automatic changes
             proyecto._vendedor_anterior = proyecto.vendedor_id
+            estado_comercial_anterior = proyecto.estado_comercial
             update_data['updated_by'] = user_id
 
             # Validate cliente if updating cliente_id
@@ -292,7 +293,7 @@ Los montos deben ser precios finales al cliente, no costos internos.
             proyecto_actualizado = self.repo.update(proyecto, update_data)
 
             # Apply automatic estado changes based on business rules
-            self._aplicar_cambios_automaticos_estado(proyecto_actualizado, update_data)
+            self._aplicar_cambios_automaticos_estado(proyecto_actualizado, update_data, estado_comercial_anterior)
 
             # Commit transaction
             db.session.commit()
@@ -584,17 +585,40 @@ Los montos deben ser precios finales al cliente, no costos internos.
             logger.error(f"Error deleting proyecto attachment {adjunto_id}: {str(e)}")
             raise
 
-    def _aplicar_cambios_automaticos_estado(self, proyecto, update_data):
-        """Apply automatic estado changes based on business rules"""
+    def _aplicar_cambios_automaticos_estado(self, proyecto, update_data, estado_comercial_anterior):
+        """Apply automatic estado changes based on business rules
+        
+        Args:
+            proyecto: Proyecto instance (already updated)
+            update_data: Dictionary with update data
+            estado_comercial_anterior: Previous commercial status before update
+        """
         try:
             from models import EstadoComercial, TareaComercial
 
-            estado_anterior = proyecto.estado_comercial
             vendedor_anterior = getattr(proyecto, '_vendedor_anterior', None)
+            
+            # Verificar si el usuario cambió manualmente el estado comercial
+            # Comparar el valor en update_data con el estado ANTERIOR del proyecto (pre-actualización)
+            # Si son diferentes, el usuario cambió el estado manualmente
+            estado_cambiado_manualmente = False
+            if 'estado_comercial' in update_data:
+                # Convertir el valor de update_data a enum si es string
+                nuevo_estado = update_data['estado_comercial']
+                if isinstance(nuevo_estado, str):
+                    try:
+                        nuevo_estado = EstadoComercial(nuevo_estado)
+                    except (ValueError, KeyError):
+                        nuevo_estado = None
+                
+                # Si el nuevo estado es diferente al estado ANTERIOR, fue un cambio manual
+                if nuevo_estado is not None and nuevo_estado != estado_comercial_anterior:
+                    estado_cambiado_manualmente = True
 
             # Rule 1: If monto_provision_presupuestado is set and estado is PENDIENTE_PRESUPUESTO, 
-            # change to PRESUPUESTADO
-            if (proyecto.estado_comercial == EstadoComercial.PENDIENTE_PRESUPUESTO and 
+            # change to PRESUPUESTADO - SOLO si el usuario NO cambió el estado manualmente
+            if (not estado_cambiado_manualmente and
+                proyecto.estado_comercial == EstadoComercial.PENDIENTE_PRESUPUESTO and 
                 proyecto.monto_provision_presupuestado and 
                 proyecto.monto_provision_presupuestado > 0):
 
@@ -658,7 +682,7 @@ Los montos deben ser precios finales al cliente, no costos internos.
                     logger.info(f"Tarea automática creada por asignación de vendedor para proyecto {proyecto.id}")
 
             # Rule 2: Completar automáticamente tareas de presupuesto cuando el proyecto ya no está pendiente
-            if (estado_anterior == EstadoComercial.PENDIENTE_PRESUPUESTO and 
+            if (estado_comercial_anterior == EstadoComercial.PENDIENTE_PRESUPUESTO and 
                 proyecto.estado_comercial != EstadoComercial.PENDIENTE_PRESUPUESTO and
                 proyecto.vendedor_id):
                 
