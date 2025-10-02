@@ -712,19 +712,32 @@ class ComercialService:
         estado = proyecto.estado_comercial
 
         if estado == EstadoComercial.PENDIENTE_PRESUPUESTO:
-            # Check if task already exists
+            from datetime import date, timedelta
+            
+            # Check if task already exists for this project (broader check)
             existing = (db.session.query(TareaComercial)
-                       .filter_by(proyecto_id=proyecto.id, 
-                                 titulo="Agregar información comercial")
-                       .filter_by(completada=False)
+                       .filter_by(proyecto_id=proyecto.id, completada=False)
+                       .filter(TareaComercial.titulo.like('%presupuesto%'))
                        .first())
 
             if not existing:
+                # Crear nueva tarea con más detalle
                 tarea = TareaComercial()
                 tarea.proyecto_id = proyecto.id
                 tarea.vendedor_id = proyecto.vendedor_id
-                tarea.titulo = "Agregar información comercial"
-                tarea.descripcion = "Completar valor de provisión, margen de venta y valor de instalación (si aplica)"
+                tarea.titulo = "Crear presupuesto para proyecto"
+                tarea.descripcion = f"Completar presupuesto para el proyecto '{proyecto.nombre}' del cliente {proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente'}"
+                
+                # Fecha límite: 3 días hábiles desde hoy
+                fecha_limite = date.today()
+                dias_agregados = 0
+                while dias_agregados < 3:
+                    fecha_limite += timedelta(days=1)
+                    # Solo contar días laborables (lunes a viernes)
+                    if fecha_limite.weekday() < 5:  # 0=lunes, 6=domingo
+                        dias_agregados += 1
+
+                tarea.fecha_limite = fecha_limite
                 tarea.created_by = user_id
                 db.session.add(tarea)
 
@@ -1372,7 +1385,7 @@ class ComercialService:
             'margen_global': margen_global,
             'margen_provision_promedio': margen_provision_promedio,
             'margen_instalacion_promedio': margen_instalacion_promedio,
-            'objetivo_total_provision': objetivo_total_total_provision,
+            'objetivo_total_provision': objetivo_total_provision,
             'objetivo_total_instalacion': objetivo_total_instalacion,
             'porcentaje_objetivo': porcentaje_objetivo
         }
@@ -1383,9 +1396,24 @@ class ComercialService:
             from datetime import date, timedelta
 
             # Obtener proyectos en estado PENDIENTE_PRESUPUESTO que tengan vendedor asignado
+            # También incluir proyectos que no tengan presupuesto completo
             proyectos_pendientes = (db.session.query(Proyecto)
-                                   .filter_by(estado_comercial=EstadoComercial.PENDIENTE_PRESUPUESTO, activo=True)
-                                   .filter(Proyecto.vendedor_id.isnot(None))
+                                   .filter(
+                                       and_(
+                                           Proyecto.activo.is_(True),
+                                           Proyecto.vendedor_id.isnot(None),
+                                           or_(
+                                               Proyecto.estado_comercial == EstadoComercial.PENDIENTE_PRESUPUESTO,
+                                               and_(
+                                                   or_(
+                                                       Proyecto.monto_provision_presupuestado.is_(None),
+                                                       Proyecto.margen_venta_provision.is_(None)
+                                                   ),
+                                                   Proyecto.estado_comercial != EstadoComercial.PERDIDO
+                                               )
+                                           )
+                                       )
+                                   )
                                    .all())
 
             tareas_creadas = 0

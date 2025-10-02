@@ -8,9 +8,9 @@ from models import RolUsuario, Contrato, TipoDocumento
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
 from schemas.proyectos import ProyectoCreate, ProyectoUpdate, ProyectoSearchFilters
-from schemas.bitacora import BitacoraProyectoCreate, BitacoraProyectoFilters
+from schemas.bitacora import BitacoraProyectoCreate, BitacoraFilters
 from services.bitacora_service import bitacora_service
-from models import CategoriaMuebleModel, User
+from models import Cliente, Proyecto, Contrato, TipoDocumento, EstadoContrato, ProyectoAdjunto, TareaComercial, EstadoComercial
 import logging
 from datetime import datetime, date
 from decimal import Decimal
@@ -163,8 +163,26 @@ def nuevo():
             # Create project - convert Pydantic model to dict
             proyecto = proyectos_service.create_proyecto(proyecto_data.model_dump(), current_user.id)
 
-            flash(f'Proyecto "{proyecto.nombre}" creado exitosamente', 'success')
-            return redirect(url_for('proyectos.detalle', proyecto_id=proyecto.id))
+            if proyecto:
+                flash(f'Proyecto "{proyecto.nombre}" creado exitosamente', 'success')
+
+                # Crear tarea automática si el proyecto tiene vendedor asignado
+                if proyecto_data.get('vendedor_id'):
+                    from services.comercial_service import ComercialService
+                    comercial_service = ComercialService()
+                    # Obtener el proyecto recién creado
+                    proyecto_creado = (db.session.query(Proyecto)
+                                   .filter_by(nombre=proyecto_data['nombre'])
+                                   .order_by(Proyecto.created_at.desc())
+                                   .first())
+                    if proyecto_creado:
+                        comercial_service._crear_tarea_automatica(proyecto_creado, current_user.id)
+                        db.session.commit()
+
+                return redirect(url_for('proyectos.detalle', proyecto_id=proyecto.id))
+            else:
+                flash('Error al crear proyecto', 'error')
+                return redirect(url_for('proyectos.index'))
 
         except ValidationError as e:
             logger.warning(f"Validation error creating project: {str(e)}")
@@ -627,7 +645,7 @@ def bitacora(proyecto_id):
             usuario_id = request.args.get('usuario_id')
             limit = int(request.args.get('limit', 50))
 
-            filters = BitacoraProyectoFilters(
+            filters = BitacoraFilters(
                 proyecto_id=proyecto_id,
                 tipo=tipo,
                 usuario_id=usuario_id,
