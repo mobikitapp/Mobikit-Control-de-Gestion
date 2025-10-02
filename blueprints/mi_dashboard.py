@@ -5,14 +5,15 @@ Permite a cada vendedor ver sus métricas, clientes y proyectos personales
 
 from flask import Blueprint, render_template, request, current_app
 from flask_login import login_required, current_user
-from utils.auth import require_permission
+from utils.auth import role_required
+from models import RolUsuario
 from services.dashboard_vendedor_service import DashboardVendedorService
 
 mi_dashboard_bp = Blueprint('mi_dashboard', __name__, url_prefix='/mi-dashboard')
 
 @mi_dashboard_bp.route('/')
 @login_required
-@require_permission('mi_dashboard', 'lectura')
+@role_required([RolUsuario.VENTAS, RolUsuario.ADMIN, RolUsuario.GENERAL])
 def index():
     """Dashboard principal del vendedor"""
     try:
@@ -53,7 +54,7 @@ def index():
 
 @mi_dashboard_bp.route('/mis-clientes')
 @login_required
-@require_permission('mi_dashboard', 'mis_clientes')
+@role_required([RolUsuario.VENTAS, RolUsuario.ADMIN, RolUsuario.GENERAL])
 def mis_clientes():
     """Lista de clientes asignados al vendedor"""
     try:
@@ -82,7 +83,7 @@ def mis_clientes():
 
 @mi_dashboard_bp.route('/mis-proyectos')
 @login_required
-@require_permission('mi_dashboard', 'mis_proyectos')
+@role_required([RolUsuario.VENTAS, RolUsuario.ADMIN, RolUsuario.GENERAL])
 def mis_proyectos():
     """Lista de proyectos del vendedor"""
     try:
@@ -111,7 +112,7 @@ def mis_proyectos():
 
 @mi_dashboard_bp.route('/estadisticas')
 @login_required
-@require_permission('mi_dashboard', 'estadisticas')
+@role_required([RolUsuario.VENTAS, RolUsuario.ADMIN, RolUsuario.GENERAL])
 def estadisticas():
     """Estadísticas detalladas del vendedor"""
     try:
@@ -135,7 +136,7 @@ def estadisticas():
 
 @mi_dashboard_bp.route('/api/metricas-mes')
 @login_required
-@require_permission('mi_dashboard', 'lectura')
+@role_required([RolUsuario.VENTAS, RolUsuario.ADMIN, RolUsuario.GENERAL])
 def api_metricas_mes():
     """API para obtener métricas mensuales (para gráficos)"""
     try:

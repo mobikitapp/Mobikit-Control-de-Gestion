@@ -1,6 +1,6 @@
 from app import db
 from models import (
-    Modulo, PermisoRol, AuditoriaPermisos, RolUsuario, 
+    Modulo, PermisoRol, AuditoriaPermisos, RolUsuario,
     TipoPermiso, User
 )
 from sqlalchemy import and_, or_, func
@@ -9,7 +9,7 @@ from datetime import datetime
 
 class PermisosService:
     """Servicio para gestión dinámica de permisos por rol"""
-    
+
     def __init__(self):
         self.modulos_sistema = {
             'clientes': {
@@ -53,47 +53,68 @@ class PermisosService:
                 'descripcion': 'Control financiero, costos, tesorería y análisis'
             }
         }
-    
+
     def inicializar_modulos_sistema(self, user_id):
         """Inicializa los módulos del sistema con permisos por defecto"""
         try:
-            for codigo, info in self.modulos_sistema.items():
+            # Definir módulos base del sistema
+            modulos_base = [
+                {'codigo': 'usuarios', 'nombre': 'Gestión de Usuarios', 'descripcion': 'Administración de usuarios del sistema'},
+                {'codigo': 'clientes', 'nombre': 'Gestión de Clientes', 'descripcion': 'Administración de clientes'},
+                {'codigo': 'proyectos', 'nombre': 'Gestión de Proyectos', 'descripcion': 'Administración de proyectos'},
+                {'codigo': 'contratos', 'nombre': 'Gestión de Contratos', 'descripcion': 'Administración de contratos y órdenes de compra'},
+                {'codigo': 'fabricacion', 'nombre': 'Fabricación', 'descripcion': 'Gestión de órdenes de fabricación'},
+                {'codigo': 'despachos', 'nombre': 'Despachos', 'descripcion': 'Gestión de despachos y logística'},
+                {'codigo': 'areas', 'nombre': 'Gestión de Áreas', 'descripcion': 'Administración de áreas de trabajo'},
+                {'codigo': 'comercial', 'nombre': 'Gestión Comercial', 'descripcion': 'Dashboard y gestión comercial'},
+                {'codigo': 'finanzas', 'nombre': 'Gestión Financiera', 'descripcion': 'Administración financiera y reportes'},
+                {'codigo': 'planificacion', 'nombre': 'Planificación Operacional', 'descripcion': 'Planificación y seguimiento operacional'},
+                {'codigo': 'configuraciones', 'nombre': 'Configuraciones', 'descripcion': 'Configuraciones del sistema'},
+                {'codigo': 'calendario', 'nombre': 'Calendario', 'descripcion': 'Gestión de calendario y eventos'},
+                {'codigo': 'capacitacion', 'nombre': 'Capacitación', 'descripcion': 'Módulo de capacitación'},
+                {'codigo': 'mi_dashboard', 'nombre': 'Mi Dashboard Personal', 'descripcion': 'Dashboard personal del vendedor'}
+            ]
+
+            for info in modulos_base:
                 # Verificar si el módulo ya existe
-                modulo = Modulo.query.filter_by(codigo=codigo).first()
-                
+                modulo = Modulo.query.filter_by(codigo=info['codigo']).first()
+
                 if not modulo:
                     modulo = Modulo(
                         nombre=info['nombre'],
                         descripcion=info['descripcion'],
-                        codigo=codigo,
+                        codigo=info['codigo'],
                         activo=True,
                         created_by=user_id
                     )
                     db.session.add(modulo)
                     db.session.flush()  # Para obtener el ID
-                    
+
                     # Crear permisos por defecto para cada rol
                     self._crear_permisos_defecto(modulo, user_id)
-            
+                else:
+                    # Asegurarse de que los permisos por defecto estén sincronizados para módulos existentes
+                    self.sincronizar_permisos_defecto(user_id, modulo_id=modulo.id)
+
             db.session.commit()
-            
+
             # Sincronizar permisos por defecto para todos los módulos (nuevos y existentes)
             self.sincronizar_permisos_defecto(user_id, only_missing=False)
-            
+
             return True, "Módulos inicializados correctamente"
-            
+
         except Exception as e:
             db.session.rollback()
             return False, f"Error al inicializar módulos: {str(e)}"
-    
+
     def _crear_permisos_defecto(self, modulo, user_id):
         """Crea permisos por defecto basados en la configuración actual"""
         permisos_defecto = self._obtener_permisos_defecto_por_modulo(modulo.codigo)
-        
+
         for rol in RolUsuario:
             for tipo_permiso in TipoPermiso:
                 permitido = self._evaluar_permiso_defecto(rol.value, modulo.codigo, tipo_permiso.value, permisos_defecto)
-                
+
                 permiso_rol = PermisoRol(
                     rol=rol,
                     modulo_id=modulo.id,
@@ -102,11 +123,11 @@ class PermisosService:
                     updated_by=user_id
                 )
                 db.session.add(permiso_rol)
-    
+
     def _obtener_permisos_defecto_por_modulo(self, codigo_modulo):
         """Obtiene permisos por defecto basados en la configuración actual del sistema"""
         # Basado en utils/permissions.py
-        permisos_defecto = {
+        permisos_defecto_config = {
             'clientes': {
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
                 'general': ['lectura', 'creacion', 'edicion'],
@@ -162,13 +183,13 @@ class PermisosService:
                 'finanzas': ['lectura', 'creacion', 'edicion']
             },
             'mi_dashboard': {
-                'admin': [],
-                'general': [],
-                'ventas': ['lectura', 'creacion', 'edicion'],
-                'operaciones': [],
-                'produccion': [],
-                'logistica': [],
-                'finanzas': []
+                'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
+                'general': ['lectura', 'creacion', 'edicion'],
+                'ventas': ['lectura', 'creacion', 'edicion', 'mis_clientes', 'mis_proyectos', 'estadisticas'],
+                'operaciones': ['lectura', 'creacion', 'edicion'],
+                'produccion': ['lectura', 'creacion', 'edicion'],
+                'logistica': ['lectura', 'creacion', 'edicion'],
+                'finanzas': ['lectura', 'creacion', 'edicion']
             },
             'planificacion': {
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
@@ -196,33 +217,158 @@ class PermisosService:
                 'produccion': [],
                 'logistica': [],
                 'finanzas': ['lectura', 'creacion', 'edicion', 'eliminacion']
+            },
+            'capacitacion': {
+                'lectura': True,
+                'creacion': False,
+                'edicion': False,
+                'eliminacion': False
+            },
+            'mi_dashboard': {
+                'lectura': True,
+                'creacion': False,
+                'edicion': False,
+                'eliminacion': False,
+                'mis_clientes': True,
+                'mis_proyectos': True,
+                'estadisticas': True
             }
         }
-        
-        return permisos_defecto.get(codigo_modulo, {})
-    
-    def sincronizar_permisos_defecto(self, user_id, only_missing=True):
+
+        # Configuración de permisos para roles específicos en mi_dashboard
+        permisos_mi_dashboard_roles = {
+            'ventas': {
+                'lectura': True,
+                'creacion': False,
+                'edicion': False,
+                'eliminacion': False,
+                'mis_clientes': True,
+                'mis_proyectos': True,
+                'estadisticas': True
+            },
+            'general': {
+                'usuarios': {
+                    'lectura': True,
+                    'creacion': True,
+                    'edicion': True,
+                    'eliminacion': False
+                },
+                'mi_dashboard': {
+                    'lectura': False,
+                    'creacion': False,
+                    'edicion': False,
+                    'eliminacion': False,
+                    'mis_clientes': False,
+                    'mis_proyectos': False,
+                    'estadisticas': False
+                },
+            },
+            'operaciones': {
+                'usuarios': {
+                    'lectura': False,
+                    'creacion': False,
+                    'edicion': False,
+                    'eliminacion': False
+                },
+                'mi_dashboard': {
+                    'lectura': False,
+                    'creacion': False,
+                    'edicion': False,
+                    'eliminacion': False,
+                    'mis_clientes': False,
+                    'mis_proyectos': False,
+                    'estadisticas': False
+                },
+            },
+            'produccion': {
+                'usuarios': {
+                    'lectura': False,
+                    'creacion': False,
+                    'edicion': False,
+                    'eliminacion': False
+                },
+                'mi_dashboard': {
+                    'lectura': False,
+                    'creacion': False,
+                    'edicion': False,
+                    'eliminacion': False,
+                    'mis_clientes': False,
+                    'mis_proyectos': False,
+                    'estadisticas': False
+                },
+            },
+            'logistica': {
+                'usuarios': {
+                    'lectura': False,
+                    'creacion': False,
+                    'edicion': False,
+                    'eliminacion': False
+                },
+                'mi_dashboard': {
+                    'lectura': False,
+                    'creacion': False,
+                    'edicion': False,
+                    'eliminacion': False,
+                    'mis_clientes': False,
+                    'mis_proyectos': False,
+                    'estadisticas': False
+                },
+            },
+            'finanzas': {
+                'usuarios': {
+                    'lectura': False,
+                    'creacion': False,
+                    'edicion': False,
+                    'eliminacion': False
+                },
+                'mi_dashboard': {
+                    'lectura': False,
+                    'creacion': False,
+                    'edicion': False,
+                    'eliminacion': False,
+                    'mis_clientes': False,
+                    'mis_proyectos': False,
+                    'estadisticas': False
+                },
+            }
+        }
+
+        # Combinar permisos base con configuraciones específicas de roles
+        permisos_final = permisos_defecto_config.copy()
+        for rol, modulos_rol in permisos_mi_dashboard_roles.items():
+            if rol in permisos_final:
+                permisos_final[rol].update(modulos_rol)
+            else:
+                permisos_final[rol] = modulos_rol
+
+        return permisos_final.get(codigo_modulo, {})
+
+    def sincronizar_permisos_defecto(self, user_id, only_missing=True, modulo_id=None):
         """Sincroniza todos los permisos con los valores por defecto"""
         try:
-            modulos = Modulo.query.filter_by(activo=True).all()
+            if modulo_id:
+                modulos = Modulo.query.filter_by(activo=True, id=modulo_id).all()
+            else:
+                modulos = Modulo.query.filter_by(activo=True).all()
+
             cambios_realizados = 0
-            
+
             for modulo in modulos:
                 permisos_defecto = self._obtener_permisos_defecto_por_modulo(modulo.codigo)
-                
+
                 for rol in RolUsuario:
                     for tipo_permiso in TipoPermiso:
                         permitido_defecto = self._evaluar_permiso_defecto(
                             rol.value, modulo.codigo, tipo_permiso.value, permisos_defecto
                         )
-                        
+
                         # Buscar permiso existente
                         permiso_existente = PermisoRol.query.filter_by(
                             rol=rol,
                             modulo_id=modulo.id,
                             tipo_permiso=tipo_permiso
                         ).first()
-                        
+
                         if permiso_existente:
                             # Actualizar solo si está mal configurado y no es only_missing
                             if not only_missing and permiso_existente.permitido != permitido_defecto:
@@ -240,34 +386,34 @@ class PermisosService:
                             )
                             db.session.add(nuevo_permiso)
                             cambios_realizados += 1
-            
+
             db.session.commit()
             return True, f"Sincronización completa. {cambios_realizados} permisos actualizados"
-            
+
         except Exception as e:
             db.session.rollback()
             return False, f"Error en sincronización: {str(e)}"
-    
+
     def _evaluar_permiso_defecto(self, rol, modulo_codigo, tipo_permiso, permisos_defecto):
         """Evalúa si un rol tiene un permiso específico por defecto"""
         permisos_rol = permisos_defecto.get(rol, [])
         return tipo_permiso in permisos_rol
-    
+
     def obtener_matriz_permisos_completa(self):
         """Obtiene la matriz completa de permisos por rol y módulo"""
         try:
             # Asegurar que los módulos están inicializados
             self._verificar_inicializacion()
-            
+
             # Obtener todos los módulos activos
             modulos = Modulo.query.filter_by(activo=True).order_by(Modulo.nombre).all()
-            
+
             # Obtener todos los permisos
             permisos = db.session.query(PermisoRol)\
                 .join(Modulo)\
                 .filter(Modulo.activo == True)\
                 .all()
-            
+
             # Organizar permisos en una estructura de matriz
             matriz = {}
             for rol in RolUsuario:
@@ -276,13 +422,13 @@ class PermisosService:
                     matriz[rol.value][modulo.codigo] = {}
                     for tipo_permiso in TipoPermiso:
                         matriz[rol.value][modulo.codigo][tipo_permiso.value] = False
-            
+
             # Llenar la matriz con los permisos actuales
             for permiso in permisos:
-                if (permiso.rol.value in matriz and 
+                if (permiso.rol.value in matriz and
                     permiso.modulo.codigo in matriz[permiso.rol.value]):
                     matriz[permiso.rol.value][permiso.modulo.codigo][permiso.tipo_permiso.value] = permiso.permitido
-            
+
             return {
                 'success': True,
                 'modulos': [{'codigo': m.codigo, 'nombre': m.nombre} for m in modulos],
@@ -290,13 +436,13 @@ class PermisosService:
                 'tipos_permiso': [{'codigo': t.value, 'nombre': self._obtener_nombre_permiso(t.value)} for t in TipoPermiso],
                 'matriz': matriz
             }
-            
+
         except Exception as e:
             return {
                 'success': False,
                 'error': f"Error al obtener matriz de permisos: {str(e)}"
             }
-    
+
     def actualizar_permiso(self, rol_codigo, modulo_codigo, tipo_permiso_codigo, permitido, user_id):
         """Actualiza un permiso específico"""
         try:
@@ -306,34 +452,34 @@ class PermisosService:
                 if r.value == rol_codigo:
                     rol = r
                     break
-            
+
             if not rol:
                 return False, f"Rol no válido: {rol_codigo}"
-            
+
             tipo_permiso = None
             for t in TipoPermiso:
                 if t.value == tipo_permiso_codigo:
                     tipo_permiso = t
                     break
-            
+
             if not tipo_permiso:
                 return False, f"Tipo de permiso no válido: {tipo_permiso_codigo}"
-            
+
             # Obtener módulo
             modulo = Modulo.query.filter_by(codigo=modulo_codigo, activo=True).first()
             if not modulo:
                 return False, f"Módulo no encontrado: {modulo_codigo}"
-            
+
             # Buscar permiso existente
             permiso_rol = PermisoRol.query.filter_by(
                 rol=rol,
                 modulo_id=modulo.id,
                 tipo_permiso=tipo_permiso
             ).first()
-            
+
             valor_anterior = None
             accion = 'created'
-            
+
             if permiso_rol:
                 valor_anterior = permiso_rol.permitido
                 permiso_rol.permitido = permitido
@@ -348,7 +494,7 @@ class PermisosService:
                     updated_by=user_id
                 )
                 db.session.add(permiso_rol)
-            
+
             # Crear auditoría
             auditoria = AuditoriaPermisos(
                 rol=rol,
@@ -360,35 +506,35 @@ class PermisosService:
                 created_by=user_id
             )
             db.session.add(auditoria)
-            
+
             db.session.commit()
             return True, "Permiso actualizado correctamente"
-            
+
         except Exception as e:
             db.session.rollback()
             return False, f"Error al actualizar permiso: {str(e)}"
-    
+
     def actualizar_permisos_masivo(self, updates, user_id):
         """Actualiza múltiples permisos en una sola transacción"""
         try:
             cambios_exitosos = 0
             errores = []
-            
+
             for update in updates:
                 rol_codigo = update.get('rol')
                 modulo_codigo = update.get('modulo')
                 tipo_permiso_codigo = update.get('tipo_permiso')
                 permitido = update.get('permitido', False)
-                
+
                 success, mensaje = self.actualizar_permiso(
                     rol_codigo, modulo_codigo, tipo_permiso_codigo, permitido, user_id
                 )
-                
+
                 if success:
                     cambios_exitosos += 1
                 else:
                     errores.append(f"{rol_codigo}/{modulo_codigo}/{tipo_permiso_codigo}: {mensaje}")
-            
+
             if cambios_exitosos > 0:
                 return True, {
                     'cambios_exitosos': cambios_exitosos,
@@ -401,37 +547,37 @@ class PermisosService:
                     'errores': errores,
                     'mensaje': "No se pudo actualizar ningún permiso"
                 }
-                
+
         except Exception as e:
             db.session.rollback()
             return False, f"Error en actualización masiva: {str(e)}"
-    
+
     def verificar_permiso_dinamico(self, user_rol, modulo_codigo, tipo_permiso_codigo):
         """Verifica si un rol tiene un permiso específico usando el sistema dinámico"""
         try:
             # CRÍTICO: Admin siempre tiene todos los permisos - primera verificación
             if user_rol == 'admin':
                 return True
-            
+
             # Buscar el permiso en la base de datos solo para roles no-admin
             rol = None
             for r in RolUsuario:
                 if r.value == user_rol:
                     rol = r
                     break
-            
+
             if not rol:
                 return None  # Permitir fallback al sistema estático
-            
+
             tipo_permiso = None
             for t in TipoPermiso:
                 if t.value == tipo_permiso_codigo:
                     tipo_permiso = t
                     break
-            
+
             if not tipo_permiso:
                 return None  # Permitir fallback al sistema estático
-            
+
             # Buscar en la base de datos
             permiso = db.session.query(PermisoRol)\
                 .join(Modulo)\
@@ -441,32 +587,32 @@ class PermisosService:
                     PermisoRol.tipo_permiso == tipo_permiso,
                     Modulo.activo == True
                 ).first()
-            
+
             # Retornar el valor del permiso si existe, None si no existe (para permitir fallback)
             return permiso.permitido if permiso is not None else None
-            
+
         except Exception as e:
             # En caso de error, retornar None para permitir fallback al sistema estático
             return None
-    
+
     def obtener_auditoria_permisos(self, limit=50, rol_filtro=None, modulo_filtro=None):
         """Obtiene el historial de cambios en permisos"""
         try:
             query = db.session.query(AuditoriaPermisos)\
                 .join(User, AuditoriaPermisos.created_by == User.id)\
                 .order_by(AuditoriaPermisos.created_at.desc())
-            
+
             if rol_filtro:
                 query = query.filter(AuditoriaPermisos.rol == RolUsuario(rol_filtro))
-            
+
             if modulo_filtro:
                 query = query.filter(AuditoriaPermisos.modulo_codigo == modulo_filtro)
-            
+
             if limit:
                 query = query.limit(limit)
-            
+
             auditorias = query.all()
-            
+
             return {
                 'success': True,
                 'auditorias': [
@@ -484,13 +630,13 @@ class PermisosService:
                     for a in auditorias
                 ]
             }
-            
+
         except Exception as e:
             return {
                 'success': False,
                 'error': f"Error al obtener auditoría: {str(e)}"
             }
-    
+
     def _verificar_inicializacion(self):
         """Verifica si los módulos están inicializados y los inicializa si es necesario"""
         count_modulos = Modulo.query.count()
@@ -499,7 +645,7 @@ class PermisosService:
             admin_user = User.query.filter_by(rol=RolUsuario.ADMIN).first()
             if admin_user:
                 self.inicializar_modulos_sistema(admin_user.id)
-    
+
     def _obtener_nombre_rol(self, codigo_rol):
         """Obtiene el nombre legible de un rol"""
         nombres_roles = {
@@ -511,7 +657,7 @@ class PermisosService:
             'logistica': 'Logística'
         }
         return nombres_roles.get(codigo_rol, codigo_rol.title())
-    
+
     def _obtener_nombre_permiso(self, codigo_permiso):
         """Obtiene el nombre legible de un tipo de permiso"""
         nombres_permisos = {
@@ -521,7 +667,7 @@ class PermisosService:
             'eliminacion': 'Eliminación'
         }
         return nombres_permisos.get(codigo_permiso, codigo_permiso.title())
-    
+
     def resetear_permisos_rol(self, rol_codigo, user_id):
         """Resetea todos los permisos de un rol a los valores por defecto"""
         try:
@@ -530,34 +676,34 @@ class PermisosService:
                 if r.value == rol_codigo:
                     rol = r
                     break
-            
+
             if not rol:
                 return False, f"Rol no válido: {rol_codigo}"
-            
+
             # Eliminar permisos actuales del rol
             permisos_actuales = PermisoRol.query.filter_by(rol=rol).all()
             for permiso in permisos_actuales:
                 db.session.delete(permiso)
-            
+
             # Recrear permisos por defecto
             modulos = Modulo.query.filter_by(activo=True).all()
             for modulo in modulos:
                 self._crear_permisos_defecto_rol(modulo, rol, user_id)
-            
+
             db.session.commit()
             return True, f"Permisos del rol {rol_codigo} reseteados correctamente"
-            
+
         except Exception as e:
             db.session.rollback()
             return False, f"Error al resetear permisos: {str(e)}"
-    
+
     def _crear_permisos_defecto_rol(self, modulo, rol, user_id):
         """Crea permisos por defecto para un rol específico en un módulo"""
         permisos_defecto = self._obtener_permisos_defecto_por_modulo(modulo.codigo)
-        
+
         for tipo_permiso in TipoPermiso:
             permitido = self._evaluar_permiso_defecto(rol.value, modulo.codigo, tipo_permiso.value, permisos_defecto)
-            
+
             permiso_rol = PermisoRol(
                 rol=rol,
                 modulo_id=modulo.id,
