@@ -25,21 +25,24 @@ class DashboardVendedorService:
             # Proyectos del mes actual
             proyectos_mes = db.session.query(Proyecto).filter(
                 Proyecto.vendedor_id == vendedor_id,
-                Proyecto.fecha_creacion >= mes_actual
+                Proyecto.created_at >= mes_actual
             ).count()
 
             # Contratos confirmados del mes
             contratos_mes = db.session.query(Contrato).join(Proyecto).filter(
                 Proyecto.vendedor_id == vendedor_id,
-                Contrato.fecha_confirmacion >= mes_actual
+                Contrato.fecha_creacion >= mes_actual
             ).count()
 
             # Valor total del mes
             valor_total = db.session.query(
-                func.sum(Proyecto.monto_provision_presupuestado + Proyecto.monto_instalacion_presupuestado)
+                func.sum(
+                    func.coalesce(Proyecto.monto_provision_presupuestado, 0) + 
+                    func.coalesce(Proyecto.monto_instalacion_presupuestado, 0)
+                )
             ).filter(
                 Proyecto.vendedor_id == vendedor_id,
-                Proyecto.fecha_creacion >= mes_actual
+                Proyecto.created_at >= mes_actual
             ).scalar() or 0
 
             # Clientes activos (que tienen proyectos activos)
@@ -75,7 +78,7 @@ class DashboardVendedorService:
             proyectos_perdidos = db.session.query(Proyecto).filter(
                 Proyecto.vendedor_id == vendedor_id,
                 Proyecto.estado_comercial == EstadoComercial.PERDIDO,
-                Proyecto.fecha_creacion >= seis_meses_atras
+                Proyecto.created_at >= seis_meses_atras
             ).count()
 
             total_oportunidades = proyectos_exitosos + proyectos_perdidos
@@ -101,7 +104,7 @@ class DashboardVendedorService:
                     EstadoComercial.PRESUPUESTADO,
                     EstadoComercial.ADJUDICADO
                 ])
-            ).order_by(Proyecto.fecha_creacion.desc()).limit(5).all()
+            ).order_by(Proyecto.created_at.desc()).limit(5).all()
 
             resultado = []
             for proyecto in proyectos:
@@ -136,7 +139,7 @@ class DashboardVendedorService:
             # Obtener clientes que tienen proyectos con este vendedor
             clientes = db.session.query(Cliente).join(Proyecto).filter(
                 Proyecto.vendedor_id == vendedor_id
-            ).distinct().order_by(Cliente.fecha_creacion.desc()).limit(5).all()
+            ).distinct().order_by(Cliente.created_at.desc()).limit(5).all()
 
             resultado = []
             for cliente in clientes:
@@ -144,12 +147,12 @@ class DashboardVendedorService:
                 ultimo_proyecto = db.session.query(Proyecto).filter(
                     Proyecto.cliente_id == cliente.id,
                     Proyecto.vendedor_id == vendedor_id
-                ).order_by(Proyecto.fecha_creacion.desc()).first()
+                ).order_by(Proyecto.created_at.desc()).first()
 
                 resultado.append({
                     'nombre': cliente.nombre,
                     'email': cliente.email,
-                    'ultimo_contacto': ultimo_proyecto.fecha_creacion if ultimo_proyecto else None,
+                    'ultimo_contacto': ultimo_proyecto.created_at if ultimo_proyecto else None,
                     'estado_ultimo_proyecto': ultimo_proyecto.estado_comercial.value if ultimo_proyecto else None
                 })
 
@@ -197,7 +200,7 @@ class DashboardVendedorService:
             if estado != 'todos':
                 query = query.filter(Proyecto.estado_comercial == EstadoComercial(estado))
 
-            proyectos = query.order_by(Proyecto.fecha_creacion.desc()).all()
+            proyectos = query.order_by(Proyecto.created_at.desc()).all()
             return proyectos
 
         except Exception as e:
