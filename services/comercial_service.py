@@ -1372,7 +1372,77 @@ class ComercialService:
             'margen_global': margen_global,
             'margen_provision_promedio': margen_provision_promedio,
             'margen_instalacion_promedio': margen_instalacion_promedio,
-            'objetivo_total_provision': objetivo_total_provision,
+            'objetivo_total_provision': objetivo_total_total_provision,
             'objetivo_total_instalacion': objetivo_total_instalacion,
             'porcentaje_objetivo': porcentaje_objetivo
         }
+
+    def crear_tareas_presupuesto_pendientes(self, user_id):
+        """Crear tareas automáticas para proyectos pendientes de presupuesto"""
+        try:
+            from datetime import date, timedelta
+
+            # Obtener proyectos en estado PENDIENTE_PRESUPUESTO que tengan vendedor asignado
+            proyectos_pendientes = (db.session.query(Proyecto)
+                                   .filter_by(estado_comercial=EstadoComercial.PENDIENTE_PRESUPUESTO, activo=True)
+                                   .filter(Proyecto.vendedor_id.isnot(None))
+                                   .all())
+
+            tareas_creadas = 0
+            tareas_existentes = 0
+
+            for proyecto in proyectos_pendientes:
+                # Verificar si ya existe una tarea pendiente para este proyecto
+                tarea_existente = (db.session.query(TareaComercial)
+                                 .filter_by(
+                                     proyecto_id=proyecto.id,
+                                     completada=False
+                                 )
+                                 .filter(TareaComercial.titulo.like('%presupuesto%'))
+                                 .first())
+
+                if not tarea_existente:
+                    # Crear nueva tarea
+                    tarea = TareaComercial()
+                    tarea.proyecto_id = proyecto.id
+                    tarea.vendedor_id = proyecto.vendedor_id
+                    tarea.titulo = "Crear presupuesto para proyecto"
+                    tarea.descripcion = f"Completar presupuesto para el proyecto '{proyecto.nombre}' del cliente {proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente'}"
+
+                    # Fecha límite: 3 días hábiles desde hoy
+                    fecha_limite = date.today()
+                    dias_agregados = 0
+                    while dias_agregados < 3:
+                        fecha_limite += timedelta(days=1)
+                        # Solo contar días laborables (lunes a viernes)
+                        if fecha_limite.weekday() < 5:  # 0=lunes, 6=domingo
+                            dias_agregados += 1
+
+                    tarea.fecha_limite = fecha_limite
+                    tarea.created_by = user_id
+
+                    db.session.add(tarea)
+                    tareas_creadas += 1
+                else:
+                    tareas_existentes += 1
+
+            db.session.commit()
+
+            return {
+                'success': True,
+                'message': f'Se crearon {tareas_creadas} tareas nuevas. {tareas_existentes} proyectos ya tenían tareas asignadas.',
+                'tareas_creadas': tareas_creadas,
+                'tareas_existentes': tareas_existentes,
+                'total_proyectos_pendientes': len(proyectos_pendientes)
+            }
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error creando tareas de presupuesto pendientes: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'tareas_creadas': 0,
+                'tareas_existentes': 0,
+                'total_proyectos_pendientes': 0
+            }
