@@ -183,13 +183,13 @@ class PermisosService:
                 'finanzas': ['lectura', 'creacion', 'edicion']
             },
             'mi_dashboard': {
-                'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
-                'general': ['lectura', 'creacion', 'edicion'],
+                'admin': ['lectura', 'creacion', 'edicion', 'eliminacion', 'mis_clientes', 'mis_proyectos', 'estadisticas'],
+                'general': ['lectura', 'creacion', 'edicion', 'mis_clientes', 'mis_proyectos', 'estadisticas'],
                 'ventas': ['lectura', 'creacion', 'edicion', 'mis_clientes', 'mis_proyectos', 'estadisticas'],
-                'operaciones': ['lectura', 'creacion', 'edicion'],
-                'produccion': ['lectura', 'creacion', 'edicion'],
-                'logistica': ['lectura', 'creacion', 'edicion'],
-                'finanzas': ['lectura', 'creacion', 'edicion']
+                'operaciones': [],
+                'produccion': [],
+                'logistica': [],
+                'finanzas': []
             },
             'planificacion': {
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],

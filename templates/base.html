@@ -260,8 +260,8 @@
                         </li>
                     {% endif %}
 
-                    <!-- Mi Dashboard (solo para ventas) -->
-                    {% if current_user.rol.value == 'ventas' %}
+                    <!-- Mi Dashboard (para ventas, admin y general) -->
+                    {% if current_user.rol.value in ['ventas', 'admin', 'general'] %}ue == 'ventas' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i data-feather="bar-chart-2" class="me-1"></i>

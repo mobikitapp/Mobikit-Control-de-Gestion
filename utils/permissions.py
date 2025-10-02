@@ -69,10 +69,10 @@ PERMISSIONS = {
     'areas.lectura': ['admin', 'general', 'operaciones', 'produccion'],
     
     # Dashboard Personal del Vendedor
-    'mi_dashboard.lectura': ['ventas'],
-    'mi_dashboard.mis_clientes': ['ventas'],
-    'mi_dashboard.mis_proyectos': ['ventas'],
-    'mi_dashboard.estadisticas': ['ventas'],
+    'mi_dashboard.lectura': ['admin', 'general', 'ventas'],
+    'mi_dashboard.mis_clientes': ['admin', 'general', 'ventas'],
+    'mi_dashboard.mis_proyectos': ['admin', 'general', 'ventas'],
+    'mi_dashboard.estadisticas': ['admin', 'general', 'ventas'],
 }
 
 # Mapa de sinónimos para compatibilidad con código antiguo
@@ -137,7 +137,8 @@ ROLE_PERMISSIONS = {
         'comercial.lectura', 'finanzas.lectura', 'finanzas.creacion', 'finanzas.edicion',
         'planificacion.lectura', 'planificacion.creacion', 'planificacion.edicion',
         'areas.lectura',
-        'configuraciones.lectura'  # Solo ver configuraciones, no editar
+        'configuraciones.lectura',  # Solo ver configuraciones, no editar
+        'mi_dashboard.lectura', 'mi_dashboard.mis_clientes', 'mi_dashboard.mis_proyectos', 'mi_dashboard.estadisticas'
     ],
     'ventas': [
         'clientes.lectura', 
