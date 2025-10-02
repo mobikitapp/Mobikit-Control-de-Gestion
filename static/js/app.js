@@ -366,31 +366,6 @@ const ManufacturingApp = {
                     </div>
                 </div>
             </div>
-        `;on>
-                                        <option value="ADJUDICADO" ${estadoActual === 'ADJUDICADO' ? 'selected' : ''}>Adjudicado</option>
-                                        <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
-                                        <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
-                                        <option value="PERDIDO" ${estadoActual === 'PERDIDO' ? 'selected' : ''}>Perdido</option>
-                                        <option value="ADJUDICADO" ${estadoActual === 'ADJUDICADO' ? 'selected' : ''}>Adjudicado</option>
-                                        <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
-                                        <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
-                                        <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
-                                        <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="observacion" class="form-label">Observación (opcional)</label>
-                                    <textarea class="form-control" id="observacion" rows="3" placeholder="Motivo del cambio de estado..."></textarea>
-                                </div>
-                            </form>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" class="btn btn-primary" onclick="ManufacturingApp.confirmarCambioEstado()">Cambiar Estado</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
         `;
 
         // Remove existing modal if any
@@ -446,6 +421,12 @@ const ManufacturingApp = {
             return;
         }
 
+        // Disable button during request
+        const submitBtn = document.querySelector('#cambiarEstadoModal .btn-primary');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Cambiando...';
+
         try {
             const response = await fetch(`/proyectos/${proyectoId}/cambiar-estado`, {
                 method: 'POST',
@@ -463,7 +444,10 @@ const ManufacturingApp = {
             if (data.success) {
                 this.showNotification('Estado actualizado correctamente', 'success');
                 // Close modal
-                bootstrap.Modal.getInstance(document.getElementById('cambiarEstadoModal')).hide();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('cambiarEstadoModal'));
+                if (modal) {
+                    modal.hide();
+                }
                 // Reload page to show changes
                 setTimeout(() => location.reload(), 1000);
             } else {
@@ -472,6 +456,10 @@ const ManufacturingApp = {
         } catch (error) {
             console.error('Error changing estado:', error);
             this.showNotification('Error en la comunicación con el servidor', 'danger');
+        } finally {
+            // Restore button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         }
     },
 

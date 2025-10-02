@@ -653,7 +653,9 @@
                                     {{ proyecto.estado_comercial.value.replace('_', ' ')|title if proyecto.estado_comercial else 'N/A' }}
                                 </span>
                                 {% if current_user.rol.value in ['admin', 'general', 'ventas', 'operaciones'] %}
-                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#modalCambiarEstado">
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2 change-estado-btn" 
+                                        data-proyecto-id="{{ proyecto.id }}" 
+                                        data-estado-actual="{{ proyecto.estado_comercial.value if proyecto.estado_comercial else '' }}">
                                     <i data-feather="edit-3" style="width: 14px; height: 14px;"></i>
                                 </button>
                                 {% endif %}
