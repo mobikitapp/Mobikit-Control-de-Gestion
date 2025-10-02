@@ -10,7 +10,7 @@ from services.clientes_service import ClientesService
 from schemas.proyectos import ProyectoCreate, ProyectoUpdate, ProyectoSearchFilters
 from schemas.bitacora import BitacoraProyectoCreate, BitacoraProyectoFilters
 from services.bitacora_service import bitacora_service
-from models import Cliente, Proyecto, Contrato, TipoDocumento, EstadoContrato, ProyectoAdjunto, TareaComercial, EstadoComercial
+from models import Cliente, Proyecto, Contrato, TipoDocumento, EstadoContrato, ProyectoAdjunto, TareaComercial, EstadoComercial, User
 import logging
 from datetime import datetime, date
 from decimal import Decimal
