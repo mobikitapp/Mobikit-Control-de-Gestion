@@ -121,6 +121,17 @@ def crear():
     try:
         # Validate form data
         form_data = request.form.to_dict()
+        
+        # Clean up empty UF fields to avoid validation errors
+        if 'valor_uf_conversion' in form_data and not form_data['valor_uf_conversion'].strip():
+            del form_data['valor_uf_conversion']
+        if 'fecha_conversion_uf' in form_data and not form_data['fecha_conversion_uf'].strip():
+            del form_data['fecha_conversion_uf']
+        if 'monto_total_uf' in form_data and not form_data['monto_total_uf'].strip():
+            del form_data['monto_total_uf']
+        if 'moneda_original' in form_data and not form_data['moneda_original'].strip():
+            del form_data['moneda_original']
+        
         contrato_data = ContratoCreate(**form_data)
 
         # Handle file uploads
@@ -147,21 +158,34 @@ def crear():
                 }
 
                 # Get hitos data
-                cantidad_hitos = int(form_data.get('cantidad_hitos', 2))
+                cantidad_hitos_str = form_data.get('cantidad_hitos', '2')
+                try:
+                    cantidad_hitos = int(cantidad_hitos_str) if cantidad_hitos_str else 2
+                except (ValueError, TypeError):
+                    cantidad_hitos = 2
+
                 hitos_data = []
 
                 for i in range(1, cantidad_hitos + 1):
-                    titulo = form_data.get(f'hito_titulo_{i}', '')
-                    fecha = form_data.get(f'hito_fecha_{i}', '')
-                    descripcion = form_data.get(f'hito_descripcion_{i}', '')
+                    titulo = form_data.get(f'hito_titulo_{i}', '').strip()
+                    fecha = form_data.get(f'hito_fecha_{i}', '').strip()
+                    descripcion = form_data.get(f'hito_descripcion_{i}', '').strip()
 
                     if titulo and fecha:
-                        hitos_data.append({
-                            'titulo': titulo,
-                            'descripcion': descripcion,
-                            'fecha_programada': fecha,
-                            'orden': i
-                        })
+                        try:
+                            # Validate date format
+                            from datetime import datetime
+                            datetime.strptime(fecha, '%Y-%m-%d')
+                            
+                            hitos_data.append({
+                                'titulo': titulo,
+                                'descripcion': descripcion,
+                                'fecha_programada': fecha,
+                                'orden': i
+                            })
+                        except ValueError:
+                            logger.warning(f"Fecha inválida para hito {i}: {fecha}")
+                            continue
 
                 if hitos_data:
                     # Create plan with hitos
@@ -263,7 +287,19 @@ def actualizar(contrato_id):
             return redirect(url_for('contratos.index'))
 
         # Validate form data
-        update_data = ContratoUpdate(**request.form.to_dict())
+        form_data = request.form.to_dict()
+        
+        # Clean up empty UF fields to avoid validation errors
+        if 'valor_uf_conversion' in form_data and not form_data['valor_uf_conversion'].strip():
+            del form_data['valor_uf_conversion']
+        if 'fecha_conversion_uf' in form_data and not form_data['fecha_conversion_uf'].strip():
+            del form_data['fecha_conversion_uf']
+        if 'monto_total_uf' in form_data and not form_data['monto_total_uf'].strip():
+            del form_data['monto_total_uf']
+        if 'moneda_original' in form_data and not form_data['moneda_original'].strip():
+            del form_data['moneda_original']
+            
+        update_data = ContratoUpdate(**form_data)
 
         # Update contrato
         contrato_actualizado = contratos_service.update_contrato(contrato_id, update_data.dict(exclude_unset=True))
