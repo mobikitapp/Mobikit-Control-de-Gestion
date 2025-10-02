@@ -60,7 +60,7 @@ class ProyectosService:
                 
                 # Store UF conversion metadata
                 proyecto_data['valor_uf_presupuesto'] = valor_uf_actual
-                proyecto_data['fecha_conversion_uf_presupuesto'] = date.today()
+                proyecto_data['fecha_conversion_presupuesto_uf'] = date.today()
                 
                 logger.info(f"Conversiones UF presupuesto: {'; '.join(conversiones_realizadas)} (UF: ${valor_uf_actual:,.2f})")
                 
