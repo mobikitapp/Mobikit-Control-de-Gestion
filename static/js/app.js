@@ -339,8 +339,34 @@ const ManufacturingApp = {
                                     <label for="nuevoEstado" class="form-label">Nuevo Estado</label>
                                     <select class="form-select" id="nuevoEstado" required>
                                         <option value="">Seleccione estado...</option>
-                                        <option value="PENDIENTE_PRESUPUESTO" ${estadoActual === 'PENDIENTE_PRESUPUESTO' ? 'selected' : ''}>Pendiente Presupuesto</option>
-                                        <option value="PRESUPUESTADO" ${estadoActual === 'PRESUPUESTADO' ? 'selected' : ''}>Presupuestado</option>
+                                        <option value="PENDIENTE_PRESUPUESTO">Pendiente Presupuesto</option>
+                                        <option value="PRESUPUESTADO">Presupuestado</option>
+                                        <option value="ADJUDICADO">Adjudicado</option>
+                                        <option value="EN_DESARROLLO">En Desarrollo</option>
+                                        <option value="TERMINADO">Terminado</option>
+                                        <option value="PERDIDO">Perdido</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="observacion" class="form-label">Observación (opcional)</label>
+                                    <textarea class="form-control" id="observacion" rows="3" maxlength="500" placeholder="Motivo o detalles del cambio de estado..."></textarea>
+                                    <div class="form-text">
+                                        <span id="contadorCaracteres">0</span>/500 caracteres
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" onclick="ManufacturingApp.confirmarCambioEstado()">
+                                <i data-feather="check-circle" class="me-1"></i>
+                                Cambiar Estado
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;on>
                                         <option value="ADJUDICADO" ${estadoActual === 'ADJUDICADO' ? 'selected' : ''}>Adjudicado</option>
                                         <option value="EN_DESARROLLO" ${estadoActual === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
                                         <option value="TERMINADO" ${estadoActual === 'TERMINADO' ? 'selected' : ''}>Terminado</option>
@@ -375,6 +401,34 @@ const ManufacturingApp = {
 
         // Add modal to DOM
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Set current estado and add event listeners
+        const selectEstado = document.getElementById('nuevoEstado');
+        if (estadoActual) {
+            selectEstado.value = estadoActual;
+        }
+
+        // Add character counter for observacion
+        const observacionTextarea = document.getElementById('observacion');
+        const contadorCaracteres = document.getElementById('contadorCaracteres');
+        
+        observacionTextarea.addEventListener('input', function() {
+            const currentLength = this.value.length;
+            contadorCaracteres.textContent = currentLength;
+            
+            if (currentLength > 450) {
+                contadorCaracteres.className = 'text-warning';
+            } else if (currentLength === 500) {
+                contadorCaracteres.className = 'text-danger';
+            } else {
+                contadorCaracteres.className = '';
+            }
+        });
+
+        // Replace feather icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
 
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('cambiarEstadoModal'));
