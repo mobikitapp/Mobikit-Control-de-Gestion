@@ -134,32 +134,29 @@ class DashboardVendedorService:
 
             resultado = []
             for proyecto in proyectos:
-                # Calcular progreso basado en órdenes de fabricación si existen
+                # Calcular progreso basado en porcentaje de facturación
                 try:
-                    total_ofs = db.session.query(OrdenFabricacion).filter(
-                        OrdenFabricacion.proyecto_id == proyecto.id
-                    ).count()
-
-                    ofs_completadas = db.session.query(OrdenFabricacion).filter(
-                        OrdenFabricacion.proyecto_id == proyecto.id,
-                        OrdenFabricacion.estado_fabricacion == 'TERMINADO'
-                    ).count()
-
-                    progreso = (ofs_completadas / total_ofs * 100) if total_ofs > 0 else 0
-                except:
-                    # Si hay error con las órdenes de fabricación, usar progreso basado en estado
+                    from services.finanzas_service import FinanzasService
+                    finanzas_service = FinanzasService()
+                    
+                    # Obtener totales dinámicos del proyecto
+                    totales = finanzas_service.get_totales_proyecto_dinamicos(proyecto.id)
+                    progreso_facturacion = totales.get('avance_facturacion', 0)
+                except Exception as e:
+                    print(f"Error calculando porcentaje facturación para proyecto {proyecto.id}: {str(e)}")
+                    # Si hay error con el cálculo de facturación, usar progreso basado en estado
                     if proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO:
-                        progreso = 25
+                        progreso_facturacion = 0
                     elif proyecto.estado_comercial == EstadoComercial.ADJUDICADO:
-                        progreso = 50
+                        progreso_facturacion = 0
                     else:
-                        progreso = 0
+                        progreso_facturacion = 0
 
                 resultado.append({
                     'nombre': proyecto.nombre,
                     'cliente': proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente',
                     'estado': proyecto.estado_comercial.value,
-                    'progreso': round(progreso)
+                    'progreso': round(progreso_facturacion)
                 })
 
             return resultado
