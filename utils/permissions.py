@@ -66,7 +66,7 @@ PERMISSIONS = {
     'planificacion.edicion': ['admin', 'general'],
     
     # Áreas
-    'areas.lectura': ['admin', 'general', 'operaciones', 'produccion'],
+    'areas.lectura': ['admin', 'general', 'operaciones', 'produccion', 'logistica'],
     
     # Dashboard Personal del Vendedor
     'mi_dashboard.lectura': ['admin', 'general', 'ventas'],
@@ -162,7 +162,8 @@ ROLE_PERMISSIONS = {
     ],
     'logistica': [
         'contratos.lectura', 
-        'despachos.lectura', 'despachos.creacion', 'despachos.edicion', 'despachos.proceso'
+        'despachos.lectura', 'despachos.creacion', 'despachos.edicion', 'despachos.proceso',
+        'areas.lectura'
     ],
     'finanzas': [
         'clientes.lectura', 
