@@ -1462,74 +1462,110 @@
                 {% elif modulo_activo == 'configuraciones' %}
                     <div class="modulo-header">
                         <h2><i class="fas fa-cog me-3"></i>Configuraciones del Sistema</h2>
-                        <p>Administración y configuración general</p>
+                        <p>Administración de usuarios, roles y permisos</p>
                     </div>
                     
-                    <div class="badge-modulo">Módulo 14</div>
+                    <div class="badge-modulo">Módulo 13</div>
                     
-                    <h3>Panel de Administración</h3>
-                    <p class="lead">Solo los usuarios con rol de administrador pueden acceder a estas configuraciones críticas del sistema.</p>
+                    <h3>Dashboard de Configuraciones</h3>
+                    <p class="lead">Panel de control para administradores que muestra estadísticas del sistema y gestión de usuarios.</p>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-chart-pie me-2"></i>Estadísticas del Sistema</h4>
+                        <p>Vista general del sistema:</p>
+                        <ul>
+                            <li><strong>Total de Usuarios:</strong> Cantidad total en el sistema</li>
+                            <li><strong>Usuarios Activos/Inactivos:</strong> Distribución por estado</li>
+                            <li><strong>Usuarios por Rol:</strong> Desglose por tipo de usuario</li>
+                            <li><strong>Usuarios Recientes:</strong> Registrados en el último mes</li>
+                            <li><strong>Porcentaje de Actividad:</strong> Indicador de usuarios activos</li>
+                        </ul>
+                    </div>
                     
                     <div class="proceso-step">
                         <h4><i class="fas fa-users me-2"></i>Gestión de Usuarios</h4>
-                        <p>Control completo de usuarios del sistema:</p>
+                        <p>Administración completa del equipo:</p>
                         <ul>
-                            <li><strong>Crear Usuarios:</strong> Registro de nuevos miembros del equipo</li>
-                            <li><strong>Asignar Roles:</strong> Admin, General, Ventas, Operaciones, etc.</li>
-                            <li><strong>Estado del Usuario:</strong> Activar/desactivar accesos</li>
-                            <li><strong>Información Personal:</strong> Datos de contacto y perfil</li>
+                            <li><strong>Lista de Usuarios:</strong> Visualización con filtros por rol, estado y búsqueda por nombre/email</li>
+                            <li><strong>Crear Usuario:</strong> Registro con email, nombre, teléfono, rol y contraseña temporal</li>
+                            <li><strong>Editar Usuario:</strong> Modificar datos de contacto, rol y estado</li>
+                            <li><strong>Activar/Desactivar:</strong> Control de acceso sin eliminar el usuario</li>
+                            <li><strong>Resetear Contraseña:</strong> Genera contraseña temporal que debe cambiarse en el primer login</li>
+                            <li><strong>Eliminar Usuario:</strong> Eliminación permanente del registro</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-shield-alt me-2"></i>Roles y Permisos</h4>
-                        <p>El sistema maneja diferentes niveles de acceso:</p>
-                        <ul>
-                            <li><strong>Admin:</strong> Acceso total al sistema</li>
-                            <li><strong>General:</strong> Acceso a la mayoría de módulos</li>
-                            <li><strong>Ventas:</strong> Enfoque en clientes, proyectos y comercial</li>
-                            <li><strong>Operaciones:</strong> Producción, fabricación y despachos</li>
-                            <li><strong>Producción:</strong> Áreas productivas específicamente</li>
-                            <li><strong>Logística:</strong> Enfoque en despachos y distribución</li>
-                        </ul>
+                        <h4><i class="fas fa-user-tag me-2"></i>Roles del Sistema</h4>
+                        <p>Roles disponibles en el sistema:</p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <ul>
+                                    <li><strong>Admin:</strong> Acceso completo al sistema</li>
+                                    <li><strong>General:</strong> Acceso amplio a la mayoría de módulos</li>
+                                    <li><strong>Sales (Ventas):</strong> Enfoque en clientes, proyectos y comercial</li>
+                                    <li><strong>Operations (Operaciones):</strong> Gestión de producción y fabricación</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul>
+                                    <li><strong>Production (Producción):</strong> Áreas productivas y órdenes de fabricación</li>
+                                    <li><strong>Logistics (Logística):</strong> Despachos y distribución</li>
+                                    <li><strong>Finance (Finanzas):</strong> Módulos financieros y tesorería</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="proceso-step">
-                        <h4><i class="fas fa-percent me-2"></i>Configuración de Comisiones</h4>
-                        <p>Para el módulo comercial:</p>
+                        <h4><i class="fas fa-shield-alt me-2"></i>Sistema de Permisos Dinámico</h4>
+                        <p>Gestión granular de permisos por rol:</p>
                         <ul>
-                            <li>Porcentajes de comisión por vendedor</li>
-                            <li>Escalas según volumen de ventas</li>
-                            <li>Configuración de bonificaciones</li>
-                            <li>Períodos de cálculo</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="proceso-step">
-                        <h4><i class="fas fa-tools me-2"></i>Configuración del Sistema</h4>
-                        <p>Parámetros generales del sistema:</p>
-                        <ul>
-                            <li>Configuraciones de la empresa</li>
-                            <li>Parámetros de cálculo</li>
-                            <li>Formatos de documentos</li>
-                            <li>Integraciones externas</li>
+                            <li><strong>Permisos por Módulo:</strong> Control de acceso a Clientes, Proyectos, Contratos, Fabricación, Despachos, Comercial, Mi Dashboard, Planificación, Configuraciones, Finanzas</li>
+                            <li><strong>Acciones Controladas:</strong> Read (Leer), Create (Crear), Edit (Editar), Delete (Eliminar)</li>
+                            <li><strong>Configuración por Rol:</strong> Cada rol tiene permisos específicos configurables</li>
+                            <li><strong>Vista de Permisos:</strong> Visualización de todos los roles y sus permisos asignados</li>
+                            <li><strong>Edición de Permisos:</strong> Modificación de permisos específicos por rol</li>
+                            <li><strong>Reset a Valores Por Defecto:</strong> Restaurar permisos originales del sistema</li>
+                            <li><strong>Sincronización:</strong> Actualizar permisos al agregar nuevos módulos</li>
                         </ul>
                     </div>
                     
                     <div class="proceso-step">
                         <h4><i class="fas fa-history me-2"></i>Auditoría de Permisos</h4>
-                        <p>Seguimiento de actividad:</p>
+                        <p>Trazabilidad completa de cambios de seguridad:</p>
                         <ul>
-                            <li>Registro de cambios en permisos</li>
-                            <li>Historial de accesos</li>
-                            <li>Actividades de usuarios</li>
-                            <li>Logs de seguridad</li>
+                            <li><strong>Registro de Cambios:</strong> Todos los cambios en permisos quedan registrados</li>
+                            <li><strong>Información del Cambio:</strong> Quién realizó el cambio, cuándo y qué entidad fue afectada</li>
+                            <li><strong>Dirección IP:</strong> Registro de la IP desde donde se realizó el cambio</li>
+                            <li><strong>Historial Completo:</strong> Auditoría para cumplimiento y seguridad</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-cogs me-2"></i>Configuración del Sistema</h4>
+                        <p>Parámetros generales:</p>
+                        <ul>
+                            <li><strong>Timeout de Sesión:</strong> Tiempo de inactividad antes de cerrar sesión automáticamente</li>
+                            <li><strong>Intentos Máximos de Login:</strong> Límite de intentos fallidos de autenticación</li>
+                            <li><strong>Backup Automático:</strong> Estado del sistema de respaldo</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="proceso-step">
+                        <h4><i class="fas fa-bell me-2"></i>Gestión de Notificaciones</h4>
+                        <p>Preferencias de notificaciones por email:</p>
+                        <ul>
+                            <li><strong>Notificaciones Globales:</strong> Activar/desactivar emails del sistema</li>
+                            <li><strong>Tipos de Notificaciones:</strong> Nuevo proyecto, cambios de estado, tareas vencidas, despachos programados</li>
+                            <li><strong>Configuración por Usuario:</strong> Cada usuario puede personalizar sus preferencias</li>
+                            <li><strong>Notificaciones a Admins:</strong> El sistema envía alertas importantes automáticamente</li>
                         </ul>
                     </div>
                     
                     <div class="alert alert-tip">
-                        <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Seguridad</h5>
-                        Revisa regularmente los permisos de usuarios y mantén actualizada la información de contacto del equipo.
+                        <h5 class="alert-heading"><i class="fas fa-user-shield me-2"></i>Seguridad</h5>
+                        Revisa regularmente los permisos de usuarios en la Auditoría de Permisos. Mantén actualizados los datos de contacto del equipo para que las notificaciones lleguen correctamente.
                     </div>
                     
                 {% elif modulo_activo == 'mejores-practicas' %}
