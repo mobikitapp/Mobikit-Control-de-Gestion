@@ -5,7 +5,7 @@ from sqlalchemy import and_, or_, func, desc, asc
 from models import (
     Cliente, Proyecto, Contrato, HitoEntrega, Despacho,
     OrdenFabricacion, DespachoOrdenFabricacion,
-    EstadoHitoEntrega, EstadoOF, EstadoBodega, TipoDespacho, Area, AreaEstado, OrdenAreaProgreso
+    EstadoHitoEntrega, EstadoOF, EstadoBodega, TipoDespacho, TipoArea, Area, AreaEstado, OrdenAreaProgreso
 )
 from schemas.despachos import (
     ClienteConProyectos, ProyectoConHitos, HitoEntregaDespacho,
