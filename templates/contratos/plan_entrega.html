@@ -243,7 +243,14 @@
     </div>
 
     <!-- Modal Agregar Hito -->
-                <form method="POST" action="{{ url_for('contratos.agregar_hito', plan_id=plan.id) }}" id="formAgregarHito">
+    <div class="modal fade" id="modalAgregarHito" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Agregar Nuevo Hito</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{{ url_for('contratos.agregar_hito', plan_id=plan.id) }}" method="POST">
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="titulo" class="form-label">Título del Hito <span class="text-danger">*</span></label>
@@ -344,7 +351,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const button = event.relatedTarget;
             const hitoId = button.getAttribute('data-hito-id');
             const hitoTitulo = button.getAttribute('data-hito-titulo');
-
+            
             document.getElementById('hitoTitulo').textContent = hitoTitulo;
             document.getElementById('formCompletarHito').action = 
                 '{{ url_for("contratos.completar_hito", hito_id=0) }}'.replace('0', hitoId);

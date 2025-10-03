@@ -481,9 +481,7 @@ def plan_entrega(contrato_id):
         estadisticas = None
 
         if plan:
-            # Force refresh from database
-            db.session.refresh(plan)
-            estadisticas = planes_entrega_service.get_estadisticas_plan(plan.id)</old_str>
+            estadisticas = planes_entrega_service.get_estadisticas_plan(plan.id)
 
         return render_template('contratos/plan_entrega.html',
                              contrato=contrato,
@@ -644,12 +642,8 @@ def agregar_hito(plan_id):
 
         # Get contrato_id for redirect
         plan = planes_entrega_service.get_plan_by_id(plan_id)
-        response = redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
-        # Add cache control headers to prevent caching issues
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response</old_str></old_str>
+        return redirect(url_for('contratos.plan_entrega',
+                              contrato_id=plan.contrato_id))
 
     except Exception as e:
         logger.error(f"Error agregando hito al plan {plan_id}: {str(e)}")
