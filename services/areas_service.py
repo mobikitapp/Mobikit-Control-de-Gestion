@@ -1,6 +1,7 @@
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta, date
 import logging
+from sqlalchemy.orm import joinedload
 
 from app import db
 from models import (
