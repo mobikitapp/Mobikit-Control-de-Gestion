@@ -112,12 +112,12 @@
     .table td:nth-child(3) {
         max-width: 150px;
     }
-    
+
     .table th:nth-child(4),
     .table td:nth-child(4) {
         max-width: 120px;
     }
-    
+
     .badge {
         font-size: 0.7em;
         padding: 0.3em 0.5em;
@@ -128,27 +128,27 @@
     .table {
         font-size: 0.9rem;
     }
-    
+
     .table th,
     .table td {
         padding: 0.5rem 0.25rem;
     }
-    
+
     .table th:nth-child(2),
     .table td:nth-child(2) {
         max-width: 180px;
     }
-    
+
     .table th:nth-child(3),
     .table td:nth-child(3) {
         max-width: 120px;
     }
-    
+
     .table th:nth-child(4),
     .table td:nth-child(4) {
         max-width: 100px;
     }
-    
+
     .badge {
         font-size: 0.65em;
         padding: 0.25em 0.4em;
@@ -159,18 +159,18 @@
     .table-responsive {
         font-size: 0.8rem;
     }
-    
+
     .table th,
     .table td {
         padding: 0.4rem 0.2rem;
     }
-    
+
     .badge {
         font-size: 0.6em;
         padding: 0.2em 0.3em;
         max-width: 80px;
     }
-    
+
     .btn-group-sm .btn {
         padding: 0.25rem 0.3rem;
         font-size: 0.7rem;
@@ -307,6 +307,11 @@
                                         <a href="{{ url_for('areas.area_tv_display', area_id=area_data.area.id) }}" 
                                            class="btn btn-outline-success btn-sm" target="_blank">
                                             <i class="fas fa-tv"></i> Vista TV
+                                        </a>
+                                        <!-- Vista General Button -->
+                                        <a href="{{ url_for('areas.vista_general', area_id=area_data.area.id) }}" 
+                                           class="btn btn-outline-info btn-sm" target="_blank">
+                                            <i class="fas fa-list"></i> Vista General
                                         </a>
                                     </div>
                                 </div>

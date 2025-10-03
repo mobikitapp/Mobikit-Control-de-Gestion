@@ -730,3 +730,74 @@ class AreasService:
         except Exception as e:
             logger.error(f"Error getting next action description for OF {of_id}: {str(e)}")
             return "Avanzar"
+
+    def get_all_orders_by_delivery_date(self) -> List[Dict[str, Any]]:
+        """
+        Get all active orders from all areas ordered by delivery date
+        """
+        try:
+            # Get all active orders from all areas
+            all_orders = (db.session.query(OrdenAreaProgreso)
+                         .options(
+                             joinedload(OrdenAreaProgreso.orden_fabricacion)
+                             .joinedload(OrdenFabricacion.proyecto)
+                             .joinedload(Proyecto.cliente),
+                             joinedload(OrdenAreaProgreso.area),
+                             joinedload(OrdenAreaProgreso.estado),
+                             joinedload(OrdenAreaProgreso.responsable_user)
+                         )
+                         .filter_by(es_actual=True, archivado=False)
+                         .all())
+
+            formatted_orders = []
+            for progreso in all_orders:
+                of = progreso.orden_fabricacion
+                
+                # Get dynamic delivery date
+                fecha_entrega_dinamica = self.get_dynamic_delivery_date(of)
+                
+                formatted_order = {
+                    'id': of.id,
+                    'codigo': of.codigo,
+                    'proyecto_nombre': of.proyecto.nombre,
+                    'cliente_nombre': of.proyecto.cliente.nombre,
+                    'glosa': of.glosa or 'Sin glosa especificada',
+                    'contrato_id': of.contrato_id,
+                    'fecha_entrega_dinamica': fecha_entrega_dinamica,
+                    'fecha_entrega_fabrica': of.fecha_entrega_fabrica,
+                    'fecha_entrega_embalaje': of.fecha_entrega_embalaje,
+                    'fecha_ingreso_area': progreso.fecha_ingreso_area,
+                    'fecha_cambio_estado': progreso.fecha_cambio_estado,
+                    'tiempo_estimado_horas': float(progreso.tiempo_estimado_horas) if progreso.tiempo_estimado_horas else None,
+                    'responsable_nombre': progreso.responsable_user.nombre_completo if progreso.responsable_user else None,
+                    'next_action_description': self.get_next_action_description(of.id),
+                    'prioridad': of.prioridad.value if of.prioridad else 'media',
+                    'prioridad_numerica': of.prioridad_numerica or 3,
+                    'area': {
+                        'id': progreso.area.id,
+                        'nombre': progreso.area.nombre,
+                        'tipo': progreso.area.tipo.value,
+                        'color_hex': progreso.area.color_hex,
+                        'orden_secuencia': progreso.area.orden_secuencia
+                    },
+                    'estado': {
+                        'id': progreso.estado.id,
+                        'nombre': progreso.estado.nombre,
+                        'codigo': progreso.estado.codigo,
+                        'color_hex': progreso.estado.color_hex,
+                        'es_final': progreso.estado.es_final
+                    }
+                }
+                formatted_orders.append(formatted_order)
+
+            # Sort by priority first, then by delivery date
+            formatted_orders.sort(key=lambda x: (
+                x['prioridad_numerica'],  # Lower number = higher priority
+                x['fecha_entrega_dinamica'] or datetime(2099, 12, 31).date()  # Nulls last
+            ))
+
+            return formatted_orders
+
+        except Exception as e:
+            logger.error(f"Error obteniendo todas las órdenes por fecha de entrega: {str(e)}")
+            raise

@@ -590,6 +590,31 @@ def area_tv_display(area_id):
         flash('Error cargando display de área', 'error')
         return redirect(url_for('areas.dashboard'))
 
+@areas_bp.route('/vista-general')
+@login_required
+@role_required(['admin', 'general', 'operaciones', 'produccion', 'logistica'])
+def vista_general():
+    """Vista general de todas las órdenes de fabricación ordenadas por fecha de entrega"""
+    try:
+        # Get all active orders from all areas
+        todas_ordenes = areas_service.get_all_orders_by_delivery_date()
+        
+        # Get users for responsable assignment
+        users = User.query.filter_by(activo=True).all()
+
+        return render_template(
+            'areas/vista_general.html',
+            ordenes=todas_ordenes,
+            users=users,
+            title='Vista General de Órdenes'
+        )
+
+    except Exception as e:
+        logger.error(f"Error en vista general: {str(e)}")
+        flash('Error cargando la vista general', 'error')
+        return redirect(url_for('areas.dashboard'))
+
+
 @areas_bp.route('/api/', methods=['GET'])
 def api_areas():
     """API endpoint principal para áreas - usado en tests"""
