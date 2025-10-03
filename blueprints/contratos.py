@@ -433,19 +433,47 @@ def cambiar_estado(contrato_id):
 def subir_adjunto(contrato_id):
     """Subir nuevo adjunto al contrato"""
     try:
+        # Verificar que el contrato existe
+        contrato = contratos_service.get_contrato_by_id(contrato_id)
+        if not contrato:
+            flash('Contrato no encontrado', 'error')
+            return redirect(url_for('contratos.index'))
+
         archivo = request.files.get('archivo')
         tipo = request.form.get('tipo', 'contrato')
+
+        logger.info(f"Attempting to upload file for contract {contrato_id}. File: {archivo.filename if archivo else 'None'}")
 
         if not archivo or not archivo.filename:
             flash('Archivo requerido', 'error')
             return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
+        # Log file details
+        logger.info(f"File details - Name: {archivo.filename}, Content-Type: {archivo.content_type}, Size: {archivo.content_length}")
+
+        # Validate file before processing
+        from services.storage_service import StorageService
+        storage_service = StorageService()
+        is_valid, error_msg = storage_service.validate_file_upload(archivo)
+        
+        if not is_valid:
+            logger.warning(f"File validation failed: {error_msg}")
+            flash(f'Archivo inválido: {error_msg}', 'error')
+            return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
+
         adjunto = contratos_service.add_contract_attachment(contrato_id, archivo, tipo, current_user.id)
-        flash('Archivo subido exitosamente', 'success')
+        
+        if adjunto:
+            logger.info(f"File uploaded successfully: {adjunto.filename} for contract {contrato_id}")
+            flash('Archivo subido exitosamente', 'success')
+        else:
+            logger.error(f"Failed to create attachment record for contract {contrato_id}")
+            flash('Error al registrar archivo', 'error')
 
     except Exception as e:
         logger.error(f"Error subiendo adjunto a contrato {contrato_id}: {str(e)}")
-        flash('Error al subir archivo', 'error')
+        logger.exception("Full traceback for file upload error:")
+        flash(f'Error al subir archivo: {str(e)}', 'error')
 
     return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
@@ -782,6 +810,60 @@ def api_users_active():
     except Exception as e:
         logger.error(f"Error en API usuarios activos: {str(e)}")
         return jsonify({'error': 'Error cargando usuarios'}), 500
+
+@contratos_bp.route('/api/test-storage', methods=['GET'])
+@require_role(RolUsuario.ADMIN)
+def api_test_storage():
+    """Test storage system functionality"""
+    try:
+        from services.storage_service import StorageService
+        from adapters.storage_adapter import StorageAdapter
+        import tempfile
+        import os
+        
+        storage_service = StorageService()
+        adapter = StorageAdapter()
+        
+        # Create a test file
+        test_content = b"Test file content for storage verification"
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.txt') as temp_file:
+            temp_file.write(test_content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Test upload
+            with open(temp_file_path, 'rb') as f:
+                storage_key = adapter.put_file(f, 'test/storage-test.txt', 'text/plain', 'test.txt')
+            
+            # Test file exists
+            exists = adapter.file_exists(storage_key)
+            
+            # Clean up
+            adapter.delete_file(storage_key)
+            os.unlink(temp_file_path)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Storage system is working correctly',
+                'details': {
+                    'upload_successful': True,
+                    'file_exists_check': exists,
+                    'storage_key': storage_key
+                }
+            })
+            
+        except Exception as e:
+            # Clean up on error
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+            raise e
+            
+    except Exception as e:
+        logger.error(f"Storage test failed: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Storage test failed: {str(e)}'
+        }), 500
 
 @contratos_bp.route('/api/sincronizar-eventos-calendario', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)

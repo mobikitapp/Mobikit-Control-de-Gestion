@@ -285,31 +285,59 @@
                 <h5 class="modal-title">Subir Archivo</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('contratos.subir_adjunto', contrato_id=contrato.id) }}" enctype="multipart/form-data">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="archivo" class="form-label">Archivo</label>
-                        <input type="file" class="form-control" id="archivo" name="archivo" required
-                               accept=".pdf,.jpg,.jpeg,.png">
-                        <div class="form-text">Máximo 25MB. Formatos: PDF, JPG, PNG</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="tipo" class="form-label">Tipo de Archivo</label>
-                        <select class="form-select" id="tipo" name="tipo">
-                            <option value="contrato">Contrato</option>
-                            <option value="plano">Plano</option>
-                            <option value="especificacion">Especificación</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i data-feather="upload" class="me-2"></i>
-                        Subir Archivo
-                    </button>
-                </div>
-            </form>
+            <form method="POST" action="{{ url_for('contratos.subir_adjunto', contrato_id=contrato.id) }}" 
+                                          enctype="multipart/form-data" class="mb-3" id="upload-form">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <input type="file" class="form-control" name="archivo" required
+                                                       accept=".pdf,.png,.jpg,.jpeg" id="file-input">
+                                                <div class="form-text">Formatos: PDF, PNG, JPG. Máximo 25MB</div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <select name="tipo" class="form-select">
+                                                    <option value="contrato">Contrato</option>
+                                                    <option value="oc">Orden de Compra</option>
+                                                    <option value="anexo">Anexo</option>
+                                                    <option value="otro">Otro</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <button type="submit" class="btn btn-primary" id="upload-btn">
+                                                    <i data-feather="upload"></i> Subir
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div id="upload-progress" class="mt-2" style="display: none;">
+                                            <div class="progress">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                                     role="progressbar" style="width: 100%"></div>
+                                            </div>
+                                            <small class="text-muted">Subiendo archivo...</small>
+                                        </div>
+                                    </form>
+
+                                    <script>
+                                        document.getElementById('upload-form').addEventListener('submit', function(e) {
+                                            const fileInput = document.getElementById('file-input');
+                                            const uploadBtn = document.getElementById('upload-btn');
+                                            const uploadProgress = document.getElementById('upload-progress');
+
+                                            if (fileInput.files[0]) {
+                                                const file = fileInput.files[0];
+                                                const maxSize = 25 * 1024 * 1024; // 25MB
+
+                                                if (file.size > maxSize) {
+                                                    e.preventDefault();
+                                                    alert('El archivo es demasiado grande. Máximo 25MB permitido.');
+                                                    return;
+                                                }
+
+                                                // Show progress
+                                                uploadBtn.disabled = true;
+                                                uploadProgress.style.display = 'block';
+                                            }
+                                        });
+                                    </script>
         </div>
     </div>
 </div>

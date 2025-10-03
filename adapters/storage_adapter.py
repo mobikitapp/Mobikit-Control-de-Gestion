@@ -199,24 +199,52 @@ class StorageAdapter:
         Returns:
             Tuple of (is_valid, error_message)
         """
-        if allowed_mimes is None:
-            allowed_mimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
-        
-        # Check file size
-        file_stream.seek(0, 2)  # Go to end
-        size_bytes = file_stream.tell()
-        file_stream.seek(0)  # Reset to beginning
-        
-        max_size_bytes = max_size_mb * 1024 * 1024
-        if size_bytes > max_size_bytes:
-            return False, f"File size ({size_bytes / 1024 / 1024:.1f}MB) exceeds maximum allowed ({max_size_mb}MB)"
-        
-        # Check MIME type
-        content_type, _ = mimetypes.guess_type(filename)
-        if content_type not in allowed_mimes:
-            return False, f"File type '{content_type}' not allowed. Allowed types: {', '.join(allowed_mimes)}"
-        
-        return True, ""
+        try:
+            if allowed_mimes is None:
+                allowed_mimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
+            
+            # Check if filename is valid
+            if not filename or not filename.strip():
+                return False, "Filename is required"
+            
+            # Check file size
+            try:
+                file_stream.seek(0, 2)  # Go to end
+                size_bytes = file_stream.tell()
+                file_stream.seek(0)  # Reset to beginning
+            except Exception as e:
+                return False, f"Error reading file stream: {str(e)}"
+            
+            if size_bytes == 0:
+                return False, "File is empty"
+            
+            max_size_bytes = max_size_mb * 1024 * 1024
+            if size_bytes > max_size_bytes:
+                return False, f"File size ({size_bytes / 1024 / 1024:.1f}MB) exceeds maximum allowed ({max_size_mb}MB)"
+            
+            # Check MIME type
+            content_type, _ = mimetypes.guess_type(filename)
+            if content_type is None:
+                # Try to detect from file extension
+                ext = os.path.splitext(filename.lower())[1]
+                if ext == '.pdf':
+                    content_type = 'application/pdf'
+                elif ext in ['.jpg', '.jpeg']:
+                    content_type = 'image/jpeg'
+                elif ext == '.png':
+                    content_type = 'image/png'
+                else:
+                    return False, f"Unable to determine file type for '{filename}'"
+            
+            if content_type not in allowed_mimes:
+                return False, f"File type '{content_type}' not allowed. Allowed types: {', '.join(allowed_mimes)}"
+            
+            logger.info(f"File validation successful: {filename}, size: {size_bytes} bytes, type: {content_type}")
+            return True, ""
+            
+        except Exception as e:
+            logger.error(f"Error during file validation: {str(e)}")
+            return False, f"Validation error: {str(e)}"
 
     def _upload_to_replit_storage(self, file_path: str, storage_key: str) -> dict:
         """Upload file to Replit Object Storage using Node.js client"""
@@ -226,30 +254,56 @@ class StorageAdapter:
         
         async function upload() {{
             try {{
+                if (!fs.existsSync('{file_path}')) {{
+                    console.log(JSON.stringify({{ success: false, error: 'File does not exist' }}));
+                    return;
+                }}
+                
                 const client = new Client();
                 const fileContent = fs.readFileSync('{file_path}');
-                const {{ ok, error }} = await client.uploadFromBytes('{storage_key}', fileContent);
                 
-                if (ok) {{
+                console.error(`Uploading file of size: ${{fileContent.length}} bytes to ${{'{storage_key}'}}`);
+                
+                const result = await client.uploadFromBytes('{storage_key}', fileContent);
+                
+                if (result && result.ok) {{
                     console.log(JSON.stringify({{ success: true }}));
                 }} else {{
-                    console.log(JSON.stringify({{ success: false, error: error?.message || 'Upload failed' }}));
+                    const errorMsg = result?.error?.message || 'Upload failed - no error details';
+                    console.log(JSON.stringify({{ success: false, error: errorMsg }}));
                 }}
             }} catch (e) {{
-                console.log(JSON.stringify({{ success: false, error: e.message }}));
+                console.log(JSON.stringify({{ success: false, error: `Exception: ${{e.message}}` }}));
             }}
         }}
         
-        upload();
+        upload().catch(e => {{
+            console.log(JSON.stringify({{ success: false, error: `Promise rejection: ${{e.message}}` }}));
+        }});
         """
         
         try:
-            result = subprocess.run(['node', '-e', script], capture_output=True, text=True)
+            result = subprocess.run(['node', '-e', script], capture_output=True, text=True, timeout=30)
+            
+            logger.info(f"Node.js script stdout: {result.stdout}")
+            if result.stderr:
+                logger.warning(f"Node.js script stderr: {result.stderr}")
+            
             if result.stdout:
-                return json.loads(result.stdout)
+                try:
+                    return json.loads(result.stdout)
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON decode error: {e}, stdout: {result.stdout}")
+                    return {'success': False, 'error': f'Invalid JSON response: {result.stdout}'}
             else:
-                return {'success': False, 'error': f'No response from Node.js script. stderr: {result.stderr}'}
+                return {
+                    'success': False, 
+                    'error': f'No stdout from Node.js script. Return code: {result.returncode}, stderr: {result.stderr}'
+                }
+        except subprocess.TimeoutExpired:
+            return {'success': False, 'error': 'Upload timeout after 30 seconds'}
         except Exception as e:
+            logger.error(f"Script execution failed: {str(e)}")
             return {'success': False, 'error': f'Script execution failed: {str(e)}'}
 
     def _delete_from_replit_storage(self, storage_key: str) -> dict:
