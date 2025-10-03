@@ -51,22 +51,22 @@
                            class="btn btn-primary">
                             <i class="fas fa-calendar-week"></i> Semanal
                         </a>
-                        <a href="{{ url_for('calendario.vista_diaria', year=year, month=month, day=1) }}" 
+                        <a href="{{ url_for('calendario.vista_diaria', year=year, month=month, day=1) }}"
                            class="btn btn-outline-primary">
                             <i class="fas fa-calendar-day"></i> Diaria
                         </a>
                     </div>
-                    
+
                     <!-- Análisis Estratégico -->
                     <div class="mb-2">
                         <small class="text-muted">Análisis Estratégico:</small>
                     </div>
                     <div class="btn-group mb-3" role="group" aria-label="Análisis estratégico">
-                        <a href="{{ url_for('calendario.analisis_estrategico_mensual', year=year, month=month) }}" 
+                        <a href="{{ url_for('calendario.analisis_estrategico_mensual', year=year, month=month) }}"
                            class="btn btn-outline-success">
                             <i class="fas fa-chart-line"></i> Estratégico Mensual
                         </a>
-                        <a href="{{ url_for('calendario.analisis_estrategico_semanal', year=year, month=month, day=day) }}" 
+                        <a href="{{ url_for('calendario.analisis_estrategico_semanal', year=year, month=month, day=day) }}"
                            class="btn btn-outline-success">
                             <i class="fas fa-chart-bar"></i> Estratégico Semanal
                         </a>
@@ -181,7 +181,7 @@
                                                         <small class="fw-bold text-primary">{{ dia.despachos|length }} Despachos</small>
                                                     </div>
                                                     {% for despacho in dia.despachos %}
-                                                    <div class="card border-start border-{{ despacho.color }} border-3 mb-1" 
+                                                    <div class="card border-start border-{{ despacho.color }} border-3 mb-1"
                                                          style="border-left-width: 4px !important; cursor: pointer;"
                                                          onclick="window.location.href='{{ url_for('despachos.detalle', despacho_id=despacho.id) }}'">
                                                         <div class="card-body p-2 bg-light">
@@ -218,7 +218,16 @@
                                                                 {% if hito.plan_entrega %}{{ hito.plan_entrega }}{% endif %}
                                                                 {% if hito.contrato %}<br>OC: {{ hito.contrato }}{% endif %}
                                                             </div>
-                                                            <small class="badge bg-{{ hito.color }}">{{ hito.estado }}</small>
+                                                            <div class="mt-1">
+                                                                <span class="badge bg-info">Hito</span>
+                                                                <span class="badge bg-{{ 'success' if hito.estado == 'completado' else 'warning' }}">
+                                                                    {{ hito.estado|title }}
+                                                                </span>
+                                                                <a href="{{ url_for('contratos.plan_entrega', contrato_id=hito.contrato_id) if hito.contrato_id else '#' }}"
+                                                                   class="btn btn-sm btn-outline-primary ms-1">
+                                                                    <i class="fas fa-calendar-check"></i>
+                                                                </a>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     {% endfor %}

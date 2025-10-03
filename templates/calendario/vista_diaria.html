@@ -259,6 +259,26 @@
                             </div>
                         </div>
                     </div>
+                    <div class="mt-1">
+                        <span class="badge bg-success">
+                            <i class="fas fa-flag-checkered"></i>
+                            Hito de Entrega
+                        </span>
+                        <span class="badge
+                            {% if hito.estado == 'completado' %}bg-success
+                            {% elif hito.estado == 'atrasado' %}bg-danger
+                            {% else %}bg-warning text-dark{% endif %}">
+                            {{ hito.estado|title }}
+                        </span>
+                    </div>
+                    {% if hito.contrato %}
+                    <div class="mt-2">
+                        <a href="{{ url_for('contratos.plan_entrega', contrato_id=hito.contrato_id) if hito.contrato_id else '#' }}" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-calendar-check"></i> Ver Plan Completo
+                        </a>
+                    </div>
+                    {% endif %}
                     {% endfor %}
                 </div>
             </div>
@@ -445,12 +465,12 @@ document.addEventListener('DOMContentLoaded', function() {
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-    
+
     // Auto-refresh every 5 minutes
     setTimeout(function() {
         window.location.reload();
     }, 300000);
-    
+
     // Add click handlers for cards to show more details
     document.querySelectorAll('.card-body').forEach(function(card) {
         card.addEventListener('click', function(e) {

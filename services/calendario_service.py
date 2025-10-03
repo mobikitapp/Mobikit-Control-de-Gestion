@@ -185,6 +185,7 @@ class CalendarioService:
                     'estado': hito.estado.value,
                     'plan_entrega': hito.plan_entrega.nombre if hasattr(hito, 'plan_entrega') and hito.plan_entrega else 'Sin plan',
                     'contrato': hito.plan_entrega.contrato.numero_oc if hasattr(hito, 'plan_entrega') and hito.plan_entrega and hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato else 'Sin contrato',
+                    'contrato_id': hito.plan_entrega.contrato.id if hasattr(hito, 'plan_entrega') and hito.plan_entrega and hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato else None,
                     'color': self._get_color_hito(hito.estado)
                 })
 
@@ -310,6 +311,7 @@ class CalendarioService:
                 'estado': hito.estado.value,
                 'plan_entrega': hito.plan_entrega.nombre if hasattr(hito, 'plan_entrega') and hito.plan_entrega else 'Sin plan',
                 'contrato': contrato_numero,
+                'contrato_id': hito.plan_entrega.contrato.id if hasattr(hito, 'plan_entrega') and hito.plan_entrega and hasattr(hito.plan_entrega, 'contrato') and hito.plan_entrega.contrato else None,
                 'monto_total': monto_total,
                 'proyecto': proyecto_nombre,
                 'cliente': cliente_nombre,
@@ -620,7 +622,8 @@ class CalendarioService:
                 'proyecto': proyecto_nombre,
                 'cliente': cliente_nombre,
                 'plan_entrega': hito.plan_entrega.nombre if hito.plan_entrega else None,
-                'contrato': hito.plan_entrega.contrato.numero_oc if hito.plan_entrega and hito.plan_entrega.contrato else None
+                'contrato': hito.plan_entrega.contrato.numero_oc if hito.plan_entrega and hito.plan_entrega.contrato else None,
+                'contrato_id': hito.plan_entrega.contrato.id if hito.plan_entrega and hito.plan_entrega.contrato else None
             })
 
         return eventos_hitos

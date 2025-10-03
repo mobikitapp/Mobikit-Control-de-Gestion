@@ -54,7 +54,7 @@
                             <i class="fas fa-calendar-day"></i> Diaria
                         </a>
                     </div>
-                    
+
                     <!-- Análisis Estratégico -->
                     <div class="mb-2">
                         <small class="text-muted">Análisis Estratégico:</small>
@@ -69,7 +69,7 @@
                             <i class="fas fa-chart-bar"></i> Estratégico Semanal
                         </a>
                     </div>
-                    
+
                     <div>
                         <a href="{{ url_for('calendario.dashboard') }}" class="btn btn-outline-primary">
                             <i class="fas fa-chart-bar"></i> Dashboard
@@ -154,7 +154,7 @@
                                                 {% endif %}
                                             </div>
                                         </div>
-                                        
+
                                         <!-- Despachos for this day - Featured prominently -->
                                         {% if dia in despachos_por_dia %}
                                         <div class="day-dispatches">
@@ -171,7 +171,7 @@
                                                 </div>
                                             </div>
                                             {% endfor %}
-                                            
+
                                             {% if despachos_por_dia[dia]|length > 2 %}
                                             <div class="more-dispatches">
                                                 <small class="text-primary">+{{ despachos_por_dia[dia]|length - 2 }} más</small>
@@ -183,19 +183,55 @@
                                         <!-- Events for this day -->
                                         {% if dia in eventos_por_dia %}
                                         <div class="day-events">
-                                            {% for evento in eventos_por_dia[dia][:1] %}
-                                            <div class="event-item event-simplified" 
+                                            {% for evento in eventos_por_dia[dia] %}
+                                            {% if evento.tipo == 'hito' %}
+                                            <div class="evento-item hito-evento border-left-{{ evento.color }} p-2 mb-2 bg-light rounded" 
+                                                 style="cursor: pointer;"
+                                                 onclick="mostrarDetalleHito('{{ evento.id }}', '{{ evento.titulo|safe }}', '{{ evento.descripcion|safe if evento.descripcion else '' }}', '{{ evento.estado }}', '{{ evento.fecha_evento }}', '{{ evento.contrato|safe if evento.contrato else '' }}', '{{ evento.contrato_id if evento.contrato_id else '' }}', '{{ evento.plan_entrega|safe if evento.plan_entrega else '' }}')">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div class="flex-grow-1">
+                                                        <h6 class="mb-1">{{ evento.titulo }}</h6>
+                                                        <span class="badge bg-{{ evento.color }}">{{ evento.estado|title }}</span>
+                                                        {% if evento.proyecto %}
+                                                        <small class="text-muted">{{ evento.proyecto }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <i class="fas fa-eye text-muted"></i>
+                                                    </div>
+                                                </div>
+                                                {% if evento.plan_entrega %}
+                                                <small class="text-muted">Plan: {{ evento.plan_entrega }}</small>
+                                                {% endif %}
+                                                {% if evento.contrato %}
+                                                <small class="text-muted">OC: {{ evento.contrato }}</small>
+                                                {% endif %}
+                                                {% if evento.id and evento.id.startswith('hito_') %}
+                                                <div class="mt-1">
+                                                    <a href="{{ url_for('contratos.plan_entrega', contrato_id=evento.contrato_id) if evento.contrato_id else '#' }}" 
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-calendar-check"></i> Ver Plan Completo
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            {% else %}
+                                            <div class="event-item event-{{ evento.tipo }} p-1 mb-1 rounded {{ 'event-completado' if evento.estado == 'completado' else '' }} {{ 'event-cancelado' if evento.estado == 'cancelado' else '' }} {% if evento.prioridad == 'alta' %}event-priority-alta{% elif evento.prioridad == 'critica' %}event-priority-critica{% endif %}" 
                                                  data-bs-toggle="tooltip" 
-                                                 title="📅 {{ evento.titulo }}{% if evento.hora %} - {{ evento.hora }}{% endif %}">
+                                                 title="📅 {{ evento.titulo }}{% if evento.hora %} - {{ evento.hora }}{% endif %}{% if evento.proyecto %}&#10;📂 {{ evento.proyecto }}{% endif %}{% if evento.descripcion %}&#10;📝 {{ evento.descripcion }}{% endif %}">
                                                 <div class="event-content">
                                                     <small class="event-simple">📅 {{ evento.titulo[:15] }}{% if evento.titulo|length > 15 %}...{% endif %}</small>
+                                                    {% if evento.hora %}
+                                                    <small class="event-time">{{ evento.hora }}</small>
+                                                    {% endif %}
                                                 </div>
                                             </div>
+                                            {% endif %}
                                             {% endfor %}
-                                            
-                                            {% if eventos_por_dia[dia]|length > 1 %}
+
+                                            {% if eventos_por_dia[dia]|length > (eventos_por_dia[dia]|selectattr('tipo', 'equalto', 'hito')|list|length) %}
                                             <div class="more-events">
-                                                <small class="text-muted">+{{ eventos_por_dia[dia]|length - 1 }} eventos</small>
+                                                <small class="text-muted">+{{ eventos_por_dia[dia]|length - (eventos_por_dia[dia]|selectattr('tipo', 'equalto', 'hito')|list|length) }} eventos</small>
                                             </div>
                                             {% endif %}
                                         </div>
@@ -436,17 +472,48 @@
         height: 80px;
         padding: 4px;
     }
-    
+
     .event-item {
         font-size: 0.65rem;
         padding: 1px 2px;
     }
-    
+
     .day-events {
         max-height: 50px;
     }
 }
 </style>
+
+<!-- Modal for Hito Details -->
+<div class="modal fade" id="hitoDetailModal" tabindex="-1" aria-labelledby="hitoDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="hitoDetailModalLabel">Detalle de Hito</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <h4 id="modal-hito-titulo"></h4>
+        <p id="modal-hito-fecha"></p>
+        <p id="modal-hito-estado" class="badge"></p>
+        <hr>
+        <h5>Descripción</h5>
+        <p id="modal-hito-descripcion"></p>
+        <hr>
+        <h5>Detalles Adicionales</h5>
+        <p><strong>Proyecto:</strong> <span id="modal-hito-proyecto"></span></p>
+        <p><strong>Contrato/OC:</strong> <span id="modal-hito-contrato"></span></p>
+        <p><strong>Plan de Entrega:</strong> <span id="modal-hito-plan-entrega"></span></p>
+        <div class="mt-3" id="modal-hito-plan-link-container">
+            <!-- Link to full plan will be added here if available -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -455,9 +522,9 @@ document.addEventListener('DOMContentLoaded', function() {
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-    
-    // Event item click handlers
-    document.querySelectorAll('.event-item').forEach(function(eventElement) {
+
+    // Event item click handlers (for non-hito events)
+    document.querySelectorAll('.event-item:not(.hito-evento)').forEach(function(eventElement) {
         eventElement.addEventListener('click', function() {
             // Here you could open a modal or navigate to event details
             console.log('Event clicked:', this.dataset.eventId);
@@ -469,5 +536,48 @@ document.addEventListener('DOMContentLoaded', function() {
 function getCurrentDate() {
     return new Date();
 }
+
+// Function to show Hito Detail Modal
+function mostrarDetalleHito(id, titulo, descripcion, estado, fecha, contrato, contrato_id, plan_entrega) {
+    document.getElementById('modal-hito-titulo').innerText = titulo;
+    document.getElementById('modal-hito-descripcion').innerText = descripcion || 'No hay descripción disponible.';
+    document.getElementById('modal-hito-fecha').innerText = fecha;
+
+    // Set badge for status
+    const statusBadge = document.getElementById('modal-hito-estado');
+    statusBadge.innerText = estado.charAt(0).toUpperCase() + estado.slice(1);
+    statusBadge.className = 'badge bg-' + getStatusColorClass(estado); // Assuming a helper function getStatusColorClass exists or define it here
+
+    document.getElementById('modal-hito-contrato').innerText = contrato || 'N/A';
+    document.getElementById('modal-hito-plan-entrega').innerText = plan_entrega || 'N/A';
+
+    // Dynamically add link to full delivery plan if contrato_id is available
+    const planLinkContainer = document.getElementById('modal-hito-plan-link-container');
+    planLinkContainer.innerHTML = ''; // Clear previous content
+    if (contrato_id) {
+        const planLink = document.createElement('a');
+        planLink.href = "{{ url_for('contratos.plan_entrega', contrato_id='REPLACE_ID') }}".replace('REPLACE_ID', contrato_id);
+        planLink.className = 'btn btn-sm btn-outline-primary';
+        planLink.innerHTML = '<i class="fas fa-calendar-check"></i> Ver Plan Completo';
+        planLinkContainer.appendChild(planLink);
+    }
+
+    var hitoModal = new bootstrap.Modal(document.getElementById('hitoDetailModal'));
+    hitoModal.show();
+}
+
+// Helper function to map status to Bootstrap badge color
+function getStatusColorClass(estado) {
+    switch(estado.toLowerCase()) {
+        case 'programado': return 'warning';
+        case 'en_transito': return 'info';
+        case 'entregado': return 'success';
+        case 'observado': return 'danger';
+        case 'cancelado': return 'secondary';
+        case 'completado': return 'success'; // Assuming completed hito is success
+        default: return 'secondary';
+    }
+}
+
 </script>
 {% endblock %}
