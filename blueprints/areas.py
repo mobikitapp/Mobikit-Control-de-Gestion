@@ -606,7 +606,10 @@ def vista_general():
             'areas/vista_general.html',
             ordenes=todas_ordenes,
             users=users,
-            title='Vista General de Órdenes'
+            title='Vista General de Órdenes',
+            timedelta=timedelta,
+            datetime=datetime,
+            moment_global=datetime
         )
 
     except Exception as e:
