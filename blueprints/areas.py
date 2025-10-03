@@ -598,7 +598,7 @@ def vista_general():
     try:
         # Get all active orders from all areas
         todas_ordenes = areas_service.get_all_orders_by_delivery_date()
-        
+
         # Get users for responsable assignment
         users = User.query.filter_by(activo=True).all()
 
@@ -612,7 +612,14 @@ def vista_general():
     except Exception as e:
         logger.error(f"Error en vista general: {str(e)}")
         flash('Error cargando la vista general', 'error')
-        return redirect(url_for('areas.dashboard'))
+        return render_template(
+            'areas/vista_general.html',
+            ordenes=[],
+            users=User.query.filter_by(activo=True).all(),
+            title='Vista General de Órdenes',
+            timedelta=timedelta,
+            datetime=datetime
+        )
 
 
 @areas_bp.route('/api/', methods=['GET'])
