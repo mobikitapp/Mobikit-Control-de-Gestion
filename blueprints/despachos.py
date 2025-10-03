@@ -710,7 +710,7 @@ def planificacion():
     """Vista principal de planificación de despachos basada en hitos de entrega"""
     try:
         # Get hitos próximos with configurable days
-        dias_filtro = request.args.get('dias_hitos', type=int, default=7)
+        dias_filtro = request.args.get('dias_hitos', type=int, default=30)
         # Validate dias_filtro range (1-90 days)
         if dias_filtro < 1:
             dias_filtro = 1

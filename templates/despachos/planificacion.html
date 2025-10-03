@@ -94,15 +94,15 @@
                                 Hitos Próximos a Vencer ({{ dias_filtro }} días)
                             </h6>
                             <div class="btn-group" role="group" aria-label="Filtros de días">
-                                <a href="{{ url_for('despachos.planificacion', dias_hitos=30) }}" 
+                                <a href="{{ url_for('despachos.planificacion', dias_hitos=30) }}"
                                    class="btn btn-sm {{ 'btn-primary' if dias_filtro == 30 else 'btn-outline-primary' }}">
                                     30d
                                 </a>
-                                <a href="{{ url_for('despachos.planificacion', dias_hitos=60) }}" 
+                                <a href="{{ url_for('despachos.planificacion', dias_hitos=60) }}"
                                    class="btn btn-sm {{ 'btn-primary' if dias_filtro == 60 else 'btn-outline-primary' }}">
                                     60d
                                 </a>
-                                <a href="{{ url_for('despachos.planificacion', dias_hitos=90) }}" 
+                                <a href="{{ url_for('despachos.planificacion', dias_hitos=90) }}"
                                    class="btn btn-sm {{ 'btn-primary' if dias_filtro == 90 else 'btn-outline-primary' }}">
                                     90d
                                 </a>
@@ -147,19 +147,19 @@
                                             <td>
                                                 <div class="d-flex gap-2 justify-content-center align-items-center">
                                                     {% if not hito.despacho_creado %}
-                                                        <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito.id) }}" 
+                                                        <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito.id) }}"
                                                            class="btn btn-success btn-action" title="Crear nuevo despacho">
                                                             <i class="fas fa-truck-loading me-2"></i>
                                                             Crear Despacho
                                                         </a>
                                                     {% else %}
                                                         {% if hito.despacho_id %}
-                                                        <a href="{{ url_for('despachos.detalle', despacho_id=hito.despacho_id) }}" 
+                                                        <a href="{{ url_for('despachos.detalle', despacho_id=hito.despacho_id) }}"
                                                            class="btn btn-primary btn-action me-1" title="Ver detalles del despacho">
                                                             <i class="fas fa-search me-2"></i>
                                                             Ver Detalle
                                                         </a>
-                                                        <a href="{{ url_for('despachos.editar', despacho_id=hito.despacho_id) }}" 
+                                                        <a href="{{ url_for('despachos.editar', despacho_id=hito.despacho_id) }}"
                                                            class="btn btn-outline-secondary btn-action" title="Editar despacho">
                                                             <i class="fas fa-edit me-2"></i>
                                                             Editar
@@ -172,6 +172,20 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-light">
+                        <div class="card-body">
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                                <h6>No hay entregas próximas</h6>
+                                <p class="mb-0">No tienes entregas ni hitos programados para los próximos {{ dias_filtro }} días</p>
                             </div>
                         </div>
                     </div>
@@ -250,26 +264,26 @@
                                                                 <div class="d-flex gap-2 justify-content-center align-items-center">
                                                                     {% if not hito['despacho_creado'] and hito['ordenes_fabricacion_disponibles'] %}
                                                                         {% if hito.get('es_virtual', False) %}
-                                                                            <a href="{{ url_for('despachos.nuevo') }}?contrato_id={{ hito['contrato_id'] }}" 
+                                                                            <a href="{{ url_for('despachos.nuevo') }}?contrato_id={{ hito['contrato_id'] }}"
                                                                                class="btn btn-success btn-action" title="Crear nuevo despacho">
                                                                                 <i class="fas fa-truck-loading me-2"></i>
                                                                                 Crear Despacho
                                                                             </a>
                                                                         {% else %}
-                                                                            <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito['id']) }}" 
+                                                                            <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito['id']) }}"
                                                                                class="btn btn-success btn-action" title="Crear despacho desde hito">
                                                                                 <i class="fas fa-truck-loading me-2"></i>
                                                                                 Crear Despacho
                                                                             </a>
                                                                         {% endif %}
                                                                     {% elif hito['despacho_creado'] and hito['despacho_id'] %}
-                                                                        <a href="{{ url_for('despachos.detalle', despacho_id=hito['despacho_id']) }}" 
+                                                                        <a href="{{ url_for('despachos.detalle', despacho_id=hito['despacho_id']) }}"
                                                                            class="btn btn-primary btn-action" title="Ver detalles del despacho">
                                                                             <i class="fas fa-search me-2"></i>
                                                                             Ver Detalle
                                                                         </a>
                                                                     {% elif not hito['ordenes_fabricacion_disponibles'] %}
-                                                                        <div class="alert alert-light border border-warning text-muted py-2 px-3 mb-0" style="font-size: 0.85rem;">
+                                                                        <div class="alert alert-light border border-warning py-2 px-3 mb-0" style="font-size: 0.85rem;">
                                                                             <i class="fas fa-exclamation-triangle text-warning me-2"></i>
                                                                             Sin OFs Disponibles
                                                                         </div>
@@ -406,7 +420,7 @@
         padding: 0.25rem 0.5rem;
         font-size: 0.7rem;
     }
-    
+
     .table td:last-child {
         min-width: 80px;
     }
@@ -481,7 +495,7 @@
         padding: 0.4rem 0.8rem;
         min-width: 120px;
     }
-    
+
     .btn-action i {
         font-size: 0.8rem;
     }
@@ -493,7 +507,7 @@
         padding: 0.35rem 0.7rem;
         min-width: 100px;
     }
-    
+
     .btn-action i {
         font-size: 0.75rem;
     }

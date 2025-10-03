@@ -327,7 +327,7 @@ class PlanificacionDespachosService:
             return 0.0
 
     @staticmethod
-    def get_hitos_proximos_vencimiento(dias: int = 7) -> List[Dict[str, Any]]:
+    def get_hitos_proximos_vencimiento(dias: int = 30) -> List[Dict[str, Any]]:
         """
         Obtiene hitos próximos a vencer en los próximos N días
         """
@@ -335,6 +335,8 @@ class PlanificacionDespachosService:
             fecha_limite = date.today() + timedelta(days=dias)
 
             from models import PlanEntrega, Contrato
+            
+            # Mejorar la consulta con joinedload para evitar problemas de lazy loading
             hitos = db.session.query(HitoEntrega).join(
                 PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id
             ).join(
@@ -345,50 +347,65 @@ class PlanificacionDespachosService:
                 Cliente, Proyecto.cliente_id == Cliente.id
             ).filter(
                 HitoEntrega.fecha_programada <= fecha_limite,
-                HitoEntrega.estado == EstadoHitoEntrega.PENDIENTE
+                HitoEntrega.estado.in_([EstadoHitoEntrega.PENDIENTE, EstadoHitoEntrega.ATRASADO])
             ).options(
-                selectinload(HitoEntrega.plan_entrega).selectinload(PlanEntrega.contrato).selectinload(Contrato.proyecto).selectinload(Proyecto.cliente),
+                joinedload(HitoEntrega.plan_entrega)
+                .joinedload(PlanEntrega.contrato)
+                .joinedload(Contrato.proyecto)
+                .joinedload(Proyecto.cliente),
                 selectinload(HitoEntrega.despachos)
             ).order_by(
-                HitoEntrega.fecha_programada
+                HitoEntrega.fecha_programada.asc()
             ).all()
+
+            logger.info(f"Encontrados {len(hitos)} hitos próximos en los próximos {dias} días")
 
             hitos_proximos = []
             for hito in hitos:
-                dias_restantes = (hito.fecha_programada - date.today()).days
+                try:
+                    dias_restantes = (hito.fecha_programada - date.today()).days
 
-                # Verificar si ya tiene despacho creado - manejar de forma segura
-                despacho_creado = False
-                despacho_id = None
+                    # Verificar si ya tiene despacho creado
+                    despacho_creado = False
+                    despacho_id = None
 
-                if hasattr(hito, 'despachos') and hito.despachos:
-                    despacho_creado = len(hito.despachos) > 0
-                    if despacho_creado:
-                        primer_despacho = hito.despachos[0]
-                        # Verificar si es un objeto o diccionario
-                        if hasattr(primer_despacho, 'id'):
-                            despacho_id = primer_despacho.id
-                        elif isinstance(primer_despacho, dict) and 'id' in primer_despacho:
-                            despacho_id = primer_despacho['id']
+                    # Buscar despachos asociados a este hito
+                    despachos_hito = db.session.query(Despacho).filter_by(
+                        hito_entrega_id=hito.id
+                    ).all()
 
-                hitos_proximos.append({
-                    'id': hito.id,
-                    'descripcion': hito.descripcion,
-                    'fecha_entrega': hito.fecha_programada,
-                    'dias_restantes': dias_restantes,
-                    'cliente_nombre': hito.plan_entrega.contrato.proyecto.cliente.nombre,
-                    'proyecto_nombre': hito.plan_entrega.contrato.proyecto.nombre,
-                    'contrato_numero_oc': hito.plan_entrega.contrato.numero_oc,
-                    'despacho_creado': despacho_creado,
-                    'despacho_id': despacho_id,
-                    'urgente': dias_restantes <= 2
-                })
+                    if despachos_hito:
+                        despacho_creado = True
+                        despacho_id = despachos_hito[0].id
 
+                    # Obtener descripción del hito
+                    descripcion = hito.descripcion or hito.titulo or f"Hito {hito.orden}"
+
+                    hito_data = {
+                        'id': hito.id,
+                        'descripcion': descripcion,
+                        'fecha_entrega': hito.fecha_programada,
+                        'dias_restantes': dias_restantes,
+                        'cliente_nombre': hito.plan_entrega.contrato.proyecto.cliente.nombre,
+                        'proyecto_nombre': hito.plan_entrega.contrato.proyecto.nombre,
+                        'contrato_numero_oc': hito.plan_entrega.contrato.numero_oc,
+                        'despacho_creado': despacho_creado,
+                        'despacho_id': despacho_id,
+                        'urgente': dias_restantes <= 2
+                    }
+
+                    hitos_proximos.append(hito_data)
+                    
+                except Exception as hito_error:
+                    logger.warning(f"Error procesando hito {hito.id}: {str(hito_error)}")
+                    continue
+
+            logger.info(f"Procesados {len(hitos_proximos)} hitos próximos correctamente")
             return hitos_proximos
 
         except Exception as e:
             logger.error(f"Error obteniendo hitos próximos: {str(e)}")
-            raise Exception(f"Error obteniendo hitos próximos: {str(e)}")
+            return []  # Retornar lista vacía en lugar de excepción para evitar errores en la vista
 
     @staticmethod
     def get_estadisticas_planificacion() -> Dict[str, Any]:
