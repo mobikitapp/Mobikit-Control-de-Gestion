@@ -1,0 +1,31 @@
+INFO:adapters.storage_adapter:File validation successful: Comprobante de pago (1).pdf, size: 489294 bytes, type: application/pdf
+[2025-10-03 17:24:50 +0000] [5515] [INFO] Handling signal: winch
+INFO:adapters.storage_adapter:Node.js script stdout: {"success":true}
+
+WARNING:adapters.storage_adapter:Node.js script stderr: Uploading file of size: 489294 bytes to manufacturing-app/proyectos/7/docs/e7d6863a7862405ebb96fcb724f51f91.pdf
+
+INFO:adapters.storage_adapter:File uploaded successfully to Replit Object Storage: manufacturing-app/proyectos/7/docs/e7d6863a7862405ebb96fcb724f51f91.pdf
+[2025-10-03 17:24:51 +0000] [5515] [INFO] Handling signal: winch
+[2025-10-03 17:24:51 +0000] [5515] [INFO] Handling signal: winch
+[2025-10-03 17:24:51 +0000] [5515] [INFO] Handling signal: winch
+ERROR:repositories.proyecto_adjuntos_repo:Error creating proyecto adjunto: (psycopg2.errors.InvalidTextRepresentation) invalid input value for enum tipoadjunto: "PRESUPUESTO"
+LINE 1: ...ante de pago (1).pdf', 'application/pdf', 489294, 'PRESUPUES...
+                                                             ^
+
+[SQL: INSERT INTO proyecto_adjuntos (proyecto_id, storage_key, filename, mime_type, size_bytes, tipo, descripcion, created_at, created_by) VALUES (%(proyecto_id)s, %(storage_key)s, %(filename)s, %(mime_type)s, %(size_bytes)s, %(tipo)s, %(descripcion)s, %(created_at)s, %(created_by)s) RETURNING proyecto_adjuntos.id]
+[parameters: {'proyecto_id': 7, 'storage_key': 'manufacturing-app/proyectos/7/docs/e7d6863a7862405ebb96fcb724f51f91.pdf', 'filename': 'Comprobante de pago (1).pdf', 'mime_type': 'application/pdf', 'size_bytes': 489294, 'tipo': 'PRESUPUESTO', 'descripcion': '', 'created_at': datetime.datetime(2025, 10, 3, 17, 24, 51, 858927, tzinfo=<UTC>), 'created_by': '45176243'}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)
+ERROR:services.proyectos_service:Error adding attachment to proyecto 7: (psycopg2.errors.InvalidTextRepresentation) invalid input value for enum tipoadjunto: "PRESUPUESTO"
+LINE 1: ...ante de pago (1).pdf', 'application/pdf', 489294, 'PRESUPUES...
+                                                             ^
+
+[SQL: INSERT INTO proyecto_adjuntos (proyecto_id, storage_key, filename, mime_type, size_bytes, tipo, descripcion, created_at, created_by) VALUES (%(proyecto_id)s, %(storage_key)s, %(filename)s, %(mime_type)s, %(size_bytes)s, %(tipo)s, %(descripcion)s, %(created_at)s, %(created_by)s) RETURNING proyecto_adjuntos.id]
+[parameters: {'proyecto_id': 7, 'storage_key': 'manufacturing-app/proyectos/7/docs/e7d6863a7862405ebb96fcb724f51f91.pdf', 'filename': 'Comprobante de pago (1).pdf', 'mime_type': 'application/pdf', 'size_bytes': 489294, 'tipo': 'PRESUPUESTO', 'descripcion': '', 'created_at': datetime.datetime(2025, 10, 3, 17, 24, 51, 858927, tzinfo=<UTC>), 'created_by': '45176243'}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)
+ERROR:blueprints.proyectos:Error uploading attachment to proyecto 7: (psycopg2.errors.InvalidTextRepresentation) invalid input value for enum tipoadjunto: "PRESUPUESTO"
+LINE 1: ...ante de pago (1).pdf', 'application/pdf', 489294, 'PRESUPUES...
+                                                             ^
+
+[SQL: INSERT INTO proyecto_adjuntos (proyecto_id, storage_key, filename, mime_type, size_bytes, tipo, descripcion, created_at, created_by) VALUES (%(proyecto_id)s, %(storage_key)s, %(filename)s, %(mime_type)s, %(size_bytes)s, %(tipo)s, %(descripcion)s, %(created_at)s, %(created_by)s) RETURNING proyecto_adjuntos.id]
+[parameters: {'proyecto_id': 7, 'storage_key': 'manufacturing-app/proyectos/7/docs/e7d6863a7862405ebb96fcb724f51f91.pdf', 'filename': 'Comprobante de pago (1).pdf', 'mime_type': 'application/pdf', 'size_bytes': 489294, 'tipo': 'PRESUPUESTO', 'descripcion': '', 'created_at': datetime.datetime(2025, 10, 3, 17, 24, 51, 858927, tzinfo=<UTC>), 'created_by': '45176243'}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)
