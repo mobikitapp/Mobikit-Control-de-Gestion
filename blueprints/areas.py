@@ -117,7 +117,6 @@ def area_detail(area_id):
                 'count': len(formatted_orders)
             })
 
-        from datetime import datetime
         return render_template(
             'areas/area_detail.html',
             area=area,
