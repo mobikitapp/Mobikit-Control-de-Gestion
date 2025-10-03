@@ -161,10 +161,13 @@
                                             {% for despacho in despachos_por_dia[dia][:2] %}
                                             <div class="dispatch-item dispatch-{{ despacho.estado }}" 
                                                  data-bs-toggle="tooltip" 
-                                                 title="🚛 {{ despacho.numero_despacho }} - {{ despacho.cliente }}{% if despacho.fecha_envio %} - {{ despacho.fecha_envio }}{% endif %}">
+                                                 title="🚛 {{ despacho.numero_despacho }}&#10;📂 Proyecto: {{ despacho.proyecto }}&#10;📋 Glosa: {{ despacho.glosa }}&#10;🏢 Cliente: {{ despacho.cliente }}{% if despacho.fecha_envio %}&#10;⏰ Envío: {{ despacho.fecha_envio }}{% endif %}"
+                                                 onclick="window.location.href='{{ url_for('despachos.detalle', despacho_id=despacho.id) }}'"
+                                                 style="cursor: pointer;">
                                                 <div class="dispatch-content">
                                                     <small class="dispatch-number">🚛 {{ despacho.numero_despacho }}</small>
-                                                    <span class="dispatch-client">{{ despacho.cliente[:15] }}{% if despacho.cliente|length > 15 %}...{% endif %}</span>
+                                                    <span class="dispatch-project">{{ despacho.proyecto[:12] }}{% if despacho.proyecto|length > 12 %}...{% endif %}</span>
+                                                    <span class="dispatch-glosa">{{ despacho.glosa[:20] }}{% if despacho.glosa|length > 20 %}...{% endif %}</span>
                                                 </div>
                                             </div>
                                             {% endfor %}
@@ -309,11 +312,20 @@
 .dispatch-number {
     font-weight: bold;
     color: #0d6efd;
+    font-size: 0.65rem;
 }
 
-.dispatch-client {
+.dispatch-project {
     color: #212529;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
+    font-weight: 500;
+    margin-bottom: 1px;
+}
+
+.dispatch-glosa {
+    color: #6c757d;
+    font-size: 0.6rem;
+    font-style: italic;
 }
 
 .more-dispatches {

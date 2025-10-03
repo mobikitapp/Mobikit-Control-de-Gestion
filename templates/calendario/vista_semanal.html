@@ -181,12 +181,16 @@
                                                         <small class="fw-bold text-primary">{{ dia.despachos|length }} Despachos</small>
                                                     </div>
                                                     {% for despacho in dia.despachos %}
-                                                    <div class="card border-start border-{{ despacho.color }} border-3 mb-1" style="border-left-width: 4px !important;">
+                                                    <div class="card border-start border-{{ despacho.color }} border-3 mb-1" 
+                                                         style="border-left-width: 4px !important; cursor: pointer;"
+                                                         onclick="window.location.href='{{ url_for('despachos.detalle', despacho_id=despacho.id) }}'">
                                                         <div class="card-body p-2 bg-light">
                                                             <div class="fw-bold small text-dark mb-1">{{ despacho.numero_despacho }}</div>
+                                                            <div class="small text-primary mb-1">📂 {{ despacho.proyecto }}</div>
+                                                            <div class="small text-muted mb-1" style="font-style: italic;">{{ despacho.glosa }}</div>
                                                             <div class="d-flex justify-content-between align-items-center">
                                                                 <div>
-                                                                    <div class="small text-muted">{{ despacho.cliente }}</div>
+                                                                    <div class="small text-muted">🏢 {{ despacho.cliente }}</div>
                                                                     {% if despacho.fecha_envio %}
                                                                     <div class="small text-info"><i class="fas fa-clock"></i> {{ despacho.fecha_envio }}</div>
                                                                     {% endif %}

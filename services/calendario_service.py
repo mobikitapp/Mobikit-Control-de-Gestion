@@ -51,6 +51,8 @@ class CalendarioService:
                 'numero_despacho': despacho.numero_despacho,
                 'estado': despacho.estado.value,
                 'cliente': despacho.proyecto.cliente.nombre if hasattr(despacho, 'proyecto') and despacho.proyecto and hasattr(despacho.proyecto, 'cliente') and despacho.proyecto.cliente else 'Sin cliente',
+                'proyecto': despacho.proyecto.nombre if hasattr(despacho, 'proyecto') and despacho.proyecto else 'Sin proyecto',
+                'glosa': despacho.glosa if despacho.glosa else 'Sin glosa',
                 'fecha_envio': despacho.fecha_envio.strftime('%H:%M') if despacho.fecha_envio else None,
                 'color': self._get_color_despacho(despacho.estado)
             })
@@ -167,6 +169,8 @@ class CalendarioService:
                         'estado': despacho.estado.value,
                         'cliente': despacho.proyecto.cliente.nombre if hasattr(despacho, 'proyecto') and despacho.proyecto and hasattr(despacho.proyecto, 'cliente') and despacho.proyecto.cliente else 'Sin cliente',
                         'proyecto': despacho.proyecto.nombre if hasattr(despacho, 'proyecto') and despacho.proyecto else 'Sin proyecto',
+                        'glosa': despacho.glosa if despacho.glosa else 'Sin glosa',
+                        'fecha_envio': despacho.fecha_envio.strftime('%H:%M') if despacho.fecha_envio else None,
                         'color': self._get_color_despacho(despacho.estado)
                     })
 
