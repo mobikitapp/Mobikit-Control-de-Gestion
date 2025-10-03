@@ -383,6 +383,7 @@ class PlanificacionDespachosService:
 
                     hito_data = {
                         'id': hito.id,
+                        'contrato_id': hito.plan_entrega.contrato.id,
                         'descripcion': descripcion,
                         'fecha_entrega': hito.fecha_programada,
                         'dias_restantes': dias_restantes,
