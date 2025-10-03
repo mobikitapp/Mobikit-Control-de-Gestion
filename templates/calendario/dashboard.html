@@ -226,7 +226,7 @@
                         </div>
                         <div class="ms-3">
                             <span class="badge bg-light text-dark">Hito</span>
-                            {% if hito.contrato and hito.contrato_id %}
+                            {% if hito.get('contrato_id') %}
                             <a href="{{ url_for('contratos.plan_entrega', contrato_id=hito.contrato_id) }}" 
                                class="btn btn-sm btn-outline-primary ms-1">
                                 <i class="fas fa-calendar-check"></i>

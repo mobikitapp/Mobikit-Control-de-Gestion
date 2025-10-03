@@ -272,12 +272,14 @@
                         </span>
                     </div>
                     {% if hito.contrato %}
+                    {% if hito.contrato_id %}
                     <div class="mt-2">
-                        <a href="{{ url_for('contratos.plan_entrega', contrato_id=hito.contrato_id) if hito.contrato_id else '#' }}" 
+                        <a href="{{ url_for('contratos.plan_entrega', contrato_id=hito.contrato_id) }}" 
                            class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-calendar-check"></i> Ver Plan Completo
                         </a>
                     </div>
+                    {% endif %}
                     {% endif %}
                     {% endfor %}
                 </div>

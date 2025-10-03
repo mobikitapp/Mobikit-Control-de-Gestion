@@ -206,9 +206,9 @@
                                                 {% if evento.contrato %}
                                                 <small class="text-muted">OC: {{ evento.contrato }}</small>
                                                 {% endif %}
-                                                {% if evento.id and evento.id.startswith('hito_') %}
+                                                {% if evento.id and evento.id.startswith('hito_') and evento.get('contrato_id') %}
                                                 <div class="mt-1">
-                                                    <a href="{{ url_for('contratos.plan_entrega', contrato_id=evento.contrato_id) if evento.contrato_id else '#' }}" 
+                                                    <a href="{{ url_for('contratos.plan_entrega', contrato_id=evento.contrato_id) }}" 
                                                        class="btn btn-sm btn-outline-primary">
                                                         <i class="fas fa-calendar-check"></i> Ver Plan Completo
                                                     </a>
@@ -554,9 +554,9 @@ function mostrarDetalleHito(id, titulo, descripcion, estado, fecha, contrato, co
     // Dynamically add link to full delivery plan if contrato_id is available
     const planLinkContainer = document.getElementById('modal-hito-plan-link-container');
     planLinkContainer.innerHTML = ''; // Clear previous content
-    if (contrato_id) {
+    if (contrato_id && contrato_id !== 'None' && contrato_id !== '') {
         const planLink = document.createElement('a');
-        planLink.href = "{{ url_for('contratos.plan_entrega', contrato_id='REPLACE_ID') }}".replace('REPLACE_ID', contrato_id);
+        planLink.href = `/contratos/${contrato_id}/plan-entrega`;
         planLink.className = 'btn btn-sm btn-outline-primary';
         planLink.innerHTML = '<i class="fas fa-calendar-check"></i> Ver Plan Completo';
         planLinkContainer.appendChild(planLink);
