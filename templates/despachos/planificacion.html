@@ -176,6 +176,7 @@
                                 <p class="text-muted">No hay hitos próximos a vencer</p>
                             </div>
                             {% endif %}
+                                            </td>
                                             <td>
                                                 <span class="badge {% if hito.dias_restantes <= 0 %}bg-danger text-white{% elif hito.dias_restantes <= 2 %}bg-warning text-dark{% else %}bg-info text-white{% endif %}">
                                                     {% if hito.dias_restantes <= 0 %}ATRASADO{% else %}{{ hito.dias_restantes }} días{% endif %}
