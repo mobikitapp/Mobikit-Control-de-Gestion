@@ -524,7 +524,7 @@ Los montos deben ser precios finales al cliente, no costos internos.
                 'filename': file_metadata['filename'],
                 'mime_type': file_metadata['mime_type'],
                 'size_bytes': file_metadata['size_bytes'],
-                'tipo': TipoAdjunto(tipo),
+                'tipo': TipoAdjunto(tipo.lower()),  # Ensure lowercase for enum
                 'descripcion': descripcion
             }
 

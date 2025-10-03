@@ -368,8 +368,9 @@ def adjuntos(proyecto_id):
             tipo = request.form.get('tipo', 'especificacion')
             descripcion = request.form.get('descripcion', '')
 
-            # Validate file type
+            # Validate file type - ensure lowercase to match TipoAdjunto enum
             allowed_types = ['presupuesto', 'eett', 'especificacion', 'plano', 'contrato', 'foto', 'qa']
+            tipo = tipo.lower()  # Convert to lowercase to match enum values
             if tipo not in allowed_types:
                 tipo = 'especificacion'
 
