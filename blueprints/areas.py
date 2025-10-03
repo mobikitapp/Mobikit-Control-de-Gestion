@@ -609,7 +609,7 @@ def vista_general():
             title='Vista General de Órdenes',
             timedelta=timedelta,
             datetime=datetime,
-            moment_global=datetime
+            moment_global=datetime.now
         )
 
     except Exception as e:
@@ -621,7 +621,8 @@ def vista_general():
             users=User.query.filter_by(activo=True).all(),
             title='Vista General de Órdenes',
             timedelta=timedelta,
-            datetime=datetime
+            datetime=datetime,
+            moment_global=datetime.now
         )
 
 
