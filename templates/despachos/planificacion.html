@@ -145,7 +145,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <div class="d-flex gap-2 justify-content-center align-items-center">
+                                                <div class="d-flex gap-2 justify-content-center align-items-center flex-wrap">
                                                     {% if not hito.despacho_creado %}
                                                         <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito.id) }}"
                                                            class="btn btn-success btn-action" title="Crear nuevo despacho">
@@ -160,12 +160,18 @@
                                                             Ver Detalle
                                                         </a>
                                                         <a href="{{ url_for('despachos.editar', despacho_id=hito.despacho_id) }}"
-                                                           class="btn btn-outline-secondary btn-action" title="Editar despacho">
+                                                           class="btn btn-outline-secondary btn-action me-1" title="Editar despacho">
                                                             <i class="fas fa-edit me-2"></i>
                                                             Editar
                                                         </a>
                                                         {% endif %}
                                                     {% endif %}
+                                                    <!-- Botón para ver plan de entrega completo -->
+                                                    <a href="{{ url_for('contratos.plan_entrega', contrato_id=hito.contrato_id) }}"
+                                                       class="btn btn-outline-info btn-action" title="Ver plan de entrega completo">
+                                                        <i class="fas fa-calendar-alt me-2"></i>
+                                                        Plan Completo
+                                                    </a>
                                                 </div>
                                             </td>
                                         </tr>
@@ -410,7 +416,7 @@
 
 /* Action column consistent width */
 .table td:last-child {
-    min-width: 120px;
+    min-width: 180px;
     text-align: center;
 }
 
@@ -422,7 +428,20 @@
     }
 
     .table td:last-child {
-        min-width: 80px;
+        min-width: 140px;
+    }
+}
+
+/* Flex wrap for action buttons on small screens */
+@media (max-width: 576px) {
+    .table td:last-child .d-flex {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+    
+    .btn-action {
+        width: 100%;
+        font-size: 0.75rem;
     }
 }
 
