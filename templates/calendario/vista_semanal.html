@@ -24,7 +24,7 @@
                                 <i class="fas fa-chevron-left"></i> Anterior
                             </a>
                             <span class="mx-3 text-center">
-                                <strong>Semana {{ fecha_semana.strftime('%d/%m/%Y') }}</strong>
+                                <strong>Semana {{ inicio_semana.strftime('%d/%m/%Y') }}</strong>
                             </span>
                             <a href="{{ url_for('calendario.vista_semanal', year=semana_siguiente.year, month=semana_siguiente.month, day=semana_siguiente.day) }}"
                                class="btn btn-primary ms-2" title="Semana siguiente">
