@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block page_title %}{{ page_title }}{% endblock %}
@@ -88,27 +89,34 @@
                 <div class="col-12">
                     <div class="card border-warning">
                         <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0">
-                                <i class="fas fa-clock text-warning"></i>
-                                Hitos Próximos a Vencer ({{ dias_filtro }} días)
-                            </h6>
-                            <div class="btn-group" role="group" aria-label="Filtros de días">
-                                <a href="{{ url_for('despachos.planificacion', dias_hitos=30) }}"
-                                   class="btn btn-sm {{ 'btn-primary' if dias_filtro == 30 else 'btn-outline-primary' }}">
-                                    30d
-                                </a>
-                                <a href="{{ url_for('despachos.planificacion', dias_hitos=60) }}"
-                                   class="btn btn-sm {{ 'btn-primary' if dias_filtro == 60 else 'btn-outline-primary' }}">
-                                    60d
-                                </a>
-                                <a href="{{ url_for('despachos.planificacion', dias_hitos=90) }}"
-                                   class="btn btn-sm {{ 'btn-primary' if dias_filtro == 90 else 'btn-outline-primary' }}">
-                                    90d
-                                </a>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-clock text-warning"></i>
+                                    Hitos Próximos a Vencer ({{ dias_filtro }} días)
+                                </h6>
+                                <div>
+                                    <a href="{{ url_for('contratos.index') }}" 
+                                       class="btn btn-outline-info btn-sm me-2"
+                                       title="Ir a Plan de Entrega">
+                                        <i class="fas fa-calendar-alt"></i> Plan Entrega
+                                    </a>
+                                    <div class="btn-group" role="group" aria-label="Filtros de días">
+                                        <a href="{{ url_for('despachos.planificacion', dias_hitos=30) }}"
+                                           class="btn btn-sm {{ 'btn-primary' if dias_filtro == 30 else 'btn-outline-primary' }}">
+                                            30d
+                                        </a>
+                                        <a href="{{ url_for('despachos.planificacion', dias_hitos=60) }}"
+                                           class="btn btn-sm {{ 'btn-primary' if dias_filtro == 60 else 'btn-outline-primary' }}">
+                                            60d
+                                        </a>
+                                        <a href="{{ url_for('despachos.planificacion', dias_hitos=90) }}"
+                                           class="btn btn-sm {{ 'btn-primary' if dias_filtro == 90 else 'btn-outline-primary' }}">
+                                            90d
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
                         <div class="card-body">
                             <div class="table-responsive">
                                 <table class="table table-sm">
@@ -133,7 +141,11 @@
                                             <td>{{ hito.contrato_numero_oc }}</td>
                                             <td>{{ hito.descripcion }}</td>
                                             <td>{{ hito.fecha_entrega.strftime('%d/%m/%Y') }}</td>
-                                            <td>{{ hito.dias_restantes }} días</td>
+                                            <td>
+                                                <span class="badge {% if hito.dias_restantes <= 0 %}bg-danger text-white{% elif hito.dias_restantes <= 2 %}bg-warning text-dark{% else %}bg-info text-white{% endif %}">
+                                                    {% if hito.dias_restantes <= 0 %}ATRASADO{% else %}{{ hito.dias_restantes }} días{% endif %}
+                                                </span>
+                                            </td>
                                             <td>
                                                 <span class="badge bg-{% if hito.estado == 'pendiente' %}warning{% elif hito.estado == 'completado' %}success{% elif hito.estado == 'atrasado' %}danger{% else %}secondary{% endif %}">
                                                     {{ hito.estado|title }}
@@ -152,65 +164,11 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
-                                                    {% if hito.despacho_creado %}
-                                                    <a href="{{ url_for('despachos.detalle', despacho_id=hito.despacho_id) }}"
-                                                       class="btn btn-outline-success" title="Ver Despacho">
-                                                        <i class="fas fa-truck"></i>
-                                                    </a>
-                                                    {% else %}
                                                     <button type="button" class="btn btn-outline-primary"
                                                             onclick="crearDespacho({{ hito.id }}, '{{ hito.descripcion }}')"
                                                             title="Crear Despacho">
                                                         <i class="fas fa-plus"></i> Crear
                                                     </button>
-                                                    {% endif %}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            {% else %}
-                            <div class="text-center py-4">
-                                <i class="fas fa-calendar-check fa-3x mb-3 text-muted"></i>
-                                <p class="text-muted">No hay hitos próximos a vencer</p>
-                            </div>
-                            {% endif %}
-                                            </td>
-                                            <td>
-                                                <span class="badge {% if hito.dias_restantes <= 0 %}bg-danger text-white{% elif hito.dias_restantes <= 2 %}bg-warning text-dark{% else %}bg-info text-white{% endif %}">
-                                                    {% if hito.dias_restantes <= 0 %}ATRASADO{% else %}{{ hito.dias_restantes }} días{% endif %}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {% if hito.despacho_creado %}
-                                                    <span class="badge bg-success text-white">Despacho Creado</span>
-                                                {% else %}
-                                                    <span class="badge bg-secondary text-white">Pendiente</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <div class="d-flex gap-2 justify-content-center align-items-center">
-                                                    {% if not hito.despacho_creado %}
-                                                        <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito.id) }}"
-                                                           class="btn btn-success btn-action" title="Crear nuevo despacho">
-                                                            <i class="fas fa-truck-loading me-2"></i>
-                                                            Crear Despacho
-                                                        </a>
-                                                    {% else %}
-                                                        {% if hito.despacho_id %}
-                                                        <a href="{{ url_for('despachos.detalle', despacho_id=hito.despacho_id) }}"
-                                                           class="btn btn-primary btn-action me-1" title="Ver detalles del despacho">
-                                                            <i class="fas fa-search me-2"></i>
-                                                            Ver Detalle
-                                                        </a>
-                                                        <a href="{{ url_for('despachos.editar', despacho_id=hito.despacho_id) }}"
-                                                           class="btn btn-outline-secondary btn-action" title="Editar despacho">
-                                                            <i class="fas fa-edit me-2"></i>
-                                                            Editar
-                                                        </a>
-                                                        {% endif %}
-                                                    {% endif %}
                                                 </div>
                                             </td>
                                         </tr>
@@ -243,7 +201,14 @@
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-sitemap"></i> Planificación por Cliente y Proyecto</h5>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-sitemap"></i> Planificación por Cliente y Proyecto</h5>
+                                <a href="{{ url_for('contratos.index') }}" 
+                                   class="btn btn-outline-info btn-sm"
+                                   title="Ir a Plan de Entrega">
+                                    <i class="fas fa-calendar-alt"></i> Plan Entrega
+                                </a>
+                            </div>
                         </div>
                         <div class="card-body">
                             {% if vista_planificacion.clientes %}
@@ -276,7 +241,7 @@
                                                         {% for hito in proyecto.hitos_entrega %}
                                                         <tr>
                                                             <td>
-                                                                <strong>{{ hito['descripcion'] }}</strong>
+                                                                <strong>{{ hito.descripcion }}</strong>
                                                                 {% if hito.get('es_virtual', False) %}
                                                                 <br><span class="badge bg-warning text-dark">
                                                                     <i class="fas fa-calendar-check"></i> Fecha Comprometida
@@ -286,16 +251,16 @@
                                                                     <i class="fas fa-flag-checkered"></i> Hito del Plan
                                                                 </span>
                                                                 {% endif %}
-                                                                {% if proyecto['nombre'] %}
+                                                                {% if proyecto.nombre %}
                                                                 <br><span class="badge bg-info text-dark">
-                                                                    <i class="fas fa-project-diagram"></i> {{ proyecto['nombre'] }}
+                                                                    <i class="fas fa-project-diagram"></i> {{ proyecto.nombre }}
                                                                 </span>
                                                                 {% endif %}
                                                             </td>
-                                                            <td>{{ hito['contrato_numero_oc'] }}</td>
-                                                            <td>{{ hito['fecha_entrega'].strftime('%d/%m/%Y') if hito['fecha_entrega'] else 'N/A' }}</td>
+                                                            <td>{{ hito.contrato_numero_oc }}</td>
+                                                            <td>{{ hito.fecha_entrega.strftime('%d/%m/%Y') if hito.fecha_entrega else 'N/A' }}</td>
                                                             <td>
-                                                                {% if hito['despacho_creado'] %}
+                                                                {% if hito.despacho_creado %}
                                                                     <span class="badge bg-success text-white">
                                                                         <i class="fas fa-check"></i> Despacho Creado
                                                                     </span>
@@ -307,27 +272,27 @@
                                                             </td>
                                                             <td>
                                                                 <div class="d-flex gap-2 justify-content-center align-items-center">
-                                                                    {% if not hito['despacho_creado'] and hito['ordenes_fabricacion_disponibles'] %}
+                                                                    {% if not hito.despacho_creado and hito.ordenes_fabricacion_disponibles %}
                                                                         {% if hito.get('es_virtual', False) %}
-                                                                            <a href="{{ url_for('despachos.nuevo') }}?contrato_id={{ hito['contrato_id'] }}"
+                                                                            <a href="{{ url_for('despachos.nuevo') }}?contrato_id={{ hito.contrato_id }}"
                                                                                class="btn btn-success btn-action" title="Crear nuevo despacho">
                                                                                 <i class="fas fa-truck-loading me-2"></i>
                                                                                 Crear Despacho
                                                                             </a>
                                                                         {% else %}
-                                                                            <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito['id']) }}"
+                                                                            <a href="{{ url_for('despachos.crear_despacho_desde_hito', hito_id=hito.id) }}"
                                                                                class="btn btn-success btn-action" title="Crear despacho desde hito">
                                                                                 <i class="fas fa-truck-loading me-2"></i>
                                                                                 Crear Despacho
                                                                             </a>
                                                                         {% endif %}
-                                                                    {% elif hito['despacho_creado'] and hito['despacho_id'] %}
-                                                                        <a href="{{ url_for('despachos.detalle', despacho_id=hito['despacho_id']) }}"
+                                                                    {% elif hito.despacho_creado and hito.despacho_id %}
+                                                                        <a href="{{ url_for('despachos.detalle', despacho_id=hito.despacho_id) }}"
                                                                            class="btn btn-primary btn-action" title="Ver detalles del despacho">
                                                                             <i class="fas fa-search me-2"></i>
                                                                             Ver Detalle
                                                                         </a>
-                                                                    {% elif not hito['ordenes_fabricacion_disponibles'] %}
+                                                                    {% elif not hito.ordenes_fabricacion_disponibles %}
                                                                         <div class="alert alert-light border border-warning py-2 px-3 mb-0" style="font-size: 0.85rem;">
                                                                             <i class="fas fa-exclamation-triangle text-warning me-2"></i>
                                                                             Sin OFs Disponibles
@@ -338,24 +303,24 @@
                                                         </tr>
 
                                                         <!-- Collapse para mostrar OFs disponibles -->
-                                                        {% if hito['ordenes_fabricacion_disponibles'] %}
+                                                        {% if hito.ordenes_fabricacion_disponibles %}
                                                         <tr>
-                                                            <td colspan="7" class="p-0">
-                                                                <div class="collapse" id="ofs-{{ hito['id'] }}">
+                                                            <td colspan="5" class="p-0">
+                                                                <div class="collapse" id="ofs-{{ hito.id }}">
                                                                     <div class="bg-light p-3 border-top">
                                                                         <h6 class="text-dark mb-3"><i class="fas fa-boxes text-primary"></i> Órdenes de Fabricación Disponibles:</h6>
                                                                         <div class="row">
-                                                                            {% for of in hito['ordenes_fabricacion_disponibles'] %}
+                                                                            {% for of in hito.ordenes_fabricacion_disponibles %}
                                                                             <div class="col-md-6 mb-2">
                                                                                 <div class="card card-body p-2 border">
                                                                                     <div class="d-flex justify-content-between">
                                                                                         <div>
-                                                                                            <strong class="text-dark">{{ of['codigo'] }}</strong><br>
-                                                                                            <small class="text-muted">{{ of['descripcion'] or 'Sin descripción' }}</small>
+                                                                                            <strong class="text-dark">{{ of.codigo }}</strong><br>
+                                                                                            <small class="text-muted">{{ of.descripcion or 'Sin descripción' }}</small>
                                                                                         </div>
                                                                                         <div class="text-end">
-                                                                                            <span class="badge bg-primary text-white">{{ of['cantidad_disponible'] }} / {{ of['cantidad_total'] }}</span><br>
-                                                                                            <small class="text-success"><strong>{{ of['estado'] }}</strong></small>
+                                                                                            <span class="badge bg-primary text-white">{{ of.cantidad_disponible }} / {{ of.cantidad_total }}</span><br>
+                                                                                            <small class="text-success"><strong>{{ of.estado }}</strong></small>
                                                                                         </div>
                                                                                     </div>
                                                                                 </div>
@@ -574,5 +539,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }, 300000); // 5 minutos
 });
+
+function crearDespacho(hitoId, descripcion) {
+    if (confirm(`¿Crear despacho para: ${descripcion}?`)) {
+        window.location.href = `{{ url_for('despachos.crear_despacho_desde_hito', hito_id='') }}${hitoId}`;
+    }
+}
 </script>
 {% endblock %}
