@@ -121,6 +121,7 @@
                                             <th>Fecha Entrega</th>
                                             <th>Días Restantes</th>
                                             <th>Estado</th>
+                                            <th>Plan Entrega</th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -132,6 +133,49 @@
                                             <td>{{ hito.contrato_numero_oc }}</td>
                                             <td>{{ hito.descripcion }}</td>
                                             <td>{{ hito.fecha_entrega.strftime('%d/%m/%Y') }}</td>
+                                            <td>{{ hito.dias_restantes }} días</td>
+                                            <td>
+                                                <span class="badge bg-{% if hito.estado == 'pendiente' %}warning{% elif hito.estado == 'completado' %}success{% elif hito.estado == 'atrasado' %}danger{% else %}secondary{% endif %}">
+                                                    {{ hito.estado|title }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                {% if hito.contrato_id %}
+                                                <a href="{{ url_for('contratos.plan_entrega', contrato_id=hito.contrato_id) }}"
+                                                   class="btn btn-outline-info btn-sm"
+                                                   title="Ver Plan de Entrega">
+                                                    <i class="fas fa-calendar-alt"></i>
+                                                </a>
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    {% if hito.despacho_creado %}
+                                                    <a href="{{ url_for('despachos.detalle', despacho_id=hito.despacho_id) }}"
+                                                       class="btn btn-outline-success" title="Ver Despacho">
+                                                        <i class="fas fa-truck"></i>
+                                                    </a>
+                                                    {% else %}
+                                                    <button type="button" class="btn btn-outline-primary"
+                                                            onclick="crearDespacho({{ hito.id }}, '{{ hito.descripcion }}')"
+                                                            title="Crear Despacho">
+                                                        <i class="fas fa-plus"></i> Crear
+                                                    </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-calendar-check fa-3x mb-3 text-muted"></i>
+                                <p class="text-muted">No hay hitos próximos a vencer</p>
+                            </div>
+                            {% endif %}
                                             <td>
                                                 <span class="badge {% if hito.dias_restantes <= 0 %}bg-danger text-white{% elif hito.dias_restantes <= 2 %}bg-warning text-dark{% else %}bg-info text-white{% endif %}">
                                                     {% if hito.dias_restantes <= 0 %}ATRASADO{% else %}{{ hito.dias_restantes }} días{% endif %}

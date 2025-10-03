@@ -168,10 +168,19 @@
                             </div>
                         </div>
                         <div class="ms-3">
-                            <a href="{{ url_for('calendario.detalle_evento', evento_id=evento.id) }}"
-                               class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-eye"></i>
-                            </a>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('calendario.detalle_evento', evento_id=evento.id) }}"
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if evento.contrato %}
+                                <a href="{{ url_for('contratos.plan_entrega', contrato_id=evento.contrato.id) }}"
+                                   class="btn btn-outline-info btn-sm"
+                                   title="Ver Plan de Entrega">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </a>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
@@ -225,7 +234,16 @@
                             </div>
                         </div>
                         <div class="ms-3">
-                            <span class="badge bg-light text-dark">Hito</span>
+                            <div class="btn-group" role="group">
+                                <span class="badge bg-light text-dark me-2">Hito</span>
+                                {% if hito.contrato_id %}
+                                <a href="{{ url_for('contratos.plan_entrega', contrato_id=hito.contrato_id) }}"
+                                   class="btn btn-outline-info btn-sm"
+                                   title="Ver Plan de Entrega">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </a>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
@@ -292,6 +310,13 @@
                                    class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                                {% if evento.contrato %}
+                                <a href="{{ url_for('contratos.plan_entrega', contrato_id=evento.contrato.id) }}"
+                                   class="btn btn-outline-info btn-sm"
+                                   title="Ver Plan de Entrega">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </a>
+                                {% endif %}
                                 <button type="button" class="btn btn-outline-success btn-sm"
                                         onclick="completarEvento('{{ evento.id }}')">
                                     <i class="fas fa-check"></i>
