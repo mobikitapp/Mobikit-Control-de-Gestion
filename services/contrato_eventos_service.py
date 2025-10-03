@@ -13,7 +13,7 @@ class ContratoEventosService:
         """Generate delivery events from contracts with delivery dates"""
         try:
             eventos_creados = 0
-            
+
             # Get contracts with delivery dates that don't have events yet
             contratos_sin_eventos = (
                 db.session.query(Contrato)
@@ -26,11 +26,11 @@ class ContratoEventosService:
                 )
                 .all()
             )
-            
+
             for contrato in contratos_sin_eventos:
                 # Create delivery event
                 evento_id = self._generate_evento_id()
-                
+
                 nuevo_evento = EventoEntrega()
                 nuevo_evento.id = evento_id
                 nuevo_evento.contrato_id = contrato.id
@@ -43,16 +43,16 @@ class ContratoEventosService:
                 nuevo_evento.prioridad = PrioridadEvento.ALTA
                 nuevo_evento.recordatorio_dias = 3  # 3 days before
                 nuevo_evento.created_by = usuario_id
-                
+
                 db.session.add(nuevo_evento)
                 eventos_creados += 1
-            
+
             if eventos_creados > 0:
                 db.session.commit()
                 return True, f"Se crearon {eventos_creados} eventos de entrega automáticamente", eventos_creados
             else:
                 return True, "No hay contratos con fechas de entrega que requieran eventos", 0
-                
+
         except Exception as e:
             db.session.rollback()
             return False, f"Error al generar eventos: {str(e)}", 0
@@ -63,14 +63,14 @@ class ContratoEventosService:
             contrato = db.session.query(Contrato).filter_by(id=contrato_id).first()
             if not contrato:
                 return False, "Contrato no encontrado"
-            
+
             # Find existing event for this contract
             evento_existente = (
                 db.session.query(EventoEntrega)
                 .filter_by(contrato_id=contrato.id)
                 .first()
             )
-            
+
             if contrato.fecha_entrega_comprometida:
                 if evento_existente:
                     # Update existing event
@@ -81,7 +81,7 @@ class ContratoEventosService:
                 else:
                     # Create new event
                     evento_id = self._generate_evento_id()
-                    
+
                     nuevo_evento = EventoEntrega()
                     nuevo_evento.id = evento_id
                     nuevo_evento.contrato_id = contrato.id
@@ -94,7 +94,7 @@ class ContratoEventosService:
                     nuevo_evento.prioridad = PrioridadEvento.ALTA
                     nuevo_evento.recordatorio_dias = 3
                     nuevo_evento.created_by = "system"
-                    
+
                     db.session.add(nuevo_evento)
                     mensaje = "Evento de entrega creado"
             else:
@@ -104,10 +104,10 @@ class ContratoEventosService:
                     mensaje = "Evento de entrega eliminado (sin fecha de entrega)"
                 else:
                     mensaje = "Sin cambios necesarios"
-            
+
             db.session.commit()
             return True, mensaje
-            
+
         except Exception as e:
             db.session.rollback()
             return False, f"Error: {str(e)}"
@@ -130,7 +130,7 @@ class ContratoEventosService:
     def get_entregas_proximas(self, dias: int = 7) -> List[EventoEntrega]:
         """Get delivery events in the next X days"""
         fecha_limite = datetime.now().date() + timedelta(days=dias)
-        
+
         return (
             db.session.query(EventoEntrega)
             .filter(
@@ -149,9 +149,9 @@ class ContratoEventosService:
         """Generate calendar events from delivery plan milestones"""
         try:
             from models import PlanEntrega, HitoEntrega, EstadoHitoEntrega
-            
+
             eventos_creados = 0
-            
+
             # Get active delivery plans with milestones
             planes_activos = (
                 db.session.query(PlanEntrega)
@@ -160,7 +160,7 @@ class ContratoEventosService:
                 .filter(Contrato.estado == EstadoContrato.VIGENTE)
                 .all()
             )
-            
+
             for plan in planes_activos:
                 for hito in plan.hitos:
                     # Check if event already exists for this milestone
@@ -169,12 +169,12 @@ class ContratoEventosService:
                         .filter_by(hito_entrega_id=hito.id)
                         .first()
                     )
-                    
+
                     if hito.estado == EstadoHitoEntrega.PENDIENTE:
                         if not evento_existente:
                             # Create new event for pending milestone
                             evento_id = self._generate_evento_id()
-                            
+
                             nuevo_evento = EventoEntrega()
                             nuevo_evento.id = evento_id
                             nuevo_evento.contrato_id = plan.contrato_id
@@ -188,7 +188,7 @@ class ContratoEventosService:
                             nuevo_evento.prioridad = PrioridadEvento.ALTA
                             nuevo_evento.recordatorio_dias = 2
                             nuevo_evento.created_by = usuario_id
-                            
+
                             db.session.add(nuevo_evento)
                             eventos_creados += 1
                         else:
@@ -198,7 +198,7 @@ class ContratoEventosService:
                                 evento_existente.titulo = f"Hito: {hito.titulo}"
                                 evento_existente.descripcion = f"Hito del plan de entrega: {plan.nombre}\nDescripción: {hito.descripcion or 'Sin descripción'}"
                                 evento_existente.updated_at = datetime.now()
-                    
+
                     elif hito.estado == EstadoHitoEntrega.COMPLETADO and evento_existente:
                         # Mark event as completed if milestone is completed
                         if evento_existente.estado == EstadoEvento.PENDIENTE:
@@ -206,10 +206,10 @@ class ContratoEventosService:
                             evento_existente.fecha_completado = hito.fecha_completado or datetime.now()
                             evento_existente.completado_por = hito.completado_por or usuario_id
                             evento_existente.updated_at = datetime.now()
-            
+
             db.session.commit()
             return True, f"Sincronización completada. {eventos_creados} eventos creados/actualizados", eventos_creados
-            
+
         except Exception as e:
             db.session.rollback()
             return False, f"Error sincronizando eventos: {str(e)}", 0
@@ -218,18 +218,18 @@ class ContratoEventosService:
         """Update or create event when milestone changes"""
         try:
             from models import HitoEntrega, EstadoHitoEntrega
-            
+
             hito = db.session.query(HitoEntrega).filter_by(id=hito_id).first()
             if not hito:
                 return False, "Hito no encontrado"
-            
+
             # Find existing event for this milestone
             evento_existente = (
                 db.session.query(EventoEntrega)
                 .filter_by(hito_entrega_id=hito.id)
                 .first()
             )
-            
+
             if hito.estado == EstadoHitoEntrega.PENDIENTE:
                 if evento_existente:
                     # Update existing event
@@ -241,7 +241,7 @@ class ContratoEventosService:
                 else:
                     # Create new event
                     evento_id = self._generate_evento_id()
-                    
+
                     nuevo_evento = EventoEntrega()
                     nuevo_evento.id = evento_id
                     nuevo_evento.contrato_id = hito.plan_entrega.contrato_id
@@ -255,10 +255,10 @@ class ContratoEventosService:
                     nuevo_evento.prioridad = PrioridadEvento.ALTA
                     nuevo_evento.recordatorio_dias = 2
                     nuevo_evento.created_by = "system"
-                    
+
                     db.session.add(nuevo_evento)
                     mensaje = "Evento de hito creado"
-            
+
             elif hito.estado == EstadoHitoEntrega.COMPLETADO and evento_existente:
                 # Mark event as completed
                 evento_existente.estado = EstadoEvento.COMPLETADO
@@ -266,13 +266,13 @@ class ContratoEventosService:
                 evento_existente.completado_por = hito.completado_por or "system"
                 evento_existente.updated_at = datetime.now()
                 mensaje = "Evento marcado como completado"
-            
+
             else:
                 mensaje = "Sin cambios necesarios"
-            
+
             db.session.commit()
             return True, mensaje
-            
+
         except Exception as e:
             db.session.rollback()
             return False, f"Error: {str(e)}"
