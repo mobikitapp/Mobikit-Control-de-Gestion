@@ -923,3 +923,72 @@ def archivar_contratos_cerrados():
         logger.error(f"Error archivando contratos cerrados: {str(e)}")
         flash('Error archivando contratos cerrados', 'error')
         return redirect(request.referrer or url_for('contratos.list_contratos'))
+
+@contratos_bp.route('/<int:contrato_id>/adjuntos/<int:adjunto_id>/descargar')
+@require_login
+def download_adjunto(contrato_id, adjunto_id):
+    """Download contract attachment"""
+    try:
+        from flask import Response
+        import subprocess
+        import json
+        
+        # Get attachment record
+        from repositories.contratos_repo import ContratoAdjuntosRepository
+        adjuntos_repo = ContratoAdjuntosRepository()
+        adjunto = adjuntos_repo.get_by_id(adjunto_id)
+        
+        if not adjunto or adjunto.contrato_id != contrato_id:
+            flash('Archivo no encontrado', 'error')
+            return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
+        
+        # Download file from Replit Object Storage
+        script = f"""
+        const {{ Client }} = require('@replit/object-storage');
+        
+        async function downloadFile() {{
+            try {{
+                const client = new Client();
+                const {{ ok, value, error }} = await client.downloadAsBytes('{adjunto.storage_key}');
+                
+                if (ok) {{
+                    // Convert buffer to base64 for transport
+                    const base64 = Buffer.from(value).toString('base64');
+                    console.log(JSON.stringify({{ success: true, data: base64 }}));
+                }} else {{
+                    console.log(JSON.stringify({{ success: false, error: error?.message || 'Download failed' }}));
+                }}
+            }} catch (e) {{
+                console.log(JSON.stringify({{ success: false, error: e.message }}));
+            }}
+        }}
+        
+        downloadFile();
+        """
+        
+        result = subprocess.run(['node', '-e', script], capture_output=True, text=True)
+        
+        if result.stdout:
+            response_data = json.loads(result.stdout)
+            if response_data.get('success'):
+                import base64
+                file_data = base64.b64decode(response_data['data'])
+                
+                return Response(
+                    file_data,
+                    mimetype=adjunto.mime_type,
+                    headers={
+                        'Content-Disposition': f'attachment; filename="{adjunto.filename}"'
+                    }
+                )
+            else:
+                flash(f'Error al descargar archivo: {response_data.get("error", "Error desconocido")}', 'error')
+        else:
+            flash('Error al acceder al sistema de almacenamiento', 'error')
+        
+        return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
+        
+    except Exception as e:
+        logger.error(f"Error downloading attachment {adjunto_id}: {str(e)}")
+        flash('Error al descargar archivo', 'error')
+        return redirect(url_for('contratos.detalle', contrato_id=contrato_id))

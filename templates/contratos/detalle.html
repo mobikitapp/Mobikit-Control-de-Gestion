@@ -248,7 +248,7 @@
                                     <td>{{ adjunto.created_at.strftime('%d/%m/%Y') }}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <a href="#" class="btn btn-outline-primary" title="Descargar">
+                                            <a href="{{ url_for('contratos.download_adjunto', contrato_id=contrato.id, adjunto_id=adjunto.id) }}" class="btn btn-outline-primary" title="Descargar">
                                                 <i data-feather="download"></i>
                                             </a>
                                             {% if current_user.rol.value in ['admin', 'ventas'] %}
