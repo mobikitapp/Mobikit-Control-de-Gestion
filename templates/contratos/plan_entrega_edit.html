@@ -197,7 +197,7 @@
 <div class="hito-item border rounded p-3 mb-3" data-hito-index="{{INDEX}}">
     <div class="d-flex justify-content-between align-items-start mb-3">
         <h6 class="mb-0">Hito #{{NUMERO}} <span class="badge bg-info ms-2">Nuevo</span></h6>
-        <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-hito">
+        <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-hito" title="Eliminar hito">
             <i class="fas fa-trash"></i>
         </button>
     </div>
@@ -205,7 +205,7 @@
         <div class="col-md-6">
             <div class="mb-3">
                 <label class="form-label">Título <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" name="hito_titulo[]" required>
+                <input type="text" class="form-control" name="hito_titulo[]" required placeholder="Ej: Entrega de planos">
                 <input type="hidden" name="hito_id[]" value="">
             </div>
         </div>
@@ -218,7 +218,7 @@
         <div class="col-12">
             <div class="mb-0">
                 <label class="form-label">Descripción</label>
-                <textarea class="form-control" name="hito_descripcion[]" rows="2" placeholder="Descripción del hito..."></textarea>
+                <textarea class="form-control" name="hito_descripcion[]" rows="2" placeholder="Descripción detallada del hito de entrega..."></textarea>
             </div>
         </div>
     </div>
@@ -266,10 +266,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Agregar event listener para eliminar
         const btnEliminar = hitoItem.querySelector('.btn-eliminar-hito');
-        btnEliminar.addEventListener('click', function() {
-            hitoItem.remove();
-            updateHitosVisibility();
-        });
+        if (btnEliminar) {
+            btnEliminar.addEventListener('click', function() {
+                hitoItem.remove();
+                updateHitosVisibility();
+            });
+        }
+        
+        // Set minimum date to today for new milestones
+        const fechaInput = hitoItem.querySelector('input[type="date"]');
+        if (fechaInput) {
+            const today = new Date().toISOString().split('T')[0];
+            fechaInput.min = today;
+        }
         
         containerHitos.appendChild(hitoItem);
         updateHitosVisibility();
@@ -282,17 +291,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Event listeners
-    btnAgregarHito.addEventListener('click', agregarNuevoHito);
+    btnAgregarHito.addEventListener('click', function(e) {
+        e.preventDefault();
+        agregarNuevoHito();
+    });
     
-    // Agregar event listeners a botones eliminar existentes
-    document.querySelectorAll('.btn-eliminar-hito').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const hitoItem = btn.closest('.hito-item');
+    // Use event delegation for delete buttons (handles both existing and new milestones)
+    containerHitos.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-eliminar-hito')) {
+            e.preventDefault();
+            const hitoItem = e.target.closest('.hito-item');
             if (hitoItem) {
-                hitoItem.remove();
-                updateHitosVisibility();
+                // Confirm deletion for new milestones
+                const hitoTitulo = hitoItem.querySelector('input[name="hito_titulo[]"]').value || 'este hito';
+                if (confirm(`¿Está seguro que desea eliminar ${hitoTitulo}?`)) {
+                    hitoItem.remove();
+                    updateHitosVisibility();
+                }
             }
-        });
+        }
     });
     
     // Validación del formulario
@@ -308,19 +325,33 @@ document.addEventListener('DOMContentLoaded', function() {
         const titulos = document.querySelectorAll('input[name="hito_titulo[]"]');
         const fechas = document.querySelectorAll('input[name="hito_fecha[]"]');
         
+        let hasValidHitos = false;
         for (let i = 0; i < titulos.length; i++) {
-            if (!titulos[i].readOnly && !titulos[i].value.trim()) {
+            // Skip validation for readonly (completed) milestones
+            if (titulos[i].readOnly) {
+                hasValidHitos = true;
+                continue;
+            }
+            
+            if (!titulos[i].value.trim()) {
                 e.preventDefault();
                 alert(`El hito #${i + 1} debe tener un título`);
                 titulos[i].focus();
                 return false;
             }
-            if (!fechas[i].readOnly && !fechas[i].value) {
+            if (!fechas[i].value) {
                 e.preventDefault();
                 alert(`El hito #${i + 1} debe tener una fecha programada`);
                 fechas[i].focus();
                 return false;
             }
+            hasValidHitos = true;
+        }
+        
+        if (!hasValidHitos) {
+            e.preventDefault();
+            alert('Debe tener al menos un hito de entrega válido');
+            return false;
         }
     });
     
