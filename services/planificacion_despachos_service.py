@@ -5,7 +5,7 @@ from sqlalchemy import and_, or_, func, desc, asc
 from models import (
     Cliente, Proyecto, Contrato, HitoEntrega, Despacho,
     OrdenFabricacion, DespachoOrdenFabricacion,
-    EstadoHitoEntrega, EstadoOF, EstadoBodega, TipoDespacho, TipoArea, Area, AreaEstado, OrdenAreaProgreso
+    EstadoHitoEntrega, EstadoOF, EstadoBodega, TipoDespacho, Area, AreaEstado, TipoArea, OrdenAreaProgreso
 )
 from schemas.despachos import (
     ClienteConProyectos, ProyectoConHitos, HitoEntregaDespacho,
@@ -335,7 +335,7 @@ class PlanificacionDespachosService:
             fecha_limite = date.today() + timedelta(days=dias)
 
             from models import PlanEntrega, Contrato
-
+            
             # Mejorar la consulta con joinedload para evitar problemas de lazy loading
             hitos = db.session.query(HitoEntrega).join(
                 PlanEntrega, HitoEntrega.plan_entrega_id == PlanEntrega.id
@@ -364,7 +364,6 @@ class PlanificacionDespachosService:
             for hito in hitos:
                 try:
                     dias_restantes = (hito.fecha_programada - date.today()).days
-                    urgente = dias_restantes <= 2
 
                     # Verificar si ya tiene despacho creado
                     despacho_creado = False
@@ -381,27 +380,22 @@ class PlanificacionDespachosService:
 
                     # Obtener descripción del hito
                     descripcion = hito.descripcion or hito.titulo or f"Hito {hito.orden}"
-                    cliente_nombre = hito.plan_entrega.contrato.proyecto.cliente.nombre
-                    proyecto_nombre = hito.plan_entrega.contrato.proyecto.nombre
-                    contrato_numero_oc = hito.plan_entrega.contrato.numero_oc
 
                     hito_data = {
                         'id': hito.id,
-                        'plan_entrega_id': hito.plan_entrega_id,
-                        'contrato_id': hito.plan_entrega.contrato_id if hito.plan_entrega else None,
-                        'titulo': hito.titulo,
-                        'descripcion': hito.descripcion,
+                        'descripcion': descripcion,
                         'fecha_entrega': hito.fecha_programada,
-                        'estado': hito.estado.value,
                         'dias_restantes': dias_restantes,
-                        'urgente': urgente,
-                        'cliente_nombre': cliente_nombre,
-                        'proyecto_nombre': proyecto_nombre,
-                        'contrato_numero_oc': contrato_numero_oc
+                        'cliente_nombre': hito.plan_entrega.contrato.proyecto.cliente.nombre,
+                        'proyecto_nombre': hito.plan_entrega.contrato.proyecto.nombre,
+                        'contrato_numero_oc': hito.plan_entrega.contrato.numero_oc,
+                        'despacho_creado': despacho_creado,
+                        'despacho_id': despacho_id,
+                        'urgente': dias_restantes <= 2
                     }
 
                     hitos_proximos.append(hito_data)
-
+                    
                 except Exception as hito_error:
                     logger.warning(f"Error procesando hito {hito.id}: {str(hito_error)}")
                     continue
