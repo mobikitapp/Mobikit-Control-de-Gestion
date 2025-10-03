@@ -150,7 +150,7 @@ class PermisosService:
                 'admin': ['lectura', 'creacion', 'edicion', 'eliminacion'],
                 'general': ['lectura', 'creacion', 'edicion'],
                 'ventas': ['lectura', 'creacion'],
-                'operaciones': ['lectura'],
+                'operaciones': ['lectura', 'creacion'],
                 'produccion': [],
                 'logistica': [],
                 'finanzas': ['lectura', 'creacion', 'edicion']

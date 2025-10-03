@@ -96,7 +96,7 @@ def index():
         return redirect(url_for('index'))
 
 @contratos_bp.route('/nuevo')
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES, RolUsuario.FINANZAS)
 def nuevo():
     """Formulario para nuevo contrato"""
     try:
@@ -115,7 +115,7 @@ def nuevo():
         return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/crear', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES, RolUsuario.FINANZAS)
 def crear():
     """Crear nuevo contrato"""
     try:
