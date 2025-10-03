@@ -167,7 +167,7 @@
                                                         {% endif %}
                                                     {% endif %}
                                                     <!-- Botón para ver plan de entrega completo -->
-                                                    <a href="{{ url_for('contratos.plan_entrega', contrato_id=hito.contrato_id) }}"
+                                                    <a href="{{ url_for('contratos.plan_entrega', contrato_id=hito['contrato_id']) }}"
                                                        class="btn btn-outline-info btn-action" title="Ver plan de entrega completo">
                                                         <i class="fas fa-calendar-alt me-2"></i>
                                                         Plan Completo
