@@ -123,6 +123,7 @@
             padding: 6px;
             vertical-align: middle;
             border-color: #ecf0f1;
+            text-align: center;
         }
 
         .table tbody tr:nth-child(odd) {
@@ -285,7 +286,7 @@
 
                     <tr {% if days_remaining is not none and days_remaining < 0 %}class="table-danger"{% elif days_remaining is not none and days_remaining <= 3 %}class="table-warning"{% endif %}>
                         <!-- Código -->
-                        <td class="text-center">
+                        <td>
                             <div class="order-code">{{ orden.codigo }}</div>
                         </td>
 
@@ -311,14 +312,14 @@
                         </td>
 
                         <!-- Prioridad -->
-                        <td class="text-center">
+                        <td>
                             <span class="priority-badge priority-{{ orden.prioridad_numerica or 3 }}">
                                 P{{ orden.prioridad_numerica or 3 }}
                             </span>
                         </td>
 
                         <!-- Área -->
-                        <td class="text-center">
+                        <td>
                             <div>
                                 <span class="area-badge" style="background-color: {{ orden.area.color_hex }};">
                                     {{ orden.area.nombre }}
@@ -327,14 +328,14 @@
                         </td>
 
                         <!-- Estado -->
-                        <td class="text-center">
+                        <td>
                             <div style="font-size: 0.75rem; font-weight: 600;">
                                 {{ orden.estado.nombre }}
                             </div>
                         </td>
 
                         <!-- Responsable -->
-                        <td class="text-center">
+                        <td>
                             <div class="responsible-user">
                                 {% if orden.responsable_nombre %}
                                 <i class="fas fa-user me-1"></i>{{ orden.responsable_nombre.split(' ')[0] }}
@@ -345,14 +346,14 @@
                         </td>
 
                         <!-- Días en Estado -->
-                        <td class="text-center">
+                        <td>
                             <span class="{% if days_in_state > 7 %}status-danger{% elif days_in_state > 3 %}status-warning{% else %}status-success{% endif %}">
                                 {{ days_in_state }}d
                             </span>
                         </td>
 
                         <!-- Fecha Entrega -->
-                        <td class="text-center">
+                        <td>
                             {% if orden.fecha_entrega_dinamica %}
                             <div style="font-size: 0.75rem; font-weight: 600;">
                                 {{ orden.fecha_entrega_dinamica.strftime('%d/%m') }}
@@ -363,7 +364,7 @@
                         </td>
 
                         <!-- Días Restantes -->
-                        <td class="text-center">
+                        <td>
                             {% if days_remaining is not none %}
                                 {% if days_remaining < 0 %}
                                 <span class="delivery-status status-danger">
