@@ -575,7 +575,6 @@ def area_tv_display(area_id):
                     'count': len(formatted_orders)
                 })
 
-        from datetime import datetime
         return render_template(
             'areas/area_tv_display.html',
             area=area,
