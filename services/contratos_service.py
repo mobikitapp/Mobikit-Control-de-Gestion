@@ -554,7 +554,7 @@ class ContratosService:
         """
         try:
             from datetime import date
-            from models import EstadoHitoEntrega
+            from models import EstadoHitoEntrega, PlanEntrega
 
             # Initialize default values
             contrato.fecha_proxima_entrega = None
@@ -563,6 +563,16 @@ class ContratosService:
 
             # Enrich with OFs information
             self._enrich_contrato_with_ofs_info(contrato)
+
+            # Force reload plan_entrega if not loaded properly
+            if not hasattr(contrato, 'plan_entrega') or contrato.plan_entrega is None:
+                from models import PlanEntrega
+                plan_entrega = db.session.query(PlanEntrega).filter_by(contrato_id=contrato.id).first()
+                contrato.plan_entrega = plan_entrega
+                if plan_entrega:
+                    logger.debug(f"Plan de entrega cargado para contrato {contrato.id}: {plan_entrega.nombre}")
+
+            logger.debug(f"Contrato {contrato.id} - Plan entrega: {'Sí' if contrato.plan_entrega else 'No'}, Hitos: {len(contrato.plan_entrega.hitos) if contrato.plan_entrega else 0}")
 
             if contrato.plan_entrega and contrato.plan_entrega.hitos:
                 # Get pending milestones sorted by date and order

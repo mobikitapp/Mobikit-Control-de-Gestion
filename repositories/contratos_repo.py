@@ -24,6 +24,7 @@ class ContratosRepository:
                 .options(
                     joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
                     joinedload(Contrato.adjuntos),
+                    joinedload(Contrato.plan_entrega).joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user),
                     joinedload(Contrato.creator)
                 )
                 .filter_by(id=contrato_id)
@@ -62,7 +63,7 @@ class ContratosRepository:
                 .options(
                     joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
                     joinedload(Contrato.adjuntos),
-                    joinedload(Contrato.plan_entrega).joinedload(PlanEntrega.hitos),
+                    joinedload(Contrato.plan_entrega).joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user),
                     joinedload(Contrato.ordenes_fabricacion)
                 ))
 
