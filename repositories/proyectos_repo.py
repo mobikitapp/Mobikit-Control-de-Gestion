@@ -93,6 +93,15 @@ class ProyectosRepository:
         if filters.fecha_inicio_hasta:
             conditions.append(Proyecto.fecha_inicio <= filters.fecha_inicio_hasta)
 
+        if filters.estado_comercial:
+            from models import EstadoComercial
+            try:
+                estado_enum = EstadoComercial(filters.estado_comercial)
+                conditions.append(Proyecto.estado_comercial == estado_enum)
+            except ValueError:
+                # Si el estado no es válido, ignorar el filtro
+                pass
+
         if conditions:
             query = query.filter(and_(*conditions))
 

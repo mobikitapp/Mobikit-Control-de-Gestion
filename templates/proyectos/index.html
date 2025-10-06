@@ -54,14 +54,15 @@
                            value="{{ filters.nombre or '' }}" placeholder="Buscar por nombre">
                 </div>
                 <div class="col-md-3">
-                    <label for="estado" class="form-label">Estado</label>
-                    <select class="form-select" id="estado" name="estado">
+                    <label for="estado_comercial" class="form-label">Estado Comercial</label>
+                    <select class="form-select" id="estado_comercial" name="estado_comercial">
                         <option value="">Todos los estados</option>
-                        <option value="planificacion" {% if filters.estado == 'planificacion' %}selected{% endif %}>Planificación</option>
-                        <option value="en_desarrollo" {% if filters.estado == 'en_desarrollo' %}selected{% endif %}>En Desarrollo</option>
-                        <option value="pausado" {% if filters.estado == 'pausado' %}selected{% endif %}>Pausado</option>
-                        <option value="completado" {% if filters.estado == 'completado' %}selected{% endif %}>Completado</option>
-                        <option value="cancelado" {% if filters.estado == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                        <option value="PENDIENTE_PRESUPUESTO" {% if filters.estado_comercial == 'PENDIENTE_PRESUPUESTO' %}selected{% endif %}>Pendiente Presupuesto</option>
+                        <option value="PRESUPUESTADO" {% if filters.estado_comercial == 'PRESUPUESTADO' %}selected{% endif %}>Presupuestado</option>
+                        <option value="ADJUDICADO" {% if filters.estado_comercial == 'ADJUDICADO' %}selected{% endif %}>Adjudicado</option>
+                        <option value="EN_DESARROLLO" {% if filters.estado_comercial == 'EN_DESARROLLO' %}selected{% endif %}>En Desarrollo</option>
+                        <option value="TERMINADO" {% if filters.estado_comercial == 'TERMINADO' %}selected{% endif %}>Terminado</option>
+                        <option value="PERDIDO" {% if filters.estado_comercial == 'PERDIDO' %}selected{% endif %}>Perdido</option>
                     </select>
                 </div>
                 <div class="col-md-3">
