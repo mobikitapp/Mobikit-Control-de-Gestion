@@ -37,11 +37,12 @@ def main():
             print("="*60)
             
             for permiso_data in permisos_adjuntos:
-                exito, mensaje = permisos_service.actualizar_permiso_dinamico(
+                exito, mensaje = permisos_service.actualizar_permiso(
                     permiso_data['rol'],
                     permiso_data['modulo'], 
                     permiso_data['tipo_permiso'],
-                    permiso_data['permitido']
+                    permiso_data['permitido'],
+                    1  # user_id - using 1 as admin user
                 )
                 
                 if exito:
