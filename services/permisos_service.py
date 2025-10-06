@@ -360,6 +360,15 @@ class PermisosService:
                 'areas.lectura'
             ]
 
+        # Actualización específica para el rol 'general' en 'proyectos'
+        if 'general' in permisos_final and 'proyectos' in permisos_final['general']:
+            permisos_final['general']['proyectos'] = ['lectura', 'creacion', 'edicion', 'eliminacion']
+        elif 'general' in permisos_final:
+            permisos_final['general']['proyectos'] = ['lectura', 'creacion', 'edicion', 'eliminacion']
+        else:
+            permisos_final['general'] = {'proyectos': ['lectura', 'creacion', 'edicion', 'eliminacion']}
+
+
         return permisos_final.get(codigo_modulo, {})
 
     def sincronizar_permisos_defecto(self, user_id, only_missing=True, modulo_id=None):

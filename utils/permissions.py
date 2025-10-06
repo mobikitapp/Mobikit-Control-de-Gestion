@@ -136,7 +136,7 @@ ROLE_PERMISSIONS = {
         'despachos.lectura', 'despachos.creacion', 'despachos.edicion', 'despachos.proceso', 'despachos.archivo',
         'comercial.lectura', 'finanzas.lectura', 'finanzas.creacion', 'finanzas.edicion',
         'planificacion.lectura', 'planificacion.creacion', 'planificacion.edicion',
-        'areas.lectura',
+        'areas.lectura', 'areas.creacion', 'areas.edicion',
         'configuraciones.lectura',  # Solo ver configuraciones, no editar
         'mi_dashboard.lectura', 'mi_dashboard.mis_clientes', 'mi_dashboard.mis_proyectos', 'mi_dashboard.estadisticas'
     ],
