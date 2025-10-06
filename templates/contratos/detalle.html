@@ -187,11 +187,23 @@
                         <a href="{{ url_for('contratos.plan_entrega', contrato_id=contrato.id) }}" class="btn btn-outline-info btn-sm">
                             <i class="fas fa-calendar me-2"></i>Ver Plan de Entrega
                         </a>
+                        <small class="text-muted d-block mt-1">Plan: {{ contrato.plan_entrega.nombre }}</small>
                         {% else %}
                         <a href="{{ url_for('contratos.crear_plan_entrega', contrato_id=contrato.id) }}" class="btn btn-outline-success btn-sm">
                             <i class="fas fa-plus me-2"></i>Crear Plan de Entrega
                         </a>
+                        <small class="text-muted d-block mt-1">Sin plan de entrega</small>
                         {% endif %}
+                        
+                        <!-- DEBUG INFO - Remove this after fixing -->
+                        <div class="mt-2 p-2 bg-light border rounded small" style="font-family: monospace;">
+                            <strong>DEBUG:</strong><br>
+                            Plan exists: {{ contrato.plan_entrega is not none }}<br>
+                            {% if contrato.plan_entrega %}
+                            Plan ID: {{ contrato.plan_entrega.id }}<br>
+                            Hitos count: {{ contrato.plan_entrega.hitos|length if contrato.plan_entrega.hitos else 0 }}
+                            {% endif %}
+                        </div>
 
                         <a href="{{ url_for('proyectos.detalle', proyecto_id=contrato.proyecto_id) }}" class="btn btn-outline-primary">
                             <i data-feather="folder" class="me-2"></i>

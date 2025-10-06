@@ -157,8 +157,38 @@ class ContratosService:
         """Get contrato by ID with related data"""
         contrato = self.repo.get_by_id(contrato_id)
         if contrato:
+            # Debug plan_entrega loading
+            self._debug_plan_entrega_loading(contrato)
             self._enrich_contrato_with_next_milestone(contrato)
         return contrato
+
+    def _debug_plan_entrega_loading(self, contrato):
+        """Debug method to check plan_entrega loading"""
+        try:
+            logger.info(f"=== DEBUG PLAN ENTREGA - Contrato {contrato.id} ===")
+            logger.info(f"Has plan_entrega attribute: {hasattr(contrato, 'plan_entrega')}")
+            
+            if hasattr(contrato, 'plan_entrega'):
+                logger.info(f"plan_entrega is None: {contrato.plan_entrega is None}")
+                
+                if contrato.plan_entrega:
+                    logger.info(f"Plan ID: {contrato.plan_entrega.id}")
+                    logger.info(f"Plan nombre: {contrato.plan_entrega.nombre}")
+                    logger.info(f"Has hitos: {hasattr(contrato.plan_entrega, 'hitos')}")
+                    
+                    if hasattr(contrato.plan_entrega, 'hitos'):
+                        logger.info(f"Hitos count: {len(contrato.plan_entrega.hitos)}")
+                        for hito in contrato.plan_entrega.hitos[:3]:  # Solo los primeros 3
+                            logger.info(f"  - Hito: {hito.titulo}, Estado: {hito.estado.value}")
+                else:
+                    # Check if plan exists in database
+                    from models import PlanEntrega
+                    plan_count = db.session.query(PlanEntrega).filter_by(contrato_id=contrato.id).count()
+                    logger.info(f"Plan count in DB: {plan_count}")
+            
+            logger.info("=== END DEBUG PLAN ENTREGA ===")
+        except Exception as e:
+            logger.error(f"Error in debug plan entrega: {str(e)}")
 
     def get_contratos_by_cliente(self, cliente_id: int) -> List[Contrato]:
         """Get all contratos for a cliente"""
@@ -564,13 +594,20 @@ class ContratosService:
             # Enrich with OFs information
             self._enrich_contrato_with_ofs_info(contrato)
 
-            # Force reload plan_entrega if not loaded properly
+            # Force refresh from database to ensure plan_entrega is loaded
+            db.session.refresh(contrato)
+            
+            # If plan_entrega is still not loaded, query it explicitly
             if not hasattr(contrato, 'plan_entrega') or contrato.plan_entrega is None:
                 from models import PlanEntrega
-                plan_entrega = db.session.query(PlanEntrega).filter_by(contrato_id=contrato.id).first()
-                contrato.plan_entrega = plan_entrega
+                plan_entrega = (db.session.query(PlanEntrega)
+                              .filter_by(contrato_id=contrato.id)
+                              .first())
                 if plan_entrega:
-                    logger.debug(f"Plan de entrega cargado para contrato {contrato.id}: {plan_entrega.nombre}")
+                    # Force load hitos relationship
+                    _ = len(plan_entrega.hitos)  # This forces lazy loading
+                    contrato.plan_entrega = plan_entrega
+                    logger.debug(f"Plan de entrega cargado explícitamente para contrato {contrato.id}: {plan_entrega.nombre}")
 
             logger.debug(f"Contrato {contrato.id} - Plan entrega: {'Sí' if contrato.plan_entrega else 'No'}, Hitos: {len(contrato.plan_entrega.hitos) if contrato.plan_entrega else 0}")
 

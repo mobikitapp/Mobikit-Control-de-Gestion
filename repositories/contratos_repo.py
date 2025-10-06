@@ -20,15 +20,23 @@ class ContratosRepository:
     @staticmethod
     def get_by_id(contrato_id: int) -> Optional[Contrato]:
         """Get contrato by ID with related data"""
-        return (db.session.query(Contrato)
-                .options(
-                    joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
-                    joinedload(Contrato.adjuntos),
-                    joinedload(Contrato.plan_entrega).joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user),
-                    joinedload(Contrato.creator)
-                )
-                .filter_by(id=contrato_id)
-                .first())
+        contrato = (db.session.query(Contrato)
+                   .options(
+                       joinedload(Contrato.proyecto).joinedload(Proyecto.cliente),
+                       joinedload(Contrato.adjuntos),
+                       joinedload(Contrato.plan_entrega).joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user),
+                       joinedload(Contrato.creator)
+                   )
+                   .filter_by(id=contrato_id)
+                   .first())
+        
+        if contrato:
+            # Ensure plan_entrega is properly loaded
+            if hasattr(contrato, 'plan_entrega') and contrato.plan_entrega:
+                # Force load hitos to avoid lazy loading issues
+                _ = len(contrato.plan_entrega.hitos)
+        
+        return contrato
 
     @staticmethod
     def get_by_numero_oc(numero_oc: str) -> Optional[Contrato]:
