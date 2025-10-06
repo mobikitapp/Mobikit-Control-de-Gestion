@@ -313,12 +313,12 @@
                             <th style="width: 10%;">Código</th>
                             <th style="width: 18%;">Proyecto</th>
                             <th style="width: 15%;">Cliente</th>
+                            <th style="width: 15%;">Glosa</th>
                             <th style="width: 5%;">Prior.</th>
                             <th style="width: 12%;">Responsable</th>
                             <th style="width: 8%;">Días Estado</th>
-                            <th style="width: 10%;">Fecha Entrega</th>
-                            <th style="width: 7%;">Días Rest.</th>
-                            <th style="width: 15%;">Descripción</th>
+                            <th style="width: 8%;">Fecha Entrega</th>
+                            <th style="width: 9%;">Días Rest.</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -341,6 +341,17 @@
                             <!-- Cliente -->
                             <td>
                                 <div style="font-size: 0.8rem;">{{ order.cliente_nombre }}</div>
+                            </td>
+                            
+                            <!-- Glosa -->
+                            <td>
+                                {% if order.glosa and order.glosa != 'Sin glosa especificada' %}
+                                <div style="font-size: 0.7rem; line-height: 1.2;">
+                                    {{ order.glosa[:50] }}{% if order.glosa|length > 50 %}...{% endif %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted" style="font-size: 0.7rem;">-</span>
+                                {% endif %}
                             </td>
                             
                             <!-- Prioridad -->
@@ -401,17 +412,6 @@
                                     {% endif %}
                                 {% else %}
                                 <span class="delivery-status status-muted">-</span>
-                                {% endif %}
-                            </td>
-                            
-                            <!-- Descripción -->
-                            <td>
-                                {% if order.glosa and order.glosa != 'Sin glosa especificada' %}
-                                <div style="font-size: 0.7rem; line-height: 1.2;">
-                                    {{ order.glosa[:40] }}{% if order.glosa|length > 40 %}...{% endif %}
-                                </div>
-                                {% else %}
-                                <span class="text-muted" style="font-size: 0.7rem;">-</span>
                                 {% endif %}
                             </td>
                         </tr>
