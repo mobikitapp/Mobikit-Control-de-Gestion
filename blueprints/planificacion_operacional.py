@@ -519,7 +519,7 @@ def capacidad_produccion():
 
         # Get filters
         año = request.args.get('año', type=int) or datetime.now().year
-        vista = request.args.get('vista', default='estrategico')  # estrategico, mensual, semanal
+        vista = 'estrategico'  # Always use strategic mode
         horizonte_meses = request.args.get('horizonte', type=int) or 6
 
         modo_rolling = request.args.get('modo_rolling', default='mensual')
@@ -566,45 +566,7 @@ def capacidad_produccion():
                 # Add empty capacidad for template compatibility
                 'capacidad': {}
             }
-        elif vista == 'semanal': # Handle legacy weekly view
-            try:
-                # Calculate weekly rolling plan using legacy method
-                rolling_plan_data = service._calcular_rolling_plan_semanal(año, horizonte_meses)
-                demanda_jerarquica_data = service.calcular_demanda_semanal_jerarquica(año, horizonte_meses)
-                resumen_capacidad_data = service.get_resumen_capacidad_estrategica()
-                escenarios_data = ConfiguracionesService().get_escenarios_deficit()
-            except Exception as e:
-                print(f"Error calculando datos semanales: {e}")
-                rolling_plan_data = {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
-                demanda_jerarquica_data = {'demanda_por_semana': {}}
-                resumen_capacidad_data = {}
-                escenarios_data = {}
-
-            data = {
-                'año': año,
-                'vista': vista,
-                'horizonte_meses': horizonte_meses,
-                'modo_rolling': 'semanal',
-                'resumen_capacidad': resumen_capacidad_data,
-                'demanda_jerarquica': demanda_jerarquica_data,
-                'rolling_plan': rolling_plan_data,
-                'escenarios_deficit': escenarios_data
-            }
-
-        else:
-            # Legacy capacity analysis for backward compatibility
-            data = service.get_analisis_capacidad(año=año, vista=vista)
-            data['horizonte_meses'] = horizonte_meses  # Ensure this is always available
-            data['modo_rolling'] = vista # Pass the current view as mode
-            
-            # Ensure resumen exists for template compatibility
-            if 'resumen' not in data:
-                data['resumen'] = {
-                    'total_tableros_año': data.get('total_tableros_año', 0),
-                    'total_horas_año': data.get('total_horas_año', 0),
-                    'promedio_capacidad_porcentaje': data.get('promedio_capacidad_porcentaje', 0),
-                    'meses_sobrecargados': data.get('meses_sobrecargados', 0)
-                }
+        
 
 
         return render_template('planificacion_operacional/capacidad.html', calendar=calendar, **data)

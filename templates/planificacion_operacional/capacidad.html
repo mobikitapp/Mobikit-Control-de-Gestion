@@ -43,14 +43,7 @@ replit_final_file>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Modo de Análisis</label>
-                            <select class="form-select" name="vista">
-                                <option value="estrategico" {% if vista == 'estrategico' %}selected{% endif %}>Estratégico</option>
-                                <option value="mensual" {% if vista == 'mensual' %}selected{% endif %}>Mensual (Legacy)</option>
-                                <option value="semanal" {% if vista == 'semanal' %}selected{% endif %}>Semanal (Legacy)</option>
-                            </select>
-                        </div>
+                        
                         {% if vista == 'estrategico' %}
                         <div class="col-md-2">
                             <label class="form-label">Horizonte (meses)</label>
