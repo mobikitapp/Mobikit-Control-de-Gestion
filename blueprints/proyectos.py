@@ -331,7 +331,7 @@ def eliminar(proyecto_id):
         return redirect(url_for('proyectos.detalle', proyecto_id=proyecto_id))
 
 @proyectos_bp.route('/<int:proyecto_id>/adjuntos', methods=['GET', 'POST'])
-@require_permission('proyectos:adjuntos')
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def adjuntos(proyecto_id):
     """Handle project attachments - GET to list, POST to upload"""
     if request.method == 'GET':
@@ -424,7 +424,7 @@ def descargar_adjunto(adjunto_id):
         return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/adjuntos/<int:adjunto_id>/eliminar', methods=['POST'])
-@require_permission('proyectos:adjuntos:eliminar')
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
 def eliminar_adjunto(adjunto_id):
     """Delete project attachment"""
     try:

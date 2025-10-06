@@ -1,7 +1,7 @@
 
 #!/usr/bin/env python3
 """
-Script para otorgar permisos de adjuntos a roles general y operaciones
+Script para otorgar permisos de adjuntos de proyectos a roles General, Operaciones y Ventas
 """
 
 from app import create_app, db
@@ -18,18 +18,24 @@ def main():
         try:
             permisos_service = PermisosService()
             
-            # Permisos de adjuntos para diferentes roles usando tipos válidos
+            # Permisos de adjuntos para diferentes roles usando tipos válidos del sistema dinámico
             permisos_adjuntos = [
-                # General - acceso completo a proyectos (lectura y eliminación)
+                # General - acceso completo a proyectos incluyendo adjuntos
                 {'rol': 'general', 'modulo': 'proyectos', 'tipo_permiso': 'lectura', 'permitido': True},
+                {'rol': 'general', 'modulo': 'proyectos', 'tipo_permiso': 'creacion', 'permitido': True},
+                {'rol': 'general', 'modulo': 'proyectos', 'tipo_permiso': 'edicion', 'permitido': True},
                 {'rol': 'general', 'modulo': 'proyectos', 'tipo_permiso': 'eliminacion', 'permitido': True},
                 
-                # Operaciones - lectura de proyectos pero sin eliminación
+                # Operaciones - acceso completo a proyectos incluyendo adjuntos
                 {'rol': 'operaciones', 'modulo': 'proyectos', 'tipo_permiso': 'lectura', 'permitido': True},
+                {'rol': 'operaciones', 'modulo': 'proyectos', 'tipo_permiso': 'creacion', 'permitido': True},
+                {'rol': 'operaciones', 'modulo': 'proyectos', 'tipo_permiso': 'edicion', 'permitido': True},
                 {'rol': 'operaciones', 'modulo': 'proyectos', 'tipo_permiso': 'eliminacion', 'permitido': False},
                 
-                # Ventas - lectura de proyectos pero sin eliminación (ACCESO A ADJUNTOS)
+                # Ventas - acceso a lectura, creación y edición de proyectos incluyendo adjuntos
                 {'rol': 'ventas', 'modulo': 'proyectos', 'tipo_permiso': 'lectura', 'permitido': True},
+                {'rol': 'ventas', 'modulo': 'proyectos', 'tipo_permiso': 'creacion', 'permitido': True},
+                {'rol': 'ventas', 'modulo': 'proyectos', 'tipo_permiso': 'edicion', 'permitido': True},
                 {'rol': 'ventas', 'modulo': 'proyectos', 'tipo_permiso': 'eliminacion', 'permitido': False},
             ]
             
@@ -54,18 +60,23 @@ def main():
             resultado_general_lectura = permisos_service.verificar_permiso_dinamico('general', 'proyectos', 'lectura')
             resultado_operaciones_lectura = permisos_service.verificar_permiso_dinamico('operaciones', 'proyectos', 'lectura')
             resultado_ventas_lectura = permisos_service.verificar_permiso_dinamico('ventas', 'proyectos', 'lectura')
+            resultado_ventas_creacion = permisos_service.verificar_permiso_dinamico('ventas', 'proyectos', 'creacion')
+            resultado_operaciones_creacion = permisos_service.verificar_permiso_dinamico('operaciones', 'proyectos', 'creacion')
             
             print("\n" + "="*60)
-            print("VERIFICACIÓN DE PERMISOS DE PROYECTOS (para adjuntos):")
+            print("VERIFICACIÓN DE PERMISOS DE ADJUNTOS DE PROYECTOS:")
             print("="*60)
             print(f"• General - Lectura Proyectos: {'✓ SÍ' if resultado_general_lectura else '✗ NO'}")
             print(f"• Operaciones - Lectura Proyectos: {'✓ SÍ' if resultado_operaciones_lectura else '✗ NO'}")
-            print(f"• Ventas - Lectura Proyectos (ADJUNTOS): {'✓ SÍ' if resultado_ventas_lectura else '✗ NO'}")
+            print(f"• Operaciones - Creación Proyectos: {'✓ SÍ' if resultado_operaciones_creacion else '✗ NO'}")
+            print(f"• Ventas - Lectura Proyectos: {'✓ SÍ' if resultado_ventas_lectura else '✗ NO'}")
+            print(f"• Ventas - Creación Proyectos: {'✓ SÍ' if resultado_ventas_creacion else '✗ NO'}")
             print("="*60)
             
-            if resultado_general_lectura and resultado_operaciones_lectura and resultado_ventas_lectura:
-                print("🎉 ÉXITO: Permisos de proyectos configurados correctamente para adjuntos")
-                print("📋 NOTA: El rol Ventas ahora puede ver y descargar adjuntos de proyectos")
+            if (resultado_general_lectura and resultado_operaciones_lectura and 
+                resultado_ventas_lectura and resultado_operaciones_creacion and resultado_ventas_creacion):
+                print("🎉 ÉXITO: Permisos configurados correctamente para acceso a adjuntos")
+                print("📋 Los roles General, Operaciones y Ventas pueden ver y gestionar adjuntos de proyectos")
             else:
                 print("❌ ERROR: Algunos permisos no se configuraron correctamente")
                 
