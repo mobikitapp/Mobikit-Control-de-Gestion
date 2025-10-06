@@ -350,6 +350,16 @@ class PermisosService:
             else:
                 permisos_final[rol] = modulos_rol
 
+        # Actualizar permisos por defecto para rol operaciones
+        permisos_final['operaciones'] = [
+                'proyectos.lectura',
+                'contratos.lectura', 'contratos.creacion',
+                'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
+                'despachos.lectura', 'despachos.creacion', 'despachos.edicion',
+                'planificacion.lectura',
+                'areas.lectura'
+            ]
+
         return permisos_final.get(codigo_modulo, {})
 
     def sincronizar_permisos_defecto(self, user_id, only_missing=True, modulo_id=None):

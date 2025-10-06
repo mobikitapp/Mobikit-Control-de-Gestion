@@ -19,7 +19,7 @@ PERMISSIONS = {
     'clientes.eliminacion': ['admin'],
     
     # Proyectos
-    'proyectos.lectura': ['admin', 'general', 'ventas', 'finanzas'],
+    'proyectos.lectura': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
     'proyectos.creacion': ['admin', 'general', 'ventas'],
     'proyectos.edicion': ['admin', 'general', 'ventas'],
     'proyectos.eliminacion': ['admin'],
@@ -27,7 +27,7 @@ PERMISSIONS = {
     
     # Contratos y Órdenes de Compra
     'contratos.lectura': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
-    'contratos.creacion': ['admin', 'general', 'ventas', 'finanzas'],
+    'contratos.creacion': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
     'contratos.edicion': ['admin', 'general', 'finanzas'],
     'contratos.eliminacion': ['admin'],
     'contratos.aprobacion': ['admin', 'general'],
@@ -41,9 +41,9 @@ PERMISSIONS = {
     'fabricacion.proceso': ['admin', 'general', 'operaciones', 'produccion'],
     
     # Despachos
-    'despachos.lectura': ['admin', 'general', 'logistica', 'produccion', 'finanzas'],
-    'despachos.creacion': ['admin', 'general', 'logistica'],
-    'despachos.edicion': ['admin', 'general', 'logistica'],
+    'despachos.lectura': ['admin', 'general', 'operaciones', 'logistica', 'produccion', 'finanzas'],
+    'despachos.creacion': ['admin', 'general', 'operaciones', 'logistica'],
+    'despachos.edicion': ['admin', 'general', 'operaciones', 'logistica'],
     'despachos.eliminacion': ['admin'],
     'despachos.proceso': ['admin', 'general', 'logistica'],
     'despachos.archivo': ['admin', 'general'],
@@ -149,8 +149,10 @@ ROLE_PERMISSIONS = {
         'mi_dashboard.lectura', 'mi_dashboard.mis_clientes', 'mi_dashboard.mis_proyectos', 'mi_dashboard.estadisticas'
     ],
     'operaciones': [
-        'contratos.lectura', 
+        'proyectos.lectura',
+        'contratos.lectura', 'contratos.creacion',
         'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
+        'despachos.lectura', 'despachos.creacion', 'despachos.edicion',
         'planificacion.lectura',
         'areas.lectura'
     ],
