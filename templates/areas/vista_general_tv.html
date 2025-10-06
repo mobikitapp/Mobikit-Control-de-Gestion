@@ -1,0 +1,534 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 1.1rem;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .tv-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 30px;
+            min-height: calc(100vh - 40px);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .header-title {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .header-subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+        }
+        
+        .time-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #3498db;
+        }
+        
+        .stat-card.danger {
+            border-left-color: #e74c3c;
+        }
+        
+        .stat-card.warning {
+            border-left-color: #f39c12;
+        }
+        
+        .stat-card.success {
+            border-left-color: #27ae60;
+        }
+        
+        .stat-card.info {
+            border-left-color: #3498db;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-number.text-danger {
+            color: #e74c3c;
+        }
+        
+        .stat-number.text-warning {
+            color: #f39c12;
+        }
+        
+        .stat-number.text-success {
+            color: #27ae60;
+        }
+        
+        .stat-number.text-primary {
+            color: #3498db;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .order-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 6px solid #27ae60;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .order-card.warning {
+            border-left-color: #f39c12;
+            background: linear-gradient(135deg, #fff8e1 0%, #ffffff 100%);
+        }
+        
+        .order-card.danger {
+            border-left-color: #e74c3c;
+            background: linear-gradient(135deg, #ffebee 0%, #ffffff 100%);
+            animation: pulse 2s infinite;
+        }
+        
+        .order-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .order-code {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .priority-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        .order-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .detail-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        
+        .detail-label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        
+        .detail-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .area-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 5px;
+        }
+        
+        .delivery-info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+        }
+        
+        .delivery-date {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .delivery-status {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .no-orders {
+            text-align: center;
+            padding: 80px 20px;
+            color: #7f8c8d;
+        }
+        
+        .no-orders i {
+            font-size: 5rem;
+            margin-bottom: 20px;
+            color: #bdc3c7;
+        }
+        
+        .status-indicator {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .text-success { color: #27ae60; }
+        .text-warning { color: #f39c12; }
+        .text-danger { color: #e74c3c; }
+        .text-info { color: #3498db; }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .order-card {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @media (max-width: 1400px) {
+            .orders-grid {
+                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                gap: 15px;
+            }
+            
+            .order-card {
+                padding: 15px;
+            }
+            
+            .stats-bar {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .orders-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .header-title {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="tv-container">
+        <!-- Time Display -->
+        <div class="time-display">
+            <i class="fas fa-clock"></i>
+            <span class="current-time"></span>
+        </div>
+        
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title">
+                <i class="fas fa-list me-3"></i>
+                Vista General de Órdenes de Fabricación
+            </div>
+            <div class="header-subtitle">
+                Todas las órdenes activas ordenadas por fecha de entrega
+            </div>
+        </div>
+        
+        <!-- Statistics Bar -->
+        <div class="stats-bar">
+            {% set total_ordenes = ordenes|length %}
+            {% set vencidas = ordenes|selectattr('fecha_entrega_dinamica')|list|selectattr('fecha_entrega_dinamica', 'lt', moment_global().date())|list|length %}
+            {% set esta_semana = ordenes|selectattr('fecha_entrega_dinamica')|list|selectattr('fecha_entrega_dinamica', 'le', (moment_global().date() + timedelta(days=7)))|selectattr('fecha_entrega_dinamica', 'ge', moment_global().date())|list|length %}
+            {% set en_tiempo = ordenes|selectattr('fecha_entrega_dinamica')|list|selectattr('fecha_entrega_dinamica', 'gt', (moment_global().date() + timedelta(days=7)))|list|length %}
+            {% set sin_fecha = (ordenes|list|length) - (ordenes|selectattr('fecha_entrega_dinamica')|list|length) %}
+            
+            <div class="stat-card info">
+                <div class="stat-number text-primary">{{ total_ordenes }}</div>
+                <div class="stat-label">Total Órdenes</div>
+            </div>
+            <div class="stat-card danger">
+                <div class="stat-number text-danger">{{ vencidas }}</div>
+                <div class="stat-label">Vencidas</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="stat-number text-warning">{{ esta_semana }}</div>
+                <div class="stat-label">Esta Semana</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-number text-success">{{ en_tiempo }}</div>
+                <div class="stat-label">En Tiempo</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ sin_fecha }}</div>
+                <div class="stat-label">Sin Fecha</div>
+            </div>
+        </div>
+        
+        <!-- Orders Grid -->
+        {% if ordenes %}
+        <div class="orders-grid">
+            {% for orden in ordenes %}
+            {% set today = moment_global().date() %}
+            {% set days_remaining = (orden.fecha_entrega_dinamica - today).days if orden.fecha_entrega_dinamica else None %}
+            {% set days_in_state = (today - orden.fecha_cambio_estado.date()).days if orden.fecha_cambio_estado else 0 %}
+            
+            <div class="order-card {% if days_remaining is not none %}{% if days_remaining < 0 %}danger{% elif days_remaining <= 7 %}warning{% endif %}{% endif %}">
+                <!-- Status Indicator -->
+                {% if days_remaining is not none %}
+                    {% if days_remaining < 0 %}
+                    <i class="fas fa-exclamation-triangle text-danger status-indicator"></i>
+                    {% elif days_remaining <= 7 %}
+                    <i class="fas fa-clock text-warning status-indicator"></i>
+                    {% else %}
+                    <i class="fas fa-check-circle text-success status-indicator"></i>
+                    {% endif %}
+                {% else %}
+                <i class="fas fa-question-circle text-secondary status-indicator"></i>
+                {% endif %}
+                
+                <!-- Priority Badge -->
+                <div class="priority-badge 
+                    {% if orden.prioridad_numerica %}
+                        {% if orden.prioridad_numerica <= 2 %}bg-danger
+                        {% elif orden.prioridad_numerica == 3 %}bg-warning
+                        {% else %}bg-secondary
+                        {% endif %}
+                    {% else %}bg-secondary
+                    {% endif %}">
+                    P{{ orden.prioridad_numerica or 3 }}
+                </div>
+                
+                <!-- Order Header -->
+                <div class="order-header">
+                    <div>
+                        <div class="order-code">{{ orden.codigo }}</div>
+                        <div class="text-muted">{{ orden.proyecto_nombre }}</div>
+                    </div>
+                </div>
+                
+                <!-- Order Details -->
+                <div class="order-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Cliente</div>
+                        <div class="detail-value">{{ orden.cliente_nombre }}</div>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">Tiempo en Estado</div>
+                        <div class="detail-value {% if days_in_state > 7 %}text-danger{% elif days_in_state > 3 %}text-warning{% endif %}">
+                            {{ days_in_state }} días
+                        </div>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">Área Actual</div>
+                        <div class="detail-value">
+                            <span class="area-badge" style="background-color: {{ orden.area.color_hex }};">
+                                {{ orden.area.nombre }}
+                            </span>
+                            <br><small class="text-muted">{{ orden.estado.nombre }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">Responsable</div>
+                        <div class="detail-value">
+                            {% if orden.responsable_nombre %}
+                            <i class="fas fa-user me-1"></i>{{ orden.responsable_nombre }}
+                            {% else %}
+                            <span class="text-muted">Sin asignar</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Glosa if available -->
+                {% if orden.glosa and orden.glosa != 'Sin glosa especificada' %}
+                <div class="detail-item">
+                    <div class="detail-label">Descripción</div>
+                    <div class="detail-value" style="font-size: 0.9rem; line-height: 1.3;">
+                        {{ orden.glosa[:120] }}{% if orden.glosa|length > 120 %}...{% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Delivery Information -->
+                <div class="delivery-info">
+                    {% if orden.fecha_entrega_dinamica %}
+                    <div class="delivery-date">
+                        <i class="fas fa-calendar me-2"></i>
+                        {{ orden.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                    </div>
+                    <div class="delivery-status">
+                        {% if days_remaining < 0 %}
+                        <span class="text-danger">
+                            <strong>{{ days_remaining|abs }} días de atraso</strong>
+                        </span>
+                        {% elif days_remaining == 0 %}
+                        <span class="text-warning">
+                            <strong>ENTREGA HOY</strong>
+                        </span>
+                        {% elif days_remaining <= 7 %}
+                        <span class="text-warning">
+                            {{ days_remaining }} días restantes
+                        </span>
+                        {% else %}
+                        <span class="text-success">
+                            {{ days_remaining }} días restantes
+                        </span>
+                        {% endif %}
+                        <br><small class="text-muted">
+                            {% if orden.area.tipo == 'fabrica' %}
+                            Fecha Fábrica
+                            {% elif orden.area.tipo == 'embalaje' %}
+                            Fecha Embalaje
+                            {% else %}
+                            Fecha Contrato
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% else %}
+                    <div class="delivery-date text-muted">
+                        <i class="fas fa-calendar-times me-2"></i>
+                        Sin fecha de entrega
+                    </div>
+                    <div class="delivery-status">
+                        <small class="text-muted">Configurar fecha estimada</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- No Orders Message -->
+        <div class="no-orders">
+            <i class="fas fa-check-circle text-success"></i>
+            <h3>¡Todas las Órdenes Completadas!</h3>
+            <p>No hay órdenes de fabricación activas en el sistema</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        // Update current time
+        function updateTime() {
+            const timeElements = document.querySelectorAll('.current-time');
+            const now = new Date();
+            const dateString = now.toLocaleDateString('es-CL', { 
+                weekday: 'long',
+                day: '2-digit', 
+                month: 'long'
+            });
+            const timeString = now.toLocaleTimeString('es-CL', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            timeElements.forEach(el => {
+                el.innerHTML = `${dateString}<br>${timeString}`;
+            });
+        }
+        
+        // Auto-refresh every 90 seconds
+        setInterval(() => {
+            console.log('Auto-refreshing Vista General TV display...');
+            window.location.reload();
+        }, 90000);
+        
+        // Update time every second
+        setInterval(updateTime, 1000);
+        updateTime();
+        
+        // Animation delays for smooth entry
+        document.addEventListener('DOMContentLoaded', function() {
+            const orderCards = document.querySelectorAll('.order-card');
+            orderCards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+            });
+        });
+        
+        console.log('Vista General TV Display initialized');
+    </script>
+</body>
+</html>

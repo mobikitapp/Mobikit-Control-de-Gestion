@@ -626,6 +626,37 @@ def vista_general():
         )
 
 
+@areas_bp.route('/vista-general/tv')
+@login_required
+@role_required(['admin', 'general', 'operaciones', 'produccion', 'logistica'])
+def vista_general_tv():
+    """Vista TV de la Vista General - optimizada para pantalla grande"""
+    try:
+        # Get all active orders from all areas
+        todas_ordenes = areas_service.get_all_orders_by_delivery_date()
+
+        return render_template(
+            'areas/vista_general_tv.html',
+            ordenes=todas_ordenes,
+            title='TV - Vista General de Órdenes',
+            timedelta=timedelta,
+            datetime=datetime,
+            moment_global=datetime.now
+        )
+
+    except Exception as e:
+        logger.error(f"Error en vista general TV: {str(e)}")
+        flash('Error cargando la vista general TV', 'error')
+        return render_template(
+            'areas/vista_general_tv.html',
+            ordenes=[],
+            title='TV - Vista General de Órdenes',
+            timedelta=timedelta,
+            datetime=datetime,
+            moment_global=datetime.now
+        )
+
+
 @areas_bp.route('/api/', methods=['GET'])
 def api_areas():
     """API endpoint principal para áreas - usado en tests"""
