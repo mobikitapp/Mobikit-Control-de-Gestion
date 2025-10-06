@@ -207,7 +207,7 @@ def nuevo():
             return redirect(url_for('proyectos.index'))
 
 @proyectos_bp.route('/<int:proyecto_id>')
-@require_permission('proyectos:ver')
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
 def detalle(proyecto_id):
     """Ver detalles del proyecto"""
     try:

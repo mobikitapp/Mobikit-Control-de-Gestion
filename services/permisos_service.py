@@ -350,15 +350,15 @@ class PermisosService:
             else:
                 permisos_final[rol] = modulos_rol
 
-        # Actualizar permisos por defecto para rol operaciones
-        permisos_final['operaciones'] = [
-                'proyectos.lectura',
-                'contratos.lectura', 'contratos.creacion',
-                'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
-                'despachos.lectura', 'despachos.creacion', 'despachos.edicion',
-                'planificacion.lectura',
-                'areas.lectura'
-            ]
+        # Actualizar permisos por defecto para rol operaciones - INCLUIR ACCESO COMPLETO A PROYECTOS
+        permisos_final['operaciones'] = {
+            'proyectos': ['lectura', 'creacion', 'edicion'],  # Acceso completo a proyectos
+            'contratos': ['lectura', 'creacion'],
+            'fabricacion': ['lectura', 'creacion', 'edicion', 'proceso'],
+            'despachos': ['lectura', 'creacion', 'edicion'],
+            'planificacion': ['lectura'],
+            'areas': ['lectura', 'creacion', 'edicion']
+        }
 
         # Actualización específica para el rol 'general' en 'proyectos'
         if 'general' in permisos_final and 'proyectos' in permisos_final['general']:

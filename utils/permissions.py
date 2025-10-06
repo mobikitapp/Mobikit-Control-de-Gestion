@@ -149,7 +149,7 @@ ROLE_PERMISSIONS = {
         'mi_dashboard.lectura', 'mi_dashboard.mis_clientes', 'mi_dashboard.mis_proyectos', 'mi_dashboard.estadisticas'
     ],
     'operaciones': [
-        'proyectos.lectura',
+        'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion',  # Acceso completo a proyectos
         'contratos.lectura', 'contratos.creacion',
         'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
         'despachos.lectura', 'despachos.creacion', 'despachos.edicion',
