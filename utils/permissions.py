@@ -24,6 +24,8 @@ PERMISSIONS = {
     'proyectos.edicion': ['admin', 'general', 'ventas'],
     'proyectos.eliminacion': ['admin'],
     'proyectos.archivo': ['admin', 'general'],
+    'proyectos.adjuntos': ['admin', 'general', 'operaciones', 'ventas'],
+    'proyectos.adjuntos.eliminar': ['admin', 'general'],
     
     # Contratos y Órdenes de Compra
     'contratos.lectura': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
@@ -130,7 +132,7 @@ ROLE_PERMISSIONS = {
     'admin': 'all',  # Acceso completo
     'general': [
         'clientes.lectura', 'clientes.creacion', 'clientes.edicion', 'clientes.eliminacion',
-        'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion', 'proyectos.eliminacion', 'proyectos.archivo',
+        'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion', 'proyectos.eliminacion', 'proyectos.archivo', 'proyectos.adjuntos', 'proyectos.adjuntos.eliminar',
         'contratos.lectura', 'contratos.creacion', 'contratos.edicion', 'contratos.eliminacion', 'contratos.aprobacion', 'contratos.archivo',
         'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
         'despachos.lectura', 'despachos.creacion', 'despachos.edicion', 'despachos.proceso', 'despachos.archivo',
@@ -142,14 +144,14 @@ ROLE_PERMISSIONS = {
     ],
     'ventas': [
         'clientes.lectura', 
-        'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion',
+        'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion', 'proyectos.adjuntos',
         'contratos.lectura', 'contratos.creacion', 
         'comercial.lectura',
         'planificacion.lectura',
         'mi_dashboard.lectura', 'mi_dashboard.mis_clientes', 'mi_dashboard.mis_proyectos', 'mi_dashboard.estadisticas'
     ],
     'operaciones': [
-        'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion',  # Acceso completo a proyectos
+        'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion', 'proyectos.adjuntos',  # Acceso completo a proyectos incluyendo documentos
         'contratos.lectura', 'contratos.creacion',
         'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
         'despachos.lectura', 'despachos.creacion', 'despachos.edicion',
