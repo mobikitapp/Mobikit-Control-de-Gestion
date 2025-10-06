@@ -17,6 +17,10 @@
                         <i data-feather="archive" class="me-2"></i>
                         Ver Archivos
                     </a>
+                    <a href="{{ url_for('areas.vista_general_tv') }}" class="btn btn-outline-success" target="_blank">
+                        <i data-feather="tv" class="me-2"></i>
+                        Vista General TV
+                    </a>
                     {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
                     <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-primary">
                         <i data-feather="plus-circle" class="me-2"></i>
