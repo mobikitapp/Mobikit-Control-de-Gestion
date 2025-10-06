@@ -28,7 +28,7 @@ def main():
                 {'rol': 'operaciones', 'modulo': 'proyectos', 'tipo_permiso': 'lectura', 'permitido': True},
                 {'rol': 'operaciones', 'modulo': 'proyectos', 'tipo_permiso': 'eliminacion', 'permitido': False},
                 
-                # Ventas - lectura de proyectos pero sin eliminación
+                # Ventas - lectura de proyectos pero sin eliminación (ACCESO A ADJUNTOS)
                 {'rol': 'ventas', 'modulo': 'proyectos', 'tipo_permiso': 'lectura', 'permitido': True},
                 {'rol': 'ventas', 'modulo': 'proyectos', 'tipo_permiso': 'eliminacion', 'permitido': False},
             ]
@@ -60,11 +60,12 @@ def main():
             print("="*60)
             print(f"• General - Lectura Proyectos: {'✓ SÍ' if resultado_general_lectura else '✗ NO'}")
             print(f"• Operaciones - Lectura Proyectos: {'✓ SÍ' if resultado_operaciones_lectura else '✗ NO'}")
-            print(f"• Ventas - Lectura Proyectos: {'✓ SÍ' if resultado_ventas_lectura else '✗ NO'}")
+            print(f"• Ventas - Lectura Proyectos (ADJUNTOS): {'✓ SÍ' if resultado_ventas_lectura else '✗ NO'}")
             print("="*60)
             
             if resultado_general_lectura and resultado_operaciones_lectura and resultado_ventas_lectura:
                 print("🎉 ÉXITO: Permisos de proyectos configurados correctamente para adjuntos")
+                print("📋 NOTA: El rol Ventas ahora puede ver y descargar adjuntos de proyectos")
             else:
                 print("❌ ERROR: Algunos permisos no se configuraron correctamente")
                 
