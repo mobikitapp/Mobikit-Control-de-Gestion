@@ -272,10 +272,10 @@
                         <th style="width: 4%;">Prior.</th>
                         <th style="width: 12%;">Área</th>
                         <th style="width: 8%;">Estado</th>
-                        <th style="width: 10%;">Responsable</th>
                         <th style="width: 8%;">Días Estado</th>
                         <th style="width: 8%;">Fecha Entrega</th>
                         <th style="width: 8%;">Días Rest.</th>
+                        <th style="width: 6%;">Acción</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -334,17 +334,6 @@
                             </div>
                         </td>
 
-                        <!-- Responsable -->
-                        <td>
-                            <div class="responsible-user">
-                                {% if orden.responsable_nombre %}
-                                <i class="fas fa-user me-1"></i>{{ orden.responsable_nombre.split(' ')[0] }}
-                                {% else %}
-                                <span class="text-muted">Sin asignar</span>
-                                {% endif %}
-                            </div>
-                        </td>
-
                         <!-- Días en Estado -->
                         <td>
                             <span class="{% if days_in_state > 7 %}status-danger{% elif days_in_state > 3 %}status-warning{% else %}status-success{% endif %}">
@@ -386,6 +375,16 @@
                             {% else %}
                             <span class="delivery-status status-muted">-</span>
                             {% endif %}
+                        </td>
+
+                        <!-- Acción -->
+                        <td>
+                            <button type="button" 
+                                    class="btn btn-outline-success btn-sm" 
+                                    title="Avanzar estado/área" 
+                                    onclick="smartAdvanceOrder({{ orden.id }}, '{{ orden.codigo }}', '{{ orden.area.nombre }}', {{ 'true' if orden.estado.es_final else 'false' }})">
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -432,6 +431,54 @@
         updateTime();
 
         console.log('Vista General TV Table Display initialized');
+
+        // Smart advance function
+        async function smartAdvanceOrder(orderId, orderCode, areaName, isFinalState) {
+            if (!confirm(`¿Avanzar orden ${orderCode} ${isFinalState ? 'a la siguiente área' : 'al siguiente estado'}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/areas/api/avanzar-inteligente`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        orden_id: orderId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Show success message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                    alertDiv.innerHTML = `
+                        <strong>¡Éxito!</strong> ${result.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.body.appendChild(alertDiv);
+
+                    // Auto-dismiss after 3 seconds
+                    setTimeout(() => {
+                        alertDiv.remove();
+                    }, 3000);
+
+                    // Refresh the page after a short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error advancing order:', error);
+                alert('Error de conexión');
+            }
+        }
     </script>
 </body>
 </html>

@@ -316,10 +316,10 @@
                             <th style="width: 15%;">Cliente</th>
                             <th style="width: 15%;">Glosa</th>
                             <th style="width: 5%;">Prior.</th>
-                            <th style="width: 12%;">Responsable</th>
                             <th style="width: 8%;">Días Estado</th>
                             <th style="width: 8%;">Fecha Entrega</th>
                             <th style="width: 9%;">Días Rest.</th>
+                            <th style="width: 6%;">Acción</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -360,17 +360,6 @@
                                 <span class="priority-badge priority-{{ order.prioridad_numerica or 3 }}">
                                     P{{ order.prioridad_numerica or 3 }}
                                 </span>
-                            </td>
-                            
-                            <!-- Responsable -->
-                            <td>
-                                <div class="responsible-user">
-                                    {% if order.responsable_nombre %}
-                                    <i class="fas fa-user me-1"></i>{{ order.responsable_nombre.split(' ')[0] }}
-                                    {% else %}
-                                    <span class="text-muted">Sin asignar</span>
-                                    {% endif %}
-                                </div>
                             </td>
                             
                             <!-- Días en Estado -->
@@ -414,6 +403,16 @@
                                 {% else %}
                                 <span class="delivery-status status-muted">-</span>
                                 {% endif %}
+                            </td>
+
+                            <!-- Acción -->
+                            <td>
+                                <button type="button" 
+                                        class="btn btn-outline-success btn-sm" 
+                                        title="Avanzar estado/área" 
+                                        onclick="smartAdvanceOrder({{ order.id }}, '{{ order.codigo }}', '{{ area.nombre }}', {{ 'true' if state_data.estado.es_final else 'false' }})">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -463,6 +462,54 @@
         updateTime();
         
         console.log('Area TV Table Display initialized for {{ area.nombre }}');
+
+        // Smart advance function
+        async function smartAdvanceOrder(orderId, orderCode, areaName, isFinalState) {
+            if (!confirm(`¿Avanzar orden ${orderCode} ${isFinalState ? 'a la siguiente área' : 'al siguiente estado'}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/areas/api/avanzar-inteligente`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        orden_id: orderId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Show success message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                    alertDiv.innerHTML = `
+                        <strong>¡Éxito!</strong> ${result.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.body.appendChild(alertDiv);
+
+                    // Auto-dismiss after 3 seconds
+                    setTimeout(() => {
+                        alertDiv.remove();
+                    }, 3000);
+
+                    // Refresh the page after a short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error advancing order:', error);
+                alert('Error de conexión');
+            }
+        }
     </script>
 </body>
 </html>
