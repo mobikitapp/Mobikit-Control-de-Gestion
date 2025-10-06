@@ -18,19 +18,19 @@ def main():
         try:
             permisos_service = PermisosService()
             
-            # Permisos de adjuntos para diferentes roles
+            # Permisos de adjuntos para diferentes roles usando tipos válidos
             permisos_adjuntos = [
-                # General - acceso completo a adjuntos
-                {'rol': 'general', 'modulo': 'proyectos', 'tipo_permiso': 'adjuntos', 'permitido': True},
-                {'rol': 'general', 'modulo': 'proyectos', 'tipo_permiso': 'adjuntos_eliminar', 'permitido': True},
+                # General - acceso completo a proyectos (lectura y eliminación)
+                {'rol': 'general', 'modulo': 'proyectos', 'tipo_permiso': 'lectura', 'permitido': True},
+                {'rol': 'general', 'modulo': 'proyectos', 'tipo_permiso': 'eliminacion', 'permitido': True},
                 
-                # Operaciones - solo lectura de adjuntos
-                {'rol': 'operaciones', 'modulo': 'proyectos', 'tipo_permiso': 'adjuntos', 'permitido': True},
-                {'rol': 'operaciones', 'modulo': 'proyectos', 'tipo_permiso': 'adjuntos_eliminar', 'permitido': False},
+                # Operaciones - lectura de proyectos pero sin eliminación
+                {'rol': 'operaciones', 'modulo': 'proyectos', 'tipo_permiso': 'lectura', 'permitido': True},
+                {'rol': 'operaciones', 'modulo': 'proyectos', 'tipo_permiso': 'eliminacion', 'permitido': False},
                 
-                # Ventas - acceso a adjuntos
-                {'rol': 'ventas', 'modulo': 'proyectos', 'tipo_permiso': 'adjuntos', 'permitido': True},
-                {'rol': 'ventas', 'modulo': 'proyectos', 'tipo_permiso': 'adjuntos_eliminar', 'permitido': False},
+                # Ventas - lectura de proyectos pero sin eliminación
+                {'rol': 'ventas', 'modulo': 'proyectos', 'tipo_permiso': 'lectura', 'permitido': True},
+                {'rol': 'ventas', 'modulo': 'proyectos', 'tipo_permiso': 'eliminacion', 'permitido': False},
             ]
             
             print("Actualizando permisos de adjuntos de proyectos...")
@@ -51,20 +51,20 @@ def main():
                     logger.error(f"✗ Error: {mensaje}")
             
             # Verificar que los permisos se aplicaron correctamente
-            resultado_general = permisos_service.verificar_permiso_dinamico('general', 'proyectos', 'adjuntos')
-            resultado_operaciones = permisos_service.verificar_permiso_dinamico('operaciones', 'proyectos', 'adjuntos')
-            resultado_ventas = permisos_service.verificar_permiso_dinamico('ventas', 'proyectos', 'adjuntos')
+            resultado_general_lectura = permisos_service.verificar_permiso_dinamico('general', 'proyectos', 'lectura')
+            resultado_operaciones_lectura = permisos_service.verificar_permiso_dinamico('operaciones', 'proyectos', 'lectura')
+            resultado_ventas_lectura = permisos_service.verificar_permiso_dinamico('ventas', 'proyectos', 'lectura')
             
             print("\n" + "="*60)
-            print("VERIFICACIÓN DE PERMISOS DE ADJUNTOS:")
+            print("VERIFICACIÓN DE PERMISOS DE PROYECTOS (para adjuntos):")
             print("="*60)
-            print(f"• General - Adjuntos: {'✓ SÍ' if resultado_general else '✗ NO'}")
-            print(f"• Operaciones - Adjuntos: {'✓ SÍ' if resultado_operaciones else '✗ NO'}")
-            print(f"• Ventas - Adjuntos: {'✓ SÍ' if resultado_ventas else '✗ NO'}")
+            print(f"• General - Lectura Proyectos: {'✓ SÍ' if resultado_general_lectura else '✗ NO'}")
+            print(f"• Operaciones - Lectura Proyectos: {'✓ SÍ' if resultado_operaciones_lectura else '✗ NO'}")
+            print(f"• Ventas - Lectura Proyectos: {'✓ SÍ' if resultado_ventas_lectura else '✗ NO'}")
             print("="*60)
             
-            if resultado_general and resultado_operaciones and resultado_ventas:
-                print("🎉 ÉXITO: Permisos de adjuntos configurados correctamente")
+            if resultado_general_lectura and resultado_operaciones_lectura and resultado_ventas_lectura:
+                print("🎉 ÉXITO: Permisos de proyectos configurados correctamente para adjuntos")
             else:
                 print("❌ ERROR: Algunos permisos no se configuraron correctamente")
                 
