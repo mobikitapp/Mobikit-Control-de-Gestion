@@ -62,8 +62,12 @@ def add_razon_social_column():
         
         return True
         
+    except psycopg2.Error as e:
+        logger.error(f"❌ Error de base de datos durante la migración: {e}")
+        conn.rollback()
+        return False
     except Exception as e:
-        logger.error(f"❌ Error durante la migración: {e}")
+        logger.error(f"❌ Error general durante la migración: {str(e)}")
         conn.rollback()
         return False
         
