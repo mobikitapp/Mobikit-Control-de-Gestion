@@ -113,7 +113,6 @@ def index():
                              proyectos=proyectos,
                              clientes=clientes,
                              filters=filters,
-                             current_page=filters.page,
                              total_pages=total_pages,
                              total_count=total_count,
                              current_user=current_user,

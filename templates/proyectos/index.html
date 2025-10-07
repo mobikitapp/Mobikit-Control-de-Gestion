@@ -347,7 +347,7 @@
         <div class="card-footer">
             <nav>
                 <ul class="pagination pagination-sm justify-content-center mb-0">
-                    {% if has_prev %}
+                    {% if filters.page > 1 %}
                     <li class="page-item">
                         <a class="page-link" href="{{ url_for('proyectos.index', page=filters.page-1, **request.args) }}">
                             <i data-feather="chevron-left"></i>
@@ -373,7 +373,7 @@
                         {% endif %}
                     {% endfor %}
                     
-                    {% if has_next %}
+                    {% if filters.page < total_pages %}
                     <li class="page-item">
                         <a class="page-link" href="{{ url_for('proyectos.index', page=filters.page+1, **request.args) }}">
                             <i data-feather="chevron-right"></i>
