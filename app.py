@@ -58,67 +58,87 @@ def create_app():
 
     def check_user_permission(modulo_codigo, tipo_permiso):
         """Check if current user has specific permission"""
-        if not current_user.is_authenticated:
-            return False
-
-        # Import RolUsuario here to avoid circular import
-        from models import RolUsuario
-        
-        # Admin always has access
-        if current_user.rol == RolUsuario.ADMIN:
-            return True
-
         try:
-            from services.permisos_service import PermisosService
-            service = PermisosService()
+            if not current_user.is_authenticated:
+                return False
 
-            user_role = current_user.rol.value if hasattr(current_user.rol, 'value') else str(current_user.rol)
-            has_permission = service.verificar_permiso_dinamico(user_role, modulo_codigo, tipo_permiso)
+            # Validate user object
+            if not hasattr(current_user, 'rol') or not current_user.rol:
+                return False
 
-            if has_permission is True:
+            # Import RolUsuario here to avoid circular import
+            from models import RolUsuario
+            
+            # Admin always has access
+            if current_user.rol == RolUsuario.ADMIN:
                 return True
-            elif has_permission is False:
-                return False
-            elif has_permission is None:
-                # Fallback to static permissions
-                from utils.permissions import has_permission as static_has_permission
-                return static_has_permission(f"{modulo_codigo}.{tipo_permiso}", user_role)
-            else:
-                return False
 
+            try:
+                from services.permisos_service import PermisosService
+                service = PermisosService()
+
+                user_role = current_user.rol.value if hasattr(current_user.rol, 'value') else str(current_user.rol)
+                has_permission = service.verificar_permiso_dinamico(user_role, modulo_codigo, tipo_permiso)
+
+                if has_permission is True:
+                    return True
+                elif has_permission is False:
+                    return False
+                elif has_permission is None:
+                    # Fallback to static permissions
+                    try:
+                        from utils.permissions import has_permission as static_has_permission
+                        return static_has_permission(f"{modulo_codigo}.{tipo_permiso}", user_role)
+                    except Exception:
+                        return False
+                else:
+                    return False
+
+            except Exception as e:
+                logger.error(f"Error checking dynamic permission: {e}")
+                return False
         except Exception as e:
-            print(f"Error checking template permission: {e}")
+            logger.error(f"Error checking template permission: {e}")
             return False
 
     @app.before_request
     def check_user_role():
         """Global guard: block authenticated users without role from accessing protected routes"""
-        from flask import request, render_template
-        
-        # Allow public routes
-        allowed_endpoints = [
-            'static',
-            'replit_auth.login',
-            'replit_auth.logout',
-            'replit_auth.authorized',  # OAuth callback
-            'replit_auth.error',
-            'health',
-            'health_live',
-            'health_ready'
-        ]
-        
-        # Allow if not authenticated, endpoint is None (404), or endpoint is allowed
-        if not current_user.is_authenticated or request.endpoint is None or request.endpoint in allowed_endpoints:
-            return None
-        
-        # Block users without role (except logout)
-        if current_user.rol is None:
-            if request.endpoint == 'replit_auth.logout':
+        try:
+            from flask import request, render_template
+            
+            # Allow public routes
+            allowed_endpoints = [
+                'static',
+                'replit_auth.login',
+                'replit_auth.logout',
+                'replit_auth.authorized',  # OAuth callback
+                'replit_auth.error',
+                'health',
+                'health_live',
+                'health_ready'
+            ]
+            
+            # Allow if not authenticated, endpoint is None (404), or endpoint is allowed
+            if not current_user.is_authenticated or request.endpoint is None or request.endpoint in allowed_endpoints:
                 return None
-            return render_template("sin_rol.html"), 403
-        
-        # All other checks passed
-        return None
+            
+            # Validate user object
+            if not hasattr(current_user, 'rol'):
+                logger.error(f"User {current_user.id} has invalid user object - missing rol attribute")
+                return render_template("sin_rol.html"), 403
+            
+            # Block users without role (except logout)
+            if current_user.rol is None:
+                if request.endpoint == 'replit_auth.logout':
+                    return None
+                return render_template("sin_rol.html"), 403
+            
+            # All other checks passed
+            return None
+        except Exception as e:
+            logger.error(f"Error in check_user_role: {str(e)}", exc_info=True)
+            return render_template("500.html"), 500
 
     return app
 

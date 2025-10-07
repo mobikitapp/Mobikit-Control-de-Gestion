@@ -219,39 +219,51 @@ def health_readiness():
 @app.route('/')
 def index():
     """Landing page for logged out users, dashboard for logged in users"""
-    if not current_user.is_authenticated:
-        return render_template('index.html', show_login=True)
-
-    # Dashboard for authenticated users - Dynamic based on role
-    from services.dashboard_service import DashboardService
-
     try:
-        # Get complete dashboard data based on user role
-        dashboard_service = DashboardService()
-        # Type assertion: current_user is User because is_authenticated is True
-        user = current_user._get_current_object()
-        if not isinstance(user, User):
-            raise ValueError("Invalid user object")
-        dashboard_data = dashboard_service.get_dashboard_data(user)
-        
-        return render_template('index.html', 
-                             dashboard=dashboard_data,
-                             show_login=False)
-                             
+        if not current_user.is_authenticated:
+            return render_template('index.html', show_login=True)
+
+        # Validate user object
+        if not hasattr(current_user, 'id') or not current_user.id:
+            logger.error("Invalid current_user object - missing id")
+            logout_user()
+            return redirect(url_for('login'))
+
+        # Dashboard for authenticated users - Dynamic based on role
+        from services.dashboard_service import DashboardService
+
+        try:
+            # Get complete dashboard data based on user role
+            dashboard_service = DashboardService()
+            # Type assertion: current_user is User because is_authenticated is True
+            user = current_user._get_current_object()
+            if not isinstance(user, User):
+                raise ValueError("Invalid user object")
+            dashboard_data = dashboard_service.get_dashboard_data(user)
+            
+            return render_template('index.html', 
+                                 dashboard=dashboard_data,
+                                 show_login=False)
+                                 
+        except Exception as e:
+            logger.error(f"Dashboard service error: {str(e)}", exc_info=True)
+            # Fallback to basic template if there's an error
+            fallback_dashboard = {
+                'user': current_user,
+                'rol': current_user.rol.value if hasattr(current_user, 'rol') and current_user.rol else 'general',
+                'nombre_usuario': str(current_user.id) if hasattr(current_user, 'id') else 'Usuario',
+                'metrics': {},
+                'quick_actions': [],
+                'activity': {'recent_projects': [], 'pending_tasks': []},
+                'visual': {'dashboard_title': 'Dashboard', 'primary_color': 'primary'}
+            }
+            return render_template('index.html',
+                                 dashboard=fallback_dashboard,
+                                 show_login=False)
     except Exception as e:
-        logger.error(f"Dashboard error: {str(e)}")
-        # Fallback to basic template if there's an error
-        return render_template('index.html',
-                             dashboard={
-                                 'user': current_user,
-                                 'rol': current_user.rol.value if current_user.rol else 'general',
-                                 'nombre_usuario': current_user.id,
-                                 'metrics': {},
-                                 'quick_actions': [],
-                                 'activity': {'recent_projects': [], 'pending_tasks': []},
-                                 'visual': {'dashboard_title': 'Dashboard', 'primary_color': 'primary'}
-                             },
-                             show_login=False)
+        logger.error(f"Critical error in index route: {str(e)}", exc_info=True)
+        # Ultimate fallback
+        return render_template('500.html'), 500
 
 # Main API endpoints for testing
 @app.route('/api/clientes')
@@ -261,18 +273,26 @@ def api_clientes():
         from services.clientes_service import ClientesService
         service = ClientesService()
         clientes = service.get_active_clientes()
+        
+        if clientes is None:
+            clientes = []
+        
         return jsonify({
             'success': True,
             'data': [{
-                'id': c.id,
-                'nombre': c.nombre,
-                'rut': c.rut,
-                'activo': c.activo
-            } for c in clientes]
+                'id': getattr(c, 'id', None),
+                'nombre': getattr(c, 'nombre', ''),
+                'rut': getattr(c, 'rut', ''),
+                'activo': getattr(c, 'activo', False)
+            } for c in clientes if c is not None]
         })
     except Exception as e:
-        logger.error(f"Error en api_clientes: {str(e)}")
-        return jsonify({'error': 'Error al cargar clientes'}), 500
+        logger.error(f"Error en api_clientes: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Error al cargar clientes',
+            'details': str(e)
+        }), 500
 
 @app.route('/api/proyectos')
 def api_proyectos():
@@ -281,18 +301,28 @@ def api_proyectos():
         from repositories.proyectos_repo import ProyectosRepository
         repo = ProyectosRepository()
         proyectos = repo.get_recent(limit=10)
+        
+        if proyectos is None:
+            proyectos = []
+        
         return jsonify({
             'success': True,
             'data': [{
-                'id': p.id,
-                'nombre': p.nombre,
-                'cliente_id': p.cliente_id,
-                'estado': p.estado_comercial.value if hasattr(p, 'estado_comercial') else 'PENDIENTE'
-            } for p in proyectos]
+                'id': getattr(p, 'id', None),
+                'nombre': getattr(p, 'nombre', ''),
+                'cliente_id': getattr(p, 'cliente_id', None),
+                'estado': (p.estado_comercial.value 
+                          if hasattr(p, 'estado_comercial') and p.estado_comercial 
+                          else 'PENDIENTE')
+            } for p in proyectos if p is not None]
         })
     except Exception as e:
-        logger.error(f"Error en api_proyectos: {str(e)}")
-        return jsonify({'error': 'Error al cargar proyectos'}), 500
+        logger.error(f"Error en api_proyectos: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Error al cargar proyectos',
+            'details': str(e)
+        }), 500
 
 @app.route('/api/areas')
 def api_areas():
@@ -454,13 +484,54 @@ def api_uf_convert():
 
 @app.errorhandler(404)
 def not_found_error(error):
-    return render_template('404.html'), 404
+    try:
+        return render_template('404.html'), 404
+    except Exception as e:
+        logger.error(f"Error rendering 404 page: {e}")
+        return "Page not found", 404
 
 @app.errorhandler(500)
 def internal_error(error):
-    db.session.rollback()
-    return render_template('500.html'), 500
+    try:
+        from services.error_service import ErrorService
+        ErrorService.log_error(error, context={'handler': '500'})
+        
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        
+        return render_template('500.html'), 500
+    except Exception as e:
+        logger.error(f"Error in 500 handler: {e}")
+        return "Internal server error", 500
 
 @app.errorhandler(403)
 def forbidden_error(error):
-    return render_template('403.html'), 403
+    try:
+        return render_template('403.html'), 403
+    except Exception as e:
+        logger.error(f"Error rendering 403 page: {e}")
+        return "Access denied", 403
+
+@app.errorhandler(Exception)
+def handle_exception(error):
+    """Global exception handler"""
+    try:
+        from services.error_service import ErrorService
+        ErrorService.log_error(error, context={'handler': 'global'})
+        
+        # If it's an HTTP exception, let it be handled normally
+        if hasattr(error, 'code'):
+            return error
+        
+        # For other exceptions, return 500
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        
+        return render_template('500.html'), 500
+    except Exception as fallback_error:
+        logger.error(f"Error in global exception handler: {fallback_error}")
+        return "Internal server error", 500
