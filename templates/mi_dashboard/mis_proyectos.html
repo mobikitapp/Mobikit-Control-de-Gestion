@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Mis Proyectos - Dashboard Personal{% endblock %}
@@ -66,23 +67,63 @@
         </div>
     </div>
 
-    <!-- Lista de Proyectos -->
-    <div class="card">
-        <div class="card-header bg-white border-0">
-            <h5 class="mb-0">
-                <i class="fas fa-project-diagram me-2"></i>Lista de Proyectos
-                <span class="badge bg-primary ms-2">{{ proyectos|length }}</span>
-            </h5>
+    <!-- Resumen por Estado -->
+    {% if proyectos %}
+    <div class="row g-3 mb-4">
+        {% set estados_count = {} %}
+        {% for proyecto in proyectos %}
+            {% set estado_key = proyecto.estado_comercial.value if proyecto.estado_comercial else 'SIN_ESTADO' %}
+            {% if estados_count.update({estado_key: estados_count.get(estado_key, 0) + 1}) %}{% endif %}
+        {% endfor %}
+
+        {% set estados_organizados = [
+            ('EN_DESARROLLO', 'En Desarrollo', 'success', 'play-circle'),
+            ('ADJUDICADO', 'Adjudicado', 'warning', 'award'),
+            ('PRESUPUESTADO', 'Presupuestado', 'info', 'file-text'),
+            ('PENDIENTE_PRESUPUESTO', 'Pendiente Presupuesto', 'secondary', 'clock'),
+            ('TERMINADO', 'Terminado', 'primary', 'check-circle')
+        ] %}
+        
+        {% for estado_key, estado_label, color_class, icon in estados_organizados %}
+        {% set count = estados_count.get(estado_key, 0) %}
+        <div class="col-md col-6">
+            <div class="card bg-{{ color_class }} bg-opacity-10 border-{{ color_class }}">
+                <div class="card-body text-center p-3">
+                    <i class="fas fa-{{ icon }} text-{{ color_class }} mb-2" style="font-size: 24px;"></i>
+                    <h4 class="mb-1 text-{{ color_class }}">{{ count }}</h4>
+                    <small class="text-{{ color_class }}">{{ estado_label }}</small>
+                </div>
+            </div>
         </div>
-        <div class="card-body p-0">
-            {% if proyectos %}
+        {% endfor %}
+    </div>
+
+    <!-- Proyectos Categorizados por Estado -->
+    {% for estado_key, estado_label, color_class, icon in estados_organizados %}
+    {% set proyectos_estado = proyectos|selectattr('estado_comercial.value', 'equalto', estado_key)|list %}
+    {% if proyectos_estado %}
+    <div class="card mb-4">
+        <div class="card-header bg-{{ color_class }} bg-opacity-10 border-{{ color_class }}">
+            <button class="btn btn-link text-decoration-none p-0 w-100 text-start text-{{ color_class }}" 
+                    type="button" data-bs-toggle="collapse" 
+                    data-bs-target="#collapse{{ estado_key }}" 
+                    aria-expanded="{% if estado_key == 'EN_DESARROLLO' %}true{% else %}false{% endif %}" 
+                    aria-controls="collapse{{ estado_key }}">
+                <h5 class="mb-0">
+                    <i class="fas fa-{{ icon }} me-2"></i>
+                    {{ estado_label }} ({{ proyectos_estado|length }})
+                    <i class="fas fa-chevron-down float-end"></i>
+                </h5>
+            </button>
+        </div>
+        <div class="collapse {% if estado_key == 'EN_DESARROLLO' %}show{% endif %}" id="collapse{{ estado_key }}">
+            <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
                             <tr>
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
-                                <th>Estado</th>
                                 <th>Facturación</th>
                                 <th>Fecha Creación</th>
                                 <th>Fecha Entrega</th>
@@ -90,7 +131,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for proyecto in proyectos %}
+                            {% for proyecto in proyectos_estado %}
                             <tr>
                                 <td>
                                     <div>
@@ -106,11 +147,6 @@
                                         </div>
                                         <span>{{ proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente' }}</span>
                                     </div>
-                                </td>
-                                <td>
-                                    <span class="badge bg-{% if proyecto.estado_comercial and proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' %}secondary{% elif proyecto.estado_comercial and proyecto.estado_comercial.value == 'EN_DESARROLLO' %}primary{% elif proyecto.estado_comercial and proyecto.estado_comercial.value == 'PRESUPUESTADO' %}warning{% elif proyecto.estado_comercial and proyecto.estado_comercial.value == 'TERMINADO' %}success{% elif proyecto.estado_comercial and proyecto.estado_comercial.value == 'PERDIDO' %}danger{% else %}light{% endif %}">
-                                        {{ proyecto.estado_comercial.value.replace('_', ' ').title() if proyecto.estado_comercial else 'Sin estado' }}
-                                    </span>
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
@@ -172,56 +208,29 @@
                         </tbody>
                     </table>
                 </div>
-            {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-project-diagram fs-1 text-muted mb-3"></i>
-                    <h5 class="text-muted">No se encontraron proyectos</h5>
-                    {% if estado_actual != 'todos' or periodo_actual != 'todos' %}
-                        <p class="text-muted">Prueba ajustando los filtros de búsqueda</p>
-                        <a href="{{ url_for('mi_dashboard.mis_proyectos') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-times me-1"></i>Limpiar Filtros
-                        </a>
-                    {% else %}
-                        <p class="text-muted">Aún no tienes proyectos asignados este mes</p>
-                        <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-primary">
-                            <i class="fas fa-plus me-1"></i>Crear Proyecto
-                        </a>
-                    {% endif %}
-                </div>
-            {% endif %}
+            </div>
         </div>
     </div>
+    {% endif %}
+    {% endfor %}
 
-    <!-- Resumen por Estado -->
-    {% if proyectos %}
-    <div class="row mt-4">
-        {% set estados_count = {} %}
-        {% for proyecto in proyectos %}
-            {% set estado_key = proyecto.estado_comercial.value if proyecto.estado_comercial else 'SIN_ESTADO' %}
-            {% if estados_count.update({estado_key: estados_count.get(estado_key, 0) + 1}) %}{% endif %}
-        {% endfor %}
-
-        {% for estado, cantidad in estados_count.items() %}
-        <div class="col-md-2 mb-3">
-            <div class="card border-0 bg-light h-100">
-                <div class="card-body text-center">
-                    <div class="fs-5 fw-bold text-{% if estado == 'PENDIENTE_PRESUPUESTO' %}secondary{% elif estado == 'EN_DESARROLLO' %}primary{% elif estado == 'PRESUPUESTADO' %}warning{% elif estado == 'TERMINADO' %}success{% elif estado == 'PERDIDO' %}danger{% else %}dark{% endif %}">
-                        {{ cantidad }}
-                    </div>
-                    <div class="text-muted small">{{ estado.replace('_', ' ').title() }}</div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-
-        <!-- Total de Proyectos -->
-        <div class="col-md-2 mb-3">
-            <div class="card border-0 bg-light h-100">
-                <div class="card-body text-center">
-                    <div class="fs-5 fw-bold text-info">{{ proyectos | length }}</div>
-                    <div class="text-muted small">Total Proyectos</div>
-                </div>
-            </div>
+    {% else %}
+    <!-- Sin proyectos -->
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-project-diagram fs-1 text-muted mb-3"></i>
+            <h5 class="text-muted">No se encontraron proyectos</h5>
+            {% if estado_actual != 'todos' or periodo_actual != 'todos' %}
+                <p class="text-muted">Prueba ajustando los filtros de búsqueda</p>
+                <a href="{{ url_for('mi_dashboard.mis_proyectos') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>Limpiar Filtros
+                </a>
+            {% else %}
+                <p class="text-muted">Aún no tienes proyectos asignados</p>
+                <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Crear Proyecto
+                </a>
+            {% endif %}
         </div>
     </div>
     {% endif %}
