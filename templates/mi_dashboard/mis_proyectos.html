@@ -118,64 +118,64 @@
         </div>
         <div class="collapse {% if estado_key == 'EN_DESARROLLO' %}show{% endif %}" id="collapse{{ estado_key }}">
             <div class="card-body p-0">
-                <div class="table-responsive" style="overflow: visible;">
-                    <table class="table table-hover mb-0">
+                <div class="table-responsive" style="overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch;">
+                    <table class="table table-hover mb-0" style="min-width: 700px;">
                         <thead class="table-light">
                             <tr>
-                                <th>Proyecto</th>
-                                <th>Cliente</th>
-                                <th>Facturación</th>
-                                <th>Fecha Creación</th>
-                                <th>Fecha Entrega</th>
-                                <th class="text-center">Acciones</th>
+                                <th style="min-width: 150px;">Proyecto</th>
+                                <th style="min-width: 120px;">Cliente</th>
+                                <th style="min-width: 120px;">Facturación</th>
+                                <th style="min-width: 100px;">Fecha Creación</th>
+                                <th style="min-width: 100px;">Fecha Entrega</th>
+                                <th style="min-width: 100px;" class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for proyecto in proyectos_estado %}
                             <tr>
-                                <td>
+                                <td style="min-width: 150px;">
                                     <div>
-                                        <div class="fw-semibold">{{ proyecto.nombre }}</div>
+                                        <div class="fw-semibold text-truncate" style="max-width: 140px;" title="{{ proyecto.nombre }}">{{ proyecto.nombre }}</div>
                                         <div class="text-muted small">ID: {{ proyecto.id }}</div>
                                     </div>
                                 </td>
-                                <td>
+                                <td style="min-width: 120px;">
                                     <div class="d-flex align-items-center">
-                                        <div class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-2" 
-                                             style="width: 32px; height: 32px; font-size: 12px;">
+                                        <div class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-2 flex-shrink-0" 
+                                             style="width: 28px; height: 28px; font-size: 11px;">
                                             {{ proyecto.cliente.nombre[0].upper() if proyecto.cliente and proyecto.cliente.nombre else '?' }}
                                         </div>
-                                        <span>{{ proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente' }}</span>
+                                        <span class="text-truncate" style="max-width: 80px;" title="{{ proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente' }}">{{ proyecto.cliente.nombre if proyecto.cliente else 'Sin cliente' }}</span>
                                     </div>
                                 </td>
-                                <td>
+                                <td style="min-width: 120px;">
                                     <div class="d-flex align-items-center">
-                                        <div class="progress me-2" style="width: 80px; height: 8px;">
+                                        <div class="progress me-1 flex-grow-1" style="height: 6px; max-width: 60px;">
                                             {% set progreso_facturacion = proyecto.porcentaje_facturacion if proyecto.porcentaje_facturacion is defined else 0 %}
                                             <div class="progress-bar bg-{% if progreso_facturacion < 30 %}danger{% elif progreso_facturacion < 70 %}warning{% else %}success{% endif %}" 
                                                  role="progressbar" style="width: {{ progreso_facturacion }}%" 
                                                  title="Facturación: {{ "{:.1f}%".format(progreso_facturacion) }}"></div>
                                         </div>
-                                        <span class="small" title="Porcentaje de facturación del proyecto">{{ "{:.0f}%".format(progreso_facturacion) }}</span>
+                                        <span class="small ms-1" title="Porcentaje de facturación del proyecto">{{ "{:.0f}%".format(progreso_facturacion) }}</span>
                                     </div>
                                 </td>
-                                <td>
-                                    <div class="small">
+                                <td style="min-width: 100px;">
+                                    <div class="small text-center">
                                         {{ proyecto.created_at.strftime('%d/%m/%Y') if proyecto.created_at else 'Sin fecha' }}
-                                        <div class="text-muted">{{ 'Hace días' if proyecto.created_at else '' }}</div>
+                                        <div class="text-muted" style="font-size: 10px;">Creación</div>
                                     </div>
                                 </td>
-                                <td>
+                                <td style="min-width: 100px;">
                                     {% if proyecto.fecha_fin_estimada %}
-                                        <div class="small">
+                                        <div class="small text-center">
                                             {{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') }}
-                                            <div class="text-muted">Estimada</div>
+                                            <div class="text-muted" style="font-size: 10px;">Estimada</div>
                                         </div>
                                     {% else %}
                                         <span class="text-muted small">Sin fecha</span>
                                     {% endif %}
                                 </td>
-                                <td class="text-center">
+                                <td class="text-center" style="min-width: 100px;">
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
                                                 data-bs-toggle="dropdown" aria-expanded="false">

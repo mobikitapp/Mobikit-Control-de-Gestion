@@ -148,31 +148,31 @@
         </div>
         <div class="collapse {{ 'show' if estado_key == 'EN_DESARROLLO' else '' }}" id="tabla{{ estado_key }}">
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <table class="table table-hover mb-0" style="min-width: 800px;">
                         <thead class="table-{{ color_class }} table-opacity-25">
                             <tr>
-                                <th>Nombre</th>
-                                <th>Cliente</th>
-                                <th>N° Contratos/OC Activos</th>
-                                <th>Vendedor</th>
-                                <th>Fecha Inicio</th>
-                                <th>Fecha Fin Est.</th>
-                                <th width="150">Acciones</th>
+                                <th style="min-width: 180px;">Nombre</th>
+                                <th style="min-width: 120px;">Cliente</th>
+                                <th style="min-width: 140px;" class="text-center">N° Contratos/OC</th>
+                                <th style="min-width: 120px;">Vendedor</th>
+                                <th style="min-width: 100px;">Fecha Inicio</th>
+                                <th style="min-width: 110px;">Fecha Fin Est.</th>
+                                <th style="min-width: 150px;" class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for proyecto in proyectos_estado %}
                             {% set contratos_activos = proyecto.contratos|selectattr('estado.value', 'equalto', 'VIGENTE')|list %}
                             <tr>
-                                <td>
-                                    <div class="fw-medium">{{ proyecto.nombre }}</div>
+                                <td style="min-width: 180px;">
+                                    <div class="fw-medium text-truncate" style="max-width: 170px;" title="{{ proyecto.nombre }}">{{ proyecto.nombre }}</div>
                                     {% if proyecto.descripcion %}
-                                    <small class="text-muted">{{ proyecto.descripcion[:50] }}{% if proyecto.descripcion|length > 50 %}...{% endif %}</small>
+                                    <small class="text-muted text-truncate d-block" style="max-width: 170px;" title="{{ proyecto.descripcion }}">{{ proyecto.descripcion[:30] }}{% if proyecto.descripcion|length > 30 %}...{% endif %}</small>
                                     {% endif %}
                                 </td>
-                                <td>
-                                    <a href="{{ url_for('clientes.detalle', cliente_id=proyecto.cliente.id) }}" class="text-decoration-none">
+                                <td style="min-width: 120px;">
+                                    <a href="{{ url_for('clientes.detalle', cliente_id=proyecto.cliente.id) }}" class="text-decoration-none text-truncate d-block" style="max-width: 110px;" title="{{ proyecto.cliente.nombre }}">
                                         {{ proyecto.cliente.nombre }}
                                     </a>
                                 </td>
@@ -193,29 +193,31 @@
                                         {% endif %}
                                     </div>
                                 </td>
-                                <td>
+                                <td style="min-width: 120px;">
                                     {% if proyecto.vendedor_user %}
-                                        {{ proyecto.vendedor_user.nombre_completo }}
+                                        <span class="text-truncate d-block" style="max-width: 110px;" title="{{ proyecto.vendedor_user.nombre_completo }}">
+                                            {{ proyecto.vendedor_user.nombre_completo }}
+                                        </span>
                                     {% else %}
                                         -
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td style="min-width: 100px;">
                                     {% if proyecto.fecha_inicio %}
-                                        {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') }}
+                                        <span class="small">{{ proyecto.fecha_inicio.strftime('%d/%m/%Y') }}</span>
                                     {% else %}
                                         -
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td style="min-width: 110px;">
                                     {% if proyecto.fecha_fin_estimada %}
-                                        {{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') }}
+                                        <span class="small">{{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') }}</span>
                                     {% else %}
                                         -
                                     {% endif %}
                                 </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
+                                <td style="min-width: 150px;">
+                                    <div class="btn-group btn-group-sm d-flex justify-content-center" role="group">
                                         <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" 
                                            class="btn btn-outline-primary" title="Ver detalles">
                                             <i data-feather="eye"></i>
