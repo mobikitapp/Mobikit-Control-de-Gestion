@@ -279,6 +279,7 @@ class DashboardService:
         """Cuenta usuarios activos"""
         try:
             from app import db
+            from models import User
             return db.session.query(User).filter_by(activo=True).count()
         except Exception as e:
             logger.error(f"Error contando usuarios activos: {str(e)}")
