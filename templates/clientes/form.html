@@ -54,6 +54,14 @@
                                     Por favor ingresa un RUT válido.
                                 </div>
                             </div>
+
+                            <!-- Razón Social -->
+                            <div class="col-md-12">
+                                <label for="razon_social" class="form-label">Razón Social</label>
+                                <input type="text" class="form-control" id="razon_social" name="razon_social" 
+                                       value="{{ cliente.razon_social if cliente else '' }}" 
+                                       placeholder="Razón social o nombre legal de la empresa">
+                            </div>
                             
                             <!-- Contacto Principal -->
                             <div class="col-md-6">

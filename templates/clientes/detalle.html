@@ -57,6 +57,13 @@
                                 </span>
                             </div>
                         </div>
+
+                        {% if cliente.razon_social %}
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Razón Social</label>
+                            <div class="form-control-plaintext">{{ cliente.razon_social }}</div>
+                        </div>
+                        {% endif %}
                         
                         {% if cliente.contacto_principal %}
                         <div class="col-md-6">

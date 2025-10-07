@@ -281,6 +281,7 @@ class Cliente(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
+    razon_social = db.Column(db.String(250))
     rut = db.Column(db.String(20), unique=True, nullable=False)
     condiciones_comerciales = db.Column(db.Text)
     contacto_principal = db.Column(db.String(200))

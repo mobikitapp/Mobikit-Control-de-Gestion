@@ -4,6 +4,7 @@ from datetime import datetime
 
 class ClienteBase(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=200, description="Nombre del cliente")
+    razon_social: Optional[str] = Field(None, max_length=250, description="Razón social del cliente")
     rut: str = Field(..., min_length=8, max_length=20, description="RUT del cliente")
     condiciones_comerciales: Optional[str] = Field(None, description="Condiciones comerciales")
     contacto_principal: Optional[str] = Field(None, max_length=200, description="Contacto principal")
@@ -31,6 +32,7 @@ class ClienteCreate(ClienteBase):
 
 class ClienteUpdate(BaseModel):
     nombre: Optional[str] = Field(None, min_length=1, max_length=200)
+    razon_social: Optional[str] = Field(None, max_length=250)
     rut: Optional[str] = Field(None, min_length=8, max_length=20)
     condiciones_comerciales: Optional[str] = None
     contacto_principal: Optional[str] = Field(None, max_length=200)
