@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Proyectos - Sistema de Manufactura{% endblock %}
@@ -100,208 +101,247 @@
             </div>
         </div>
     </div>
-    
-    <!-- Results -->
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">
-                Resultados ({{ total_count }} proyecto{{ 's' if total_count != 1 else '' }})
-            </h5>
-            <div class="d-flex align-items-center gap-2">
-                <small class="text-muted">
-                    Página {{ filters.page }} de {{ total_pages }}
-                </small>
+
+    <!-- Resumen por Estado -->
+    <div class="row g-3 mb-4">
+        {% set estados_organizados = [
+            ('EN_DESARROLLO', 'En Desarrollo', 'success', 'play-circle'),
+            ('ADJUDICADO', 'Adjudicado', 'warning', 'award'),
+            ('PRESUPUESTADO', 'Presupuestado', 'info', 'file-text'),
+            ('PENDIENTE_PRESUPUESTO', 'Pendiente Presupuesto', 'secondary', 'clock'),
+            ('TERMINADO', 'Terminado', 'primary', 'check-circle')
+        ] %}
+        
+        {% for estado_key, estado_label, color_class, icon in estados_organizados %}
+        {% set count = proyectos|selectattr('estado_comercial.value', 'equalto', estado_key)|list|length %}
+        <div class="col-md col-6">
+            <div class="card bg-{{ color_class }} bg-opacity-10 border-{{ color_class }}">
+                <div class="card-body text-center p-3">
+                    <i data-feather="{{ icon }}" class="text-{{ color_class }} mb-2" style="width: 32px; height: 32px;"></i>
+                    <h4 class="mb-1 text-{{ color_class }}">{{ count }}</h4>
+                    <small class="text-{{ color_class }}">{{ estado_label }}</small>
+                </div>
             </div>
         </div>
-        <div class="card-body p-0">
-            {% if proyectos %}
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Cliente</th>
-                            <th>Estado</th>
-                            <th>N° Contratos/OC Activos</th>
-                            <th>Vendedor</th>
-                            <th>Fecha Inicio</th>
-                            <th>Fecha Fin Est.</th>
-                            <th width="150">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for proyecto in proyectos %}
-                        {% set contratos_activos = proyecto.contratos|selectattr('estado.value', 'equalto', 'VIGENTE')|list %}
-                        <tr>
-                            <td>
-                                <div class="fw-medium">{{ proyecto.nombre }}</div>
-                            </td>
-                            <td>
-                                <a href="{{ url_for('clientes.detalle', cliente_id=proyecto.cliente.id) }}" class="text-decoration-none">
-                                    {{ proyecto.cliente.nombre }}
-                                </a>
-                            </td>
-                            <td>
-                                <span class="badge bg-{{ 'success' if proyecto.estado_comercial.value == 'TERMINADO' else 'primary' if proyecto.estado_comercial.value == 'EN_DESARROLLO' else 'warning' if proyecto.estado_comercial.value == 'PENDIENTE_PRESUPUESTO' else 'info' if proyecto.estado_comercial.value == 'PRESUPUESTADO' else 'secondary' }}">
-                                    {{ proyecto.estado_comercial.value.replace('_', ' ')|title }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <span class="badge bg-{{ 'success' if contratos_activos|length > 0 else 'secondary' }} me-2">
-                                        {{ contratos_activos|length }}
-                                    </span>
-                                    {% if contratos_activos|length > 0 %}
-                                    <button class="btn btn-sm btn-outline-secondary contratos-toggle-btn" 
-                                            data-bs-toggle="collapse" 
-                                            data-bs-target="#contratos-{{ proyecto.id }}" 
-                                            aria-expanded="false" 
-                                            aria-controls="contratos-{{ proyecto.id }}"
-                                            title="Ver contratos activos">
-                                        <i data-feather="chevron-down" style="width: 12px; height: 12px;"></i>
-                                    </button>
+        {% endfor %}
+    </div>
+    
+    {% if proyectos %}
+    <!-- Proyectos Categorizados por Estado -->
+    {% for estado_key, estado_label, color_class, icon in estados_organizados %}
+    {% set proyectos_estado = proyectos|selectattr('estado_comercial.value', 'equalto', estado_key)|list %}
+    {% if proyectos_estado %}
+    <div class="card mb-4">
+        <div class="card-header bg-{{ color_class }} bg-opacity-10 border-{{ color_class }}">
+            <button class="btn btn-link text-decoration-none p-0 w-100 text-start text-{{ color_class }}" type="button" 
+                    data-bs-toggle="collapse" data-bs-target="#tabla{{ estado_key }}" 
+                    aria-expanded="{{ 'true' if estado_key == 'EN_DESARROLLO' else 'false' }}" 
+                    aria-controls="tabla{{ estado_key }}">
+                <h5 class="card-title mb-0 d-flex justify-content-between align-items-center">
+                    <span>
+                        <i data-feather="{{ icon }}" class="me-2"></i>
+                        {{ estado_label }} ({{ proyectos_estado|length }})
+                    </span>
+                    <i data-feather="chevron-down" class="chevron-toggle"></i>
+                </h5>
+            </button>
+        </div>
+        <div class="collapse {{ 'show' if estado_key == 'EN_DESARROLLO' else '' }}" id="tabla{{ estado_key }}">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-{{ color_class }} table-opacity-25">
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Cliente</th>
+                                <th>N° Contratos/OC Activos</th>
+                                <th>Vendedor</th>
+                                <th>Fecha Inicio</th>
+                                <th>Fecha Fin Est.</th>
+                                <th width="150">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for proyecto in proyectos_estado %}
+                            {% set contratos_activos = proyecto.contratos|selectattr('estado.value', 'equalto', 'VIGENTE')|list %}
+                            <tr>
+                                <td>
+                                    <div class="fw-medium">{{ proyecto.nombre }}</div>
+                                    {% if proyecto.descripcion %}
+                                    <small class="text-muted">{{ proyecto.descripcion[:50] }}{% if proyecto.descripcion|length > 50 %}...{% endif %}</small>
                                     {% endif %}
-                                </div>
-                            </td>
-                            <td>
-                                {% if proyecto.vendedor_user %}
-                                    {{ proyecto.vendedor_user.nombre_completo }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if proyecto.fecha_inicio %}
-                                    {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if proyecto.fecha_fin_estimada %}
-                                    {{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" 
-                                       class="btn btn-outline-primary" title="Ver detalles">
-                                        <i data-feather="eye"></i>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('clientes.detalle', cliente_id=proyecto.cliente.id) }}" class="text-decoration-none">
+                                        {{ proyecto.cliente.nombre }}
                                     </a>
-                                    {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
-                                    <a href="{{ url_for('proyectos.editar', proyecto_id=proyecto.id) }}" 
-                                       class="btn btn-outline-secondary" title="Editar">
-                                        <i data-feather="edit"></i>
-                                    </a>
-                                    <button class="btn btn-outline-warning change-estado-btn" 
-                                            title="Cambiar Estado"
-                                            data-proyecto-id="{{ proyecto.id }}"
-                                            data-estado-actual="{{ proyecto.estado_comercial.value if proyecto.estado_comercial else '' }}">
-                                        <i data-feather="refresh-cw"></i>
-                                    </button>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                        {% if contratos_activos|length > 0 %}
-                        <tr class="collapse" id="contratos-{{ proyecto.id }}">
-                            <td colspan="8">
-                                <div class="p-3 bg-light border-start border-primary border-3">
-                                    <h6 class="mb-3">
-                                        <i data-feather="file-text" class="me-2"></i>
-                                        Contratos/OC Activos
-                                    </h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm mb-0">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th>N° OC/Contrato</th>
-                                                    <th>Tipo</th>
-                                                    <th>Monto</th>
-                                                    <th>Fecha Próxima Entrega</th>
-                                                    <th>Fecha Vencimiento</th>
-                                                    <th>Acciones</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for contrato in contratos_activos %}
-                                                <tr>
-                                                    <td>
-                                                        <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
-                                                           class="text-decoration-none fw-medium">
-                                                            {{ contrato.numero_oc }}
-                                                        </a>
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge bg-info">
-                                                            {{ contrato.tipo_documento.value.replace('_', ' ')|title }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        {% if contrato.monto_total %}
-                                                            ${{ "{:,.0f}".format(contrato.monto_total) }} {{ contrato.moneda }}
-                                                        {% else %}
-                                                            -
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        {% if contrato.fecha_proxima_entrega %}
-                                                            <span class="badge bg-warning text-dark">
-                                                                {{ contrato.fecha_proxima_entrega.strftime('%d/%m/%Y') }}
-                                                            </span>
-                                                            {% if contrato.proximo_hito %}
-                                                                <small class="text-muted d-block">
-                                                                    {{ contrato.proximo_hito.titulo }}
-                                                                </small>
-                                                            {% endif %}
-                                                        {% else %}
-                                                            <span class="text-muted">Sin plan de entrega</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        {% if contrato.fecha_vencimiento %}
-                                                            {{ contrato.fecha_vencimiento.strftime('%d/%m/%Y') }}
-                                                        {% else %}
-                                                            -
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
-                                                           class="btn btn-outline-primary btn-sm" title="Ver detalles">
-                                                            <i data-feather="eye" style="width: 12px; height: 12px;"></i>
-                                                        </a>
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge bg-{{ 'success' if contratos_activos|length > 0 else 'secondary' }} me-2">
+                                            {{ contratos_activos|length }}
+                                        </span>
+                                        {% if contratos_activos|length > 0 %}
+                                        <button class="btn btn-sm btn-outline-secondary contratos-toggle-btn" 
+                                                data-bs-toggle="collapse" 
+                                                data-bs-target="#contratos-{{ estado_key }}-{{ proyecto.id }}" 
+                                                aria-expanded="false" 
+                                                aria-controls="contratos-{{ estado_key }}-{{ proyecto.id }}"
+                                                title="Ver contratos activos">
+                                            <i data-feather="chevron-down" style="width: 12px; height: 12px;"></i>
+                                        </button>
+                                        {% endif %}
                                     </div>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endif %}
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                </td>
+                                <td>
+                                    {% if proyecto.vendedor_user %}
+                                        {{ proyecto.vendedor_user.nombre_completo }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if proyecto.fecha_inicio %}
+                                        {{ proyecto.fecha_inicio.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if proyecto.fecha_fin_estimada %}
+                                        {{ proyecto.fecha_fin_estimada.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('proyectos.detalle', proyecto_id=proyecto.id) }}" 
+                                           class="btn btn-outline-primary" title="Ver detalles">
+                                            <i data-feather="eye"></i>
+                                        </a>
+                                        {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
+                                        <a href="{{ url_for('proyectos.editar', proyecto_id=proyecto.id) }}" 
+                                           class="btn btn-outline-secondary" title="Editar">
+                                            <i data-feather="edit"></i>
+                                        </a>
+                                        <button class="btn btn-outline-warning change-estado-btn" 
+                                                title="Cambiar Estado"
+                                                data-proyecto-id="{{ proyecto.id }}"
+                                                data-estado-actual="{{ proyecto.estado_comercial.value if proyecto.estado_comercial else '' }}">
+                                            <i data-feather="refresh-cw"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% if contratos_activos|length > 0 %}
+                            <tr class="collapse" id="contratos-{{ estado_key }}-{{ proyecto.id }}">
+                                <td colspan="7">
+                                    <div class="p-3 bg-light border-start border-{{ color_class }} border-3">
+                                        <h6 class="mb-3">
+                                            <i data-feather="file-text" class="me-2"></i>
+                                            Contratos/OC Activos
+                                        </h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>N° OC/Contrato</th>
+                                                        <th>Tipo</th>
+                                                        <th>Monto</th>
+                                                        <th>Fecha Próxima Entrega</th>
+                                                        <th>Fecha Vencimiento</th>
+                                                        <th>Acciones</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for contrato in contratos_activos %}
+                                                    <tr>
+                                                        <td>
+                                                            <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                                               class="text-decoration-none fw-medium">
+                                                                {{ contrato.numero_oc }}
+                                                            </a>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge bg-info">
+                                                                {{ contrato.tipo_documento.value.replace('_', ' ')|title }}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            {% if contrato.monto_total %}
+                                                                ${{ "{:,.0f}".format(contrato.monto_total) }} {{ contrato.moneda }}
+                                                            {% else %}
+                                                                -
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {% if contrato.fecha_proxima_entrega %}
+                                                                <span class="badge bg-warning text-dark">
+                                                                    {{ contrato.fecha_proxima_entrega.strftime('%d/%m/%Y') }}
+                                                                </span>
+                                                                {% if contrato.proximo_hito %}
+                                                                    <small class="text-muted d-block">
+                                                                        {{ contrato.proximo_hito.titulo }}
+                                                                    </small>
+                                                                {% endif %}
+                                                            {% else %}
+                                                                <span class="text-muted">Sin plan de entrega</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {% if contrato.fecha_vencimiento %}
+                                                                {{ contrato.fecha_vencimiento.strftime('%d/%m/%Y') }}
+                                                            {% else %}
+                                                                -
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            <a href="{{ url_for('contratos.detalle', contrato_id=contrato.id) }}" 
+                                                               class="btn btn-outline-primary btn-sm" title="Ver detalles">
+                                                                <i data-feather="eye" style="width: 12px; height: 12px;"></i>
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            {% else %}
-            <div class="text-center py-5">
-                <i data-feather="folder" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
-                <h5 class="text-muted">No se encontraron proyectos</h5>
-                <p class="text-muted">Ajusta los filtros de búsqueda o agrega un nuevo proyecto.</p>
-                {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
-                <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-primary">
-                    <i data-feather="folder-plus" class="me-2"></i>
-                    Crear Primer Proyecto
-                </a>
-                {% endif %}
-            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    
+    {% else %}
+    <!-- No projects found -->
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i data-feather="folder" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
+            <h5 class="text-muted">No se encontraron proyectos</h5>
+            <p class="text-muted">Ajusta los filtros de búsqueda o agrega un nuevo proyecto.</p>
+            {% if current_user.rol.value in ['admin', 'ventas', 'operaciones'] %}
+            <a href="{{ url_for('proyectos.nuevo') }}" class="btn btn-primary">
+                <i data-feather="folder-plus" class="me-2"></i>
+                Crear Primer Proyecto
+            </a>
             {% endif %}
         </div>
-        
-        {% if total_pages > 1 %}
+    </div>
+    {% endif %}
+
+    <!-- Paginación (si es necesaria) -->
+    {% if total_pages > 1 %}
+    <div class="card mt-4">
         <div class="card-footer">
             <nav>
                 <ul class="pagination pagination-sm justify-content-center mb-0">
@@ -341,7 +381,178 @@
                 </ul>
             </nav>
         </div>
-        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal Cambiar Estado -->
+<div class="modal fade" id="modalCambiarEstado" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambiar Estado Comercial</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formCambiarEstado">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nuevo-estado" class="form-label">Nuevo Estado</label>
+                        <select class="form-select" id="nuevo-estado" name="estado" required>
+                            <option value="">Seleccionar estado...</option>
+                            <option value="PENDIENTE_PRESUPUESTO">Pendiente Presupuesto</option>
+                            <option value="PRESUPUESTADO">Presupuestado</option>
+                            <option value="ADJUDICADO">Adjudicado</option>
+                            <option value="EN_DESARROLLO">En Desarrollo</option>
+                            <option value="TERMINADO">Terminado</option>
+                            <option value="PERDIDO">Perdido</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="observacion-estado" class="form-label">Observación (opcional)</label>
+                        <textarea class="form-control" id="observacion-estado" name="observacion" rows="3"
+                                  maxlength="500"
+                                  placeholder="Motivo o detalles del cambio de estado..."></textarea>
+                        <div class="form-text">
+                            <span id="contador-observacion">0</span>/500 caracteres
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-feather="check-circle" class="me-1"></i>
+                        Cambiar Estado
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize feather icons
+    feather.replace();
+    
+    // Handle chevron rotation in collapse headers
+    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function(element) {
+        element.addEventListener('click', function() {
+            const chevron = this.querySelector('.chevron-toggle');
+            if (chevron) {
+                chevron.style.transform = chevron.style.transform === 'rotate(180deg)' ? 'rotate(0deg)' : 'rotate(180deg)';
+            }
+        });
+    });
+
+    // Handle change estado button clicks
+    document.querySelectorAll('.change-estado-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const proyectoId = this.dataset.proyectoId;
+            const estadoActual = this.dataset.estadoActual;
+            
+            // Set the current estado in modal
+            document.getElementById('nuevo-estado').value = estadoActual;
+            
+            // Store proyecto ID for form submission
+            document.getElementById('formCambiarEstado').dataset.proyectoId = proyectoId;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('modalCambiarEstado'));
+            modal.show();
+        });
+    });
+
+    // Handle estado change form submission
+    document.getElementById('formCambiarEstado').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const proyectoId = this.dataset.proyectoId;
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Cambiando...';
+
+        fetch(`/proyectos/${proyectoId}/cambiar-estado`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                estado: formData.get('estado'),
+                observacion: formData.get('observacion')
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalCambiarEstado'));
+                modal.hide();
+                
+                // Show success message and reload page
+                alert('Estado cambiado exitosamente');
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Error al cambiar el estado'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión al cambiar el estado');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    });
+
+    // Character counter for observacion
+    document.getElementById('observacion-estado').addEventListener('input', function() {
+        const maxLength = 500;
+        const currentLength = this.value.length;
+        const counter = document.getElementById('contador-observacion');
+        
+        counter.textContent = currentLength;
+        
+        if (currentLength > maxLength * 0.9) {
+            counter.className = 'text-warning';
+        } else if (currentLength === maxLength) {
+            counter.className = 'text-danger';
+        } else {
+            counter.className = '';
+        }
+    });
+});
+</script>
+
+<style>
+.chevron-toggle {
+    transition: transform 0.3s ease;
+}
+
+.table-opacity-25 {
+    background-color: rgba(var(--bs-primary-rgb), 0.25) !important;
+}
+
+.card-header button:focus {
+    box-shadow: none;
+}
+
+.collapse.show + .card-body .chevron-toggle {
+    transform: rotate(180deg);
+}
+
+@media (max-width: 768px) {
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.75rem;
+    }
+    
+    .btn-group-sm .btn i {
+        width: 12px;
+        height: 12px;
+    }
+}
+</style>
 {% endblock %}
