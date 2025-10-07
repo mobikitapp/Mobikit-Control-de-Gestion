@@ -785,6 +785,25 @@ h4, h5, h6 {
     background-color: #FFFFFF !important;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    z-index: 1050;
+}
+
+/* Fix dropdown positioning in tables */
+.table-responsive {
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
+.dropdown-menu-end {
+    --bs-position: end;
+    right: 0;
+    left: auto;
+}
+
+/* Ensure dropdowns are visible in collapsed sections */
+.card-body .dropdown-menu {
+    position: absolute;
+    will-change: transform;
 }
 
 .dropdown-item {
