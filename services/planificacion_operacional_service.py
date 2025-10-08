@@ -8578,7 +8578,7 @@ class PlanificacionOperacionalService:
 
             return proyectos_demand
 
-        except Exceptionas e:
+        except Exception as e:
             print(f"Error obteniendo proyectos para rolling plan: {e}")
             return []
 
