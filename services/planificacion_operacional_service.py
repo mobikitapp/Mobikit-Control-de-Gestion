@@ -1157,1516 +1157,7834 @@ class PlanificacionOperacionalService:
                 'promedio_semanal': {'tableros': 0, 'horas': 0}
             }
 
-    def _calcular_rolling_plan_semanal(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
+    def _calcular_rolling_plan_semanal(self, ofs_activas: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
         """
         Calcula el rolling plan semanal con análisis de backlog acumulado
         """
         try:
-            # Obtener demanda semanal jerárquica - asegurar mínimo 12 semanas
-            horizonte_semanas_efectivo = max(12, horizonte_meses * 4)
-            demanda_data = self.calcular_demanda_semanal_jerarquica(año, horizonte_meses)
-            demanda_por_semana = demanda_data['demanda_por_semana']
-
-            # Obtener capacidad efectiva semanal (horas efectivas disponibles)
-            horas_efectivas_semana = self.calcular_horas_efectivas_semanales()
-
-            # Estructura del rolling plan
-            rolling_plan = {}
-            backlog_acumulado = 0  # Horas acumuladas que no se pueden satisfacer
-
-            # Procesar cada semana en orden cronológico
-            semanas_ordenadas = sorted(demanda_por_semana.keys())
-
-            for i, semana_key in enumerate(semanas_ordenadas):
-                semana_data = demanda_por_semana[semana_key]
-                # Calcular horas de demanda basándose en OFs
-                horas_demanda_semana = self._calcular_horas_demanda_semana_correctas(semana_data)
-
-                # Agregar backlog de la semana anterior
-                horas_demanda_total = horas_demanda_semana + backlog_acumulado
-
-                # Calcular capacidad vs demanda (calcular directamente el porcentaje)
-                utilizacion_porcentaje = (horas_demanda_total / horas_efectivas_semana * 100) if horas_efectivas_semana > 0 else 0
-
-                # Determinar qué se puede producir esta semana
-                horas_a_producir = min(horas_demanda_total, horas_efectivas_semana)
-                horas_restantes = max(0, horas_demanda_total - horas_efectivas_semana)
-
-                # Actualizar backlog para la próxima semana
-                backlog_acumulado = horas_restantes
-
-                # Calcular métricas de la semana
-                exceso_capacidad = max(0, horas_efectivas_semana - horas_demanda_total)
-                deficit_capacidad = max(0, horas_demanda_total - horas_efectivas_semana)
-
-                # Debug: Log calculation details
-                print(f"Rolling Plan Semana {semana_data['numero_semana']} ({semana_data['nombre_periodo']}): "
-                      f"OFs={sum(len(p.get('ordenes_fabricacion', [])) for p in semana_data.get('proyectos', {}).values())}, "
-                      f"Tableros={semana_data['totales_semana']['total_tableros']}, "
-                      f"Horas Demanda Original={horas_demanda_semana:.1f}, "
-                      f"Horas Efectivas Disponibles={horas_efectivas_semana:.1f}")
-
-                rolling_plan[semana_key] = {
-                    'semana_info': {
-                        'numero_semana': semana_data['numero_semana'],
-                        'año': semana_data['año'],
-                        'mes': semana_data['mes'],
-                        'nombre_periodo': semana_data['nombre_periodo'],
-                        'fecha_inicio': semana_data['fecha_inicio'],
-                        'fecha_fin': semana_data['fecha_fin'],
-                        'orden_secuencial': i + 1
-                    },
-                    'demanda': {
-                        'tableros_demandados': semana_data['totales_semana']['total_tableros'],
-                        'horas_demanda_original': round(horas_demanda_semana, 1),
-                        'backlog_heredado': round(backlog_acumulado - horas_restantes, 1),
-                        'horas_demanda_total': round(horas_demanda_total, 1),
-                        'proyectos_activos': semana_data['totales_semana']['proyectos_count']
-                    },
-                    'capacidad': {
-                        'horas_efectivas_disponibles': round(horas_efectivas_semana, 1),
-                        'utilizacion_porcentaje': round(utilizacion_porcentaje, 1),
-                        'horas_a_producir': round(horas_a_producir, 1),
-                        'exceso_capacidad': round(exceso_capacidad, 1),
-                        'deficit_capacidad': round(deficit_capacidad, 1)
-                    },
-                    'backlog': {
-                        'backlog_inicio_semana': round(backlog_acumulado - horas_restantes, 1),
-                        'backlog_fin_semana': round(horas_restantes, 1),
-                        'variacion_backlog': round(horas_restantes - (backlog_acumulado - horas_restantes), 1)
-                    },
-                    'estado_semana': self._evaluar_estado_periodo(
-                        utilizacion_porcentaje,
-                        deficit_capacidad,
-                        exceso_capacidad
-                    )
-                }
-
-            # Calcular resumen del rolling plan semanal
-            resumen_rolling_plan = self._calcular_resumen_rolling_plan_semanal(rolling_plan)
-            
-            # Generar recomendaciones estratégicas
-            recomendaciones_estrategicas = self._generar_recomendaciones_estrategicas_semanales(rolling_plan)
-
-            return {
-                'rolling_plan_por_semana': rolling_plan,
-                'resumen_rolling_plan': resumen_rolling_plan,
-                'parametros_plan': {
-                    'año': año,
-                    'horizonte_meses': horizonte_meses,
-                    'capacidad_semanal_horas': horas_efectivas_semana,
-                    'fecha_generacion': datetime.now().isoformat(),
-                    'modo': 'semanal'
-                },
-                'recomendaciones_estrategicas': recomendaciones_estrategicas
-            }
-
-        except Exception as e:
-            print(f"Error calculando rolling plan semanal: {e}")
-            import traceback
-            traceback.print_exc()
-            
-            # Generar datos mínimos para evitar errores en el template
-            empty_resumen = {
-                'totales_horizonte': {
-                    'total_horas_demanda': 0,
-                    'total_horas_capacidad': 0,
-                    'utilizacion_promedio': 0,
-                    'total_deficit_horas': 0,
-                    'total_exceso_horas': 0
-                },
-                'analisis_backlog': {
-                    'backlog_maximo_horas': 0,
-                    'backlog_maximo_tableros': 0,
-                    'backlog_final_horizonte': 0
-                },
-                'distribucion_utilizacion': {
-                    'semanas_sobrecarga': 0,
-                    'semanas_baja_utilizacion': 0,
-                    'semanas_optimas': 0
-                },
-                'recomendacion_general': 'No hay datos disponibles para análisis'
-            }
-            
-            return {
-                'rolling_plan_por_semana': {},
-                'resumen_rolling_plan': empty_resumen,
-                'parametros_plan': {
-                    'año': año,
-                    'horizonte_meses': horizonte_meses,
-                    'fecha_generacion': datetime.now().isoformat(),
-                    'capacidad_semanal_horas': 28.0,
-                    'modo': 'semanal'
-                },
-                'recomendaciones_estrategicas': []
-            }
-
-    def calcular_demanda_semanal_jerarquica(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
-        """
-        Calcula demanda jerárquica a nivel semanal para el rolling plan
-        """
-        try:
-            from datetime import date
+            from datetime import timedelta
+            from dateutil.relativedelta import relativedelta
             import calendar
 
-            # Calcular rango de fechas para el horizonte - desde hoy hacia adelante
-            hoy = date.today()
-            fecha_inicio = hoy - timedelta(days=hoy.weekday())  # Inicio de semana actual (lunes)
-            # Asegurar mínimo 12 semanas, máximo según horizonte_meses
-            horizonte_semanas = max(12, horizonte_meses * 4)  # Mínimo 12 semanas
-            fecha_fin = fecha_inicio + timedelta(weeks=horizonte_semanas)
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
 
-            # Inicializar estructura para todas las semanas del horizonte
-            demanda_por_semana = {}
-            
-            for i in range(horizonte_semanas):
-                fecha_semana = fecha_inicio + timedelta(weeks=i)
-                fecha_fin_semana = fecha_semana + timedelta(days=6)
-                semana_key = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
-                
-                demanda_por_semana[semana_key] = {
-                    'numero_semana': fecha_semana.isocalendar()[1],
-                    'año': fecha_semana.year,
-                    'mes': fecha_semana.month,
-                    'nombre_periodo': f"Semana {fecha_semana.isocalendar()[1]} ({fecha_semana.strftime('%d/%m')} - {fecha_fin_semana.strftime('%d/%m')})",
-                    'fecha_inicio': fecha_semana.isoformat(),
-                    'fecha_fin': fecha_fin_semana.isoformat(),
-                    'proyectos': {},
-                    'totales_semana': {
-                        'proyectos_count': 0,
-                        'total_tableros': 0,
-                        'total_horas_requeridas': 0.0,
-                        'ofs_count': 0,
-                        'clientes_count': 0
-                    }
+            # Obtener capacidad semanal teórica
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:  # Limitar a 52 semanas para evitar bucles infinitos
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana (solo OFs)
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    # Usar fecha_entrega_dinamica si existe, si no, fecha_planificada
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda total de la semana = demanda OFs + backlog heredado
+                demanda_total = demanda_semana_ofs + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
                 }
 
-            # Obtener todas las OFs en el período usando fecha_planificada
-            ordenes_fabricacion = (
-                db.session.query(OrdenFabricacion)
-                .join(Proyecto)
-                .join(Cliente, Proyecto.cliente_id == Cliente.id)
-                .filter(Proyecto.estado_comercial.in_([
-                    EstadoComercial.ADJUDICADO,
-                    EstadoComercial.EN_DESARROLLO,
-                    EstadoComercial.TERMINADO
-                ]))
-                .filter(
-                    and_(
-                        OrdenFabricacion.fecha_planificada >= fecha_inicio,
-                        OrdenFabricacion.fecha_planificada <= fecha_fin,
-                        OrdenFabricacion.fecha_planificada.isnot(None)
-                    )
-                )
-                .options(
-                    selectinload(OrdenFabricacion.proyecto)
-                    .selectinload(Proyecto.cliente)
-                )
-                .all()
-            )
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
 
-            # Procesar las OFs y asignarlas a las semanas correspondientes
-            for of in ordenes_fabricacion:
-                fecha_fabricacion = of.fecha_planificada
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = rolling_plan_por_semana[list(rolling_plan_por_semana.keys())[-1]]['backlog_final'] if rolling_plan_por_semana else 0
 
-                # Calcular fecha inicio de semana (lunes)
-                fecha_inicio_semana = fecha_fabricacion - timedelta(days=fecha_fabricacion.weekday())
-
-                # Usar un formato de clave más simple
-                semana_key = f"{fecha_inicio_semana.year}-W{fecha_inicio_semana.isocalendar()[1]:02d}"
-
-                # Verificar que la semana existe en nuestro horizonte
-                if semana_key not in demanda_por_semana:
-                    continue  # Skip if outside our defined horizon
-
-                # Usar clave de proyecto compatible con el template
-                proyecto_key = f"proyecto_{of.proyecto.id}"
-
-                if proyecto_key not in demanda_por_semana[semana_key]['proyectos']:
-                    demanda_por_semana[semana_key]['proyectos'][proyecto_key] = {
-                        'id': of.proyecto.id,
-                        'codigo': getattr(of.proyecto, 'codigo_interno', None) or f"PROY-{of.proyecto.id}",
-                        'nombre': of.proyecto.nombre,
-                        'cliente': {
-                            'id': of.proyecto.cliente.id,
-                            'nombre': of.proyecto.cliente.nombre,
-                            'tipo': 'Empresa'
-                        },
-                        'tipo_proyecto': of.proyecto.tipo_proyecto.value if of.proyecto.tipo_proyecto else 'ESTANDAR',
-                        'ordenes_fabricacion': [],
-                        'totales_proyecto': {
-                            'ofs_count': 0,
-                            'total_tableros': 0,
-                            'total_horas_fabricacion': 0.0,
-                            'total_horas_embalaje': 0.0,
-                            'total_horas_requeridas': 0.0
-                        }
-                    }
-
-                # Calcular horas correctamente
-                cantidad_tableros = of.cantidad_tableros or 0
-                tipo_proyecto = of.proyecto.tipo_proyecto.value if of.proyecto.tipo_proyecto else 'ESTANDAR'
-
-                config_service = ConfiguracionesService()
-                config = config_service.get_configuracion_capacidad()
-
-                tiempo_por_tablero_map = {
-                    'SOCIAL': config.get('horas_por_tablero_social', 0.6),
-                    'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
-                    'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
-                }
-
-                tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
-                horas_totales = cantidad_tableros * tiempo_por_tablero
-
-                # Agregar OF al proyecto
-                demanda_por_semana[semana_key]['proyectos'][proyecto_key]['ordenes_fabricacion'].append({
-                    'id': of.id,
-                    'codigo': of.codigo,
-                    'cantidad_tableros': cantidad_tableros,
-                    'fecha_planificada': of.fecha_planificada.isoformat(),
-                    'tipo_proyecto': tipo_proyecto,
-                    'tiempo_por_tablero': tiempo_por_tablero,
-                    'horas_fabricacion': round(horas_totales, 2),
-                    'horas_embalaje': 0,  # Ya incluido en tiempo total
-                    'horas_totales': round(horas_totales, 2),
-                    'estado': getattr(of.estado_actual, 'nombre', None) or getattr(of.estado_actual, 'value', None) or 'planificada'
-                })
-
-                # Actualizar totales del proyecto
-                proyecto_totales = demanda_por_semana[semana_key]['proyectos'][proyecto_key]['totales_proyecto']
-                proyecto_totales['ofs_count'] += 1
-                proyecto_totales['total_tableros'] += cantidad_tableros
-                proyecto_totales['total_horas_fabricacion'] += horas_totales
-                proyecto_totales['total_horas_requeridas'] += horas_totales
-
-            # Calcular totales finales por semana
-            for semana_key, semana_data in demanda_por_semana.items():
-                if semana_data['proyectos']:  # Only recalculate if there are projects
-                    semana_data['totales_semana']['proyectos_count'] = len(semana_data['proyectos'])
-                    semana_data['totales_semana']['total_tableros'] = sum(
-                        p['totales_proyecto']['total_tableros'] for p in semana_data['proyectos'].values()
-                    )
-                    semana_data['totales_semana']['total_horas_requeridas'] = sum(
-                        p['totales_proyecto']['total_horas_requeridas'] for p in semana_data['proyectos'].values()
-                    )
-                    semana_data['totales_semana']['ofs_count'] = sum(
-                        p['totales_proyecto']['ofs_count'] for p in semana_data['proyectos'].values()
-                    )
-
-                    # Contar clientes únicos
-                    clientes_unicos = set()
-                    for proyecto in semana_data['proyectos'].values():
-                        clientes_unicos.add(proyecto['cliente']['id'])
-                    semana_data['totales_semana']['clientes_count'] = len(clientes_unicos)
-                # If no projects, totals remain at 0 as initialized
-
-            print(f"Debug: Calculando demanda semanal, encontradas {len(ordenes_fabricacion)} OFs en {len(demanda_por_semana)} semanas")
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'recomendacion_general': self._generar_recomendacion_rolling_plan(rolling_plan_por_semana)
+            }
 
             return {
-                'demanda_por_semana': demanda_por_semana,
-                'resumen_general': self._calcular_resumen_demanda_general_semanal(demanda_por_semana),
-                'periodo': {
-                    'año': año,
-                    'horizonte_meses': horizonte_meses,
-                    'horizonte_semanas': horizonte_semanas,
-                    'fecha_inicio': fecha_inicio.isoformat(),
-                    'fecha_fin': fecha_fin.isoformat()
-                }
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
             }
 
         except Exception as e:
-            print(f"Error calculando demanda semanal jerárquica: {e}")
-            return {'demanda_por_semana': {}, 'resumen_general': {}}
-
-    def calcular_horas_efectivas_semanales(self) -> float:
-        """
-        Calcula horas efectivas disponibles por semana
-        """
-        # Obtener configuración actual o valores por defecto
-        try:
-            config_service = ConfiguracionesService()
-            config = config_service.get_configuracion_capacidad()
-
-            # Parámetros semanales
-            dias_laborables_semana = 5  # Default working days per week
-            turnos_por_dia = config.get('turnos_por_dia', 1)
-            horas_por_turno = config.get('horas_por_turno', 8)
-
-            # OEE (Overall Equipment Effectiveness)
-            oee = config.get('oee', 0.70)
-
-            # Cálculo de horas efectivas semanales
-            horas_nominales_semana = dias_laborables_semana * turnos_por_dia * horas_por_turno
-            horas_efectivas_semana = horas_nominales_semana * oee
-
-            return round(horas_efectivas_semana, 2)
-
-        except Exception as e:
-            print(f"Error calculando horas efectivas semanales: {e}")
-            # Valor por defecto: 5 días * 1 turno * 8 horas * 0.70 OEE = 28 horas/semana
-            return 28.0
-
-    def _calcular_horas_demanda_semana_correctas(self, semana_data: Dict) -> float:
-        """
-        Calcula las horas de demanda correctas para una semana basándose en las OFs
-        """
-        try:
-            total_horas = 0.0
-
-            for proyecto in semana_data.get('proyectos', {}).values():
-                for of in proyecto.get('ordenes_fabricacion', []):
-                    # Use 'horas_totales' which is already calculated as tableros * tiempo_por_tablero
-                    total_horas += of.get('horas_totales', 0.0)
-
-            return total_horas
-
-        except Exception as e:
-            print(f"Error calculando horas demanda semana: {e}")
-            # Fallback to the existing total_horas_requeridas if calculation fails
-            return semana_data.get('totales_semana', {}).get('total_horas_requeridas', 0.0)
-
-    def _calcular_resumen_rolling_plan_semanal(self, rolling_plan: Dict) -> Dict[str, Any]:
-        """Calcula resumen ejecutivo del rolling plan semanal"""
-        try:
-            if not rolling_plan:
-                return {
-                    'totales_horizonte': {
-                        'total_horas_demanda': 0,
-                        'total_horas_capacidad': 0,
-                        'utilizacion_promedio': 0,
-                        'total_deficit_horas': 0,
-                        'total_exceso_horas': 0
-                    },
-                    'analisis_backlog': {
-                        'backlog_maximo_horas': 0,
-                        'backlog_maximo_tableros': 0,
-                        'backlog_final_horizonte': 0
-                    },
-                    'distribucion_utilizacion': {
-                        'semanas_sobrecarga': 0,
-                        'semanas_baja_utilizacion': 0,
-                        'semanas_optimas': 0
-                    },
-                    'recomendacion_general': 'No hay datos disponibles para análisis'
-                }
-
-            total_horas_demanda = sum(semana['demanda']['horas_demanda_total'] for semana in rolling_plan.values())
-            total_horas_capacidad = sum(semana['capacidad']['horas_efectivas_disponibles'] for semana in rolling_plan.values())
-            total_deficit = sum(semana['capacidad']['deficit_capacidad'] for semana in rolling_plan.values())
-            total_exceso = sum(semana['capacidad']['exceso_capacidad'] for semana in rolling_plan.values())
-
-            # Backlog máximo en el horizonte
-            backlog_maximo = max(semana['backlog']['backlog_fin_semana'] for semana in rolling_plan.values()) if rolling_plan else 0
-
-            # Semanas con problemas
-            semanas_con_sobrecarga = len([semana for semana in rolling_plan.values()
-                                        if semana['capacidad']['utilizacion_porcentaje'] > 100])
-
-            semanas_con_baja_utilizacion = len([semana for semana in rolling_plan.values()
-                                              if semana['capacidad']['utilizacion_porcentaje'] < 70])
-
-            utilizacion_promedio = (total_horas_demanda / total_horas_capacidad) * 100 if total_horas_capacidad > 0 else 0
-
-            return {
-                'totales_horizonte': {
-                    'total_horas_demanda': round(total_horas_demanda, 1),
-                    'total_horas_capacidad': round(total_horas_capacidad, 1),
-                    'utilizacion_promedio': round(utilizacion_promedio, 1),
-                    'total_deficit_horas': round(total_deficit, 1),
-                    'total_exceso_horas': round(total_exceso, 1)
-                },
-                'analisis_backlog': {
-                    'backlog_maximo_horas': round(backlog_maximo, 1),
-                    'backlog_maximo_tableros': self._convertir_horas_a_tableros(backlog_maximo),
-                    'backlog_final_horizonte': round(list(rolling_plan.values())[-1]['backlog']['backlog_fin_semana'], 1) if rolling_plan else 0
-                },
-                'distribucion_utilizacion': {
-                    'semanas_sobrecarga': semanas_con_sobrecarga,
-                    'semanas_baja_utilizacion': semanas_con_baja_utilizacion,
-                    'semanas_optimas': len(rolling_plan) - semanas_con_sobrecarga - semanas_con_baja_utilizacion
-                },
-                'recomendacion_general': self._generar_recomendacion_general_semanal(
-                    utilizacion_promedio,
-                    semanas_con_sobrecarga,
-                    backlog_maximo
-                )
-            }
-
-        except Exception as e:
-            print(f"Error calculando resumen rolling plan semanal: {e}")
+            print(f"Error procesando rolling plan semanal: {e}")
             import traceback
             traceback.print_exc()
-            return {
-                'totales_horizonte': {
-                    'total_horas_demanda': 0,
-                    'total_horas_capacidad': 0,
-                    'utilizacion_promedio': 0,
-                    'total_deficit_horas': 0,
-                    'total_exceso_horas': 0
-                },
-                'analisis_backlog': {
-                    'backlog_maximo_horas': 0,
-                    'backlog_maximo_tableros': 0,
-                    'backlog_final_horizonte': 0
-                },
-                'distribucion_utilizacion': {
-                    'semanas_sobrecarga': 0,
-                    'semanas_baja_utilizacion': 0,
-                    'semanas_optimas': 0
-                },
-                'recomendacion_general': 'Error en el cálculo del resumen'
-            }
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
 
-    def _calcular_resumen_general_semanal(self, demanda_semanal: Dict) -> Dict[str, Any]:
+    def _procesar_rolling_plan_mensual(self, ofs_activas: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
         """
-        Calcula resumen general de la demanda semanal
+        Procesa rolling plan mensual con backlog acumulado
         """
         try:
-            resumen = {
-                'total_semanas_horizonte': len(demanda_semanal),
-                'total_tableros_horizonte': 0,
-                'total_horas_requeridas_horizonte': 0.0,
-                'total_proyectos_unicos': 0,
-                'total_clientes_unicos': 0,
-                'pico_demanda_semana': '',
-                'valle_demanda_semana': '',
-                'promedio_semanal': {
-                    'tableros': 0.0,
-                    'horas': 0.0
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes (solo OFs)
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda total = demanda original + backlog heredado
+                demanda_total = demanda_mes_ofs + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
                 }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'recomendacion_general': self._generar_recomendacion_rolling_plan(rolling_plan_por_mes)
             }
 
-            # Rastrear proyectos y clientes únicos
-            proyectos_unicos = set()
-            clientes_unicos = set()
-
-            # Rastrear picos y valles
-            max_horas_semana = 0
-            min_horas_semana = float('inf')
-            pico_semana = ''
-            valle_semana = ''
-
-            for semana_key, semana_data in demanda_semanal.items():
-                # Acumular totales
-                resumen['total_tableros_horizonte'] += semana_data['totales_semana']['total_tableros']
-                resumen['total_horas_requeridas_horizonte'] += semana_data['totales_semana']['total_horas_requeridas']
-
-                # Recopilar proyectos únicos
-                for proyecto in semana_data['proyectos'].values():
-                    proyectos_unicos.add(proyecto['id'])
-                    clientes_unicos.add(proyecto['cliente']['id'])
-
-                # Rastrear picos y valles
-                horas_semana = semana_data['totales_semana']['total_horas_requeridas']
-                if horas_semana > max_horas_semana:
-                    max_horas_semana = horas_semana
-                    pico_semana = semana_data['nombre_periodo']
-
-                if horas_semana < min_horas_semana:
-                    min_horas_semana = horas_semana
-                    valle_semana = semana_data['nombre_periodo']
-
-            # Finalizar resumen
-            resumen['total_proyectos_unicos'] = len(proyectos_unicos)
-            resumen['total_clientes_unicos'] = len(clientes_unicos)
-            resumen['pico_demanda_semana'] = pico_semana
-            resumen['valle_demanda_semana'] = valle_semana
-
-            # Calcular promedios
-            num_semanas = len(demanda_semanal)
-            if num_semanas > 0:
-                resumen['promedio_semanal']['tableros'] = round(resumen['total_tableros_horizonte'] / num_semanas, 1)
-                resumen['promedio_semanal']['horas'] = round(resumen['total_horas_requeridas_horizonte'] / num_semanas, 1)
-
-            return resumen
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
 
         except Exception as e:
-            print(f"Error calculando resumen general semanal: {e}")
-            return {}
+            print(f"Error procesando rolling plan mensual: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
 
-    def _generar_recomendaciones_estrategicas_semanales(self, rolling_plan: Dict) -> List[Dict[str, str]]:
-        """Genera recomendaciones estratégicas basadas en el rolling plan semanal"""
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
         try:
-            recomendaciones = []
+            from dateutil.relativedelta import relativedelta
+            import calendar
 
-            if not rolling_plan:
-                return recomendaciones
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
 
-            # Analizar patrones de utilización
-            semanas_baja = sum(1 for semana in rolling_plan.values() if semana['capacidad']['utilizacion_porcentaje'] < 50)
-            semanas_sobrecarga = sum(1 for semana in rolling_plan.values() if semana['capacidad']['utilizacion_porcentaje'] > 100)
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
 
-            if semanas_baja > len(rolling_plan) * 0.5:
-                recomendaciones.append({
-                    'titulo': 'Oportunidades de Adelanto',
-                    'descripcion': f'{semanas_baja} semanas con capacidad excedente significativa',
-                    'accion_recomendada': 'Considerar adelantar producción para reducir backlog futuro',
-                    'prioridad': 'BAJA',
-                    'categoria': 'OPTIMIZACION'
-                })
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
 
-            if semanas_sobrecarga > 2:
-                recomendaciones.append({
-                    'titulo': 'Riesgo de Sobrecarga',
-                    'descripcion': f'{semanas_sobrecarga} semanas con utilización > 100%',
-                    'accion_recomendada': 'Evaluar redistribución de carga o incremento de capacidad',
-                    'prioridad': 'ALTA',
-                    'categoria': 'RIESGO'
-                })
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
 
-            return recomendaciones
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
 
         except Exception as e:
-            print(f"Error generando recomendaciones estratégicas semanales: {e}")
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
             return []
 
-    def _generar_recomendacion_general_semanal(self, utilizacion_promedio: float, semanas_sobrecarga: int, backlog_maximo: float) -> str:
-        """Genera recomendación general del rolling plan semanal"""
-        if utilizacion_promedio > 110 and semanas_sobrecarga >= 3:
-            return "CRÍTICO: Capacidad insuficiente. Requiere expansión inmediata o subcontratación."
-        elif utilizacion_promedio > 95 and backlog_maximo > 50:  # Ajustado para horizonte semanal
-            return "ALERTA: Riesgo de incumplimiento. Evaluar medidas de incremento de capacidad."
-        elif utilizacion_promedio < 70:
-            return "OPORTUNIDAD: Capacidad subutilizada. Evaluar nuevos proyectos o reducción de costos."
-        else:
-            return "BALANCEADO: Capacidad y demanda en equilibrio general."
-
-    # ==========================================
-    # ROLLING PLAN WITH BACKLOG CALCULATIONS
-    # ==========================================
-
-    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo_rolling: str = 'mensual') -> Dict[str, Any]:
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
         """
-        Calcula el rolling plan con análisis de backlog acumulado
-        Soporta modo mensual y semanal
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
         """
         try:
-            if modo_rolling == 'semanal':
-                return self._calcular_rolling_plan_semanal(año, horizonte_meses)
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
             else:
-                return self._calcular_rolling_plan_mensual(año, horizonte_meses)
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
 
         except Exception as e:
             print(f"Error calculando rolling plan con backlog: {e}")
             import traceback
             traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
 
-            # Return empty structure matching the expected format
-            if modo_rolling == 'semanal':
-                return {
-                    'rolling_plan_por_semana': {},
-                    'resumen_rolling_plan': {},
-                    'parametros_plan': {
-                        'año': año,
-                        'horizonte_meses': horizonte_meses,
-                        'fecha_generacion': datetime.now().isoformat(),
-                        'capacidad_semanal_horas': 28.0,
-                        'modo': 'semanal'
-                    },
-                    'recomendaciones_estrategicas': []
-                }
-            else:
-                return {
-                    'rolling_plan_por_mes': {},
-                    'resumen_rolling_plan': {},
-                    'parametros_plan': {
-                        'año': año,
-                        'horizonte_meses': horizonte_meses,
-                        'fecha_generacion': datetime.now().isoformat(),
-                        'capacidad_mensual_horas': 123.2,
-                        'modo': 'mensual'
-                    },
-                    'recomendaciones_estrategicas': []
-                }
-
-    def _calcular_rolling_plan_mensual(self, año: int, horizonte_meses: int = 6) -> Dict[str, Any]:
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
         """
-        Calcula el rolling plan mensual con análisis de backlog acumulado
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
         """
         try:
-            # Obtener demanda mensual jerárquica
-            demanda_data = self.calcular_demanda_mensual_jerarquica(año, horizonte_meses)
-            demanda_por_mes = demanda_data['demanda_por_mes']
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
 
-            # Obtener capacidad efectiva mensual
-            horas_efectivas_mes = self.calcular_horas_efectivas_mensuales()
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
 
-            # Estructura del rolling plan
-            rolling_plan = {}
-            backlog_acumulado = 0  # Horas acumuladas que no se pueden satisfacer
+            proyectos_demand = []
 
-            # Procesar cada mes en orden cronológico
-            meses_ordenados = sorted(demanda_por_mes.keys())
-
-            for i, mes_key in enumerate(meses_ordenados):
-                mes_data = demanda_por_mes[mes_key]
-                # Usar las horas requeridas ya calculadas en totales_mes
-                horas_demanda_mes = mes_data['totales_mes']['total_horas_requeridas']
-
-                # Agregar backlog del mes anterior
-                horas_demanda_total = horas_demanda_mes + backlog_acumulado
-
-                # Calcular capacidad vs demanda
-                utilizacion_porcentaje = (horas_demanda_total / horas_efectivas_mes * 100) if horas_efectivas_mes > 0 else 0
-
-                # Determinar qué se puede producir este mes
-                horas_a_producir = min(horas_demanda_total, horas_efectivas_mes)
-                horas_restantes = max(0, horas_demanda_total - horas_efectivas_mes)
-
-                # Actualizar backlog para el próximo mes
-                backlog_acumulado = horas_restantes
-
-                # Calcular métricas del mes
-                exceso_capacidad = max(0, horas_efectivas_mes - horas_demanda_total)
-                deficit_capacidad = max(0, horas_demanda_total - horas_efectivas_mes)
-
-                rolling_plan[mes_key] = {
-                    'mes_info': {
-                        'mes': mes_data['mes'],
-                        'año': mes_data['año'],
-                        'nombre_mes': mes_data['nombre_mes'],
-                        'orden_secuencial': i + 1
-                    },
-                    'demanda': {
-                        'horas_demanda_original': horas_demanda_mes,
-                        'backlog_heredado': horas_demanda_total - horas_demanda_mes,
-                        'horas_demanda_total': horas_demanda_total,
-                        'proyectos_count': mes_data['totales_mes']['proyectos_count'],
-                        'tableros_demandados': mes_data['totales_mes']['total_tableros']
-                    },
-                    'capacidad': {
-                        'horas_efectivas_disponibles': horas_efectivas_mes,
-                        'horas_a_producir': horas_a_producir,
-                        'utilizacion_porcentaje': (horas_a_producir / horas_efectivas_mes) * 100,
-                        'exceso_capacidad': exceso_capacidad,
-                        'deficit_capacidad': deficit_capacidad
-                    },
-                    'backlog': {
-                        'backlog_fin_mes': backlog_acumulado,
-                        'backlog_en_tableros': self._convertir_horas_a_tableros(backlog_acumulado),
-                        'variacion_backlog': backlog_acumulado - (horas_demanda_total - horas_demanda_mes)
-                    },
-                    'estado_mes': self._evaluar_estado_periodo(
-                        utilizacion_porcentaje,
-                        deficit_capacidad,
-                        exceso_capacidad
-                    )
-                }
-
-            # Calcular resumen del rolling plan mensual
-            resumen_rolling_plan = self._calcular_resumen_rolling_plan_mensual(rolling_plan)
-
-            return {
-                'rolling_plan_por_mes': rolling_plan,
-                'resumen_rolling_plan': resumen_rolling_plan,
-                'parametros_plan': {
-                    'año': año,
-                    'horizonte_meses': horizonte_meses,
-                    'fecha_generacion': datetime.now().isoformat(),
-                    'capacidad_mensual_horas': horas_efectivas_mes
-                },
-                'recomendaciones_estrategicas': self._generar_recomendaciones_estrategicas_mensuales(rolling_plan)
-            }
-
-        except Exception as e:
-            print(f"Error calculando rolling plan mensual: {e}")
-            import traceback
-            traceback.print_exc()
-            return {
-                'rolling_plan_por_mes': {},
-                'resumen_rolling_plan': {},
-                'parametros_plan': {
-                    'año': año,
-                    'horizonte_meses': horizonte_meses,
-                    'fecha_generacion': datetime.now().isoformat(),
-                    'capacidad_mensual_horas': 123.2
-                },
-                'recomendaciones_estrategicas': []
-            }
-
-    def _calcular_resumen_rolling_plan_mensual(self, rolling_plan: Dict) -> Dict[str, Any]:
-        """Calcula resumen del rolling plan mensual"""
-        try:
-            if not rolling_plan:
-                return {
-                    'totales_horizonte': {
-                        'total_horas_demanda': 0,
-                        'total_horas_capacidad': 0,
-                        'total_deficit_horas': 0,
-                        'total_exceso_horas': 0,
-                        'utilizacion_promedio': 0
-                    },
-                    'distribucion_utilizacion': {
-                        'meses_baja_utilizacion': 0,
-                        'meses_optimos': 0,
-                        'meses_sobrecarga': 0
-                    },
-                    'analisis_backlog': {
-                        'backlog_maximo_horas': 0,
-                        'backlog_maximo_tableros': 0,
-                        'backlog_final_horizonte': 0
-                    },
-                    'recomendacion_general': 'Sin datos para analizar'
-                }
-
-            # Calcular totales
-            total_horas_demanda = sum(mes['demanda']['horas_demanda_total'] for mes in rolling_plan.values())
-            total_horas_capacidad = sum(mes['capacidad']['horas_efectivas_disponibles'] for mes in rolling_plan.values())
-            total_deficit_horas = sum(mes['capacidad']['deficit_capacidad'] for mes in rolling_plan.values())
-            total_exceso_horas = sum(mes['capacidad']['exceso_capacidad'] for mes in rolling_plan.values())
-
-            # Calcular utilización promedio
-            utilizacion_promedio = (total_horas_demanda / total_horas_capacidad * 100) if total_horas_capacidad > 0 else 0
-
-            # Analizar distribución de utilización
-            meses_baja = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
-            meses_optimos = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
-            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 90)
-
-            # Análisis de backlog
-            backlog_maximo = max((mes['backlog']['backlog_fin_mes'] for mes in rolling_plan.values()), default=0)
-            backlog_final = list(rolling_plan.values())[-1]['backlog']['backlog_fin_mes'] if rolling_plan else 0
-
-            # Generar recomendación
-            if utilizacion_promedio < 50:
-                recomendacion = "OPORTUNIDAD: Capacidad subutilizada. Evaluar nuevos proyectos o reducción de costos."
-            elif utilizacion_promedio > 90:
-                recomendacion = "ALERTA: Sobrecarga sostenida. Considerar incremento de capacidad o redistribución de carga."
-            else:
-                recomendacion = "ÓPTIMO: Utilización balanceada de capacidad."
-
-            return {
-                'totales_horizonte': {
-                    'total_horas_demanda': round(total_horas_demanda, 1),
-                    'total_horas_capacidad': round(total_horas_capacidad, 1),
-                    'total_deficit_horas': round(total_deficit_horas, 1),
-                    'total_exceso_horas': round(total_exceso_horas, 1),
-                    'utilizacion_promedio': round(utilizacion_promedio, 1)
-                },
-                'distribucion_utilizacion': {
-                    'meses_baja_utilizacion': meses_baja,
-                    'meses_optimos': meses_optimos,
-                    'meses_sobrecarga': meses_sobrecarga
-                },
-                'analisis_backlog': {
-                    'backlog_maximo_horas': round(backlog_maximo, 1),
-                    'backlog_maximo_tableros': round(backlog_maximo / 0.5, 0) if backlog_maximo > 0 else 0,
-                    'backlog_final_horizonte': round(backlog_final, 1)
-                },
-                'recomendacion_general': recomendacion
-            }
-
-        except Exception as e:
-            print(f"Error calculando resumen rolling plan mensual: {e}")
-            return {
-                'totales_horizonte': {},
-                'distribucion_utilizacion': {},
-                'analisis_backlog': {},
-                'recomendacion_general': 'Error en el cálculo'
-            }
-
-    def _generar_recomendaciones_estrategicas_mensuales(self, rolling_plan: Dict) -> List[Dict[str, str]]:
-        """Genera recomendaciones estratégicas basadas en el rolling plan mensual"""
-        try:
-            recomendaciones = []
-
-            if not rolling_plan:
-                return recomendaciones
-
-            # Analizar patrones de utilización
-            meses_baja = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 50)
-            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
-
-            if meses_baja > len(rolling_plan) * 0.5:
-                recomendaciones.append({
-                    'titulo': 'Oportunidades de Adelanto',
-                    'descripcion': f'{meses_baja} meses con capacidad excedente significativa',
-                    'accion_recomendada': 'Considerar adelantar producción para reducir backlog futuro',
-                    'prioridad': 'BAJA',
-                    'categoria': 'OPTIMIZACION'
-                })
-
-            if meses_sobrecarga > 2:
-                recomendaciones.append({
-                    'titulo': 'Riesgo de Sobrecarga',
-                    'descripcion': f'{meses_sobrecarga} meses con utilización > 100%',
-                    'accion_recomendada': 'Evaluar redistribución de carga o incremento de capacidad',
-                    'prioridad': 'ALTA',
-                    'categoria': 'RIESGO'
-                })
-
-            return recomendaciones
-
-        except Exception as e:
-            print(f"Error generando recomendaciones estratégicas mensuales: {e}")
-            return []
-
-    def _convertir_horas_a_tableros(self, horas: float, tipo_proyecto: str = 'ESTANDAR') -> float:
-        """Convierte horas a tableros aproximados según tipo de proyecto"""
-        try:
-            config_service = ConfiguracionesService()
-            config = config_service.get_configuracion_capacidad()
-
-            tiempo_por_tablero_map = {
-                'SOCIAL': config.get('horas_por_tablero_social', 0.6),
-                'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
-                'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
-            }
-
-            tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
-
-            if tiempo_por_tablero <= 0:
-                return 0.0
-
-            return round(horas / tiempo_por_tablero, 1)
-
-        except Exception as e:
-            print(f"Error convirtiendo horas a tableros: {e}")
-            return 0.0
-
-    def _determinar_estado_mes(self, utilizacion_porcentaje: float) -> Dict[str, str]:
-        """Determina el estado del mes basado en utilización"""
-        if utilizacion_porcentaje <= 70:
-            return {
-                'codigo': 'BAJA_UTILIZACION',
-                'descripcion': 'Utilización baja - Capacidad excedente',
-                'color': 'success'
-            }
-        elif utilizacion_porcentaje <= 90:
-            return {
-                'codigo': 'UTILIZACION_OPTIMA',
-                'descripcion': 'Utilización óptima',
-                'color': 'primary'
-            }
-        elif utilizacion_porcentaje <= 110:
-            return {
-                'codigo': 'SOBRECARGA_MODERADA',
-                'descripcion': 'Sobrecarga moderada - Requiere atención',
-                'color': 'warning'
-            }
-        else:
-            return {
-                'codigo': 'SOBRECARGA_CRITICA',
-                'descripcion': 'Sobrecarga crítica - Requiere intervención',
-                'color': 'danger'
-            }
-
-    def _identificar_oportunidades_optimizacion(self, utilizacion: float, deficit: float, exceso: float) -> List[Dict[str, str]]:
-        """Identifica oportunidades de optimización para el mes"""
-        oportunidades = []
-
-        if exceso > 50:  # Más de 50 horas de exceso
-            oportunidades.append({
-                'tipo': 'ADELANTAR_PRODUCCION',
-                'descripcion': f'Oportunidad para adelantar {self._convertir_horas_a_tableros(exceso)} tableros del mes siguiente',
-                'impacto': 'Reducir backlog futuro'
-            })
-
-        if deficit > 50:  # Más de 50 horas de déficit
-            config_service = ConfiguracionesService()
-            escenarios = config_service.get_escenarios_deficit() if hasattr(config_service, 'get_escenarios_deficit') else {}
-
-            if deficit <= 100:
-                oportunidades.append({
-                    'tipo': 'HORAS_EXTRA',
-                    'descripcion': f'Considerar {round(deficit/8, 1)} días de horas extra',
-                    'impacto': 'Eliminar déficit con costo adicional'
-                })
-            else:
-                oportunidades.append({
-                    'tipo': 'TURNO_ADICIONAL',
-                    'descripcion': 'Evaluar turno adicional temporal',
-                    'impacto': 'Aumentar capacidad significativamente'
-                })
-
-        if 80 <= utilizacion <= 95:
-            oportunidades.append({
-                'tipo': 'MEJORAR_OEE',
-                'descripcion': 'Optimizar OEE para aumentar capacidad efectiva',
-                'impacto': 'Mejora continua sin costos adicionales'
-            })
-
-        return oportunidades
-
-    def _calcular_resumen_rolling_plan(self, rolling_plan: Dict) -> Dict[str, Any]:
-        """Calcula resumen ejecutivo del rolling plan"""
-        try:
-            if not rolling_plan:
-                return {}
-
-            total_horas_demanda = sum(mes['demanda']['horas_demanda_total'] for mes in rolling_plan.values())
-            total_horas_capacidad = sum(mes['capacidad']['horas_efectivas_disponibles'] for mes in rolling_plan.values())
-            total_deficit = sum(mes['capacidad']['deficit_capacidad'] for mes in rolling_plan.values())
-            total_exceso = sum(mes['capacidad']['exceso_capacidad'] for mes in rolling_plan.values())
-
-            # Backlog máximo en el horizonte
-            backlog_maximo = max(mes['backlog']['backlog_fin_mes'] for mes in rolling_plan.values())
-
-            # Meses con problemas
-            meses_con_sobrecarga = len([mes for mes in rolling_plan.values()
-                                      if mes['capacidad']['utilizacion_porcentaje'] > 100])
-
-            meses_con_baja_utilizacion = len([mes for mes in rolling_plan.values()
-                                            if mes['capacidad']['utilizacion_porcentaje'] < 70])
-
-            return {
-                'totales_horizonte': {
-                    'total_horas_demanda': round(total_horas_demanda, 1),
-                    'total_horas_capacidad': round(total_horas_capacidad, 1),
-                    'utilizacion_promedio': round((total_horas_demanda / total_horas_capacidad) * 100, 1),
-                    'total_deficit_horas': round(total_deficit, 1),
-                    'total_exceso_horas': round(total_exceso, 1)
-                },
-                'analisis_backlog': {
-                    'backlog_maximo_horas': round(backlog_maximo, 1),
-                    'backlog_maximo_tableros': self._convertir_horas_a_tableros(backlog_maximo),
-                    'backlog_final_horizonte': round(list(rolling_plan.values())[-1]['backlog']['backlog_fin_mes'], 1)
-                },
-                'distribucion_utilizacion': {
-                    'meses_sobrecarga': meses_con_sobrecarga,
-                    'meses_baja_utilizacion': meses_con_baja_utilizacion,
-                    'meses_optimos': len(rolling_plan) - meses_con_sobrecarga - meses_con_baja_utilizacion
-                },
-                'recomendacion_general': self._generar_recomendacion_general(
-                    (total_horas_demanda / total_horas_capacidad) * 100,
-                    meses_con_sobrecarga,
-                    backlog_maximo
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
                 )
-            }
 
-        except Exception as e:
-            print(f"Error calculando resumen rolling plan: {e}")
-            return {}
+                total_tableros = resultado_tableros['tableros_aproximados']
 
-    def _generar_recomendaciones_estrategicas(self, rolling_plan: Dict) -> List[Dict[str, str]]:
-        """Genera recomendaciones estratégicas basadas en el rolling plan"""
-        recomendaciones = []
-
-        try:
-            if not rolling_plan:
-                return recomendaciones
-
-            # Analizar patrones en el plan
-            meses_data = list(rolling_plan.values())
-
-            # Recomendación sobre backlog
-            backlog_final = meses_data[-1]['backlog']['backlog_fin_mes']
-            if backlog_final > 100:
-                recomendaciones.append({
-                    'prioridad': 'ALTA',
-                    'categoria': 'CAPACIDAD',
-                    'titulo': 'Déficit de Capacidad Crítico',
-                    'descripcion': f'Backlog acumulado de {round(backlog_final, 1)} horas al final del horizonte',
-                    'accion_recomendada': 'Evaluar expansión de capacidad o subcontratación estratégica'
-                })
-
-            # Recomendación sobre utilización desbalanceada
-            utilizaciones = [mes['capacidad']['utilizacion_porcentaje'] for mes in meses_data]
-            if max(utilizaciones) - min(utilizaciones) > 50:
-                recomendaciones.append({
-                    'prioridad': 'MEDIA',
-                    'categoria': 'NIVELACION',
-                    'titulo': 'Desbalance en Utilización',
-                    'descripcion': 'Gran variación en utilización mensual de capacidad',
-                    'accion_recomendada': 'Implementar estrategia de nivelación de producción'
-                })
-
-            # Recomendación sobre oportunidades de mejora
-            excesos_significativos = [mes for mes in meses_data if mes['capacidad']['exceso_capacidad'] > 80]
-            if len(excesos_significativos) >= 2:
-                recomendaciones.append({
-                    'prioridad': 'BAJA',
-                    'categoria': 'OPTIMIZACION',
-                    'titulo': 'Oportunidades de Adelanto',
-                    'descripcion': f'{len(excesos_significativos)} meses con capacidad excedente significativa',
-                    'accion_recomendada': 'Considerar adelantar producción para reducir backlog futuro'
-                })
-
-            return recomendaciones
-
-        except Exception as e:
-            print(f"Error generando recomendaciones estratégicas: {e}")
-            return []
-
-    def _generar_recomendacion_general(self, utilizacion_promedio: float, meses_sobrecarga: int, backlog_maximo: float) -> str:
-        """Genera recomendación general del rolling plan"""
-        if utilizacion_promedio > 110 and meses_sobrecarga >= 3:
-            return "CRÍTICO: Capacidad insuficiente. Requiere expansión inmediata o subcontratación."
-        elif utilizacion_promedio > 95 and backlog_maximo > 200:
-            return "ALERTA: Riesgo de incumplimiento. Evaluar medidas de incremento de capacidad."
-        elif utilizacion_promedio < 70:
-            return "OPORTUNIDAD: Capacidad subutilizada. Evaluar nuevos proyectos o reducción de costos."
-        else:
-            return "BALANCEADO: Capacidad y demanda en equilibrio general."
-
-    def _calcular_horas_of(self, of) -> float:
-        """Calcula las horas estimadas para una Orden de Fabricación"""
-        try:
-            tableros = of.cantidad_tableros or 0
-            if tableros <= 0:
-                return 0.0
-
-            # Obtener tipo de proyecto
-            tipo_proyecto = of.proyecto.tipo_proyecto.value if of.proyecto.tipo_proyecto else 'ESTANDAR'
-
-            # Obtener configuración de tiempo por tablero
-            config_service = ConfiguracionesService()
-            config = config_service.get_configuracion_capacidad()
-
-            tiempo_por_tablero_map = {
-                'SOCIAL': config.get('horas_por_tablero_social', 0.6),
-                'ESTANDAR': config.get('horas_por_tablero_estandar', 0.5),
-                'ESPECIAL': config.get('horas_por_tablero_especial', 0.4)
-            }
-
-            tiempo_por_tablero = tiempo_por_tablero_map.get(tipo_proyecto, 0.5)
-            return round(tableros * tiempo_por_tablero, 2)
-
-        except Exception as e:
-            print(f"Error calculando horas de OF {getattr(of, 'id', 'N/A')}: {e}")
-            return 0.0
-
-    def _evaluar_estado_periodo(self, utilizacion_porcentaje: float, deficit_capacidad: float, exceso_capacidad: float) -> Dict[str, str]:
-        """Evalúa el estado de un período (semana/mes) basado en métricas de capacidad"""
-        if utilizacion_porcentaje > 120:
-            return {
-                'codigo': 'SOBRECARGA_CRITICA',
-                'descripcion': 'Sobrecarga crítica - Requiere intervención inmediata',
-                'color': 'danger'
-            }
-        elif utilizacion_porcentaje > 100:
-            return {
-                'codigo': 'SOBRECARGA_MODERADA',
-                'descripcion': 'Sobrecarga moderada - Requiere atención',
-                'color': 'warning'
-            }
-        elif utilizacion_porcentaje > 90:
-            return {
-                'codigo': 'UTILIZACION_ALTA',
-                'descripcion': 'Utilización alta - Monitorear',
-                'color': 'info'
-            }
-        elif utilizacion_porcentaje > 70:
-            return {
-                'codigo': 'UTILIZACION_OPTIMA',
-                'descripcion': 'Utilización óptima',
-                'color': 'success'
-            }
-        else:
-            return {
-                'codigo': 'BAJA_UTILIZACION',
-                'descripcion': 'Utilización baja - Capacidad excedente',
-                'color': 'secondary'
-            }
-
-    # Private helper methods
-
-    def _get_proyectos_periodo(self, año, mes_inicio, mes_fin, cliente_id=None):
-        """Get projects for the specified period"""
-        fecha_inicio = date(año, mes_inicio, 1)
-        ultimo_dia = calendar.monthrange(año, mes_fin)[1]
-        fecha_fin = date(año, mes_fin, ultimo_dia)
-
-        query = db.session.query(Proyecto).join(Cliente)
-
-        # Filter by date range
-        query = query.filter(
-            or_(
-                and_(Proyecto.fecha_inicio.isnot(None),
-                     Proyecto.fecha_inicio <= fecha_fin,
-                     or_(Proyecto.fecha_fin_estimada.is_(None),
-                         Proyecto.fecha_fin_estimada >= fecha_inicio)),
-                and_(Proyecto.fecha_fin_estimada.isnot(None),
-                     Proyecto.fecha_fin_estimada >= fecha_inicio,
-                     Proyecto.fecha_fin_estimada <= fecha_fin)
-            )
-        )
-
-        # Filter by commercial states that have provision amounts
-        query = query.filter(Proyecto.estado_comercial.in_([
-            EstadoComercial.PRESUPUESTADO,
-            EstadoComercial.ADJUDICADO,
-            EstadoComercial.TERMINADO
-        ]))
-
-        # Filter by provision amount (must have one)
-        query = query.filter(Proyecto.monto_provision_presupuestado.isnot(None))
-
-        # Apply client filter
-        if cliente_id:
-            query = query.filter(Proyecto.cliente_id == cliente_id)
-
-        return query.all()
-
-    def _construir_matriz_operacional(self, proyectos, año, mes_inicio, mes_fin, tipo_material):
-        """Build operational matrix with board calculations"""
-        matriz = {}
-
-        for mes in range(mes_inicio, mes_fin + 1):
-            matriz[mes] = {
-                'mes': mes,
-                'mes_nombre': calendar.month_name[mes],
-                'proyectos': [],
-                'total_monto': Decimal('0'),
-                'total_tableros': 0,
-                'total_area_m2': Decimal('0')
-            }
-
-        for proyecto in proyectos:
-            # Determine which months this project affects
-            meses_proyecto = self._obtener_meses_proyecto(proyecto, año, mes_inicio, mes_fin)
-
-            for mes in meses_proyecto:
-                if mes in matriz:
-                    # Calculate prorated values
-                    meses_duracion = len(meses_proyecto)
-
-                    monto_mes = Decimal('0')
-                    if proyecto.monto_provision_presupuestado:
-                        monto_mes = proyecto.monto_provision_presupuestado / meses_duracion
-
-                    # Calculate boards for this month
-                    # Get project type, default to ESTANDAR
-                    tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
-
-                    tableros_resultado = self.calcular_tableros_aproximados(
-                        monto_provision=float(monto_mes),
-                        tipo_proyecto=tipo_proyecto,
-                        margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
                     )
 
-                    proyecto_mes = {
+                    proyectos_demand.append({
                         'proyecto': proyecto,
-                        'monto_mes': monto_mes,
-                        'tableros_mes': tableros_resultado['tableros_aproximados'],
-                        'area_m2_mes': Decimal(str(tableros_resultado['area_total_m2'])),
-                        'meses_duracion': meses_duracion,
-                        'detalles_calculo': tableros_resultado['detalles']
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
                     }
 
-                    matriz[mes]['proyectos'].append(proyecto_mes)
-                    matriz[mes]['total_monto'] += monto_mes
-                    matriz[mes]['total_tableros'] += tableros_resultado['tableros_aproximados']
-                    matriz[mes]['total_area_m2'] += Decimal(str(tableros_resultado['area_total_m2']))
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
 
-        return matriz
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
 
-    def _obtener_meses_proyecto(self, proyecto, año, mes_inicio=1, mes_fin=12):
-        """Get months affected by a project in the given year and range"""
-        if not proyecto.fecha_inicio or not proyecto.fecha_fin_estimada:
-            # If no dates, assume current month within range
-            mes_actual = datetime.now().month
-            if mes_inicio <= mes_actual <= mes_fin and datetime.now().year == año:
-                return [mes_actual]
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
             else:
-                return [mes_inicio]  # Default to first month of range
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
 
-        inicio = max(proyecto.fecha_inicio, date(año, mes_inicio, 1))
-        ultimo_dia = calendar.monthrange(año, mes_fin)[1]
-        fin = min(proyecto.fecha_fin_estimada, date(año, mes_fin, ultimo_dia))
+        except Exception as e:
+            return "Error generando recomendaciones."
 
-        if inicio > date(año, mes_fin, ultimo_dia) or fin < date(año, mes_inicio, 1):
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
             return []
 
-        meses = []
-        fecha_actual = date(inicio.year, inicio.month, 1)
-        fecha_limite = date(fin.year, fin.month, 1)
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
 
-        while fecha_actual <= fecha_limite:
-            if fecha_actual.year == año and mes_inicio <= fecha_actual.month <= mes_fin:
-                meses.append(fecha_actual.month)
-            fecha_actual += relativedelta(months=1)
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
 
-        return meses
-
-    def _calcular_totales_operacionales(self, matriz):
-        """Calculate operational totals from matrix"""
-        totales = {}
-
-        for mes, data in matriz.items():
-            totales[mes] = {
-                'total_monto': data['total_monto'],
-                'total_tableros': data['total_tableros'],
-                'total_area_m2': data['total_area_m2'],
-                'proyectos_count': len(data['proyectos']),
-                'promedio_tableros_por_proyecto': data['total_tableros'] / len(data['proyectos']) if data['proyectos'] else 0
-            }
-
-        return totales
-
-    def _get_factor_info(self, tipo_proyecto):
-        """Get factor information for a project type"""
-        factor_data = self.DEFAULT_FACTORS_BY_TYPE.get(tipo_proyecto, self.DEFAULT_FACTORS_BY_TYPE['ESTANDAR'])
-
-        return {
-            'tipo_proyecto': tipo_proyecto,
-            'factor_m2': factor_data['factor_m2'],
-            'factor_clp_tablero': factor_data['factor_clp_tablero'],
-            'area_tablero': self.AREA_TABLERO_ESTANDAR,
-            'factor_desperdicio': self.FACTOR_DESPERDICIO,
-            'factor_tiempo_fabrica': factor_data['factor_tiempo_fabrica'],
-            'factor_tiempo_embalaje': factor_data['factor_tiempo_embalaje'],
-            'ejemplo_calculo': f"Ejemplo: $1,000,000 ÷ ${factor_data['factor_clp_tablero']:,}/tablero = {1000000/factor_data['factor_clp_tablero']:.1f} tableros × {self.FACTOR_DESPERDICIO} = {int((1000000/factor_data['factor_clp_tablero']) * self.FACTOR_DESPERDICIO)} tableros"
-        }
-
-    def _calcular_capacidad_mensual(self, proyectos, año):
-        """Calculate monthly capacity analysis"""
-        capacidad = {}
-
-        for mes in range(1, 13):
-            capacidad[mes] = {
-                'mes': mes,
-                'mes_nombre': calendar.month_name[mes],
-                'proyectos_activos': 0,
-                'tableros_requeridos': 0,
-                'horas_estimadas': 0,
-                'capacidad_porcentaje': 0
-            }
-
-        # Get capacity limits from configuration
+        Returns:
+            Diccionario con distribución por período
+        """
         try:
-            from services.configuraciones_service import ConfiguracionesService
-            config_service = ConfiguracionesService()
-            capacidad_config = config_service.get_configuracion_capacidad()
+            from dateutil.relativedelta import relativedelta
+            import calendar
 
-            TABLEROS_MAXIMOS_MES = capacidad_config['capacidad_maxima_tableros_mes']
-            HORAS_DISPONIBLES_MES = capacidad_config['horas_disponibles_mes']
-            HORAS_POR_TABLERO_SOCIAL = capacidad_config['horas_por_tablero_social']
-            HORAS_POR_TABLERO_ESTANDAR = capacidad_config['horas_por_tablero_estandar']
-            HORAS_POR_TABLERO_ESPECIAL = capacidad_config['horas_por_tablero_especial']
-        except:
-            # Fallback to default values
-            TABLEROS_MAXIMOS_MES = 1500
-            HORAS_DISPONIBLES_MES = 200
-            HORAS_POR_TABLERO_SOCIAL = 0.6
-            HORAS_POR_TABLERO_ESTANDAR = 0.5
-            HORAS_POR_TABLERO_ESPECIAL = 0.4
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
 
-        for proyecto in proyectos:
-            meses_proyecto = self._obtener_meses_proyecto(proyecto, año)
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
 
-            for mes in meses_proyecto:
-                if mes in capacidad:
-                    capacidad[mes]['proyectos_activos'] += 1
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
 
-                    # Calculate boards for this project in this month using new formula
-                    if proyecto.monto_provision_presupuestado:
-                        # Get project type, default to ESTANDAR
-                        tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
 
-                        tableros_resultado = self.calcular_tableros_aproximados(
-                            monto_provision=float(proyecto.monto_provision_presupuestado) / len(meses_proyecto),
-                            tipo_proyecto=tipo_proyecto,
-                            margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
                         )
+                        .all())
 
-                        tableros_mes = tableros_resultado['tableros_aproximados']
-                        capacidad[mes]['tableros_requeridos'] += tableros_mes
+            proyectos_demand = []
 
-                        # Use project-specific hours per board
-                        if tipo_proyecto == 'SOCIAL':
-                            horas_tablero = HORAS_POR_TABLERO_SOCIAL
-                        elif tipo_proyecto == 'ESPECIAL':
-                            horas_tablero = HORAS_POR_TABLERO_ESPECIAL
-                        else:  # ESTANDAR or default
-                            horas_tablero = HORAS_POR_TABLERO_ESTANDAR
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
 
-                        capacidad[mes]['horas_estimadas'] += tableros_mes * horas_tablero
+                total_tableros = resultado_tableros['tableros_aproximados']
 
-        # Calculate capacity percentage
-        for mes in capacidad:
-            capacidad[mes]['capacidad_porcentaje'] = min(
-                (capacidad[mes]['tableros_requeridos'] / TABLEROS_MAXIMOS_MES) * 100,
-                100
-            )
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
 
-        return capacidad
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
 
-    def _calcular_capacidad_semanal(self, proyectos, año):
-        """Calculate weekly capacity analysis (simplified)"""
-        # For now, return monthly capacity divided by weeks
-        capacidad_mensual = self._calcular_capacidad_mensual(proyectos, año)
+            return proyectos_demand
 
-        capacidad_semanal = {}
-        for mes, data in capacidad_mensual.items():
-            semanas_mes = 4  # Simplified
-            for semana in range(1, semanas_mes + 1):
-                clave_semana = f"{mes}_{semana}"
-                capacidad_semanal[clave_semana] = {
-                    'mes': mes,
-                    'semana': semana,
-                    'tableros_requeridos': data['tableros_requeridos'] // semanas_mes,
-                    'horas_estimadas': data['horas_estimadas'] // semanas_mes,
-                    'capacidad_porcentaje': data['capacidad_porcentaje']
-                }
-
-        return capacidad_semanal
-
-    def _calcular_resumen_capacidad(self, capacidad):
-        """Calculate capacity summary"""
-        if not capacidad:
-            return {}
-
-        total_tableros = sum(data['tableros_requeridos'] for data in capacidad.values())
-        total_horas = sum(data['horas_estimadas'] for data in capacidad.values())
-        promedio_capacidad = sum(data['capacidad_porcentaje'] for data in capacidad.values()) / len(capacidad)
-
-        return {
-            'total_tableros_año': total_tableros,
-            'total_horas_año': total_horas,
-            'promedio_capacidad_porcentaje': promedio_capacidad,
-            'meses_sobrecargados': len([data for data in capacidad.values() if data['capacidad_porcentaje'] > 100])
-        }
-
-
-    # New productivity methods
-    def get_productividad_fabrica(self, año, vista='mensual'):
-        """Get factory productivity data - boards completed to FABRICACION_COMPLETA"""
-        from sqlalchemy import func, extract
-        from models import OrdenFabricacion, Proyecto, OrdenAreaProgreso, AreaEstado
-
-        # Query to get actual completed boards using area progress system
-        if vista == 'mensual':
-            query = (db.session.query(
-                extract('month', OrdenAreaProgreso.fecha_cambio_estado).label('periodo'),
-                func.sum(OrdenFabricacion.cantidad_tableros).label('tableros_completados')
-            )
-            .join(OrdenFabricacion, OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id)
-            .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
-            .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
-            .filter(
-                extract('year', OrdenAreaProgreso.fecha_cambio_estado) == año,
-                AreaEstado.codigo == 'fabricacion_completa',
-                OrdenFabricacion.cantidad_tableros.isnot(None)
-            )
-            .group_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado))
-            .order_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado))
-            )
-        else:  # semanal
-            query = (db.session.query(
-                extract('week', OrdenAreaProgreso.fecha_cambio_estado).label('periodo'),
-                extract('month', OrdenAreaProgreso.fecha_cambio_estado).label('mes'),
-                func.sum(OrdenFabricacion.cantidad_tableros).label('tableros_completados')
-            )
-            .join(OrdenFabricacion, OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id)
-            .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
-            .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
-            .filter(
-                extract('year', OrdenAreaProgreso.fecha_cambio_estado) == año,
-                AreaEstado.codigo == 'fabricacion_completa',
-                OrdenFabricacion.cantidad_tableros.isnot(None)
-            )
-            .group_by(extract('week', OrdenAreaProgreso.fecha_cambio_estado), extract('month', OrdenAreaProgreso.fecha_cambio_estado))
-            .order_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado), extract('week', OrdenAreaProgreso.fecha_cambio_estado))
-            )
-
-        try:
-            resultados = query.all()
         except Exception as e:
-            print(f"Error querying factory productivity: {e}")
-            resultados = []
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
 
-        # Process results
-        productividad = {}
-        if vista == 'mensual':
-            for mes in range(1, 13):
-                productividad[mes] = {
-                    'periodo': mes,
-                    'periodo_nombre': calendar.month_name[mes],
-                    'tableros_completados': 0
-                }
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
 
-            for resultado in resultados:
-                mes = int(resultado.periodo)
-                if mes in productividad:
-                    productividad[mes]['tableros_completados'] = int(resultado.tableros_completados or 0)
-        else:
-            # Para vista semanal, agrupar por mes y semana
-            for resultado in resultados:
-                semana = int(resultado.periodo)
-                mes = int(resultado.mes) if hasattr(resultado, 'mes') else 1
-                clave = f"{mes}_{semana}"
-                productividad[clave] = {
-                    'periodo': semana,
-                    'mes': mes,
-                    'periodo_nombre': f"Sem {semana} - {calendar.month_name[mes][:3]}",
-                    'tableros_completados': int(resultado.tableros_completados or 0)
-                }
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
 
-        return productividad
-
-    def get_productividad_embalaje(self, año, vista='mensual'):
-        """Get packaging productivity data - boards completed to EMBALAJE_LISTO"""
-        from sqlalchemy import func, extract
-        from models import OrdenFabricacion, Proyecto, OrdenAreaProgreso, AreaEstado
-
-        # Query to get actual packaged boards using area progress system
-        if vista == 'mensual':
-            query = (db.session.query(
-                extract('month', OrdenAreaProgreso.fecha_cambio_estado).label('periodo'),
-                func.sum(OrdenFabricacion.cantidad_tableros).label('tableros_completados')
-            )
-            .join(OrdenFabricacion, OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id)
-            .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
-            .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
-            .filter(
-                extract('year', OrdenAreaProgreso.fecha_cambio_estado) == año,
-                AreaEstado.codigo == 'embalaje_listo',
-                OrdenFabricacion.cantidad_tableros.isnot(None)
-            )
-            .group_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado))
-            .order_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado))
-            )
-        else:  # semanal
-            query = (db.session.query(
-                extract('week', OrdenAreaProgreso.fecha_cambio_estado).label('periodo'),
-                extract('month', OrdenAreaProgreso.fecha_cambio_estado).label('mes'),
-                func.sum(OrdenFabricacion.cantidad_tableros).label('tableros_completados')
-            )
-            .join(OrdenFabricacion, OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id)
-            .join(AreaEstado, OrdenAreaProgreso.estado_id == AreaEstado.id)
-            .join(Proyecto, OrdenFabricacion.proyecto_id == Proyecto.id)
-            .filter(
-                extract('year', OrdenAreaProgreso.fecha_cambio_estado) == año,
-                AreaEstado.codigo == 'embalaje_listo',
-                OrdenFabricacion.cantidad_tableros.isnot(None)
-            )
-            .group_by(extract('week', OrdenAreaProgreso.fecha_cambio_estado), extract('month', OrdenAreaProgreso.fecha_cambio_estado))
-            .order_by(extract('month', OrdenAreaProgreso.fecha_cambio_estado), extract('week', OrdenAreaProgreso.fecha_cambio_estado))
-            )
-
+        Returns:
+            Diccionario con distribución por período
+        """
         try:
-            resultados = query.all()
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
         except Exception as e:
-            print(f"Error querying packaging productivity: {e}")
-            resultados = []
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
 
-        # Process results
-        productividad = {}
-        if vista == 'mensual':
-            for mes in range(1, 13):
-                productividad[mes] = {
-                    'periodo': mes,
-                    'periodo_nombre': calendar.month_name[mes],
-                    'tableros_completados': 0
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
                 }
 
-            for resultado in resultados:
-                mes = int(resultado.periodo)
-                if mes in productividad:
-                    productividad[mes]['tableros_completados'] = int(resultado.tableros_completados or 0)
-        else:
-            # Para vista semanal, agrupar por mes y semana
-            for resultado in resultados:
-                semana = int(resultado.periodo)
-                mes = int(resultado.mes) if hasattr(resultado, 'mes') else 1
-                clave = f"{mes}_{semana}"
-                productividad[clave] = {
-                    'periodo': semana,
-                    'mes': mes,
-                    'periodo_nombre': f"Sem {semana} - {calendar.month_name[mes][:3]}",
-                    'tableros_completados': int(resultado.tableros_completados or 0)
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
                 }
 
-        return productividad
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exception as e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    # ==========================================
+    # ROLLING PLAN WITH BACKLOG CALCULATIONS
+    # ==========================================
+
+    def calcular_rolling_plan_con_backlog(self, año: int, horizonte_meses: int = 6, modo: str = 'mensual', incluir_presupuestados: bool = True) -> Dict[str, Any]:
+        """
+        Calcula rolling plan con backlog acumulado considerando órdenes de fabricación y proyectos
+
+        Args:
+            año: Año base
+            horizonte_meses: Horizonte de planificación en meses
+            modo: 'mensual' o 'semanal'
+            incluir_presupuestados: Si incluir proyectos presupuestados además de adjudicados
+
+        Returns:
+            Diccionario con rolling plan por período
+        """
+        try:
+            from datetime import date, timedelta
+            from dateutil.relativedelta import relativedelta
+            from models import OrdenFabricacion, OrdenAreaProgreso, TipoArea
+
+            fecha_inicio = date(año, 1, 1)
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+
+            # Obtener OFs activas en el horizonte de planificación
+            ofs_activas = (db.session.query(OrdenFabricacion)
+                          .join(OrdenAreaProgreso, and_(
+                              OrdenAreaProgreso.orden_fabricacion_id == OrdenFabricacion.id,
+                              OrdenAreaProgreso.es_actual == True
+                          ))
+                          .filter(
+                              # OFs no archivadas
+                              OrdenAreaProgreso.archivado == False,
+                              # Con fechas en el horizonte
+                              or_(
+                                  and_(OrdenFabricacion.fecha_planificada >= fecha_inicio,
+                                       OrdenFabricacion.fecha_planificada <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_fabrica >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_fabrica <= fecha_fin),
+                                  and_(OrdenFabricacion.fecha_entrega_embalaje >= fecha_inicio,
+                                       OrdenFabricacion.fecha_entrega_embalaje <= fecha_fin)
+                              )
+                          )
+                          .all())
+
+            # Obtener proyectos ganados/presupuestados
+            proyectos_demand = self._obtener_proyectos_para_rolling_plan(fecha_inicio, fecha_fin, incluir_presupuestados)
+
+            # Procesar según modo
+            if modo == 'semanal':
+                return self._procesar_rolling_plan_semanal_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+            else:
+                return self._procesar_rolling_plan_mensual_con_proyectos(ofs_activas, proyectos_demand, fecha_inicio, horizonte_meses)
+
+        except Exception as e:
+            print(f"Error calculando rolling plan con backlog: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _obtener_proyectos_para_rolling_plan(self, fecha_inicio: date, fecha_fin: date, incluir_presupuestados: bool) -> List[Dict[str, Any]]:
+        """
+        Obtiene proyectos ganados y presupuestados para incluir en rolling plan
+
+        Returns:
+            Lista de diccionarios con información de proyectos y distribución de tableros
+        """
+        try:
+            # Estados comerciales a incluir
+            estados_incluir = [EstadoComercial.ADJUDICADO, EstadoComercial.EN_DESARROLLO, EstadoComercial.TERMINADO]
+            if incluir_presupuestados:
+                estados_incluir.append(EstadoComercial.PRESUPUESTADO)
+
+            # Obtener proyectos en el horizonte
+            proyectos = (db.session.query(Proyecto)
+                        .filter(
+                            Proyecto.estado_comercial.in_(estados_incluir),
+                            # Que tengan monto de provisión para calcular tableros
+                            Proyecto.monto_provision_presupuestado.isnot(None),
+                            Proyecto.monto_provision_presupuestado > 0,
+                            # Con fechas en el horizonte
+                            or_(
+                                and_(Proyecto.fecha_inicio >= fecha_inicio,
+                                     Proyecto.fecha_inicio <= fecha_fin),
+                                and_(Proyecto.fecha_fin_estimada >= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada <= fecha_fin),
+                                # Proyectos que cruzan el horizonte
+                                and_(Proyecto.fecha_inicio <= fecha_inicio,
+                                     Proyecto.fecha_fin_estimada >= fecha_inicio)
+                            )
+                        )
+                        .all())
+
+            proyectos_demand = []
+
+            for proyecto in proyectos:
+                # Calcular tableros aproximados
+                tipo_proyecto = proyecto.tipo_proyecto.value if proyecto.tipo_proyecto else 'ESTANDAR'
+                resultado_tableros = self.calcular_tableros_aproximados(
+                    monto_provision=float(proyecto.monto_provision_presupuestado),
+                    tipo_proyecto=tipo_proyecto,
+                    margen_venta_provision=float(proyecto.margen_venta_provision) if proyecto.margen_venta_provision else None
+                )
+
+                total_tableros = resultado_tableros['tableros_aproximados']
+
+                if total_tableros > 0:
+                    # Calcular distribución temporal proporcional
+                    distribucion = self._calcular_distribucion_proporcional_proyecto(
+                        proyecto, total_tableros, fecha_inicio, fecha_fin
+                    )
+
+                    proyectos_demand.append({
+                        'proyecto': proyecto,
+                        'total_tableros': total_tableros,
+                        'tipo_proyecto': tipo_proyecto,
+                        'distribucion_temporal': distribucion,
+                        'es_presupuestado': proyecto.estado_comercial == EstadoComercial.PRESUPUESTADO
+                    })
+
+            return proyectos_demand
+
+        except Exceptionas e:
+            print(f"Error obteniendo proyectos para rolling plan: {e}")
+            return []
+
+    def _calcular_distribucion_proporcional_proyecto(self, proyecto: Proyecto, total_tableros: int,
+                                                   horizonte_inicio: date, horizonte_fin: date) -> Dict[str, Any]:
+        """
+        Calcula la distribución proporcional de tableros desde inicio a fin del proyecto
+
+        Args:
+            proyecto: Instancia del proyecto
+            total_tableros: Total de tableros calculados
+            horizonte_inicio: Inicio del horizonte de planificación
+            horizonte_fin: Fin del horizonte de planificación
+
+        Returns:
+            Diccionario con distribución por período
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            # Fechas del proyecto
+            fecha_inicio_proyecto = proyecto.fecha_inicio or horizonte_inicio
+            fecha_fin_proyecto = proyecto.fecha_fin_estimada or (horizonte_inicio + relativedelta(months=3))  # Default 3 meses
+
+            # Asegurar que estén en el horizonte
+            fecha_inicio_efectiva = max(fecha_inicio_proyecto, horizonte_inicio)
+            fecha_fin_efectiva = min(fecha_fin_proyecto, horizonte_fin)
+
+            # Calcular duración en días
+            duracion_dias = (fecha_fin_efectiva - fecha_inicio_efectiva).days + 1
+
+            if duracion_dias <= 0:
+                return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+            # Distribución mensual
+            distribucion_mensual = {}
+            fecha_actual = fecha_inicio_efectiva
+
+            while fecha_actual <= fecha_fin_efectiva:
+                año_mes = fecha_actual.strftime('%Y-%m')
+
+                # Calcular días del proyecto que caen en este mes
+                ultimo_dia_mes = calendar.monthrange(fecha_actual.year, fecha_actual.month)[1]
+                fin_mes = date(fecha_actual.year, fecha_actual.month, ultimo_dia_mes)
+
+                inicio_periodo = max(fecha_actual.replace(day=1), fecha_inicio_efectiva)
+                fin_periodo = min(fin_mes, fecha_fin_efectiva)
+
+                dias_en_periodo = (fin_periodo - inicio_periodo).days + 1
+                proporcion = dias_en_periodo / duracion_dias
+                tableros_mes = int(total_tableros * proporcion)
+
+                if tableros_mes > 0:
+                    distribucion_mensual[año_mes] = {
+                        'tableros': tableros_mes,
+                        'proporcion': proporcion,
+                        'dias_periodo': dias_en_periodo,
+                        'inicio_periodo': inicio_periodo,
+                        'fin_periodo': fin_periodo
+                    }
+
+                # Siguiente mes
+                fecha_actual = fecha_actual.replace(day=1) + relativedelta(months=1)
+
+            # Distribución semanal (simplificada)
+            distribucion_semanal = {}
+            semanas_en_duracion = max(1, duracion_dias // 7)
+            tableros_por_semana = total_tableros // semanas_en_duracion if semanas_en_duracion > 0 else total_tableros
+
+            fecha_semana = fecha_inicio_efectiva
+            semana_num = 1
+
+            while fecha_semana <= fecha_fin_efectiva and semana_num <= 52:
+                año_semana = f"{fecha_semana.year}-S{semana_num:02d}"
+                fin_semana = min(fecha_semana + timedelta(days=6), fecha_fin_efectiva)
+
+                if fecha_semana <= fecha_fin_efectiva:
+                    distribucion_semanal[año_semana] = {
+                        'tableros': tableros_por_semana,
+                        'inicio_semana': fecha_semana,
+                        'fin_semana': fin_semana
+                    }
+
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            return {
+                'distribucion_mensual': distribucion_mensual,
+                'distribucion_semanal': distribucion_semanal,
+                'duracion_dias': duracion_dias,
+                'fecha_inicio_efectiva': fecha_inicio_efectiva,
+                'fecha_fin_efectiva': fecha_fin_efectiva
+            }
+
+        except Exception as e:
+            print(f"Error calculando distribución proporcional: {e}")
+            return {'distribucion_mensual': {}, 'distribucion_semanal': {}}
+
+    def _procesar_rolling_plan_mensual_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan mensual con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from dateutil.relativedelta import relativedelta
+            import calendar
+
+            rolling_plan_por_mes = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad mensual
+            capacidad_mensual = self.calcular_capacidad_teorica_tableros('ESTANDAR')
+
+            for i in range(horizonte_meses):
+                fecha_mes = fecha_inicio + relativedelta(months=i)
+                año_mes = fecha_mes.strftime('%Y-%m')
+
+                # Demanda original del mes - OFs
+                demanda_mes_ofs = 0
+                ofs_del_mes = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_of.year == fecha_mes.year and fecha_of.month == fecha_mes.month:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_mes_ofs += tableros_of
+                        ofs_del_mes.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original del mes - Proyectos
+                demanda_mes_proyectos = 0
+                proyectos_del_mes = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_mensual = proyecto_data['distribucion_temporal']['distribucion_mensual']
+                    if año_mes in distribucion_mensual:
+                        tableros_proyecto = distribucion_mensual[año_mes]['tableros']
+                        demanda_mes_proyectos += tableros_proyecto
+                        proyectos_del_mes.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'proporcion': distribucion_mensual[año_mes]['proporcion'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total del mes
+                demanda_original_total = demanda_mes_ofs + demanda_mes_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion = self.calcular_utilizacion_capacidad(demanda_total * 0.5)  # Asumiendo 0.5 horas/tablero
+                nuevo_backlog = max(0, demanda_total - capacidad_mensual)
+
+                # Estado del mes
+                if utilizacion['utilizacion_porcentaje'] <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion['utilizacion_porcentaje'] <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion['utilizacion_porcentaje'] <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_mes[año_mes] = {
+                    'mes_info': {
+                        'año': fecha_mes.year,
+                        'mes': fecha_mes.month,
+                        'nombre_mes': calendar.month_name[fecha_mes.month]
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_mes_ofs,
+                        'demanda_original_proyectos': demanda_mes_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_del_mes': ofs_del_mes,
+                        'proyectos_del_mes': proyectos_del_mes
+                    },
+                    'capacidad': utilizacion,
+                    'backlog_final': nuevo_backlog,
+                    'estado_mes': estado
+                }
+
+                # Actualizar backlog para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_mes.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_mes.values())
+            backlog_final_total = rolling_plan_por_mes[list(rolling_plan_por_mes.keys())[-1]]['backlog_final'] if rolling_plan_por_mes else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'meses_analizados': horizonte_meses,
+                'capacidad_mensual_promedio': capacidad_mensual,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_mes)
+            }
+
+            return {
+                'rolling_plan_por_mes': rolling_plan_por_mes,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan mensual con proyectos: {e}")
+            return {'rolling_plan_por_mes': {}, 'resumen_rolling_plan': {}}
+
+    def _procesar_rolling_plan_semanal_con_proyectos(self, ofs_activas: List, proyectos_demand: List, fecha_inicio: date, horizonte_meses: int) -> Dict[str, Any]:
+        """
+        Procesa rolling plan semanal con backlog acumulado incluyendo proyectos
+        """
+        try:
+            from datetime import timedelta
+
+            rolling_plan_por_semana = {}
+            backlog_acumulado = 0
+
+            # Obtener capacidad semanal
+            capacidad_semanal = self.calcular_capacidad_teorica_tableros('ESTANDAR') / 4.33  # Aprox semanas por mes
+
+            # Calcular semanas en el horizonte
+            fecha_fin = fecha_inicio + relativedelta(months=horizonte_meses)
+            fecha_semana = fecha_inicio
+            semana_num = 1
+
+            while fecha_semana < fecha_fin and semana_num <= 52:
+                fin_semana = fecha_semana + timedelta(days=6)
+                año_semana = f"{fecha_semana.year}-W{fecha_semana.isocalendar()[1]:02d}"
+
+                # Demanda original de la semana - OFs
+                demanda_semana_ofs = 0
+                ofs_de_la_semana = []
+
+                for of in ofs_activas:
+                    fecha_of = of.fecha_entrega_dinamica or of.fecha_planificada
+                    if fecha_of and fecha_semana <= fecha_of.date() <= fin_semana:
+                        tableros_of = of.cantidad_tableros or 0
+                        demanda_semana_ofs += tableros_of
+                        ofs_de_la_semana.append({
+                            'codigo': of.codigo,
+                            'tableros': tableros_of,
+                            'fecha': fecha_of,
+                            'tipo': 'OF'
+                        })
+
+                # Demanda original de la semana - Proyectos
+                demanda_semana_proyectos = 0
+                proyectos_de_la_semana = []
+
+                for proyecto_data in proyectos_demand:
+                    distribucion_semanal = proyecto_data['distribucion_temporal']['distribucion_semanal']
+                    if año_semana in distribucion_semanal:
+                        tableros_proyecto = distribucion_semanal[año_semana]['tableros']
+                        demanda_semana_proyectos += tableros_proyecto
+                        proyectos_de_la_semana.append({
+                            'nombre': proyecto_data['proyecto'].nombre,
+                            'cliente': proyecto_data['proyecto'].cliente.nombre if proyecto_data['proyecto'].cliente else 'Sin cliente',
+                            'tableros': tableros_proyecto,
+                            'tipo_proyecto': proyecto_data['tipo_proyecto'],
+                            'es_presupuestado': proyecto_data['es_presupuestado'],
+                            'tipo': 'PROYECTO'
+                        })
+
+                # Demanda total de la semana
+                demanda_original_total = demanda_semana_ofs + demanda_semana_proyectos
+                demanda_total = demanda_original_total + backlog_acumulado
+
+                # Calcular utilización y nuevo backlog
+                utilizacion_porcentaje = (demanda_total / capacidad_semanal * 100) if capacidad_semanal > 0 else 0
+                nuevo_backlog = max(0, demanda_total - capacidad_semanal)
+
+                # Estado de la semana
+                if utilizacion_porcentaje <= 70:
+                    estado = {'descripcion': 'Capacidad disponible', 'color': 'success'}
+                elif utilizacion_porcentaje <= 90:
+                    estado = {'descripcion': 'Capacidad normal', 'color': 'warning'}
+                elif utilizacion_porcentaje <= 100:
+                    estado = {'descripcion': 'Capacidad completa', 'color': 'primary'}
+                else:
+                    estado = {'descripcion': 'Sobrecarga', 'color': 'danger'}
+
+                rolling_plan_por_semana[año_semana] = {
+                    'semana_info': {
+                        'año': fecha_semana.year,
+                        'semana': semana_num,
+                        'fecha_inicio': fecha_semana,
+                        'fecha_fin': fin_semana
+                    },
+                    'demanda': {
+                        'demanda_original_ofs': demanda_semana_ofs,
+                        'demanda_original_proyectos': demanda_semana_proyectos,
+                        'demanda_original_total': demanda_original_total,
+                        'backlog_heredado': backlog_acumulado,
+                        'demanda_total': demanda_total,
+                        'ofs_de_la_semana': ofs_de_la_semana,
+                        'proyectos_de_la_semana': proyectos_de_la_semana
+                    },
+                    'capacidad': {
+                        'utilizacion_porcentaje': utilizacion_porcentaje,
+                        'capacidad_semanal': capacidad_semanal
+                    },
+                    'backlog_final': nuevo_backlog,
+                    'estado_semana': estado
+                }
+
+                # Actualizar para siguiente iteración
+                backlog_acumulado = nuevo_backlog
+                fecha_semana += timedelta(days=7)
+                semana_num += 1
+
+            # Resumen
+            total_demanda_ofs = sum(data['demanda']['demanda_original_ofs'] for data in rolling_plan_por_semana.values())
+            total_demanda_proyectos = sum(data['demanda']['demanda_original_proyectos'] for data in rolling_plan_por_semana.values())
+            backlog_final_total = list(rolling_plan_por_semana.values())[-1]['backlog_final'] if rolling_plan_por_semana else 0
+
+            resumen_rolling_plan = {
+                'total_demanda_ofs': total_demanda_ofs,
+                'total_demanda_proyectos': total_demanda_proyectos,
+                'total_demanda_original': total_demanda_ofs + total_demanda_proyectos,
+                'backlog_final': backlog_final_total,
+                'semanas_analizadas': len(rolling_plan_por_semana),
+                'capacidad_semanal_promedio': capacidad_semanal,
+                'proyectos_incluidos': len(proyectos_demand),
+                'proyectos_presupuestados': len([p for p in proyectos_demand if p['es_presupuestado']]),
+                'recomendacion_general': self._generar_recomendacion_rolling_plan_con_proyectos(rolling_plan_por_semana)
+            }
+
+            return {
+                'rolling_plan_por_semana': rolling_plan_por_semana,
+                'resumen_rolling_plan': resumen_rolling_plan
+            }
+
+        except Exception as e:
+            print(f"Error procesando rolling plan semanal con proyectos: {e}")
+            return {'rolling_plan_por_semana': {}, 'resumen_rolling_plan': {}}
+
+    def _generar_recomendacion_rolling_plan_con_proyectos(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan con proyectos
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar períodos con sobrecarga
+            periodos_sobrecarga = 0
+            periodos_normales = 0
+
+            for datos in rolling_plan.values():
+                utilizacion = datos.get('capacidad', {}).get('utilizacion_porcentaje', 0)
+                if utilizacion > 100:
+                    periodos_sobrecarga += 1
+                elif utilizacion <= 90:
+                    periodos_normales += 1
+
+            total_periodos = len(rolling_plan)
+            porcentaje_sobrecarga = (periodos_sobrecarga / total_periodos * 100) if total_periodos > 0 else 0
+
+            if porcentaje_sobrecarga == 0:
+                return "Capacidad suficiente para toda la demanda proyectada. Considerar aceptar más proyectos presupuestados."
+            elif porcentaje_sobrecarga <= 25:
+                return "Sobrecarga leve en algunos períodos. Monitorear proyectos presupuestados y considerar ajustes menores en cronogramas."
+            elif porcentaje_sobrecarga <= 50:
+                return "Sobrecarga moderada detectada. Evaluar subcontratación o extensión de plazos para proyectos presupuestados."
+            else:
+                return "Sobrecarga significativa proyectada. Acción urgente requerida: reprogramar proyectos, subcontratar o rechazar algunos proyectos presupuestados."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
+
+    def _generar_recomendacion_rolling_plan(self, rolling_plan: Dict) -> str:
+        """
+        Genera recomendación general para rolling plan (solo OFs)
+        """
+        try:
+            if not rolling_plan:
+                return "No hay datos suficientes para generar recomendaciones."
+
+            # Contar meses con sobrecarga
+            meses_sobrecarga = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] > 100)
+            meses_normales = sum(1 for mes in rolling_plan.values() if 70 <= mes['capacidad']['utilizacion_porcentaje'] <= 90)
+            meses_baja_utilizacion = sum(1 for mes in rolling_plan.values() if mes['capacidad']['utilizacion_porcentaje'] < 70)
+
+            total_meses = len(rolling_plan)
+            porcentaje_sobrecarga = (meses_sobrecarga / total_meses * 100) if total_meses > 0 else 0
+
+            if porcentaje_sobrecarga > 50:
+                return "Sobrecarga crítica: Capacidad insuficiente. Evaluar expansión o subcontratación."
+            elif porcentaje_sobrecarga > 25:
+                return "Sobrecarga moderada: Riesgo de incumplimiento. Considerar ajustes de capacidad o reprogramación."
+            elif meses_baja_utilizacion > meses_normales + meses_sobrecarga:
+                return "Subutilización de capacidad: Oportunidad para optimizar o aceptar nuevos proyectos."
+            else:
+                return "Capacidad balanceada: Demanda y oferta en equilibrio."
+
+        except Exception as e:
+            return "Error generando recomendaciones."
