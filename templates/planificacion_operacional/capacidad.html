@@ -149,7 +149,7 @@
                     <div class="row mt-2">
                         <div class="col-md-12">
                             <div class="progress">
-                                <div class="progress-bar bg-success" role="progressbar" 
+                                <div class="progress-bar bg-success" role="progressbar"
                                      style="width: {{ resumen_capacidad.calculos_capacidad.eficiencia_global }}%">
                                     OEE: {{ "{:.1f}".format(resumen_capacidad.parametros_operacionales.oee * 100) }}%
                                 </div>
@@ -170,7 +170,7 @@
                 <div class="card-header">
                     <h6 class="mb-0">
                         <i class="fas fa-calendar-alt text-primary"></i>
-                        Rolling Plan - Análisis de Capacidad vs Demanda 
+                        Rolling Plan - Análisis de Capacidad vs Demanda
                         {% if modo_rolling == 'semanal' %}(Semanal){% else %}(Mensual){% endif %}
                     </h6>
                 </div>
@@ -226,7 +226,7 @@
                                         <td>{{ "{:,.0f}".format(semana_data.capacidad.capacidad_semanal) }}</td>
                                         <td>
                                             <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar bg-{{ 'success' if utilizacion < 70 else 'warning' if utilizacion < 90 else 'danger' }}" 
+                                                <div class="progress-bar bg-{{ 'success' if utilizacion < 70 else 'warning' if utilizacion < 90 else 'danger' }}"
                                                      style="width: {{ min(100, utilizacion) }}%">
                                                     {{ "{:.1f}".format(utilizacion) }}%
                                                 </div>
@@ -274,11 +274,11 @@
                                         <td>{{ "{:,.0f}".format(mes_data.capacidad.horas_efectivas) }}</td>
                                         <td>
                                             <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar 
+                                                <div class="progress-bar
                                                     {% if utilizacion < 70 %}bg-success
                                                     {% elif utilizacion < 90 %}bg-primary
                                                     {% elif utilizacion <= 100 %}bg-warning
-                                                    {% else %}bg-danger{% endif %}" 
+                                                    {% else %}bg-danger{% endif %}"
                                                      style="width: {{ min(utilizacion, 100) }}%">
                                                     {{ "{:.0f}".format(utilizacion) }}%
                                                 </div>
@@ -429,12 +429,9 @@
     </div>
 </div>
 {% endif %}
-{% endif %}
-
-    {% endif %}
 
     <!-- Deficit Scenarios -->
-    {% if vista == 'estrategico' and escenarios_deficit and escenarios_deficit.escenarios_individuales %}
+    {% if vista == 'estrategico' and escenarios_deficit and (escenarios_deficit.escenarios_individuales or (escenarios_deficit.recomendaciones_uso and escenarios_deficit.recomendaciones_uso|length > 0)) %}
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
@@ -446,29 +443,35 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        {% for escenario_key, escenario in escenarios_deficit.escenarios_individuales.items() %}
-                        {% if escenario_key != 'capacidad_base' %}
-                        <div class="col-md-6 col-lg-4 mb-3">
-                            <div class="card border-primary">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0">{{ escenario_key.replace('_', ' ').title() }}</h6>
-                                </div>
-                                <div class="card-body">
-                                    <p class="card-text small">{{ escenario.descripcion }}</p>
-                                    {% if escenario.capacidad_adicional %}
-                                    <p><strong>Capacidad Adicional:</strong> {{ "{:.0f}".format(escenario.capacidad_adicional) }} horas</p>
-                                    {% endif %}
-                                    {% if escenario.costo_adicional_factor %}
-                                    <p><strong>Factor de Costo:</strong> +{{ "{:.0%}".format(escenario.costo_adicional_factor) }}</p>
-                                    {% endif %}
-                                    {% if escenario.recomendacion %}
-                                    <small class="text-muted">{{ escenario.recomendacion }}</small>
-                                    {% endif %}
+                        {% if escenarios_deficit.escenarios_individuales %}
+                            {% for escenario_key, escenario in (escenarios_deficit.escenarios_individuales.items() if escenarios_deficit.escenarios_individuales else []) %}
+                            {% if escenario_key != 'capacidad_base' %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">{{ escenario_key.replace('_', ' ').title() }}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text small">{{ escenario.descripcion }}</p>
+                                        {% if escenario.capacidad_adicional %}
+                                        <p><strong>Capacidad Adicional:</strong> {{ "{:.0f}".format(escenario.capacidad_adicional) }} horas</p>
+                                        {% endif %}
+                                        {% if escenario.costo_adicional_factor %}
+                                        <p><strong>Factor de Costo:</strong> +{{ "{:.0%}".format(escenario.costo_adicional_factor) }}</p>
+                                        {% endif %}
+                                        {% if escenario.recomendacion %}
+                                        <small class="text-muted">{{ escenario.recomendacion }}</small>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                            {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="col-md-12">
+                                <p class="text-muted">No hay escenarios individuales definidos.</p>
+                            </div>
                         {% endif %}
-                        {% endfor %}
                     </div>
 
                     <!-- Scenario Usage Guidelines -->
@@ -487,7 +490,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for guia in escenarios_deficit.recomendaciones_uso %}
+                                    {% for guia in (escenarios_deficit.recomendaciones_uso if escenarios_deficit.recomendaciones_uso else []) %}
                                     <tr>
                                         <td><small>{{ guia.situacion.replace('_', ' ') }}</small></td>
                                         <td><small>{{ guia.rango_deficit }}</small></td>
@@ -525,7 +528,7 @@
                                 {% for semana_key, semana_data in demanda_jerarquica.demanda_por_semana.items() %}
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="heading{{ semana_key }}">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                             data-bs-target="#collapse{{ semana_key }}" aria-expanded="false">
                                         <strong>{{ semana_data.nombre_periodo }}</strong>
                                         <span class="badge bg-primary ms-2">{{ semana_data.totales_semana.proyectos_count }} proyectos</span>
@@ -533,7 +536,7 @@
                                         <span class="badge bg-info ms-2">{{ "{:.0f}".format(semana_data.totales_semana.total_horas_requeridas) }} horas</span>
                                     </button>
                                 </h2>
-                                <div id="collapse{{ semana_key }}" class="accordion-collapse collapse" 
+                                <div id="collapse{{ semana_key }}" class="accordion-collapse collapse"
                                      data-bs-parent="#demandaAccordion">
                                     <div class="accordion-body">
                                         {% if semana_data.proyectos %}
@@ -550,7 +553,7 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {% for proyecto_key, proyecto in semana_data.proyectos.items() %}
+                                                        {% for proyecto_key, proyecto in (semana_data.proyectos.items() if semana_data.proyectos else []) %}
                                                         <tr>
                                                             <td><strong>{{ proyecto.codigo }}</strong><br><small>{{ proyecto.nombre[:50] }}...</small></td>
                                                             <td>{{ proyecto.cliente.nombre }}</td>
@@ -579,7 +582,7 @@
                             {% for mes_key, mes_data in demanda_jerarquica.demanda_por_mes.items() %}
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="heading{{ mes_key }}">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                             data-bs-target="#collapse{{ mes_key }}" aria-expanded="false">
                                         <strong>{{ mes_data.nombre_mes }}</strong>
                                         <span class="badge bg-primary ms-2">{{ mes_data.totales_mes.proyectos_count }} proyectos</span>
@@ -587,7 +590,7 @@
                                         <span class="badge bg-info ms-2">{{ "{:.0f}".format(mes_data.totales_mes.total_horas_requeridas) }} horas</span>
                                     </button>
                                 </h2>
-                                <div id="collapse{{ mes_key }}" class="accordion-collapse collapse" 
+                                <div id="collapse{{ mes_key }}" class="accordion-collapse collapse"
                                      data-bs-parent="#demandaAccordion">
                                     <div class="accordion-body">
                                         {% if mes_data.proyectos %}
@@ -604,7 +607,7 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {% for proyecto_key, proyecto in mes_data.proyectos.items() %}
+                                                        {% for proyecto_key, proyecto in (mes_data.proyectos.items() if mes_data.proyectos else []) %}
                                                         <tr>
                                                             <td><strong>{{ proyecto.codigo }}</strong><br><small>{{ proyecto.nombre[:50] }}...</small></td>
                                                             <td>{{ proyecto.cliente.nombre }}</td>
@@ -695,7 +698,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for periodo, data in capacidad.items() %}
+                                {% for periodo, data in (capacidad.items() if capacidad else []) %}
                                 {% set clase_capacidad = 'table-success' if data.capacidad_porcentaje < 70 else 'table-warning' if data.capacidad_porcentaje < 90 else 'table-danger' %}
                                 <tr class="{{ clase_capacidad }}">
                                     <td>
@@ -710,7 +713,7 @@
                                     <td>{{ "{:.0f}".format(data.horas_estimadas) }}</td>
                                     <td>
                                         <div class="progress">
-                                            <div class="progress-bar {% if data.capacidad_porcentaje < 70 %}bg-success{% elif data.capacidad_porcentaje < 90 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                            <div class="progress-bar {% if data.capacidad_porcentaje < 70 %}bg-success{% elif data.capacidad_porcentaje < 90 %}bg-warning{% else %}bg-danger{% endif %}"
                                                  style="width: {{ min(data.capacidad_porcentaje, 100) }}%">
                                                 {{ "{:.0f}".format(data.capacidad_porcentaje) }}%
                                             </div>
@@ -740,7 +743,7 @@
         <div class="col-md-12">
             <div class="alert alert-info">
                 <i class="fas fa-info-circle"></i>
-                <strong>Información:</strong> No hay datos de capacidad disponibles para mostrar en esta vista. 
+                <strong>Información:</strong> No hay datos de capacidad disponibles para mostrar en esta vista.
                 Para el análisis estratégico, consulte las secciones anteriores del rolling plan y demanda jerárquica.
             </div>
         </div>
@@ -754,9 +757,9 @@
 <div class="row mb-2">
     <div class="col-md-12">
         <div class="alert alert-info small">
-            <strong>Debug:</strong> 
-            Vista: {{ vista }}, 
-            Modo Rolling: {{ modo_rolling }}, 
+            <strong>Debug:</strong>
+            Vista: {{ vista }},
+            Modo Rolling: {{ modo_rolling }},
             Horizonte: {{ horizonte_meses }} meses,
             Rolling Plan Data: {{ "Disponible" if rolling_plan else "No disponible" }},
             {% if rolling_plan %}
@@ -777,8 +780,8 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Demanda jerarquica:', {{ demanda_jerarquica|tojson if demanda_jerarquica else '{}' }});
 
     // Filter validation
-    const modoRollingSelect = document.getElementById('modoRollingSelect');
-    const horizonteSelect = document.querySelector('select[name="horizonte"]');
+    const modoRollingSelect = document.getElementById('modo_rolling');
+    const horizonteSelect = document.getElementById('horizonte');
 
     if (modoRollingSelect && horizonteSelect) {
         modoRollingSelect.addEventListener('change', function() {
