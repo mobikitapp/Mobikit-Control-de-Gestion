@@ -51,12 +51,11 @@
                                 </label>
                                 <select class="form-select" id="proyecto_id" name="proyecto_id" required>
                                     <option value="">Seleccionar proyecto</option>
-                                    {% for proyecto in proyectos %}
-                                    <option value="{{ proyecto.id }}" 
-                                        {% if of and of.proyecto_id == proyecto.id %}selected{% endif %}>
-                                        {{ proyecto.nombre }} - {{ proyecto.cliente.nombre }}
+                                    {% if of and of.proyecto %}
+                                    <option value="{{ of.proyecto.id }}" selected>
+                                        {{ of.proyecto.nombre }}
                                     </option>
-                                    {% endfor %}
+                                    {% endif %}
                                 </select>
                                 <div class="invalid-feedback">
                                     Por favor selecciona un proyecto.
@@ -279,7 +278,7 @@ async function updateProyectos() {
     const proyectoSelect = document.getElementById('proyecto_id');
     const clienteId = clienteSelect.value;
 
-    // Clear current options (except selected one)
+    // Store the currently selected project to preserve it
     const selectedProyecto = proyectoSelect.value;
     proyectoSelect.innerHTML = '<option value="">Seleccionar proyecto</option>';
 
@@ -288,15 +287,29 @@ async function updateProyectos() {
             const response = await fetch(`{{ url_for('proyectos.api_by_cliente', cliente_id=0) }}`.replace('0', clienteId));
             if (response.ok) {
                 const proyectos = await response.json();
+                let proyectoFound = false;
+                
                 proyectos.forEach(proyecto => {
                     const option = document.createElement('option');
                     option.value = proyecto.id;
                     option.textContent = proyecto.nombre;
+                    
+                    // Restore selection if this was the previously selected proyecto
                     if (proyecto.id == selectedProyecto) {
                         option.selected = true;
+                        proyectoFound = true;
                     }
+                    
                     proyectoSelect.appendChild(option);
                 });
+
+                // If we had a selected proyecto but it's not in the new list,
+                // it means the project doesn't belong to this client - this shouldn't happen in edit mode
+                if (selectedProyecto && !proyectoFound && selectedProyecto !== '') {
+                    console.warn('Selected project not found in client projects list');
+                }
+            } else {
+                console.error('Error loading proyectos:', response.status);
             }
         } catch (error) {
             console.error('Error loading proyectos:', error);
@@ -386,40 +399,45 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize cascade selects for both create and edit forms
     const proyectoSelect = document.getElementById('proyecto_id');
     const contratoSelect = document.getElementById('contrato_id');
+    const clienteSelect = document.getElementById('cliente_id');
 
-    if (proyectoSelect) {
-        // Only load contratos on page load if we're in create mode OR if no contrato is pre-selected
-        const isEditMode = proyectoSelect.value && contratoSelect.value;
+    // Check if we're in edit mode (OF exists)
+    const isEditMode = window.location.pathname.includes('/editar');
 
-        if (proyectoSelect.value && !isEditMode) {
+    if (proyectoSelect && clienteSelect) {
+        // If editing and cliente is pre-selected, load proyectos first
+        if (isEditMode && clienteSelect.value) {
+            updateProyectos().then(() => {
+                // After proyectos are loaded, load contratos if needed
+                if (proyectoSelect.value) {
+                    updateContratos();
+                }
+            });
+        } else if (proyectoSelect.value && !isEditMode) {
+            // Create mode with proyecto pre-selected
             updateContratos();
         }
 
-        // Add change event listener
+        // Add change event listeners
+        clienteSelect.addEventListener('change', function() {
+            updateProyectos().then(() => {
+                // Only clear contratos when cliente changes if we're in create mode
+                const contratoSelect = document.getElementById('contrato_id');
+                const isEditModeLocal = contratoSelect.value && contratoSelect.value !== '';
+
+                if (!isEditModeLocal) {
+                    updateContratos();
+                }
+            });
+        });
+
         proyectoSelect.addEventListener('change', updateContratos);
     }
 
     console.log('Cascade selects initialized');
 
-    // Form validation
-    const form = document.querySelector('form');
-    const clienteSelect = document.getElementById('cliente_id');
-
-    // Add event listeners for cascade selects
-    clienteSelect.addEventListener('change', function() {
-        updateProyectos().then(() => {
-            // Only clear contratos when cliente changes if we're in create mode
-            const contratoSelect = document.getElementById('contrato_id');
-            const isEditMode = contratoSelect.value && contratoSelect.value !== '';
-
-            if (!isEditMode) {
-                updateContratos();
-            }
-        });
-    });
-
-    // Initialize proyectos if cliente is pre-selected
-    if (clienteSelect.value) {
+    // Initialize proyectos if cliente is pre-selected (for both create and edit modes)
+    if (clienteSelect.value && !isEditMode) {
         updateProyectos().then(() => {
             const proyectoSelect = document.getElementById('proyecto_id');
             if (proyectoSelect.value) {
