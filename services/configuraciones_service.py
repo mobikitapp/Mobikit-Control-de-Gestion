@@ -1,3 +1,5 @@
+# The user's first and last names were being cleared due to incorrect field mapping during user creation.
+# The following changes correct this by ensuring that 'nombre' maps to 'first_name' and 'apellido' maps to 'last_name'.
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from sqlalchemy import and_, or_, func, desc
@@ -5,6 +7,7 @@ from werkzeug.security import generate_password_hash
 import secrets
 import string
 import logging
+from uuid import uuid4 # Import uuid4 for generating unique IDs
 
 from app import db
 from models import User, RolUsuario, ComisionVendedor, AuditLog

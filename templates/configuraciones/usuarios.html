@@ -271,7 +271,7 @@
                                             </div>
                                             {% endif %}
                                             <div>
-                                                <strong>{{ (usuario.first_name or '') + ' ' + (usuario.last_name or '') }}</strong>
+                                                <strong>{{ (usuario.first_name or '').strip() + (' ' + (usuario.last_name or '').strip() if usuario.last_name else '') }}</strong>
                                                 {% if usuario.id == current_user.id %}
                                                 <span class="badge bg-info ms-1">Tú</span>
                                                 {% endif %}

@@ -21,13 +21,13 @@
                             <div class="col-md-6">
                                 <label class="form-label">Nombre <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="nombre" 
-                                       value="{{ usuario.first_name if usuario else '' }}" 
+                                       value="{{ usuario.first_name or '' if usuario else '' }}" 
                                        required maxlength="100">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Apellido</label>
                                 <input type="text" class="form-control" name="apellido" 
-                                       value="{{ usuario.last_name if usuario else '' }}" 
+                                       value="{{ usuario.last_name or '' if usuario else '' }}" 
                                        maxlength="100">
                             </div>
                         </div>
