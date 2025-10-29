@@ -523,7 +523,6 @@ def capacidad_produccion():
         horizonte_meses = request.args.get('horizonte', type=int) or 6
 
         modo_rolling = request.args.get('modo_rolling', default='mensual')
-        incluir_presupuestados = request.args.get('incluir_presupuestados', default='true').lower() == 'true'
 
         # Get strategic capacity analysis data
         if vista == 'estrategico':
@@ -533,7 +532,7 @@ def capacidad_produccion():
             # New strategic capacity planning data
             try:
                 # Calculate rolling plan based on modo_rolling parameter
-                rolling_plan_data = service.calcular_rolling_plan_con_backlog(año, horizonte_meses, modo_rolling, incluir_presupuestados)
+                rolling_plan_data = service.calcular_rolling_plan_con_backlog(año, horizonte_meses, modo_rolling)
                 
                 if modo_rolling == 'semanal':
                     demanda_jerarquica_data = service.calcular_demanda_semanal_jerarquica(año, horizonte_meses)
@@ -560,7 +559,6 @@ def capacidad_produccion():
                 'vista': vista,
                 'horizonte_meses': horizonte_meses,
                 'modo_rolling': modo_rolling,
-                'incluir_presupuestados': incluir_presupuestados,
                 'resumen_capacidad': resumen_capacidad_data,
                 'demanda_jerarquica': demanda_jerarquica_data,
                 'rolling_plan': rolling_plan_data,
