@@ -262,7 +262,7 @@ def detalle(contrato_id):
         return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/<int:contrato_id>/editar')
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.FINANZAS)
 def editar(contrato_id):
     """Formulario de edición de contrato"""
     try:
@@ -286,7 +286,7 @@ def editar(contrato_id):
         return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/<int:contrato_id>/actualizar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.FINANZAS)
 def actualizar(contrato_id):
     """Actualizar contrato existente"""
     try:
@@ -407,7 +407,7 @@ def actualizar(contrato_id):
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/<int:contrato_id>/cambiar-estado', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.FINANZAS)
 def cambiar_estado(contrato_id):
     """Cambiar estado del contrato"""
     try:
@@ -429,7 +429,7 @@ def cambiar_estado(contrato_id):
     return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/<int:contrato_id>/adjuntos/subir', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.FINANZAS)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.FINANZAS)
 def subir_adjunto(contrato_id):
     """Subir nuevo adjunto al contrato"""
     try:
@@ -522,7 +522,7 @@ def plan_entrega(contrato_id):
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/<int:contrato_id>/plan-entrega/crear', methods=['GET', 'POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS)
 def crear_plan_entrega(contrato_id):
     """Crear plan de entrega para contrato"""
     try:
@@ -581,7 +581,7 @@ def crear_plan_entrega(contrato_id):
         return redirect(url_for('contratos.detalle', contrato_id=contrato_id))
 
 @contratos_bp.route('/planes-entrega/<int:plan_id>/editar', methods=['GET', 'POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS)
 def editar_plan_entrega(plan_id):
     """Editar plan de entrega existente"""
     try:
@@ -654,7 +654,7 @@ def completar_hito(hito_id):
         return redirect(request.referrer or url_for('contratos.index'))
 
 @contratos_bp.route('/planes-entrega/<int:plan_id>/hitos/agregar', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.VENTAS, RolUsuario.OPERACIONES)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.VENTAS)
 def agregar_hito(plan_id):
     """Agregar nuevo hito al plan de entrega"""
     try:

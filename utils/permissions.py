@@ -30,7 +30,7 @@ PERMISSIONS = {
     # Contratos y Órdenes de Compra
     'contratos.lectura': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
     'contratos.creacion': ['admin', 'general', 'ventas', 'operaciones', 'finanzas'],
-    'contratos.edicion': ['admin', 'general', 'finanzas'],
+    'contratos.edicion': ['admin', 'general', 'operaciones', 'finanzas'],
     'contratos.eliminacion': ['admin'],
     'contratos.aprobacion': ['admin', 'general'],
     'contratos.archivo': ['admin', 'general'],
@@ -57,6 +57,12 @@ PERMISSIONS = {
     'finanzas.lectura': ['admin', 'general', 'finanzas'],
     'finanzas.creacion': ['admin', 'general', 'finanzas'],
     'finanzas.edicion': ['admin', 'general', 'finanzas'],
+    
+    # Planes de Entrega
+    'planes_entrega.lectura': ['admin', 'general', 'operaciones', 'ventas', 'finanzas'],
+    'planes_entrega.creacion': ['admin', 'general', 'operaciones', 'ventas'],
+    'planes_entrega.edicion': ['admin', 'general', 'operaciones', 'ventas'],
+    'planes_entrega.eliminacion': ['admin'],
     
     # Configuraciones del Sistema
     'configuraciones.lectura': ['admin', 'general'],
@@ -134,6 +140,7 @@ ROLE_PERMISSIONS = {
         'clientes.lectura', 'clientes.creacion', 'clientes.edicion', 'clientes.eliminacion',
         'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion', 'proyectos.eliminacion', 'proyectos.archivo', 'proyectos.adjuntos', 'proyectos.adjuntos.eliminar',
         'contratos.lectura', 'contratos.creacion', 'contratos.edicion', 'contratos.eliminacion', 'contratos.aprobacion', 'contratos.archivo',
+        'planes_entrega.lectura', 'planes_entrega.creacion', 'planes_entrega.edicion',
         'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.eliminacion', 'fabricacion.proceso',
         'despachos.lectura', 'despachos.creacion', 'despachos.edicion', 'despachos.proceso', 'despachos.archivo',
         'comercial.lectura', 'finanzas.lectura', 'finanzas.creacion', 'finanzas.edicion',
@@ -152,7 +159,8 @@ ROLE_PERMISSIONS = {
     ],
     'operaciones': [
         'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion', 'proyectos.adjuntos',  # Acceso completo a proyectos incluyendo documentos
-        'contratos.lectura', 'contratos.creacion',
+        'contratos.lectura', 'contratos.creacion', 'contratos.edicion',
+        'planes_entrega.lectura', 'planes_entrega.creacion', 'planes_entrega.edicion',
         'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.eliminacion', 'fabricacion.proceso',
         'despachos.lectura', 'despachos.creacion', 'despachos.edicion',
         'planificacion.lectura',

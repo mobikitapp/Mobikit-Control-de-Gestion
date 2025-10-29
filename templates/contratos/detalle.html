@@ -16,7 +16,7 @@
                     </span>
                 </h1>
                 <div class="d-flex gap-2">
-                    {% if current_user.rol.value in ['admin', 'ventas'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'finanzas'] %}
                     <div class="dropdown">
                         <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
                             <i data-feather="refresh-cw" class="me-2"></i>
@@ -224,7 +224,7 @@
                         <i data-feather="paperclip" class="me-2"></i>
                         Archivos Adjuntos ({{ contrato.adjuntos|length }})
                     </h5>
-                    {% if current_user.rol.value in ['admin', 'ventas'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'finanzas'] %}
                     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadModal">
                         <i data-feather="upload" class="me-2"></i>
                         Subir Archivo
@@ -263,7 +263,7 @@
                                             <a href="{{ url_for('contratos.download_adjunto', contrato_id=contrato.id, adjunto_id=adjunto.id) }}" class="btn btn-outline-primary" title="Descargar">
                                                 <i data-feather="download"></i>
                                             </a>
-                                            {% if current_user.rol.value in ['admin', 'ventas'] %}
+                                            {% if current_user.rol.value in ['admin', 'general', 'operaciones'] %}
                                             <button type="button" class="btn btn-outline-danger"
                                                     onclick="deleteAttachment({{ adjunto.id }})" title="Eliminar">
                                                 <i data-feather="trash-2"></i>
@@ -289,7 +289,7 @@
 </div>
 
 <!-- Upload Modal -->
-{% if current_user.rol.value in ['admin', 'ventas'] %}
+{% if current_user.rol.value in ['admin', 'general', 'operaciones', 'finanzas'] %}
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
