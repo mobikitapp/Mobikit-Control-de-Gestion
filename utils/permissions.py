@@ -39,7 +39,7 @@ PERMISSIONS = {
     'fabricacion.lectura': ['admin', 'general', 'operaciones', 'produccion', 'finanzas'],
     'fabricacion.creacion': ['admin', 'general', 'operaciones', 'produccion'],
     'fabricacion.edicion': ['admin', 'general', 'operaciones', 'produccion'],
-    'fabricacion.eliminacion': ['admin'],
+    'fabricacion.eliminacion': ['admin', 'general', 'operaciones'],
     'fabricacion.proceso': ['admin', 'general', 'operaciones', 'produccion'],
     
     # Despachos
@@ -134,7 +134,7 @@ ROLE_PERMISSIONS = {
         'clientes.lectura', 'clientes.creacion', 'clientes.edicion', 'clientes.eliminacion',
         'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion', 'proyectos.eliminacion', 'proyectos.archivo', 'proyectos.adjuntos', 'proyectos.adjuntos.eliminar',
         'contratos.lectura', 'contratos.creacion', 'contratos.edicion', 'contratos.eliminacion', 'contratos.aprobacion', 'contratos.archivo',
-        'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
+        'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.eliminacion', 'fabricacion.proceso',
         'despachos.lectura', 'despachos.creacion', 'despachos.edicion', 'despachos.proceso', 'despachos.archivo',
         'comercial.lectura', 'finanzas.lectura', 'finanzas.creacion', 'finanzas.edicion',
         'planificacion.lectura', 'planificacion.creacion', 'planificacion.edicion',
@@ -153,7 +153,7 @@ ROLE_PERMISSIONS = {
     'operaciones': [
         'proyectos.lectura', 'proyectos.creacion', 'proyectos.edicion', 'proyectos.adjuntos',  # Acceso completo a proyectos incluyendo documentos
         'contratos.lectura', 'contratos.creacion',
-        'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.proceso',
+        'fabricacion.lectura', 'fabricacion.creacion', 'fabricacion.edicion', 'fabricacion.eliminacion', 'fabricacion.proceso',
         'despachos.lectura', 'despachos.creacion', 'despachos.edicion',
         'planificacion.lectura',
         'areas.lectura'

@@ -17,7 +17,7 @@
                     {% endif %}
                 </h1>
                 <div class="d-flex gap-2">
-                    {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
                     <a href="#control-estados" class="btn btn-success">
                         <i data-feather="settings" class="me-2"></i>
                         Control de Estados
@@ -222,7 +222,7 @@
 
         <!-- Control de Estados -->
         <div class="col-lg-4">
-            {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] and of.area_progreso_actual %}
+            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] and of.area_progreso_actual %}
             <div class="card mb-3">
                 <div class="card-header">
                     <h5 class="card-title mb-0">

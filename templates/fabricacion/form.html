@@ -225,7 +225,7 @@
                                 <i data-feather="x" class="me-2"></i>
                                 Cancelar
                             </a>
-                            {% if of and current_user.rol.value == 'admin' %}
+                            {% if of and current_user.rol.value in ['admin', 'general', 'operaciones'] %}
                             <button type="button" class="btn btn-outline-danger ms-auto" 
                                     data-bs-toggle="modal" data-bs-target="#deleteModal">
                                 <i data-feather="trash-2" class="me-2"></i>
@@ -242,7 +242,7 @@
 </div>
 
 <!-- Delete Modal -->
-{% if of and current_user.rol.value == 'admin' %}
+{% if of and current_user.rol.value in ['admin', 'general', 'operaciones'] %}
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -321,7 +321,7 @@ async function updateContratos() {
             if (response.ok) {
                 const contratos = await response.json();
                 let contratoFound = false;
-                
+
                 contratos.forEach(contrato => {
                     const option = document.createElement('option');
                     option.value = contrato.id;
@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (proyectoSelect) {
         // Only load contratos on page load if we're in create mode OR if no contrato is pre-selected
         const isEditMode = proyectoSelect.value && contratoSelect.value;
-        
+
         if (proyectoSelect.value && !isEditMode) {
             updateContratos();
         }
@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Only clear contratos when cliente changes if we're in create mode
             const contratoSelect = document.getElementById('contrato_id');
             const isEditMode = contratoSelect.value && contratoSelect.value !== '';
-            
+
             if (!isEditMode) {
                 updateContratos();
             }

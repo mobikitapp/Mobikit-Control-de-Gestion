@@ -21,7 +21,7 @@
                         <i data-feather="tv" class="me-2"></i>
                         Vista General TV
                     </a>
-                    {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
                     <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-primary">
                         <i data-feather="plus-circle" class="me-2"></i>
                         Nueva Orden
@@ -212,7 +212,7 @@
                                        class="btn btn-outline-primary" title="Ver detalles">
                                         <i data-feather="eye"></i>
                                     </a>
-                                    {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
                                     <a href="{{ url_for('fabricacion.editar', of_id=of.id) }}" 
                                        class="btn btn-outline-secondary" title="Editar">
                                         <i data-feather="edit"></i>
@@ -229,7 +229,7 @@
                                         </button>
                                         {% endif %}
                                     {% else %}
-                                        {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                                        {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
                                         <button type="button" class="btn btn-outline-success btn-sm" 
                                                 title="Avanzar estado/área" 
                                                 onclick="avanzarEstado({{ of.id }}, '{{ of.codigo }}', '{{ of.next_action_description|default("Avanzar") }}')">
@@ -250,7 +250,7 @@
                 <i data-feather="tool" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
                 <h5 class="text-muted">No se encontraron órdenes de fabricación</h5>
                 <p class="text-muted">Ajusta los filtros de búsqueda o agrega una nueva orden.</p>
-                {% if current_user.rol.value in ['admin', 'operaciones', 'produccion'] %}
+                {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
                 <a href="{{ url_for('fabricacion.nueva') }}" class="btn btn-primary">
                     <i data-feather="plus-circle" class="me-2"></i>
                     Crear Primera Orden

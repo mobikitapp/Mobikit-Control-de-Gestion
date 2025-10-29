@@ -481,7 +481,7 @@ def archivos():
 
 
 @fabricacion_bp.route('/<int:of_id>/eliminar', methods=['POST'])
-@require_role(RolUsuario.ADMIN)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES)
 def eliminar(of_id):
     """Eliminar orden de fabricación"""
     try:
