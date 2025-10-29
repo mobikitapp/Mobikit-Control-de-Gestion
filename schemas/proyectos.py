@@ -313,6 +313,30 @@ class ProyectoSearchFilters(BaseModel):
     fecha_inicio_hasta: Optional[date] = Field(None, description="Fecha de inicio hasta")
     categoria_id: Optional[int] = Field(None, description="Filtrar por categoría")
 
+    @validator('cliente_id', pre=True)
+    def validate_cliente_id(cls, v):
+        if v is None or v == '' or v == 0:
+            return None
+        return int(v) if v else None
+
+    @validator('nombre', pre=True)
+    def validate_nombre(cls, v):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return v.strip() if v else None
+
+    @validator('vendedor_id', pre=True)
+    def validate_vendedor_id(cls, v):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return v.strip() if v else None
+
+    @validator('estado_comercial', pre=True)
+    def validate_estado_comercial(cls, v):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return v.strip() if v else None
+
 
 # Schemas específicos para UF
 class ProyectoUfInput(BaseModel):

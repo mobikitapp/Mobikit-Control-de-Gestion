@@ -75,40 +75,47 @@ class ProyectosRepository:
                 )
                 .outerjoin(contrato_count_subquery, Proyecto.id == contrato_count_subquery.c.proyecto_id))
 
-        # Apply filters
+        # Apply filters only when they have actual values
         conditions = []
 
-        if filters.cliente_id:
+        # Filter by cliente only if cliente_id is provided and valid
+        if filters.cliente_id and filters.cliente_id > 0:
             conditions.append(Proyecto.cliente_id == filters.cliente_id)
 
-        if filters.nombre:
-            conditions.append(Proyecto.nombre.ilike(f"%{filters.nombre}%"))
+        # Filter by nombre only if provided and not empty
+        if filters.nombre and filters.nombre.strip():
+            conditions.append(Proyecto.nombre.ilike(f"%{filters.nombre.strip()}%"))
 
-        if filters.vendedor_id:
-            conditions.append(Proyecto.vendedor_id == filters.vendedor_id)
+        # Filter by vendedor only if vendedor_id is provided and not empty
+        if filters.vendedor_id and filters.vendedor_id.strip():
+            conditions.append(Proyecto.vendedor_id == filters.vendedor_id.strip())
 
+        # Filter by fecha_inicio_desde only if provided
         if filters.fecha_inicio_desde:
             conditions.append(Proyecto.fecha_inicio >= filters.fecha_inicio_desde)
 
+        # Filter by fecha_inicio_hasta only if provided
         if filters.fecha_inicio_hasta:
             conditions.append(Proyecto.fecha_inicio <= filters.fecha_inicio_hasta)
 
-        if filters.estado_comercial:
+        # Filter by estado_comercial only if provided and not empty
+        if filters.estado_comercial and filters.estado_comercial.strip():
             from models import EstadoComercial
             try:
-                estado_enum = EstadoComercial(filters.estado_comercial)
+                estado_enum = EstadoComercial(filters.estado_comercial.strip())
                 conditions.append(Proyecto.estado_comercial == estado_enum)
             except ValueError:
                 # Si el estado no es válido, ignorar el filtro
                 pass
 
+        # Apply conditions only if there are any
         if conditions:
             query = query.filter(and_(*conditions))
 
-        # Get total count
+        # Get total count before pagination
         total_count = query.count()
 
-        # Apply pagination
+        # Apply ordering and pagination
         offset = (filters.page - 1) * filters.per_page
         proyectos = (query.order_by(Proyecto.created_at.desc())
                     .offset(offset)

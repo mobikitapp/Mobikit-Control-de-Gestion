@@ -75,27 +75,52 @@ def process_form_data(form_data, is_update=False):
 def index():
     """Lista de proyectos con filtros y paginación"""
     try:
-        # Get search parameters
+        # Get search parameters with proper defaults
         filters_data = {
             'page': request.args.get('page', 1, type=int),
             'per_page': request.args.get('per_page', 10, type=int)
         }
 
-        # Add optional filters only if they exist
-        if request.args.get('nombre', '').strip():
-            filters_data['nombre'] = request.args.get('nombre').strip()
+        # Add optional filters only if they have valid values
+        nombre = request.args.get('nombre', '').strip()
+        if nombre:
+            filters_data['nombre'] = nombre
 
-        if request.args.get('cliente_id'):
+        cliente_id_str = request.args.get('cliente_id', '').strip()
+        if cliente_id_str and cliente_id_str != '0':
             try:
-                filters_data['cliente_id'] = int(request.args.get('cliente_id'))
+                cliente_id = int(cliente_id_str)
+                if cliente_id > 0:
+                    filters_data['cliente_id'] = cliente_id
             except (ValueError, TypeError):
                 pass
 
-        if request.args.get('estado_comercial', '').strip():
-            filters_data['estado_comercial'] = request.args.get('estado_comercial').strip()
+        vendedor_id = request.args.get('vendedor_id', '').strip()
+        if vendedor_id:
+            filters_data['vendedor_id'] = vendedor_id
 
-        if request.args.get('tipo_proyecto', '').strip():
-            filters_data['tipo_proyecto'] = request.args.get('tipo_proyecto').strip()
+        estado_comercial = request.args.get('estado_comercial', '').strip()
+        if estado_comercial:
+            filters_data['estado_comercial'] = estado_comercial
+
+        # Handle date filters
+        fecha_inicio_desde_str = request.args.get('fecha_inicio_desde', '').strip()
+        if fecha_inicio_desde_str:
+            try:
+                from datetime import datetime
+                fecha_inicio_desde = datetime.strptime(fecha_inicio_desde_str, '%Y-%m-%d').date()
+                filters_data['fecha_inicio_desde'] = fecha_inicio_desde
+            except ValueError:
+                pass
+
+        fecha_inicio_hasta_str = request.args.get('fecha_inicio_hasta', '').strip()
+        if fecha_inicio_hasta_str:
+            try:
+                from datetime import datetime
+                fecha_inicio_hasta = datetime.strptime(fecha_inicio_hasta_str, '%Y-%m-%d').date()
+                filters_data['fecha_inicio_hasta'] = fecha_inicio_hasta
+            except ValueError:
+                pass
 
         # Validate filters
         filters = ProyectoSearchFilters(**filters_data)
@@ -104,14 +129,22 @@ def index():
         proyectos, total_count = proyectos_service.search_proyectos(filters)
 
         # Calculate pagination
-        total_pages = math.ceil(total_count / filters.per_page)
+        total_pages = math.ceil(total_count / filters.per_page) if total_count > 0 else 1
 
-        # Get clients for filter dropdown
+        # Get data for filter dropdowns
         clientes = clientes_service.get_active_clientes()
+        
+        # Get active vendors (sales + admin users)
+        vendedores = (db.session.query(User)
+                     .filter(User.rol.in_([RolUsuario.VENTAS, RolUsuario.ADMIN]))
+                     .filter_by(activo=True)
+                     .order_by(User.first_name.nulls_last(), User.last_name.nulls_last(), User.email)
+                     .all())
 
         return render_template('proyectos/index.html',
                              proyectos=proyectos,
                              clientes=clientes,
+                             vendedores=vendedores,
                              filters=filters,
                              total_pages=total_pages,
                              total_count=total_count,

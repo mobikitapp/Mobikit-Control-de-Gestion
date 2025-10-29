@@ -442,7 +442,20 @@ Los montos deben ser precios finales al cliente, no costos internos.
             Tuple of (proyectos_list, total_count)
         """
         try:
-            return self.repo.search(filters)
+            logger.info(f"=== DEBUG SEARCH PROYECTOS ===")
+            logger.info(f"Filters: {filters.dict()}")
+            
+            # Check total proyectos in database first
+            total_proyectos_db = db.session.query(Proyecto).count()
+            logger.info(f"Total proyectos in database: {total_proyectos_db}")
+            
+            result = self.repo.search(filters)
+            proyectos, total_count = result
+            
+            logger.info(f"Search result: {len(proyectos)} proyectos found, total_count: {total_count}")
+            logger.info(f"=== END DEBUG SEARCH PROYECTOS ===")
+            
+            return result
         except Exception as e:
             logger.error(f"Error buscando proyectos: {str(e)}")
             raise
