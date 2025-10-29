@@ -76,9 +76,12 @@ def index():
     """Lista de proyectos con filtros y paginación"""
     try:
         # Get search parameters with proper defaults
+        page = max(1, request.args.get('page', 1, type=int))
+        per_page = max(5, min(50, request.args.get('per_page', 50, type=int)))  # Aumentar per_page por defecto
+        
         filters_data = {
-            'page': request.args.get('page', 1, type=int),
-            'per_page': request.args.get('per_page', 10, type=int)
+            'page': page,
+            'per_page': per_page
         }
 
         # Add optional filters only if they have valid values
@@ -128,8 +131,15 @@ def index():
         # Search projects
         proyectos, total_count = proyectos_service.search_proyectos(filters)
 
-        # Calculate pagination
-        total_pages = math.ceil(total_count / filters.per_page) if total_count > 0 else 1
+        # Calculate pagination - corregir el cálculo
+        total_pages = max(1, math.ceil(total_count / filters.per_page) if total_count > 0 else 1)
+        
+        # Si estamos en una página que no existe, redirigir a la primera
+        if filters.page > total_pages and total_count > 0:
+            # Reconstruir URL con página 1
+            args = request.args.to_dict()
+            args['page'] = 1
+            return redirect(url_for('proyectos.index', **args))
 
         # Get data for filter dropdowns
         clientes = clientes_service.get_active_clientes()
@@ -140,6 +150,14 @@ def index():
                      .filter_by(activo=True)
                      .order_by(User.first_name.nulls_last(), User.last_name.nulls_last(), User.email)
                      .all())
+
+        # Debug logging
+        logger.info(f"=== PROYECTOS INDEX DEBUG ===")
+        logger.info(f"Total proyectos encontrados: {total_count}")
+        logger.info(f"Página actual: {filters.page}")
+        logger.info(f"Proyectos por página: {filters.per_page}")
+        logger.info(f"Total páginas: {total_pages}")
+        logger.info(f"Proyectos mostrados: {len(proyectos)}")
 
         return render_template('proyectos/index.html',
                              proyectos=proyectos,
@@ -157,6 +175,8 @@ def index():
         return redirect(url_for('proyectos.index'))
     except Exception as e:
         logger.error(f"Error loading projects index: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         flash('Error al cargar proyectos', 'error')
         return redirect(url_for('proyectos.index'))
 

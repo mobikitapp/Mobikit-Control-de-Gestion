@@ -66,6 +66,7 @@ class ProyectosRepository:
             .subquery()
         )
         
+        # Base query - siempre incluir proyectos activos
         query = (db.session.query(Proyecto)
                 .options(
                     joinedload(Proyecto.cliente),
@@ -73,33 +74,34 @@ class ProyectosRepository:
                     joinedload(Proyecto.vendedor_user),
                     joinedload(Proyecto.contratos)
                 )
+                .filter(Proyecto.activo == True)  # Solo proyectos activos
                 .outerjoin(contrato_count_subquery, Proyecto.id == contrato_count_subquery.c.proyecto_id))
 
         # Apply filters only when they have actual values
         conditions = []
 
         # Filter by cliente only if cliente_id is provided and valid
-        if filters.cliente_id and filters.cliente_id > 0:
+        if hasattr(filters, 'cliente_id') and filters.cliente_id and filters.cliente_id > 0:
             conditions.append(Proyecto.cliente_id == filters.cliente_id)
 
         # Filter by nombre only if provided and not empty
-        if filters.nombre and filters.nombre.strip():
+        if hasattr(filters, 'nombre') and filters.nombre and filters.nombre.strip():
             conditions.append(Proyecto.nombre.ilike(f"%{filters.nombre.strip()}%"))
 
         # Filter by vendedor only if vendedor_id is provided and not empty
-        if filters.vendedor_id and filters.vendedor_id.strip():
+        if hasattr(filters, 'vendedor_id') and filters.vendedor_id and filters.vendedor_id.strip():
             conditions.append(Proyecto.vendedor_id == filters.vendedor_id.strip())
 
         # Filter by fecha_inicio_desde only if provided
-        if filters.fecha_inicio_desde:
+        if hasattr(filters, 'fecha_inicio_desde') and filters.fecha_inicio_desde:
             conditions.append(Proyecto.fecha_inicio >= filters.fecha_inicio_desde)
 
         # Filter by fecha_inicio_hasta only if provided
-        if filters.fecha_inicio_hasta:
+        if hasattr(filters, 'fecha_inicio_hasta') and filters.fecha_inicio_hasta:
             conditions.append(Proyecto.fecha_inicio <= filters.fecha_inicio_hasta)
 
         # Filter by estado_comercial only if provided and not empty
-        if filters.estado_comercial and filters.estado_comercial.strip():
+        if hasattr(filters, 'estado_comercial') and filters.estado_comercial and filters.estado_comercial.strip():
             from models import EstadoComercial
             try:
                 estado_enum = EstadoComercial(filters.estado_comercial.strip())
@@ -115,8 +117,18 @@ class ProyectosRepository:
         # Get total count before pagination
         total_count = query.count()
 
+        # Validar página - si no hay resultados, establecer página 1
+        if total_count == 0:
+            return [], 0
+
+        # Calcular número máximo de páginas
+        max_pages = max(1, (total_count + filters.per_page - 1) // filters.per_page)
+        
+        # Si la página solicitada es mayor al máximo, usar la última página
+        page_to_use = min(filters.page, max_pages)
+        
         # Apply ordering and pagination
-        offset = (filters.page - 1) * filters.per_page
+        offset = (page_to_use - 1) * filters.per_page
         proyectos = (query.order_by(Proyecto.created_at.desc())
                     .offset(offset)
                     .limit(filters.per_page)
