@@ -496,6 +496,9 @@ Días restantes: {{ hito.dias_restantes }}">
                         <button class="btn btn-sm btn-outline-warning" onclick="colapsarTodos()">
                             <i class="fas fa-compress-alt"></i> Colapsar Todos
                         </button>
+                        <button class="btn btn-sm btn-success" onclick="descargarMatrizExcel()">
+                            <i class="fas fa-file-excel"></i> Descargar Excel
+                        </button>
                         <small class="text-muted">Actualizado: {{ fecha_actualizacion.strftime('%d/%m/%Y %H:%M') }}</small>
                         <button class="btn btn-sm btn-info" onclick="imprimirMatrizDetallada()">
                             <i class="fas fa-print"></i> Imprimir Detalle
@@ -1050,6 +1053,32 @@ function imprimirTabla() {
             matrizDetallada.style.display = 'block';
         }
     }, 1000);
+}
+
+function descargarMatrizExcel() {
+    // Mostrar loading
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando Excel...';
+    btn.disabled = true;
+
+    // Crear enlace de descarga
+    const link = document.createElement('a');
+    link.href = '/planificacion-operacional/api/descargar-matriz-excel';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    
+    // Iniciar descarga
+    link.click();
+    
+    // Limpiar
+    document.body.removeChild(link);
+    
+    // Restaurar botón después de un momento
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }, 2000);
 }
 
 function imprimirMatrizDetallada() {

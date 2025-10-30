@@ -370,6 +370,132 @@ def rango_prioridades():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+@planificacion_operacional_bp.route('/api/descargar-matriz-excel')
+@login_required
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+def descargar_matriz_excel():
+    """Descargar matriz detallada de órdenes de fabricación en formato Excel"""
+    try:
+        from flask import make_response
+        import io
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill
+        from openpyxl.utils import get_column_letter
+        
+        service = PlanificacionPrioridadesService()
+        
+        # Obtener datos de la matriz
+        datos_matriz = service.get_matriz_planificacion_prioridades()
+        proyectos = datos_matriz.get('proyectos', [])
+        
+        # Crear workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Matriz Detallada OFs"
+        
+        # Configurar encabezados
+        headers = [
+            'PRIORIDAD', 'OF', 'GLOSA', 'TABLEROS', 'ESTADO', 
+            'FECHA PLANIFICADA', 'FECHA FAB.', 'FECHA EMBALAJE'
+        ]
+        
+        # Escribir encabezados
+        for col_num, header in enumerate(headers, 1):
+            col_letter = get_column_letter(col_num)
+            ws[f'{col_letter}1'] = header
+            
+            # Estilo para encabezados
+            ws[f'{col_letter}1'].font = Font(bold=True, color="FFFFFF")
+            ws[f'{col_letter}1'].fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+            ws[f'{col_letter}1'].alignment = Alignment(horizontal="center")
+        
+        # Escribir datos
+        row_num = 2
+        for proyecto in proyectos:
+            for of_info in proyecto['ofs']:
+                of = of_info['of']
+                progreso = of_info['progreso_actual']
+                
+                # Prioridad
+                ws[f'A{row_num}'] = f"P{of.prioridad_numerica or 99}"
+                
+                # Código OF
+                ws[f'B{row_num}'] = of.codigo
+                
+                # Glosa
+                glosa = of.glosa or of.descripcion or 'Sin descripción'
+                ws[f'C{row_num}'] = glosa[:100] + ('...' if len(glosa) > 100 else '')
+                
+                # Tableros
+                ws[f'D{row_num}'] = of.cantidad_tableros or 0
+                
+                # Estado
+                estado_completo = f"{progreso.area.nombre} - {progreso.estado.nombre}"
+                ws[f'E{row_num}'] = estado_completo
+                
+                # Fecha Planificada
+                if of.fecha_planificada:
+                    ws[f'F{row_num}'] = of.fecha_planificada.strftime('%d/%m/%Y')
+                else:
+                    ws[f'F{row_num}'] = 'Sin fecha'
+                
+                # Fecha Fabricación
+                if of.fecha_entrega_fabrica:
+                    ws[f'G{row_num}'] = of.fecha_entrega_fabrica.strftime('%d/%m/%Y')
+                else:
+                    ws[f'G{row_num}'] = 'Sin fecha'
+                
+                # Fecha Embalaje
+                if of.fecha_entrega_embalaje:
+                    ws[f'H{row_num}'] = of.fecha_entrega_embalaje.strftime('%d/%m/%Y')
+                else:
+                    ws[f'H{row_num}'] = 'Sin fecha'
+                
+                row_num += 1
+        
+        # Ajustar ancho de columnas
+        column_widths = {
+            'A': 12,  # PRIORIDAD
+            'B': 15,  # OF
+            'C': 40,  # GLOSA
+            'D': 12,  # TABLEROS
+            'E': 30,  # ESTADO
+            'F': 18,  # FECHA PLANIFICADA
+            'G': 15,  # FECHA FAB.
+            'H': 18   # FECHA EMBALAJE
+        }
+        
+        for column, width in column_widths.items():
+            ws.column_dimensions[column].width = width
+        
+        # Configurar alineación para todas las celdas
+        for row in ws.iter_rows(min_row=2, max_row=row_num-1):
+            for cell in row:
+                if cell.column_letter in ['A', 'D']:  # Prioridad y Tableros centrados
+                    cell.alignment = Alignment(horizontal="center")
+                elif cell.column_letter in ['F', 'G', 'H']:  # Fechas centradas
+                    cell.alignment = Alignment(horizontal="center")
+                else:  # Resto alineado a la izquierda
+                    cell.alignment = Alignment(horizontal="left", vertical="top")
+        
+        # Guardar en memoria
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Crear respuesta
+        response = make_response(output.getvalue())
+        response.headers['Content-Disposition'] = f'attachment; filename=matriz_detallada_ofs_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        
+        return response
+        
+    except Exception as e:
+        print(f"Error generando Excel: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error generando archivo Excel: {str(e)}'}), 500
+
 @planificacion_operacional_bp.route('/api/actualizar-prioridades-bodega/<int:of_id>', methods=['POST'])
 @login_required
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
