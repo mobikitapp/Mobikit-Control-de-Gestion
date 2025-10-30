@@ -360,18 +360,38 @@ class PlanificacionPrioridadesService:
 
                         hitos_en_gantt.append({
                             'titulo': hito['titulo'],
-                            'fecha_programada': hito['fecha_programada'],
+                            'fecha_programada': hito['fecha_programada'].isoformat(),
                             'dias_restantes': hito['dias_restantes'],
                             'posicion_porcentual': max(0, min(100, posicion_porcentual)),  # Clamp 0-100%
-                            'contrato': hito['contrato']
+                            'contrato_id': hito['contrato'].id if hito['contrato'] else None,
+                            'contrato_codigo': hito['contrato'].codigo if hito['contrato'] else None
                         })
+
+                # Convert OFs data to serializable format
+                ofs_serializable = []
+                for of_info in proyecto_data['ofs']:
+                    of_serializable = {
+                        'id': of_info['of'].id,
+                        'codigo': of_info['of'].codigo,
+                        'cantidad_tableros': of_info['of'].cantidad_tableros,
+                        'fecha_planificada': of_info['of'].fecha_planificada.isoformat() if of_info['of'].fecha_planificada else None,
+                        'fecha_entrega_fabrica': of_info['of'].fecha_entrega_fabrica.isoformat() if of_info['of'].fecha_entrega_fabrica else None,
+                        'fecha_entrega_embalaje': of_info['of'].fecha_entrega_embalaje.isoformat() if of_info['of'].fecha_entrega_embalaje else None,
+                        'prioridad_numerica': of_info['of'].prioridad_numerica,
+                        'dias_hasta_entrega': of_info['dias_hasta_entrega'],
+                        'progreso_actual': {
+                            'area_nombre': of_info['progreso_actual'].area.nombre,
+                            'estado_nombre': of_info['progreso_actual'].estado.nombre
+                        }
+                    }
+                    ofs_serializable.append(of_serializable)
 
                 gantt_proyecto = {
                     'nombre': proyecto_data['proyecto'].nombre,
                     'cliente_nombre': proyecto_data['cliente'].nombre,
                     'ofs_activas': len(proyecto_data['ofs']),
                     'total_tableros': proyecto_data['total_tableros'],
-                    'ofs': proyecto_data['ofs'],
+                    'ofs': ofs_serializable,
                     'hitos_entrega': hitos_en_gantt,
                     'dias_proximo_hito': proyecto_data['dias_proximo_hito']
                 }
@@ -392,9 +412,9 @@ class PlanificacionPrioridadesService:
                 'estadisticas': estadisticas,
                 'estadisticas_tiempos': estadisticas_tiempos,
                 'capacidad_semanal': capacidad_semanal,
-                'fecha_actualizacion': datetime.now(),
+                'fecha_actualizacion': datetime.now().isoformat(),
                 'timedelta': timedelta,
-                'today': datetime.now().date()
+                'today': datetime.now().date().isoformat()
             }
 
         except Exception as e:
