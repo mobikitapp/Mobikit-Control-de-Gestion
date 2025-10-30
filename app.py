@@ -7,6 +7,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_migrate import Migrate
 from flask_login import current_user
 from datetime import datetime
+import pytz
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -50,9 +51,11 @@ def create_app():
     @app.context_processor
     def inject_current_user():
         """Inject current user into all templates"""
+        chile_tz = pytz.timezone('America/Santiago')
         return dict(
             current_user=current_user,
-            timestamp=lambda: int(datetime.now().timestamp()),
+            timestamp=lambda: int(datetime.now(chile_tz).timestamp()),
+            now_chile=lambda: datetime.now(chile_tz),
             has_permission=lambda modulo, tipo_permiso: check_user_permission(modulo, tipo_permiso)
         )
 

@@ -1,10 +1,15 @@
 import os
 import logging
 from datetime import datetime
+import pytz
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Configure timezone for Chile
+os.environ['TZ'] = 'America/Santiago'
+CHILE_TZ = pytz.timezone('America/Santiago')
 
 try:
     from app import app, db
@@ -22,14 +27,23 @@ try:
             logger.error(f"Error in moment_global: {e}")
             return datetime.now()
     
-    # Add now function for datetime access in templates
+    # Add now function for datetime access in templates (Chile timezone)
     @app.template_global('now')
     def now():
         try:
-            return datetime.now()
+            return datetime.now(CHILE_TZ)
         except Exception as e:
             logger.error(f"Error in now function: {e}")
-            return datetime.now()
+            return datetime.now(CHILE_TZ)
+    
+    # Add Chile timezone aware datetime function
+    @app.template_global('now_chile')
+    def now_chile():
+        try:
+            return datetime.now(CHILE_TZ)
+        except Exception as e:
+            logger.error(f"Error in now_chile function: {e}")
+            return datetime.now(CHILE_TZ)
     
     # Add timestamp function for cache busting
     @app.template_global('timestamp')
