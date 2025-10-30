@@ -1215,9 +1215,36 @@ function generarGraficoCargaSemanal() {
                         text: 'Cantidad de Tableros'
                     },
                     beginAtZero: true,
+                    min: 0,
+                    max: function(context) {
+                        // Calcular el máximo dinámicamente basado en los datos
+                        const maxData = Math.max(...datos);
+                        const maxCapacidad = capacidadSemanal;
+                        const maxValue = Math.max(maxData, maxCapacidad);
+                        
+                        // Redondear hacia arriba al siguiente múltiplo de 100
+                        return Math.ceil(maxValue / 100) * 100 + 200;
+                    },
                     ticks: {
+                        stepSize: 100, // Saltos de 100 tableros
                         callback: function(value) {
                             return value + ' tbl';
+                        }
+                    },
+                    grid: {
+                        display: true,
+                        color: function(context) {
+                            // Líneas más marcadas cada 200 tableros
+                            if (context.tick.value % 200 === 0) {
+                                return 'rgba(0, 0, 0, 0.3)';
+                            }
+                            return 'rgba(0, 0, 0, 0.1)';
+                        },
+                        lineWidth: function(context) {
+                            if (context.tick.value % 200 === 0) {
+                                return 2;
+                            }
+                            return 1;
                         }
                     }
                 }
