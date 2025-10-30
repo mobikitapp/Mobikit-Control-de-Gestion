@@ -380,11 +380,18 @@ class PlanificacionPrioridadesService:
             # Obtener estadísticas generales de tiempos por área
             estadisticas_tiempos = self.get_estadisticas_tiempos_por_area()
 
+            # Obtener configuración de capacidad para el gráfico
+            from services.configuraciones_service import ConfiguracionesService
+            config_service = ConfiguracionesService()
+            config_capacidad = config_service.get_parametros_operacionales()
+            capacidad_semanal = config_capacidad.get('capacidad_maxima_tableros_semana', 100)
+
             return {
                 'proyectos': proyectos_ordenados,
                 'proyectos_gantt': proyectos_gantt,
                 'estadisticas': estadisticas,
                 'estadisticas_tiempos': estadisticas_tiempos,
+                'capacidad_semanal': capacidad_semanal,
                 'fecha_actualizacion': datetime.now(),
                 'timedelta': timedelta,
                 'today': datetime.now().date()

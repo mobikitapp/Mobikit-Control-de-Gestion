@@ -5,6 +5,8 @@
 <!-- Moment.js library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/es.min.js"></script>
+<!-- Chart.js library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -24,8 +26,42 @@
         </div>
     </div>
 
+    <!-- Gráfico de Carga Semanal (12 semanas) -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar text-success"></i>
+                        Carga de Tableros - Próximas 12 Semanas
+                    </h6>
+                    <p class="mb-0 text-muted">Distribución de tableros comprometidos por semana</p>
+                </div>
+                <div class="card-body">
+                    <canvas id="cargaSemanalChart" height="100"></canvas>
+                </div>
+                <div class="card-footer">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <small><strong id="semanasPico">0</strong> semanas con sobrecarga</small>
+                        </div>
+                        <div class="col-md-3">
+                            <small><strong id="tablerosTotales">{{ estadisticas.total_tableros }}</strong> tableros totales</small>
+                        </div>
+                        <div class="col-md-3">
+                            <small><strong id="promedioSemanal">0</strong> tableros promedio/semana</small>
+                        </div>
+                        <div class="col-md-3">
+                            <small><strong id="capacidadUtilizada">0%</strong> capacidad utilizada</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Estadísticas generales -->
-    <div class="row mb-4 estadisticas-row">
+    <div class="row mb-4 estadisticas-row"></div>
         <div class="col-md-2">
             <div class="card border-primary bg-white text-primary" style="border-width: 2px;">
                 <div class="card-body text-center">
@@ -776,6 +812,7 @@ Días restantes: {{ hito.dias_restantes }}">
 // Cargar opciones de prioridad dinámicamente al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     cargarOpcionesPrioridad();
+    generarGraficoCargaSemanal();
 });
 
 function cargarOpcionesPrioridad() {
@@ -1053,6 +1090,161 @@ function imprimirTabla() {
             matrizDetallada.style.display = 'block';
         }
     }, 1000);
+}
+
+function generarGraficoCargaSemanal() {
+    // Recopilar datos de tableros por semana de los proyectos
+    const cargaPorSemana = {};
+    const hoy = new Date();
+    
+    // Inicializar 12 semanas
+    for (let i = 0; i < 12; i++) {
+        const fecha = new Date(hoy);
+        fecha.setDate(fecha.getDate() + (i * 7));
+        
+        // Calcular inicio de semana (lunes)
+        const inicioSemana = new Date(fecha);
+        inicioSemana.setDate(fecha.getDate() - fecha.getDay() + 1);
+        
+        const año = inicioSemana.getFullYear();
+        const semana = getISOWeek(inicioSemana);
+        const claveSemanañ = `${año}-S${semana.toString().padStart(2, '0')}`;
+        
+        cargaPorSemana[claveSemanañ] = {
+            tableros: 0,
+            fecha: inicioSemana,
+            semana: semana,
+            año: año
+        };
+    }
+    
+    // Procesar datos de proyectos para agrupar por semana
+    {% for proyecto in proyectos %}
+        {% for of_info in proyecto.ofs %}
+            {% if of_info.of.fecha_planificada %}
+                const fechaOf = new Date('{{ of_info.of.fecha_planificada.isoformat() }}');
+                const tableros = {{ of_info.of.cantidad_tableros or 0 }};
+                
+                // Calcular semana de la OF
+                const añoOf = fechaOf.getFullYear();
+                const semanaOf = getISOWeek(fechaOf);
+                const claveOf = `${añoOf}-S${semanaOf.toString().padStart(2, '0')}`;
+                
+                if (cargaPorSemana[claveOf]) {
+                    cargaPorSemana[claveOf].tableros += tableros;
+                }
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+    
+    // Preparar datos para el gráfico
+    const semanas = Object.keys(cargaPorSemana).sort();
+    const labels = semanas.map(semana => {
+        const data = cargaPorSemana[semana];
+        return `S${data.semana} (${data.fecha.getDate()}/${data.fecha.getMonth() + 1})`;
+    });
+    const datos = semanas.map(semana => cargaPorSemana[semana].tableros);
+    
+    // Capacidad semanal desde configuración
+    const capacidadSemanal = {{ capacidad_semanal or 100 }};
+    
+    // Crear gráfico
+    const ctx = document.getElementById('cargaSemanalChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Tableros Comprometidos',
+                data: datos,
+                backgroundColor: datos.map(valor => 
+                    valor > capacidadSemanal ? 'rgba(220, 53, 69, 0.8)' :  // Rojo para sobrecarga
+                    valor > capacidadSemanal * 0.8 ? 'rgba(255, 193, 7, 0.8)' : // Amarillo para alta carga
+                    'rgba(40, 167, 69, 0.8)'  // Verde para carga normal
+                ),
+                borderColor: datos.map(valor => 
+                    valor > capacidadSemanal ? 'rgba(220, 53, 69, 1)' :
+                    valor > capacidadSemanal * 0.8 ? 'rgba(255, 193, 7, 1)' :
+                    'rgba(40, 167, 69, 1)'
+                ),
+                borderWidth: 2
+            }, {
+                label: 'Capacidad Máxima',
+                data: new Array(labels.length).fill(capacidadSemanal),
+                type: 'line',
+                borderColor: 'rgba(108, 117, 125, 1)',
+                backgroundColor: 'rgba(108, 117, 125, 0.1)',
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false,
+                borderDash: [5, 5]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        afterBody: function(context) {
+                            const index = context[0].dataIndex;
+                            const valor = datos[index];
+                            const porcentaje = ((valor / capacidadSemanal) * 100).toFixed(1);
+                            return [
+                                `Capacidad utilizada: ${porcentaje}%`,
+                                valor > capacidadSemanal ? '⚠️ Sobrecarga detectada' :
+                                valor > capacidadSemanal * 0.8 ? '🟡 Carga alta' : '✅ Carga normal'
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Semanas'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Cantidad de Tableros'
+                    },
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' tbl';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Actualizar estadísticas
+    const semanasSobrecarga = datos.filter(valor => valor > capacidadSemanal).length;
+    const tablerosTotales = datos.reduce((sum, valor) => sum + valor, 0);
+    const promedioSemanal = Math.round(tablerosTotales / datos.length);
+    const capacidadTotal = capacidadSemanal * 12;
+    const capacidadUtilizada = Math.round((tablerosTotales / capacidadTotal) * 100);
+    
+    document.getElementById('semanasPico').textContent = semanasSobrecarga;
+    document.getElementById('tablerosTotales').textContent = tablerosTotales;
+    document.getElementById('promedioSemanal').textContent = promedioSemanal;
+    document.getElementById('capacidadUtilizada').textContent = capacidadUtilizada;
+}
+
+// Función auxiliar para calcular número de semana ISO
+function getISOWeek(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
 }
 
 function descargarMatrizExcel() {
