@@ -1108,9 +1108,9 @@ function generarGraficoCargaSemanal() {
         
         const año = inicioSemana.getFullYear();
         const semana = getISOWeek(inicioSemana);
-        const claveSemanañ = `${año}-S${semana.toString().padStart(2, '0')}`;
+        const claveSemana = año + '-S' + semana.toString().padStart(2, '0');
         
-        cargaPorSemana[claveSemanañ] = {
+        cargaPorSemana[claveSemana] = {
             tableros: 0,
             fecha: inicioSemana,
             semana: semana,
@@ -1118,38 +1118,52 @@ function generarGraficoCargaSemanal() {
         };
     }
     
-    // Procesar datos de proyectos para agrupar por semana
-    {% for proyecto in proyectos %}
-        {% for of_info in proyecto.ofs %}
-            {% if of_info.of.fecha_planificada %}
-                const fechaOf = new Date('{{ of_info.of.fecha_planificada.isoformat() }}');
-                const tableros = {{ of_info.of.cantidad_tableros or 0 }};
-                
-                // Calcular semana de la OF
-                const añoOf = fechaOf.getFullYear();
-                const semanaOf = getISOWeek(fechaOf);
-                const claveOf = `${añoOf}-S${semanaOf.toString().padStart(2, '0')}`;
-                
-                if (cargaPorSemana[claveOf]) {
-                    cargaPorSemana[claveOf].tableros += tableros;
-                }
-            {% endif %}
-        {% endfor %}
-    {% endfor %}
+    // Procesar datos de proyectos pasados desde el servidor
+    const proyectosData = {{ proyectos | tojson | safe }};
+    
+    if (proyectosData && Array.isArray(proyectosData)) {
+        proyectosData.forEach(function(proyecto) {
+            if (proyecto.ofs && Array.isArray(proyecto.ofs)) {
+                proyecto.ofs.forEach(function(of_info) {
+                    if (of_info.of && of_info.of.fecha_planificada) {
+                        const fechaOf = new Date(of_info.of.fecha_planificada);
+                        const tableros = of_info.of.cantidad_tableros || 0;
+                        
+                        // Calcular semana de la OF
+                        const añoOf = fechaOf.getFullYear();
+                        const semanaOf = getISOWeek(fechaOf);
+                        const claveOf = añoOf + '-S' + semanaOf.toString().padStart(2, '0');
+                        
+                        if (cargaPorSemana[claveOf]) {
+                            cargaPorSemana[claveOf].tableros += tableros;
+                        }
+                    }
+                });
+            }
+        });
+    }
     
     // Preparar datos para el gráfico
     const semanas = Object.keys(cargaPorSemana).sort();
-    const labels = semanas.map(semana => {
+    const labels = semanas.map(function(semana) {
         const data = cargaPorSemana[semana];
-        return `S${data.semana} (${data.fecha.getDate()}/${data.fecha.getMonth() + 1})`;
+        return 'S' + data.semana + ' (' + data.fecha.getDate() + '/' + (data.fecha.getMonth() + 1) + ')';
     });
-    const datos = semanas.map(semana => cargaPorSemana[semana].tableros);
+    const datos = semanas.map(function(semana) {
+        return cargaPorSemana[semana].tableros;
+    });
     
     // Capacidad semanal desde configuración
     const capacidadSemanal = {{ capacidad_semanal or 100 }};
     
-    // Crear gráfico
-    const ctx = document.getElementById('cargaSemanalChart').getContext('2d');
+    // Crear gráfico si el canvas existe
+    const chartElement = document.getElementById('cargaSemanalChart');
+    if (!chartElement) {
+        console.error('Elemento cargaSemanalChart no encontrado');
+        return;
+    }
+    
+    const ctx = chartElement.getContext('2d');
     new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1157,16 +1171,24 @@ function generarGraficoCargaSemanal() {
             datasets: [{
                 label: 'Tableros Comprometidos',
                 data: datos,
-                backgroundColor: datos.map(valor => 
-                    valor > capacidadSemanal ? 'rgba(220, 53, 69, 0.8)' :  // Rojo para sobrecarga
-                    valor > capacidadSemanal * 0.8 ? 'rgba(255, 193, 7, 0.8)' : // Amarillo para alta carga
-                    'rgba(40, 167, 69, 0.8)'  // Verde para carga normal
-                ),
-                borderColor: datos.map(valor => 
-                    valor > capacidadSemanal ? 'rgba(220, 53, 69, 1)' :
-                    valor > capacidadSemanal * 0.8 ? 'rgba(255, 193, 7, 1)' :
-                    'rgba(40, 167, 69, 1)'
-                ),
+                backgroundColor: datos.map(function(valor) {
+                    if (valor > capacidadSemanal) {
+                        return 'rgba(220, 53, 69, 0.8)'; // Rojo para sobrecarga
+                    } else if (valor > capacidadSemanal * 0.8) {
+                        return 'rgba(255, 193, 7, 0.8)'; // Amarillo para alta carga
+                    } else {
+                        return 'rgba(40, 167, 69, 0.8)'; // Verde para carga normal
+                    }
+                }),
+                borderColor: datos.map(function(valor) {
+                    if (valor > capacidadSemanal) {
+                        return 'rgba(220, 53, 69, 1)';
+                    } else if (valor > capacidadSemanal * 0.8) {
+                        return 'rgba(255, 193, 7, 1)';
+                    } else {
+                        return 'rgba(40, 167, 69, 1)';
+                    }
+                }),
                 borderWidth: 2
             }, {
                 label: 'Capacidad Máxima',
@@ -1193,10 +1215,17 @@ function generarGraficoCargaSemanal() {
                             const index = context[0].dataIndex;
                             const valor = datos[index];
                             const porcentaje = ((valor / capacidadSemanal) * 100).toFixed(1);
+                            var estado = '';
+                            if (valor > capacidadSemanal) {
+                                estado = '⚠️ Sobrecarga detectada';
+                            } else if (valor > capacidadSemanal * 0.8) {
+                                estado = '🟡 Carga alta';
+                            } else {
+                                estado = '✅ Carga normal';
+                            }
                             return [
-                                `Capacidad utilizada: ${porcentaje}%`,
-                                valor > capacidadSemanal ? '⚠️ Sobrecarga detectada' :
-                                valor > capacidadSemanal * 0.8 ? '🟡 Carga alta' : '✅ Carga normal'
+                                'Capacidad utilizada: ' + porcentaje + '%',
+                                estado
                             ];
                         }
                     }
@@ -1218,9 +1247,9 @@ function generarGraficoCargaSemanal() {
                     min: 0,
                     max: function(context) {
                         // Calcular el máximo dinámicamente basado en los datos
-                        const maxData = Math.max(...datos);
-                        const maxCapacidad = capacidadSemanal;
-                        const maxValue = Math.max(maxData, maxCapacidad);
+                        var maxData = Math.max.apply(Math, datos);
+                        var maxCapacidad = capacidadSemanal;
+                        var maxValue = Math.max(maxData, maxCapacidad);
                         
                         // Redondear hacia arriba al siguiente múltiplo de 100
                         return Math.ceil(maxValue / 100) * 100 + 200;
@@ -1253,16 +1282,29 @@ function generarGraficoCargaSemanal() {
     });
     
     // Actualizar estadísticas
-    const semanasSobrecarga = datos.filter(valor => valor > capacidadSemanal).length;
-    const tablerosTotales = datos.reduce((sum, valor) => sum + valor, 0);
-    const promedioSemanal = Math.round(tablerosTotales / datos.length);
-    const capacidadTotal = capacidadSemanal * 12;
-    const capacidadUtilizada = Math.round((tablerosTotales / capacidadTotal) * 100);
+    var semanasSobrecarga = 0;
+    for (var i = 0; i < datos.length; i++) {
+        if (datos[i] > capacidadSemanal) {
+            semanasSobrecarga++;
+        }
+    }
     
-    document.getElementById('semanasPico').textContent = semanasSobrecarga;
-    document.getElementById('tablerosTotales').textContent = tablerosTotales;
-    document.getElementById('promedioSemanal').textContent = promedioSemanal;
-    document.getElementById('capacidadUtilizada').textContent = capacidadUtilizada;
+    var tablerosTotales = datos.reduce(function(sum, valor) {
+        return sum + valor;
+    }, 0);
+    var promedioSemanal = Math.round(tablerosTotales / datos.length);
+    var capacidadTotal = capacidadSemanal * 12;
+    var capacidadUtilizada = Math.round((tablerosTotales / capacidadTotal) * 100);
+    
+    var elementoSemanasPico = document.getElementById('semanasPico');
+    var elementoTablerosTotales = document.getElementById('tablerosTotales');
+    var elementoPromedioSemanal = document.getElementById('promedioSemanal');
+    var elementoCapacidadUtilizada = document.getElementById('capacidadUtilizada');
+    
+    if (elementoSemanasPico) elementoSemanasPico.textContent = semanasSobrecarga;
+    if (elementoTablerosTotales) elementoTablerosTotales.textContent = tablerosTotales;
+    if (elementoPromedioSemanal) elementoPromedioSemanal.textContent = promedioSemanal;
+    if (elementoCapacidadUtilizada) elementoCapacidadUtilizada.textContent = capacidadUtilizada;
 }
 
 // Función auxiliar para calcular número de semana ISO
