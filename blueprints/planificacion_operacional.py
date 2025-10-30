@@ -381,6 +381,7 @@ def descargar_matriz_excel():
         from openpyxl import Workbook
         from openpyxl.styles import Font, Alignment, PatternFill
         from openpyxl.utils import get_column_letter
+        from datetime import datetime
         
         service = PlanificacionPrioridadesService()
         
@@ -390,93 +391,220 @@ def descargar_matriz_excel():
         
         # Crear workbook
         wb = Workbook()
-        ws = wb.active
-        ws.title = "Matriz Detallada OFs"
         
-        # Configurar encabezados
-        headers = [
-            'PRIORIDAD', 'OF', 'GLOSA', 'TABLEROS', 'ESTADO', 
+        # === PRIMERA PESTAÑA: Matriz Detallada OFs ===
+        ws_detalle = wb.active
+        ws_detalle.title = "Matriz Detallada OFs"
+        
+        # Configurar encabezados con número de semana como primer campo
+        headers_detalle = [
+            'SEMANA', 'PRIORIDAD', 'OF', 'GLOSA', 'TABLEROS', 'ESTADO', 
             'FECHA PLANIFICADA', 'FECHA FAB.', 'FECHA EMBALAJE'
         ]
         
         # Escribir encabezados
-        for col_num, header in enumerate(headers, 1):
+        for col_num, header in enumerate(headers_detalle, 1):
             col_letter = get_column_letter(col_num)
-            ws[f'{col_letter}1'] = header
+            ws_detalle[f'{col_letter}1'] = header
             
             # Estilo para encabezados
-            ws[f'{col_letter}1'].font = Font(bold=True, color="FFFFFF")
-            ws[f'{col_letter}1'].fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-            ws[f'{col_letter}1'].alignment = Alignment(horizontal="center")
+            ws_detalle[f'{col_letter}1'].font = Font(bold=True, color="FFFFFF")
+            ws_detalle[f'{col_letter}1'].fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+            ws_detalle[f'{col_letter}1'].alignment = Alignment(horizontal="center")
         
-        # Escribir datos
-        row_num = 2
+        # Recopilar datos con información de semana
+        ofs_con_semana = []
         for proyecto in proyectos:
             for of_info in proyecto['ofs']:
                 of = of_info['of']
                 progreso = of_info['progreso_actual']
                 
-                # Prioridad
-                ws[f'A{row_num}'] = f"P{of.prioridad_numerica or 99}"
+                # Calcular número de semana basado en fecha planificada
+                numero_semana = None
+                fecha_referencia = None
                 
-                # Código OF
-                ws[f'B{row_num}'] = of.codigo
-                
-                # Glosa
-                glosa = of.glosa or of.descripcion or 'Sin descripción'
-                ws[f'C{row_num}'] = glosa[:100] + ('...' if len(glosa) > 100 else '')
-                
-                # Tableros
-                ws[f'D{row_num}'] = of.cantidad_tableros or 0
-                
-                # Estado
-                estado_completo = f"{progreso.area.nombre} - {progreso.estado.nombre}"
-                ws[f'E{row_num}'] = estado_completo
-                
-                # Fecha Planificada
                 if of.fecha_planificada:
-                    ws[f'F{row_num}'] = of.fecha_planificada.strftime('%d/%m/%Y')
-                else:
-                    ws[f'F{row_num}'] = 'Sin fecha'
+                    fecha_referencia = of.fecha_planificada
+                elif of.fecha_entrega_fabrica:
+                    fecha_referencia = of.fecha_entrega_fabrica
+                elif of.fecha_entrega_embalaje:
+                    fecha_referencia = of.fecha_entrega_embalaje
                 
-                # Fecha Fabricación
-                if of.fecha_entrega_fabrica:
-                    ws[f'G{row_num}'] = of.fecha_entrega_fabrica.strftime('%d/%m/%Y')
+                if fecha_referencia:
+                    numero_semana = fecha_referencia.isocalendar()[1]  # Número de semana ISO
+                    año_semana = fecha_referencia.year
+                    semana_display = f"{año_semana}-S{numero_semana:02d}"
                 else:
-                    ws[f'G{row_num}'] = 'Sin fecha'
+                    numero_semana = 999  # Para ordenar al final
+                    año_semana = 9999
+                    semana_display = "Sin fecha"
                 
-                # Fecha Embalaje
-                if of.fecha_entrega_embalaje:
-                    ws[f'H{row_num}'] = of.fecha_entrega_embalaje.strftime('%d/%m/%Y')
-                else:
-                    ws[f'H{row_num}'] = 'Sin fecha'
+                of_data = {
+                    'of': of,
+                    'progreso': progreso,
+                    'numero_semana': numero_semana,
+                    'año_semana': año_semana,
+                    'semana_display': semana_display,
+                    'fecha_referencia': fecha_referencia
+                }
                 
-                row_num += 1
+                ofs_con_semana.append(of_data)
         
-        # Ajustar ancho de columnas
-        column_widths = {
-            'A': 12,  # PRIORIDAD
-            'B': 15,  # OF
-            'C': 40,  # GLOSA
-            'D': 12,  # TABLEROS
-            'E': 30,  # ESTADO
-            'F': 18,  # FECHA PLANIFICADA
-            'G': 15,  # FECHA FAB.
-            'H': 18   # FECHA EMBALAJE
+        # Ordenar por semana más reciente (mayor número primero)
+        ofs_con_semana.sort(key=lambda x: (x['año_semana'], x['numero_semana']), reverse=True)
+        
+        # Escribir datos ordenados
+        row_num = 2
+        for of_data in ofs_con_semana:
+            of = of_data['of']
+            progreso = of_data['progreso']
+            
+            # Número de semana
+            ws_detalle[f'A{row_num}'] = of_data['semana_display']
+            
+            # Prioridad
+            ws_detalle[f'B{row_num}'] = f"P{of.prioridad_numerica or 99}"
+            
+            # Código OF
+            ws_detalle[f'C{row_num}'] = of.codigo
+            
+            # Glosa
+            glosa = of.glosa or of.descripcion or 'Sin descripción'
+            ws_detalle[f'D{row_num}'] = glosa[:100] + ('...' if len(glosa) > 100 else '')
+            
+            # Tableros
+            ws_detalle[f'E{row_num}'] = of.cantidad_tableros or 0
+            
+            # Estado
+            estado_completo = f"{progreso.area.nombre} - {progreso.estado.nombre}"
+            ws_detalle[f'F{row_num}'] = estado_completo
+            
+            # Fecha Planificada
+            if of.fecha_planificada:
+                ws_detalle[f'G{row_num}'] = of.fecha_planificada.strftime('%d/%m/%Y')
+            else:
+                ws_detalle[f'G{row_num}'] = 'Sin fecha'
+            
+            # Fecha Fabricación
+            if of.fecha_entrega_fabrica:
+                ws_detalle[f'H{row_num}'] = of.fecha_entrega_fabrica.strftime('%d/%m/%Y')
+            else:
+                ws_detalle[f'H{row_num}'] = 'Sin fecha'
+            
+            # Fecha Embalaje
+            if of.fecha_entrega_embalaje:
+                ws_detalle[f'I{row_num}'] = of.fecha_entrega_embalaje.strftime('%d/%m/%Y')
+            else:
+                ws_detalle[f'I{row_num}'] = 'Sin fecha'
+            
+            row_num += 1
+        
+        # Ajustar ancho de columnas para pestaña detalle
+        column_widths_detalle = {
+            'A': 12,  # SEMANA
+            'B': 12,  # PRIORIDAD
+            'C': 15,  # OF
+            'D': 40,  # GLOSA
+            'E': 12,  # TABLEROS
+            'F': 30,  # ESTADO
+            'G': 18,  # FECHA PLANIFICADA
+            'H': 15,  # FECHA FAB.
+            'I': 18   # FECHA EMBALAJE
         }
         
-        for column, width in column_widths.items():
-            ws.column_dimensions[column].width = width
+        for column, width in column_widths_detalle.items():
+            ws_detalle.column_dimensions[column].width = width
         
-        # Configurar alineación para todas las celdas
-        for row in ws.iter_rows(min_row=2, max_row=row_num-1):
+        # Configurar alineación
+        for row in ws_detalle.iter_rows(min_row=2, max_row=row_num-1):
             for cell in row:
-                if cell.column_letter in ['A', 'D']:  # Prioridad y Tableros centrados
+                if cell.column_letter in ['A', 'B', 'E']:  # Semana, Prioridad y Tableros centrados
                     cell.alignment = Alignment(horizontal="center")
-                elif cell.column_letter in ['F', 'G', 'H']:  # Fechas centradas
+                elif cell.column_letter in ['G', 'H', 'I']:  # Fechas centradas
                     cell.alignment = Alignment(horizontal="center")
                 else:  # Resto alineado a la izquierda
                     cell.alignment = Alignment(horizontal="left", vertical="top")
+        
+        # === SEGUNDA PESTAÑA: Agrupado por Semana ===
+        ws_agrupado = wb.create_sheet(title="Agrupado por Semana")
+        
+        # Configurar encabezados para agrupado
+        headers_agrupado = ['SEMANA', 'FECHA PRIMER DIA', 'TABLEROS COMPROMETIDOS']
+        
+        for col_num, header in enumerate(headers_agrupado, 1):
+            col_letter = get_column_letter(col_num)
+            ws_agrupado[f'{col_letter}1'] = header
+            
+            # Estilo para encabezados
+            ws_agrupado[f'{col_letter}1'].font = Font(bold=True, color="FFFFFF")
+            ws_agrupado[f'{col_letter}1'].fill = PatternFill(start_color="28a745", end_color="28a745", fill_type="solid")
+            ws_agrupado[f'{col_letter}1'].alignment = Alignment(horizontal="center")
+        
+        # Agrupar datos por semana
+        from collections import defaultdict
+        from datetime import timedelta
+        
+        agrupado_semanas = defaultdict(lambda: {'tableros': 0, 'primer_dia': None, 'año': 0})
+        
+        for of_data in ofs_con_semana:
+            if of_data['fecha_referencia']:
+                semana_key = of_data['semana_display']
+                fecha_ref = of_data['fecha_referencia']
+                
+                # Calcular primer día de la semana (lunes)
+                dias_desde_lunes = fecha_ref.weekday()
+                primer_dia_semana = fecha_ref - timedelta(days=dias_desde_lunes)
+                
+                agrupado_semanas[semana_key]['tableros'] += of_data['of'].cantidad_tableros or 0
+                agrupado_semanas[semana_key]['año'] = of_data['año_semana']
+                
+                if agrupado_semanas[semana_key]['primer_dia'] is None:
+                    agrupado_semanas[semana_key]['primer_dia'] = primer_dia_semana
+        
+        # Ordenar semanas por más reciente
+        semanas_ordenadas = sorted(
+            agrupado_semanas.items(),
+            key=lambda x: (x[1]['año'], int(x[0].split('-S')[1]) if '-S' in x[0] else 0),
+            reverse=True
+        )
+        
+        # Escribir datos agrupados
+        row_num = 2
+        for semana_key, datos in semanas_ordenadas:
+            # Semana
+            ws_agrupado[f'A{row_num}'] = semana_key
+            
+            # Fecha primer día
+            if datos['primer_dia']:
+                ws_agrupado[f'B{row_num}'] = datos['primer_dia'].strftime('%d/%m/%Y')
+            else:
+                ws_agrupado[f'B{row_num}'] = 'Sin fecha'
+            
+            # Tableros comprometidos
+            ws_agrupado[f'C{row_num}'] = datos['tableros']
+            
+            row_num += 1
+        
+        # Ajustar ancho de columnas para agrupado
+        column_widths_agrupado = {
+            'A': 15,  # SEMANA
+            'B': 18,  # FECHA PRIMER DIA
+            'C': 20   # TABLEROS COMPROMETIDOS
+        }
+        
+        for column, width in column_widths_agrupado.items():
+            ws_agrupado.column_dimensions[column].width = width
+        
+        # Configurar alineación para agrupado
+        for row in ws_agrupado.iter_rows(min_row=2, max_row=row_num-1):
+            for cell in row:
+                cell.alignment = Alignment(horizontal="center")
+        
+        # Agregar fila de totales
+        ws_agrupado[f'A{row_num + 1}'] = "TOTAL"
+        ws_agrupado[f'A{row_num + 1}'].font = Font(bold=True)
+        ws_agrupado[f'C{row_num + 1}'] = sum(datos['tableros'] for _, datos in semanas_ordenadas)
+        ws_agrupado[f'C{row_num + 1}'].font = Font(bold=True)
         
         # Guardar en memoria
         output = io.BytesIO()
