@@ -76,6 +76,256 @@
         </div>
     </div>
 
+    <!-- Matriz Detallada de OFs -->
+    <div class="row matriz-detallada-section">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-list-ul text-secondary"></i>
+                        Matriz Detallada de Órdenes de Fabricación
+                    </h6>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-outline-success" onclick="expandirTodos()">
+                            <i class="fas fa-expand-alt"></i> Expandir Todos
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="colapsarTodos()">
+                            <i class="fas fa-compress-alt"></i> Colapsar Todos
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="descargarMatrizExcel()">
+                            <i class="fas fa-file-excel"></i> Descargar Excel
+                        </button>
+                        <small class="text-muted">Actualizado: {{ now_chile().strftime('%d/%m/%Y %H:%M') }}</small>
+                        <button class="btn btn-sm btn-info" onclick="imprimirMatrizDetallada()">
+                            <i class="fas fa-print"></i> Imprimir Detalle
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                                {% for proyecto in proyectos %}
+                                <!-- Encabezado del Proyecto -->
+                                <tr class="table-light">
+                                    <td colspan="10">
+                                        <div class="d-flex align-items-center">
+                                            <button class="btn btn-sm btn-outline-primary me-2 proyecto-toggle-btn"
+                                                    type="button"
+                                                    data-bs-toggle="collapse"
+                                                    data-bs-target="#proyecto-detalle-{{ proyecto.proyecto.id }}"
+                                                    aria-expanded="false">
+                                                <i class="fas fa-plus" id="icon-proyecto-detalle-{{ proyecto.proyecto.id }}"></i>
+                                            </button>
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-folder text-primary"></i>
+                                                {{ proyecto.proyecto.nombre }}
+                                            </h6>
+                                            <span class="badge bg-secondary ms-2">{{ proyecto.cliente.nombre }}</span>
+                                            {% if proyecto.prioridad_maxima %}
+                                            <span class="badge ms-2
+                                                {% if proyecto.prioridad_maxima.value in ['P1', 'urgente'] %}bg-danger
+                                                {% elif proyecto.prioridad_maxima.value in ['P2', 'alta'] %}bg-warning
+                                                {% elif proyecto.prioridad_maxima.value in ['P3', 'media'] %}bg-info
+                                                {% else %}bg-success{% endif %}">
+                                                {{ proyecto.prioridad_maxima.value.upper() }}
+                                            </span>
+                                            {% endif %}
+                                            <small class="text-muted ms-2">
+                                                {{ proyecto.ofs|length }} OFs |
+                                                {{ proyecto.total_tableros }} tableros |
+                                                {{ "{:.1f}".format(proyecto.tiempo_total_fabrica) }}d fáb. |
+                                                {{ "{:.1f}".format(proyecto.tiempo_total_embalaje) }}d emb.
+                                            </small>
+                                            {% if proyecto.fecha_entrega_mas_proxima %}
+                                            <small class="text-danger ms-2">
+                                                <i class="fas fa-clock"></i>
+                                                Entrega: {{ proyecto.fecha_entrega_mas_proxima.strftime('%d/%m/%Y') }}
+                                            </small>
+                                            {% endif %}
+                                            {% if proyecto.proximo_hito %}
+                                            <small class="text-warning ms-2">
+                                                <i class="fas fa-flag"></i>
+                                                Hito: {{ proyecto.proximo_hito.titulo }} ({{ proyecto.dias_proximo_hito }} días)
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- OFs del Proyecto (Colapsables) -->
+                                <tr class="collapse" id="proyecto-detalle-{{ proyecto.proyecto.id }}">
+                                    <td colspan="10">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm mb-0">
+                                                <thead class="table-secondary">
+                                                    <tr>
+                                                        <th style="width: 18%">OF/Glosa</th>
+                                                        <th style="width: 8%">Prioridad</th>
+                                                        <th style="width: 6%">Tableros</th>
+                                                        <th style="width: 12%">Estado</th>
+                                                        <th style="width: 12%">Fecha Planificada</th>
+                                                        <th style="width: 13%">Fecha Fab.</th>
+                                                        <th style="width: 13%">Fecha Embalaje</th>
+                                                        <th style="width: 8%">Días Rest.</th>
+                                                        <th style="width: 10%">Próximo Hito</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for of_info in proyecto.ofs %}
+                                                    <tr>
+                                                        <td>
+                                                            <div>
+                                                                <strong>{{ of_info.of.codigo }}</strong>
+                                                                {% if of_info.of.glosa %}
+                                                                <br><small class="text-muted">{{ of_info.of.glosa[:40] }}{% if of_info.of.glosa|length > 40 %}...{% endif %}</small>
+                                                                {% elif of_info.of.descripcion %}
+                                                                <br><small class="text-muted">{{ of_info.of.descripcion[:40] }}{% if of_info.of.descripcion|length > 40 %}...{% endif %}</small>
+                                                                {% endif %}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <select class="form-select form-select-sm prioridad-select"
+                                                                    data-of-id="{{ of_info.of.id }}"
+                                                                    data-original="{{ of_info.of.prioridad_numerica or 3 }}">
+                                                                <!-- Opciones dinámicas serán cargadas por JavaScript -->
+                                                            </select>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge bg-info">{{ of_info.of.cantidad_tableros or 0 }}</span>
+                                                        </td>
+                                                        <td>
+                                                            <div style="font-size: 11px;">
+                                                                <strong class="text-primary">{{ of_info.progreso_actual.area.nombre[:12] }}{% if of_info.progreso_actual.area.nombre|length > 12 %}...{% endif %}</strong><br>
+                                                                <span class="text-muted">{{ of_info.progreso_actual.estado.nombre[:15] }}{% if of_info.progreso_actual.estado.nombre|length > 15 %}...{% endif %}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_planificada"
+                                                                   value="{{ of_info.of.fecha_planificada or '' }}"
+                                                                   data-original="{{ of_info.of.fecha_planificada or '' }}">
+                                                            {% if not of_info.of.fecha_planificada %}
+                                                                <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Falta fecha</small>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_entrega_fabrica"
+                                                                   value="{{ of_info.of.fecha_entrega_fabrica or '' }}"
+                                                                   data-original="{{ of_info.of.fecha_entrega_fabrica or '' }}">
+                                                            {% if not of_info.of.fecha_entrega_fabrica and of_info.fecha_estimada_fabricacion %}
+                                                                <small class="text-info">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
+                                                            {% endif %}
+                                                            <div>
+                                                                <small class="text-muted"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
+                                                                {% if of_info.tiempo_real_fabrica is not none %}
+                                                                    <small class="ms-2">
+                                                                        <strong>Real:</strong> {{ of_info.tiempo_real_fabrica }}d
+                                                                    </small>
+                                                                {% endif %}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <input type="date" class="form-control form-control-sm fecha-input"
+                                                                   data-of-id="{{ of_info.of.id }}"
+                                                                   data-field="fecha_entrega_embalaje"
+                                                                   value="{{ of_info.of.fecha_entrega_embalaje or '' }}"
+                                                                   data-original="{{ of_info.of.fecha_entrega_embalaje or '' }}">
+                                                            {% if not of_info.of.fecha_entrega_embalaje and of_info.fecha_estimada_embalaje %}
+                                                                <small class="text-info">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
+                                                            {% endif %}
+                                                            <div>
+                                                                <small class="text-muted"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
+                                                                {% if of_info.tiempo_real_embalaje is not none %}
+                                                                    <small class="ms-2">
+                                                                        <strong>Real:</strong> {{ of_info.tiempo_real_embalaje }}d
+                                                                    </small>
+                                                                {% endif %}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            {% set dias_calculados = none %}
+                                                            {% if of_info.of.fecha_entrega_embalaje %}
+                                                                {% set dias_calculados = (of_info.of.fecha_entrega_embalaje - fecha_actualizacion.date()).days %}
+                                                            {% elif of_info.of.fecha_entrega_fabrica %}
+                                                                {% set dias_calculados = (of_info.of.fecha_entrega_fabrica - fecha_actualizacion.date()).days %}
+                                                            {% elif of_info.of.fecha_planificada and of_info.tiempo_estimado_fabrica and of_info.tiempo_estimado_embalaje %}
+                                                                {% set fecha_estimada_final = of_info.of.fecha_planificada + timedelta(days=(of_info.tiempo_estimado_fabrica + of_info.tiempo_estimado_embalaje)|int) %}
+                                                                {% set dias_calculados = (fecha_estimada_final - fecha_actualizacion.date()).days %}
+                                                            {% endif %}
+
+                                                            {% if dias_calculados is not none %}
+                                                                {% if dias_calculados < 0 %}
+                                                                <span class="badge bg-danger">{{ dias_calculados }} días</span>
+                                                                {% elif dias_calculados < 7 %}
+                                                                <span class="badge bg-warning">{{ dias_calculados }} días</span>
+                                                                {% else %}
+                                                                <span class="badge bg-success">{{ dias_calculados }} días</span>
+                                                                {% endif %}
+                                                            {% else %}
+                                                            <small class="text-muted">Sin fecha</small>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {% if proyecto.proximo_hito %}
+                                                                <div style="font-size: 10px;">
+                                                                    <strong>{{ proyecto.proximo_hito.titulo[:12] }}{% if proyecto.proximo_hito.titulo|length > 12 %}...{% endif %}</strong><br>
+                                                                    <span class="text-muted">{{ proyecto.proximo_hito.fecha_programada.strftime('%d/%m') }}</span><br>
+                                                                    {% if proyecto.dias_proximo_hito is not none %}
+                                                                        {% if proyecto.dias_proximo_hito < 0 %}
+                                                                        <span class="badge bg-danger" style="font-size: 8px;">{{ proyecto.dias_proximo_hito }}d</span>
+                                                                        {% elif proyecto.dias_proximo_hito < 7 %}
+                                                                        <span class="badge bg-warning" style="font-size: 8px;">{{ proyecto.dias_proximo_hito }}d</span>
+                                                                        {% else %}
+                                                                        <span class="badge bg-success" style="font-size: 8px;">{{ proyecto.dias_proximo_hito }}d</span>
+                                                                        {% endif %}
+                                                                    {% endif %}
+                                                                </div>
+                                                            {% else %}
+                                                                <small class="text-muted">Sin hitos</small>
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Espaciador entre proyectos -->
+                                <tr><td colspan="10" style="height: 10px; background-color: #f8f9fa;"></td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Leyenda -->
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6><i class="fas fa-info-circle"></i> Leyenda de Prioridades:</h6>
+                            <div class="d-flex gap-3">
+                                <span class="badge" style="background-color: #dc3545;">P1-P3 (Alta)</span>
+                                <span class="badge" style="background-color: #ffc107; color: #000;">P4-P7 (Media)</span>
+                                <span class="badge" style="background-color: #0dcaf0;">P8-P15 (Normal)</span>
+                                <span class="badge" style="background-color: #198754;">P16+ (Baja)</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar-week"></i> Vista de 6 semanas desde {{ today.strftime('%d/%m/%Y') }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Gantt de Proyectos por Semanas -->
     <div class="row mb-4 gantt-proyectos-section">
         <div class="col-md-12">
@@ -480,256 +730,6 @@ Días restantes: {{ hito.dias_restantes }}">
         </div>
     </div>
 
-    <!-- Matriz Detallada de OFs -->
-    <div class="row matriz-detallada-section">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">
-                        <i class="fas fa-list-ul text-secondary"></i>
-                        Matriz Detallada de Órdenes de Fabricación
-                    </h6>
-                    <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-sm btn-outline-success" onclick="expandirTodos()">
-                            <i class="fas fa-expand-alt"></i> Expandir Todos
-                        </button>
-                        <button class="btn btn-sm btn-outline-warning" onclick="colapsarTodos()">
-                            <i class="fas fa-compress-alt"></i> Colapsar Todos
-                        </button>
-                        <button class="btn btn-sm btn-success" onclick="descargarMatrizExcel()">
-                            <i class="fas fa-file-excel"></i> Descargar Excel
-                        </button>
-                        <small class="text-muted">Actualizado: {{ now_chile().strftime('%d/%m/%Y %H:%M') }}</small>
-                        <button class="btn btn-sm btn-info" onclick="imprimirMatrizDetallada()">
-                            <i class="fas fa-print"></i> Imprimir Detalle
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-sm mb-0">
-                            <tbody>
-                                {% for proyecto in proyectos %}
-                                <!-- Encabezado del Proyecto -->
-                                <tr class="table-light">
-                                    <td colspan="10">
-                                        <div class="d-flex align-items-center">
-                                            <button class="btn btn-sm btn-outline-primary me-2 proyecto-toggle-btn"
-                                                    type="button"
-                                                    data-bs-toggle="collapse"
-                                                    data-bs-target="#proyecto-detalle-{{ proyecto.proyecto.id }}"
-                                                    aria-expanded="false">
-                                                <i class="fas fa-plus" id="icon-proyecto-detalle-{{ proyecto.proyecto.id }}"></i>
-                                            </button>
-                                            <h6 class="mb-0">
-                                                <i class="fas fa-folder text-primary"></i>
-                                                {{ proyecto.proyecto.nombre }}
-                                            </h6>
-                                            <span class="badge bg-secondary ms-2">{{ proyecto.cliente.nombre }}</span>
-                                            {% if proyecto.prioridad_maxima %}
-                                            <span class="badge ms-2
-                                                {% if proyecto.prioridad_maxima.value in ['P1', 'urgente'] %}bg-danger
-                                                {% elif proyecto.prioridad_maxima.value in ['P2', 'alta'] %}bg-warning
-                                                {% elif proyecto.prioridad_maxima.value in ['P3', 'media'] %}bg-info
-                                                {% else %}bg-success{% endif %}">
-                                                {{ proyecto.prioridad_maxima.value.upper() }}
-                                            </span>
-                                            {% endif %}
-                                            <small class="text-muted ms-2">
-                                                {{ proyecto.ofs|length }} OFs |
-                                                {{ proyecto.total_tableros }} tableros |
-                                                {{ "{:.1f}".format(proyecto.tiempo_total_fabrica) }}d fáb. |
-                                                {{ "{:.1f}".format(proyecto.tiempo_total_embalaje) }}d emb.
-                                            </small>
-                                            {% if proyecto.fecha_entrega_mas_proxima %}
-                                            <small class="text-danger ms-2">
-                                                <i class="fas fa-clock"></i>
-                                                Entrega: {{ proyecto.fecha_entrega_mas_proxima.strftime('%d/%m/%Y') }}
-                                            </small>
-                                            {% endif %}
-                                            {% if proyecto.proximo_hito %}
-                                            <small class="text-warning ms-2">
-                                                <i class="fas fa-flag"></i>
-                                                Hito: {{ proyecto.proximo_hito.titulo }} ({{ proyecto.dias_proximo_hito }} días)
-                                            </small>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <!-- OFs del Proyecto (Colapsables) -->
-                                <tr class="collapse" id="proyecto-detalle-{{ proyecto.proyecto.id }}">
-                                    <td colspan="10">
-                                        <div class="table-responsive">
-                                            <table class="table table-sm mb-0">
-                                                <thead class="table-secondary">
-                                                    <tr>
-                                                        <th style="width: 18%">OF/Glosa</th>
-                                                        <th style="width: 8%">Prioridad</th>
-                                                        <th style="width: 6%">Tableros</th>
-                                                        <th style="width: 12%">Estado</th>
-                                                        <th style="width: 12%">Fecha Planificada</th>
-                                                        <th style="width: 13%">Fecha Fab.</th>
-                                                        <th style="width: 13%">Fecha Embalaje</th>
-                                                        <th style="width: 8%">Días Rest.</th>
-                                                        <th style="width: 10%">Próximo Hito</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for of_info in proyecto.ofs %}
-                                                    <tr>
-                                                        <td>
-                                                            <div>
-                                                                <strong>{{ of_info.of.codigo }}</strong>
-                                                                {% if of_info.of.glosa %}
-                                                                <br><small class="text-muted">{{ of_info.of.glosa[:40] }}{% if of_info.of.glosa|length > 40 %}...{% endif %}</small>
-                                                                {% elif of_info.of.descripcion %}
-                                                                <br><small class="text-muted">{{ of_info.of.descripcion[:40] }}{% if of_info.of.descripcion|length > 40 %}...{% endif %}</small>
-                                                                {% endif %}
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <select class="form-select form-select-sm prioridad-select"
-                                                                    data-of-id="{{ of_info.of.id }}"
-                                                                    data-original="{{ of_info.of.prioridad_numerica or 3 }}">
-                                                                <!-- Opciones dinámicas serán cargadas por JavaScript -->
-                                                            </select>
-                                                        </td>
-                                                        <td>
-                                                            <span class="badge bg-info">{{ of_info.of.cantidad_tableros or 0 }}</span>
-                                                        </td>
-                                                        <td>
-                                                            <div style="font-size: 11px;">
-                                                                <strong class="text-primary">{{ of_info.progreso_actual.area.nombre[:12] }}{% if of_info.progreso_actual.area.nombre|length > 12 %}...{% endif %}</strong><br>
-                                                                <span class="text-muted">{{ of_info.progreso_actual.estado.nombre[:15] }}{% if of_info.progreso_actual.estado.nombre|length > 15 %}...{% endif %}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <input type="date" class="form-control form-control-sm fecha-input"
-                                                                   data-of-id="{{ of_info.of.id }}"
-                                                                   data-field="fecha_planificada"
-                                                                   value="{{ of_info.of.fecha_planificada or '' }}"
-                                                                   data-original="{{ of_info.of.fecha_planificada or '' }}">
-                                                            {% if not of_info.of.fecha_planificada %}
-                                                                <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Falta fecha</small>
-                                                            {% endif %}
-                                                        </td>
-                                                        <td>
-                                                            <input type="date" class="form-control form-control-sm fecha-input"
-                                                                   data-of-id="{{ of_info.of.id }}"
-                                                                   data-field="fecha_entrega_fabrica"
-                                                                   value="{{ of_info.of.fecha_entrega_fabrica or '' }}"
-                                                                   data-original="{{ of_info.of.fecha_entrega_fabrica or '' }}">
-                                                            {% if not of_info.of.fecha_entrega_fabrica and of_info.fecha_estimada_fabricacion %}
-                                                                <small class="text-info">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
-                                                            {% endif %}
-                                                            <div>
-                                                                <small class="text-muted"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
-                                                                {% if of_info.tiempo_real_fabrica is not none %}
-                                                                    <small class="ms-2">
-                                                                        <strong>Real:</strong> {{ of_info.tiempo_real_fabrica }}d
-                                                                    </small>
-                                                                {% endif %}
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <input type="date" class="form-control form-control-sm fecha-input"
-                                                                   data-of-id="{{ of_info.of.id }}"
-                                                                   data-field="fecha_entrega_embalaje"
-                                                                   value="{{ of_info.of.fecha_entrega_embalaje or '' }}"
-                                                                   data-original="{{ of_info.of.fecha_entrega_embalaje or '' }}">
-                                                            {% if not of_info.of.fecha_entrega_embalaje and of_info.fecha_estimada_embalaje %}
-                                                                <small class="text-info">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
-                                                            {% endif %}
-                                                            <div>
-                                                                <small class="text-muted"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
-                                                                {% if of_info.tiempo_real_embalaje is not none %}
-                                                                    <small class="ms-2">
-                                                                        <strong>Real:</strong> {{ of_info.tiempo_real_embalaje }}d
-                                                                    </small>
-                                                                {% endif %}
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            {% set dias_calculados = none %}
-                                                            {% if of_info.of.fecha_entrega_embalaje %}
-                                                                {% set dias_calculados = (of_info.of.fecha_entrega_embalaje - fecha_actualizacion.date()).days %}
-                                                            {% elif of_info.of.fecha_entrega_fabrica %}
-                                                                {% set dias_calculados = (of_info.of.fecha_entrega_fabrica - fecha_actualizacion.date()).days %}
-                                                            {% elif of_info.of.fecha_planificada and of_info.tiempo_estimado_fabrica and of_info.tiempo_estimado_embalaje %}
-                                                                {% set fecha_estimada_final = of_info.of.fecha_planificada + timedelta(days=(of_info.tiempo_estimado_fabrica + of_info.tiempo_estimado_embalaje)|int) %}
-                                                                {% set dias_calculados = (fecha_estimada_final - fecha_actualizacion.date()).days %}
-                                                            {% endif %}
-                                                            
-                                                            {% if dias_calculados is not none %}
-                                                                {% if dias_calculados < 0 %}
-                                                                <span class="badge bg-danger">{{ dias_calculados }} días</span>
-                                                                {% elif dias_calculados < 7 %}
-                                                                <span class="badge bg-warning">{{ dias_calculados }} días</span>
-                                                                {% else %}
-                                                                <span class="badge bg-success">{{ dias_calculados }} días</span>
-                                                                {% endif %}
-                                                            {% else %}
-                                                            <small class="text-muted">Sin fecha</small>
-                                                            {% endif %}
-                                                        </td>
-                                                        <td>
-                                                            {% if proyecto.proximo_hito %}
-                                                                <div style="font-size: 10px;">
-                                                                    <strong>{{ proyecto.proximo_hito.titulo[:12] }}{% if proyecto.proximo_hito.titulo|length > 12 %}...{% endif %}</strong><br>
-                                                                    <span class="text-muted">{{ proyecto.proximo_hito.fecha_programada.strftime('%d/%m') }}</span><br>
-                                                                    {% if proyecto.dias_proximo_hito is not none %}
-                                                                        {% if proyecto.dias_proximo_hito < 0 %}
-                                                                        <span class="badge bg-danger" style="font-size: 8px;">{{ proyecto.dias_proximo_hito }}d</span>
-                                                                        {% elif proyecto.dias_proximo_hito < 7 %}
-                                                                        <span class="badge bg-warning" style="font-size: 8px;">{{ proyecto.dias_proximo_hito }}d</span>
-                                                                        {% else %}
-                                                                        <span class="badge bg-success" style="font-size: 8px;">{{ proyecto.dias_proximo_hito }}d</span>
-                                                                        {% endif %}
-                                                                    {% endif %}
-                                                                </div>
-                                                            {% else %}
-                                                                <small class="text-muted">Sin hitos</small>
-                                                            {% endif %}
-                                                        </td>
-                                                    </tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <!-- Espaciador entre proyectos -->
-                                <tr><td colspan="10" style="height: 10px; background-color: #f8f9fa;"></td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Leyenda -->
-                <div class="card-footer">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h6><i class="fas fa-info-circle"></i> Leyenda de Prioridades:</h6>
-                            <div class="d-flex gap-3">
-                                <span class="badge" style="background-color: #dc3545;">P1-P3 (Alta)</span>
-                                <span class="badge" style="background-color: #ffc107; color: #000;">P4-P7 (Media)</span>
-                                <span class="badge" style="background-color: #0dcaf0;">P8-P15 (Normal)</span>
-                                <span class="badge" style="background-color: #198754;">P16+ (Baja)</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <small class="text-muted">
-                                <i class="fas fa-calendar-week"></i> Vista de 6 semanas desde {{ today.strftime('%d/%m/%Y') }}
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Leyenda -->
     <div class="row mt-3">
         <div class="col-md-12">
@@ -1067,13 +1067,13 @@ function descargarMatrizExcel() {
     link.href = '/planificacion-operacional/api/descargar-matriz-excel';
     link.style.display = 'none';
     document.body.appendChild(link);
-    
+
     // Iniciar descarga
     link.click();
-    
+
     // Limpiar
     document.body.removeChild(link);
-    
+
     // Restaurar botón después de un momento
     setTimeout(() => {
         btn.innerHTML = originalText;
@@ -1096,14 +1096,14 @@ function imprimirMatrizDetallada() {
     // Preparar valores de fechas para impresión
     const fechaInputs = document.querySelectorAll('input[type="date"]');
     const prioridadSelects = document.querySelectorAll('select.prioridad-select');
-    
+
     fechaInputs.forEach(input => {
         if (input.value) {
             // Formatear fecha para mostrar en impresión
             const fecha = new Date(input.value);
             const fechaFormateada = fecha.toLocaleDateString('es-CL');
             input.setAttribute('data-print-value', fechaFormateada);
-            
+
             // Crear span con el valor para mostrar en impresión
             if (!input.nextElementSibling || !input.nextElementSibling.classList.contains('print-date-value')) {
                 const spanFecha = document.createElement('span');
@@ -1119,7 +1119,7 @@ function imprimirMatrizDetallada() {
         const selectedOption = select.options[select.selectedIndex];
         if (selectedOption) {
             select.setAttribute('data-selected-text', selectedOption.text);
-            
+
             // Crear span con el valor para mostrar en impresión
             if (!select.nextElementSibling || !select.nextElementSibling.classList.contains('print-priority-value')) {
                 const spanPrioridad = document.createElement('span');
@@ -1144,7 +1144,7 @@ function imprimirMatrizDetallada() {
     const estadisticas = document.querySelector('.estadisticas-row');
     const headerSection = document.querySelector('.row.mb-4'); // Header principal
     const leyendaSection = document.querySelector('.row.mt-3'); // Leyenda
-    
+
     if (ganttProyectos) {
         ganttProyectos.style.display = 'none';
     }
@@ -1420,12 +1420,6 @@ function imprimirMatrizDetallada() {
     .matriz-detallada-section .table td:nth-child(8) {
         width: 8% !important;
         max-width: 8% !important;
-    }
-
-    .matriz-detallada-section .table th:nth-child(9), /* Próximo Hito */
-    .matriz-detallada-section .table td:nth-child(9) {
-        width: 10% !important;
-        max-width: 10% !important;
     }
 
     /* Ancho de columnas para gantt de proyectos */
@@ -1811,12 +1805,6 @@ function imprimirMatrizDetallada() {
     .print-matriz-detallada .matriz-detallada-section .table td:nth-child(7) {
         width: 14% !important;
         max-width: 14% !important;
-    }
-
-    .print-matriz-detallada .matriz-detallada-section .table th:nth-child(8),
-    .print-matriz-detallada .matriz-detallada-section .table td:nth-child(8) {
-        width: 8% !important;
-        max-width: 8% !important;
     }
 }
 </style>
