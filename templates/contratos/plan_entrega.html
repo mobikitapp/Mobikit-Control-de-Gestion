@@ -242,6 +242,7 @@
         </div>
     </div>
 
+    {% if plan %}
     <!-- Modal Agregar Hito -->
     <div class="modal fade" id="modalAgregarHito" tabindex="-1">
         <div class="modal-dialog">
@@ -275,6 +276,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     {% else %}
     <!-- No hay plan de entrega -->
@@ -344,6 +346,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Configurar fecha mínima como hoy
+    const today = new Date().toISOString().split('T')[0];
+    
     // Modal para completar hito
     const modalCompletarHito = document.getElementById('modalCompletarHito');
     if (modalCompletarHito) {
@@ -355,6 +360,22 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('hitoTitulo').textContent = hitoTitulo;
             document.getElementById('formCompletarHito').action = 
                 '{{ url_for("contratos.completar_hito", hito_id=0) }}'.replace('0', hitoId);
+        });
+    }
+    
+    // Modal para agregar hito
+    const modalAgregarHito = document.getElementById('modalAgregarHito');
+    if (modalAgregarHito) {
+        modalAgregarHito.addEventListener('show.bs.modal', function (event) {
+            // Configurar fecha mínima como hoy para nuevos hitos
+            const fechaInput = document.getElementById('fecha_programada');
+            if (fechaInput) {
+                fechaInput.min = today;
+                // Limpiar campos del modal
+                document.getElementById('titulo').value = '';
+                document.getElementById('descripcion').value = '';
+                fechaInput.value = '';
+            }
         });
     }
 });

@@ -658,10 +658,25 @@ def completar_hito(hito_id):
 def agregar_hito(plan_id):
     """Agregar nuevo hito al plan de entrega"""
     try:
+        # Validar datos del formulario
+        titulo = request.form.get('titulo', '').strip()
+        descripcion = request.form.get('descripcion', '').strip()
+        fecha_programada = request.form.get('fecha_programada', '').strip()
+
+        if not titulo:
+            flash('El título del hito es requerido', 'error')
+            plan = planes_entrega_service.get_plan_by_id(plan_id)
+            return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+
+        if not fecha_programada:
+            flash('La fecha programada del hito es requerida', 'error')
+            plan = planes_entrega_service.get_plan_by_id(plan_id)
+            return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+
         hito_data = {
-            'titulo': request.form.get('titulo'),
-            'descripcion': request.form.get('descripcion'),
-            'fecha_programada': request.form.get('fecha_programada')
+            'titulo': titulo,
+            'descripcion': descripcion if descripcion else None,
+            'fecha_programada': fecha_programada
         }
 
         hito = planes_entrega_service.add_hito(plan_id, hito_data, current_user.id)
@@ -673,10 +688,22 @@ def agregar_hito(plan_id):
         return redirect(url_for('contratos.plan_entrega',
                               contrato_id=plan.contrato_id))
 
+    except ValueError as e:
+        logger.error(f"Error de validación agregando hito al plan {plan_id}: {str(e)}")
+        flash(f'Error: {str(e)}', 'error')
+        try:
+            plan = planes_entrega_service.get_plan_by_id(plan_id)
+            return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+        except:
+            return redirect(url_for('contratos.index'))
     except Exception as e:
         logger.error(f"Error agregando hito al plan {plan_id}: {str(e)}")
-        flash('Error al agregar hito', 'error')
-        return redirect(request.referrer or url_for('contratos.index'))
+        flash('Error interno al agregar hito', 'error')
+        try:
+            plan = planes_entrega_service.get_plan_by_id(plan_id)
+            return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+        except:
+            return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/api/proximos-hitos')
 @require_login
