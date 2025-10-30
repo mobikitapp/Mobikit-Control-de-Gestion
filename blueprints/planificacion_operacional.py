@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import current_user, login_required
 from sqlalchemy import and_, or_, func, extract
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 import calendar
@@ -81,6 +81,9 @@ def planificacion_prioridades():
 
         # Obtener datos de la matriz de planificación
         datos_matriz = service.get_matriz_planificacion_prioridades()
+
+        # Agregar timedelta para cálculos en el template
+        datos_matriz['timedelta'] = timedelta
 
         return render_template('planificacion_operacional/planificacion_prioridades.html', 
                              calendar=calendar, **datos_matriz)

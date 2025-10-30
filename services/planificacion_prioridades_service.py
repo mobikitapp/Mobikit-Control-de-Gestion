@@ -46,16 +46,16 @@ class PlanificacionPrioridadesService:
                             'contrato': contrato,
                             'dias_restantes': (hito.fecha_programada - hoy).days if hito.fecha_programada >= hoy else 0
                         }
-                        
+
                         hitos_todos.append(hito_data)
-                        
+
                         # Solo agregar hitos pendientes futuros o de hoy
                         if hito.estado == EstadoHitoEntrega.PENDIENTE and hito.fecha_programada >= hoy:
                             hitos_pendientes.append(hito_data)
 
             # Ordenar hitos pendientes por fecha
             hitos_pendientes.sort(key=lambda x: x['fecha_programada'])
-            
+
             # Encontrar próximo hito
             proximo_hito = hitos_pendientes[0] if hitos_pendientes else None
 
@@ -168,7 +168,7 @@ class PlanificacionPrioridadesService:
                 # Calcular días hasta entrega (usar la fecha más próxima disponible)
                 dias_hasta_entrega = None
                 fecha_referencia = None
-                
+
                 # Priorizar fecha de entrega embalaje, luego fábrica, luego planificada
                 if of.fecha_entrega_embalaje:
                     fecha_referencia = of.fecha_entrega_embalaje
@@ -180,7 +180,7 @@ class PlanificacionPrioridadesService:
                         fecha_referencia = of.fecha_planificada + timedelta(days=int(tiempo_fabrica + tiempo_embalaje))
                     else:
                         fecha_referencia = of.fecha_planificada
-                
+
                 if fecha_referencia:
                     dias_hasta_entrega = (fecha_referencia - date.today()).days
 
@@ -206,7 +206,7 @@ class PlanificacionPrioridadesService:
 
                 # Obtener información de tiempos de procesamiento por área
                 tiempos_info = self.get_tiempos_procesamiento_of(of.id)
-                
+
                 of_data = {
                     'of': of,
                     'progreso_actual': progreso,
@@ -270,7 +270,7 @@ class PlanificacionPrioridadesService:
                 if proyecto_id not in proyectos_agrupados:
                     # Obtener hitos de entrega del proyecto
                     hitos_info = self.get_hitos_entrega_proyecto(proyecto_id)
-                    
+
                     proyectos_agrupados[proyecto_id] = {
                         'proyecto': of_info['proyecto'],
                         'cliente': of_info['cliente'],
@@ -331,7 +331,7 @@ class PlanificacionPrioridadesService:
                 for of_info in proyecto_data['ofs']:
                     if of_info['dias_hasta_entrega'] is not None:
                         dias_restantes_ofs.append(of_info['dias_hasta_entrega'])
-                
+
                 # Si hay OFs con días hasta entrega, usar el mínimo, sino usar días próximo hito
                 if dias_restantes_ofs:
                     proyecto_data['dias_restantes_min'] = min(dias_restantes_ofs)
@@ -348,7 +348,7 @@ class PlanificacionPrioridadesService:
             proyectos_gantt = []
             hoy = date.today()
             fecha_fin_gantt = hoy + timedelta(weeks=6)
-            
+
             for proyecto_data in proyectos_ordenados:
                 # Filtrar hitos que caen dentro del rango de 6 semanas del gantt
                 hitos_en_gantt = []
@@ -357,7 +357,7 @@ class PlanificacionPrioridadesService:
                         # Calcular posición porcentual dentro del rango de 6 semanas
                         dias_desde_inicio = (hito['fecha_programada'] - hoy).days
                         posicion_porcentual = (dias_desde_inicio / (6 * 7)) * 100  # 6 semanas = 42 días
-                        
+
                         hitos_en_gantt.append({
                             'titulo': hito['titulo'],
                             'fecha_programada': hito['fecha_programada'],
@@ -365,7 +365,7 @@ class PlanificacionPrioridadesService:
                             'posicion_porcentual': max(0, min(100, posicion_porcentual)),  # Clamp 0-100%
                             'contrato': hito['contrato']
                         })
-                
+
                 gantt_proyecto = {
                     'nombre': proyecto_data['proyecto'].nombre,
                     'cliente_nombre': proyecto_data['cliente'].nombre,
@@ -379,14 +379,15 @@ class PlanificacionPrioridadesService:
 
             # Obtener estadísticas generales de tiempos por área
             estadisticas_tiempos = self.get_estadisticas_tiempos_por_area()
-            
+
             return {
                 'proyectos': proyectos_ordenados,
                 'proyectos_gantt': proyectos_gantt,
                 'estadisticas': estadisticas,
                 'estadisticas_tiempos': estadisticas_tiempos,
                 'fecha_actualizacion': datetime.now(),
-                'timedelta': timedelta  # Para usar en template
+                'timedelta': timedelta,
+                'today': datetime.now().date()
             }
 
         except Exception as e:
@@ -404,7 +405,8 @@ class PlanificacionPrioridadesService:
                 },
                 'estadisticas_tiempos': {'success': False, 'estadisticas_por_area': {}, 'total_areas_con_datos': 0},
                 'fecha_actualizacion': datetime.now(),
-                'timedelta': timedelta
+                'timedelta': timedelta,
+                'today': datetime.now().date()
             }
 
     def actualizar_fechas_of(self, of_id: int, fecha_planificada: Optional[date] = None, 
@@ -442,7 +444,7 @@ class PlanificacionPrioridadesService:
             if cambios_realizados:
                 # Actualizar timestamp de modificación
                 of.updated_at = datetime.now()
-                
+
                 # Commit explícito
                 db.session.commit()
                 print(f"Fechas actualizadas correctamente para OF {of_id}")
@@ -465,7 +467,7 @@ class PlanificacionPrioridadesService:
         """
         try:
             from datetime import date, timedelta
-            
+
             # Obtener todas las OFs en producción sin ordenar primero
             ofs_query = (db.session.query(OrdenFabricacion)
                         .join(OrdenAreaProgreso, 
@@ -497,15 +499,15 @@ class PlanificacionPrioridadesService:
             def calcular_fecha_entrega_dinamica(of):
                 """Calcula la fecha de entrega más apropiada para una OF"""
                 hoy = date.today()
-                
+
                 # Prioridad 1: Fecha de entrega embalaje si existe
                 if of.fecha_entrega_embalaje:
                     return of.fecha_entrega_embalaje, 1
-                
+
                 # Prioridad 2: Fecha de entrega fábrica si existe
                 if of.fecha_entrega_fabrica:
                     return of.fecha_entrega_fabrica, 2
-                
+
                 # Prioridad 3: Fecha planificada + tiempo estimado
                 if of.fecha_planificada:
                     tiempo_fabrica = self.planificacion_service.calcular_tiempo_estimado_fabrica(
@@ -516,7 +518,7 @@ class PlanificacionPrioridadesService:
                     )
                     fecha_estimada = of.fecha_planificada + timedelta(days=int(tiempo_fabrica + tiempo_embalaje))
                     return fecha_estimada, 3
-                
+
                 # Prioridad 4: Fecha muy lejana para OFs sin fechas (baja prioridad)
                 return hoy + timedelta(days=9999), 4
 
@@ -700,7 +702,7 @@ class PlanificacionPrioridadesService:
                 # Calcular tiempo en área dinámicamente
                 tiempo_real_horas = None
                 tiempo_transcurrido_actual = None
-                
+
                 if progreso.es_actual:
                     # Si es actual, calcular tiempo transcurrido hasta ahora
                     from datetime import datetime
@@ -717,7 +719,7 @@ class PlanificacionPrioridadesService:
                                          )
                                          .order_by(OrdenAreaProgreso.fecha_ingreso_area.asc())
                                          .first())
-                    
+
                     if siguiente_progreso:
                         tiempo_en_area = siguiente_progreso.fecha_ingreso_area - progreso.fecha_ingreso_area
                         tiempo_real_horas = round(tiempo_en_area.total_seconds() / 3600, 2)
@@ -770,16 +772,16 @@ class PlanificacionPrioridadesService:
                                      )
                                      .order_by(OrdenAreaProgreso.fecha_ingreso_area.asc())
                                      .first())
-                
+
                 if not siguiente_progreso:
                     continue  # Skip si no podemos calcular el tiempo
-                    
+
                 tiempo_en_area = siguiente_progreso.fecha_ingreso_area - progreso.fecha_ingreso_area
                 tiempo_real = round(tiempo_en_area.total_seconds() / 3600, 2)
-                
+
                 if tiempo_real <= 0:
                     continue  # Skip tiempos inválidos
-                
+
                 area_tipo = progreso.area.tipo.value
 
                 if area_tipo not in estadisticas_areas:
