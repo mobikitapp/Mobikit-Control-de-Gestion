@@ -409,7 +409,9 @@ class PlanificacionPrioridadesService:
             }
 
         except Exception as e:
+            import traceback
             print(f"Error generando matriz de planificación: {str(e)}")
+            print(f"Traceback completo:\n{traceback.format_exc()}")
             return {
                 'proyectos': [],
                 'proyectos_gantt': [],
