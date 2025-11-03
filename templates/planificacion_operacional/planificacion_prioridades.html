@@ -873,93 +873,61 @@ function setupEventListeners() {
 }
 
 function setupButtonListeners() {
-    console.log('[DEBUG] Configurando listeners de botones...');
-    
     // Expandir todos
     const btnExpandirTodos = document.getElementById('btn-expandir-todos');
     if (btnExpandirTodos) {
-        console.log('[DEBUG] Botón expandir-todos encontrado');
         btnExpandirTodos.addEventListener('click', function() {
-            console.log('[DEBUG] Click en expandir-todos');
             expandirTodos();
         });
-    } else {
-        console.warn('[WARNING] Botón expandir-todos NO encontrado');
     }
 
     // Colapsar todos
     const btnColapsarTodos = document.getElementById('btn-colapsar-todos');
     if (btnColapsarTodos) {
-        console.log('[DEBUG] Botón colapsar-todos encontrado');
         btnColapsarTodos.addEventListener('click', function() {
-            console.log('[DEBUG] Click en colapsar-todos');
             colapsarTodos();
         });
-    } else {
-        console.warn('[WARNING] Botón colapsar-todos NO encontrado');
     }
 
     // Descargar Excel
     const btnDescargarExcel = document.getElementById('btn-descargar-excel');
     if (btnDescargarExcel) {
-        console.log('[DEBUG] Botón descargar-excel encontrado');
         btnDescargarExcel.addEventListener('click', function(e) {
-            console.log('[DEBUG] Click en descargar-excel');
             descargarMatrizExcel(e);
         });
-    } else {
-        console.warn('[WARNING] Botón descargar-excel NO encontrado');
     }
 
     // Imprimir Detalle
     const btnImprimirDetalle = document.getElementById('btn-imprimir-detalle');
     if (btnImprimirDetalle) {
-        console.log('[DEBUG] Botón imprimir-detalle encontrado');
         btnImprimirDetalle.addEventListener('click', function() {
-            console.log('[DEBUG] Click en imprimir-detalle');
             imprimirMatrizDetallada();
         });
-    } else {
-        console.warn('[WARNING] Botón imprimir-detalle NO encontrado');
     }
 
     // Asignar Prioridades
     const btnAsignarPrioridades = document.getElementById('btn-asignar-prioridades');
     if (btnAsignarPrioridades) {
-        console.log('[DEBUG] Botón asignar-prioridades encontrado');
         btnAsignarPrioridades.addEventListener('click', function(e) {
-            console.log('[DEBUG] Click en asignar-prioridades');
             asignarPrioridadesAutomaticas(e);
         });
-    } else {
-        console.warn('[WARNING] Botón asignar-prioridades NO encontrado');
     }
 
     // Imprimir Gantt
     const btnImprimirGantt = document.getElementById('btn-imprimir-gantt');
     if (btnImprimirGantt) {
-        console.log('[DEBUG] Botón imprimir-gantt encontrado');
         btnImprimirGantt.addEventListener('click', function() {
-            console.log('[DEBUG] Click en imprimir-gantt');
             imprimirTabla();
         });
-    } else {
-        console.warn('[WARNING] Botón imprimir-gantt NO encontrado');
     }
 
     // Actualizar
     const btnActualizar = document.getElementById('btn-actualizar');
     if (btnActualizar) {
-        console.log('[DEBUG] Botón actualizar encontrado');
         btnActualizar.addEventListener('click', function() {
-            console.log('[DEBUG] Click en actualizar');
             location.reload();
         });
-    } else {
-        console.warn('[WARNING] Botón actualizar NO encontrado');
     }
-    
-    console.log('[DEBUG] Todos los listeners configurados');
 }
 
 function setupDropdownListeners() {
@@ -1198,24 +1166,30 @@ function generarGraficoCargaSemanal() {
         };
     }
     
-    // Procesar datos de proyectos para agrupar por semana
-    {% for proyecto in proyectos %}
-        {% for of_info in proyecto.ofs %}
-            {% if of_info.of.fecha_planificada %}
-                const fechaOf = new Date('{{ of_info.of.fecha_planificada.isoformat() }}');
-                const tableros = {{ of_info.of.cantidad_tableros or 0 }};
-                
-                // Calcular semana de la OF
-                const añoOf = fechaOf.getFullYear();
-                const semanaOf = getISOWeek(fechaOf);
-                const claveOf = `${añoOf}-S${semanaOf.toString().padStart(2, '0')}`;
-                
-                if (cargaPorSemana[claveOf]) {
-                    cargaPorSemana[claveOf].tableros += tableros;
-                }
-            {% endif %}
-        {% endfor %}
-    {% endfor %}
+    // Procesar datos de proyectos pasados desde el servidor
+    const proyectosData = {{ proyectos_gantt | tojson | safe }};
+    
+    if (proyectosData && Array.isArray(proyectosData)) {
+        proyectosData.forEach(function(proyecto) {
+            if (proyecto.ofs && Array.isArray(proyecto.ofs)) {
+                proyecto.ofs.forEach(function(of_info) {
+                    if (of_info.fecha_planificada) {
+                        const fechaOf = new Date(of_info.fecha_planificada);
+                        const tableros = of_info.cantidad_tableros || 0;
+                        
+                        // Calcular semana de la OF
+                        const añoOf = fechaOf.getFullYear();
+                        const semanaOf = getISOWeek(fechaOf);
+                        const claveOf = `${añoOf}-S${semanaOf.toString().padStart(2, '0')}`;
+                        
+                        if (cargaPorSemana[claveOf]) {
+                            cargaPorSemana[claveOf].tableros += tableros;
+                        }
+                    }
+                });
+            }
+        });
+    }
     
     // Preparar datos para el gráfico
     const semanas = Object.keys(cargaPorSemana).sort();

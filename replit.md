@@ -78,7 +78,7 @@ The system utilizes a modular blueprint architecture, separating concerns into d
 - **Images**: JPEG, PNG.
 
 ## Recent Changes
-- **2025-11-03**: **Fixed production environment issues in Planificación y Prioridades module** - Resolved issue where interactive buttons (Print, Expand/Collapse, Priority assignment, Excel download) were not working in the published app (production) but worked in preview. Root cause: Inline `onclick` event handlers were blocked by Content Security Policy (CSP) in production, and button event listeners were being attached AFTER an async fetch, causing timing issues. Solution:
+- **2025-11-03**: **Fixed production environment issues in Planificación y Prioridades module** - Resolved issue where interactive buttons (Print, Expand/Collapse, Priority assignment, Excel download) were not working in the published app (production) but worked in preview. Root cause: JavaScript syntax error caused by Jinja2 template loops generating multiple variable declarations in the same scope (`const fechaOf` redeclaration), combined with CSP blocking inline event handlers and timing issues with async operations. Solution:
   * Removed all inline `onclick` event handlers from action buttons (7 buttons total)
   * Added unique IDs to each button for reliable DOM selection
   * Created `setupButtonListeners()` function that attaches event listeners immediately on DOMContentLoaded
