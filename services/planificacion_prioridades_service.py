@@ -366,16 +366,24 @@ class PlanificacionPrioridadesService:
                             'contrato_id': hito['contrato'].id if hito.get('contrato') else None
                         })
 
-                # Serializar las OFs para el gantt (solo datos necesarios)
+                # Convert OFs data to serializable format for Gantt chart
                 ofs_serializadas = []
                 for of_info in proyecto_data['ofs']:
-                    ofs_serializadas.append({
-                        'id': of_info['of'].id,
-                        'codigo': of_info['of'].codigo,
-                        'cantidad_tableros': of_info['of'].cantidad_tableros or 0,
-                        'fecha_planificada': of_info['of'].fecha_planificada.isoformat() if of_info['of'].fecha_planificada else None,
-                        'prioridad_numerica': of_info['of'].prioridad_numerica
-                    })
+                    # Access the OF object from the of_info dictionary
+                    of_obj = of_info['of']
+                    
+                    of_serializable = {
+                        'id': of_obj.id,
+                        'codigo': of_obj.codigo,
+                        'cantidad_tableros': of_obj.cantidad_tableros or 0,
+                        'fecha_planificada': of_obj.fecha_planificada.isoformat() if of_obj.fecha_planificada else None,
+                        'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica.isoformat() if of_obj.fecha_entrega_fabrica else None,
+                        'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje.isoformat() if of_obj.fecha_entrega_embalaje else None,
+                        'prioridad_numerica': of_obj.prioridad_numerica or 99,
+                        'tiempo_estimado_fabrica': of_info.get('tiempo_estimado_fabrica', 0),
+                        'tiempo_estimado_embalaje': of_info.get('tiempo_estimado_embalaje', 0)
+                    }
+                    ofs_serializadas.append(of_serializable)
 
                 gantt_proyecto = {
                     'nombre': proyecto_data['proyecto'].nombre,
