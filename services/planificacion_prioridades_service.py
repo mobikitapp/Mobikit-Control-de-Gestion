@@ -369,21 +369,41 @@ class PlanificacionPrioridadesService:
                 # Convert OFs data to serializable format for Gantt chart
                 ofs_serializadas = []
                 for of_info in proyecto_data['ofs']:
-                    # Access the OF object from the of_info dictionary
-                    of_obj = of_info['of']
-                    
-                    of_serializable = {
-                        'id': of_obj.id,
-                        'codigo': of_obj.codigo,
-                        'cantidad_tableros': of_obj.cantidad_tableros or 0,
-                        'fecha_planificada': of_obj.fecha_planificada.isoformat() if of_obj.fecha_planificada else None,
-                        'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica.isoformat() if of_obj.fecha_entrega_fabrica else None,
-                        'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje.isoformat() if of_obj.fecha_entrega_embalaje else None,
-                        'prioridad_numerica': of_obj.prioridad_numerica or 99,
-                        'tiempo_estimado_fabrica': of_info.get('tiempo_estimado_fabrica', 0),
-                        'tiempo_estimado_embalaje': of_info.get('tiempo_estimado_embalaje', 0)
-                    }
-                    ofs_serializadas.append(of_serializable)
+                    try:
+                        # Debug: Check if of_info has the expected structure
+                        if not isinstance(of_info, dict):
+                            print(f"Error: of_info is not a dict: {type(of_info)} - {of_info}")
+                            continue
+
+                        if 'of' not in of_info:
+                            print(f"Error: 'of' key not found in of_info. Keys: {list(of_info.keys())}")
+                            continue
+
+                        # Access the OF object from the of_info dictionary
+                        of_obj = of_info['of']
+
+                        if not hasattr(of_obj, 'id'):
+                            print(f"Error: of_obj doesn't have expected attributes: {type(of_obj)} - {of_obj}")
+                            continue
+
+                        of_serializable = {
+                            'id': of_obj.id,
+                            'codigo': of_obj.codigo,
+                            'cantidad_tableros': of_obj.cantidad_tableros or 0,
+                            'fecha_planificada': of_obj.fecha_planificada.isoformat() if of_obj.fecha_planificada else None,
+                            'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica.isoformat() if of_obj.fecha_entrega_fabrica else None,
+                            'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje.isoformat() if of_obj.fecha_entrega_embalaje else None,
+                            'prioridad_numerica': of_obj.prioridad_numerica or 99,
+                            'tiempo_estimado_fabrica': of_info.get('tiempo_estimado_fabrica', 0),
+                            'tiempo_estimado_embalaje': of_info.get('tiempo_estimado_embalaje', 0)
+                        }
+                        ofs_serializadas.append(of_serializable)
+
+                    except Exception as e:
+                        print(f"Error processing OF for Gantt chart: {str(e)}")
+                        print(f"of_info type: {type(of_info)}")
+                        print(f"of_info content: {of_info}")
+                        continue
 
                 gantt_proyecto = {
                     'nombre': proyecto_data['proyecto'].nombre,
