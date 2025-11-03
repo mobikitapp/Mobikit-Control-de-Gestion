@@ -371,7 +371,7 @@ class PlanificacionPrioridadesService:
                 for of_info in proyecto_data['ofs']:
                     ofs_serializadas.append({
                         'id': of_info['of'].id,
-                        'numero': of_info['of'].numero,
+                        'codigo': of_info['of'].codigo,
                         'cantidad_tableros': of_info['of'].cantidad_tableros or 0,
                         'fecha_planificada': of_info['of'].fecha_planificada.isoformat() if of_info['of'].fecha_planificada else None,
                         'prioridad_numerica': of_info['of'].prioridad_numerica
