@@ -358,62 +358,20 @@ class PlanificacionPrioridadesService:
                         dias_desde_inicio = (hito['fecha_programada'] - hoy).days
                         posicion_porcentual = (dias_desde_inicio / (6 * 7)) * 100  # 6 semanas = 42 días
 
-                        # Ensure fecha_programada is a date object before calling isoformat
-                        fecha_programada = hito['fecha_programada']
-                        if isinstance(fecha_programada, str):
-                            # If it's already a string, don't convert
-                            fecha_str = fecha_programada
-                        elif hasattr(fecha_programada, 'isoformat'):
-                            # If it's a date/datetime object, convert to string
-                            fecha_str = fecha_programada.isoformat()
-                        else:
-                            # Fallback for other types
-                            fecha_str = str(fecha_programada)
-                            
                         hitos_en_gantt.append({
                             'titulo': hito['titulo'],
-                            'fecha_programada': fecha_str,
+                            'fecha_programada': hito['fecha_programada'],
                             'dias_restantes': hito['dias_restantes'],
                             'posicion_porcentual': max(0, min(100, posicion_porcentual)),  # Clamp 0-100%
-                            'contrato_id': hito['contrato'].id if hito['contrato'] else None,
-                            'contrato_codigo': hito['contrato'].codigo if hito['contrato'] else None
+                            'contrato': hito['contrato']
                         })
-
-                # Convert OFs data to serializable format
-                ofs_serializable = []
-                for of_info in proyecto_data['ofs']:
-                    # Helper function to safely convert dates
-                    def safe_date_convert(date_obj):
-                        if date_obj is None:
-                            return None
-                        if isinstance(date_obj, str):
-                            return date_obj
-                        if hasattr(date_obj, 'isoformat'):
-                            return date_obj.isoformat()
-                        return str(date_obj)
-                    
-                    of_serializable = {
-                        'id': of_info['of'].id,
-                        'codigo': of_info['of'].codigo,
-                        'cantidad_tableros': of_info['of'].cantidad_tableros,
-                        'fecha_planificada': safe_date_convert(of_info['of'].fecha_planificada),
-                        'fecha_entrega_fabrica': safe_date_convert(of_info['of'].fecha_entrega_fabrica),
-                        'fecha_entrega_embalaje': safe_date_convert(of_info['of'].fecha_entrega_embalaje),
-                        'prioridad_numerica': of_info['of'].prioridad_numerica,
-                        'dias_hasta_entrega': of_info['dias_hasta_entrega'],
-                        'progreso_actual': {
-                            'area_nombre': of_info['progreso_actual'].area.nombre,
-                            'estado_nombre': of_info['progreso_actual'].estado.nombre
-                        }
-                    }
-                    ofs_serializable.append(of_serializable)
 
                 gantt_proyecto = {
                     'nombre': proyecto_data['proyecto'].nombre,
                     'cliente_nombre': proyecto_data['cliente'].nombre,
                     'ofs_activas': len(proyecto_data['ofs']),
                     'total_tableros': proyecto_data['total_tableros'],
-                    'ofs': ofs_serializable,
+                    'ofs': proyecto_data['ofs'],
                     'hitos_entrega': hitos_en_gantt,
                     'dias_proximo_hito': proyecto_data['dias_proximo_hito']
                 }
@@ -453,7 +411,6 @@ class PlanificacionPrioridadesService:
                     'tiempo_total_embalaje': 0
                 },
                 'estadisticas_tiempos': {'success': False, 'estadisticas_por_area': {}, 'total_areas_con_datos': 0},
-                'capacidad_semanal': 100,
                 'fecha_actualizacion': datetime.now(),
                 'timedelta': timedelta,
                 'today': datetime.now().date()
