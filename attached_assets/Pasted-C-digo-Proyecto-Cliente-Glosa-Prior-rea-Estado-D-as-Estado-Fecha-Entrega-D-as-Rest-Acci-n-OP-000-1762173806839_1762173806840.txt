@@ -1,0 +1,177 @@
+Código	Proyecto	Cliente	Glosa	Prior.	Área	Estado	Días Estado	Fecha Entrega	Días Rest.	Acción
+OP-0001
+Edificio Lautaro
+RALUN
+VANITORIOS TOTAL PROYECTO
+P1	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0002
+Parque Lourdes 1
+INGEVEC
+B1 BASES LAV LOURDES COMPLETO
+P2	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0016
+Lira I y Lira II
+MAESTRA
+BASES + LAVAPLATOS FABRICACIÓN COMPLETA
+P3	
+Bodega
+Listo para Despacho
+5d	Sin fecha	-	
+OP-0020
+La Granja 3
+BOETSCH
+INTERIORES DE CLOSET PISOS 9 AL 11 BLANCO 15MM
+P3	
+Fábrica
+Enviado a Fabricación
+5d	Sin fecha	-	
+OP-0021
+Rodó
+COLLICO
+COCINAS PISO 3 AL 5
+P3	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0022
+Rodó
+COLLICO
+CLOSET PISOS 3 AL 5 (PIERNAS E INTERIORES)
+P3	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0003
+Parque Lourdes 1
+INGEVEC
+MURAL M1 (COMPLETO) LOURDES
+P3	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0004
+Parque Lourdes 1
+INGEVEC
+PEDIDO 1 Y 2 CL2 PARQUE LOURDES
+P4	
+Embalaje
+Embalando
+5d	Sin fecha	-	
+OP-0005
+Parque Lourdes 1
+INGEVEC
+CL 2 PEDIDOS 1 Y 2 (PARQUE LOURDES)
+P5	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0006
+Terrazas de Curauma
+GALILEA-CALAN
+COCINAS PARTE BLANCA 15MM (9 CASAS)
+P6	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0007
+Terrazas de Curauma
+GALILEA-CALAN
+COCIANS PARTE ROBLE SANTANA (9 CASAS)
+P7	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0008
+LASKA
+GyL
+BASES CON CORTE (ORDEN COMPLETA)
+P8	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0009
+LASKA
+GyL
+DESPENSEROS (COMPLETO)
+P9	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0010
+Plaza Alcanzable
+ICAFAL
+CLOSET PILOTO BLANCO 15MM
+P10	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0011
+Plaza Alcanzable
+ICAFAL
+CLOSET PILOTO PARTE BLANCO 18MM
+P11	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0012
+Plaza Alcanzable
+ICAFAL
+CLOSET PILOTO PARTE BLANCO 18MM
+P12	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0013
+Plaza Alcanzable
+ICAFAL
+COCINA PILOTO BCO 15MM
+P13	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0014
+Plaza Alcanzable
+ICAFAL
+COCINAS PILOTO PARTE BLANCO 18MM
+P14	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0015
+Plaza Alcanzable
+ICAFAL
+COCINA PILOTO PARTE VERDE GLACIAR 18MM
+P15	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0017
+Los Quilos
+INM. GAMERO
+COCINA Y CLOSET PILOTO
+P16	
+Fábrica
+Enviado a Fabricación
+5d	Sin fecha	-	
+OP-0018
+La Granja 3
+BOETSCH
+CLOSET MELAMINA BLANCA PISOS 9 AL 11
+P17	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
+OP-0019
+Los Molinos
+ROMERAL
+CLOSET OC CG012-402
+P18	
+Pendientes de Fabricación
+Pendiente Aprobación Diseño
+5d	Sin fecha	-	
