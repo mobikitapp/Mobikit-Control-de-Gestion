@@ -574,9 +574,9 @@ Días restantes: {{ hito.dias_restantes }}">
                                                         </td>
                                                         <td class="text-center">
                                                             <span class="badge
-                                                                {% if of_info['prioridad_numerica'] <= 3 %}bg-danger
-                                                                {% elif of_info['prioridad_numerica'] <= 7 %}bg-warning
-                                                                {% elif of_info['prioridad_numerica'] <= 15 %}bg-info
+                                                                {% if of_info['prioridad_numerica'] and of_info['prioridad_numerica'] <= 3 %}bg-danger
+                                                                {% elif of_info['prioridad_numerica'] and of_info['prioridad_numerica'] <= 7 %}bg-warning
+                                                                {% elif of_info['prioridad_numerica'] and of_info['prioridad_numerica'] <= 15 %}bg-info
                                                                 {% else %}bg-success{% endif %}"
                                                                 style="font-size: 9px;">
                                                                 P{{ of_info['prioridad_numerica'] or 99 }}
@@ -603,32 +603,18 @@ Días restantes: {{ hito.dias_restantes }}">
                                                                 <small class="badge bg-warning text-dark" style="font-size: 9px;">{{ of_info['fecha_entrega_fabrica'].split('T')[0] if 'T' in of_info['fecha_entrega_fabrica'] else of_info['fecha_entrega_fabrica'] }}</small>
                                                             {% else %}
                                                                 <small class="text-muted" style="font-size: 9px;">Sin fecha</small>
-                                                                {% if of_info.fecha_estimada_fabricacion %}
-                                                                <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
-                                                                {% endif %}
                                                             {% endif %}
                                                             <br>
-                                                            {% if of_info.tiempo_real_fabrica is not none %}
-                                                                <small class="text-success" style="font-size: 8px;"><strong>Real:</strong> {{ of_info.tiempo_real_fabrica }}d</small>
-                                                            {% else %}
-                                                                <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_fabrica) }}d</small>
-                                                            {% endif %}
+                                                            <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> 5.0d</small>
                                                         </td>
                                                         <td>
                                                             {% if of_info['fecha_entrega_embalaje'] %}
                                                                 <small class="badge bg-success" style="font-size: 9px;">{{ of_info['fecha_entrega_embalaje'].split('T')[0] if 'T' in of_info['fecha_entrega_embalaje'] else of_info['fecha_entrega_embalaje'] }}</small>
                                                             {% else %}
                                                                 <small class="text-muted" style="font-size: 9px;">Sin fecha</small>
-                                                                {% if of_info.fecha_estimada_embalaje %}
-                                                                <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
-                                                                {% endif %}
                                                             {% endif %}
                                                             <br>
-                                                            {% if of_info.tiempo_real_embalaje is not none %}
-                                                                <small class="text-success" style="font-size: 8px;"><strong>Real:</strong> {{ of_info.tiempo_real_embalaje }}d</small>
-                                                            {% else %}
-                                                                <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> {{ "{:.1f}".format(of_info.tiempo_estimado_embalaje) }}d</small>
-                                                            {% endif %}
+                                                            <small class="text-muted" style="font-size: 8px;"><strong>Est:</strong> 3.0d</small>
                                                         </td>
                                                     </tr>
                                                     {% endfor %}
