@@ -78,6 +78,14 @@ The system utilizes a modular blueprint architecture, separating concerns into d
 - **Images**: JPEG, PNG.
 
 ## Recent Changes
+- **2025-11-03**: **Fixed production environment issues in Planificación y Prioridades module** - Resolved issue where interactive buttons (Print, Expand/Collapse, Priority assignment, Excel download) were not working in the published app (production) but worked in preview. Root cause: Inline `onclick` event handlers were blocked by Content Security Policy (CSP) in production. Solution: Replaced all inline `onclick` attributes with proper event listeners attached via JavaScript. Changes:
+  * Removed inline event handlers from all action buttons (7 buttons total)
+  * Added unique IDs to each button for reliable DOM selection
+  * Created `setupButtonListeners()` function to attach event listeners after DOM loads
+  * Maintained all existing functionality: expand/collapse all projects, print preview, automatic priority assignment, Excel export, and page refresh
+  * Fixed JavaScript error in Gantt chart: Changed data source from `proyectos` to `proyectos_gantt` and corrected property access pattern to `of_info.fecha_planificada` (removed nested `.of.` reference)
+  * Confirmed template correctly handles Manufacturing Orders without assigned dates using conditional validation `if (of_info.fecha_planificada)`
+  * This ensures the module works identically in both development (preview) and production (published) environments.
 - **2025-10-02 (afternoon)**: **Comprehensive update to training module (capacitación)** - Completely revised the training content to accurately reflect real application functionalities without mentioning permissions or inventing non-existent features. Key changes:
   * **Áreas de Producción**: Corrected production flow with 5 real areas (Pendiente Fabricación, Fabrica, Embalaje, Bodega, Despacho) and 13 Manufacturing Order states properly documented. Added dashboard, history, and intelligent advancement features.
   * **Comercial**: Completely rewritten with real features: vendor list with statistics, commercial project management, tasks, monthly planning matrix, objectives and commissions.

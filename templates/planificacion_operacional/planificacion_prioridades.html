@@ -122,17 +122,17 @@
                         Matriz Detallada de Órdenes de Fabricación
                     </h6>
                     <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-sm btn-outline-success" onclick="expandirTodos()">
+                        <button class="btn btn-sm btn-outline-success" id="btn-expandir-todos">
                             <i class="fas fa-expand-alt"></i> Expandir Todos
                         </button>
-                        <button class="btn btn-sm btn-outline-warning" onclick="colapsarTodos()">
+                        <button class="btn btn-sm btn-outline-warning" id="btn-colapsar-todos">
                             <i class="fas fa-compress-alt"></i> Colapsar Todos
                         </button>
-                        <button class="btn btn-sm btn-success" onclick="descargarMatrizExcel()">
+                        <button class="btn btn-sm btn-success" id="btn-descargar-excel">
                             <i class="fas fa-file-excel"></i> Descargar Excel
                         </button>
                         <small class="text-muted">Actualizado: {{ now_chile().strftime('%d/%m/%Y %H:%M') }}</small>
-                        <button class="btn btn-sm btn-info" onclick="imprimirMatrizDetallada()">
+                        <button class="btn btn-sm btn-info" id="btn-imprimir-detalle">
                             <i class="fas fa-print"></i> Imprimir Detalle
                         </button>
                     </div>
@@ -378,13 +378,13 @@
                             <span class="badge bg-success me-1 ms-2">E</span>Embalaje
                             <span class="text-danger fw-bold ms-2">|</span>Hoy
                         </div>
-                        <button class="btn btn-sm btn-success me-2" onclick="asignarPrioridadesAutomaticas()">
+                        <button class="btn btn-sm btn-success me-2" id="btn-asignar-prioridades">
                             <i class="fas fa-magic"></i> Asignar P1-P{N} Automático
                         </button>
-                        <button class="btn btn-sm btn-info me-2" onclick="imprimirTabla()">
+                        <button class="btn btn-sm btn-info me-2" id="btn-imprimir-gantt">
                             <i class="fas fa-print"></i> Imprimir
                         </button>
-                        <button class="btn btn-sm btn-primary" onclick="location.reload()">
+                        <button class="btn btn-sm btn-primary" id="btn-actualizar">
                             <i class="fas fa-sync-alt"></i> Actualizar
                         </button>
                     </div>
@@ -838,7 +838,7 @@ function cargarOpcionesPrioridad() {
             });
 
             // Actualizar botón de asignación automática
-            const btnAutoAsignar = document.querySelector('button[onclick="asignarPrioridadesAutomaticas()"]');
+            const btnAutoAsignar = document.getElementById('btn-asignar-prioridades');
             if (btnAutoAsignar) {
                 btnAutoAsignar.innerHTML = `<i class="fas fa-magic"></i> Asignar P1-P${data.rango_max} Automático`;
             }
@@ -846,6 +846,7 @@ function cargarOpcionesPrioridad() {
             // Agregar event listeners después de cargar opciones
             setupEventListeners();
             setupDropdownListeners();
+            setupButtonListeners();
         }
     })
     .catch(error => {
@@ -880,6 +881,52 @@ function setupEventListeners() {
             }
         });
     });
+}
+
+function setupButtonListeners() {
+    // Expandir todos
+    const btnExpandirTodos = document.getElementById('btn-expandir-todos');
+    if (btnExpandirTodos) {
+        btnExpandirTodos.addEventListener('click', expandirTodos);
+    }
+
+    // Colapsar todos
+    const btnColapsarTodos = document.getElementById('btn-colapsar-todos');
+    if (btnColapsarTodos) {
+        btnColapsarTodos.addEventListener('click', colapsarTodos);
+    }
+
+    // Descargar Excel
+    const btnDescargarExcel = document.getElementById('btn-descargar-excel');
+    if (btnDescargarExcel) {
+        btnDescargarExcel.addEventListener('click', descargarMatrizExcel);
+    }
+
+    // Imprimir Detalle
+    const btnImprimirDetalle = document.getElementById('btn-imprimir-detalle');
+    if (btnImprimirDetalle) {
+        btnImprimirDetalle.addEventListener('click', imprimirMatrizDetallada);
+    }
+
+    // Asignar Prioridades
+    const btnAsignarPrioridades = document.getElementById('btn-asignar-prioridades');
+    if (btnAsignarPrioridades) {
+        btnAsignarPrioridades.addEventListener('click', asignarPrioridadesAutomaticas);
+    }
+
+    // Imprimir Gantt
+    const btnImprimirGantt = document.getElementById('btn-imprimir-gantt');
+    if (btnImprimirGantt) {
+        btnImprimirGantt.addEventListener('click', imprimirTabla);
+    }
+
+    // Actualizar
+    const btnActualizar = document.getElementById('btn-actualizar');
+    if (btnActualizar) {
+        btnActualizar.addEventListener('click', function() {
+            location.reload();
+        });
+    }
 }
 
 function setupDropdownListeners() {
