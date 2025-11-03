@@ -366,23 +366,33 @@ class PlanificacionPrioridadesService:
                             'contrato_id': hito['contrato'].id if hito.get('contrato') else None
                         })
 
-                # Serializar las OFs para el gantt (solo datos necesarios)
-                ofs_serializadas = []
+                # Convert OFs data to serializable format
+                ofs_serializable = []
                 for of_info in proyecto_data['ofs']:
-                    ofs_serializadas.append({
-                        'id': of_info['of'].id,
-                        'codigo': of_info['of'].codigo,
-                        'cantidad_tableros': of_info['of'].cantidad_tableros or 0,
-                        'fecha_planificada': of_info['of'].fecha_planificada.isoformat() if of_info['of'].fecha_planificada else None,
-                        'prioridad_numerica': of_info['of'].prioridad_numerica
-                    })
+                    of_obj = of_info['of']
+                    # progreso_obj = of_info['progreso_actual'] # Not used in the new structure
+
+                    of_serializable = {
+                        'id': of_obj.id,
+                        'codigo': of_obj.codigo,
+                        'cantidad_tableros': of_obj.cantidad_tableros,
+                        'fecha_planificada': of_obj.fecha_planificada.isoformat() if of_obj.fecha_planificada else None,
+                        'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica.isoformat() if of_obj.fecha_entrega_fabrica else None,
+                        'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje.isoformat() if of_obj.fecha_entrega_embalaje else None,
+                        'prioridad_numerica': of_obj.prioridad_numerica,
+                        'dias_hasta_entrega': of_info['dias_hasta_entrega'],
+                        'tiempo_estimado_fabrica': of_info['tiempo_estimado_fabrica'],
+                        'tiempo_estimado_embalaje': of_info['tiempo_estimado_embalaje']
+                    }
+                    ofs_serializable.append(of_serializable)
+
 
                 gantt_proyecto = {
                     'nombre': proyecto_data['proyecto'].nombre,
                     'cliente_nombre': proyecto_data['cliente'].nombre,
                     'ofs_activas': len(proyecto_data['ofs']),
                     'total_tableros': proyecto_data['total_tableros'],
-                    'ofs': ofs_serializadas,
+                    'ofs': ofs_serializable,
                     'hitos_entrega': hitos_en_gantt,
                     'dias_proximo_hito': proyecto_data['dias_proximo_hito']
                 }
