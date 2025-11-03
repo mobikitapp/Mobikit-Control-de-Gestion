@@ -38,7 +38,7 @@
                     <p class="mb-0 text-muted">Distribución de tableros comprometidos por semana</p>
                 </div>
                 <div class="card-body">
-                    <canvas id="cargaSemanalChart" height="100"></canvas>
+                    <canvas id="cargaSemanalChart" height="300"></canvas>
                 </div>
                 <div class="card-footer">
                     <div class="row text-center">
@@ -61,8 +61,8 @@
     </div>
 
     <!-- Estadísticas generales -->
-    <div class="row mb-4 estadisticas-row"></div>
-        <div class="col-md-2">
+    <div class="row mb-4 estadisticas-row">
+        <div class="col-md-3">
             <div class="card border-primary bg-white text-primary" style="border-width: 2px;">
                 <div class="card-body text-center">
                     <h3 class="text-primary">{{ estadisticas.total_ofs }}</h3>
@@ -70,7 +70,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <div class="card border-warning bg-white text-warning" style="border-width: 2px;">
                 <div class="card-body text-center">
                     <h3 class="text-warning">{{ estadisticas.ofs_sin_fecha_planificada }}</h3>
@@ -78,7 +78,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <div class="card border-danger bg-white text-danger" style="border-width: 2px;">
                 <div class="card-body text-center">
                     <h3 class="text-danger">{{ estadisticas.ofs_con_prioridad_alta }}</h3>
@@ -86,27 +86,11 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <div class="card border-success bg-white text-success" style="border-width: 2px;">
                 <div class="card-body text-center">
                     <h3 class="text-success">{{ estadisticas.total_tableros }}</h3>
                     <small class="text-success">Tableros Totales</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card border-info bg-white text-info" style="border-width: 2px;">
-                <div class="card-body text-center">
-                    <h3 class="text-info">{{ "{:.1f}".format(estadisticas.tiempo_total_fabrica) }}</h3>
-                    <small class="text-info">Días Fábrica</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card border-secondary bg-white text-secondary" style="border-width: 2px;">
-                <div class="card-body text-center">
-                    <h3 class="text-secondary">{{ "{:.1f}".format(estadisticas.tiempo_total_embalaje) }}</h3>
-                    <small class="text-secondary">Días Embalaje</small>
                 </div>
             </div>
         </div>
@@ -1233,6 +1217,12 @@ function generarGraficoCargaSemanal() {
             plugins: {
                 legend: {
                     position: 'top',
+                    labels: {
+                        font: {
+                            size: 14
+                        },
+                        padding: 15
+                    }
                 },
                 tooltip: {
                     callbacks: {
@@ -1253,13 +1243,31 @@ function generarGraficoCargaSemanal() {
                 x: {
                     title: {
                         display: true,
-                        text: 'Semanas'
+                        text: 'Semanas',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        padding: {top: 10}
+                    },
+                    ticks: {
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        display: false
                     }
                 },
                 y: {
                     title: {
                         display: true,
-                        text: 'Cantidad de Tableros'
+                        text: 'Cantidad de Tableros',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        padding: {bottom: 10}
                     },
                     beginAtZero: true,
                     min: 0,
@@ -1269,31 +1277,42 @@ function generarGraficoCargaSemanal() {
                         const maxCapacidad = capacidadSemanal;
                         const maxValue = Math.max(maxData, maxCapacidad);
                         
-                        // Redondear hacia arriba al siguiente múltiplo de 100
-                        return Math.ceil(maxValue / 100) * 100 + 200;
+                        // Redondear hacia arriba al siguiente múltiplo de 50 con margen
+                        return Math.ceil(maxValue / 50) * 50 + 100;
                     },
                     ticks: {
-                        stepSize: 100, // Saltos de 100 tableros
+                        stepSize: 50,
+                        font: {
+                            size: 12
+                        },
                         callback: function(value) {
-                            return value + ' tbl';
+                            return value;
                         }
                     },
                     grid: {
                         display: true,
                         color: function(context) {
-                            // Líneas más marcadas cada 200 tableros
-                            if (context.tick.value % 200 === 0) {
-                                return 'rgba(0, 0, 0, 0.3)';
+                            // Líneas más marcadas cada 100 tableros
+                            if (context.tick.value % 100 === 0) {
+                                return 'rgba(0, 0, 0, 0.2)';
                             }
-                            return 'rgba(0, 0, 0, 0.1)';
+                            return 'rgba(0, 0, 0, 0.05)';
                         },
                         lineWidth: function(context) {
-                            if (context.tick.value % 200 === 0) {
-                                return 2;
+                            if (context.tick.value % 100 === 0) {
+                                return 1.5;
                             }
-                            return 1;
+                            return 0.5;
                         }
                     }
+                }
+            },
+            layout: {
+                padding: {
+                    top: 20,
+                    bottom: 20,
+                    left: 10,
+                    right: 10
                 }
             }
         }
