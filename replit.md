@@ -78,7 +78,11 @@ The system utilizes a modular blueprint architecture, separating concerns into d
 - **Images**: JPEG, PNG.
 
 ## Recent Changes
-- **2025-11-03**: **Fixed production environment issues in Planificación y Prioridades module** - Resolved issue where interactive buttons (Print, Expand/Collapse, Priority assignment, Excel download) were not working in the published app (production) but worked in preview. Root cause: JavaScript syntax error caused by Jinja2 template loops generating multiple variable declarations in the same scope (`const fechaOf` redeclaration), combined with CSP blocking inline event handlers and timing issues with async operations. Solution:
+- **2025-11-03**: **Fixed production environment issues and JSON serialization in Planificación y Prioridades module** - Resolved multiple critical issues:
+  * **JSON Serialization Error**: Fixed "Object of type Cliente is not JSON serializable" by properly serializing SQLAlchemy objects (Cliente, Proyecto, Contrato, OrdenFabricacion) to dictionaries before passing to template. Dates are now serialized using `.isoformat()` for consistent JSON handling.
+  * **Field Name Error**: Corrected field reference from `numero` to `codigo` in OrdenFabricacion serialization, which was causing "OrdenFabricacion object has no attribute 'numero'" error.
+  * **Route Correction**: Updated route from `/prioridades` to `/planificacion-prioridades` for consistency with system URLs.
+  * **Interactive Buttons**: Resolved issue where interactive buttons (Print, Expand/Collapse, Priority assignment, Excel download) were not working in the published app (production) but worked in preview. Root cause: JavaScript syntax error caused by Jinja2 template loops generating multiple variable declarations in the same scope (`const fechaOf` redeclaration), combined with CSP blocking inline event handlers and timing issues with async operations. Solution:
   * Removed all inline `onclick` event handlers from action buttons (7 buttons total)
   * Added unique IDs to each button for reliable DOM selection
   * Created `setupButtonListeners()` function that attaches event listeners immediately on DOMContentLoaded
