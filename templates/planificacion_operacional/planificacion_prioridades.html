@@ -795,6 +795,11 @@ Días restantes: {{ hito.dias_restantes }}">
 <script>
 // Cargar opciones de prioridad dinámicamente al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
+    // Configurar listeners de botones INMEDIATAMENTE al cargar
+    setupButtonListeners();
+    setupDropdownListeners();
+    
+    // Luego cargar opciones de prioridad y gráfico
     cargarOpcionesPrioridad();
     generarGraficoCargaSemanal();
 });
@@ -827,14 +832,14 @@ function cargarOpcionesPrioridad() {
                 btnAutoAsignar.innerHTML = `<i class="fas fa-magic"></i> Asignar P1-P${data.rango_max} Automático`;
             }
 
-            // Agregar event listeners después de cargar opciones
+            // Agregar event listeners de selects y fechas después de cargar opciones
             setupEventListeners();
-            setupDropdownListeners();
-            setupButtonListeners();
         }
     })
     .catch(error => {
         console.error('Error cargando opciones de prioridad:', error);
+        // Asegurar que los listeners estén configurados incluso si falla el fetch
+        setupEventListeners();
     });
 }
 
