@@ -873,49 +873,93 @@ function setupEventListeners() {
 }
 
 function setupButtonListeners() {
+    console.log('[DEBUG] Configurando listeners de botones...');
+    
     // Expandir todos
     const btnExpandirTodos = document.getElementById('btn-expandir-todos');
     if (btnExpandirTodos) {
-        btnExpandirTodos.addEventListener('click', expandirTodos);
+        console.log('[DEBUG] Botón expandir-todos encontrado');
+        btnExpandirTodos.addEventListener('click', function() {
+            console.log('[DEBUG] Click en expandir-todos');
+            expandirTodos();
+        });
+    } else {
+        console.warn('[WARNING] Botón expandir-todos NO encontrado');
     }
 
     // Colapsar todos
     const btnColapsarTodos = document.getElementById('btn-colapsar-todos');
     if (btnColapsarTodos) {
-        btnColapsarTodos.addEventListener('click', colapsarTodos);
+        console.log('[DEBUG] Botón colapsar-todos encontrado');
+        btnColapsarTodos.addEventListener('click', function() {
+            console.log('[DEBUG] Click en colapsar-todos');
+            colapsarTodos();
+        });
+    } else {
+        console.warn('[WARNING] Botón colapsar-todos NO encontrado');
     }
 
     // Descargar Excel
     const btnDescargarExcel = document.getElementById('btn-descargar-excel');
     if (btnDescargarExcel) {
-        btnDescargarExcel.addEventListener('click', descargarMatrizExcel);
+        console.log('[DEBUG] Botón descargar-excel encontrado');
+        btnDescargarExcel.addEventListener('click', function(e) {
+            console.log('[DEBUG] Click en descargar-excel');
+            descargarMatrizExcel(e);
+        });
+    } else {
+        console.warn('[WARNING] Botón descargar-excel NO encontrado');
     }
 
     // Imprimir Detalle
     const btnImprimirDetalle = document.getElementById('btn-imprimir-detalle');
     if (btnImprimirDetalle) {
-        btnImprimirDetalle.addEventListener('click', imprimirMatrizDetallada);
+        console.log('[DEBUG] Botón imprimir-detalle encontrado');
+        btnImprimirDetalle.addEventListener('click', function() {
+            console.log('[DEBUG] Click en imprimir-detalle');
+            imprimirMatrizDetallada();
+        });
+    } else {
+        console.warn('[WARNING] Botón imprimir-detalle NO encontrado');
     }
 
     // Asignar Prioridades
     const btnAsignarPrioridades = document.getElementById('btn-asignar-prioridades');
     if (btnAsignarPrioridades) {
-        btnAsignarPrioridades.addEventListener('click', asignarPrioridadesAutomaticas);
+        console.log('[DEBUG] Botón asignar-prioridades encontrado');
+        btnAsignarPrioridades.addEventListener('click', function(e) {
+            console.log('[DEBUG] Click en asignar-prioridades');
+            asignarPrioridadesAutomaticas(e);
+        });
+    } else {
+        console.warn('[WARNING] Botón asignar-prioridades NO encontrado');
     }
 
     // Imprimir Gantt
     const btnImprimirGantt = document.getElementById('btn-imprimir-gantt');
     if (btnImprimirGantt) {
-        btnImprimirGantt.addEventListener('click', imprimirTabla);
+        console.log('[DEBUG] Botón imprimir-gantt encontrado');
+        btnImprimirGantt.addEventListener('click', function() {
+            console.log('[DEBUG] Click en imprimir-gantt');
+            imprimirTabla();
+        });
+    } else {
+        console.warn('[WARNING] Botón imprimir-gantt NO encontrado');
     }
 
     // Actualizar
     const btnActualizar = document.getElementById('btn-actualizar');
     if (btnActualizar) {
+        console.log('[DEBUG] Botón actualizar encontrado');
         btnActualizar.addEventListener('click', function() {
+            console.log('[DEBUG] Click en actualizar');
             location.reload();
         });
+    } else {
+        console.warn('[WARNING] Botón actualizar NO encontrado');
     }
+    
+    console.log('[DEBUG] Todos los listeners configurados');
 }
 
 function setupDropdownListeners() {
@@ -976,13 +1020,13 @@ function colapsarTodos() {
     });
 }
 
-function asignarPrioridadesAutomaticas() {
+function asignarPrioridadesAutomaticas(event) {
     if (!confirm('¿Estás seguro de que deseas reorganizar automáticamente las prioridades de todas las OFs desde P1 hasta P{total}?')) {
         return;
     }
 
     // Mostrar loading
-    const btn = event.target;
+    const btn = event ? event.target : document.getElementById('btn-asignar-prioridades');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Asignando...';
     btn.disabled = true;
@@ -1345,9 +1389,9 @@ function getISOWeek(date) {
     return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
 }
 
-function descargarMatrizExcel() {
+function descargarMatrizExcel(event) {
     // Mostrar loading
-    const btn = event.target.closest('button');
+    const btn = event ? event.target.closest('button') : document.getElementById('btn-descargar-excel');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando Excel...';
     btn.disabled = true;
