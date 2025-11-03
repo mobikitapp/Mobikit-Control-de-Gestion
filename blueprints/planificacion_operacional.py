@@ -71,7 +71,7 @@ def configuracion_conversion():
         return redirect(url_for('planificacion_operacional.matriz_operacional'))
 
 
-@planificacion_operacional_bp.route('/prioridades')
+@planificacion_operacional_bp.route('/planificacion-prioridades')
 @login_required  
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def planificacion_prioridades():

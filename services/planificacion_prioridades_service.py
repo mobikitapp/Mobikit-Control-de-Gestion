@@ -360,18 +360,29 @@ class PlanificacionPrioridadesService:
 
                         hitos_en_gantt.append({
                             'titulo': hito['titulo'],
-                            'fecha_programada': hito['fecha_programada'],
+                            'fecha_programada': hito['fecha_programada'].isoformat() if hito['fecha_programada'] else None,
                             'dias_restantes': hito['dias_restantes'],
                             'posicion_porcentual': max(0, min(100, posicion_porcentual)),  # Clamp 0-100%
-                            'contrato': hito['contrato']
+                            'contrato_id': hito['contrato'].id if hito.get('contrato') else None
                         })
+
+                # Serializar las OFs para el gantt (solo datos necesarios)
+                ofs_serializadas = []
+                for of_info in proyecto_data['ofs']:
+                    ofs_serializadas.append({
+                        'id': of_info['of'].id,
+                        'numero': of_info['of'].numero,
+                        'cantidad_tableros': of_info['of'].cantidad_tableros or 0,
+                        'fecha_planificada': of_info['of'].fecha_planificada.isoformat() if of_info['of'].fecha_planificada else None,
+                        'prioridad_numerica': of_info['of'].prioridad_numerica
+                    })
 
                 gantt_proyecto = {
                     'nombre': proyecto_data['proyecto'].nombre,
                     'cliente_nombre': proyecto_data['cliente'].nombre,
                     'ofs_activas': len(proyecto_data['ofs']),
                     'total_tableros': proyecto_data['total_tableros'],
-                    'ofs': proyecto_data['ofs'],
+                    'ofs': ofs_serializadas,
                     'hitos_entrega': hitos_en_gantt,
                     'dias_proximo_hito': proyecto_data['dias_proximo_hito']
                 }
