@@ -445,7 +445,11 @@
                                             <!-- Barras de OFs -->
                                             {% for of_info in proyecto.ofs %}
                                                 {% if of_info.of.fecha_planificada %}
-                                                    {% set of_start = of_info.of.fecha_planificada %}
+                                                    {% if of_info.of.fecha_planificada is string %}
+                                                        {% set of_start = of_info.of.fecha_planificada | strptime('%Y-%m-%d') %}
+                                                    {% else %}
+                                                        {% set of_start = of_info.of.fecha_planificada %}
+                                                    {% endif %}
                                                     {% set fabrica_days = of_info.tiempo_estimado_fabrica or 5 %}
                                                     {% set embalaje_days = of_info.tiempo_estimado_embalaje or 3 %}
                                                     {% set fabrica_end = of_start + timedelta(days=fabrica_days) %}
@@ -798,7 +802,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Configurar listeners de botones INMEDIATAMENTE al cargar
     setupButtonListeners();
     setupDropdownListeners();
-    
+
     // Luego cargar opciones de prioridad y gráfico
     cargarOpcionesPrioridad();
     generarGraficoCargaSemanal();
@@ -1144,20 +1148,20 @@ function generarGraficoCargaSemanal() {
     // Recopilar datos de tableros por semana de los proyectos
     const cargaPorSemana = {};
     const hoy = new Date();
-    
+
     // Inicializar 12 semanas
     for (let i = 0; i < 12; i++) {
         const fecha = new Date(hoy);
         fecha.setDate(fecha.getDate() + (i * 7));
-        
+
         // Calcular inicio de semana (lunes)
         const inicioSemana = new Date(fecha);
         inicioSemana.setDate(fecha.getDate() - fecha.getDay() + 1);
-        
+
         const año = inicioSemana.getFullYear();
         const semana = getISOWeek(inicioSemana);
         const claveSemanañ = `${año}-S${semana.toString().padStart(2, '0')}`;
-        
+
         cargaPorSemana[claveSemanañ] = {
             tableros: 0,
             fecha: inicioSemana,
@@ -1165,10 +1169,10 @@ function generarGraficoCargaSemanal() {
             año: año
         };
     }
-    
+
     // Procesar datos de proyectos pasados desde el servidor
     const proyectosData = {{ proyectos_gantt | tojson | safe }};
-    
+
     if (proyectosData && Array.isArray(proyectosData)) {
         proyectosData.forEach(function(proyecto) {
             if (proyecto.ofs && Array.isArray(proyecto.ofs)) {
@@ -1176,16 +1180,16 @@ function generarGraficoCargaSemanal() {
                     // Handle both structures: direct OF data or nested structure
                     const ofInfo = ofData.of ? ofData.of : ofData;
                     const fechaPlanificada = ofInfo.fecha_planificada;
-                    
+
                     if (fechaPlanificada) {
                         const fechaOf = new Date(fechaPlanificada);
                         const tableros = ofInfo.cantidad_tableros || 0;
-                        
+
                         // Calcular semana de la OF
                         const añoOf = fechaOf.getFullYear();
                         const semanaOf = getISOWeek(fechaOf);
                         const claveOf = `${añoOf}-S${semanaOf.toString().padStart(2, '0')}`;
-                        
+
                         if (cargaPorSemana[claveOf]) {
                             cargaPorSemana[claveOf].tableros += tableros;
                         }
@@ -1194,7 +1198,7 @@ function generarGraficoCargaSemanal() {
             }
         });
     }
-    
+
     // Preparar datos para el gráfico
     const semanas = Object.keys(cargaPorSemana).sort();
     const labels = semanas.map(semana => {
@@ -1202,10 +1206,10 @@ function generarGraficoCargaSemanal() {
         return `S${data.semana} (${data.fecha.getDate()}/${data.fecha.getMonth() + 1})`;
     });
     const datos = semanas.map(semana => cargaPorSemana[semana].tableros);
-    
+
     // Capacidad semanal desde configuración
     const capacidadSemanal = {{ capacidad_semanal or 100 }};
-    
+
     // Crear gráfico
     const ctx = document.getElementById('cargaSemanalChart').getContext('2d');
     new Chart(ctx, {
@@ -1303,7 +1307,7 @@ function generarGraficoCargaSemanal() {
                         const maxData = Math.max(...datos);
                         const maxCapacidad = capacidadSemanal;
                         const maxValue = Math.max(maxData, maxCapacidad);
-                        
+
                         // Redondear hacia arriba al siguiente múltiplo de 50 con margen
                         return Math.ceil(maxValue / 50) * 50 + 100;
                     },
@@ -1344,14 +1348,14 @@ function generarGraficoCargaSemanal() {
             }
         }
     });
-    
+
     // Actualizar estadísticas
     const semanasSobrecarga = datos.filter(valor => valor > capacidadSemanal).length;
     const tablerosTotales = datos.reduce((sum, valor) => sum + valor, 0);
     const promedioSemanal = Math.round(tablerosTotales / datos.length);
     const capacidadTotal = capacidadSemanal * 12;
     const capacidadUtilizada = Math.round((tablerosTotales / capacidadTotal) * 100);
-    
+
     document.getElementById('semanasPico').textContent = semanasSobrecarga;
     document.getElementById('tablerosTotales').textContent = tablerosTotales;
     document.getElementById('promedioSemanal').textContent = promedioSemanal;
@@ -1728,12 +1732,6 @@ function imprimirMatrizDetallada() {
         max-width: 14% !important;
     }
 
-    .matriz-detallada-section .table th:nth-child(8), /* Días Rest */
-    .matriz-detallada-section .table td:nth-child(8) {
-        width: 8% !important;
-        max-width: 8% !important;
-    }
-
     /* Ancho de columnas para gantt de proyectos */
     .gantt-proyectos-section .table th:nth-child(1), /* Proyecto */
     .gantt-proyectos-section .table td:nth-child(1) {
@@ -1775,7 +1773,7 @@ function imprimirMatrizDetallada() {
     .matriz-detallada-section .table td:nth-child(1) small {
         display: block !important;
         font-size: 5px !important;
-        line-height: 1.1 !important;
+        line-height: 1 !important;
         max-height: 15px !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
@@ -1904,7 +1902,7 @@ function imprimirMatrizDetallada() {
 
     /* Mostrar valores de inputs de fecha en impresión */
     .print-matriz-detallada input[type="date"] {
-        font-size: 8px !important;
+        font-size: 10px !important;
         border: none !important;
         background: transparent !important;
         padding: 0 !important;
@@ -2109,12 +2107,6 @@ function imprimirMatrizDetallada() {
 
     .print-matriz-detallada .matriz-detallada-section .table th:nth-child(6),
     .print-matriz-detallada .matriz-detallada-section .table td:nth-child(6) {
-        width: 14% !important;
-        max-width: 14% !important;
-    }
-
-    .print-matriz-detallada .matriz-detallada-section .table th:nth-child(7),
-    .print-matriz-detallada .matriz-detallada-section .table td:nth-child(7) {
         width: 14% !important;
         max-width: 14% !important;
     }

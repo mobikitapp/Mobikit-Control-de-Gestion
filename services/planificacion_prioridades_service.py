@@ -393,9 +393,9 @@ class PlanificacionPrioridadesService:
                                 'id': of_obj.id,
                                 'codigo': of_obj.codigo,
                                 'cantidad_tableros': of_obj.cantidad_tableros or 0,
-                                'fecha_planificada': of_obj.fecha_planificada.isoformat() if of_obj.fecha_planificada else None,
-                                'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica.isoformat() if of_obj.fecha_entrega_fabrica else None,
-                                'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje.isoformat() if of_obj.fecha_entrega_embalaje else None,
+                                'fecha_planificada': of_obj.fecha_planificada,  # Pass datetime object, not string
+                                'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica,  # Pass datetime object, not string
+                                'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje,  # Pass datetime object, not string
                                 'prioridad_numerica': of_obj.prioridad_numerica or 99,
                                 'glosa': of_obj.glosa,
                                 'descripcion': of_obj.descripcion
