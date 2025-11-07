@@ -85,12 +85,24 @@ def planificacion_prioridades():
         # Agregar timedelta para cálculos en el template
         datos_matriz['timedelta'] = timedelta
 
+        # Agregar función now_chile para el template
+        from datetime import datetime
+        import pytz
+        def now_chile():
+            chile_tz = pytz.timezone('America/Santiago')
+            return datetime.now(chile_tz)
+        
+        datos_matriz['now_chile'] = now_chile
+
         return render_template('planificacion_operacional/planificacion_prioridades.html', 
                              calendar=calendar, **datos_matriz)
 
     except Exception as e:
+        print(f"Error completo en planificacion_prioridades: {str(e)}")
+        import traceback
+        traceback.print_exc()
         flash(f'Error al cargar planificación y prioridades: {str(e)}', 'error')
-        return redirect(url_for('planificacion_operacional.matriz_operacional'))
+        return redirect(url_for('index'))
 
 
 @planificacion_operacional_bp.route('/productividad-real')

@@ -249,8 +249,11 @@ class PlanificacionPrioridadesService:
         Agrupa por proyectos y calcula consolidados
         """
         try:
+            print("Iniciando get_matriz_planificacion_prioridades")
+            
             # Obtener todas las OFs en producción
             ofs_data = self.get_ofs_en_produccion()
+            print(f"OFs obtenidas: {len(ofs_data)}")
 
             # Agrupar por proyecto
             proyectos_agrupados = {}
@@ -370,20 +373,13 @@ class PlanificacionPrioridadesService:
                 ofs_serializadas = []
                 for of_info in proyecto_data['ofs']:
                     try:
-                        # The of_info structure contains the OF object directly in the 'of' key
-                        # Let's handle both possible structures to be safe
-                        of_obj = None
-                        
-                        if isinstance(of_info, dict) and 'of' in of_info:
-                            # Structure: {'of': OrdenFabricacion, 'progreso_actual': ..., ...}
-                            of_obj = of_info['of']
-                        elif hasattr(of_info, 'id'):
-                            # Structure: OrdenFabricacion object directly
-                            of_obj = of_info
-                        else:
-                            print(f"Unexpected of_info structure: {type(of_info)}")
+                        # of_info is a dictionary with structure: {'of': OrdenFabricacion, 'progreso_actual': ..., 'tiempo_estimado_fabrica': ..., etc}
+                        if not isinstance(of_info, dict) or 'of' not in of_info:
+                            print(f"Invalid of_info structure: {type(of_info)}")
                             continue
 
+                        of_obj = of_info['of']
+                        
                         if not of_obj or not hasattr(of_obj, 'id'):
                             print(f"Invalid OF object: {of_obj}")
                             continue
@@ -396,16 +392,16 @@ class PlanificacionPrioridadesService:
                             'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica.isoformat() if of_obj.fecha_entrega_fabrica else None,
                             'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje.isoformat() if of_obj.fecha_entrega_embalaje else None,
                             'prioridad_numerica': of_obj.prioridad_numerica or 99,
-                            'tiempo_estimado_fabrica': of_info.get('tiempo_estimado_fabrica', 0) if isinstance(of_info, dict) else 0,
-                            'tiempo_estimado_embalaje': of_info.get('tiempo_estimado_embalaje', 0) if isinstance(of_info, dict) else 0
+                            'tiempo_estimado_fabrica': of_info.get('tiempo_estimado_fabrica', 0),
+                            'tiempo_estimado_embalaje': of_info.get('tiempo_estimado_embalaje', 0)
                         }
                         ofs_serializadas.append(of_serializable)
 
                     except Exception as e:
                         print(f"Error processing OF for Gantt chart: {str(e)}")
-                        print(f"of_info type: {type(of_info)}")
-                        if hasattr(of_info, 'keys'):
-                            print(f"of_info keys: {list(of_info.keys())}")
+                        print(f"of_info: {of_info}")
+                        import traceback
+                        traceback.print_exc()
                         continue
 
                 gantt_proyecto = {
