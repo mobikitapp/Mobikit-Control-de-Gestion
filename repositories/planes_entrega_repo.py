@@ -113,10 +113,23 @@ class HitosEntregaRepository:
     @staticmethod
     def create(hito_data: Dict[str, Any], created_by: str) -> HitoEntrega:
         """Create a new hito de entrega"""
-        hito = HitoEntrega(**hito_data)
-        hito.created_by = created_by
+        # Create hito with explicit fields to avoid any field mapping issues
+        hito = HitoEntrega(
+            plan_entrega_id=hito_data['plan_entrega_id'],
+            titulo=hito_data['titulo'],
+            descripcion=hito_data.get('descripcion'),
+            fecha_programada=hito_data['fecha_programada'],
+            orden=hito_data.get('orden', 1),
+            estado=EstadoHitoEntrega.PENDIENTE,
+            created_by=created_by
+        )
         db.session.add(hito)
         db.session.flush()
+        
+        # Ensure the hito has an ID after flush
+        if not hito.id:
+            raise Exception("Hito was not properly created - no ID assigned")
+        
         return hito
     
     @staticmethod

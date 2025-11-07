@@ -129,9 +129,13 @@ class PlanesEntregaService:
             if not plan:
                 raise ValueError(f"Plan de entrega {plan_id} no encontrado")
 
+            logger.info(f"Plan encontrado: {plan.nombre}, hitos actuales: {len(plan.hitos)}")
+
             # Get next order number
             max_orden = db.session.query(func.coalesce(func.max(HitoEntrega.orden), 0)).filter_by(plan_entrega_id=plan_id).scalar()
             hito_data['orden'] = max_orden + 1
+
+            logger.info(f"Próximo orden para hito: {hito_data['orden']}")
 
             # Validate required fields
             if not hito_data.get('titulo'):
@@ -141,10 +145,20 @@ class PlanesEntregaService:
 
             # Parse date if it's a string
             if isinstance(hito_data['fecha_programada'], str):
-                hito_data['fecha_programada'] = datetime.strptime(hito_data['fecha_programada'], '%Y-%m-%d').date()
+                try:
+                    hito_data['fecha_programada'] = datetime.strptime(hito_data['fecha_programada'], '%Y-%m-%d').date()
+                except ValueError as e:
+                    logger.error(f"Error parsing date: {hito_data['fecha_programada']}")
+                    raise ValueError(f"Formato de fecha inválido: {hito_data['fecha_programada']}")
 
             hito_data['plan_entrega_id'] = plan_id
+            logger.info(f"Creando hito con datos: {hito_data}")
+            
             hito = self.hitos_repo.create(hito_data, created_by)
+            logger.info(f"Hito creado con ID: {hito.id}")
+
+            # Force flush to ensure data is written to DB
+            db.session.flush()
 
             # Sync with calendar events
             try:
@@ -154,7 +168,17 @@ class PlanesEntregaService:
             except Exception as e:
                 logger.warning(f"Error sincronizando evento para nuevo hito {hito.id}: {str(e)}")
 
+            # Commit the transaction
             db.session.commit()
+            logger.info(f"Transacción completada exitosamente para hito {hito.id}")
+
+            # Log audit
+            AuditService.log_action(
+                'hitos_entrega', 
+                hito.id, 
+                'CREATE', 
+                datos_nuevos=serialize_model(hito)
+            )
 
             logger.info(f"Hito agregado al plan {plan_id}: {hito.titulo}")
             return hito
@@ -162,6 +186,7 @@ class PlanesEntregaService:
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error agregando hito al plan {plan_id}: {str(e)}")
+            logger.exception("Full traceback for add_hito error:")
             raise
 
     def update_hito(self, hito_id: int, update_data: Dict[str, Any]) -> HitoEntrega:

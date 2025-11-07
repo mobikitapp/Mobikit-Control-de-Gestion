@@ -658,6 +658,12 @@ def completar_hito(hito_id):
 def agregar_hito(plan_id):
     """Agregar nuevo hito al plan de entrega"""
     try:
+        # Get plan first to validate it exists
+        plan = planes_entrega_service.get_plan_by_id(plan_id)
+        if not plan:
+            flash('Plan de entrega no encontrado', 'error')
+            return redirect(url_for('contratos.index'))
+
         # Validar datos del formulario
         titulo = request.form.get('titulo', '').strip()
         descripcion = request.form.get('descripcion', '').strip()
@@ -665,12 +671,18 @@ def agregar_hito(plan_id):
 
         if not titulo:
             flash('El título del hito es requerido', 'error')
-            plan = planes_entrega_service.get_plan_by_id(plan_id)
             return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
 
         if not fecha_programada:
             flash('La fecha programada del hito es requerida', 'error')
-            plan = planes_entrega_service.get_plan_by_id(plan_id)
+            return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+
+        # Validate date format
+        try:
+            from datetime import datetime
+            datetime.strptime(fecha_programada, '%Y-%m-%d')
+        except ValueError:
+            flash('Formato de fecha inválido', 'error')
             return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
 
         hito_data = {
@@ -679,14 +691,16 @@ def agregar_hito(plan_id):
             'fecha_programada': fecha_programada
         }
 
+        logger.info(f"Agregando hito al plan {plan_id}: {hito_data}")
         hito = planes_entrega_service.add_hito(plan_id, hito_data, current_user.id)
+        logger.info(f"Hito creado con ID: {hito.id}")
 
         flash(f'Hito "{hito.titulo}" agregado exitosamente', 'success')
 
-        # Get contrato_id for redirect
-        plan = planes_entrega_service.get_plan_by_id(plan_id)
-        return redirect(url_for('contratos.plan_entrega',
-                              contrato_id=plan.contrato_id))
+        # Force refresh the session to see the new hito
+        db.session.expunge_all()  # Clear session cache
+        
+        return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
 
     except ValueError as e:
         logger.error(f"Error de validación agregando hito al plan {plan_id}: {str(e)}")
@@ -698,6 +712,7 @@ def agregar_hito(plan_id):
             return redirect(url_for('contratos.index'))
     except Exception as e:
         logger.error(f"Error agregando hito al plan {plan_id}: {str(e)}")
+        logger.exception("Full traceback for agregar_hito error:")
         flash('Error interno al agregar hito', 'error')
         try:
             plan = planes_entrega_service.get_plan_by_id(plan_id)
