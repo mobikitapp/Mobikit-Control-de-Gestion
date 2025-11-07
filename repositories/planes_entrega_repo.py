@@ -57,24 +57,15 @@ class PlanesEntregaRepository:
     @staticmethod
     def get_by_contrato_id(contrato_id: int) -> Optional[PlanEntrega]:
         """Get plan de entrega by contrato ID with fresh data"""
-        # Create fresh query without closing session to avoid issues
+        # Create fresh query with all necessary eager loading
         plan = (db.session.query(PlanEntrega)
                 .options(
                     joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user),
-                    joinedload(PlanEntrega.contrato)
+                    joinedload(PlanEntrega.contrato),
+                    joinedload(PlanEntrega.creator)
                 )
                 .filter_by(contrato_id=contrato_id)
                 .first())
-        
-        if plan:
-            # Manually load hitos with fresh query to ensure we get all of them
-            fresh_hitos = (db.session.query(HitoEntrega)
-                          .options(joinedload(HitoEntrega.completado_por_user))
-                          .filter_by(plan_entrega_id=plan.id)
-                          .order_by(HitoEntrega.orden, HitoEntrega.fecha_programada)
-                          .all())
-            # Replace the relationship data with fresh data
-            plan.hitos = fresh_hitos
         
         return plan
     
