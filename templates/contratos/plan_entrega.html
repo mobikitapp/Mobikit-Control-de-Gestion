@@ -355,6 +355,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Configurar fecha mínima como hoy
     const today = new Date().toISOString().split('T')[0];
     
+    // Check if we just added a hito (from URL parameter or flash message)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('hito_added') === '1') {
+        // Remove the parameter and refresh to show fresh data
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+        // Small delay to ensure the UI updates are visible
+        setTimeout(() => window.location.reload(), 100);
+        return;
+    }
+    
     // Modal para completar hito
     const modalCompletarHito = document.getElementById('modalCompletarHito');
     if (modalCompletarHito) {
@@ -383,6 +394,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 fechaInput.value = '';
             }
         });
+        
+        // Handle form submission to add refresh parameter
+        const formAgregarHito = document.querySelector('#modalAgregarHito form');
+        if (formAgregarHito) {
+            formAgregarHito.addEventListener('submit', function(e) {
+                // Add a timestamp to force fresh reload after redirect
+                const timestamp = Date.now();
+                const action = formAgregarHito.getAttribute('action');
+                const separator = action.includes('?') ? '&' : '?';
+                formAgregarHito.setAttribute('action', action + separator + 'refresh=' + timestamp);
+            });
+        }
     }
 });
 </script>

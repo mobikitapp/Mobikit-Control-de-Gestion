@@ -57,6 +57,9 @@ class PlanesEntregaRepository:
     @staticmethod
     def get_by_contrato_id(contrato_id: int) -> Optional[PlanEntrega]:
         """Get plan de entrega by contrato ID"""
+        # Force fresh query by expiring all cached objects
+        db.session.expire_all()
+        
         return (db.session.query(PlanEntrega)
                 .options(
                     joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user),

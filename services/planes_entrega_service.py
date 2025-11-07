@@ -179,7 +179,7 @@ class PlanesEntregaService:
             db.session.commit()
             logger.info(f"Transacción completada exitosamente para hito {hito.id}")
 
-            # Log audit (before expunge to avoid session issues)
+            # Log audit (after commit to ensure data integrity)
             try:
                 AuditService.log_action(
                     'hitos_entrega', 
@@ -190,19 +190,22 @@ class PlanesEntregaService:
             except Exception as e:
                 logger.warning(f"Error en audit log: {str(e)}")
 
-            # Force refresh of the plan's hitos relationship
-            db.session.refresh(plan)
-            logger.info(f"Plan refreshed, hitos count: {len(plan.hitos)}")
+            # Close current session to force fresh data
+            db.session.close()
             
-            # If refresh didn't work, manually reload the hitos
-            if len(plan.hitos) <= max_orden:
-                logger.warning("Refresh didn't load new hito, manually reloading...")
-                plan.hitos = (db.session.query(HitoEntrega)
-                             .filter_by(plan_entrega_id=plan_id)
-                             .order_by(HitoEntrega.orden, HitoEntrega.fecha_programada)
-                             .all())
-                logger.info(f"Manual reload resulted in {len(plan.hitos)} hitos")
-
+            # Get fresh plan instance with all hitos loaded
+            fresh_plan = (db.session.query(PlanEntrega)
+                         .options(
+                             joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user)
+                         )
+                         .filter_by(id=plan_id)
+                         .first())
+            
+            if fresh_plan:
+                logger.info(f"Fresh plan loaded with {len(fresh_plan.hitos)} hitos")
+                for h in fresh_plan.hitos:
+                    logger.info(f"  - Hito ID: {h.id}, Título: {h.titulo}, Orden: {h.orden}")
+            
             logger.info(f"Hito agregado al plan {plan_id}: {hito.titulo}")
             return hito
 

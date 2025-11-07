@@ -500,6 +500,9 @@ def eliminar_adjunto(adjunto_id):
 def plan_entrega(contrato_id):
     """Ver plan de entrega del contrato"""
     try:
+        # Force fresh session to avoid cached data issues
+        db.session.close()
+        
         contrato = contratos_service.get_contrato_by_id(contrato_id)
         if not contrato:
             flash('Contrato no encontrado', 'error')
@@ -509,6 +512,11 @@ def plan_entrega(contrato_id):
         estadisticas = None
 
         if plan:
+            # Log current hitos for debugging
+            logger.info(f"Plan de entrega {plan.id} tiene {len(plan.hitos)} hitos:")
+            for h in plan.hitos:
+                logger.info(f"  - ID: {h.id}, Título: {h.titulo}, Estado: {h.estado.value}")
+            
             estadisticas = planes_entrega_service.get_estadisticas_plan(plan.id)
 
         return render_template('contratos/plan_entrega.html',
@@ -700,23 +708,27 @@ def agregar_hito(plan_id):
 
         flash(f'Hito "{hito.titulo}" agregado exitosamente', 'success')
 
-        # Verify the hito was actually saved
+        # Verify the hito was actually saved with fresh database query
         try:
-            # Get a fresh plan to verify the hito was added
-            from repositories.planes_entrega_repo import PlanesEntregaRepository
-            repo = PlanesEntregaRepository()
-            fresh_plan = repo.get_by_id_with_fresh_hitos(plan_id)
-            if fresh_plan:
-                logger.info(f"Verificación final: Plan {plan_id} tiene {len(fresh_plan.hitos)} hitos")
-                for h in fresh_plan.hitos:
-                    logger.info(f"  - Hito ID: {h.id}, Título: {h.titulo}")
-            else:
-                logger.error(f"No se pudo obtener el plan {plan_id} para verificación")
+            # Direct database query to verify
+            from models import HitoEntrega
+            total_hitos = db.session.query(HitoEntrega).filter_by(plan_entrega_id=plan_id).count()
+            logger.info(f"Verificación final: Plan {plan_id} tiene {total_hitos} hitos en total")
+            
+            # Get all hitos for logging
+            all_hitos = (db.session.query(HitoEntrega)
+                        .filter_by(plan_entrega_id=plan_id)
+                        .order_by(HitoEntrega.orden, HitoEntrega.fecha_programada)
+                        .all())
+            
+            for h in all_hitos:
+                logger.info(f"  - Hito ID: {h.id}, Título: {h.titulo}, Orden: {h.orden}")
+                
         except Exception as e:
             logger.warning(f"Error en verificación final: {str(e)}")
 
-        # Use the stored contrato_id instead of accessing the potentially detached object
-        return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
+        # Use the stored contrato_id and add parameter to force refresh
+        return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id, hito_added=1))
 
     except ValueError as e:
         logger.error(f"Error de validación agregando hito al plan {plan_id}: {str(e)}")
