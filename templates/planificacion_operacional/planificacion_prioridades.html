@@ -1173,9 +1173,13 @@ function generarGraficoCargaSemanal() {
         proyectosData.forEach(function(proyecto) {
             if (proyecto.ofs && Array.isArray(proyecto.ofs)) {
                 proyecto.ofs.forEach(function(ofData) {
-                    if (ofData.fecha_planificada) {
-                        const fechaOf = new Date(ofData.fecha_planificada);
-                        const tableros = ofData.cantidad_tableros || 0;
+                    // Handle both structures: direct OF data or nested structure
+                    const ofInfo = ofData.of ? ofData.of : ofData;
+                    const fechaPlanificada = ofInfo.fecha_planificada;
+                    
+                    if (fechaPlanificada) {
+                        const fechaOf = new Date(fechaPlanificada);
+                        const tableros = ofInfo.cantidad_tableros || 0;
                         
                         // Calcular semana de la OF
                         const añoOf = fechaOf.getFullYear();

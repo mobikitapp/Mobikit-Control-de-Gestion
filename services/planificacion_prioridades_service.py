@@ -290,7 +290,7 @@ class PlanificacionPrioridadesService:
                         'dias_proximo_hito': hitos_info['dias_proximo_hito']
                     }
 
-                # Agregar OF al proyecto
+                # Agregar OF al proyecto - asegurar estructura consistente
                 proyectos_agrupados[proyecto_id]['ofs'].append(of_info)
 
                 # Actualizar totales del proyecto
@@ -373,9 +373,13 @@ class PlanificacionPrioridadesService:
                 ofs_serializadas = []
                 for of_info in proyecto_data['ofs']:
                     try:
-                        # of_info is a dictionary with structure: {'of': OrdenFabricacion, 'progreso_actual': ..., 'tiempo_estimado_fabrica': ..., etc}
-                        if not isinstance(of_info, dict) or 'of' not in of_info:
-                            print(f"Invalid of_info structure: {type(of_info)}")
+                        # of_info should be a dictionary with 'of' key containing the OrdenFabricacion object
+                        if not isinstance(of_info, dict):
+                            print(f"Expected dict, got {type(of_info)}: {of_info}")
+                            continue
+                        
+                        if 'of' not in of_info:
+                            print(f"Missing 'of' key in of_info. Available keys: {list(of_info.keys()) if hasattr(of_info, 'keys') else 'N/A'}")
                             continue
 
                         of_obj = of_info['of']
@@ -385,13 +389,25 @@ class PlanificacionPrioridadesService:
                             continue
 
                         of_serializable = {
-                            'id': of_obj.id,
-                            'codigo': of_obj.codigo,
-                            'cantidad_tableros': of_obj.cantidad_tableros or 0,
-                            'fecha_planificada': of_obj.fecha_planificada.isoformat() if of_obj.fecha_planificada else None,
-                            'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica.isoformat() if of_obj.fecha_entrega_fabrica else None,
-                            'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje.isoformat() if of_obj.fecha_entrega_embalaje else None,
-                            'prioridad_numerica': of_obj.prioridad_numerica or 99,
+                            'of': {
+                                'id': of_obj.id,
+                                'codigo': of_obj.codigo,
+                                'cantidad_tableros': of_obj.cantidad_tableros or 0,
+                                'fecha_planificada': of_obj.fecha_planificada.isoformat() if of_obj.fecha_planificada else None,
+                                'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica.isoformat() if of_obj.fecha_entrega_fabrica else None,
+                                'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje.isoformat() if of_obj.fecha_entrega_embalaje else None,
+                                'prioridad_numerica': of_obj.prioridad_numerica or 99,
+                                'glosa': of_obj.glosa,
+                                'descripcion': of_obj.descripcion
+                            },
+                            'progreso_actual': {
+                                'area': {
+                                    'nombre': of_info['progreso_actual'].area.nombre
+                                },
+                                'estado': {
+                                    'nombre': of_info['progreso_actual'].estado.nombre
+                                }
+                            },
                             'tiempo_estimado_fabrica': of_info.get('tiempo_estimado_fabrica', 0),
                             'tiempo_estimado_embalaje': of_info.get('tiempo_estimado_embalaje', 0)
                         }
@@ -399,7 +415,9 @@ class PlanificacionPrioridadesService:
 
                     except Exception as e:
                         print(f"Error processing OF for Gantt chart: {str(e)}")
-                        print(f"of_info: {of_info}")
+                        print(f"of_info type: {type(of_info)}")
+                        if hasattr(of_info, 'keys'):
+                            print(f"of_info keys: {list(of_info.keys())}")
                         import traceback
                         traceback.print_exc()
                         continue
