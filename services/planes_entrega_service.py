@@ -7,7 +7,8 @@ from models import PlanEntrega, HitoEntrega, EstadoHitoEntrega, Contrato
 from repositories.planes_entrega_repo import PlanesEntregaRepository, HitosEntregaRepository
 from repositories.contratos_repo import ContratosRepository
 from services.audit_service import AuditService, serialize_model
-from sqlalchemy import func # Added import for func
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger(__name__)
 
