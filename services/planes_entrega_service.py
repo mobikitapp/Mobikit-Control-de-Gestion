@@ -191,21 +191,29 @@ class PlanesEntregaService:
             except Exception as e:
                 logger.warning(f"Error en audit log: {str(e)}")
 
-            # Close current session to force fresh data
-            db.session.close()
+            # Expire all objects from session to force fresh queries
+            db.session.expire_all()
             
-            # Get fresh plan instance with all hitos loaded
-            fresh_plan = (db.session.query(PlanEntrega)
-                         .options(
-                             joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user)
-                         )
-                         .filter_by(id=plan_id)
-                         .first())
+            # Verify hito exists with direct query
+            verify_hito_direct = db.session.query(HitoEntrega).filter_by(id=hito.id).first()
+            if verify_hito_direct:
+                logger.info(f"Direct hito verification successful: ID {verify_hito_direct.id}, Título: {verify_hito_direct.titulo}")
+            else:
+                logger.error(f"CRITICAL: Hito {hito.id} not found in direct verification!")
             
-            if fresh_plan:
-                logger.info(f"Fresh plan loaded with {len(fresh_plan.hitos)} hitos")
-                for h in fresh_plan.hitos:
-                    logger.info(f"  - Hito ID: {h.id}, Título: {h.titulo}, Orden: {h.orden}")
+            # Count total hitos for plan with direct query
+            total_hitos_direct = db.session.query(HitoEntrega).filter_by(plan_entrega_id=plan_id).count()
+            logger.info(f"Direct count verification: Plan {plan_id} has {total_hitos_direct} total hitos")
+            
+            # List all hitos for debugging
+            all_hitos_direct = (db.session.query(HitoEntrega)
+                               .filter_by(plan_entrega_id=plan_id)
+                               .order_by(HitoEntrega.orden, HitoEntrega.fecha_programada)
+                               .all())
+            
+            logger.info(f"All hitos for plan {plan_id}:")
+            for h in all_hitos_direct:
+                logger.info(f"  - Hito ID: {h.id}, Título: {h.titulo}, Orden: {h.orden}")
             
             logger.info(f"Hito agregado al plan {plan_id}: {hito.titulo}")
             return hito

@@ -500,7 +500,8 @@ def eliminar_adjunto(adjunto_id):
 def plan_entrega(contrato_id):
     """Ver plan de entrega del contrato"""
     try:
-        # Force fresh session to avoid cached data issues
+        # Force complete session refresh to avoid cached data issues
+        db.session.expire_all()
         db.session.close()
         
         contrato = contratos_service.get_contrato_by_id(contrato_id)
@@ -512,10 +513,26 @@ def plan_entrega(contrato_id):
         estadisticas = None
 
         if plan:
-            # Log current hitos for debugging
-            logger.info(f"Plan de entrega {plan.id} tiene {len(plan.hitos)} hitos:")
+            # Additional verification with direct query
+            direct_hitos_count = db.session.query(HitoEntrega).filter_by(plan_entrega_id=plan.id).count()
+            logger.info(f"Plan de entrega {plan.id} - Template data check:")
+            logger.info(f"  - Relationship hitos count: {len(plan.hitos)}")
+            logger.info(f"  - Direct query hitos count: {direct_hitos_count}")
+            
             for h in plan.hitos:
                 logger.info(f"  - ID: {h.id}, Título: {h.titulo}, Estado: {h.estado.value}")
+            
+            # If there's a mismatch, reload plan
+            if len(plan.hitos) != direct_hitos_count:
+                logger.warning(f"Hitos count mismatch! Reloading plan data...")
+                db.session.refresh(plan)
+                fresh_hitos = (db.session.query(HitoEntrega)
+                              .options(joinedload(HitoEntrega.completado_por_user))
+                              .filter_by(plan_entrega_id=plan.id)
+                              .order_by(HitoEntrega.orden, HitoEntrega.fecha_programada)
+                              .all())
+                plan.hitos = fresh_hitos
+                logger.info(f"Reloaded plan now has {len(plan.hitos)} hitos")
             
             estadisticas = planes_entrega_service.get_estadisticas_plan(plan.id)
 
