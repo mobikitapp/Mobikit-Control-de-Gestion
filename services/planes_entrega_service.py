@@ -191,6 +191,10 @@ class PlanesEntregaService:
             db.session.commit()
             logger.info(f"Transacción completada exitosamente para hito {hito.id}")
             
+            # Expire the hitos relationship on the plan to ensure fresh data on next query
+            db.session.expire(plan, ['hitos'])
+            logger.info(f"Plan {plan_id} hitos relationship expired for fresh reload")
+            
             logger.info(f"Hito agregado al plan {plan_id}: {hito.titulo}")
             return hito
 
