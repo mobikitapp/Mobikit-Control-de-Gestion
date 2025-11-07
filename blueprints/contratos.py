@@ -664,6 +664,9 @@ def agregar_hito(plan_id):
             flash('Plan de entrega no encontrado', 'error')
             return redirect(url_for('contratos.index'))
 
+        # Store contrato_id before any operations that might detach the object
+        contrato_id = plan.contrato_id
+
         # Validar datos del formulario
         titulo = request.form.get('titulo', '').strip()
         descripcion = request.form.get('descripcion', '').strip()
@@ -671,11 +674,11 @@ def agregar_hito(plan_id):
 
         if not titulo:
             flash('El título del hito es requerido', 'error')
-            return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+            return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
 
         if not fecha_programada:
             flash('La fecha programada del hito es requerida', 'error')
-            return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+            return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
 
         # Validate date format
         try:
@@ -683,7 +686,7 @@ def agregar_hito(plan_id):
             datetime.strptime(fecha_programada, '%Y-%m-%d')
         except ValueError:
             flash('Formato de fecha inválido', 'error')
-            return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+            return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
 
         hito_data = {
             'titulo': titulo,
@@ -697,28 +700,38 @@ def agregar_hito(plan_id):
 
         flash(f'Hito "{hito.titulo}" agregado exitosamente', 'success')
 
-        # Force refresh the session to see the new hito
-        db.session.expunge_all()  # Clear session cache
-        
-        return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+        # Use the stored contrato_id instead of accessing the potentially detached object
+        return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
 
     except ValueError as e:
         logger.error(f"Error de validación agregando hito al plan {plan_id}: {str(e)}")
         flash(f'Error: {str(e)}', 'error')
+        # Try to get contrato_id if we have it, otherwise fallback to index
         try:
-            plan = planes_entrega_service.get_plan_by_id(plan_id)
-            return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+            if 'contrato_id' in locals():
+                return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
+            else:
+                plan = planes_entrega_service.get_plan_by_id(plan_id)
+                if plan:
+                    return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
         except:
-            return redirect(url_for('contratos.index'))
+            pass
+        return redirect(url_for('contratos.index'))
     except Exception as e:
         logger.error(f"Error agregando hito al plan {plan_id}: {str(e)}")
         logger.exception("Full traceback for agregar_hito error:")
         flash('Error interno al agregar hito', 'error')
+        # Try to get contrato_id if we have it, otherwise fallback to index
         try:
-            plan = planes_entrega_service.get_plan_by_id(plan_id)
-            return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
+            if 'contrato_id' in locals():
+                return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
+            else:
+                plan = planes_entrega_service.get_plan_by_id(plan_id)
+                if plan:
+                    return redirect(url_for('contratos.plan_entrega', contrato_id=plan.contrato_id))
         except:
-            return redirect(url_for('contratos.index'))
+            pass
+        return redirect(url_for('contratos.index'))
 
 @contratos_bp.route('/api/proximos-hitos')
 @require_login
