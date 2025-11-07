@@ -172,6 +172,10 @@ class PlanesEntregaService:
             db.session.commit()
             logger.info(f"Transacción completada exitosamente para hito {hito.id}")
 
+            # Refresh the plan to ensure updated relationships
+            db.session.refresh(plan)
+            logger.info(f"Plan refreshed, hitos actuales: {len(plan.hitos)}")
+
             # Log audit
             AuditService.log_action(
                 'hitos_entrega', 
