@@ -703,7 +703,9 @@ def agregar_hito(plan_id):
         # Verify the hito was actually saved
         try:
             # Get a fresh plan to verify the hito was added
-            fresh_plan = planes_entrega_service.get_plan_by_id(plan_id)
+            from repositories.planes_entrega_repo import PlanesEntregaRepository
+            repo = PlanesEntregaRepository()
+            fresh_plan = repo.get_by_id_with_fresh_hitos(plan_id)
             if fresh_plan:
                 logger.info(f"Verificación final: Plan {plan_id} tiene {len(fresh_plan.hitos)} hitos")
                 for h in fresh_plan.hitos:

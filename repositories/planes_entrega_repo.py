@@ -30,6 +30,31 @@ class PlanesEntregaRepository:
                 .first())
     
     @staticmethod
+    def get_by_id_with_fresh_hitos(plan_id: int) -> Optional[PlanEntrega]:
+        """Get plan de entrega by ID with freshly loaded hitos"""
+        plan = (db.session.query(PlanEntrega)
+                .options(
+                    joinedload(PlanEntrega.contrato),
+                    joinedload(PlanEntrega.creator)
+                )
+                .filter_by(id=plan_id)
+                .first())
+        
+        if plan:
+            # Force reload hitos with explicit query
+            db.session.refresh(plan, ['hitos'])
+            # Ensure hitos are loaded with proper ordering
+            hitos = (db.session.query(HitoEntrega)
+                    .options(joinedload(HitoEntrega.completado_por_user))
+                    .filter_by(plan_entrega_id=plan_id)
+                    .order_by(HitoEntrega.orden, HitoEntrega.fecha_programada)
+                    .all())
+            # Replace the relationship data
+            plan.hitos = hitos
+            
+        return plan
+    
+    @staticmethod
     def get_by_contrato_id(contrato_id: int) -> Optional[PlanEntrega]:
         """Get plan de entrega by contrato ID"""
         return (db.session.query(PlanEntrega)

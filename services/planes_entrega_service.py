@@ -179,16 +179,29 @@ class PlanesEntregaService:
             db.session.commit()
             logger.info(f"Transacción completada exitosamente para hito {hito.id}")
 
-            # Clear the session cache to ensure fresh data
-            db.session.expunge_all()
+            # Log audit (before expunge to avoid session issues)
+            try:
+                AuditService.log_action(
+                    'hitos_entrega', 
+                    hito.id, 
+                    'CREATE', 
+                    datos_nuevos=serialize_model(hito)
+                )
+            except Exception as e:
+                logger.warning(f"Error en audit log: {str(e)}")
 
-            # Log audit
-            AuditService.log_action(
-                'hitos_entrega', 
-                hito.id, 
-                'CREATE', 
-                datos_nuevos=serialize_model(hito)
-            )
+            # Force refresh of the plan's hitos relationship
+            db.session.refresh(plan)
+            logger.info(f"Plan refreshed, hitos count: {len(plan.hitos)}")
+            
+            # If refresh didn't work, manually reload the hitos
+            if len(plan.hitos) <= max_orden:
+                logger.warning("Refresh didn't load new hito, manually reloading...")
+                plan.hitos = (db.session.query(HitoEntrega)
+                             .filter_by(plan_entrega_id=plan_id)
+                             .order_by(HitoEntrega.orden, HitoEntrega.fecha_programada)
+                             .all())
+                logger.info(f"Manual reload resulted in {len(plan.hitos)} hitos")
 
             logger.info(f"Hito agregado al plan {plan_id}: {hito.titulo}")
             return hito
