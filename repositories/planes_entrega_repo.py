@@ -20,41 +20,25 @@ class PlanesEntregaRepository:
     @staticmethod
     def get_by_id(plan_id: int) -> Optional[PlanEntrega]:
         """Get plan de entrega by ID with related data"""
-        plan = (db.session.query(PlanEntrega)
+        return (db.session.query(PlanEntrega)
                 .options(
+                    joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user),
                     joinedload(PlanEntrega.contrato),
                     joinedload(PlanEntrega.creator)
                 )
                 .filter_by(id=plan_id)
                 .first())
-        
-        if plan:
-            # Explicitly load hitos with proper ordering
-            plan.hitos = (db.session.query(HitoEntrega)
-                         .options(joinedload(HitoEntrega.completado_por_user))
-                         .filter_by(plan_entrega_id=plan_id)
-                         .order_by(HitoEntrega.orden, HitoEntrega.fecha_programada)
-                         .all())
-        
-        return plan
     
     @staticmethod
     def get_by_contrato_id(contrato_id: int) -> Optional[PlanEntrega]:
         """Get plan de entrega by contrato ID"""
-        plan = (db.session.query(PlanEntrega)
-                .options(joinedload(PlanEntrega.contrato))
+        return (db.session.query(PlanEntrega)
+                .options(
+                    joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user),
+                    joinedload(PlanEntrega.contrato)
+                )
                 .filter_by(contrato_id=contrato_id)
                 .first())
-        
-        if plan:
-            # Explicitly load hitos with proper ordering
-            plan.hitos = (db.session.query(HitoEntrega)
-                         .options(joinedload(HitoEntrega.completado_por_user))
-                         .filter_by(plan_entrega_id=plan.id)
-                         .order_by(HitoEntrega.orden, HitoEntrega.fecha_programada)
-                         .all())
-        
-        return plan
     
     @staticmethod
     def update(plan: PlanEntrega, update_data: Dict[str, Any]) -> PlanEntrega:

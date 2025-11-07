@@ -159,6 +159,13 @@ class PlanesEntregaService:
 
             # Force flush to ensure data is written to DB
             db.session.flush()
+            
+            # Verify hito was created
+            verify_hito = db.session.query(HitoEntrega).filter_by(id=hito.id).first()
+            if not verify_hito:
+                raise Exception(f"Hito {hito.id} no se pudo verificar después del flush")
+            
+            logger.info(f"Hito verificado en base de datos: {verify_hito.titulo}")
 
             # Sync with calendar events
             try:
@@ -172,9 +179,8 @@ class PlanesEntregaService:
             db.session.commit()
             logger.info(f"Transacción completada exitosamente para hito {hito.id}")
 
-            # Refresh the plan to ensure updated relationships
-            db.session.refresh(plan)
-            logger.info(f"Plan refreshed, hitos actuales: {len(plan.hitos)}")
+            # Clear the session cache to ensure fresh data
+            db.session.expunge_all()
 
             # Log audit
             AuditService.log_action(

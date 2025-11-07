@@ -616,7 +616,7 @@ class PlanEntrega(db.Model):
     created_by = db.Column(db.String, db.ForeignKey('users.id'))
 
     # Relationships
-    hitos = db.relationship('HitoEntrega', backref='plan_entrega', lazy=True, cascade='all, delete-orphan')
+    hitos = db.relationship('HitoEntrega', backref='plan_entrega', lazy=True, cascade='all, delete-orphan', order_by='HitoEntrega.orden, HitoEntrega.fecha_programada')
     creator = db.relationship('User', foreign_keys=[created_by])
 
     # Indexes

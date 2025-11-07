@@ -700,6 +700,19 @@ def agregar_hito(plan_id):
 
         flash(f'Hito "{hito.titulo}" agregado exitosamente', 'success')
 
+        # Verify the hito was actually saved
+        try:
+            # Get a fresh plan to verify the hito was added
+            fresh_plan = planes_entrega_service.get_plan_by_id(plan_id)
+            if fresh_plan:
+                logger.info(f"Verificación final: Plan {plan_id} tiene {len(fresh_plan.hitos)} hitos")
+                for h in fresh_plan.hitos:
+                    logger.info(f"  - Hito ID: {h.id}, Título: {h.titulo}")
+            else:
+                logger.error(f"No se pudo obtener el plan {plan_id} para verificación")
+        except Exception as e:
+            logger.warning(f"Error en verificación final: {str(e)}")
+
         # Use the stored contrato_id instead of accessing the potentially detached object
         return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
 
