@@ -176,11 +176,7 @@ class PlanesEntregaService:
             except Exception as e:
                 logger.warning(f"Error sincronizando evento para nuevo hito {hito.id}: {str(e)}")
 
-            # Commit the transaction
-            db.session.commit()
-            logger.info(f"Transacción completada exitosamente para hito {hito.id}")
-
-            # Log audit (after commit to ensure data integrity)
+            # Log audit BEFORE commit (within same transaction)
             try:
                 AuditService.log_action(
                     'hitos_entrega', 
@@ -190,9 +186,10 @@ class PlanesEntregaService:
                 )
             except Exception as e:
                 logger.warning(f"Error en audit log: {str(e)}")
-
-            # Refresh the plan object to ensure it has the latest hitos
-            db.session.refresh(plan)
+            
+            # Commit the transaction
+            db.session.commit()
+            logger.info(f"Transacción completada exitosamente para hito {hito.id}")
             
             logger.info(f"Hito agregado al plan {plan_id}: {hito.titulo}")
             return hito
