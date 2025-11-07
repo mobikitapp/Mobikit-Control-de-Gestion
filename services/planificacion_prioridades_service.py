@@ -363,7 +363,7 @@ class PlanificacionPrioridadesService:
 
                         hitos_en_gantt.append({
                             'titulo': hito['titulo'],
-                            'fecha_programada': hito['fecha_programada'].isoformat() if hito['fecha_programada'] else None,
+                            'fecha_programada': hito['fecha_programada'],  # Keep as datetime object for template
                             'dias_restantes': hito['dias_restantes'],
                             'posicion_porcentual': max(0, min(100, posicion_porcentual)),  # Clamp 0-100%
                             'contrato_id': hito['contrato'].id if hito.get('contrato') else None

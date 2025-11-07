@@ -1171,7 +1171,7 @@ function generarGraficoCargaSemanal() {
     }
 
     // Procesar datos de proyectos pasados desde el servidor
-    const proyectosData = {{ proyectos_gantt | tojson | safe }};
+    const proyectosData = {{ proyectos_gantt | tojson }};
 
     if (proyectosData && Array.isArray(proyectosData)) {
         proyectosData.forEach(function(proyecto) {
@@ -1179,9 +1179,13 @@ function generarGraficoCargaSemanal() {
                 proyecto.ofs.forEach(function(ofData) {
                     // Handle both structures: direct OF data or nested structure
                     const ofInfo = ofData.of ? ofData.of : ofData;
-                    const fechaPlanificada = ofInfo.fecha_planificada;
+                    let fechaPlanificada = ofInfo.fecha_planificada;
 
                     if (fechaPlanificada) {
+                        // Handle both string and Date object formats
+                        if (typeof fechaPlanificada === 'string') {
+                            fechaPlanificada = fechaPlanificada.split('T')[0]; // Extract date part if ISO format
+                        }
                         const fechaOf = new Date(fechaPlanificada);
                         const tableros = ofInfo.cantidad_tableros || 0;
 
