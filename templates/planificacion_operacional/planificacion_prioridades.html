@@ -1185,7 +1185,7 @@ function generarGraficoCargaSemanal() {
 
                             if (fechaPlanificada) {
                                 let fechaOf;
-                                
+
                                 // Handle different date formats
                                 if (typeof fechaPlanificada === 'string') {
                                     // Try different date formats
@@ -1196,13 +1196,13 @@ function generarGraficoCargaSemanal() {
                                 } else {
                                     fechaOf = new Date(fechaPlanificada);
                                 }
-                                
+
                                 // Validate date
                                 if (isNaN(fechaOf.getTime())) {
                                     console.warn('Invalid date for OF:', ofInfo.codigo, fechaPlanificada);
                                     return;
                                 }
-                                
+
                                 const tableros = parseInt(ofInfo.cantidad_tableros) || 0;
 
                                 // Calcular semana de la OF
@@ -1228,7 +1228,7 @@ function generarGraficoCargaSemanal() {
 
     // Debug: Log processed data
     console.log('Carga por semana después de procesamiento:', cargaPorSemana);
-    
+
     // Preparar datos para el gráfico
     const semanas = Object.keys(cargaPorSemana).sort();
     const labels = semanas.map(semana => {
@@ -1260,7 +1260,7 @@ function generarGraficoCargaSemanal() {
         console.error('No se pudo obtener el contexto del canvas para el gráfico');
         return;
     }
-    
+
     new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1771,12 +1771,6 @@ function imprimirMatrizDetallada() {
 
     .matriz-detallada-section .table th:nth-child(6), /* Fecha Fab */
     .matriz-detallada-section .table td:nth-child(6) {
-        width: 14% !important;
-        max-width: 14% !important;
-    }
-
-    .matriz-detallada-section .table th:nth-child(7), /* Fecha Embalaje */
-    .matriz-detallada-section .table td:nth-child(7) {
         width: 14% !important;
         max-width: 14% !important;
     }

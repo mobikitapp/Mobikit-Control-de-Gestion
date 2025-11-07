@@ -13,10 +13,20 @@ CHILE_TZ = pytz.timezone('America/Santiago')
 
 try:
     from app import app, db
+    from datetime import datetime
     
     # Add builtin functions to Jinja2 context
     app.jinja_env.globals['min'] = min
     app.jinja_env.globals['max'] = max
+    
+    # Add custom filters
+    @app.template_filter('strptime')
+    def strptime_filter(date_string, format_string='%Y-%m-%d'):
+        """Convert string to datetime object"""
+        try:
+            return datetime.strptime(date_string, format_string)
+        except (ValueError, TypeError):
+            return None
 
     # Add moment function to template globals
     @app.template_global('moment_global')
