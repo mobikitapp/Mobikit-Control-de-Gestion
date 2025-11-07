@@ -57,11 +57,7 @@ class PlanesEntregaRepository:
     @staticmethod
     def get_by_contrato_id(contrato_id: int) -> Optional[PlanEntrega]:
         """Get plan de entrega by contrato ID with fresh data"""
-        # Force fresh query by expiring all cached objects and closing session
-        db.session.expire_all()
-        db.session.close()
-        
-        # Create fresh query
+        # Create fresh query without closing session to avoid issues
         plan = (db.session.query(PlanEntrega)
                 .options(
                     joinedload(PlanEntrega.hitos).joinedload(HitoEntrega.completado_por_user),
@@ -71,9 +67,7 @@ class PlanesEntregaRepository:
                 .first())
         
         if plan:
-            # Force refresh to ensure we have the latest data
-            db.session.refresh(plan)
-            # Also manually load hitos with fresh query
+            # Manually load hitos with fresh query to ensure we get all of them
             fresh_hitos = (db.session.query(HitoEntrega)
                           .options(joinedload(HitoEntrega.completado_por_user))
                           .filter_by(plan_entrega_id=plan.id)

@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, date
 from app import db
 from replit_auth import require_login, require_role
-from models import RolUsuario, User # Import User model
+from models import RolUsuario, User, HitoEntrega # Import User model and HitoEntrega
 from services.contratos_service import ContratosService
 from services.proyectos_service import ProyectosService
 from services.clientes_service import ClientesService
