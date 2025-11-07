@@ -636,18 +636,30 @@ Días restantes: {{ hito.dias_restantes }}">
                                                         </td>
                                                         <td>
                                                             {% if of_info.of.fecha_planificada %}
-                                                                <small class="badge bg-primary" style="font-size: 9px;">{{ of_info.of.fecha_planificada.strftime('%d/%m/%Y') }}</small>
+                                                                {% if of_info.of.fecha_planificada is string %}
+                                                                    <small class="badge bg-primary" style="font-size: 9px;">{{ of_info.of.fecha_planificada }}</small>
+                                                                {% else %}
+                                                                    <small class="badge bg-primary" style="font-size: 9px;">{{ of_info.of.fecha_planificada.strftime('%d/%m/%Y') }}</small>
+                                                                {% endif %}
                                                             {% else %}
                                                                 <small class="badge bg-secondary" style="font-size: 9px;">Sin fecha</small>
                                                             {% endif %}
                                                         </td>
                                                         <td>
                                                             {% if of_info.of.fecha_entrega_fabrica %}
-                                                                <small class="badge bg-warning text-dark" style="font-size: 9px;">{{ of_info.of.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}</small>
+                                                                {% if of_info.of.fecha_entrega_fabrica is string %}
+                                                                    <small class="badge bg-warning text-dark" style="font-size: 9px;">{{ of_info.of.fecha_entrega_fabrica }}</small>
+                                                                {% else %}
+                                                                    <small class="badge bg-warning text-dark" style="font-size: 9px;">{{ of_info.of.fecha_entrega_fabrica.strftime('%d/%m/%Y') }}</small>
+                                                                {% endif %}
                                                             {% else %}
                                                                 <small class="text-muted" style="font-size: 9px;">Sin fecha</small>
                                                                 {% if of_info.fecha_estimada_fabricacion %}
-                                                                <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
+                                                                    {% if of_info.fecha_estimada_fabricacion is string %}
+                                                                        <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_fabricacion }}</small>
+                                                                    {% else %}
+                                                                        <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_fabricacion.strftime('%d/%m') }}</small>
+                                                                    {% endif %}
                                                                 {% endif %}
                                                             {% endif %}
                                                             <br>
@@ -659,11 +671,19 @@ Días restantes: {{ hito.dias_restantes }}">
                                                         </td>
                                                         <td>
                                                             {% if of_info.of.fecha_entrega_embalaje %}
-                                                                <small class="badge bg-success" style="font-size: 9px;">{{ of_info.of.fecha_entrega_embalaje.strftime('%d/%m/%Y') }}</small>
+                                                                {% if of_info.of.fecha_entrega_embalaje is string %}
+                                                                    <small class="badge bg-success" style="font-size: 9px;">{{ of_info.of.fecha_entrega_embalaje }}</small>
+                                                                {% else %}
+                                                                    <small class="badge bg-success" style="font-size: 9px;">{{ of_info.of.fecha_entrega_embalaje.strftime('%d/%m/%Y') }}</small>
+                                                                {% endif %}
                                                             {% else %}
                                                                 <small class="text-muted" style="font-size: 9px;">Sin fecha</small>
                                                                 {% if of_info.fecha_estimada_embalaje %}
-                                                                <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
+                                                                    {% if of_info.fecha_estimada_embalaje is string %}
+                                                                        <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_embalaje }}</small>
+                                                                    {% else %}
+                                                                        <br><small class="text-info" style="font-size: 8px;">Est: {{ of_info.fecha_estimada_embalaje.strftime('%d/%m') }}</small>
+                                                                    {% endif %}
                                                                 {% endif %}
                                                             {% endif %}
                                                             <br>
