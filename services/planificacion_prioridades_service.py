@@ -250,7 +250,7 @@ class PlanificacionPrioridadesService:
         """
         try:
             print("Iniciando get_matriz_planificacion_prioridades")
-            
+
             # Obtener todas las OFs en producción
             ofs_data = self.get_ofs_en_produccion()
             print(f"OFs obtenidas: {len(ofs_data)}")
@@ -377,13 +377,13 @@ class PlanificacionPrioridadesService:
                         if not isinstance(of_info, dict):
                             print(f"Expected dict, got {type(of_info)}: {of_info}")
                             continue
-                        
+
                         if 'of' not in of_info:
                             print(f"Missing 'of' key in of_info. Available keys: {list(of_info.keys()) if hasattr(of_info, 'keys') else 'N/A'}")
                             continue
 
                         of_obj = of_info['of']
-                        
+
                         if not of_obj or not hasattr(of_obj, 'id'):
                             print(f"Invalid OF object: {of_obj}")
                             continue
@@ -432,7 +432,7 @@ class PlanificacionPrioridadesService:
                     'dias_proximo_hito': proyecto_data['dias_proximo_hito']
                 }
                 proyectos_gantt.append(gantt_proyecto)
-                
+
                 # Debug logging
                 print(f"Proyecto {proyecto_data['proyecto'].nombre}: {len(ofs_serializadas)} OFs serializadas, {proyecto_data['total_tableros']} tableros total")
                 for of_ser in ofs_serializadas:
@@ -570,11 +570,17 @@ class PlanificacionPrioridadesService:
 
                 # Prioridad 1: Fecha de entrega embalaje si existe
                 if of.fecha_entrega_embalaje:
-                    return of.fecha_entrega_embalaje, 1
+                    fecha = of.fecha_entrega_embalaje
+                    if hasattr(fecha, 'date'):
+                        fecha = fecha.date()
+                    return fecha, 1
 
                 # Prioridad 2: Fecha de entrega fábrica si existe
                 if of.fecha_entrega_fabrica:
-                    return of.fecha_entrega_fabrica, 2
+                    fecha = of.fecha_entrega_fabrica
+                    if hasattr(fecha, 'date'):
+                        fecha = fecha.date()
+                    return fecha, 2
 
                 # Prioridad 3: Fecha planificada + tiempo estimado
                 if of.fecha_planificada:
@@ -584,7 +590,10 @@ class PlanificacionPrioridadesService:
                     tiempo_embalaje = self.planificacion_service.calcular_tiempo_estimado_embalaje(
                         of.cantidad_tableros or 0
                     )
-                    fecha_estimada = of.fecha_planificada + timedelta(days=int(tiempo_fabrica + tiempo_embalaje))
+                    fecha_plan = of.fecha_planificada
+                    if hasattr(fecha_plan, 'date'):
+                        fecha_plan = fecha_plan.date()
+                    fecha_estimada = fecha_plan + timedelta(days=int(tiempo_fabrica + tiempo_embalaje))
                     return fecha_estimada, 3
 
                 # Prioridad 4: Fecha muy lejana para OFs sin fechas (baja prioridad)

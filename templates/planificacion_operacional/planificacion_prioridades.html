@@ -446,9 +446,14 @@
                                             {% for of_info in proyecto.ofs %}
                                                 {% if of_info.of.fecha_planificada %}
                                                     {% if of_info.of.fecha_planificada is string %}
-                                                        {% set of_start = of_info.of.fecha_planificada | strptime('%Y-%m-%d') %}
+                                                        {% set of_start_dt = of_info.of.fecha_planificada | strptime('%Y-%m-%d') %}
+                                                        {% set of_start = of_start_dt.date() %}
                                                     {% else %}
-                                                        {% set of_start = of_info.of.fecha_planificada %}
+                                                        {% if of_info.of.fecha_planificada.__class__.__name__ == 'datetime' %}
+                                                            {% set of_start = of_info.of.fecha_planificada.date() %}
+                                                        {% else %}
+                                                            {% set of_start = of_info.of.fecha_planificada %}
+                                                        {% endif %}
                                                     {% endif %}
                                                     {% set fabrica_days = of_info.tiempo_estimado_fabrica or 5 %}
                                                     {% set embalaje_days = of_info.tiempo_estimado_embalaje or 3 %}
