@@ -1171,38 +1171,64 @@ function generarGraficoCargaSemanal() {
     }
 
     // Procesar datos de proyectos pasados desde el servidor
-    const proyectosData = {{ proyectos_gantt | tojson }};
+    try {
+        const proyectosData = {{ proyectos_gantt | tojson | safe }};
 
-    if (proyectosData && Array.isArray(proyectosData)) {
-        proyectosData.forEach(function(proyecto) {
-            if (proyecto.ofs && Array.isArray(proyecto.ofs)) {
-                proyecto.ofs.forEach(function(ofData) {
-                    // Handle both structures: direct OF data or nested structure
-                    const ofInfo = ofData.of ? ofData.of : ofData;
-                    let fechaPlanificada = ofInfo.fecha_planificada;
+        if (proyectosData && Array.isArray(proyectosData)) {
+            proyectosData.forEach(function(proyecto) {
+                if (proyecto.ofs && Array.isArray(proyecto.ofs)) {
+                    proyecto.ofs.forEach(function(ofData) {
+                        try {
+                            // Handle both structures: direct OF data or nested structure
+                            const ofInfo = ofData.of ? ofData.of : ofData;
+                            let fechaPlanificada = ofInfo.fecha_planificada;
 
-                    if (fechaPlanificada) {
-                        // Handle both string and Date object formats
-                        if (typeof fechaPlanificada === 'string') {
-                            fechaPlanificada = fechaPlanificada.split('T')[0]; // Extract date part if ISO format
+                            if (fechaPlanificada) {
+                                let fechaOf;
+                                
+                                // Handle different date formats
+                                if (typeof fechaPlanificada === 'string') {
+                                    // Try different date formats
+                                    if (fechaPlanificada.includes('T')) {
+                                        fechaPlanificada = fechaPlanificada.split('T')[0]; // Extract date part if ISO format
+                                    }
+                                    fechaOf = new Date(fechaPlanificada + 'T00:00:00'); // Ensure proper parsing
+                                } else {
+                                    fechaOf = new Date(fechaPlanificada);
+                                }
+                                
+                                // Validate date
+                                if (isNaN(fechaOf.getTime())) {
+                                    console.warn('Invalid date for OF:', ofInfo.codigo, fechaPlanificada);
+                                    return;
+                                }
+                                
+                                const tableros = parseInt(ofInfo.cantidad_tableros) || 0;
+
+                                // Calcular semana de la OF
+                                const añoOf = fechaOf.getFullYear();
+                                const semanaOf = getISOWeek(fechaOf);
+                                const claveOf = `${añoOf}-S${semanaOf.toString().padStart(2, '0')}`;
+
+                                if (cargaPorSemana[claveOf]) {
+                                    cargaPorSemana[claveOf].tableros += tableros;
+                                    console.log(`Added ${tableros} tableros to week ${claveOf}, total now: ${cargaPorSemana[claveOf].tableros}`);
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error processing OF data:', e, ofData);
                         }
-                        const fechaOf = new Date(fechaPlanificada);
-                        const tableros = ofInfo.cantidad_tableros || 0;
-
-                        // Calcular semana de la OF
-                        const añoOf = fechaOf.getFullYear();
-                        const semanaOf = getISOWeek(fechaOf);
-                        const claveOf = `${añoOf}-S${semanaOf.toString().padStart(2, '0')}`;
-
-                        if (cargaPorSemana[claveOf]) {
-                            cargaPorSemana[claveOf].tableros += tableros;
-                        }
-                    }
-                });
-            }
-        });
+                    });
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error processing proyectosData:', error);
     }
 
+    // Debug: Log processed data
+    console.log('Carga por semana después de procesamiento:', cargaPorSemana);
+    
     // Preparar datos para el gráfico
     const semanas = Object.keys(cargaPorSemana).sort();
     const labels = semanas.map(semana => {
@@ -1211,11 +1237,30 @@ function generarGraficoCargaSemanal() {
     });
     const datos = semanas.map(semana => cargaPorSemana[semana].tableros);
 
+    console.log('Datos para gráfico - Semanas:', semanas);
+    console.log('Datos para gráfico - Labels:', labels);
+    console.log('Datos para gráfico - Tableros:', datos);
+    console.log('Total tableros en datos:', datos.reduce((sum, val) => sum + val, 0));
+
     // Capacidad semanal desde configuración
     const capacidadSemanal = {{ capacidad_semanal or 100 }};
 
+    // Validar que tenemos datos antes de crear el gráfico
+    if (datos.length === 0 || datos.every(val => val === 0)) {
+        console.warn('No hay datos de tableros para mostrar en el gráfico');
+        // Mostrar mensaje en lugar del gráfico
+        const chartContainer = document.getElementById('cargaSemanalChart').parentElement;
+        chartContainer.innerHTML = '<div class="alert alert-warning text-center"><i class="fas fa-info-circle"></i> No hay datos de tableros programados para mostrar</div>';
+        return;
+    }
+
     // Crear gráfico
     const ctx = document.getElementById('cargaSemanalChart').getContext('2d');
+    if (!ctx) {
+        console.error('No se pudo obtener el contexto del canvas para el gráfico');
+        return;
+    }
+    
     new Chart(ctx, {
         type: 'bar',
         data: {

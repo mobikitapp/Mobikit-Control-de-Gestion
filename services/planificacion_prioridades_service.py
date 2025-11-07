@@ -393,9 +393,9 @@ class PlanificacionPrioridadesService:
                                 'id': of_obj.id,
                                 'codigo': of_obj.codigo,
                                 'cantidad_tableros': of_obj.cantidad_tableros or 0,
-                                'fecha_planificada': of_obj.fecha_planificada,  # Pass datetime object, not string
-                                'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica,  # Pass datetime object, not string
-                                'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje,  # Pass datetime object, not string
+                                'fecha_planificada': of_obj.fecha_planificada.isoformat() if of_obj.fecha_planificada else None,
+                                'fecha_entrega_fabrica': of_obj.fecha_entrega_fabrica.isoformat() if of_obj.fecha_entrega_fabrica else None,
+                                'fecha_entrega_embalaje': of_obj.fecha_entrega_embalaje.isoformat() if of_obj.fecha_entrega_embalaje else None,
                                 'prioridad_numerica': of_obj.prioridad_numerica or 99,
                                 'glosa': of_obj.glosa,
                                 'descripcion': of_obj.descripcion
@@ -432,6 +432,11 @@ class PlanificacionPrioridadesService:
                     'dias_proximo_hito': proyecto_data['dias_proximo_hito']
                 }
                 proyectos_gantt.append(gantt_proyecto)
+                
+                # Debug logging
+                print(f"Proyecto {proyecto_data['proyecto'].nombre}: {len(ofs_serializadas)} OFs serializadas, {proyecto_data['total_tableros']} tableros total")
+                for of_ser in ofs_serializadas:
+                    print(f"  OF {of_ser['of']['codigo']}: {of_ser['of']['cantidad_tableros']} tableros, fecha: {of_ser['of']['fecha_planificada']}")
 
             # Obtener estadísticas generales de tiempos por área
             estadisticas_tiempos = self.get_estadisticas_tiempos_por_area()
