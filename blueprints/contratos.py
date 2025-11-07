@@ -707,27 +707,8 @@ def agregar_hito(plan_id):
 
         flash(f'Hito "{hito.titulo}" agregado exitosamente', 'success')
 
-        # Verify the hito was actually saved with fresh database query
-        try:
-            # Direct database query to verify
-            from models import HitoEntrega
-            total_hitos = db.session.query(HitoEntrega).filter_by(plan_entrega_id=plan_id).count()
-            logger.info(f"Verificación final: Plan {plan_id} tiene {total_hitos} hitos en total")
-            
-            # Get all hitos for logging
-            all_hitos = (db.session.query(HitoEntrega)
-                        .filter_by(plan_entrega_id=plan_id)
-                        .order_by(HitoEntrega.orden, HitoEntrega.fecha_programada)
-                        .all())
-            
-            for h in all_hitos:
-                logger.info(f"  - Hito ID: {h.id}, Título: {h.titulo}, Orden: {h.orden}")
-                
-        except Exception as e:
-            logger.warning(f"Error en verificación final: {str(e)}")
-
-        # Use the stored contrato_id and add parameter to force refresh
-        return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id, hito_added=1))
+        # Redirect to plan page (will reload fresh data from DB)
+        return redirect(url_for('contratos.plan_entrega', contrato_id=contrato_id))
 
     except ValueError as e:
         logger.error(f"Error de validación agregando hito al plan {plan_id}: {str(e)}")
