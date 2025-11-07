@@ -168,7 +168,15 @@ class PlanesEntregaService:
             
             logger.info(f"Hito verificado en base de datos: {verify_hito.titulo}")
 
-            # Sync with calendar events
+            # Commit the transaction FIRST
+            db.session.commit()
+            logger.info(f"Transacción completada exitosamente para hito {hito.id}")
+            
+            # Expire the hitos relationship on the plan to ensure fresh data on next query
+            db.session.expire(plan, ['hitos'])
+            logger.info(f"Plan {plan_id} hitos relationship expired for fresh reload")
+            
+            # Sync with calendar events AFTER commit
             try:
                 from services.contrato_eventos_service import ContratoEventosService
                 eventos_service = ContratoEventosService()
@@ -176,7 +184,7 @@ class PlanesEntregaService:
             except Exception as e:
                 logger.warning(f"Error sincronizando evento para nuevo hito {hito.id}: {str(e)}")
 
-            # Log audit BEFORE commit (within same transaction)
+            # Log audit AFTER commit (in separate transaction)
             try:
                 AuditService.log_action(
                     'hitos_entrega', 
@@ -186,14 +194,6 @@ class PlanesEntregaService:
                 )
             except Exception as e:
                 logger.warning(f"Error en audit log: {str(e)}")
-            
-            # Commit the transaction
-            db.session.commit()
-            logger.info(f"Transacción completada exitosamente para hito {hito.id}")
-            
-            # Expire the hitos relationship on the plan to ensure fresh data on next query
-            db.session.expire(plan, ['hitos'])
-            logger.info(f"Plan {plan_id} hitos relationship expired for fresh reload")
             
             logger.info(f"Hito agregado al plan {plan_id}: {hito.titulo}")
             return hito
