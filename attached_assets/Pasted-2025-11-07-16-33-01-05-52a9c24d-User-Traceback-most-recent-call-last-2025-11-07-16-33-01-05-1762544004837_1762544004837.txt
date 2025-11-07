@@ -1,0 +1,109 @@
+2025-11-07 16:33:01.05
+52a9c24d
+User
+Traceback (most recent call last):
+
+2025-11-07 16:33:01.05
+52a9c24d
+User
+File "/home/runner/workspace/blueprints/planificacion_operacional.py", line 97, in planificacion_prioridades
+2025-11-07 16:33:01.05
+52a9c24d
+User
+return render_template('planificacion_operacional/planificacion_prioridades.html',
+2025-11-07 16:33:01.05
+52a9c24d
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-07 16:33:01.05
+52a9c24d
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/templating.py", line 150, in render_template
+2025-11-07 16:33:01.05
+52a9c24d
+User
+return _render(app, template, context)
+2025-11-07 16:33:01.05
+52a9c24d
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-07 16:33:01.05
+52a9c24d
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/templating.py", line 131, in _render
+2025-11-07 16:33:01.05
+52a9c24d
+User
+rv = template.render(context)
+2025-11-07 16:33:01.05
+52a9c24d
+User
+^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-07 16:33:01.05
+52a9c24d
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/jinja2/environment.py", line 1295, in render
+2025-11-07 16:33:01.05
+52a9c24d
+User
+self.environment.handle_exception()
+2025-11-07 16:33:01.05
+52a9c24d
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/jinja2/environment.py", line 942, in handle_exception
+2025-11-07 16:33:01.05
+52a9c24d
+User
+raise rewrite_traceback_stack(source=source)
+2025-11-07 16:33:01.05
+52a9c24d
+User
+File "/home/runner/workspace/templates/planificacion_operacional/planificacion_prioridades.html", line 2, in top-level template code
+2025-11-07 16:33:01.05
+52a9c24d
+User
+{% set title = "Planificación y Prioridades" %}
+2025-11-07 16:33:01.05
+52a9c24d
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-07 16:33:01.05
+52a9c24d
+User
+File "/home/runner/workspace/templates/base.html", line 344, in top-level template code
+2025-11-07 16:33:01.05
+52a9c24d
+User
+{% block content %}{% endblock %}
+2025-11-07 16:33:01.05
+52a9c24d
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-07 16:33:01.05
+52a9c24d
+User
+File "/home/runner/workspace/templates/planificacion_operacional/planificacion_prioridades.html", line 553, in block 'content'
+2025-11-07 16:33:01.05
+52a9c24d
+User
+Fecha: {{ hito.fecha_programada.strftime('%d/%m/%Y') }}
+2025-11-07 16:33:01.05
+52a9c24d
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-07 16:33:01.05
+52a9c24d
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/jinja2/utils.py", line 92, in from_obj
+2025-11-07 16:33:01.05
+52a9c24d
+User
+if hasattr(obj, "jinja_pass_arg"):
+2025-11-07 16:33:01.05
+52a9c24d
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-07 16:33:01.05
+52a9c24d
+User
+jinja2.exceptions.UndefinedError: 'str object' has no attribute 'strftime'
