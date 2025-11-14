@@ -1,7 +1,7 @@
 # Manufacturing Management System
 
 ## Overview
-A comprehensive management system designed for manufacturing companies to centralize the administration of clients, projects, contracts, manufacturing orders, and dispatches. The system's core purpose is to streamline operations, improve tracking, and enhance decision-making by providing end-to-end visibility from initial client contact through project completion and delivery. Key capabilities include integrated document management, quality assurance workflows, multi-role user access controls, financial payment status management, processing time tracking by area, strategic capacity planning, and customizable project types with specific factors.
+A comprehensive management system for manufacturing companies to centralize the administration of clients, projects, contracts, manufacturing orders, and dispatches. Its purpose is to streamline operations, improve tracking, and enhance decision-making through end-to-end visibility. Key capabilities include integrated document management, quality assurance, multi-role user access, financial payment status, processing time tracking, strategic capacity planning, and customizable project types. The system aims to provide a centralized platform for managing the entire manufacturing lifecycle from client engagement to product delivery.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -17,23 +17,23 @@ Preferred communication style: Simple, everyday language.
 - **Frontend**: Server-side rendered Jinja2 templates with responsive design
 
 ### Application Structure
-The system utilizes a modular blueprint architecture, separating concerns into domain-specific modules, services for business logic, repositories for data access, and Pydantic models for data validation.
+The system uses a modular blueprint architecture, separating concerns into domain-specific modules, services for business logic, repositories for data access, and Pydantic models for data validation.
 
 ### Business Domain Architecture
 - **Client Management**: Manages client records, contacts, and project history.
-- **Project Lifecycle**: Supports end-to-end project management, including multiple contracts and state management across phases, with specific project types (Social, Estandar, Especial) impacting cost and time. Includes a project log/journal system for tracking technical specifications and changes with categorized comments.
-- **Contract & Purchase Order Management**: Handles contract/PO-based projects with document attachment, multi-currency support, payment terms, and delivery milestones. Features a non-destructive archive system for closed contracts.
-- **Manufacturing Orders (OF)**: Manages production workflows (planned → in_production → QA → finished → delivered) with material tracking, quality control, and real-time vs. estimated time comparison.
-- **Dispatch Management**: Coordinates logistics (scheduled → in_transit → delivered → observed) with documentation and evidence collection. Features a non-destructive archive system for completed dispatches.
-- **Payment Status System**: Manages financial payment statuses nested under projects, grouped by client, with invoicing functionality and financial analysis. Includes a simplified finance module for project financial tracking.
-- **Processing Time Tracking**: Dynamically tracks processing time per area for manufacturing orders, providing historical data.
+- **Project Lifecycle**: Supports end-to-end project management, including multiple contracts and state management across phases. Features project types (Social, Estandar, Especial) influencing cost and time, and a project log for tracking technical specifications and changes.
+- **Contract & Purchase Order Management**: Handles contract/PO-based projects with document attachment, multi-currency support, payment terms, and delivery milestones. Includes a non-destructive archive system.
+- **Manufacturing Orders (OF)**: Manages production workflows (planned → in_production → QA → finished → delivered) with material tracking, quality control, and time comparison.
+- **Dispatch Management**: Coordinates logistics (scheduled → in_transit → delivered → observed) with documentation and evidence collection. Includes a non-destructive archive system.
+- **Payment Status System**: Manages financial payment statuses nested under projects, grouped by client, with invoicing functionality and financial analysis.
+- **Processing Time Tracking**: Dynamically tracks processing time per area for manufacturing orders.
 - **Strategic Capacity Planning**: Provides a system for capacity planning (3-12 months horizon) based on operational parameters and hierarchical demand, including backlog and gap analysis.
-- **Productivity Analysis**: Enhanced to include orders in "Área Bodega" states for comprehensive metrics.
+- **Productivity Analysis**: Includes orders in "Área Bodega" states for comprehensive metrics.
 
 ### Authentication & Authorization
 - **Multi-role System**: Supports Admin, Operations, Sales, Production, Logistics roles with granular permissions.
 - **Dynamic Permission Management**: Granular permissions by role and module (Read, Create, Edit, Delete) with an administrative interface.
-- **Secure Registration**: New users register without an assigned role and require administrator approval.
+- **Secure Registration**: New users require administrator approval.
 
 ### Storage & File Management
 - **Standardized Paths**: Organizes files hierarchically (Client/Project).
@@ -44,11 +44,11 @@ The system utilizes a modular blueprint architecture, separating concerns into d
 - **Relational Structure**: Normalized schema with foreign key constraints.
 - **Audit Fields**: Includes created/updated timestamps and user tracking.
 - **State Management**: Uses enum-based status fields, with synchronized enum values across the codebase.
-- **Project Enhancements**: Includes a `centro_costo` field for ERP integration and a `bitacora_proyecto` table for project logs.
+- **Project Enhancements**: Includes `centro_costo` for ERP integration and `bitacora_proyecto` for project logs.
 
 ### UI/UX Decisions & Features
 - **Responsive Design**: Server-side rendered Jinja2 templates.
-- **Visual Indicators**: Utilizes progress bars, status badges, and color-coded indicators for financial progress and time deviation.
+- **Visual Indicators**: Utilizes progress bars, status badges, and color-coded indicators.
 - **Gantt Chart Enhancements**: Integrates contract milestones and interactive dropdowns for Manufacturing Orders.
 - **Print Optimization**: Configured for A4 horizontal and letter format.
 - **Notification System**: Separated user notifications from admin configuration with user-specific views and admin-only preferences.
@@ -76,30 +76,3 @@ The system utilizes a modular blueprint architecture, separating concerns into d
 ### File Format Support
 - **Documents**: PDF.
 - **Images**: JPEG, PNG.
-
-## Recent Changes
-- **2025-11-07 (evening)**: **Fixed delivery plan milestone persistence issue - Transaction conflict resolution** - Resolved critical bug where new milestones (hitos) were being created and logged as "committed successfully" but never persisted to database. Root cause: The `AuditService.log_action()` method was being called BEFORE the main commit and it executes its own `db.session.commit()` followed by `db.session.rollback()` on error, which was interfering with the parent transaction. Solution: (1) Moved `AuditService.log_action()` call to AFTER the main `db.session.commit()` so it runs in a separate transaction. (2) Moved calendar event synchronization (`ContratoEventosService.actualizar_evento_desde_hito()`) to after commit. (3) Added `db.session.expire(plan, ['hitos'])` after commit to invalidate only the hitos relationship cache, ensuring fresh data loads on subsequent queries without affecting session performance. (4) Fixed template errors in `templates/planificacion_operacional/planificacion_prioridades.html` where date fields could be strings instead of datetime objects, causing `.strftime()` errors - added type checking before calling strftime. Transaction sequence now: create → flush → verify → commit → expire cache → audit log → calendar sync. This ensures atomic database operations with proper cache invalidation.
-- **2025-11-07 (morning)**: **Fixed delivery plan milestone creation persistence issue** - Resolved critical bug where new milestones (hitos) were successfully created in the database but immediately disappeared after redirect. Root cause: In `services/planes_entrega_service.py`, the `add_hito()` method was calling `db.session.expire_all()` after commit, which invalidated the entire session and caused subsequent queries to show stale data (pre-insert transaction snapshot). Solution: (1) Removed `db.session.expire_all()` and replaced with `db.session.refresh(plan)` to keep only the plan object fresh without invalidating the whole session. (2) Simplified the `agregar_hito` route in `blueprints/contratos.py` by removing redundant verification code and the `hito_added=1` URL parameter. (3) Removed JavaScript code in `templates/contratos/plan_entrega.html` that handled the `hito_added` parameter and forced page reloads, which also resolved an intermittent "Unexpected token '.'" JavaScript error. The standard redirect now properly reloads fresh data via repository eager loading. Both "Agregar Hito" and "Editar Plan" functionalities now work correctly with proper data persistence.
-- **2025-11-03 (afternoon)**: **Fixed JSON serialization error preventing OFs from displaying in Planificación y Prioridades** - Resolved critical bug where Manufacturing Orders (OFs) were not showing in the Planning and Priorities module due to incorrect attribute access. Error: `'OrdenFabricacion' object has no attribute 'numero'`. Root cause: In `services/planificacion_prioridades_service.py`, the JSON serialization for the Gantt chart was attempting to access `of_info['of'].numero`, but the OrdenFabricacion model uses `codigo` instead of `numero` as the identifier field. Solution: Changed line 377 from `'numero': of_info['of'].numero` to `'codigo': of_info['of'].codigo`. This fixes the serialization and allows all Manufacturing Orders to be properly displayed in the planning matrix and weekly load chart. Also fixed the route definition from `/prioridades` to `/planificacion-prioridades` to match existing URL patterns in the system.
-- **2025-11-03 (morning)**: **Fixed production environment issues in Planificación y Prioridades module** - Resolved issue where interactive buttons (Print, Expand/Collapse, Priority assignment, Excel download) were not working in the published app (production) but worked in preview. Root cause: JavaScript syntax error caused by Jinja2 template loops generating multiple variable declarations in the same scope (`const fechaOf` redeclaration), combined with CSP blocking inline event handlers and timing issues with async operations. Solution:
-  * Removed all inline `onclick` event handlers from action buttons (7 buttons total)
-  * Added unique IDs to each button for reliable DOM selection
-  * Created `setupButtonListeners()` function that attaches event listeners immediately on DOMContentLoaded
-  * Fixed critical timing issue: Button listeners now initialize BEFORE async operations, not after
-  * Added fallback in catch block to ensure listeners are configured even if API calls fail
-  * Maintained all existing functionality: expand/collapse all projects, print preview, automatic priority assignment, Excel export, and page refresh
-  * Fixed JavaScript error in Gantt chart: Changed data source from `proyectos` to `proyectos_gantt` and corrected property access pattern to `of_info.fecha_planificada`
-  * Confirmed template correctly handles Manufacturing Orders without assigned dates using conditional validation
-  * Improved chart visualization: Increased height to 300px (from 100px), better fonts, optimized grid
-  * Removed unnecessary summary cards (Días Fábrica, Días Embalaje) for cleaner interface
-  * This ensures the module works identically in both development (preview) and production (published) environments.
-- **2025-10-02 (afternoon)**: **Comprehensive update to training module (capacitación)** - Completely revised the training content to accurately reflect real application functionalities without mentioning permissions or inventing non-existent features. Key changes:
-  * **Áreas de Producción**: Corrected production flow with 5 real areas (Pendiente Fabricación, Fabrica, Embalaje, Bodega, Despacho) and 13 Manufacturing Order states properly documented. Added dashboard, history, and intelligent advancement features.
-  * **Comercial**: Completely rewritten with real features: vendor list with statistics, commercial project management, tasks, monthly planning matrix, objectives and commissions.
-  * **Calendario**: NEW module added with monthly/weekly/daily views, delivery milestones, and strategic analysis integration.
-  * **Configuraciones**: Updated with real admin features: user management, dynamic permission system, audit trail, system configuration, notification preferences.
-  * **Clientes & Flujo General**: Removed invented distinction between "Persona Natural" and "Empresa" - unified generic client model correctly reflected.
-  * **Mi Dashboard**: NEW module added - personal vendor dashboard with metrics, success rate, active projects, recent clients, pending tasks, and average margins.
-  * **Permissions cleanup**: Removed all mentions of permissions/roles outside the Configuraciones module per user requirements.
-  * Training content now focuses exclusively on WHAT each module does, not who can access it. All documented features verified against actual codebase.
-- **2025-10-02 (morning)**: **Fixed commercial status change logic in project edit form** - Modified `_aplicar_cambios_automaticos_estado()` to respect manual status changes by users. The system now captures the commercial status BEFORE updating the project, then compares the submitted value against this pre-update status. If they differ, it indicates a manual change by the user, and automatic status transitions are skipped to preserve user intent. If they match, automatic business rules still apply (e.g., auto-promoting to PRESUPUESTADO when budget amounts are entered). This fixes the issue where manual status updates in the edit form were being overwritten by automatic business rules.
