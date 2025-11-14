@@ -393,6 +393,40 @@ def avanzar_area(of_id):
 
     return redirect(url_for('fabricacion.index'))
 
+@fabricacion_bp.route('/<int:of_id>/cambio-directo', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL)
+def cambio_directo(of_id):
+    """Cambio directo de área/estado sin validar transiciones secuenciales"""
+    try:
+        area_id = request.form.get('area_id', type=int)
+        estado_id = request.form.get('estado_id', type=int)
+        responsable_id = request.form.get('responsable_id')
+        notas = request.form.get('notas', '').strip()
+
+        if not area_id or not estado_id:
+            flash('Debe seleccionar área y estado', 'error')
+            return redirect(url_for('fabricacion.detalle', of_id=of_id))
+
+        # Perform force change
+        new_progress = areas_service.force_change_estado_area(
+            orden_fabricacion_id=of_id,
+            area_id=area_id,
+            estado_id=estado_id,
+            created_by=current_user.id,
+            responsable_id=responsable_id,
+            notas=notas
+        )
+
+        flash(f'Cambio directo realizado exitosamente a {new_progress.area.nombre} / {new_progress.estado.nombre}', 'success')
+
+    except ValueError as e:
+        flash(f'Error en cambio directo: {str(e)}', 'error')
+    except Exception as e:
+        logger.error(f"Error en cambio directo de OF {of_id}: {str(e)}")
+        flash('Error al realizar cambio directo', 'error')
+
+    return redirect(url_for('fabricacion.detalle', of_id=of_id))
+
 @fabricacion_bp.route('/<int:of_id>/archivar', methods=['POST'])
 @login_required
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.LOGISTICA)

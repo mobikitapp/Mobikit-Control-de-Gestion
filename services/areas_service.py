@@ -732,6 +732,177 @@ class AreasService:
             logger.error(f"Error getting next action description for OF {of_id}: {str(e)}")
             return "Avanzar"
 
+    def force_change_estado_area(self, orden_fabricacion_id: int, area_id: int, estado_id: int,
+                                 created_by: str, responsable_id: str = None, 
+                                 notas: str = None) -> OrdenAreaProgreso:
+        """
+        Force change area and state directly without validating sequential transitions.
+        Only for authorized users (admin, general).
+        
+        Args:
+            orden_fabricacion_id: ID of the order
+            area_id: Target area ID
+            estado_id: Target state ID
+            created_by: User ID performing the change
+            responsable_id: Optional responsible user ID
+            notas: Optional notes explaining the change
+            
+        Returns:
+            Updated or new OrdenAreaProgreso instance
+            
+        Raises:
+            ValueError: If validation fails or state doesn't belong to area
+        """
+        try:
+            # Get current progress
+            current_progress = self.progreso_repo.get_current_progress(orden_fabricacion_id)
+            if not current_progress:
+                raise ValueError(f"Orden {orden_fabricacion_id} no encontrada en sistema de áreas")
+
+            # Get target area and state
+            target_area = db.session.get(Area, area_id)
+            if not target_area:
+                raise ValueError(f"Área {area_id} no encontrada")
+
+            target_estado = db.session.get(AreaEstado, estado_id)
+            if not target_estado:
+                raise ValueError(f"Estado {estado_id} no encontrado")
+
+            # Validate state belongs to target area
+            if target_estado.area_id != target_area.id:
+                raise ValueError(f"El estado '{target_estado.nombre}' no pertenece al área '{target_area.nombre}'")
+
+            # Prevent no-op transitions
+            if current_progress.area_id == area_id and current_progress.estado_id == estado_id:
+                raise ValueError("La orden ya está en el área y estado seleccionados")
+
+            # Apply special validations for target state BEFORE making any changes
+            if target_estado.codigo in OF_SPECIAL_VALIDATIONS:
+                validations = OF_SPECIAL_VALIDATIONS[target_estado.codigo]
+                if "required_fields" in validations:
+                    from repositories.fabricacion_repo import FabricacionRepository
+                    fabricacion_repo = FabricacionRepository()
+                    of = fabricacion_repo.get_by_id(orden_fabricacion_id)
+                    
+                    if not of:
+                        raise ValueError(f"Orden de fabricación {orden_fabricacion_id} no encontrada")
+                    
+                    for field in validations["required_fields"]:
+                        field_value = getattr(of, field, None)
+                        if field_value is None or (isinstance(field_value, (int, float)) and field_value <= 0):
+                            validation_message = validations.get("validation_message", f"El campo {field} es obligatorio")
+                            raise ValueError(validation_message)
+
+            # Store original data for audit
+            datos_anteriores = serialize_model(current_progress)
+
+            now = datetime.now()
+            is_same_area = current_progress.area_id == area_id
+
+            # Add notes with force change marker
+            force_change_note = f"[CAMBIO DIRECTO] Desde {current_progress.area.nombre}/{current_progress.estado.nombre} a {target_area.nombre}/{target_estado.nombre}"
+            if notas:
+                timestamp = now.strftime('%Y-%m-%d %H:%M')
+                full_notes = f"{force_change_note}\n[{timestamp}] {notas}"
+            else:
+                full_notes = force_change_note
+
+            if is_same_area:
+                # Update existing progress record within same area
+                update_data = {
+                    'estado_id': estado_id,
+                    'fecha_cambio_estado': now,
+                    'notas_area': full_notes
+                }
+                
+                if responsable_id:
+                    update_data['responsable_area'] = responsable_id
+
+                updated_progress = self.progreso_repo.update_progress(current_progress, update_data)
+                db.session.commit()
+
+                # Log audit with force change marker
+                AuditService.log_action(
+                    'orden_area_progreso',
+                    updated_progress.id,
+                    'FORCE_CHANGE',
+                    datos_anteriores=datos_anteriores,
+                    datos_nuevos=serialize_model(updated_progress)
+                )
+
+                logger.info(
+                    f"Cambio directo realizado (misma área) para orden {orden_fabricacion_id}: "
+                    f"{current_progress.estado.nombre} -> {target_estado.nombre} por usuario {created_by}"
+                )
+
+                # Send notification
+                try:
+                    from services.notification_service import notification_service
+                    from models import User
+                    user = db.session.get(User, responsable_id) if responsable_id else None
+                    if user:
+                        notification_service.notify_of_status_change(
+                            orden_fabricacion_id, target_estado.nombre, target_area.nombre, user
+                        )
+                except Exception as e:
+                    logger.warning(f"Error enviando notificación de cambio directo: {str(e)}")
+
+                return updated_progress
+            else:
+                # Changing to different area - create new progress record
+                # Mark current progress as not current
+                current_progress.es_actual = False
+
+                # Create new progress record with target area/state
+                new_progress_data = {
+                    'orden_fabricacion_id': orden_fabricacion_id,
+                    'area_id': area_id,
+                    'estado_id': estado_id,
+                    'fecha_ingreso_area': now,
+                    'fecha_cambio_estado': now,
+                    'responsable_area': responsable_id if responsable_id else current_progress.responsable_area,
+                    'es_actual': True,
+                    'created_by': created_by,
+                    'notas_area': full_notes
+                }
+
+                new_progress = self.progreso_repo.create_progress(new_progress_data)
+                db.session.commit()
+
+                # Log audit with force change marker
+                AuditService.log_action(
+                    'orden_area_progreso',
+                    new_progress.id,
+                    'FORCE_CHANGE',
+                    datos_anteriores=datos_anteriores,
+                    datos_nuevos=serialize_model(new_progress)
+                )
+
+                logger.info(
+                    f"Cambio directo realizado para orden {orden_fabricacion_id}: "
+                    f"{current_progress.area.nombre}/{current_progress.estado.nombre} -> "
+                    f"{target_area.nombre}/{target_estado.nombre} por usuario {created_by}"
+                )
+
+                # Send notification
+                try:
+                    from services.notification_service import notification_service
+                    from models import User
+                    user = db.session.get(User, responsable_id) if responsable_id else None
+                    if user:
+                        notification_service.notify_of_status_change(
+                            orden_fabricacion_id, target_estado.nombre, target_area.nombre, user
+                        )
+                except Exception as e:
+                    logger.warning(f"Error enviando notificación de cambio directo: {str(e)}")
+
+                return new_progress
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error en cambio directo para orden {orden_fabricacion_id}: {str(e)}")
+            raise
+
     def get_all_orders_by_delivery_date(self) -> List[Dict[str, Any]]:
         """
         Get all active orders from all areas ordered by delivery date
