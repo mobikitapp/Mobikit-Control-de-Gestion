@@ -744,6 +744,7 @@ class FabricacionService:
     def bulk_change_estado(self, of_ids: List[int], nuevo_estado_id: int, responsable_id: str = None, notas: str = None, created_by: str = None) -> Dict[str, Any]:
         """
         Change estado for multiple ordenes de fabricacion
+        Uses force_change to allow cross-area transitions for bulk operations
         
         Args:
             of_ids: List of OF IDs to update
@@ -764,11 +765,12 @@ class FabricacionService:
         
         for of_id in of_ids:
             try:
-                self.areas_service.change_estado_in_area(
+                # Use force_change_estado_area to allow cross-area transitions in bulk ops
+                self.areas_service.force_change_estado_area(
                     of_id,
                     nuevo_estado_id,
-                    responsable_id=responsable_id,
-                    notas=notas
+                    responsable_id=responsable_id or created_by,
+                    notas=notas or "Cambio masivo de estado"
                 )
                 results['success_count'] += 1
                 results['processed_ids'].append(of_id)
@@ -782,18 +784,23 @@ class FabricacionService:
                 })
                 logger.error(f"Error cambiando estado de OF {of_id}: {str(e)}")
         
-        AuditService.log_action(
-            'ordenes_fabricacion',
-            None,
-            'BULK_CHANGE_ESTADO',
-            datos_nuevos={
-                'nuevo_estado_id': nuevo_estado_id,
-                'of_ids': of_ids,
-                'success_count': results['success_count'],
-                'error_count': results['error_count'],
-                'created_by': created_by
-            }
-        )
+        # Log audit for the bulk operation - use first OF ID as representative
+        if of_ids:
+            try:
+                AuditService.log_action(
+                    'ordenes_fabricacion',
+                    of_ids[0],  # Use first ID to avoid null constraint
+                    'BULK_CHANGE_ESTADO',
+                    datos_nuevos={
+                        'nuevo_estado_id': nuevo_estado_id,
+                        'of_ids': of_ids,
+                        'success_count': results['success_count'],
+                        'error_count': results['error_count'],
+                        'created_by': created_by
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Error logging bulk audit: {str(e)}")
         
         logger.info(f"Cambio masivo de estado completado: {results['success_count']} exitosos, {results['error_count']} errores")
         return results
@@ -831,17 +838,22 @@ class FabricacionService:
                 })
                 logger.error(f"Error archivando OF {of_id}: {str(e)}")
         
-        AuditService.log_action(
-            'ordenes_fabricacion',
-            None,
-            'BULK_ARCHIVE',
-            datos_nuevos={
-                'of_ids': of_ids,
-                'success_count': results['success_count'],
-                'error_count': results['error_count'],
-                'created_by': created_by
-            }
-        )
+        # Log audit for the bulk operation - use first OF ID as representative
+        if of_ids:
+            try:
+                AuditService.log_action(
+                    'ordenes_fabricacion',
+                    of_ids[0],  # Use first ID to avoid null constraint
+                    'BULK_ARCHIVE',
+                    datos_nuevos={
+                        'of_ids': of_ids,
+                        'success_count': results['success_count'],
+                        'error_count': results['error_count'],
+                        'created_by': created_by
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Error logging bulk archive audit: {str(e)}")
         
         logger.info(f"Archivado masivo completado: {results['success_count']} exitosos, {results['error_count']} errores")
         return results
@@ -880,18 +892,23 @@ class FabricacionService:
                 })
                 logger.error(f"Error eliminando OF {of_id}: {str(e)}")
         
-        AuditService.log_action(
-            'ordenes_fabricacion',
-            None,
-            'BULK_DELETE',
-            datos_nuevos={
-                'of_ids': of_ids,
-                'success_count': results['success_count'],
-                'error_count': results['error_count'],
-                'created_by': created_by,
-                'user_role': user_role
-            }
-        )
+        # Log audit for the bulk operation - use first OF ID as representative
+        if of_ids:
+            try:
+                AuditService.log_action(
+                    'ordenes_fabricacion',
+                    of_ids[0],  # Use first ID to avoid null constraint
+                    'BULK_DELETE',
+                    datos_nuevos={
+                        'of_ids': of_ids,
+                        'success_count': results['success_count'],
+                        'error_count': results['error_count'],
+                        'created_by': created_by,
+                        'user_role': user_role
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Error logging bulk delete audit: {str(e)}")
         
         logger.info(f"Eliminación masiva completada: {results['success_count']} exitosos, {results['error_count']} errores")
         return results
