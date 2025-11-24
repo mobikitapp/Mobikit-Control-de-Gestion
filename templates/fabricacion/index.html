@@ -405,24 +405,24 @@
                 </div>
                 <div class="d-flex gap-2">
                     {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
-                    <button type="button" class="btn btn-sm btn-primary" onclick="showBulkChangeEstado()">
+                    <button type="button" id="btn-bulk-change-estado" class="btn btn-sm btn-primary">
                         <i data-feather="refresh-cw" class="me-1"></i>
                         Cambiar Estado
                     </button>
                     {% endif %}
                     {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
-                    <button type="button" class="btn btn-sm btn-warning" onclick="showBulkArchive()">
+                    <button type="button" id="btn-bulk-archive" class="btn btn-sm btn-warning">
                         <i data-feather="archive" class="me-1"></i>
                         Archivar
                     </button>
                     {% endif %}
                     {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
-                    <button type="button" class="btn btn-sm btn-danger" onclick="showBulkDelete()">
+                    <button type="button" id="btn-bulk-delete" class="btn btn-sm btn-danger">
                         <i data-feather="trash-2" class="me-1"></i>
                         Eliminar
                     </button>
                     {% endif %}
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelection()">
+                    <button type="button" id="btn-bulk-cancel" class="btn btn-sm btn-secondary">
                         <i data-feather="x" class="me-1"></i>
                         Cancelar
                     </button>
@@ -783,7 +783,12 @@ async function showBulkChangeEstado() {
     const modalElem = document.getElementById('bulkChangeEstadoModal');
     
     if (!countElem || !ordersElem || !selectElem || !modalElem) {
-        console.error('Bulk change estado modal elements not found');
+        console.error('Bulk change estado modal elements not found:', {
+            countElem: !!countElem,
+            ordersElem: !!ordersElem,
+            selectElem: !!selectElem,
+            modalElem: !!modalElem
+        });
         return;
     }
     
@@ -1032,10 +1037,40 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Register event listeners for bulk action buttons
+    const btnBulkChangeEstado = document.getElementById('btn-bulk-change-estado');
+    if (btnBulkChangeEstado) {
+        btnBulkChangeEstado.addEventListener('click', showBulkChangeEstado);
+    }
+
+    const btnBulkArchive = document.getElementById('btn-bulk-archive');
+    if (btnBulkArchive) {
+        btnBulkArchive.addEventListener('click', showBulkArchive);
+    }
+
+    const btnBulkDelete = document.getElementById('btn-bulk-delete');
+    if (btnBulkDelete) {
+        btnBulkDelete.addEventListener('click', showBulkDelete);
+    }
+
+    const btnBulkCancel = document.getElementById('btn-bulk-cancel');
+    if (btnBulkCancel) {
+        btnBulkCancel.addEventListener('click', clearSelection);
+    }
+
     // Fix potential null element errors
     try {
         // Add any element-specific initialization here with null checks
         console.log('Fabricación index page initialized with bulk actions');
+        
+        // Verify modal elements exist
+        const modalCheck = {
+            bulkChangeEstadoModal: !!document.getElementById('bulkChangeEstadoModal'),
+            bulkChangeCount: !!document.getElementById('bulk-change-count'),
+            bulkSelectedOrders: !!document.getElementById('bulk-selected-orders'),
+            bulkEstadoSelect: !!document.getElementById('bulk-estado-select')
+        };
+        console.log('Bulk change modal elements check:', modalCheck);
     } catch (error) {
         console.warn('Error in fabricación page initialization:', error);
     }
