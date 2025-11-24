@@ -574,6 +574,27 @@ def api_by_proyecto(proyecto_id):
         logger.error(f"Error en API OFs por proyecto: {str(e)}")
         return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
 
+@fabricacion_bp.route('/api/estados-disponibles')
+@require_login
+def api_estados_disponibles():
+    """API endpoint para obtener estados disponibles"""
+    try:
+        from repositories.areas_repository import AreasRepository
+        areas_repo = AreasRepository()
+        estados = areas_repo.get_all_estados()
+        
+        return jsonify([{
+            'id': estado.id,
+            'nombre': estado.nombre,
+            'codigo': estado.codigo,
+            'area': estado.area.nombre if estado.area else None,
+            'area_tipo': estado.area.tipo.value if estado.area else None
+        } for estado in estados if estado.activo])
+
+    except Exception as e:
+        logger.error(f"Error obteniendo estados disponibles: {str(e)}")
+        return jsonify({'error': 'Error al cargar estados'}), 500
+
 @fabricacion_bp.route('/bulk/change-estado', methods=['POST'])
 @require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
 def bulk_change_estado():

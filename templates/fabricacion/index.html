@@ -122,9 +122,12 @@
         <div class="card-body p-0">
             {% if ofs %}
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0" id="ordenes-table">
                     <thead class="table-dark">
                         <tr>
+                            <th width="40">
+                                <input type="checkbox" class="form-check-input" id="select-all-orders" title="Seleccionar todas">
+                            </th>
                             <th>Código</th>
                             <th>Proyecto</th>
                             <th>Glosa / Tableros</th>
@@ -136,7 +139,10 @@
                     </thead>
                     <tbody>
                         {% for of in ofs %}
-                        <tr>
+                        <tr data-of-id="{{ of.id }}" data-of-codigo="{{ of.codigo }}">
+                            <td>
+                                <input type="checkbox" class="form-check-input order-checkbox" value="{{ of.id }}" data-codigo="{{ of.codigo }}">
+                            </td>
                             <td>
                                 <div class="fw-medium">{{ of.codigo }}</div>
                                 {% if of.contrato %}
@@ -389,6 +395,142 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Barra flotante de acciones masivas -->
+    <div id="bulk-actions-bar" class="card border-primary shadow-lg" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1050; min-width: 600px; display: none;">
+        <div class="card-body py-3 px-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong id="selected-count">0</strong> <span id="selected-text">órdenes seleccionadas</span>
+                </div>
+                <div class="d-flex gap-2">
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
+                    <button type="button" class="btn btn-sm btn-primary" onclick="showBulkChangeEstado()">
+                        <i data-feather="refresh-cw" class="me-1"></i>
+                        Cambiar Estado
+                    </button>
+                    {% endif %}
+                    {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                    <button type="button" class="btn btn-sm btn-warning" onclick="showBulkArchive()">
+                        <i data-feather="archive" class="me-1"></i>
+                        Archivar
+                    </button>
+                    {% endif %}
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
+                    <button type="button" class="btn btn-sm btn-danger" onclick="showBulkDelete()">
+                        <i data-feather="trash-2" class="me-1"></i>
+                        Eliminar
+                    </button>
+                    {% endif %}
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelection()">
+                        <i data-feather="x" class="me-1"></i>
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para cambio masivo de estado -->
+<div class="modal fade" id="bulkChangeEstadoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambio Masivo de Estado</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i data-feather="info" class="me-2"></i>
+                    <strong id="bulk-change-count"></strong> órdenes serán actualizadas.
+                    Algunas órdenes pueden fallar si no pueden cambiar al estado seleccionado.
+                </div>
+                <div class="mb-3">
+                    <label for="bulk-estado-select" class="form-label">Nuevo Estado <span class="text-danger">*</span></label>
+                    <select class="form-select" id="bulk-estado-select" required>
+                        <option value="">Seleccione un estado...</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="bulk-notas" class="form-label">Notas (opcional)</label>
+                    <textarea class="form-control" id="bulk-notas" rows="3" placeholder="Agregar comentarios..."></textarea>
+                </div>
+                <div id="bulk-selected-orders" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                    <small class="text-muted">Cargando órdenes seleccionadas...</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="executeBulkChangeEstado()">
+                    <i data-feather="refresh-cw" class="me-2"></i>
+                    Actualizar Estado
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para archivado masivo -->
+<div class="modal fade" id="bulkArchiveModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">Archivado Masivo de Órdenes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i data-feather="alert-triangle" class="me-2"></i>
+                    Está a punto de archivar <strong id="bulk-archive-count"></strong> órdenes.
+                    Solo se pueden archivar órdenes en estado "Despachado".
+                </div>
+                <div id="bulk-archive-orders" class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
+                    <small class="text-muted">Cargando órdenes seleccionadas...</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" onclick="executeBulkArchive()">
+                    <i data-feather="archive" class="me-2"></i>
+                    Confirmar Archivado
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para eliminación masiva -->
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Eliminación Masiva de Órdenes</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i data-feather="alert-triangle" class="me-2"></i>
+                    <strong>¡ADVERTENCIA!</strong> Está a punto de eliminar <strong id="bulk-delete-count"></strong> órdenes.
+                    Esta acción <strong>NO</strong> se puede deshacer.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Escriba <strong>ELIMINAR</strong> para confirmar:</label>
+                    <input type="text" class="form-control" id="bulk-delete-confirmation" placeholder="ELIMINAR">
+                </div>
+                <div id="bulk-delete-orders" class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
+                    <small class="text-muted">Cargando órdenes seleccionadas...</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="bulk-delete-btn" onclick="executeBulkDelete()" disabled>
+                    <i data-feather="trash-2" class="me-2"></i>
+                    Eliminar Órdenes
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Modal para confirmar creación de OF desde despacho -->
@@ -586,6 +728,211 @@ function crearOFParaDespacho(despachoId, numeroDespacho) {
     modal.show();
 }
 
+// === Bulk Actions Management ===
+let selectedOrders = new Set();
+
+function updateBulkActionsBar() {
+    const count = selectedOrders.size;
+    const bar = document.getElementById('bulk-actions-bar');
+    const countElem = document.getElementById('selected-count');
+    const textElem = document.getElementById('selected-text');
+    
+    countElem.textContent = count;
+    textElem.textContent = count === 1 ? 'orden seleccionada' : 'órdenes seleccionadas';
+    bar.style.display = count > 0 ? 'block' : 'none';
+    
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+function clearSelection() {
+    selectedOrders.clear();
+    document.querySelectorAll('.order-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('select-all-orders').checked = false;
+    updateBulkActionsBar();
+}
+
+function getSelectedOrders() {
+    return Array.from(selectedOrders).map(id => parseInt(id));
+}
+
+function getSelectedOrdersData() {
+    return Array.from(selectedOrders).map(id => {
+        const row = document.querySelector(`tr[data-of-id="${id}"]`);
+        return {
+            id: parseInt(id),
+            codigo: row ? row.dataset.ofCodigo : `OF-${id}`
+        };
+    });
+}
+
+async function showBulkChangeEstado() {
+    const count = selectedOrders.size;
+    document.getElementById('bulk-change-count').textContent = count;
+    
+    const ordersHtml = getSelectedOrdersData().map(of => 
+        `<div class="badge bg-primary me-1 mb-1">${of.codigo}</div>`
+    ).join('');
+    document.getElementById('bulk-selected-orders').innerHTML = ordersHtml;
+    
+    try {
+        const response = await fetch('/fabricacion/api/estados-disponibles');
+        const estados = await response.json();
+        
+        const select = document.getElementById('bulk-estado-select');
+        select.innerHTML = '<option value="">Seleccione un estado...</option>';
+        estados.forEach(estado => {
+            const option = document.createElement('option');
+            option.value = estado.id;
+            option.textContent = `${estado.area} - ${estado.nombre}`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error cargando estados:', error);
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('bulkChangeEstadoModal'));
+    modal.show();
+    
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+async function executeBulkChangeEstado() {
+    const estadoId = document.getElementById('bulk-estado-select').value;
+    const notas = document.getElementById('bulk-notas').value;
+    
+    if (!estadoId) {
+        alert('Por favor seleccione un estado');
+        return;
+    }
+    
+    const ofIds = getSelectedOrders();
+    
+    try {
+        const response = await fetch('/fabricacion/bulk/change-estado', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                of_ids: ofIds,
+                estado_id: parseInt(estadoId),
+                notas: notas || null
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✓ ${result.message}\n${result.results.errors.length > 0 ? '\nErrores:\n' + result.results.errors.map(e => `- OF ${e.of_id}: ${e.error}`).join('\n') : ''}`);
+            bootstrap.Modal.getInstance(document.getElementById('bulkChangeEstadoModal')).hide();
+            clearSelection();
+            window.location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cambiar estado masivamente');
+    }
+}
+
+function showBulkArchive() {
+    const count = selectedOrders.size;
+    document.getElementById('bulk-archive-count').textContent = count;
+    
+    const ordersHtml = getSelectedOrdersData().map(of => 
+        `<div class="badge bg-warning me-1 mb-1">${of.codigo}</div>`
+    ).join('');
+    document.getElementById('bulk-archive-orders').innerHTML = ordersHtml;
+    
+    const modal = new bootstrap.Modal(document.getElementById('bulkArchiveModal'));
+    modal.show();
+    
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+async function executeBulkArchive() {
+    const ofIds = getSelectedOrders();
+    
+    try {
+        const response = await fetch('/fabricacion/bulk/archive', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({of_ids: ofIds})
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✓ ${result.message}\n${result.results.errors.length > 0 ? '\nErrores:\n' + result.results.errors.map(e => `- OF ${e.of_id}: ${e.error}`).join('\n') : ''}`);
+            bootstrap.Modal.getInstance(document.getElementById('bulkArchiveModal')).hide();
+            clearSelection();
+            window.location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al archivar masivamente');
+    }
+}
+
+function showBulkDelete() {
+    const count = selectedOrders.size;
+    document.getElementById('bulk-delete-count').textContent = count;
+    
+    const ordersHtml = getSelectedOrdersData().map(of => 
+        `<div class="badge bg-danger me-1 mb-1">${of.codigo}</div>`
+    ).join('');
+    document.getElementById('bulk-delete-orders').innerHTML = ordersHtml;
+    
+    document.getElementById('bulk-delete-confirmation').value = '';
+    document.getElementById('bulk-delete-btn').disabled = true;
+    
+    const modal = new bootstrap.Modal(document.getElementById('bulkDeleteModal'));
+    modal.show();
+    
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+}
+
+async function executeBulkDelete() {
+    const confirmation = document.getElementById('bulk-delete-confirmation').value;
+    if (confirmation !== 'ELIMINAR') {
+        alert('Debe escribir ELIMINAR para confirmar');
+        return;
+    }
+    
+    const ofIds = getSelectedOrders();
+    
+    try {
+        const response = await fetch('/fabricacion/bulk/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({of_ids: ofIds})
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✓ ${result.message}\n${result.results.errors.length > 0 ? '\nErrores:\n' + result.results.errors.map(e => `- OF ${e.of_id}: ${e.error}`).join('\n') : ''}`);
+            bootstrap.Modal.getInstance(document.getElementById('bulkDeleteModal')).hide();
+            clearSelection();
+            window.location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al eliminar masivamente');
+    }
+}
+
 // Initialize on page load if there's a selected proyecto
 document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -607,10 +954,51 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl)
     })
 
+    // === Bulk Actions Handlers ===
+    const selectAllCheckbox = document.getElementById('select-all-orders');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.order-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = this.checked;
+                const ofId = cb.value;
+                if (this.checked) {
+                    selectedOrders.add(ofId);
+                } else {
+                    selectedOrders.delete(ofId);
+                }
+            });
+            updateBulkActionsBar();
+        });
+    }
+    
+    document.querySelectorAll('.order-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const ofId = this.value;
+            if (this.checked) {
+                selectedOrders.add(ofId);
+            } else {
+                selectedOrders.delete(ofId);
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = false;
+                }
+            }
+            updateBulkActionsBar();
+        });
+    });
+    
+    const deleteConfirmation = document.getElementById('bulk-delete-confirmation');
+    if (deleteConfirmation) {
+        deleteConfirmation.addEventListener('input', function() {
+            const btn = document.getElementById('bulk-delete-btn');
+            btn.disabled = this.value !== 'ELIMINAR';
+        });
+    }
+
     // Fix potential null element errors
     try {
         // Add any element-specific initialization here with null checks
-        console.log('Fabricación index page initialized');
+        console.log('Fabricación index page initialized with bulk actions');
     } catch (error) {
         console.warn('Error in fabricación page initialization:', error);
     }
