@@ -579,9 +579,13 @@ def api_by_proyecto(proyecto_id):
 def api_estados_disponibles():
     """API endpoint para obtener estados disponibles"""
     try:
-        from repositories.areas_repository import AreasRepository
-        areas_repo = AreasRepository()
-        estados = areas_repo.get_all_estados()
+        from models import AreaEstado, Area
+        
+        # Get all active estados with their areas
+        estados = AreaEstado.query.join(Area).filter(
+            AreaEstado.activo == True,
+            Area.activo == True
+        ).order_by(Area.orden, AreaEstado.orden_en_area).all()
         
         return jsonify([{
             'id': estado.id,
@@ -589,7 +593,7 @@ def api_estados_disponibles():
             'codigo': estado.codigo,
             'area': estado.area.nombre if estado.area else None,
             'area_tipo': estado.area.tipo.value if estado.area else None
-        } for estado in estados if estado.activo])
+        } for estado in estados])
 
     except Exception as e:
         logger.error(f"Error obteniendo estados disponibles: {str(e)}")

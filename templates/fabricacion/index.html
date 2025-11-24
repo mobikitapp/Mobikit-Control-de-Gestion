@@ -777,6 +777,10 @@ function getSelectedOrdersData() {
 
 async function showBulkChangeEstado() {
     const count = selectedOrders.size;
+    
+    // Wait a bit for DOM to be ready after page reload
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     const countElem = document.getElementById('bulk-change-count');
     const ordersElem = document.getElementById('bulk-selected-orders');
     const selectElem = document.getElementById('bulk-estado-select');
@@ -789,19 +793,39 @@ async function showBulkChangeEstado() {
             selectElem: !!selectElem,
             modalElem: !!modalElem
         });
+        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
     }
     
+    // Reset modal content
     countElem.textContent = count;
+    selectElem.innerHTML = '<option value="">Cargando estados...</option>';
+    document.getElementById('bulk-notas').value = '';
     
     const ordersHtml = getSelectedOrdersData().map(of => 
         `<div class="badge bg-primary me-1 mb-1">${of.codigo}</div>`
     ).join('');
     ordersElem.innerHTML = ordersHtml;
     
+    // Show modal first
+    const existingModal = bootstrap.Modal.getInstance(modalElem);
+    if (existingModal) {
+        existingModal.dispose();
+    }
+    const modal = new bootstrap.Modal(modalElem);
+    modal.show();
+    
+    // Load estados
     try {
         const response = await fetch('/fabricacion/api/estados-disponibles');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const estados = await response.json();
+        
+        if (estados.error) {
+            throw new Error(estados.error);
+        }
         
         selectElem.innerHTML = '<option value="">Seleccione un estado...</option>';
         estados.forEach(estado => {
@@ -812,10 +836,9 @@ async function showBulkChangeEstado() {
         });
     } catch (error) {
         console.error('Error cargando estados:', error);
+        selectElem.innerHTML = '<option value="">Error al cargar estados</option>';
+        alert('Error al cargar los estados disponibles. Por favor intente nuevamente.');
     }
-    
-    const modal = new bootstrap.Modal(modalElem);
-    modal.show();
     
     if (typeof feather !== 'undefined') {
         feather.replace();
@@ -860,14 +883,19 @@ async function executeBulkChangeEstado() {
     }
 }
 
-function showBulkArchive() {
+async function showBulkArchive() {
     const count = selectedOrders.size;
+    
+    // Wait a bit for DOM to be ready
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     const countElem = document.getElementById('bulk-archive-count');
     const ordersElem = document.getElementById('bulk-archive-orders');
     const modalElem = document.getElementById('bulkArchiveModal');
     
     if (!countElem || !ordersElem || !modalElem) {
         console.error('Bulk archive modal elements not found');
+        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
     }
     
@@ -877,6 +905,12 @@ function showBulkArchive() {
         `<div class="badge bg-warning me-1 mb-1">${of.codigo}</div>`
     ).join('');
     ordersElem.innerHTML = ordersHtml;
+    
+    // Dispose existing modal instance if any
+    const existingModal = bootstrap.Modal.getInstance(modalElem);
+    if (existingModal) {
+        existingModal.dispose();
+    }
     
     const modal = new bootstrap.Modal(modalElem);
     modal.show();
@@ -912,8 +946,12 @@ async function executeBulkArchive() {
     }
 }
 
-function showBulkDelete() {
+async function showBulkDelete() {
     const count = selectedOrders.size;
+    
+    // Wait a bit for DOM to be ready
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     const countElem = document.getElementById('bulk-delete-count');
     const ordersElem = document.getElementById('bulk-delete-orders');
     const confirmElem = document.getElementById('bulk-delete-confirmation');
@@ -922,6 +960,7 @@ function showBulkDelete() {
     
     if (!countElem || !ordersElem || !confirmElem || !btnElem || !modalElem) {
         console.error('Bulk delete modal elements not found');
+        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
     }
     
@@ -934,6 +973,12 @@ function showBulkDelete() {
     
     confirmElem.value = '';
     btnElem.disabled = true;
+    
+    // Dispose existing modal instance if any
+    const existingModal = bootstrap.Modal.getInstance(modalElem);
+    if (existingModal) {
+        existingModal.dispose();
+    }
     
     const modal = new bootstrap.Modal(modalElem);
     modal.show();
