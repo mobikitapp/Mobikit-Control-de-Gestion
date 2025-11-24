@@ -131,7 +131,6 @@
                             <th>Área / Estado</th>
                             <th>Fecha Entrega</th>
                             <th>Días Restantes</th>
-                            <th>Cambio Estado</th>
                             <th width="150">Acciones</th>
                         </tr>
                     </thead>
@@ -205,29 +204,6 @@
                                     {% endif %}
                                 {% else %}
                                     -
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
-                                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" 
-                                            data-bs-toggle="dropdown" aria-expanded="false" title="Cambiar estado">
-                                        <i data-feather="settings"></i>
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        {% if of.area_actual and of.estado_actual %}
-                                            <li><h6 class="dropdown-header">{{ of.area_actual.nombre }}</h6></li>
-                                            <li><small class="dropdown-item-text text-muted">Estado actual: {{ of.estado_actual.nombre }}</small></li>
-                                            <li><hr class="dropdown-divider"></li>
-                                        {% endif %}
-                                        <li>
-                                            <button class="dropdown-item" onclick="cambioEstadoDirecto({{ of.id }}, '{{ of.codigo }}')">
-                                                <i data-feather="edit-3" class="me-2"></i>
-                                                Cambio directo
-                                            </button>
-                                        </li>
-                                    </ul>
-                                {% else %}
-                                    <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td>
@@ -522,73 +498,6 @@
         </div>
     </div>
 </div>
-
-<!-- Modal para cambio directo de estado -->
-<div class="modal fade" id="cambioEstadoDirectoModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Cambio Directo de Estado</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="cambioEstadoDirectoForm" method="POST">
-                <div class="modal-body">
-                    <div class="alert alert-warning">
-                        <i data-feather="alert-triangle" class="me-2"></i>
-                        <strong>Cambio directo de estado para:</strong> <span id="codigoOrdenCambio"></span>
-                        <br><small>Este cambio no seguirá el flujo secuencial normal.</small>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="area_directa" class="form-label">Área de destino</label>
-                                <select class="form-select" id="area_directa" name="area_id" required onchange="cargarEstadosAreaDirecta()">
-                                    <option value="">Seleccionar área</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="estado_directo" class="form-label">Estado de destino</label>
-                                <select class="form-select" id="estado_directo" name="estado_id" required>
-                                    <option value="">Seleccionar estado</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="responsable_cambio_directo" class="form-label">Responsable</label>
-                        <input type="text" class="form-control" id="responsable_cambio_directo" name="responsable_id" 
-                               value="{{ current_user.id }}" placeholder="ID del responsable">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="notas_cambio_directo" class="form-label">Notas del cambio</label>
-                        <textarea class="form-control" id="notas_cambio_directo" name="notas" rows="3" 
-                                  placeholder="Motivo del cambio directo de estado"></textarea>
-                    </div>
-
-                    <div id="info_estado_actual" class="card bg-light">
-                        <div class="card-body py-2">
-                            <small class="text-muted">
-                                <strong>Estado actual:</strong> <span id="area_estado_actual">Cargando...</span>
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-warning">
-                        <i data-feather="settings" class="me-2"></i>
-                        Realizar Cambio Directo
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -675,103 +584,6 @@ function crearOFParaDespacho(despachoId, numeroDespacho) {
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('crearOFDespachoModal'));
     modal.show();
-}
-
-// Function for direct state change
-function cambioEstadoDirecto(ofId, codigo) {
-    document.getElementById('codigoOrdenCambio').textContent = codigo;
-    document.getElementById('cambioEstadoDirectoForm').action = `/fabricacion/${ofId}/cambio-directo`;
-    
-    // Clear form fields
-    document.getElementById('area_directa').value = '';
-    document.getElementById('estado_directo').value = '';
-    document.getElementById('estado_directo').innerHTML = '<option value="">Seleccionar estado</option>';
-    document.getElementById('notas_cambio_directo').value = '';
-    
-    // Load areas
-    cargarAreasDisponibles();
-    
-    // Load current state info
-    cargarEstadoActual(ofId);
-
-    // Refresh feather icons
-    if (typeof feather !== 'undefined') {
-        feather.replace();
-    }
-
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('cambioEstadoDirectoModal'));
-    modal.show();
-}
-
-// Load available areas
-async function cargarAreasDisponibles() {
-    try {
-        const response = await fetch('/api/areas');
-        if (response.ok) {
-            const areas = await response.json();
-            const areaSelect = document.getElementById('area_directa');
-            
-            areaSelect.innerHTML = '<option value="">Seleccionar área</option>';
-            areas.forEach(area => {
-                const option = document.createElement('option');
-                option.value = area.id;
-                option.textContent = area.nombre;
-                areaSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading areas:', error);
-    }
-}
-
-// Load states for selected area
-async function cargarEstadosAreaDirecta() {
-    const areaId = document.getElementById('area_directa').value;
-    const estadoSelect = document.getElementById('estado_directo');
-    
-    if (!areaId) {
-        estadoSelect.innerHTML = '<option value="">Seleccionar estado</option>';
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/areas/${areaId}/estados`);
-        if (response.ok) {
-            const estados = await response.json();
-            
-            estadoSelect.innerHTML = '<option value="">Seleccionar estado</option>';
-            estados.forEach(estado => {
-                const option = document.createElement('option');
-                option.value = estado.id;
-                option.textContent = estado.nombre;
-                estadoSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading states:', error);
-        estadoSelect.innerHTML = '<option value="">Error cargando estados</option>';
-    }
-}
-
-// Load current state info
-async function cargarEstadoActual(ofId) {
-    try {
-        const response = await fetch(`/api/fabricacion/${ofId}/estado-actual`);
-        if (response.ok) {
-            const estado = await response.json();
-            const infoElement = document.getElementById('area_estado_actual');
-            
-            if (estado.area && estado.estado) {
-                infoElement.textContent = `${estado.area} / ${estado.estado}`;
-            } else {
-                infoElement.textContent = 'Sin área/estado asignado';
-            }
-        }
-    } catch (error) {
-        console.error('Error loading current state:', error);
-        document.getElementById('area_estado_actual').textContent = 'Error cargando estado';
-    }
 }
 
 // Initialize on page load if there's a selected proyecto
