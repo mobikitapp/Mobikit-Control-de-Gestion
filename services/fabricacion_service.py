@@ -763,13 +763,30 @@ class FabricacionService:
             'processed_ids': []
         }
         
+        # Get the area_id from the estado
+        from models import AreaEstado
+        area_estado = db.session.query(AreaEstado).filter_by(id=nuevo_estado_id).first()
+        if not area_estado:
+            logger.error(f"Estado {nuevo_estado_id} no encontrado")
+            results['error_count'] = len(of_ids)
+            for of_id in of_ids:
+                results['errors'].append({
+                    'of_id': of_id,
+                    'error': f'Estado {nuevo_estado_id} no encontrado'
+                })
+            return results
+        
+        area_id = area_estado.area_id
+        
         for of_id in of_ids:
             try:
                 # Use force_change_estado_area to allow cross-area transitions in bulk ops
                 self.areas_service.force_change_estado_area(
                     of_id,
+                    area_id,
                     nuevo_estado_id,
-                    responsable_id=responsable_id or created_by,
+                    created_by,
+                    responsable_id=responsable_id,
                     notas=notas or "Cambio masivo de estado"
                 )
                 results['success_count'] += 1
