@@ -785,7 +785,6 @@ async function showBulkChangeEstado() {
     
     if (!modalElem) {
         console.error('Bulk change estado modal not found');
-        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
     }
     
@@ -796,13 +795,7 @@ async function showBulkChangeEstado() {
     const notasElem = modalElem.querySelector('#bulk-notas');
     
     if (!countElem || !ordersElem || !selectElem || !notasElem) {
-        console.error('Bulk change estado modal elements not found:', {
-            countElem: !!countElem,
-            ordersElem: !!ordersElem,
-            selectElem: !!selectElem,
-            notasElem: !!notasElem
-        });
-        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
+        console.error('Bulk change estado modal elements not found');
         return;
     }
     
@@ -846,7 +839,6 @@ async function showBulkChangeEstado() {
     } catch (error) {
         console.error('Error cargando estados:', error);
         selectElem.innerHTML = '<option value="">Error al cargar estados</option>';
-        alert('Error al cargar los estados disponibles. Por favor intente nuevamente.');
     }
 }
 
@@ -875,7 +867,6 @@ async function executeBulkChangeEstado() {
         const result = await response.json();
         
         if (result.success) {
-            alert(`✓ ${result.message}\n${result.results.errors.length > 0 ? '\nErrores:\n' + result.results.errors.map(e => `- OF ${e.of_id}: ${e.error}`).join('\n') : ''}`);
             bootstrap.Modal.getInstance(document.getElementById('bulkChangeEstadoModal')).hide();
             clearSelection();
             window.location.reload();
@@ -884,7 +875,7 @@ async function executeBulkChangeEstado() {
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al cambiar estado masivamente');
+        alert('Error al cambiar estado');
     }
 }
 
@@ -898,7 +889,6 @@ async function showBulkArchive() {
     
     if (!modalElem) {
         console.error('Bulk archive modal not found');
-        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
     }
     
@@ -908,7 +898,6 @@ async function showBulkArchive() {
     
     if (!countElem || !ordersElem) {
         console.error('Bulk archive modal elements not found');
-        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
     }
     
@@ -942,7 +931,6 @@ async function executeBulkArchive() {
         const result = await response.json();
         
         if (result.success) {
-            alert(`✓ ${result.message}\n${result.results.errors.length > 0 ? '\nErrores:\n' + result.results.errors.map(e => `- OF ${e.of_id}: ${e.error}`).join('\n') : ''}`);
             bootstrap.Modal.getInstance(document.getElementById('bulkArchiveModal')).hide();
             clearSelection();
             window.location.reload();
@@ -951,7 +939,7 @@ async function executeBulkArchive() {
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al archivar masivamente');
+        alert('Error al archivar');
     }
 }
 
@@ -965,7 +953,6 @@ async function showBulkDelete() {
     
     if (!modalElem) {
         console.error('Bulk delete modal not found');
-        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
     }
     
@@ -977,7 +964,6 @@ async function showBulkDelete() {
     
     if (!countElem || !ordersElem || !confirmElem || !btnElem) {
         console.error('Bulk delete modal elements not found');
-        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
     }
     
@@ -1020,7 +1006,6 @@ async function executeBulkDelete() {
         const result = await response.json();
         
         if (result.success) {
-            alert(`✓ ${result.message}\n${result.results.errors.length > 0 ? '\nErrores:\n' + result.results.errors.map(e => `- OF ${e.of_id}: ${e.error}`).join('\n') : ''}`);
             bootstrap.Modal.getInstance(document.getElementById('bulkDeleteModal')).hide();
             clearSelection();
             window.location.reload();
@@ -1029,7 +1014,7 @@ async function executeBulkDelete() {
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al eliminar masivamente');
+        alert('Error al eliminar');
     }
 }
 
