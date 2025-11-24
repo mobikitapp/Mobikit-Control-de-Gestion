@@ -737,6 +737,11 @@ function updateBulkActionsBar() {
     const countElem = document.getElementById('selected-count');
     const textElem = document.getElementById('selected-text');
     
+    if (!bar || !countElem || !textElem) {
+        console.warn('Bulk actions bar elements not found');
+        return;
+    }
+    
     countElem.textContent = count;
     textElem.textContent = count === 1 ? 'orden seleccionada' : 'órdenes seleccionadas';
     bar.style.display = count > 0 ? 'block' : 'none';
@@ -749,7 +754,10 @@ function updateBulkActionsBar() {
 function clearSelection() {
     selectedOrders.clear();
     document.querySelectorAll('.order-checkbox').forEach(cb => cb.checked = false);
-    document.getElementById('select-all-orders').checked = false;
+    const selectAll = document.getElementById('select-all-orders');
+    if (selectAll) {
+        selectAll.checked = false;
+    }
     updateBulkActionsBar();
 }
 
@@ -769,30 +777,39 @@ function getSelectedOrdersData() {
 
 async function showBulkChangeEstado() {
     const count = selectedOrders.size;
-    document.getElementById('bulk-change-count').textContent = count;
+    const countElem = document.getElementById('bulk-change-count');
+    const ordersElem = document.getElementById('bulk-selected-orders');
+    const selectElem = document.getElementById('bulk-estado-select');
+    const modalElem = document.getElementById('bulkChangeEstadoModal');
+    
+    if (!countElem || !ordersElem || !selectElem || !modalElem) {
+        console.error('Bulk change estado modal elements not found');
+        return;
+    }
+    
+    countElem.textContent = count;
     
     const ordersHtml = getSelectedOrdersData().map(of => 
         `<div class="badge bg-primary me-1 mb-1">${of.codigo}</div>`
     ).join('');
-    document.getElementById('bulk-selected-orders').innerHTML = ordersHtml;
+    ordersElem.innerHTML = ordersHtml;
     
     try {
         const response = await fetch('/fabricacion/api/estados-disponibles');
         const estados = await response.json();
         
-        const select = document.getElementById('bulk-estado-select');
-        select.innerHTML = '<option value="">Seleccione un estado...</option>';
+        selectElem.innerHTML = '<option value="">Seleccione un estado...</option>';
         estados.forEach(estado => {
             const option = document.createElement('option');
             option.value = estado.id;
             option.textContent = `${estado.area} - ${estado.nombre}`;
-            select.appendChild(option);
+            selectElem.appendChild(option);
         });
     } catch (error) {
         console.error('Error cargando estados:', error);
     }
     
-    const modal = new bootstrap.Modal(document.getElementById('bulkChangeEstadoModal'));
+    const modal = new bootstrap.Modal(modalElem);
     modal.show();
     
     if (typeof feather !== 'undefined') {
@@ -840,14 +857,23 @@ async function executeBulkChangeEstado() {
 
 function showBulkArchive() {
     const count = selectedOrders.size;
-    document.getElementById('bulk-archive-count').textContent = count;
+    const countElem = document.getElementById('bulk-archive-count');
+    const ordersElem = document.getElementById('bulk-archive-orders');
+    const modalElem = document.getElementById('bulkArchiveModal');
+    
+    if (!countElem || !ordersElem || !modalElem) {
+        console.error('Bulk archive modal elements not found');
+        return;
+    }
+    
+    countElem.textContent = count;
     
     const ordersHtml = getSelectedOrdersData().map(of => 
         `<div class="badge bg-warning me-1 mb-1">${of.codigo}</div>`
     ).join('');
-    document.getElementById('bulk-archive-orders').innerHTML = ordersHtml;
+    ordersElem.innerHTML = ordersHtml;
     
-    const modal = new bootstrap.Modal(document.getElementById('bulkArchiveModal'));
+    const modal = new bootstrap.Modal(modalElem);
     modal.show();
     
     if (typeof feather !== 'undefined') {
@@ -883,17 +909,28 @@ async function executeBulkArchive() {
 
 function showBulkDelete() {
     const count = selectedOrders.size;
-    document.getElementById('bulk-delete-count').textContent = count;
+    const countElem = document.getElementById('bulk-delete-count');
+    const ordersElem = document.getElementById('bulk-delete-orders');
+    const confirmElem = document.getElementById('bulk-delete-confirmation');
+    const btnElem = document.getElementById('bulk-delete-btn');
+    const modalElem = document.getElementById('bulkDeleteModal');
+    
+    if (!countElem || !ordersElem || !confirmElem || !btnElem || !modalElem) {
+        console.error('Bulk delete modal elements not found');
+        return;
+    }
+    
+    countElem.textContent = count;
     
     const ordersHtml = getSelectedOrdersData().map(of => 
         `<div class="badge bg-danger me-1 mb-1">${of.codigo}</div>`
     ).join('');
-    document.getElementById('bulk-delete-orders').innerHTML = ordersHtml;
+    ordersElem.innerHTML = ordersHtml;
     
-    document.getElementById('bulk-delete-confirmation').value = '';
-    document.getElementById('bulk-delete-btn').disabled = true;
+    confirmElem.value = '';
+    btnElem.disabled = true;
     
-    const modal = new bootstrap.Modal(document.getElementById('bulkDeleteModal'));
+    const modal = new bootstrap.Modal(modalElem);
     modal.show();
     
     if (typeof feather !== 'undefined') {
