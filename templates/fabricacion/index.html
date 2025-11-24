@@ -848,10 +848,6 @@ async function showBulkChangeEstado() {
         selectElem.innerHTML = '<option value="">Error al cargar estados</option>';
         alert('Error al cargar los estados disponibles. Por favor intente nuevamente.');
     }
-    
-    if (typeof feather !== 'undefined') {
-        feather.replace();
-    }
 }
 
 async function executeBulkChangeEstado() {
@@ -931,10 +927,6 @@ async function showBulkArchive() {
     
     const modal = new bootstrap.Modal(modalElem);
     modal.show();
-    
-    if (typeof feather !== 'undefined') {
-        feather.replace();
-    }
 }
 
 async function executeBulkArchive() {
@@ -1007,10 +999,6 @@ async function showBulkDelete() {
     
     const modal = new bootstrap.Modal(modalElem);
     modal.show();
-    
-    if (typeof feather !== 'undefined') {
-        feather.replace();
-    }
 }
 
 async function executeBulkDelete() {
