@@ -23,7 +23,7 @@ The system uses a modular blueprint architecture, separating concerns into domai
 - **Client Management**: Manages client records, contacts, and project history.
 - **Project Lifecycle**: Supports end-to-end project management, including multiple contracts and state management across phases. Features project types (Social, Estandar, Especial) influencing cost and time, and a project log for tracking technical specifications and changes.
 - **Contract & Purchase Order Management**: Handles contract/PO-based projects with document attachment, multi-currency support, payment terms, and delivery milestones. Includes a non-destructive archive system.
-- **Manufacturing Orders (OF)**: Manages production workflows (planned → in_production → QA → finished → delivered) with material tracking, quality control, and time comparison.
+- **Manufacturing Orders (OF)**: Manages production workflows (planned → in_production → QA → finished → delivered) with material tracking, quality control, and time comparison. Includes bulk operations for multi-selection with checkboxes, allowing mass state changes, archiving, and deletion with partial success handling and role-based permissions.
 - **Dispatch Management**: Coordinates logistics (scheduled → in_transit → delivered → observed) with documentation and evidence collection. Includes a non-destructive archive system.
 - **Payment Status System**: Manages financial payment statuses nested under projects, grouped by client, with invoicing functionality and financial analysis.
 - **Processing Time Tracking**: Dynamically tracks processing time per area for manufacturing orders.
@@ -52,6 +52,7 @@ The system uses a modular blueprint architecture, separating concerns into domai
 - **Gantt Chart Enhancements**: Integrates contract milestones and interactive dropdowns for Manufacturing Orders.
 - **Print Optimization**: Configured for A4 horizontal and letter format.
 - **Notification System**: Separated user notifications from admin configuration with user-specific views and admin-only preferences.
+- **Bulk Operations**: Manufacturing orders feature checkbox selection (left column) with floating action bar, confirmation modals, and support for mass state changes, archiving, and deletion.
 
 ## External Dependencies
 
