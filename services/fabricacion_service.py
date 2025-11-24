@@ -740,3 +740,158 @@ class FabricacionService:
             db.session.rollback()
             logger.error(f"Error creando OF para despacho {despacho_id}: {str(e)}")
             raise
+
+    def bulk_change_estado(self, of_ids: List[int], nuevo_estado_id: int, responsable_id: str = None, notas: str = None, created_by: str = None) -> Dict[str, Any]:
+        """
+        Change estado for multiple ordenes de fabricacion
+        
+        Args:
+            of_ids: List of OF IDs to update
+            nuevo_estado_id: New estado ID
+            responsable_id: Optional responsible user ID
+            notas: Optional notes
+            created_by: User ID performing the action
+            
+        Returns:
+            Dict with success count, errors, and processed IDs
+        """
+        results = {
+            'success_count': 0,
+            'error_count': 0,
+            'errors': [],
+            'processed_ids': []
+        }
+        
+        for of_id in of_ids:
+            try:
+                self.areas_service.change_estado_in_area(
+                    of_id,
+                    nuevo_estado_id,
+                    responsable_id=responsable_id,
+                    notas=notas
+                )
+                results['success_count'] += 1
+                results['processed_ids'].append(of_id)
+                logger.info(f"Estado cambiado para OF {of_id}")
+            except Exception as e:
+                db.session.rollback()
+                results['error_count'] += 1
+                results['errors'].append({
+                    'of_id': of_id,
+                    'error': str(e)
+                })
+                logger.error(f"Error cambiando estado de OF {of_id}: {str(e)}")
+        
+        AuditService.log_action(
+            'ordenes_fabricacion',
+            None,
+            'BULK_CHANGE_ESTADO',
+            datos_nuevos={
+                'nuevo_estado_id': nuevo_estado_id,
+                'of_ids': of_ids,
+                'success_count': results['success_count'],
+                'error_count': results['error_count'],
+                'created_by': created_by
+            }
+        )
+        
+        logger.info(f"Cambio masivo de estado completado: {results['success_count']} exitosos, {results['error_count']} errores")
+        return results
+
+    def bulk_archive(self, of_ids: List[int], created_by: str = None) -> Dict[str, Any]:
+        """
+        Archive multiple ordenes de fabricacion
+        
+        Args:
+            of_ids: List of OF IDs to archive
+            created_by: User ID performing the action
+            
+        Returns:
+            Dict with success count, errors, and processed IDs
+        """
+        results = {
+            'success_count': 0,
+            'error_count': 0,
+            'errors': [],
+            'processed_ids': []
+        }
+        
+        for of_id in of_ids:
+            try:
+                self.areas_service.archive_dispatch(of_id)
+                results['success_count'] += 1
+                results['processed_ids'].append(of_id)
+                logger.info(f"OF {of_id} archivada")
+            except Exception as e:
+                db.session.rollback()
+                results['error_count'] += 1
+                results['errors'].append({
+                    'of_id': of_id,
+                    'error': str(e)
+                })
+                logger.error(f"Error archivando OF {of_id}: {str(e)}")
+        
+        AuditService.log_action(
+            'ordenes_fabricacion',
+            None,
+            'BULK_ARCHIVE',
+            datos_nuevos={
+                'of_ids': of_ids,
+                'success_count': results['success_count'],
+                'error_count': results['error_count'],
+                'created_by': created_by
+            }
+        )
+        
+        logger.info(f"Archivado masivo completado: {results['success_count']} exitosos, {results['error_count']} errores")
+        return results
+
+    def bulk_delete(self, of_ids: List[int], user_role: str = None, created_by: str = None) -> Dict[str, Any]:
+        """
+        Delete multiple ordenes de fabricacion
+        
+        Args:
+            of_ids: List of OF IDs to delete
+            user_role: Role of the user requesting deletion
+            created_by: User ID performing the action
+            
+        Returns:
+            Dict with success count, errors, and processed IDs
+        """
+        results = {
+            'success_count': 0,
+            'error_count': 0,
+            'errors': [],
+            'processed_ids': []
+        }
+        
+        for of_id in of_ids:
+            try:
+                self.delete_orden_fabricacion(of_id, user_role)
+                results['success_count'] += 1
+                results['processed_ids'].append(of_id)
+                logger.info(f"OF {of_id} eliminada")
+            except Exception as e:
+                db.session.rollback()
+                results['error_count'] += 1
+                results['errors'].append({
+                    'of_id': of_id,
+                    'error': str(e)
+                })
+                logger.error(f"Error eliminando OF {of_id}: {str(e)}")
+        
+        AuditService.log_action(
+            'ordenes_fabricacion',
+            None,
+            'BULK_DELETE',
+            datos_nuevos={
+                'of_ids': of_ids,
+                'success_count': results['success_count'],
+                'error_count': results['error_count'],
+                'created_by': created_by,
+                'user_role': user_role
+            }
+        )
+        
+        logger.info(f"Eliminación masiva completada: {results['success_count']} exitosos, {results['error_count']} errores")
+        return results

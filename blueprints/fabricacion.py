@@ -573,3 +573,109 @@ def api_by_proyecto(proyecto_id):
     except Exception as e:
         logger.error(f"Error en API OFs por proyecto: {str(e)}")
         return jsonify({'error': 'Error al cargar órdenes de fabricación'}), 500
+
+@fabricacion_bp.route('/bulk/change-estado', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+def bulk_change_estado():
+    """Cambiar estado de múltiples órdenes de fabricación"""
+    try:
+        data = request.get_json()
+        of_ids = data.get('of_ids', [])
+        nuevo_estado_id = data.get('estado_id')
+        responsable_id = data.get('responsable_id')
+        notas = data.get('notas')
+        
+        if not isinstance(of_ids, list):
+            return jsonify({'error': 'of_ids debe ser una lista'}), 400
+        
+        if not of_ids:
+            return jsonify({'error': 'No se seleccionaron órdenes'}), 400
+        
+        if not all(isinstance(id, int) for id in of_ids):
+            return jsonify({'error': 'Todos los IDs deben ser números enteros'}), 400
+        
+        if not nuevo_estado_id:
+            return jsonify({'error': 'Debe especificar un estado'}), 400
+        
+        results = fabricacion_service.bulk_change_estado(
+            of_ids,
+            nuevo_estado_id,
+            responsable_id=responsable_id,
+            notas=notas,
+            created_by=current_user.id
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'{results["success_count"]} órdenes actualizadas, {results["error_count"]} errores',
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en cambio masivo de estado: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@fabricacion_bp.route('/bulk/archive', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+def bulk_archive():
+    """Archivar múltiples órdenes de fabricación"""
+    try:
+        data = request.get_json()
+        of_ids = data.get('of_ids', [])
+        
+        if not isinstance(of_ids, list):
+            return jsonify({'error': 'of_ids debe ser una lista'}), 400
+        
+        if not of_ids:
+            return jsonify({'error': 'No se seleccionaron órdenes'}), 400
+        
+        if not all(isinstance(id, int) for id in of_ids):
+            return jsonify({'error': 'Todos los IDs deben ser números enteros'}), 400
+        
+        results = fabricacion_service.bulk_archive(
+            of_ids,
+            created_by=current_user.id
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'{results["success_count"]} órdenes archivadas, {results["error_count"]} errores',
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en archivado masivo: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@fabricacion_bp.route('/bulk/delete', methods=['POST'])
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.PRODUCCION)
+def bulk_delete():
+    """Eliminar múltiples órdenes de fabricación"""
+    try:
+        data = request.get_json()
+        of_ids = data.get('of_ids', [])
+        
+        if not isinstance(of_ids, list):
+            return jsonify({'error': 'of_ids debe ser una lista'}), 400
+        
+        if not of_ids:
+            return jsonify({'error': 'No se seleccionaron órdenes'}), 400
+        
+        if not all(isinstance(id, int) for id in of_ids):
+            return jsonify({'error': 'Todos los IDs deben ser números enteros'}), 400
+        
+        results = fabricacion_service.bulk_delete(
+            of_ids,
+            user_role=current_user.rol.value,
+            created_by=current_user.id
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'{results["success_count"]} órdenes eliminadas, {results["error_count"]} errores',
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en eliminación masiva: {str(e)}")
+        return jsonify({'error': str(e)}), 500
