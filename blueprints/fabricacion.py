@@ -585,7 +585,7 @@ def api_estados_disponibles():
         estados = AreaEstado.query.join(Area).filter(
             AreaEstado.activo == True,
             Area.activo == True
-        ).order_by(Area.orden, AreaEstado.orden_en_area).all()
+        ).order_by(Area.orden_secuencia, AreaEstado.orden_en_area).all()
         
         return jsonify([{
             'id': estado.id,
