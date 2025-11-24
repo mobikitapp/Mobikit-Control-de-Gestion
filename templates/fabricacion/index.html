@@ -778,20 +778,29 @@ function getSelectedOrdersData() {
 async function showBulkChangeEstado() {
     const count = selectedOrders.size;
     
-    // Wait a bit for DOM to be ready after page reload
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Wait for DOM and Bootstrap to be fully ready
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    const countElem = document.getElementById('bulk-change-count');
-    const ordersElem = document.getElementById('bulk-selected-orders');
-    const selectElem = document.getElementById('bulk-estado-select');
     const modalElem = document.getElementById('bulkChangeEstadoModal');
     
-    if (!countElem || !ordersElem || !selectElem || !modalElem) {
+    if (!modalElem) {
+        console.error('Bulk change estado modal not found');
+        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
+        return;
+    }
+    
+    // Query elements within the modal to ensure they exist
+    const countElem = modalElem.querySelector('#bulk-change-count');
+    const ordersElem = modalElem.querySelector('#bulk-selected-orders');
+    const selectElem = modalElem.querySelector('#bulk-estado-select');
+    const notasElem = modalElem.querySelector('#bulk-notas');
+    
+    if (!countElem || !ordersElem || !selectElem || !notasElem) {
         console.error('Bulk change estado modal elements not found:', {
             countElem: !!countElem,
             ordersElem: !!ordersElem,
             selectElem: !!selectElem,
-            modalElem: !!modalElem
+            notasElem: !!notasElem
         });
         alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
@@ -800,7 +809,7 @@ async function showBulkChangeEstado() {
     // Reset modal content
     countElem.textContent = count;
     selectElem.innerHTML = '<option value="">Cargando estados...</option>';
-    document.getElementById('bulk-notas').value = '';
+    notasElem.value = '';
     
     const ordersHtml = getSelectedOrdersData().map(of => 
         `<div class="badge bg-primary me-1 mb-1">${of.codigo}</div>`
@@ -886,14 +895,22 @@ async function executeBulkChangeEstado() {
 async function showBulkArchive() {
     const count = selectedOrders.size;
     
-    // Wait a bit for DOM to be ready
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Wait for DOM and Bootstrap to be fully ready
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    const countElem = document.getElementById('bulk-archive-count');
-    const ordersElem = document.getElementById('bulk-archive-orders');
     const modalElem = document.getElementById('bulkArchiveModal');
     
-    if (!countElem || !ordersElem || !modalElem) {
+    if (!modalElem) {
+        console.error('Bulk archive modal not found');
+        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
+        return;
+    }
+    
+    // Query elements within the modal
+    const countElem = modalElem.querySelector('#bulk-archive-count');
+    const ordersElem = modalElem.querySelector('#bulk-archive-orders');
+    
+    if (!countElem || !ordersElem) {
         console.error('Bulk archive modal elements not found');
         alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
@@ -949,16 +966,24 @@ async function executeBulkArchive() {
 async function showBulkDelete() {
     const count = selectedOrders.size;
     
-    // Wait a bit for DOM to be ready
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Wait for DOM and Bootstrap to be fully ready
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    const countElem = document.getElementById('bulk-delete-count');
-    const ordersElem = document.getElementById('bulk-delete-orders');
-    const confirmElem = document.getElementById('bulk-delete-confirmation');
-    const btnElem = document.getElementById('bulk-delete-btn');
     const modalElem = document.getElementById('bulkDeleteModal');
     
-    if (!countElem || !ordersElem || !confirmElem || !btnElem || !modalElem) {
+    if (!modalElem) {
+        console.error('Bulk delete modal not found');
+        alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
+        return;
+    }
+    
+    // Query elements within the modal
+    const countElem = modalElem.querySelector('#bulk-delete-count');
+    const ordersElem = modalElem.querySelector('#bulk-delete-orders');
+    const confirmElem = modalElem.querySelector('#bulk-delete-confirmation');
+    const btnElem = modalElem.querySelector('#bulk-delete-btn');
+    
+    if (!countElem || !ordersElem || !confirmElem || !btnElem) {
         console.error('Bulk delete modal elements not found');
         alert('Error: No se pudo abrir el modal. Por favor recargue la página.');
         return;
