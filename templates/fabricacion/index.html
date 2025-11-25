@@ -1383,8 +1383,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
+            // Update select-all checkbox state
+            const selectAllCheckbox = document.getElementById('select-all-orders');
+            if (selectAllCheckbox && !this.checked) {
+                selectAllCheckbox.checked = false;
+            }
+            
             updateBulkActionsBar();
         });
+        
+        // Initialize project checkbox state on page load
+        const proyectoId = checkbox.dataset.proyectoId;
+        updateProjectCheckboxState(proyectoId);
     });
     
     const deleteConfirmation = document.getElementById('bulk-delete-confirmation');
