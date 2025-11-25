@@ -3,6 +3,9 @@
 ## Overview
 A comprehensive management system for manufacturing companies to centralize the administration of clients, projects, contracts, manufacturing orders, and dispatches. Its purpose is to streamline operations, improve tracking, and enhance decision-making through end-to-end visibility. Key capabilities include integrated document management, quality assurance, multi-role user access, financial payment status, processing time tracking, strategic capacity planning, and customizable project types. The system aims to provide a centralized platform for managing the entire manufacturing lifecycle from client engagement to product delivery.
 
+## Recent Changes
+- **November 25, 2025**: Fixed production bug where bulk estado change modal did not display area/estado options. Solution: Pre-render estado options server-side (grouped by area) instead of fetching them asynchronously with JavaScript. This ensures the modal always has options available regardless of network conditions or client-side script execution timing.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
