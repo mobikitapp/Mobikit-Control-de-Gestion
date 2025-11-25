@@ -761,18 +761,43 @@ function clearSelection() {
     updateBulkActionsBar();
 }
 
+function cleanInvisibleSelections() {
+    // Remove IDs from selectedOrders that are not present on current page
+    const visibleIds = new Set();
+    document.querySelectorAll('tr[data-of-id]').forEach(row => {
+        visibleIds.add(row.dataset.ofId);
+    });
+    
+    Array.from(selectedOrders).forEach(id => {
+        if (!visibleIds.has(id)) {
+            selectedOrders.delete(id);
+        }
+    });
+    
+    updateBulkActionsBar();
+}
+
 function getSelectedOrders() {
-    return Array.from(selectedOrders).map(id => parseInt(id));
+    // Only return orders visible on current page
+    return Array.from(selectedOrders)
+        .filter(id => document.querySelector(`tr[data-of-id="${id}"]`) !== null)
+        .map(id => parseInt(id));
 }
 
 function getSelectedOrdersData() {
-    return Array.from(selectedOrders).map(id => {
-        const row = document.querySelector(`tr[data-of-id="${id}"]`);
-        return {
-            id: parseInt(id),
-            codigo: row ? row.dataset.ofCodigo : `OF-${id}`
-        };
-    });
+    return Array.from(selectedOrders)
+        .filter(id => {
+            // Only include orders that are visible on current page
+            const row = document.querySelector(`tr[data-of-id="${id}"]`);
+            return row !== null;
+        })
+        .map(id => {
+            const row = document.querySelector(`tr[data-of-id="${id}"]`);
+            return {
+                id: parseInt(id),
+                codigo: row.dataset.ofCodigo
+            };
+        });
 }
 
 async function showBulkChangeEstado() {
@@ -1134,6 +1159,9 @@ document.addEventListener('DOMContentLoaded', function() {
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl)
     })
+
+    // Clean selections from previous pages/filters
+    cleanInvisibleSelections();
 
     // === Bulk Actions Handlers ===
     const selectAllCheckbox = document.getElementById('select-all-orders');
