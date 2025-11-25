@@ -610,6 +610,13 @@
                     <label for="bulk-estado-select" class="form-label">Nuevo Estado <span class="text-danger">*</span></label>
                     <select class="form-select" id="bulk-estado-select" required>
                         <option value="">Seleccione un estado...</option>
+                        {% for area, estados in estados_por_area.items() %}
+                        <optgroup label="{{ area }}">
+                            {% for estado in estados %}
+                            <option value="{{ estado.id }}">{{ estado.nombre }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="mb-3">
@@ -978,7 +985,7 @@ async function showBulkChangeEstado() {
     const modal = new bootstrap.Modal(modalElem);
 
     // Wait for modal to be fully shown before accessing elements
-    modalElem.addEventListener('shown.bs.modal', async function onModalShown() {
+    modalElem.addEventListener('shown.bs.modal', function onModalShown() {
         // Remove event listener to avoid duplicate calls
         modalElem.removeEventListener('shown.bs.modal', onModalShown);
 
@@ -995,37 +1002,15 @@ async function showBulkChangeEstado() {
 
         // Reset modal content
         countElem.textContent = count;
-        selectElem.innerHTML = '<option value="">Cargando estados...</option>';
+        selectElem.value = ''; // Reset selection
         notasElem.value = '';
 
         const ordersHtml = getSelectedOrdersData().map(of => 
             `<div class="badge bg-primary me-1 mb-1">${of.codigo}</div>`
         ).join('');
         ordersElem.innerHTML = ordersHtml;
-
-        // Load estados
-        try {
-            const response = await fetch('/fabricacion/api/estados-disponibles');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const estados = await response.json();
-
-            if (estados.error) {
-                throw new Error(estados.error);
-            }
-
-            selectElem.innerHTML = '<option value="">Seleccione un estado...</option>';
-            estados.forEach(estado => {
-                const option = document.createElement('option');
-                option.value = estado.id;
-                option.textContent = `${estado.area} - ${estado.nombre}`;
-                selectElem.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Error cargando estados:', error);
-            selectElem.innerHTML = '<option value="">Error al cargar estados</option>';
-        }
+        
+        console.log(`Bulk change estado modal ready for ${count} orders`);
     });
 
     modal.show();

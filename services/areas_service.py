@@ -973,3 +973,30 @@ class AreasService:
         except Exception as e:
             logger.error(f"Error obteniendo todas las órdenes por fecha de entrega: {str(e)}")
             raise
+    
+    def get_estados_por_area(self) -> Dict[str, List[Any]]:
+        """
+        Get all active estados grouped by area name
+        Returns a dictionary where keys are area names and values are lists of estados
+        """
+        try:
+            from collections import OrderedDict
+            
+            # Get all active areas ordered by sequence
+            areas = self.areas_repo.get_all_areas()
+            active_areas = [area for area in areas if area.activo]
+            active_areas.sort(key=lambda x: x.orden_secuencia)
+            
+            # Build dictionary grouped by area name
+            estados_por_area = OrderedDict()
+            for area in active_areas:
+                estados = self.areas_repo.get_estados_by_area(area.id)
+                active_estados = [estado for estado in estados if estado.activo]
+                if active_estados:  # Only include areas that have active estados
+                    estados_por_area[area.nombre] = active_estados
+            
+            return estados_por_area
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo estados por área: {str(e)}")
+            return {}

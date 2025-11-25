@@ -127,6 +127,9 @@ def index():
 
         # Get despachos programados sin OFs asociadas
         despachos_sin_ofs = fabricacion_service.get_despachos_sin_ofs()
+        
+        # Get estados disponibles grouped by area for bulk operations
+        estados_por_area = areas_service.get_estados_por_area()
 
         # Calculate pagination
         total_pages = (total_count + filters.per_page - 1) // filters.per_page
@@ -140,6 +143,7 @@ def index():
                              url_args=url_args,
                              clientes=clientes,
                              despachos_sin_ofs=despachos_sin_ofs,
+                             estados_por_area=estados_por_area,
                              filters=filters,
                              total_count=total_count,
                              total_pages=total_pages,
