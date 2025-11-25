@@ -97,6 +97,9 @@ def index():
         # Get view mode (grouped by default, flat if requested)
         view_mode = request.args.get('view', 'grouped')
         
+        # Prepare args for URL building (exclude 'view' to avoid conflicts)
+        url_args = {k: v for k, v in request.args.items() if k != 'view'}
+        
         # Group OFs by project (Python-level grouping after query)
         project_groups = []
         if view_mode == 'grouped' and ofs:
@@ -134,6 +137,7 @@ def index():
                              ofs=ofs,
                              project_groups=project_groups,
                              view_mode=view_mode,
+                             url_args=url_args,
                              clientes=clientes,
                              despachos_sin_ofs=despachos_sin_ofs,
                              filters=filters,

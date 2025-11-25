@@ -117,11 +117,11 @@
                 <!-- View Mode Toggle -->
                 {% if ofs %}
                 <div class="btn-group btn-group-sm" role="group">
-                    <a href="{{ url_for('fabricacion.index', view='grouped', **request.args.to_dict(flat=False)) if view_mode != 'grouped' else '#' }}" 
+                    <a href="{{ url_for('fabricacion.index', view='grouped', **url_args) if view_mode != 'grouped' else '#' }}" 
                        class="btn btn-outline-primary {% if view_mode == 'grouped' %}active{% endif %}">
                         <i data-feather="layers" class="me-1"></i> Agrupado
                     </a>
-                    <a href="{{ url_for('fabricacion.index', view='flat', **request.args.to_dict(flat=False)) if view_mode != 'flat' else '#' }}" 
+                    <a href="{{ url_for('fabricacion.index', view='flat', **url_args) if view_mode != 'flat' else '#' }}" 
                        class="btn btn-outline-primary {% if view_mode == 'flat' %}active{% endif %}">
                         <i data-feather="list" class="me-1"></i> Lista
                     </a>
@@ -1319,114 +1319,6 @@ function updateProjectCheckboxState(proyectoId) {
 }
 
 // Project expand/collapse functionality
-    function expandAllProjects() {
-        const collapseElements = document.querySelectorAll('[id^="project-ofs-"]');
-        collapseElements.forEach(element => {
-            if (!element.classList.contains('show')) {
-                const collapse = new bootstrap.Collapse(element, {show: true});
-            }
-            // Update icon
-            const projectId = element.id.replace('project-ofs-', '');
-            const icon = document.getElementById(`toggle-icon-${projectId}`);
-            if (icon) {
-                icon.setAttribute('data-feather', 'chevron-down');
-            }
-        });
-
-        // Refresh feather icons
-        if (typeof feather !== 'undefined') {
-            feather.replace();
-        }
-    }
-
-    function collapseAllProjects() {
-        const collapseElements = document.querySelectorAll('[id^="project-ofs-"]');
-        collapseElements.forEach(element => {
-            if (element.classList.contains('show')) {
-                const collapse = new bootstrap.Collapse(element, {hide: true});
-            }
-            // Update icon
-            const projectId = element.id.replace('project-ofs-', '');
-            const icon = document.getElementById(`toggle-icon-${projectId}`);
-            if (icon) {
-                icon.setAttribute('data-feather', 'chevron-right');
-            }
-        });
-
-        // Refresh feather icons
-        if (typeof feather !== 'undefined') {
-            feather.replace();
-        }
-    }
-
-    // Initialize project toggle functionality
-    function initializeProjectToggle() {
-        // Handle individual project toggle buttons
-        document.querySelectorAll('.project-toggle-btn').forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                const targetId = this.getAttribute('data-bs-target');
-                const target = document.querySelector(targetId);
-                const projectId = targetId.replace('#project-ofs-', '');
-                const icon = document.getElementById(`toggle-icon-${projectId}`);
-
-                if (target && icon) {
-                    const isExpanded = target.classList.contains('show');
-
-                    if (isExpanded) {
-                        // Currently expanded, so collapse
-                        const collapse = new bootstrap.Collapse(target, {hide: true});
-                        icon.setAttribute('data-feather', 'chevron-right');
-                        this.setAttribute('aria-expanded', 'false');
-                    } else {
-                        // Currently collapsed, so expand
-                        const collapse = new bootstrap.Collapse(target, {show: true});
-                        icon.setAttribute('data-feather', 'chevron-down');
-                        this.setAttribute('aria-expanded', 'true');
-                    }
-
-                    // Refresh feather icons
-                    if (typeof feather !== 'undefined') {
-                        feather.replace();
-                    }
-                }
-            });
-        });
-
-        // Handle Bootstrap collapse events to update icons
-        document.querySelectorAll('[id^="project-ofs-"]').forEach(element => {
-            element.addEventListener('shown.bs.collapse', function() {
-                const projectId = this.id.replace('project-ofs-', '');
-                const icon = document.getElementById(`toggle-icon-${projectId}`);
-                const button = document.querySelector(`[data-bs-target="#${this.id}"]`);
-                if (icon) {
-                    icon.setAttribute('data-feather', 'chevron-down');
-                }
-                if (button) {
-                    button.setAttribute('aria-expanded', 'true');
-                }
-                if (typeof feather !== 'undefined') {
-                    feather.replace();
-                }
-            });
-
-            element.addEventListener('hidden.bs.collapse', function() {
-                const projectId = this.id.replace('project-ofs-', '');
-                const icon = document.getElementById(`toggle-icon-${projectId}`);
-                const button = document.querySelector(`[data-bs-target="#${this.id}"]`);
-                if (icon) {
-                    icon.setAttribute('data-feather', 'chevron-right');
-                }
-                if (button) {
-                    button.setAttribute('aria-expanded', 'false');
-                }
-                if (typeof feather !== 'undefined') {
-                    feather.replace();
-                }
-            });
-        });
-    }
-
 // Initialize on page load if there's a selected proyecto
 document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -1450,9 +1342,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Clean selections from previous pages/filters
     cleanInvisibleSelections();
-
-    // Initialize project toggle functionality
-    initializeProjectToggle();
 
     // Register event listeners for bulk action buttons
     const btnBulkChangeEstado = document.getElementById('btn-bulk-change-estado');
@@ -1568,7 +1457,6 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.disabled = this.value !== 'ELIMINAR';
         });
     }
-});
 });
 </script>
 {% endblock %}
