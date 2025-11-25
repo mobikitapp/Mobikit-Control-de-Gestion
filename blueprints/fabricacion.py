@@ -94,6 +94,31 @@ def index():
             else:
                 of.days_remaining = None
 
+        # Get view mode (grouped by default, flat if requested)
+        view_mode = request.args.get('view', 'grouped')
+        
+        # Group OFs by project (Python-level grouping after query)
+        project_groups = []
+        if view_mode == 'grouped' and ofs:
+            from collections import OrderedDict
+            groups_dict = OrderedDict()
+            
+            for of in ofs:
+                proyecto_id = of.proyecto.id
+                if proyecto_id not in groups_dict:
+                    groups_dict[proyecto_id] = {
+                        'proyecto': of.proyecto,
+                        'cliente': of.proyecto.cliente,
+                        'ofs': []
+                    }
+                groups_dict[proyecto_id]['ofs'].append(of)
+            
+            # Convert to list, sorted by project name
+            project_groups = sorted(
+                groups_dict.values(),
+                key=lambda g: g['proyecto'].nombre
+            )
+
         # Get data for filter dropdowns
         clientes = clientes_service.get_active_clientes()
 
@@ -107,6 +132,8 @@ def index():
 
         return render_template('fabricacion/index.html',
                              ofs=ofs,
+                             project_groups=project_groups,
+                             view_mode=view_mode,
                              clientes=clientes,
                              despachos_sin_ofs=despachos_sin_ofs,
                              filters=filters,
